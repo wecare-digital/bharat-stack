@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import { BarChart, DonutChart, Sparkline } from '../../../components/Charts';
 import * as api from '../../../api/client';
 
@@ -145,16 +146,20 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="page">
-        <div className="page-header">
-          <h1 className="page-title">₹ Payments Overview</h1>
-          <div className="header-actions">
-            <button className="btn-secondary" onClick={loadPayments} disabled={loading}>
-              ↻ {loading ? 'Loading...' : 'Refresh'}
-            </button>
-            <a href="/pay/wa" className="btn-primary" style={{ background: '#25D366' }}>+ WhatsApp Pay</a>
-            <a href="/pay/link" className="btn-secondary">+ Pay Link</a>
-          </div>
-        </div>
+        <PageHeader 
+          title="Payments Overview" 
+          subtitle="Payment statistics and transaction history"
+          icon="payment"
+          actions={
+            <div className="header-actions">
+              <button className="btn-secondary" onClick={loadPayments} disabled={loading}>
+                ↻ {loading ? 'Loading...' : 'Refresh'}
+              </button>
+              <a href="/pay/wa" className="btn-primary" style={{ background: '#25D366' }}>+ WhatsApp Pay</a>
+              <a href="/pay/link" className="btn-secondary">+ Pay Link</a>
+            </div>
+          }
+        />
 
         {/* Error Banner */}
         {error && (

@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import { BarChart, DonutChart, ProgressBar } from '../../../components/Charts';
 import * as api from '../../../api/client';
 
@@ -64,26 +65,30 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="page">
-        <div className="page-header">
-          <h1 className="page-title">≡ AWS Billing</h1>
-          <div className="header-actions">
-            <button className="btn-secondary" onClick={loadBilling} disabled={loading}>
-              ↻ {loading ? 'Loading...' : 'Refresh'}
-            </button>
-            <button 
-              className={`btn-secondary ${view === 'list' ? 'active' : ''}`}
-              onClick={() => setView('list')}
-            >
-              ☰ List
-            </button>
-            <button 
-              className={`btn-secondary ${view === 'chart' ? 'active' : ''}`}
-              onClick={() => setView('chart')}
-            >
-              ◫ Charts
-            </button>
-          </div>
-        </div>
+        <PageHeader 
+          title="AWS Billing" 
+          subtitle="Resource usage and cost tracking"
+          icon="billing"
+          actions={
+            <div className="header-actions">
+              <button className="btn-secondary" onClick={loadBilling} disabled={loading}>
+                ↻ {loading ? 'Loading...' : 'Refresh'}
+              </button>
+              <button 
+                className={`btn-secondary ${view === 'list' ? 'active' : ''}`}
+                onClick={() => setView('list')}
+              >
+                ☰ List
+              </button>
+              <button 
+                className={`btn-secondary ${view === 'chart' ? 'active' : ''}`}
+                onClick={() => setView('chart')}
+              >
+                ◫ Charts
+              </button>
+            </div>
+          }
+        />
 
         {/* Summary Cards */}
         <div className="stats-grid">

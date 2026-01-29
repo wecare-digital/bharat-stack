@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import { BarChart, DonutChart, Sparkline, DateRangePicker } from '../../../components/Charts';
 import * as api from '../../../api/client';
 
@@ -102,15 +103,19 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="page">
-        <div className="page-header">
-          <h1 className="page-title">◫ Messages Analytics</h1>
-          <div className="header-actions">
-            <button className="btn-secondary" onClick={loadMessages} disabled={loading}>
-              ↻ {loading ? 'Loading...' : 'Refresh'}
-            </button>
-            <a href="/dm/whatsapp" className="btn-primary">→ WhatsApp Inbox</a>
-          </div>
-        </div>
+        <PageHeader 
+          title="Messages Analytics" 
+          subtitle="Message statistics, trends, and channel breakdown"
+          icon="message"
+          actions={
+            <div className="header-actions">
+              <button className="btn-secondary" onClick={loadMessages} disabled={loading}>
+                ↻ {loading ? 'Loading...' : 'Refresh'}
+              </button>
+              <a href="/dm/whatsapp" className="btn-primary">→ WhatsApp Inbox</a>
+            </div>
+          }
+        />
 
         {/* Date Range Picker */}
         <div className="section" style={{ marginBottom: 20 }}>

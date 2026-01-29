@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 
 interface PageProps {
   signOut?: () => void;
@@ -136,14 +137,11 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
     <Layout user={user} onSignOut={signOut}>
       <div style={{ padding: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-            🤖 Internal AI Assistant
-          </h1>
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
-            Configure the FloatingAgent AI for admin tasks (sending messages, finding contacts, etc.)
-          </p>
-        </div>
+        <PageHeader 
+          title="Internal AI Assistant" 
+          subtitle="Configure the FloatingAgent AI for admin tasks"
+          icon="ai"
+        />
 
         {/* Info Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
