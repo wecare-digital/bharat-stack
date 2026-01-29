@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Layout Component - WECARE.DIGITAL
  */
 import React, { ReactNode, useState, useEffect } from 'react';
@@ -18,7 +18,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/dashboard']));
   const [searchOpen, setSearchOpen] = useState(false);
 
   useKeyboardShortcuts([
@@ -32,7 +32,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   };
 
   useEffect(() => {
-    const newExpanded = new Set<string>();
+    const newExpanded = new Set<string>(['/dashboard']); // Always keep Dashboard expanded
     const findParents = (items: (NavItem | NavSubItem)[], parents: string[] = []) => {
       for (const item of items) {
         if (isPathActive(item.path)) {
