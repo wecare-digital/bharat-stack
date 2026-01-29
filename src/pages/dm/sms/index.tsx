@@ -6,6 +6,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 
 interface PageProps {
   signOut?: () => void;
@@ -37,11 +38,13 @@ const SmsDMHub: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="page">
-        <div className="page-header">
-          <Link href="/dm" className="back-link">← DM Hub</Link>
-          <h1 className="page-title">SMS</h1>
-          <p className="page-subtitle">Select SMS provider</p>
-        </div>
+        <PageHeader 
+          title="SMS" 
+          subtitle="Select SMS provider"
+          icon="sms"
+          backLink="/dm"
+          backLabel="← DM Hub"
+        />
 
         <div className="providers-grid">
           {SMS_PROVIDERS.map((provider) => (

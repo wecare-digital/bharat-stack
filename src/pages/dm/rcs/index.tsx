@@ -5,6 +5,7 @@
 
 import React from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 
 interface PageProps {
   signOut?: () => void;
@@ -15,10 +16,13 @@ const RcsDM: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="page">
-        <div className="page-header">
-          <a href="/dm" className="btn-secondary">← Back to DM</a>
-          <h1 className="page-title">💎 RCS - Airtel IQ</h1>
-        </div>
+        <PageHeader 
+          title="RCS - Airtel IQ" 
+          subtitle="Rich Communication Services"
+          icon="rcs"
+          backLink="/dm"
+          backLabel="← Back to DM"
+        />
 
         <div className="coming-soon-card">
           <div className="coming-icon">💎</div>

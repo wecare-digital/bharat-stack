@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -109,10 +110,11 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="logs-page">
-        <div className="page-header">
-          <h1>📊 Message Logs</h1>
-          <p>View all messages across WhatsApp, SMS, Email, Voice, and RCS</p>
-        </div>
+        <PageHeader 
+          title="Message Logs" 
+          subtitle="View all messages across WhatsApp, SMS, Email, Voice, and RCS"
+          icon="logs"
+        />
 
         <div className="filters">
           <div className="filter-group">
