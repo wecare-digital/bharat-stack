@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 
 interface PageProps {
   signOut?: () => void;
@@ -49,10 +50,11 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="pay-link-page">
-        <div className="page-header">
-          <h1>🔗 Pay Link</h1>
-          <p>Generate shareable payment links for any channel</p>
-        </div>
+        <PageHeader 
+          title="Pay Link" 
+          subtitle="Generate shareable payment links for any channel"
+          icon="link"
+        />
 
         <div className="coming-soon-banner">
           <div className="banner-icon">🚧</div>

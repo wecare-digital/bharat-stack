@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 
 interface PageProps {
   signOut?: () => void;
@@ -63,10 +64,11 @@ const LinkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="logs-page">
-        <div className="page-header">
-          <h1>📊 Link Logs</h1>
-          <p>Track all link clicks and activity</p>
-        </div>
+        <PageHeader 
+          title="Link Logs" 
+          subtitle="Track all link clicks and activity"
+          icon="logs"
+        />
 
         <div className="filters">
           <div className="filter-group">

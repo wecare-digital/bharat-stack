@@ -4,6 +4,7 @@
 
 import React from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 
 interface PageProps {
   signOut?: () => void;
@@ -14,7 +15,11 @@ const LinkCreatePage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="page">
-        <h1 className="page-title">⟁ Create Link</h1>
+        <PageHeader 
+          title="Create Link" 
+          subtitle="Create shareable links for payments, forms, and more"
+          icon="create"
+        />
         <div className="section">
           <div className="empty-state">
             <p>🔗 Link creation coming soon</p>

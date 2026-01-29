@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -108,10 +109,11 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="logs-page">
-        <div className="page-header">
-          <h1>📊 Payment Logs</h1>
-          <p>View all payment requests sent via WhatsApp and Payment Links</p>
-        </div>
+        <PageHeader 
+          title="Payment Logs" 
+          subtitle="View all payment requests sent via WhatsApp and Payment Links"
+          icon="logs"
+        />
 
         <div className="filters">
           <div className="filter-group">
