@@ -21,16 +21,13 @@ export interface NavItem {
 export const navigationConfig: NavItem[] = [
   {
     path: '/dashboard',
-    label: 'Dashboard',
+    label: 'Dashboard Overview',
     icon: 'dashboard',
-    children: [
-      { path: '/dashboard', label: 'Overview', icon: 'overview' },
-      { path: '/dashboard/messages', label: 'Messages', icon: 'message' },
-      { path: '/dashboard/payments', label: 'Payments', icon: 'payment' },
-      { path: '/dashboard/data', label: 'Data', icon: 'data' },
-      { path: '/dashboard/billing', label: 'Billing', icon: 'billing' },
-      { path: '/dashboard/ai', label: 'AI Assistant', icon: 'ai' },
-    ],
+  },
+  {
+    path: '/dashboard/ai',
+    label: 'AI Assistant',
+    icon: 'ai',
   },
   {
     path: '/pay',

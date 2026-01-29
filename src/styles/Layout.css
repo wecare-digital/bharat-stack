@@ -7,13 +7,27 @@
 /* Import tokens - single source of truth */
 @import './tokens.css';
 
+/* =========================
+   Notion-like global theme
+   ========================= */
+:root {
+  --sidebar-w: 280px;
+  --base-font: 17px;
+  --line: 1.55;
+  --radius: 12px;
+  --hover: #f5f5f5;
+  --active: #ededed;
+  --muted: #6b7280;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body, html {
+html, body {
+  height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -24,6 +38,19 @@ body, html {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-size: var(--base-font);
+  line-height: var(--line);
+}
+
+/* Links */
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: none; }
+
 button, a, input[type="checkbox"], input[type="radio"], select {
   min-height: 32px;
 }
@@ -32,17 +59,21 @@ input, textarea, select {
   font-size: var(--text-base) !important;
 }
 
+/* Page layout */
 .layout {
   display: flex;
   min-height: 100vh;
-  background: var(--bg-secondary);
+  background: var(--bg);
 }
 
-/* Sidebar - Notion Style */
+/* =========================
+   Sidebar - Notion Style
+   ========================= */
 .sidebar {
-  width: 240px;
-  background: #ffffff;
+  width: var(--sidebar-w);
+  background: var(--bg);
   border-right: 1px solid var(--border);
+  padding: 14px 12px;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -52,19 +83,62 @@ input, textarea, select {
 }
 
 .sidebar-header {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: #ffffff;
+  gap: 10px;
+  padding: 10px 10px 14px;
+  border-bottom: none;
+  background: transparent;
+}
+
+.sidebar-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
 }
 
 .app-title {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
+  font-size: 18px;
+  font-weight: 650;
   letter-spacing: -0.2px;
-  color: #000000;
+  color: var(--text);
+}
+
+/* Sidebar Search */
+.sidebar-search {
+  padding: 6px 8px 14px;
+}
+
+.sidebar-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-search-wrapper:hover {
+  background: var(--hover);
+  border-color: var(--border-dark);
+}
+
+.sidebar-search-wrapper input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.sidebar-search-wrapper input::placeholder {
+  color: var(--muted);
 }
 
 .search-trigger {
@@ -82,15 +156,21 @@ input, textarea, select {
 }
 
 .search-trigger:hover {
-  background: var(--bg-hover);
+  background: var(--hover);
   color: var(--text);
 }
 
+/* =========================
+   Navigation - Notion Style
+   ========================= */
 .sidebar-nav {
   flex: 1;
-  padding: 8px;
+  padding: 0 6px;
   overflow-y: auto;
-  background: #ffffff;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* Navigation Items - Notion Style */
@@ -101,77 +181,87 @@ input, textarea, select {
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  gap: 10px;
+  padding: 10px 10px;
   text-decoration: none;
-  color: #000000;
-  border-radius: var(--radius-md);
+  color: var(--text);
+  border-radius: var(--radius);
   transition: background var(--transition-fast);
-  font-weight: var(--font-medium);
-  font-size: 14px;
+  font-weight: 560;
+  font-size: 15px;
   cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
 }
 
 .nav-item:hover {
-  background: var(--bg-hover);
-  color: #000000;
+  background: var(--hover);
+  color: var(--text);
 }
 
-.nav-item-active {
-  background: var(--bg-active);
-  color: #000000;
+.nav-item-active,
+.nav-item--active {
+  background: var(--active);
+  color: var(--text);
 }
 
-.nav-item-active:hover {
-  background: var(--bg-active);
+.nav-item-active:hover,
+.nav-item--active:hover {
+  background: var(--active);
 }
 
 .nav-item-expandable {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 10px;
   text-decoration: none;
-  color: #000000;
-  border-radius: var(--radius-md);
+  color: var(--text);
+  border-radius: var(--radius);
   transition: background var(--transition-fast);
   background: none;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
-  font-weight: var(--font-medium);
+  font-size: 15px;
+  font-weight: 560;
   text-align: left;
+  gap: 10px;
 }
 
 .nav-item-expandable:hover {
-  background: var(--bg-hover);
-  color: #000000;
+  background: var(--hover);
+  color: var(--text);
 }
 
 .nav-item-expandable.nav-item-active {
-  background: var(--bg-active);
-  color: #000000;
+  background: var(--active);
+  color: var(--text);
 }
 
 .nav-icon {
-  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-right: 0;
   font-size: 16px;
-  width: 20px;
   text-align: center;
-  flex-shrink: 0;
-  color: #000000;
+  color: var(--text);
 }
 
 .nav-label {
-  font-size: 14px;
-  font-weight: var(--font-medium);
-  color: #000000;
+  font-size: 15px;
+  font-weight: 560;
+  color: var(--text);
 }
 
 .nav-arrow {
   margin-left: auto;
   font-size: var(--text-xs);
-  color: #666666;
+  color: var(--muted);
   transition: transform var(--transition-normal);
 }
 
@@ -188,14 +278,14 @@ input, textarea, select {
 .nav-subitem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 10px;
+  padding: 8px 10px;
   margin-bottom: 1px;
   text-decoration: none;
-  color: #000000;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: var(--font-normal);
+  color: var(--text);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
   transition: background var(--transition-fast);
   cursor: pointer;
   width: 100%;
@@ -206,30 +296,30 @@ input, textarea, select {
 }
 
 .nav-subitem:hover {
-  background: var(--bg-hover);
-  color: #000000;
+  background: var(--hover);
+  color: var(--text);
 }
 
 .nav-subitem-active {
-  background: var(--accent-light);
-  color: var(--accent);
+  background: var(--active);
+  color: var(--text);
 }
 
 .nav-subitem-active:hover {
-  background: var(--accent-light);
-  color: var(--accent);
+  background: var(--active);
+  color: var(--text);
 }
 
 .nav-subitem-expandable {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 10px;
+  padding: 8px 10px;
   margin-bottom: 1px;
-  color: #000000;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: var(--font-normal);
+  color: var(--text);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
   transition: background var(--transition-fast);
   cursor: pointer;
   width: 100%;
@@ -240,13 +330,13 @@ input, textarea, select {
 }
 
 .nav-subitem-expandable:hover {
-  background: var(--bg-hover);
-  color: #000000;
+  background: var(--hover);
+  color: var(--text);
 }
 
 .nav-subitem-expandable.nav-subitem-active {
-  background: var(--accent-light);
-  color: var(--accent);
+  background: var(--active);
+  color: var(--text);
 }
 
 /* Nested levels indentation */
@@ -269,7 +359,7 @@ input, textarea, select {
 .sidebar-footer {
   padding: 12px 14px;
   border-top: 1px solid var(--border);
-  background: #ffffff;
+  background: transparent;
 }
 
 .user-info {
@@ -281,19 +371,19 @@ input, textarea, select {
 .user-role {
   display: inline-block;
   padding: 2px 6px;
-  background: var(--bg-hover);
+  background: var(--hover);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
-  font-weight: var(--font-medium);
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  color: var(--text-secondary);
+  color: var(--muted);
   width: fit-content;
 }
 
 .user-email {
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -304,23 +394,23 @@ input, textarea, select {
   color: var(--text);
   border: 1px solid var(--border);
   padding: 8px 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   font-size: var(--text-xs);
-  font-weight: var(--font-medium);
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-normal);
   margin-top: 4px;
 }
 
 .btn-signout:hover {
-  background: var(--bg-hover);
+  background: var(--hover);
   border-color: var(--border-dark);
 }
 
 /* Main Content */
 .main-content {
   flex: 1;
-  margin-left: 240px;
+  margin-left: var(--sidebar-w);
   padding: 24px;
   background: var(--bg);
   min-height: 100vh;
@@ -338,7 +428,7 @@ input, textarea, select {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   font-size: var(--text-lg);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -347,7 +437,7 @@ input, textarea, select {
 }
 
 .mobile-menu-toggle:hover {
-  background: var(--bg-hover);
+  background: var(--hover);
 }
 
 .mobile-overlay {
@@ -363,8 +453,8 @@ input, textarea, select {
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .sidebar { width: 220px; }
-  .main-content { margin-left: 220px; padding: 20px; }
+  .sidebar { width: 260px; }
+  .main-content { margin-left: 260px; padding: 20px; }
 }
 
 @media (max-width: 768px) {
@@ -373,7 +463,7 @@ input, textarea, select {
   }
   
   .sidebar {
-    width: 260px;
+    width: var(--sidebar-w);
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     z-index: 1000;
@@ -408,7 +498,7 @@ input, textarea, select {
   .sidebar {
     width: 100%;
     max-height: 85vh;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 var(--radius) var(--radius);
     transform: translateY(-100%);
   }
   
@@ -427,24 +517,33 @@ input, textarea, select {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: var(--text);
-  border: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
   cursor: pointer;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   z-index: 9998;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  padding: 0;
+  overflow: hidden;
 }
 
 .floating-agent-button:hover,
 .agent-fab:hover {
   transform: scale(1.05);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
+}
+
+.agent-fab-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .floating-agent-button .agent-icon,
@@ -458,12 +557,12 @@ input, textarea, select {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 360px;
+  width: 380px;
   max-width: calc(100vw - 40px);
-  height: 480px;
+  height: 500px;
   max-height: calc(100vh - 100px);
   background: var(--bg);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--border);
   z-index: 9999;
@@ -477,15 +576,22 @@ input, textarea, select {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--bg-secondary);
+  padding: 14px 16px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 
 .agent-header-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.agent-avatar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .agent-avatar {
@@ -493,15 +599,17 @@ input, textarea, select {
 }
 
 .agent-name {
-  font-weight: var(--font-semibold);
-  font-size: var(--text-sm);
+  font-weight: 600;
+  font-size: 15px;
   color: var(--text);
+  display: block;
 }
 
 .agent-status,
 .agent-status-dot {
-  font-size: var(--text-xs);
+  font-size: 12px;
   color: var(--success);
+  display: block;
 }
 
 .agent-header-actions button,
@@ -512,14 +620,18 @@ input, textarea, select {
   height: 28px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 16px;
+  color: var(--muted);
   transition: background var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .agent-header-actions button:hover,
 .agent-close:hover {
-  background: var(--bg-hover);
+  background: var(--hover);
+  color: var(--text);
 }
 
 .floating-agent-messages,
@@ -551,29 +663,29 @@ input, textarea, select {
 .floating-message-content,
 .agent-message-content {
   padding: 10px 14px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .floating-message.user .floating-message-content,
 .agent-message.user .agent-message-content {
-  background: var(--accent);
+  background: var(--text);
   color: white;
 }
 
 .floating-message.assistant .floating-message-content,
 .agent-message.assistant .agent-message-content {
-  background: var(--bg-secondary);
+  background: var(--hover);
   color: var(--text);
 }
 
 .floating-message-time,
 .agent-message-time {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--muted);
   margin-top: 4px;
 }
 
@@ -591,8 +703,8 @@ input, textarea, select {
   flex: 1;
   padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
+  border-radius: var(--radius);
+  font-size: 14px;
   outline: none;
   background: var(--bg);
   font-family: inherit;
@@ -601,26 +713,29 @@ input, textarea, select {
 
 .floating-agent-input input:focus,
 .agent-input-area textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--text);
 }
 
 .floating-agent-input button,
 .agent-send-btn {
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--accent);
+  border-radius: var(--radius);
+  background: var(--text);
   border: none;
   color: white;
   font-size: var(--text-base);
   cursor: pointer;
   transition: background var(--transition-normal);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .floating-agent-input button:hover:not(:disabled),
 .agent-send-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: #333;
 }
 
 .floating-agent-input button:disabled,
@@ -688,8 +803,13 @@ input, textarea, select {
   .agent-fab {
     bottom: 16px;
     right: 16px;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
+  }
+  
+  .agent-fab-logo {
+    width: 32px;
+    height: 32px;
   }
   
   .floating-agent-container,
@@ -699,7 +819,7 @@ input, textarea, select {
     width: 100%;
     max-width: 100%;
     height: 70vh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
   }
   
   .toast-container {
@@ -720,4 +840,38 @@ input, textarea, select {
   .agent-fab {
     bottom: calc(20px + env(safe-area-inset-bottom));
   }
+}
+
+/* =========================
+   Dashboard Tabs
+   ========================= */
+.tabs {
+  display: inline-flex;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  background: var(--bg);
+}
+
+.tab {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 560;
+  color: var(--muted);
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.tab:hover {
+  background: var(--hover);
+}
+
+.tab--active,
+.tab.active {
+  color: var(--text);
+  background: var(--active);
 }

@@ -262,10 +262,12 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
+  const LOGO_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.png';
+
   if (!isOpen) {
     return (
       <button className="agent-fab" onClick={() => setIsOpen(true)} title="Open Assistant">
-        <span className="agent-fab-icon">◇</span>
+        <img src={LOGO_URL} alt="Assistant" className="agent-fab-logo" />
       </button>
     );
   }
@@ -274,7 +276,7 @@ const FloatingAgent: React.FC = () => {
     <div className="agent-panel">
       <div className="agent-header">
         <div className="agent-header-info">
-          <span className="agent-avatar">◈</span>
+          <img src={LOGO_URL} alt="WECARE" className="agent-avatar-logo" />
           <div>
             <span className="agent-name">WECARE Assistant</span>
             <span className="agent-status-dot">● Online</span>
