@@ -109,9 +109,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h1 className="app-title">WECARE.DIGITAL</h1>
-          <button className="search-trigger" onClick={() => setSearchOpen(true)} title="Search (Ctrl+K)">
-            <SearchIcon size={14} />
-          </button>
         </div>
         <nav className="sidebar-nav">
           {renderNavItems(navigationConfig)}

@@ -15,7 +15,7 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing';
+type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing' | 'search';
 
 const PAYMENT_PHONE = '+91 93309 94400';
 const PAYMENT_NAME = 'WECARE.DIGITAL';
@@ -444,7 +444,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'payments', 'data', 'billing'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'payments', 'data', 'billing', 'search'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -455,6 +455,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'payments' && '$'}
               {tab === 'data' && '⊗'}
               {tab === 'billing' && '≡'}
+              {tab === 'search' && '⌕'}
               <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
@@ -850,6 +851,86 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </tbody>
                   </table>
                 </>
+              )}
+            </div>
+          )}
+
+          {/* SEARCH TAB */}
+          {activeTab === 'search' && (
+            <div className="search-tab">
+              <div className="search-bar large">
+                <input
+                  type="text"
+                  placeholder="Search contacts, messages, content..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  autoFocus
+                />
+                {searchQuery && <button onClick={() => setSearchQuery('')}>×</button>}
+              </div>
+
+              {searchQuery.trim() && (
+                <>
+                  {/* Contact Results */}
+                  {contacts.filter(c => 
+                    c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    c.phone?.includes(searchQuery)
+                  ).length > 0 && (
+                    <div className="section">
+                      <h3>Contacts</h3>
+                      <div className="search-results">
+                        {contacts.filter(c => 
+                          c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          c.phone?.includes(searchQuery)
+                        ).slice(0, 10).map(c => (
+                          <div key={c.id} className="result-item contact">
+                            <span className="icon">◉</span>
+                            <span className="name">{c.name || 'Unknown'}</span>
+                            <span className="phone">{c.phone}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message Results */}
+                  {filteredMessages.length > 0 && (
+                    <div className="section">
+                      <h3>Messages ({filteredMessages.length})</h3>
+                      <div className="msg-list full">
+                        {filteredMessages.slice(0, 20).map(msg => {
+                          const contact = contacts.find(c => c.id === msg.contactId);
+                          return (
+                            <div key={msg.id} className={`msg-item ${msg.direction.toLowerCase()}`}>
+                              <span className="dir">{msg.direction === 'INBOUND' ? '↓' : '↑'}</span>
+                              <span className="name">{contact?.name || contact?.phone || '...'}</span>
+                              <span className="content">{msg.content?.slice(0, 60) || '[Media]'}</span>
+                              <span className="time">{new Date(msg.timestamp).toLocaleString()}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Results */}
+                  {contacts.filter(c => 
+                    c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    c.phone?.includes(searchQuery)
+                  ).length === 0 && filteredMessages.length === 0 && (
+                    <div className="empty-state">
+                      <span className="icon">⌕</span>
+                      <p>No results for "{searchQuery}"</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {!searchQuery.trim() && (
+                <div className="empty-state">
+                  <span className="icon">⌕</span>
+                  <p>Type to search contacts and messages</p>
+                </div>
               )}
             </div>
           )}

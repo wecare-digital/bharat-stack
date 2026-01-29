@@ -982,3 +982,109 @@
     min-width: 80px;
   }
 }
+
+/* Search Tab */
+.search-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.search-bar.large {
+  position: relative;
+}
+
+.search-bar.large input {
+  width: 100%;
+  padding: var(--space-lg);
+  font-size: 16px;
+  border: 2px solid var(--notion-border);
+  border-radius: var(--radius-lg);
+  background: var(--notion-bg);
+  color: var(--notion-text);
+  transition: border-color 0.15s;
+}
+
+.search-bar.large input:focus {
+  outline: none;
+  border-color: var(--wa-teal);
+}
+
+.search-bar.large button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--notion-bg-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--notion-text-secondary);
+}
+
+.search-bar.large button:hover {
+  background: var(--notion-bg-hover);
+  color: var(--notion-text);
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--notion-bg);
+  border: 1px solid var(--notion-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.result-item:hover {
+  background: var(--notion-bg-secondary);
+  border-color: var(--wa-teal);
+}
+
+.result-item .icon {
+  color: var(--wa-teal);
+}
+
+.result-item .name {
+  font-weight: 500;
+  color: var(--notion-text);
+}
+
+.result-item .phone {
+  color: var(--notion-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xxl);
+  color: var(--notion-text-secondary);
+  text-align: center;
+}
+
+.empty-state .icon {
+  font-size: 48px;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 16px;
+}
