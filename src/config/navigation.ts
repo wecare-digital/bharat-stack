@@ -21,13 +21,8 @@ export interface NavItem {
 export const navigationConfig: NavItem[] = [
   {
     path: '/dashboard',
-    label: 'Dashboard Overview',
+    label: 'Dashboard',
     icon: 'dashboard',
-  },
-  {
-    path: '/dashboard/ai',
-    label: 'AI Assistant',
-    icon: 'ai',
   },
   {
     path: '/pay',

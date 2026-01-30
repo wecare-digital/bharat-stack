@@ -15,10 +15,49 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing' | 'search';
+type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing' | 'search' | 'ai' | 'webhook';
 
 const PAYMENT_PHONE = '+91 93309 94400';
 const PAYMENT_NAME = 'WECARE.DIGITAL';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+
+interface InternalAIConfig {
+  enabled: boolean;
+  agentId: string;
+  agentAlias: string;
+  knowledgeBaseId: string;
+  modelId: string;
+  maxTokens: number;
+  temperature: number;
+  systemPrompt: string;
+}
+
+const DEFAULT_AI_CONFIG: InternalAIConfig = {
+  enabled: true,
+  agentId: 'TJAZR473IJ',
+  agentAlias: 'O4U1HF2MSX',
+  knowledgeBaseId: '7IWHVB0ZXQ',
+  modelId: 'amazon.nova-lite-v1:0',
+  maxTokens: 1024,
+  temperature: 0.7,
+  systemPrompt: `You are WECARE.DIGITAL's internal admin assistant.
+Help operators with:
+- Sending WhatsApp messages
+- Finding and managing contacts
+- Checking message statistics
+- Answering questions about the platform`,
+};
+
+interface WebhookConfig {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  enabled: boolean;
+  secret?: string;
+  createdAt: string;
+}
 
 // AWS Resource ARNs for billing display - All resources in account 809904170947
 // Comprehensive list including used and available services for future updates
@@ -314,6 +353,19 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   // Billing expanded rows
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
 
+  // AI Config state
+  const [aiConfig, setAiConfig] = useState<InternalAIConfig>(DEFAULT_AI_CONFIG);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [testMessage, setTestMessage] = useState('');
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  // Webhook state
+  const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
+  const [webhookLoading, setWebhookLoading] = useState(false);
+  const [newWebhook, setNewWebhook] = useState({ name: '', url: '', events: ['message.received', 'message.sent'] });
+  const [showWebhookForm, setShowWebhookForm] = useState(false);
+
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     
@@ -398,6 +450,121 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     });
   };
 
+  // AI Config handlers
+  const loadAiConfig = async () => {
+    setAiLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/ai/internal/config`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.config) {
+          setAiConfig({ ...DEFAULT_AI_CONFIG, ...data.config });
+        }
+      }
+    } catch (error) {
+      console.log('Using default internal AI config');
+    }
+    setAiLoading(false);
+  };
+
+  const handleSaveAiConfig = async () => {
+    setAiSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/ai/internal/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aiConfig),
+      });
+      if (!res.ok) console.error('Failed to save AI config');
+    } catch (error) {
+      console.error('Failed to save AI config');
+    }
+    setAiSaving(false);
+  };
+
+  const handleTestAi = async () => {
+    if (!testMessage.trim()) return;
+    setAiSaving(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/ai/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageContent: testMessage,
+          context: 'internal-admin',
+        }),
+      });
+      const data = await res.json();
+      const body = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+      setTestResult(body.suggestedResponse || body.suggestion || 'No response');
+    } catch (error) {
+      setTestResult('Error: Failed to get AI response');
+    }
+    setAiSaving(false);
+  };
+
+  // Webhook handlers
+  const loadWebhooks = async () => {
+    setWebhookLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/webhooks`);
+      if (res.ok) {
+        const data = await res.json();
+        setWebhooks(data.webhooks || []);
+      }
+    } catch (error) {
+      console.log('No webhooks configured');
+    }
+    setWebhookLoading(false);
+  };
+
+  const handleCreateWebhook = async () => {
+    if (!newWebhook.name || !newWebhook.url) return;
+    try {
+      const res = await fetch(`${API_BASE}/webhooks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newWebhook),
+      });
+      if (res.ok) {
+        setNewWebhook({ name: '', url: '', events: ['message.received', 'message.sent'] });
+        setShowWebhookForm(false);
+        loadWebhooks();
+      }
+    } catch (error) {
+      console.error('Failed to create webhook');
+    }
+  };
+
+  const handleToggleWebhook = async (id: string, enabled: boolean) => {
+    try {
+      await fetch(`${API_BASE}/webhooks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      loadWebhooks();
+    } catch (error) {
+      console.error('Failed to toggle webhook');
+    }
+  };
+
+  const handleDeleteWebhook = async (id: string) => {
+    try {
+      await fetch(`${API_BASE}/webhooks/${id}`, { method: 'DELETE' });
+      loadWebhooks();
+    } catch (error) {
+      console.error('Failed to delete webhook');
+    }
+  };
+
+  // Load AI config and webhooks when switching to those tabs
+  useEffect(() => {
+    if (activeTab === 'ai') loadAiConfig();
+    if (activeTab === 'webhook') loadWebhooks();
+  }, [activeTab]);
+
   // Stats
   const todayMessages = messages.filter(m => {
     const msgDate = new Date(m.timestamp);
@@ -444,7 +611,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'payments', 'data', 'billing', 'search'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'payments', 'data', 'billing', 'ai', 'webhook', 'search'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -455,8 +622,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'payments' && '$'}
               {tab === 'data' && '⊗'}
               {tab === 'billing' && '≡'}
+              {tab === 'ai' && '🤖'}
+              {tab === 'webhook' && '🔗'}
               {tab === 'search' && '⌕'}
-              <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              <span>{tab === 'ai' ? 'AI Assistant' : tab === 'webhook' ? 'Webhook' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -852,6 +1021,269 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </table>
                 </>
               )}
+            </div>
+          )}
+
+          {/* AI ASSISTANT TAB */}
+          {activeTab === 'ai' && (
+            <div className="ai-tab">
+              <div className="section-header">
+                <h3>Internal AI Assistant</h3>
+                <span className="subtitle">Configure the FloatingAgent AI for admin tasks</span>
+              </div>
+
+              {/* Info Cards */}
+              <div className="stats-grid small" style={{ marginBottom: '1.5rem' }}>
+                <div className="stat-card">
+                  <div className="stat-label">Agent ID</div>
+                  <div className="stat-value" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{aiConfig.agentId}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Agent Alias</div>
+                  <div className="stat-value" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{aiConfig.agentAlias}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Knowledge Base</div>
+                  <div className="stat-value" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{aiConfig.knowledgeBaseId}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Model</div>
+                  <div className="stat-value" style={{ fontSize: '0.85rem' }}>Nova Lite</div>
+                </div>
+              </div>
+
+              {/* Configuration */}
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>Configuration</h4>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={aiConfig.enabled}
+                      onChange={(e) => setAiConfig({ ...aiConfig, enabled: e.target.checked })}
+                      style={{ width: '1.25rem', height: '1.25rem' }}
+                    />
+                    <span style={{ fontWeight: 600 }}>Enable Internal AI Assistant</span>
+                  </label>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Max Tokens</label>
+                    <input
+                      type="number"
+                      value={aiConfig.maxTokens}
+                      onChange={(e) => setAiConfig({ ...aiConfig, maxTokens: parseInt(e.target.value) || 1024 })}
+                      min={256}
+                      max={4096}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Temperature</label>
+                    <input
+                      type="number"
+                      value={aiConfig.temperature}
+                      onChange={(e) => setAiConfig({ ...aiConfig, temperature: parseFloat(e.target.value) || 0.7 })}
+                      min={0}
+                      max={1}
+                      step={0.1}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>System Prompt</label>
+                  <textarea
+                    value={aiConfig.systemPrompt}
+                    onChange={(e) => setAiConfig({ ...aiConfig, systemPrompt: e.target.value })}
+                    rows={6}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleSaveAiConfig}
+                  disabled={aiSaving}
+                  className="btn-primary"
+                >
+                  {aiSaving ? 'Saving...' : 'Save Configuration'}
+                </button>
+              </div>
+
+              {/* Test Section */}
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>Test Internal AI</h4>
+                <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                  Test how the internal AI responds to admin commands.
+                </p>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <textarea
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    rows={2}
+                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                    placeholder="Try: 'Show today's stats' or 'Find contact +919330994400'"
+                  />
+                </div>
+
+                <button
+                  onClick={handleTestAi}
+                  disabled={aiSaving || !testMessage.trim()}
+                  style={{ padding: '0.5rem 1.5rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', marginBottom: '1rem' }}
+                >
+                  {aiSaving ? 'Testing...' : '🧪 Test Response'}
+                </button>
+
+                {testResult && (
+                  <div style={{ padding: '1rem', background: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
+                    <div style={{ fontWeight: 500, marginBottom: '0.5rem' }}>AI Response:</div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{testResult}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Architecture Info */}
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
+                <strong>Architecture Note:</strong> This is the Internal AI used by the FloatingAgent for admin tasks.
+                For WhatsApp auto-reply AI (customer-facing), go to Messages → WhatsApp → AI Config.
+              </div>
+            </div>
+          )}
+
+          {/* WEBHOOK TAB */}
+          {activeTab === 'webhook' && (
+            <div className="webhook-tab">
+              <div className="section-header">
+                <h3>Webhook Configuration</h3>
+                <button className="btn-primary" onClick={() => setShowWebhookForm(!showWebhookForm)}>
+                  {showWebhookForm ? 'Cancel' : '+ Add Webhook'}
+                </button>
+              </div>
+
+              {/* Add Webhook Form */}
+              {showWebhookForm && (
+                <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>New Webhook</h4>
+                  
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Name</label>
+                    <input
+                      type="text"
+                      value={newWebhook.name}
+                      onChange={(e) => setNewWebhook({ ...newWebhook, name: e.target.value })}
+                      placeholder="My Webhook"
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>URL</label>
+                    <input
+                      type="url"
+                      value={newWebhook.url}
+                      onChange={(e) => setNewWebhook({ ...newWebhook, url: e.target.value })}
+                      placeholder="https://your-server.com/webhook"
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Events</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {['message.received', 'message.sent', 'message.delivered', 'message.read', 'payment.captured', 'payment.failed', 'contact.created', 'contact.updated'].map(event => (
+                        <label key={event} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: '#f3f4f6', borderRadius: '0.25rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={newWebhook.events.includes(event)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setNewWebhook({ ...newWebhook, events: [...newWebhook.events, event] });
+                              } else {
+                                setNewWebhook({ ...newWebhook, events: newWebhook.events.filter(ev => ev !== event) });
+                              }
+                            }}
+                          />
+                          <span style={{ fontSize: '0.85rem' }}>{event}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button onClick={handleCreateWebhook} className="btn-primary" disabled={!newWebhook.name || !newWebhook.url}>
+                    Create Webhook
+                  </button>
+                </div>
+              )}
+
+              {/* Webhooks List */}
+              {webhookLoading ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>Loading webhooks...</div>
+              ) : webhooks.length === 0 ? (
+                <div className="empty-state">
+                  <span className="icon">🔗</span>
+                  <p>No webhooks configured</p>
+                  <p style={{ fontSize: '0.85rem', color: '#666' }}>Add a webhook to receive real-time notifications</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>URL</th>
+                      <th>Events</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {webhooks.map(wh => (
+                      <tr key={wh.id}>
+                        <td>{wh.name}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{wh.url}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                            {wh.events.slice(0, 3).map(ev => (
+                              <span key={ev} className="badge">{ev}</span>
+                            ))}
+                            {wh.events.length > 3 && <span className="badge">+{wh.events.length - 3}</span>}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${wh.enabled ? 'success' : ''}`}>
+                            {wh.enabled ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => handleToggleWebhook(wh.id, !wh.enabled)}
+                              style={{ padding: '0.25rem 0.5rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', background: 'white', cursor: 'pointer' }}
+                            >
+                              {wh.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteWebhook(wh.id)}
+                              style={{ padding: '0.25rem 0.5rem', border: '1px solid #ef4444', borderRadius: '0.25rem', background: 'white', color: '#ef4444', cursor: 'pointer' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {/* Info */}
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
+                <strong>Webhook Info:</strong> Webhooks send HTTP POST requests to your URL when events occur.
+                Each request includes a signature header for verification.
+              </div>
             </div>
           )}
 
