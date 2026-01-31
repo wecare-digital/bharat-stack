@@ -264,8 +264,8 @@ const HomePage: React.FC = () => {
           .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
-          .section-header{text-align:center;margin:0 auto 48px;max-width:600px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%}
+          .section-header{text-align:center;margin:0 auto 48px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
+          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:18px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
