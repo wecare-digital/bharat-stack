@@ -331,10 +331,10 @@ const HomePage: React.FC = () => {
             .pill{padding:12px 22px;font-size:14px}
             
             .api{padding:70px 20px}
-            .api-grid{grid-template-columns:1fr;gap:36px;text-align:center}
-            .api-info h2{font-size:32px}
-            .api-desc{font-size:16px;max-width:560px;margin:0 auto;text-align:center}
-            .api-demo{max-width:500px;margin:0 auto}
+            .api-grid{grid-template-columns:1fr;gap:36px;text-align:left}
+            .api-info h2{font-size:32px;text-align:left}
+            .api-desc{font-size:16px;max-width:100%;text-align:left}
+            .api-demo{max-width:500px;margin:0}
             
             .capabilities{padding:70px 20px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:36px 40px}
@@ -395,7 +395,7 @@ const HomePage: React.FC = () => {
             .api-info{text-align:left}
             .api-info h2{font-size:28px;margin-bottom:14px;text-align:left}
             .api-desc{font-size:16px;line-height:1.65;max-width:100%;text-align:left}
-            .api-demo{border-radius:14px;max-width:100%}
+            .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:14px;gap:8px;justify-content:center;flex-wrap:wrap}
             .tab{padding:10px 18px;font-size:14px}
             .code-block{font-size:12px;padding:16px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
