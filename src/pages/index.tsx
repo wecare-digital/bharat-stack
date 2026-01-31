@@ -391,10 +391,10 @@ const HomePage: React.FC = () => {
             .pill{padding:12px 20px;font-size:14px}
             
             .api{padding:56px 20px}
-            .api-grid{gap:32px;text-align:center}
-            .api-info{text-align:center}
-            .api-info h2{font-size:28px;margin-bottom:14px;text-align:center}
-            .api-desc{font-size:16px;line-height:1.65;max-width:100%;text-align:center}
+            .api-grid{gap:32px;text-align:left}
+            .api-info{text-align:left}
+            .api-info h2{font-size:28px;margin-bottom:14px;text-align:left}
+            .api-desc{font-size:16px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%}
             .code-tabs{padding:14px;gap:8px;justify-content:center;flex-wrap:wrap}
             .tab{padding:10px 18px;font-size:14px}
@@ -443,8 +443,8 @@ const HomePage: React.FC = () => {
             .pill{padding:11px 18px;font-size:13px}
             
             .api{padding:48px 16px}
-            .api-info h2{font-size:26px}
-            .api-desc{font-size:15px}
+            .api-info h2{font-size:26px;text-align:left}
+            .api-desc{font-size:15px;text-align:left}
             .code-tabs{gap:6px}
             .tab{padding:9px 16px;font-size:13px}
             .code-block{font-size:11px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
