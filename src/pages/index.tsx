@@ -299,7 +299,7 @@ const HomePage: React.FC = () => {
           
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
-          .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
+          .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:center}
           .ftr-contact{font-size:15px;color:#6b7280;text-decoration:none;font-weight:500}
           .ftr-contact:hover{color:#1a1a1a}
 
@@ -312,40 +312,39 @@ const HomePage: React.FC = () => {
             
             .hero{padding:110px 20px 60px}
             .hero-content{grid-template-columns:1fr;gap:40px;text-align:center}
-            .hero-left h1{font-size:40px;letter-spacing:-1px;max-width:600px;margin:0 auto 20px}
-            .hero-left p{font-size:18px;max-width:520px;margin:0 auto 28px}
+            .hero-left h1{font-size:38px;letter-spacing:-1px;max-width:600px;margin:0 auto 20px}
+            .hero-left p{font-size:17px;max-width:520px;margin:0 auto 28px}
             .hero-stats{justify-content:center;gap:12px}
             .stat{padding:16px 20px;min-width:100px}
-            .stat span{font-size:24px}
+            .stat span{font-size:22px}
             .stat small{font-size:12px}
             
             .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0 auto;padding:20px}
             .phone{left:16px;top:16px;width:52%}
             .code-box{right:12px;bottom:16px;width:55%}
             
-            .section-header h2{font-size:36px}
-            .section-header p{font-size:17px}
+            .section-header h2{font-size:34px}
+            .section-header p{font-size:16px}
             
-            .touchpoint{padding:80px 20px}
+            .touchpoint{padding:70px 20px}
             .usecase-pills{gap:10px}
-            .pill{padding:12px 24px;font-size:14px}
+            .pill{padding:12px 22px;font-size:14px}
             
-            .api{padding:80px 20px}
-            .api-grid{grid-template-columns:1fr;gap:36px;text-align:left}
-            .api-info h2{font-size:34px}
-            .api-desc{font-size:17px;max-width:560px;margin:0;text-align:left}
-            .api-demo{max-width:560px;margin:0}
-            .code-tabs{justify-content:flex-start}
-            .code-block{text-align:left}
+            .api{padding:70px 20px}
+            .api-grid{grid-template-columns:1fr;gap:36px;text-align:center}
+            .api-info h2{font-size:32px}
+            .api-desc{font-size:16px;max-width:560px;margin:0 auto;text-align:center}
+            .api-demo{max-width:500px;margin:0 auto}
             
-            .capabilities{padding:80px 20px}
-            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:40px 48px}
+            .capabilities{padding:70px 20px}
+            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:36px 40px}
+            .capability-card{text-align:center}
             
-            .cta-section{padding:80px 20px}
-            .cta-section h2{font-size:36px}
+            .cta-section{padding:70px 20px}
+            .cta-section h2{font-size:34px}
           }
 
-          /* ========== MOBILE LANDSCAPE & SMALL TABLETS (481px - 767px) ========== */
+          /* ========== MOBILE (up to 767px) ========== */
           @media(max-width:767px){
             .hdr-in{padding:12px 16px}
             .logo{gap:8px}
@@ -353,19 +352,19 @@ const HomePage: React.FC = () => {
             .logo-main{font-size:18px}
             .logo-sub{font-size:10px}
             
-            .hero{padding:calc(90px + env(safe-area-inset-top)) 16px 48px}
-            .hero-content{display:flex;flex-direction:column;gap:32px}
+            .hero{padding:calc(85px + env(safe-area-inset-top)) 20px 50px}
+            .hero-content{display:flex;flex-direction:column;gap:32px;text-align:center}
             .hero-right{order:-1}
-            .hero-left{text-align:left;order:1}
-            .hero-left h1{font-size:32px;letter-spacing:-0.5px;margin:0 0 16px;line-height:1.12;max-width:100%}
-            .hero-left p{font-size:16px;line-height:1.55;margin:0 0 24px;max-width:100%}
-            .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 12px;text-align:center;min-width:0}
-            .stat span{font-size:22px;font-weight:800}
+            .hero-left{text-align:center;order:1}
+            .hero-left h1{font-size:30px;letter-spacing:-0.5px;margin:0 auto 16px;line-height:1.15;max-width:100%}
+            .hero-left p{font-size:16px;line-height:1.55;margin:0 auto 24px;max-width:100%;color:#6b7280}
+            .hero-stats{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;text-align:center;min-width:90px}
+            .stat span{font-size:20px;font-weight:800}
             .stat small{font-size:11px;margin-top:4px;line-height:1.3}
             
-            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px}
-            .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px}
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:360px;margin:0 auto;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb}
+            .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:10px 12px;gap:8px}
             .avatar{width:36px;height:36px;font-size:14px}
             .contact-name{font-size:14px}
@@ -376,7 +375,7 @@ const HomePage: React.FC = () => {
             .typing-indicator{padding:8px 12px}
             .typing-indicator span{width:6px;height:6px}
             
-            .code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:14px}
+            .code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.1)}
             .code-header{padding:10px 12px}
             .dots{gap:4px}
             .dot-red,.dot-yellow,.dot-green{width:9px;height:9px}
@@ -384,54 +383,53 @@ const HomePage: React.FC = () => {
             .code-body{font-size:11px;padding:12px;line-height:1.5}
             
             .section-header{margin-bottom:32px;padding:0 16px;text-align:center}
-            .section-header h2{font-size:28px;margin-bottom:12px;line-height:1.18;text-align:center}
+            .section-header h2{font-size:26px;margin-bottom:12px;line-height:1.2;text-align:center}
             .section-header p{font-size:15px;line-height:1.55;text-align:center}
             
-            .touchpoint{padding:56px 16px}
-            .usecase-pills{justify-content:flex-start;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:8px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none;-ms-overflow-style:none}
-            .usecase-pills::-webkit-scrollbar{display:none}
-            .pill{padding:11px 20px;font-size:13px;flex-shrink:0;white-space:nowrap}
+            .touchpoint{padding:50px 20px}
+            .usecase-pills{justify-content:center;gap:10px;flex-wrap:wrap;padding:0;margin:0}
+            .pill{padding:10px 18px;font-size:13px}
             
-            .api{padding:56px 16px}
-            .api-grid{gap:28px}
-            .api-info{text-align:left}
-            .api-info h2{font-size:28px;margin-bottom:12px}
-            .api-desc{font-size:15px;line-height:1.6;max-width:100%;text-align:left}
-            .api-demo{border-radius:14px}
-            .code-tabs{padding:12px;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none;justify-content:flex-start}
-            .code-tabs::-webkit-scrollbar{display:none}
-            .tab{padding:9px 16px;font-size:13px;white-space:nowrap;flex-shrink:0}
+            .api{padding:50px 20px}
+            .api-grid{gap:28px;text-align:center}
+            .api-info{text-align:center}
+            .api-info h2{font-size:26px;margin-bottom:12px;text-align:center}
+            .api-desc{font-size:15px;line-height:1.6;max-width:100%;text-align:center}
+            .api-demo{border-radius:14px;max-width:100%}
+            .code-tabs{padding:12px;gap:6px;justify-content:center;flex-wrap:wrap}
+            .tab{padding:9px 16px;font-size:13px}
             .code-block{font-size:11px;padding:14px;min-height:140px;text-align:left}
             
-            .capabilities{padding:56px 16px}
+            .capabilities{padding:50px 20px}
             .capabilities .section-header{margin-bottom:32px}
-            .capabilities-grid{grid-template-columns:1fr 1fr;gap:28px 20px}
+            .capabilities-grid{grid-template-columns:1fr 1fr;gap:24px 16px}
+            .capability-card{text-align:center}
             .capability-card h3{font-size:15px;margin-bottom:6px}
             .capability-card p{font-size:13px;line-height:1.5}
             
-            .cta-section{padding:56px 16px}
-            .cta-section h2{font-size:28px;line-height:1.2}
+            .cta-section{padding:50px 20px}
+            .cta-section h2{font-size:26px;line-height:1.2}
             
             .ftr{padding:20px 16px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
             .ftr-contact{font-size:14px}
           }
 
-          /* ========== MOBILE PORTRAIT (up to 480px) ========== */
+          /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
-            .hero{padding:calc(85px + env(safe-area-inset-top)) 14px 40px}
-            .hero-left h1{font-size:28px;line-height:1.15}
+            .hero{padding:calc(80px + env(safe-area-inset-top)) 16px 40px}
+            .hero-left h1{font-size:26px;line-height:1.18}
             .hero-left p{font-size:15px}
-            .hero-stats{grid-template-columns:repeat(3,1fr);gap:8px}
-            .stat{padding:14px 8px;border-radius:12px}
+            .hero-stats{gap:10px}
+            .stat{padding:12px 14px;border-radius:12px;min-width:85px}
             .stat span{font-size:18px}
             .stat small{font-size:10px}
             
-            .mockup-wrapper{padding:12px;border-radius:16px;gap:12px}
+            .mockup-wrapper{padding:12px;border-radius:16px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
             .phone-header{padding:8px 10px}
             .avatar{width:32px;height:32px;font-size:13px}
             .contact-name{font-size:13px}
-            .chat-area{min-height:160px;padding:10px 8px}
+            .chat-area{min-height:150px;padding:10px 8px}
             .msg{font-size:12px;padding:8px 10px}
             
             .code-box{border-radius:12px}
@@ -440,20 +438,23 @@ const HomePage: React.FC = () => {
             .section-header h2{font-size:24px}
             .section-header p{font-size:14px}
             
-            .touchpoint{padding:48px 14px}
-            .pill{padding:10px 18px;font-size:12px}
+            .touchpoint{padding:40px 16px}
+            .usecase-pills{gap:8px}
+            .pill{padding:9px 16px;font-size:12px}
             
-            .api{padding:48px 14px}
+            .api{padding:40px 16px}
             .api-info h2{font-size:24px}
             .api-desc{font-size:14px}
-            .code-block{font-size:10px;padding:12px}
+            .code-tabs{gap:4px}
+            .tab{padding:8px 14px;font-size:12px}
+            .code-block{font-size:10px;padding:12px;min-height:120px}
             
-            .capabilities{padding:48px 14px}
-            .capabilities-grid{grid-template-columns:1fr;gap:24px}
+            .capabilities{padding:40px 16px}
+            .capabilities-grid{grid-template-columns:1fr;gap:20px}
             .capability-card h3{font-size:16px}
             .capability-card p{font-size:14px}
             
-            .cta-section{padding:48px 14px}
+            .cta-section{padding:40px 16px}
             .cta-section h2{font-size:24px}
           }
           
@@ -464,31 +465,38 @@ const HomePage: React.FC = () => {
             .logo-main{font-size:16px}
             .logo-sub{font-size:9px}
             
-            .hero{padding:calc(80px + env(safe-area-inset-top)) 12px 36px}
-            .hero-left h1{font-size:24px}
+            .hero{padding:calc(75px + env(safe-area-inset-top)) 12px 32px}
+            .hero-left h1{font-size:22px}
             .hero-left p{font-size:14px}
-            .hero-stats{gap:6px}
-            .stat{padding:12px 6px}
+            .hero-stats{gap:8px}
+            .stat{padding:10px 12px;min-width:75px}
             .stat span{font-size:16px}
             .stat small{font-size:9px}
             
-            .section-header h2{font-size:22px}
+            .section-header h2{font-size:20px}
             .section-header p{font-size:13px}
             
-            .api-info h2{font-size:22px}
-            .cta-section h2{font-size:22px}
+            .pill{padding:8px 14px;font-size:11px}
+            
+            .api-info h2{font-size:20px}
+            .api-desc{font-size:13px}
+            
+            .cta-section h2{font-size:20px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
           @media(max-height:500px) and (orientation:landscape){
-            .hero{padding:100px 24px 40px}
-            .hero-content{flex-direction:row;gap:24px}
+            .hero{padding:90px 24px 40px}
+            .hero-content{flex-direction:row;gap:24px;text-align:left}
             .hero-right{order:0;flex:1}
             .hero-left{order:0;flex:1;text-align:left}
-            .mockup-wrapper{max-height:280px;aspect-ratio:auto}
-            .phone{max-width:200px}
-            .code-box{max-width:220px}
-            .chat-area{min-height:140px}
+            .hero-left h1{margin:0 0 16px}
+            .hero-left p{margin:0 0 20px}
+            .hero-stats{justify-content:flex-start}
+            .mockup-wrapper{max-height:260px;aspect-ratio:auto;max-width:100%}
+            .phone{max-width:180px}
+            .code-box{max-width:200px}
+            .chat-area{min-height:120px}
           }
           
           /* ========== REDUCED MOTION ========== */
