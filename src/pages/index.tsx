@@ -271,7 +271,7 @@ response = requests.post(
 
           /* Code Box */
           .code-box{position:absolute;right:16px;bottom:20px;width:58%;max-width:340px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
-          .code-header{display:flex;align-items:center;padding:10px 14px;background:#0f172a}
+          .code-header{display:flex;align-items:center;padding:10px 14px;background:#000}
           .dots{display:flex;gap:5px}
           .dot-red,.dot-yellow,.dot-green{width:10px;height:10px;border-radius:50%}
           .dot-red{background:#ff5f57}
@@ -297,9 +297,9 @@ response = requests.post(
           .api-info h2{font-size:38px;font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
           .api-desc{font-size:20px;color:#6b7280;line-height:1.7;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
-          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#64748b;background:transparent;cursor:pointer;transition:all .2s}
-          .tab:hover{color:#e2e8f0}
+          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
+          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#fff;background:transparent;cursor:pointer;transition:all .2s}
+          .tab:hover{color:#fff}
           .tab.active{background:#25d366;color:#fff}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
