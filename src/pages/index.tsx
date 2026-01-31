@@ -309,10 +309,10 @@ response = requests.post(
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
           .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
-          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:8px}
+          .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:19px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
-          .capability-card p{font-size:16px;color:#6b7280;margin:0;line-height:1.5}
+          .capability-card h3{font-size:20px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card p{font-size:20px;color:#6b7280;margin:0;line-height:1.5}
           
           /* CTA Section */
           .cta-section{padding:100px 24px;text-align:center;background:#fff}
@@ -429,9 +429,9 @@ response = requests.post(
             .capabilities .section-header{margin-bottom:32px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
-            .cap-icon{width:42px;height:42px;margin-bottom:16px;border-radius:10px;padding:8px}
+            .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
             .capability-card h3{font-size:20px;margin-bottom:8px;text-align:left}
-            .capability-card p{font-size:18px;text-align:left;line-height:1.5}
+            .capability-card p{font-size:20px;text-align:left;line-height:1.5}
             
             .cta-section{padding:60px 20px}
             .cta-section h2{font-size:34px;line-height:1.2;max-width:100%}
@@ -482,9 +482,9 @@ response = requests.post(
             .capabilities{padding:50px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
-            .cap-icon{width:40px;height:40px;margin-bottom:14px;padding:7px}
+            .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
             .capability-card h3{font-size:19px;text-align:left}
-            .capability-card p{font-size:17px;text-align:left}
+            .capability-card p{font-size:19px;text-align:left}
             
             .cta-section{padding:50px 16px}
             .cta-section h2{font-size:30px;line-height:1.2;max-width:100%}
