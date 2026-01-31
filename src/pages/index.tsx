@@ -253,16 +253,16 @@ response = requests.post(
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#25d366;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
           .contact-info{flex:1;display:flex;flex-direction:column}
-          .contact-name{color:#fff;font-size:15px;font-weight:600}
-          .contact-status{color:rgba(255,255,255,.7);font-size:11px}
+          .contact-name{color:#fff;font-size:17px;font-weight:600}
+          .contact-status{color:rgba(255,255,255,.7);font-size:13px}
           .verified-badge{width:22px;height:22px;background:#25d366;border-radius:50%}
           .chat-area{background:#e8efe5;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
-          .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:14px;line-height:1.45;color:#000}
+          .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
           .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
           .msg.sent{background:#d9fdd3;align-self:flex-end;border-top-right-radius:3px}
           .msg.sent.left-msg{align-self:flex-start !important;border-top-left-radius:3px;border-top-right-radius:8px}
           .msg p{margin:0}
-          .msg-time{font-size:10px;color:#667781;display:block;text-align:right;margin-top:3px}
+          .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
           .typing-indicator{background:#fff;padding:10px 14px;border-radius:8px;align-self:flex-start;display:flex;gap:4px}
           .typing-indicator span{width:7px;height:7px;background:#90949c;border-radius:50%;animation:bounce 1.4s infinite}
           .typing-indicator span:nth-child(2){animation-delay:.2s}
@@ -277,8 +277,8 @@ response = requests.post(
           .dot-red{background:#ff5f57}
           .dot-yellow{background:#febc2e}
           .dot-green{background:#28c840}
-          .file-name{margin-left:auto;font-size:14px;color:#fff}
-          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
+          .file-name{margin-left:auto;font-size:15px;color:#fff}
+          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 48px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
@@ -298,10 +298,10 @@ response = requests.post(
           .api-desc{font-size:21px;color:#6b7280;line-height:1.7;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#fff;background:transparent;cursor:pointer;transition:all .2s}
+          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:17px;font-weight:600;color:#fff;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
           .tab.active{background:#25d366;color:#fff}
-          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
+          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
           .capabilities{padding:100px 24px;background:#fff}
