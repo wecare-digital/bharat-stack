@@ -108,7 +108,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       </button>
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h1 className="app-title">WECARE.DIGITAL</h1>
+          <div className="sidebar-brand">
+            <img src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="sidebar-logo" />
+            <div className="sidebar-brand-text">
+              <span className="sidebar-brand-main">Base CRM</span>
+              <span className="sidebar-brand-sub">by WECARE.DIGITAL</span>
+            </div>
+          </div>
         </div>
         <nav className="sidebar-nav">
           {renderNavItems(navigationConfig)}

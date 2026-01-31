@@ -38,7 +38,7 @@ const FloatingAgent: React.FC = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hi! I\'m your WECARE assistant. I can help you send messages, find contacts, check stats, and answer questions. Just type what you need!',
+      content: 'Hi! I\'m your Base CRM assistant. I can help you send messages, find contacts, check stats, and answer questions. Just type what you need!',
       timestamp: new Date(),
     }
   ]);
@@ -276,10 +276,10 @@ const FloatingAgent: React.FC = () => {
     <div className="agent-panel">
       <div className="agent-header">
         <div className="agent-header-info">
-          <img src={LOGO_URL} alt="WECARE" className="agent-avatar-logo" />
-          <div>
-            <span className="agent-name">WECARE Assistant</span>
-            <span className="agent-status-dot">● Online</span>
+          <img src={LOGO_URL} alt="Base CRM" className="agent-avatar-logo" />
+          <div className="agent-header-text">
+            <span className="agent-name">Base CRM</span>
+            <span className="agent-subtitle">by WECARE.DIGITAL</span>
           </div>
         </div>
         <button className="agent-close" onClick={() => setIsOpen(false)}>×</button>

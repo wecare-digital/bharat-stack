@@ -91,11 +91,36 @@ input, textarea, select {
   background: transparent;
 }
 
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .sidebar-logo {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   object-fit: cover;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.sidebar-brand-main {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.sidebar-brand-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .app-title {
@@ -588,10 +613,16 @@ input, textarea, select {
 }
 
 .agent-avatar-logo {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   object-fit: cover;
+}
+
+.agent-header-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
 }
 
 .agent-avatar {
@@ -599,9 +630,16 @@ input, textarea, select {
 }
 
 .agent-name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 15px;
   color: var(--text);
+  display: block;
+}
+
+.agent-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
   display: block;
 }
 
