@@ -27,9 +27,34 @@ const HomePage: React.FC = () => {
   const useCases = ['Promotional', 'Transactional', 'Appointments', 'OTPs', 'Orders', 'Surveys'];
 
   const codeExamples = [
-    { lang: 'Python', code: "import requests\n\nresponse = requests.post(\n    \"https://api.wecare.digital/v1/messages\",\n    headers={\"Authorization\": \"Bearer API_KEY\"},\n    json={\"to\": \"+919330994400\", \"type\": \"template\"}\n)" },
-    { lang: 'JavaScript', code: "const response = await fetch(\n    \"https://api.wecare.digital/v1/messages\",\n    {\n        method: \"POST\",\n        headers: {\"Authorization\": \"Bearer API_KEY\"},\n        body: JSON.stringify({to: \"+919330994400\"})\n    }\n);" },
-    { lang: 'cURL', code: "curl -X POST \\\n    \"https://api.wecare.digital/v1/messages\" \\\n    -H \"Authorization: Bearer API_KEY\" \\\n    -d '{\"to\": \"+919330994400\"}'" },
+    { lang: 'Python', code: `import requests
+
+response = requests.post(
+  "https://api.wecare.digital/v1/messages",
+  headers={
+    "Authorization": "Bearer API_KEY"
+  },
+  json={
+    "to": "+919330994400",
+    "type": "template"
+  }
+)` },
+    { lang: 'JavaScript', code: `const response = await fetch(
+  "https://api.wecare.digital/v1/messages",
+  {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer API_KEY"
+    },
+    body: JSON.stringify({
+      to: "+919330994400"
+    })
+  }
+);` },
+    { lang: 'cURL', code: `curl -X POST \\
+  "https://api.wecare.digital/v1/messages" \\
+  -H "Authorization: Bearer API_KEY" \\
+  -d '{"to": "+919330994400"}'` },
   ];
 
   const capabilities = [
@@ -397,7 +422,7 @@ const HomePage: React.FC = () => {
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
             .tab{padding:14px 24px;font-size:17px}
-            .code-block{font-size:15px;padding:18px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
+            .code-block{font-size:14px;padding:18px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.7}
             
             .capabilities{padding:60px 20px}
             .capabilities .section-header{margin-bottom:32px}
@@ -445,9 +470,9 @@ const HomePage: React.FC = () => {
             .api{padding:50px 16px}
             .api-info h2{font-size:34px;text-align:left}
             .api-desc{font-size:18px;text-align:left}
-            .code-tabs{gap:8px}
+            .code-tabs{gap:8px;padding:14px}
             .tab{padding:12px 20px;font-size:16px}
-            .code-block{font-size:14px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
+            .code-block{font-size:13px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
             
             .capabilities{padding:50px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
