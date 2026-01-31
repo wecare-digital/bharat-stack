@@ -8,7 +8,6 @@ import Head from 'next/head';
 
 const HomePage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
-  const [activeUseCase, setActiveUseCase] = useState(0);
   const [activeCode, setActiveCode] = useState(0);
   
   useEffect(() => {
@@ -24,14 +23,7 @@ const HomePage: React.FC = () => {
 
   const show = (id: string) => visible.has(id);
 
-  const useCases = [
-    { title: 'Promotional', desc: 'Drive sales with targeted campaigns and personalized offers.', icon: '📢' },
-    { title: 'Transactional', desc: 'Order confirmations, shipping updates, delivery notifications.', icon: '📦' },
-    { title: 'Appointments', desc: 'Booking confirmations, reminders, rescheduling.', icon: '📅' },
-    { title: 'OTPs', desc: 'Secure one-time passwords for verification.', icon: '🔐' },
-    { title: 'Orders', desc: 'Complete order management from cart to delivery.', icon: '🛒' },
-    { title: 'Surveys', desc: 'Collect feedback directly in chat.', icon: '📊' },
-  ];
+  const useCases = ['Promotional', 'Transactional', 'Appointments', 'OTPs', 'Orders', 'Surveys'];
 
   const codeExamples = [
     { lang: 'Python', code: "import requests\n\nresponse = requests.post(\n    \"https://api.wecare.digital/v1/messages\",\n    headers={\"Authorization\": \"Bearer API_KEY\"},\n    json={\"to\": \"+919330994400\", \"type\": \"template\"}\n)" },
@@ -113,14 +105,9 @@ const HomePage: React.FC = () => {
             <p>Powering engagement, support, and conversions across the customer journey</p>
           </div>
           <div className="usecase-pills">
-            {useCases.map((u, i) => (
-              <button key={i} className={`pill ${activeUseCase === i ? 'active' : ''}`} onClick={() => setActiveUseCase(i)}>{u.title}</button>
+            {useCases.map((title, i) => (
+              <button key={i} className="pill">{title}</button>
             ))}
-          </div>
-          <div className="usecase-content">
-            <div className="usecase-icon">{useCases[activeUseCase].icon}</div>
-            <h3>{useCases[activeUseCase].title} Messages</h3>
-            <p>{useCases[activeUseCase].desc}</p>
           </div>
         </section>
 
