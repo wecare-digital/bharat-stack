@@ -9,7 +9,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
-import { Authenticator } from '@aws-amplify/ui-react';
+import { Authenticator, ThemeProvider, Theme } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import '../styles/Pages.css';
 import '../styles/Layout.css';
@@ -43,6 +43,96 @@ const LOGO_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.png'
 const LOGO_SVG_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.svg';
 const FAVICON_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.ico';
 const GA_MEASUREMENT_ID = 'G-S3G6REP6Q7';
+
+// Custom Amplify UI Theme - Black buttons with 13px border radius
+const authTheme: Theme = {
+  name: 'base-crm-theme',
+  tokens: {
+    colors: {
+      brand: {
+        primary: {
+          10: { value: '#f5f5f5' },
+          20: { value: '#e5e5e5' },
+          40: { value: '#a3a3a3' },
+          60: { value: '#525252' },
+          80: { value: '#1a1a1a' },
+          90: { value: '#0a0a0a' },
+          100: { value: '#000000' },
+        },
+      },
+      font: {
+        interactive: { value: '#1a1a1a' },
+      },
+      background: {
+        primary: { value: '#ffffff' },
+        secondary: { value: '#f9fafb' },
+      },
+    },
+    components: {
+      authenticator: {
+        router: {
+          borderWidth: { value: '0' },
+          boxShadow: { value: '0 4px 24px rgba(0, 0, 0, 0.08)' },
+        },
+      },
+      button: {
+        primary: {
+          backgroundColor: { value: '#1a1a1a' },
+          color: { value: '#ffffff' },
+          borderRadius: { value: '13px' },
+          _hover: {
+            backgroundColor: { value: '#333333' },
+          },
+          _active: {
+            backgroundColor: { value: '#000000' },
+          },
+        },
+        link: {
+          color: { value: '#1a1a1a' },
+          _hover: {
+            color: { value: '#525252' },
+            backgroundColor: { value: 'transparent' },
+          },
+        },
+      },
+      fieldcontrol: {
+        borderRadius: { value: '10px' },
+        borderColor: { value: '#e5e7eb' },
+        _focus: {
+          borderColor: { value: '#1a1a1a' },
+          boxShadow: { value: '0 0 0 2px rgba(26, 26, 26, 0.1)' },
+        },
+      },
+      tabs: {
+        item: {
+          color: { value: '#6b7280' },
+          _active: {
+            color: { value: '#1a1a1a' },
+            borderColor: { value: '#1a1a1a' },
+          },
+          _hover: {
+            color: { value: '#1a1a1a' },
+          },
+        },
+      },
+    },
+    radii: {
+      small: { value: '10px' },
+      medium: { value: '13px' },
+      large: { value: '16px' },
+    },
+    space: {
+      small: { value: '0.75rem' },
+      medium: { value: '1rem' },
+      large: { value: '1.5rem' },
+    },
+    fontSizes: {
+      small: { value: '0.875rem' },
+      medium: { value: '1rem' },
+      large: { value: '1.125rem' },
+    },
+  },
+};
 
 // Structured data for the organization
 const organizationSchema = {
@@ -198,14 +288,16 @@ export default function App({ Component, pageProps }: AppProps) {
           gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
         `}
       </Script>
-      <Authenticator hideSignUp={true} components={{ Header: AuthHeader }}>
-        {({ signOut, user }) => (
-          <>
-            <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
-            <FloatingAgent />
-          </>
-        )}
-      </Authenticator>
+      <ThemeProvider theme={authTheme}>
+        <Authenticator hideSignUp={true} components={{ Header: AuthHeader }}>
+          {({ signOut, user }) => (
+            <>
+              <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
+              <FloatingAgent />
+            </>
+          )}
+        </Authenticator>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
