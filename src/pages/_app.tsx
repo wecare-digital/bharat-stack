@@ -203,14 +203,14 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
 
 const AuthHeader = () => (
   <div style={{ textAlign: 'center', padding: '24px 20px' }}>
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
       <img 
         src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
         alt="Base CRM" 
-        style={{ width: '50px', height: '50px', borderRadius: '10px' }}
+        style={{ width: '52px', height: '52px', borderRadius: '10px' }}
         onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
       />
-      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, textAlign: 'left' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, textAlign: 'left', justifyContent: 'center' }}>
         <span style={{ fontSize: '21px', fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.3px' }}>Base CRM</span>
         <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280' }}>by WECARE.DIGITAL</span>
       </div>
