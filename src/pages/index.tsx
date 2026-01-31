@@ -243,7 +243,7 @@ response = requests.post(
           .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
           .stat{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
-          .stat small{font-size:15px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
+          .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
           
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
@@ -385,7 +385,7 @@ response = requests.post(
             .hero-stats{display:flex;flex-direction:column;gap:12px;width:100%}
             .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px}
             .stat span{font-size:28px;font-weight:800;min-width:70px}
-            .stat small{font-size:18px;line-height:1.3;margin:0}
+            .stat small{font-size:20px;line-height:1.3;margin:0}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
@@ -452,7 +452,7 @@ response = requests.post(
             .hero-stats{gap:10px}
             .stat{padding:18px 20px;border-radius:12px}
             .stat span{font-size:26px;min-width:65px}
-            .stat small{font-size:16px}
+            .stat small{font-size:18px}
             
             .mockup-wrapper{padding:14px;border-radius:18px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
