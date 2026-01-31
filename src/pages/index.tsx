@@ -187,7 +187,7 @@ const HomePage: React.FC = () => {
           .logos-row{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;max-width:900px;margin:0 auto}
           .logo-item{font-size:16px;font-weight:600;color:#9ca3af;padding:12px 20px}
           .section-header{text-align:center;margin:0 auto 40px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:40px;font-weight:700;line-height:1.3;margin:0 0 40px;color:#1a1a1a}
+          .section-header h2{font-size:40px;font-weight:700;line-height:1.3;margin:0 0 20px;color:#1a1a1a}
           .section-header p{font-size:20px;color:#6b7280;line-height:1.6;margin:0;max-width:420px;text-align:center}
           .touchpoint{padding:100px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
