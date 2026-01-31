@@ -239,11 +239,11 @@ response = requests.post(
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
           .hero-content{display:grid;grid-template-columns:1fr 1.4fr;gap:60px;align-items:center}
           .hero-left h1{font-size:48px;font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
-          .hero-left p{font-size:19px;color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
+          .hero-left p{font-size:21px;color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
           .stat{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
-          .stat small{font-size:13px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
+          .stat small{font-size:15px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
           
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
@@ -277,31 +277,31 @@ response = requests.post(
           .dot-red{background:#ff5f57}
           .dot-yellow{background:#febc2e}
           .dot-green{background:#28c840}
-          .file-name{margin-left:auto;font-size:12px;color:#64748b}
-          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
+          .file-name{margin-left:auto;font-size:14px;color:#64748b}
+          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 48px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
           .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:18px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
+          .section-header p{font-size:20px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:100px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
-          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:15px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
+          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:16px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
           .pill:hover{border-color:#25d366;color:#25d366;transform:translateY(-2px)}
           
           /* API Section */
           .api{padding:100px 24px;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:38px;font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:18px;color:#6b7280;line-height:1.7;margin:0}
+          .api-desc{font-size:20px;color:#6b7280;line-height:1.7;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:600;color:#64748b;background:transparent;cursor:pointer;transition:all .2s}
+          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#64748b;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#e2e8f0}
           .tab.active{background:#25d366;color:#fff}
-          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
+          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
           .capabilities{padding:100px 24px;background:#fff}
@@ -310,8 +310,8 @@ response = requests.post(
           .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
           .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
           .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:20px;color:#000 !important;font-style:normal;-webkit-text-fill-color:#000}
-          .capability-card h3{font-size:18px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
-          .capability-card p{font-size:15px;color:#6b7280;margin:0;line-height:1.5}
+          .capability-card h3{font-size:19px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card p{font-size:16px;color:#6b7280;margin:0;line-height:1.5}
           
           /* CTA Section */
           .cta-section{padding:100px 24px;text-align:center;background:#fff}
@@ -320,7 +320,7 @@ response = requests.post(
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
-          .ftr-contact{font-size:15px;color:#6b7280;text-decoration:none;font-weight:500}
+          .ftr-contact{font-size:16px;color:#6b7280;text-decoration:none;font-weight:500}
           .ftr-contact:hover{color:#1a1a1a}
 
           /* ========== TABLET (768px - 1024px) ========== */
