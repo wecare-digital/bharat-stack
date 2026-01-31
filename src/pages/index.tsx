@@ -52,14 +52,14 @@ const HomePage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>WECARE.DIGITAL - WhatsApp Business API Platform</title>
-        <meta name="description" content="Connect with 2B+ users on WhatsApp" />
+        <title>Base CRM by WECARE.DIGITAL - WhatsApp Business API Platform</title>
+        <meta name="description" content="Connect with 2B+ users on WhatsApp. Multi-channel messaging CRM platform." />
       </Head>
       <div className="page">
         <header className="hdr">
           <div className="hdr-in">
             <div className="logo">
-              <img src="https://auth.wecare.digital/stream/media/m/wecare-digital.ico" alt="" className="logo-img" />
+              <img src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="logo-img" />
               <div className="logo-text"><span className="logo-main">Base CRM</span><span className="logo-sub">by WECARE.DIGITAL</span></div>
             </div>
           </div>
