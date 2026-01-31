@@ -370,10 +370,10 @@ response = requests.post(
           /* ========== MOBILE (up to 767px) ========== */
           @media(max-width:767px){
             .hdr-in{padding:12px 16px}
-            .logo{gap:8px}
-            .logo-img{width:42px;height:42px;border-radius:10px}
-            .logo-main{font-size:19px}
-            .logo-sub{font-size:12px}
+            .logo{gap:10px}
+            .logo-img{width:52px;height:52px;border-radius:12px}
+            .logo-main{font-size:24px}
+            .logo-sub{font-size:14px}
             
             .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 50px}
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
@@ -433,7 +433,7 @@ response = requests.post(
             .capability-card p{font-size:17px;text-align:left;line-height:1.5}
             
             .cta-section{padding:60px 20px}
-            .cta-section h2{font-size:38px;line-height:1.15}
+            .cta-section h2{font-size:32px;line-height:1.25;max-width:280px}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
             .ftr-contact{font-size:18px}
@@ -441,6 +441,10 @@ response = requests.post(
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
+            .logo-img{width:48px;height:48px;border-radius:11px}
+            .logo-main{font-size:22px}
+            .logo-sub{font-size:13px}
+            
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
             .hero-left h1{font-size:36px;line-height:1.15}
             .hero-left p{font-size:18px}
@@ -482,15 +486,15 @@ response = requests.post(
             .capability-card p{font-size:16px;text-align:left}
             
             .cta-section{padding:50px 16px}
-            .cta-section h2{font-size:32px}
+            .cta-section h2{font-size:28px;line-height:1.3;max-width:240px}
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             .hdr-in{padding:10px 12px}
-            .logo-img{width:38px;height:38px}
-            .logo-main{font-size:18px}
-            .logo-sub{font-size:11px}
+            .logo-img{width:44px;height:44px;border-radius:10px}
+            .logo-main{font-size:20px}
+            .logo-sub{font-size:12px}
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{font-size:30px}
