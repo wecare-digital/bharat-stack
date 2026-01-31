@@ -384,9 +384,9 @@ const HomePage: React.FC = () => {
             .file-name{font-size:11px}
             .code-body{font-size:11px;padding:12px;line-height:1.5}
             
-            .section-header{margin-bottom:32px;padding:0}
-            .section-header h2{font-size:28px;margin-bottom:12px;line-height:1.18}
-            .section-header p{font-size:15px;line-height:1.55}
+            .section-header{margin-bottom:32px;padding:0 16px;text-align:center}
+            .section-header h2{font-size:28px;margin-bottom:12px;line-height:1.18;text-align:center}
+            .section-header p{font-size:15px;line-height:1.55;text-align:center}
             
             .touchpoint{padding:56px 16px}
             .usecase-pills{justify-content:flex-start;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:8px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none;-ms-overflow-style:none}
