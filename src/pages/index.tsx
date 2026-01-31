@@ -209,7 +209,7 @@ response = requests.post(
         </section>
 
         <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
-          <h2>Transform your customer<br/>experience with Base CRM</h2>
+          <h2>Transform your customer<br/>experience with<br/>Base CRM</h2>
         </section>
 
         <footer className="ftr">
