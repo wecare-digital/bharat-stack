@@ -206,7 +206,7 @@ const HomePage: React.FC = () => {
           .page{min-height:100vh;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
           
           /* Header */
-          .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,.05)}
+          .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
           .hdr-in{max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
           .logo{display:flex;align-items:center;gap:10px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
@@ -264,9 +264,9 @@ const HomePage: React.FC = () => {
           .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
-          .section-header{text-align:center;margin:0 auto 48px;max-width:600px;padding:0 16px}
-          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px}
-          .section-header p{font-size:18px;color:#6b7280;line-height:1.6;margin:0}
+          .section-header{text-align:center;margin:0 auto 48px;max-width:600px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
+          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%}
+          .section-header p{font-size:18px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:100px 24px;background:#fff}
@@ -298,7 +298,7 @@ const HomePage: React.FC = () => {
           .cta-section h2{font-size:42px;font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           
           /* Footer */
-          .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #f0f0f0}
+          .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
           .ftr-contact{font-size:15px;color:#6b7280;text-decoration:none;font-weight:500}
           .ftr-contact:hover{color:#1a1a1a}
@@ -347,7 +347,6 @@ const HomePage: React.FC = () => {
 
           /* ========== MOBILE LANDSCAPE & SMALL TABLETS (481px - 767px) ========== */
           @media(max-width:767px){
-            .hdr{border-bottom:1px solid rgba(0,0,0,.08)}
             .hdr-in{padding:12px 16px}
             .logo{gap:8px}
             .logo-img{width:40px;height:40px;border-radius:10px}
