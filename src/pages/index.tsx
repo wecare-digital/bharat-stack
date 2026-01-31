@@ -398,7 +398,7 @@ const HomePage: React.FC = () => {
             .api-demo{border-radius:14px;max-width:100%}
             .code-tabs{padding:14px;gap:8px;justify-content:center;flex-wrap:wrap}
             .tab{padding:10px 18px;font-size:14px}
-            .code-block{font-size:12px;padding:16px;min-height:150px;text-align:left}
+            .code-block{font-size:12px;padding:16px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
             
             .capabilities{padding:56px 20px}
             .capabilities .section-header{margin-bottom:36px}
@@ -447,7 +447,7 @@ const HomePage: React.FC = () => {
             .api-desc{font-size:15px}
             .code-tabs{gap:6px}
             .tab{padding:9px 16px;font-size:13px}
-            .code-block{font-size:11px;padding:14px;min-height:130px}
+            .code-block{font-size:11px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
             
             .capabilities{padding:48px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:24px}
