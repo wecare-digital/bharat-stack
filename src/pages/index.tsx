@@ -321,7 +321,7 @@ response = requests.post(
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
-          .ftr-contact{font-size:16px;color:#6b7280;text-decoration:none;font-weight:500}
+          .ftr-contact{font-size:21px;color:#6b7280;text-decoration:none;font-weight:500}
           .ftr-contact:hover{color:#1a1a1a}
 
           /* ========== TABLET (768px - 1024px) ========== */
@@ -437,7 +437,7 @@ response = requests.post(
             .cta-section h2{font-size:34px;line-height:1.2;max-width:100%}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
-            .ftr-contact{font-size:19px}
+            .ftr-contact{font-size:24px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -488,6 +488,8 @@ response = requests.post(
             
             .cta-section{padding:50px 16px}
             .cta-section h2{font-size:30px;line-height:1.2;max-width:100%}
+            
+            .ftr-contact{font-size:20px}
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
@@ -514,6 +516,8 @@ response = requests.post(
             .api-desc{font-size:17px}
             
             .cta-section h2{font-size:26px}
+            
+            .ftr-contact{font-size:17px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
