@@ -207,7 +207,7 @@ const AuthHeader = () => (
       <img 
         src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
         alt="Base CRM" 
-        style={{ width: '46px', height: '46px', borderRadius: '10px' }}
+        style={{ width: '50px', height: '50px', borderRadius: '10px' }}
         onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
       />
       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, textAlign: 'left' }}>
