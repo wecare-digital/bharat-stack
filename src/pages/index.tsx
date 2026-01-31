@@ -309,7 +309,7 @@ response = requests.post(
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
           .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
-          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:20px;color:#000}
+          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:20px;color:#000 !important;font-style:normal;-webkit-text-fill-color:#000}
           .capability-card h3{font-size:18px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
           .capability-card p{font-size:15px;color:#6b7280;margin:0;line-height:1.5}
           
@@ -427,10 +427,10 @@ response = requests.post(
             .capabilities{padding:60px 20px}
             .capabilities .section-header{margin-bottom:32px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
-            .capability-card{padding:22px 18px;border-radius:14px}
-            .cap-icon{width:42px;height:42px;font-size:20px;margin-bottom:16px;border-radius:10px}
-            .capability-card h3{font-size:17px;margin-bottom:6px}
-            .capability-card p{font-size:15px}
+            .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
+            .cap-icon{width:42px;height:42px;font-size:20px;margin-bottom:16px;border-radius:10px;color:#000 !important;-webkit-text-fill-color:#000}
+            .capability-card h3{font-size:17px;margin-bottom:6px;text-align:left}
+            .capability-card p{font-size:15px;text-align:left}
             
             .cta-section{padding:60px 20px}
             .cta-section h2{font-size:38px;line-height:1.15}
@@ -476,10 +476,10 @@ response = requests.post(
             
             .capabilities{padding:50px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
-            .capability-card{padding:20px 18px;border-radius:12px}
-            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:14px}
-            .capability-card h3{font-size:18px}
-            .capability-card p{font-size:16px}
+            .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
+            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:14px;color:#000 !important;-webkit-text-fill-color:#000}
+            .capability-card h3{font-size:18px;text-align:left}
+            .capability-card p{font-size:16px;text-align:left}
             
             .cta-section{padding:50px 16px}
             .cta-section h2{font-size:32px}
