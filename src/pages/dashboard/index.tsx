@@ -596,7 +596,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Header */}
         <header className="dash-header">
           <div className="dash-brand">
-            <h1>WECARE.DIGITAL</h1>
+            <h1>Overview</h1>
             <div className="dash-status">
               <span className={`status-dot ${apiConnected ? 'online' : 'offline'}`} />
               <span>{apiConnected ? `${apiLatency}ms` : 'Offline'}</span>
