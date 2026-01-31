@@ -58,12 +58,12 @@ response = requests.post(
   ];
 
   const capabilities = [
-    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: '📊' },
-    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: '⚙️' },
-    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: '👥' },
-    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: '🎯' },
+    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: '☰' },
+    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: '⚙' },
+    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: '◎' },
+    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: '⚡' },
     { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: '✓' },
-    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: '📈' },
+    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: '▤' },
   ];
 
   return (
@@ -307,9 +307,9 @@ response = requests.post(
           .capabilities{padding:100px 24px;background:#fff}
           .capabilities .section-header{margin-bottom:56px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
-          .capability-card{background:#fafafa;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
+          .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
           .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
-          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:20px}
+          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:20px;color:#37352f}
           .capability-card h3{font-size:18px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
           .capability-card p{font-size:15px;color:#6b7280;margin:0;line-height:1.5}
           
