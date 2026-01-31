@@ -101,7 +101,7 @@ const HomePage: React.FC = () => {
 
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
           <div className="section-header">
-            <h2>Every touchpoint. One seamless experience.</h2>
+            <h2>Every touchpoint. One seamless experience</h2>
             <p>Engage, support, and convert customers across their journey</p>
           </div>
           <div className="usecase-pills">
