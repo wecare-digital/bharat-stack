@@ -356,133 +356,133 @@ const HomePage: React.FC = () => {
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
             .hero-right{order:-1;width:100%;display:flex;justify-content:flex-start}
             .hero-left{text-align:left;order:1}
-            .hero-left h1{font-size:36px;letter-spacing:-0.5px;margin:0 0 18px;line-height:1.15;max-width:100%;text-align:left}
-            .hero-left p{font-size:18px;line-height:1.6;margin:0 0 24px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
+            .hero-left p{font-size:20px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{display:flex;justify-content:flex-start;gap:12px;flex-wrap:wrap}
-            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 20px;text-align:center;min-width:95px}
-            .stat span{font-size:24px;font-weight:800}
-            .stat small{font-size:14px;margin-top:4px;line-height:1.3}
+            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 22px;text-align:center;min-width:100px}
+            .stat span{font-size:28px;font-weight:800}
+            .stat small{font-size:16px;margin-top:4px;line-height:1.3}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
-            .phone-header{padding:12px 14px;gap:10px}
-            .avatar{width:38px;height:38px;font-size:16px}
-            .contact-name{font-size:16px}
-            .contact-status{font-size:12px}
-            .verified-badge{width:22px;height:22px}
-            .chat-area{min-height:200px;padding:14px 12px;gap:8px}
-            .msg{font-size:15px;padding:10px 12px;max-width:85%}
-            .typing-indicator{padding:10px 14px}
-            .typing-indicator span{width:7px;height:7px}
+            .phone-header{padding:14px 16px;gap:10px}
+            .avatar{width:42px;height:42px;font-size:18px}
+            .contact-name{font-size:18px}
+            .contact-status{font-size:14px}
+            .verified-badge{width:24px;height:24px}
+            .chat-area{min-height:200px;padding:14px 12px;gap:10px}
+            .msg{font-size:17px;padding:12px 14px;max-width:85%}
+            .typing-indicator{padding:12px 16px}
+            .typing-indicator span{width:8px;height:8px}
             
             .code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.1);align-self:flex-start}
             .code-body{text-align:left}
-            .code-header{padding:12px 14px}
-            .dots{gap:5px}
-            .dot-red,.dot-yellow,.dot-green{width:10px;height:10px}
-            .file-name{font-size:13px}
-            .code-body{font-size:13px;padding:14px;line-height:1.55}
+            .code-header{padding:14px 16px}
+            .dots{gap:6px}
+            .dot-red,.dot-yellow,.dot-green{width:12px;height:12px}
+            .file-name{font-size:15px}
+            .code-body{font-size:15px;padding:16px;line-height:1.6}
             
-            .section-header{margin-bottom:36px;padding:0 20px;text-align:center}
-            .section-header h2{font-size:32px;margin-bottom:14px;line-height:1.2;text-align:center}
-            .section-header p{font-size:17px;line-height:1.6;text-align:center}
+            .section-header{margin-bottom:40px;padding:0 20px;text-align:center}
+            .section-header h2{font-size:38px;margin-bottom:16px;line-height:1.15;text-align:center}
+            .section-header p{font-size:19px;line-height:1.6;text-align:center}
             
-            .touchpoint{padding:56px 20px}
-            .usecase-pills{justify-content:center;gap:10px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:14px 24px;font-size:16px}
+            .touchpoint{padding:60px 20px}
+            .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
+            .pill{padding:16px 28px;font-size:18px}
             
-            .api{padding:56px 20px}
-            .api-grid{gap:32px;text-align:left}
+            .api{padding:60px 20px}
+            .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
-            .api-info h2{font-size:32px;margin-bottom:14px;text-align:left}
-            .api-desc{font-size:17px;line-height:1.65;max-width:100%;text-align:left}
+            .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
+            .api-desc{font-size:19px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
-            .code-tabs{padding:14px;gap:8px;justify-content:flex-start;flex-wrap:wrap}
-            .tab{padding:12px 20px;font-size:15px}
-            .code-block{font-size:13px;padding:16px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
+            .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
+            .tab{padding:14px 24px;font-size:17px}
+            .code-block{font-size:15px;padding:18px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
             
-            .capabilities{padding:56px 20px}
-            .capabilities .section-header{margin-bottom:36px}
-            .capabilities-grid{grid-template-columns:1fr 1fr;gap:28px 20px}
+            .capabilities{padding:60px 20px}
+            .capabilities .section-header{margin-bottom:40px}
+            .capabilities-grid{grid-template-columns:1fr 1fr;gap:32px 24px}
             .capability-card{text-align:center}
-            .capability-card h3{font-size:18px;margin-bottom:8px}
-            .capability-card p{font-size:15px;line-height:1.55}
+            .capability-card h3{font-size:20px;margin-bottom:10px}
+            .capability-card p{font-size:17px;line-height:1.55}
             
-            .cta-section{padding:56px 20px}
-            .cta-section h2{font-size:32px;line-height:1.2}
+            .cta-section{padding:60px 20px}
+            .cta-section h2{font-size:38px;line-height:1.15}
             
-            .ftr{padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-            .ftr-contact{font-size:16px}
+            .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+            .ftr-contact{font-size:18px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
-            .hero-left h1{font-size:30px;line-height:1.18}
-            .hero-left p{font-size:17px}
+            .hero-left h1{font-size:36px;line-height:1.15}
+            .hero-left p{font-size:18px}
             .hero-stats{gap:10px}
-            .stat{padding:14px 16px;border-radius:12px;min-width:90px}
-            .stat span{font-size:22px}
-            .stat small{font-size:13px}
+            .stat{padding:16px 18px;border-radius:12px;min-width:95px}
+            .stat span{font-size:26px}
+            .stat small{font-size:15px}
             
             .mockup-wrapper{padding:14px;border-radius:18px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
-            .phone-header{padding:10px 12px}
-            .avatar{width:34px;height:34px;font-size:15px}
-            .contact-name{font-size:15px}
+            .phone-header{padding:12px 14px}
+            .avatar{width:38px;height:38px;font-size:16px}
+            .contact-name{font-size:17px}
             .chat-area{min-height:170px;padding:12px 10px}
-            .msg{font-size:14px;padding:9px 11px}
+            .msg{font-size:16px;padding:10px 12px}
             
             .code-box{border-radius:12px}
-            .code-body{font-size:12px;padding:12px}
+            .code-body{font-size:14px;padding:14px}
             
-            .section-header h2{font-size:28px}
-            .section-header p{font-size:16px}
+            .section-header h2{font-size:34px}
+            .section-header p{font-size:18px}
             
-            .touchpoint{padding:48px 16px}
-            .usecase-pills{gap:8px}
-            .pill{padding:12px 20px;font-size:15px}
+            .touchpoint{padding:50px 16px}
+            .usecase-pills{gap:10px}
+            .pill{padding:14px 22px;font-size:17px}
             
-            .api{padding:48px 16px}
-            .api-info h2{font-size:28px;text-align:left}
-            .api-desc{font-size:16px;text-align:left}
-            .code-tabs{gap:6px}
-            .tab{padding:10px 18px;font-size:14px}
-            .code-block{font-size:11px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
+            .api{padding:50px 16px}
+            .api-info h2{font-size:34px;text-align:left}
+            .api-desc{font-size:18px;text-align:left}
+            .code-tabs{gap:8px}
+            .tab{padding:12px 20px;font-size:16px}
+            .code-block{font-size:14px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
             
-            .capabilities{padding:48px 16px}
-            .capabilities-grid{grid-template-columns:1fr;gap:24px}
-            .capability-card h3{font-size:17px}
-            .capability-card p{font-size:15px}
+            .capabilities{padding:50px 16px}
+            .capabilities-grid{grid-template-columns:1fr;gap:28px}
+            .capability-card h3{font-size:19px}
+            .capability-card p{font-size:17px}
             
-            .cta-section{padding:48px 16px}
-            .cta-section h2{font-size:26px}
+            .cta-section{padding:50px 16px}
+            .cta-section h2{font-size:32px}
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             .hdr-in{padding:10px 12px}
             .logo-img{width:38px;height:38px}
-            .logo-main{font-size:17px}
-            .logo-sub{font-size:10px}
+            .logo-main{font-size:18px}
+            .logo-sub{font-size:11px}
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
-            .hero-left h1{font-size:24px}
-            .hero-left p{font-size:15px}
+            .hero-left h1{font-size:30px}
+            .hero-left p{font-size:17px}
             .hero-stats{gap:8px}
-            .stat{padding:12px 14px;min-width:80px}
-            .stat span{font-size:18px}
-            .stat small{font-size:10px}
+            .stat{padding:14px 16px;min-width:85px}
+            .stat span{font-size:22px}
+            .stat small{font-size:14px}
             
-            .section-header h2{font-size:22px}
-            .section-header p{font-size:14px}
+            .section-header h2{font-size:28px}
+            .section-header p{font-size:16px}
             
-            .pill{padding:10px 16px;font-size:12px}
+            .pill{padding:12px 18px;font-size:15px}
             
-            .api-info h2{font-size:20px}
-            .api-desc{font-size:13px}
+            .api-info h2{font-size:26px}
+            .api-desc{font-size:16px}
             
-            .cta-section h2{font-size:20px}
+            .cta-section h2{font-size:26px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
