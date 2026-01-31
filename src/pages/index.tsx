@@ -115,7 +115,7 @@ const HomePage: React.FC = () => {
           <div className="api-grid">
             <div className="api-info">
               <h2>Built for the AI era.</h2>
-              <p className="api-desc">The all-in-one platform for enterprise brands to acquire, convert, and retain customers across every channel—powered by AI that truly understands your business.</p>
+              <p className="api-desc">The complete platform for enterprise brands to acquire, convert, and retain customers across every channel—powered by AI that understands your business and unifies customer data into a single view to drive personalized experiences, targeted campaigns, and intelligent automation.</p>
               
             </div>
             <div className="api-demo">
