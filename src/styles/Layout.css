@@ -539,6 +539,29 @@ input, textarea, select {
   .main-content {
     padding: 60px 12px 12px 12px;
   }
+  
+  /* Mobile sidebar brand */
+  .sidebar-brand {
+    gap: 5px;
+  }
+  
+  .sidebar-logo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .sidebar-brand-text {
+    height: 40px;
+  }
+  
+  .sidebar-brand-main {
+    font-size: 18px;
+  }
+  
+  .sidebar-brand-sub {
+    font-size: 10px;
+    margin-top: 2px;
+  }
 }
 
 /* Floating Agent Button */
@@ -869,6 +892,29 @@ input, textarea, select {
     max-width: 100%;
     height: 70vh;
     border-radius: var(--radius) var(--radius) 0 0;
+  }
+  
+  /* Mobile agent header brand */
+  .agent-header-info {
+    gap: 5px;
+  }
+  
+  .agent-avatar-logo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .agent-header-text {
+    height: 40px;
+  }
+  
+  .agent-name {
+    font-size: 18px;
+  }
+  
+  .agent-subtitle {
+    font-size: 10px;
+    margin-top: 2px;
   }
   
   .toast-container {

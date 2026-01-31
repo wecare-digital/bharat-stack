@@ -79,7 +79,6 @@ const authTheme: Theme = {
         primary: {
           backgroundColor: { value: '#1a1a1a' },
           color: { value: '#ffffff' },
-          borderRadius: { value: '13px' },
           _hover: {
             backgroundColor: { value: '#333333' },
           },
@@ -201,22 +200,39 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
   ]
 });
 
-const AuthHeader = () => (
-  <div style={{ textAlign: 'center', padding: '24px 20px' }}>
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-      <img 
-        src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
-        alt="Base CRM" 
-        style={{ width: '52px', height: '52px', borderRadius: '10px' }}
-        onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
-      />
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', height: '52px' }}>
-        <span style={{ fontSize: '24px', fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.3px', lineHeight: 1 }}>Base CRM</span>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#6b7280', lineHeight: 1, marginTop: '4px' }}>by WECARE.DIGITAL</span>
+const AuthHeader = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 480);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  const logoSize = isMobile ? '40px' : '52px';
+  const gap = isMobile ? '5px' : '7px';
+  const titleSize = isMobile ? '18px' : '24px';
+  const subSize = isMobile ? '10px' : '13px';
+  const marginTop = isMobile ? '2px' : '4px';
+  
+  return (
+    <div style={{ textAlign: 'center', padding: '24px 20px' }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap }}>
+        <img 
+          src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
+          alt="Base CRM" 
+          style={{ width: logoSize, height: logoSize, borderRadius: '10px' }}
+          onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', height: logoSize }}>
+          <span style={{ fontSize: titleSize, fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.3px', lineHeight: 1 }}>Base CRM</span>
+          <span style={{ fontSize: subSize, fontWeight: 600, color: '#6b7280', lineHeight: 1, marginTop }}>by WECARE.DIGITAL</span>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
