@@ -169,7 +169,7 @@ body {
   font-weight: var(--font-normal);
   line-height: var(--leading-normal);
   color: var(--text);
-  background: var(--bg-secondary);
+  background: #ffffff;
 }
 
 /* ========================================
