@@ -288,7 +288,7 @@ response = requests.post(
           /* Touchpoint Section */
           .touchpoint{padding:100px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
-          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:16px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
+          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
           .pill:hover{border-color:#25d366;color:#25d366;transform:translateY(-2px)}
           
           /* API Section */
@@ -413,7 +413,7 @@ response = requests.post(
             
             .touchpoint{padding:60px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:16px 28px;font-size:19px}
+            .pill{padding:16px 28px;font-size:20px}
             
             .api{padding:60px 20px}
             .api-grid{gap:36px;text-align:left}
@@ -470,7 +470,7 @@ response = requests.post(
             
             .touchpoint{padding:50px 16px}
             .usecase-pills{gap:10px}
-            .pill{padding:14px 22px;font-size:18px}
+            .pill{padding:14px 22px;font-size:19px}
             
             .api{padding:50px 16px}
             .api-info h2{font-size:34px;text-align:left}
@@ -508,7 +508,7 @@ response = requests.post(
             .section-header h2{font-size:28px}
             .section-header p{font-size:17px}
             
-            .pill{padding:12px 18px;font-size:16px}
+            .pill{padding:12px 18px;font-size:17px}
             
             .api-info h2{font-size:26px}
             .api-desc{font-size:17px}
