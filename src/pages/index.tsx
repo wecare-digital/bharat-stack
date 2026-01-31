@@ -396,7 +396,7 @@ const HomePage: React.FC = () => {
             .api-info h2{font-size:28px;margin-bottom:14px;text-align:left}
             .api-desc{font-size:16px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
-            .code-tabs{padding:14px;gap:8px;justify-content:center;flex-wrap:wrap}
+            .code-tabs{padding:14px;gap:8px;justify-content:flex-start;flex-wrap:wrap}
             .tab{padding:10px 18px;font-size:14px}
             .code-block{font-size:12px;padding:16px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
             
