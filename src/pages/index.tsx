@@ -233,7 +233,7 @@ const HomePage: React.FC = () => {
           .channel-card p{font-size:14px;color:#6b7280;margin:0}
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start;align-items:center}
-          .ftr-contact{font-size:16px;color:#9ca3af;text-decoration:none}
+          .ftr-contact{font-size:16px;color:#6b7280;text-decoration:none}
           
           @media(max-width:1024px){.hero-content,.api-grid{grid-template-columns:1fr;text-align:center}.hero-left p{margin:0 auto 30px}.hero-stats{justify-content:center}.mockup-wrapper{width:100%;max-width:500px;height:auto;min-height:520px;margin:0 auto}.phone{position:relative;left:auto;top:auto;width:100%;max-width:300px;margin:0 auto 20px}.code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:340px;margin:0 auto}.stories-grid,.channels-grid{grid-template-columns:repeat(2,1fr)}.integrations-grid{grid-template-columns:repeat(3,1fr)}}
           
