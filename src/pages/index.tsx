@@ -130,42 +130,40 @@ const HomePage: React.FC = () => {
         </section>
 
         <section className={`capabilities anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
-          <div className="capabilities-header">
-            <h2>Get to know Base</h2>
-            <p>AI-powered customer lifecycle management that delivers results.</p>
+          <div className="section-header">
+            <h2>Everything you need<br/>to grow customer relationships</h2>
+            <p>AI-powered lifecycle management that delivers results</p>
           </div>
           <div className="capabilities-grid">
             <div className="capability-card">
-              <div className="capability-icon">📊</div>
               <h3>Customer Data Platform</h3>
               <p>Every signal, unified and current</p>
             </div>
             <div className="capability-card">
-              <div className="capability-icon">💬</div>
               <h3>Custom Data Modeling</h3>
               <p>Objects and segments for your business</p>
             </div>
             <div className="capability-card">
-              <div className="capability-icon">📡</div>
               <h3>Multichannel Orchestration</h3>
               <p>Reach customers anywhere</p>
             </div>
             <div className="capability-card">
-              <div className="capability-icon">✨</div>
               <h3>Smart Personalization</h3>
               <p>Marketing that runs itself</p>
             </div>
             <div className="capability-card">
-              <div className="capability-icon">🔒</div>
               <h3>Enterprise Infrastructure</h3>
               <p>APIs and security that scale</p>
             </div>
             <div className="capability-card">
-              <div className="capability-icon">📈</div>
               <h3>Predictive Analytics</h3>
               <p>See revenue before it happens</p>
             </div>
           </div>
+        </section>
+
+        <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
+          <h2>Transform your customer<br/>experience with Base CRM</h2>
         </section>
 
         <footer className="ftr">
@@ -271,21 +269,20 @@ const HomePage: React.FC = () => {
           .channel-card p{font-size:14px;color:#6b7280;margin:0}
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .capabilities{padding:100px 24px;background:#fff}
-          .capabilities-header{text-align:left;max-width:1200px;margin:0 auto 60px}
-          .capabilities-header h2{font-size:32px;font-weight:700;color:#1a1a1a;margin:0 0 12px}
-          .capabilities-header p{font-size:18px;color:#6b7280;margin:0}
-          .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1200px;margin:0 auto}
-          .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px 24px}
-          .capability-icon{font-size:24px;margin-bottom:16px}
-          .capability-card h3{font-size:16px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
-          .capability-card p{font-size:14px;color:#6b7280;margin:0}
+          .capabilities .section-header{margin-bottom:60px}
+          .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px 60px;max-width:1000px;margin:0 auto}
+          .capability-card{background:transparent;padding:0}
+          .capability-card h3{font-size:17px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card p{font-size:15px;color:#6b7280;margin:0;line-height:1.5}
+          .cta-section{padding:80px 24px;text-align:center}
+          .cta-section h2{font-size:40px;font-weight:700;color:#1a1a1a;line-height:1.2;max-width:600px;margin:0 auto}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start;align-items:center}
           .ftr-contact{font-size:16px;color:#6b7280;text-decoration:none}
           
           @media(max-width:1024px){.hero-content,.api-grid{grid-template-columns:1fr;text-align:center}.hero-left p{margin:0 auto 30px}.hero-stats{justify-content:center}.mockup-wrapper{width:100%;max-width:500px;height:auto;min-height:520px;margin:0 auto}.phone{position:relative;left:auto;top:auto;width:100%;max-width:300px;margin:0 auto 20px}.code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:340px;margin:0 auto}.stories-grid,.channels-grid{grid-template-columns:repeat(2,1fr)}.integrations-grid{grid-template-columns:repeat(3,1fr)}.capabilities-grid{grid-template-columns:repeat(2,1fr)}}
           
           
-        @media(max-width:767px){.hdr-in{padding:12px 16px}.logo{gap:5px}.logo-img{width:40px;height:40px}.logo-text{height:40px}.logo-main{font-size:18px}.logo-sub{font-size:10px;margin-top:2px}.hero{padding:calc(90px + env(safe-area-inset-top)) 16px 50px}.hero-content{display:flex;flex-direction:column;gap:28px}.hero-right{order:-1}.hero-left{text-align:left;order:1}.hero-left h1{font-size:26px;letter-spacing:-0.5px;margin:0 0 14px;line-height:1.2}.hero-left p{font-size:15px;line-height:1.6;margin:0 0 20px;color:#6b7280}.hero-stats{display:flex;gap:8px;justify-content:space-between}.stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 8px;flex:1;min-width:0;text-align:center}.stat span{font-size:18px;font-weight:700}.stat small{font-size:10px;margin-top:2px}.mockup-wrapper{display:flex;flex-direction:column;gap:12px;width:100%;height:auto;min-height:auto;padding:14px;background:#e8f5f0;border-radius:16px}.phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:14px}.chat-area{min-height:180px;padding:10px}.msg{font-size:13px;padding:8px 10px}.code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:10px}.code-header{padding:8px 12px}.code-body{font-size:10px;padding:12px;line-height:1.5}.section-header{padding:0 16px;margin-bottom:28px}.section-header h2{font-size:24px;margin-bottom:16px}.section-header p{font-size:14px;max-width:100%}.touchpoint{padding:40px 16px}.usecase-pills{justify-content:flex-start;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:8px}.pill{padding:10px 16px;font-size:12px;flex-shrink:0}.api{padding:40px 16px}.api-grid{gap:20px}.api-info{text-align:left}.api-info h2{font-size:24px;margin-bottom:12px}.api-desc{font-size:14px}.api-demo{border-radius:12px}.code-tabs{display:flex;justify-content:flex-start;gap:6px;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}.tab{padding:8px 14px;font-size:12px;white-space:nowrap;flex-shrink:0}.code-block{font-size:10px;padding:14px;min-height:140px;overflow-x:auto;-webkit-overflow-scrolling:touch}.ftr{padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));background:#fff}.ftr-contact{font-size:13px}.capabilities{padding:40px 16px}.capabilities-header{margin-bottom:32px}.capabilities-header h2{font-size:24px}.capabilities-header p{font-size:14px}.capabilities-grid{grid-template-columns:1fr 1fr;gap:12px}.capability-card{padding:20px 16px}.capability-icon{font-size:20px;margin-bottom:12px}.capability-card h3{font-size:14px}.capability-card p{font-size:12px}}`}</style>
+        @media(max-width:767px){.hdr-in{padding:12px 16px}.logo{gap:5px}.logo-img{width:40px;height:40px}.logo-text{height:40px}.logo-main{font-size:18px}.logo-sub{font-size:10px;margin-top:2px}.hero{padding:calc(90px + env(safe-area-inset-top)) 16px 50px}.hero-content{display:flex;flex-direction:column;gap:28px}.hero-right{order:-1}.hero-left{text-align:left;order:1}.hero-left h1{font-size:26px;letter-spacing:-0.5px;margin:0 0 14px;line-height:1.2}.hero-left p{font-size:15px;line-height:1.6;margin:0 0 20px;color:#6b7280}.hero-stats{display:flex;gap:8px;justify-content:space-between}.stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 8px;flex:1;min-width:0;text-align:center}.stat span{font-size:18px;font-weight:700}.stat small{font-size:10px;margin-top:2px}.mockup-wrapper{display:flex;flex-direction:column;gap:12px;width:100%;height:auto;min-height:auto;padding:14px;background:#e8f5f0;border-radius:16px}.phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:14px}.chat-area{min-height:180px;padding:10px}.msg{font-size:13px;padding:8px 10px}.code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:10px}.code-header{padding:8px 12px}.code-body{font-size:10px;padding:12px;line-height:1.5}.section-header{padding:0 16px;margin-bottom:28px}.section-header h2{font-size:24px;margin-bottom:16px}.section-header p{font-size:14px;max-width:100%}.touchpoint{padding:40px 16px}.usecase-pills{justify-content:flex-start;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:8px}.pill{padding:10px 16px;font-size:12px;flex-shrink:0}.api{padding:40px 16px}.api-grid{gap:20px}.api-info{text-align:left}.api-info h2{font-size:24px;margin-bottom:12px}.api-desc{font-size:14px}.api-demo{border-radius:12px}.code-tabs{display:flex;justify-content:flex-start;gap:6px;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}.tab{padding:8px 14px;font-size:12px;white-space:nowrap;flex-shrink:0}.code-block{font-size:10px;padding:14px;min-height:140px;overflow-x:auto;-webkit-overflow-scrolling:touch}.ftr{padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));background:#fff}.ftr-contact{font-size:13px}.capabilities{padding:60px 16px}.capabilities .section-header{margin-bottom:40px}.capabilities-grid{grid-template-columns:1fr 1fr;gap:32px 24px}.capability-card h3{font-size:15px}.capability-card p{font-size:14px}.cta-section{padding:50px 16px}.cta-section h2{font-size:26px}}`}</style>
       </div>
     </>
   );
