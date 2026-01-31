@@ -202,15 +202,19 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
 });
 
 const AuthHeader = () => (
-  <div style={{ textAlign: 'center', padding: '20px' }}>
-    <img 
-      src={LOGO_URL} 
-      alt="Base CRM" 
-      style={{ width: '64px', height: '64px', borderRadius: '12px', marginBottom: '12px' }}
-      onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
-    />
-    <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a1a1a', margin: '0 0 4px' }}>Base CRM</h1>
-    <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>by WECARE.DIGITAL</p>
+  <div style={{ textAlign: 'center', padding: '24px 20px' }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '14px' }}>
+      <img 
+        src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
+        alt="Base CRM" 
+        style={{ width: '52px', height: '52px', borderRadius: '10px' }}
+        onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, textAlign: 'left' }}>
+        <span style={{ fontSize: '24px', fontWeight: 800, color: '#1a1a1a' }}>Base CRM</span>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#6b7280' }}>by WECARE.DIGITAL</span>
+      </div>
+    </div>
   </div>
 );
 
