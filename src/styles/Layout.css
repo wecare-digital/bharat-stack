@@ -487,62 +487,206 @@ input, textarea, select {
   .main-content { margin-left: 260px; padding: 20px; }
 }
 
-@media (max-width: 768px) {
+/* ========================================
+   TABLET STYLES (768px - 1024px)
+   ======================================== */
+@media (max-width: 1024px) and (min-width: 769px) {
   .mobile-menu-toggle {
     display: flex;
   }
   
   .sidebar {
-    width: var(--sidebar-w);
+    width: 280px;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1000;
     background: #ffffff;
   }
   
   .sidebar.open {
     transform: translateX(0);
-    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
   }
   
   .main-content {
     margin-left: 0;
-    padding: 60px 16px 16px 16px;
+    padding: 70px 24px 24px 24px;
   }
   
   .mobile-overlay {
     display: block;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.25s;
   }
   
-  .sidebar.open + .mobile-overlay,
+  .sidebar.open ~ .mobile-overlay,
   .mobile-overlay.visible {
     pointer-events: auto;
     opacity: 1;
   }
 }
 
-@media (max-width: 480px) {
+/* ========================================
+   MOBILE STYLES (max-width: 768px)
+   ======================================== */
+@media (max-width: 768px) {
+  /* Mobile menu toggle - larger touch target */
+  .mobile-menu-toggle {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    top: 8px;
+    left: 8px;
+    border-radius: 10px;
+  }
+  
+  /* Sidebar - slide from left */
   .sidebar {
-    width: 100%;
-    max-height: 85vh;
-    border-radius: 0 0 var(--radius) var(--radius);
-    transform: translateY(-100%);
+    width: 85vw;
+    max-width: 320px;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    background: #ffffff;
+    padding: 12px 10px;
   }
   
   .sidebar.open {
-    transform: translateY(0);
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Main content - full width with proper spacing */
+  .main-content {
+    margin-left: 0;
+    padding: 64px 16px 80px 16px;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Mobile overlay */
+  .mobile-overlay {
+    display: block;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  
+  .sidebar.open ~ .mobile-overlay,
+  .mobile-overlay.visible {
+    pointer-events: auto;
+    opacity: 1;
+  }
+  
+  /* Sidebar header - compact */
+  .sidebar-header {
+    padding: 8px 8px 12px;
+  }
+  
+  .sidebar-brand {
+    gap: 8px;
+  }
+  
+  .sidebar-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+  }
+  
+  .sidebar-brand-text {
+    height: 44px;
+  }
+  
+  .sidebar-brand-main {
+    font-size: 20px;
+  }
+  
+  .sidebar-brand-sub {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  
+  /* Navigation - larger touch targets */
+  .sidebar-nav {
+    padding: 0 4px;
+    gap: 2px;
+  }
+  
+  .nav-item,
+  .nav-item-expandable {
+    padding: 14px 12px;
+    font-size: 16px;
+    min-height: 48px;
+    border-radius: 10px;
+  }
+  
+  .nav-subitem,
+  .nav-subitem-expandable {
+    padding: 12px 10px;
+    font-size: 15px;
+    min-height: 44px;
+  }
+  
+  .nav-icon {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+  }
+  
+  .nav-label {
+    font-size: 16px;
+  }
+  
+  .nav-subitems {
+    padding-left: 8px;
+  }
+  
+  /* Sidebar footer */
+  .sidebar-footer {
+    padding: 12px;
+  }
+  
+  .btn-signout {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+}
+
+/* ========================================
+   SMALL MOBILE STYLES (max-width: 480px)
+   ======================================== */
+@media (max-width: 480px) {
+  .mobile-menu-toggle {
+    top: 6px;
+    left: 6px;
+  }
+  
+  .sidebar {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
   }
   
   .main-content {
-    padding: 60px 12px 12px 12px;
+    padding: 60px 12px 90px 12px;
   }
   
-  /* Mobile sidebar brand */
+  /* Compact sidebar brand */
   .sidebar-brand {
-    gap: 5px;
+    gap: 6px;
   }
   
   .sidebar-logo {
@@ -561,6 +705,19 @@ input, textarea, select {
   .sidebar-brand-sub {
     font-size: 10px;
     margin-top: 2px;
+  }
+  
+  /* Navigation - optimized for thumb reach */
+  .nav-item,
+  .nav-item-expandable {
+    padding: 16px 14px;
+    font-size: 17px;
+  }
+  
+  .nav-subitem,
+  .nav-subitem-expandable {
+    padding: 14px 12px;
+    font-size: 16px;
   }
 }
 
@@ -870,42 +1027,68 @@ input, textarea, select {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ========================================
+   FLOATING AGENT - TABLET (768px - 1024px)
+   ======================================== */
+@media (max-width: 1024px) and (min-width: 481px) {
+  .floating-agent-button,
+  .agent-fab {
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+  }
+  
+  .floating-agent-container,
+  .agent-panel {
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    height: 480px;
+    max-height: calc(100vh - 80px);
+  }
+}
+
+/* ========================================
+   FLOATING AGENT - MOBILE (max-width: 480px)
+   ======================================== */
 @media (max-width: 480px) {
   .floating-agent-button,
   .agent-fab {
     bottom: 16px;
     right: 16px;
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
   }
   
   .agent-fab-logo {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
   }
   
   .floating-agent-container,
   .agent-panel {
     bottom: 0;
     right: 0;
+    left: 0;
     width: 100%;
     max-width: 100%;
-    height: 70vh;
-    border-radius: var(--radius) var(--radius) 0 0;
+    height: 85vh;
+    max-height: 85vh;
+    border-radius: 16px 16px 0 0;
   }
   
   /* Mobile agent header brand */
   .agent-header-info {
-    gap: 5px;
+    gap: 8px;
   }
   
   .agent-avatar-logo {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
   
   .agent-header-text {
-    height: 40px;
+    height: 44px;
   }
   
   .agent-name {
@@ -913,8 +1096,31 @@ input, textarea, select {
   }
   
   .agent-subtitle {
-    font-size: 10px;
-    margin-top: 2px;
+    font-size: 11px;
+    margin-top: 3px;
+  }
+  
+  .floating-agent-messages,
+  .agent-messages {
+    padding: 12px;
+  }
+  
+  .floating-agent-input,
+  .agent-input-area {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .floating-agent-input input,
+  .agent-input-area textarea {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+  
+  .floating-agent-input button,
+  .agent-send-btn {
+    width: 44px;
+    height: 44px;
   }
   
   .toast-container {

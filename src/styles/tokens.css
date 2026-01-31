@@ -173,6 +173,62 @@ body {
 }
 
 /* ========================================
+ * MOBILE TYPOGRAPHY & TOUCH TARGETS
+ * ======================================== */
+
+@media (max-width: 768px) {
+  html {
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Minimum touch target size */
+  button, 
+  a, 
+  input[type="checkbox"], 
+  input[type="radio"],
+  select,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better tap feedback */
+  button:active,
+  a:active,
+  [role="button"]:active {
+    opacity: 0.7;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --text-xs: 12px;
+    --text-sm: 13px;
+    --text-md: 14px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 19px;
+    --h1: 26px;
+    --h2: 22px;
+    --h3: 19px;
+    --h4: 17px;
+  }
+}
+
+/* ========================================
  * SKELETON PULSE ANIMATION (No Gradient)
  * ======================================== */
 

@@ -311,17 +311,17 @@ const HomePage: React.FC = () => {
             .logo-sub{font-size:11px}
             
             .hero{padding:110px 20px 60px}
-            .hero-content{grid-template-columns:1fr;gap:40px;text-align:center}
-            .hero-left h1{font-size:38px;letter-spacing:-1px;max-width:600px;margin:0 auto 20px}
-            .hero-left p{font-size:17px;max-width:520px;margin:0 auto 28px}
-            .hero-stats{justify-content:center;gap:12px}
+            .hero-content{grid-template-columns:1fr;gap:40px;text-align:left}
+            .hero-left h1{font-size:38px;letter-spacing:-1px;max-width:600px;margin:0 0 20px}
+            .hero-left p{font-size:17px;max-width:520px;margin:0 0 28px}
+            .hero-stats{justify-content:flex-start;gap:12px}
             .stat{padding:16px 20px;min-width:100px}
             .stat span{font-size:22px}
             .stat small{font-size:12px}
             
-            .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0 auto;padding:20px}
+            .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0;padding:20px}
             .phone{left:16px;top:16px;width:52%}
-            .code-box{right:12px;bottom:16px;width:55%}
+            .code-box{right:auto;left:12px;bottom:16px;width:55%}
             
             .section-header h2{font-size:34px}
             .section-header p{font-size:16px}
@@ -353,100 +353,101 @@ const HomePage: React.FC = () => {
             .logo-sub{font-size:11px}
             
             .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 50px}
-            .hero-content{display:flex;flex-direction:column;gap:32px;text-align:center}
-            .hero-right{order:-1}
-            .hero-left{text-align:center;order:1}
-            .hero-left h1{font-size:32px;letter-spacing:-0.5px;margin:0 auto 18px;line-height:1.15;max-width:100%}
-            .hero-left p{font-size:17px;line-height:1.6;margin:0 auto 24px;max-width:100%;color:#6b7280}
-            .hero-stats{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+            .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
+            .hero-right{order:-1;width:100%;display:flex;justify-content:flex-start}
+            .hero-left{text-align:left;order:1}
+            .hero-left h1{font-size:36px;letter-spacing:-0.5px;margin:0 0 18px;line-height:1.15;max-width:100%;text-align:left}
+            .hero-left p{font-size:18px;line-height:1.6;margin:0 0 24px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-stats{display:flex;justify-content:flex-start;gap:12px;flex-wrap:wrap}
             .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 20px;text-align:center;min-width:95px}
-            .stat span{font-size:22px;font-weight:800}
-            .stat small{font-size:12px;margin-top:4px;line-height:1.3}
+            .stat span{font-size:24px;font-weight:800}
+            .stat small{font-size:14px;margin-top:4px;line-height:1.3}
             
-            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0 auto;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb}
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:12px 14px;gap:10px}
-            .avatar{width:38px;height:38px;font-size:15px}
-            .contact-name{font-size:15px}
-            .contact-status{font-size:11px}
+            .avatar{width:38px;height:38px;font-size:16px}
+            .contact-name{font-size:16px}
+            .contact-status{font-size:12px}
             .verified-badge{width:22px;height:22px}
             .chat-area{min-height:200px;padding:14px 12px;gap:8px}
-            .msg{font-size:14px;padding:10px 12px;max-width:85%}
+            .msg{font-size:15px;padding:10px 12px;max-width:85%}
             .typing-indicator{padding:10px 14px}
             .typing-indicator span{width:7px;height:7px}
             
-            .code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+            .code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.1);align-self:flex-start}
+            .code-body{text-align:left}
             .code-header{padding:12px 14px}
             .dots{gap:5px}
             .dot-red,.dot-yellow,.dot-green{width:10px;height:10px}
-            .file-name{font-size:12px}
-            .code-body{font-size:12px;padding:14px;line-height:1.55}
+            .file-name{font-size:13px}
+            .code-body{font-size:13px;padding:14px;line-height:1.55}
             
             .section-header{margin-bottom:36px;padding:0 20px;text-align:center}
-            .section-header h2{font-size:28px;margin-bottom:14px;line-height:1.2;text-align:center}
-            .section-header p{font-size:16px;line-height:1.6;text-align:center}
+            .section-header h2{font-size:32px;margin-bottom:14px;line-height:1.2;text-align:center}
+            .section-header p{font-size:17px;line-height:1.6;text-align:center}
             
             .touchpoint{padding:56px 20px}
             .usecase-pills{justify-content:center;gap:10px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:12px 20px;font-size:14px}
+            .pill{padding:14px 24px;font-size:16px}
             
             .api{padding:56px 20px}
             .api-grid{gap:32px;text-align:left}
             .api-info{text-align:left}
-            .api-info h2{font-size:28px;margin-bottom:14px;text-align:left}
-            .api-desc{font-size:16px;line-height:1.65;max-width:100%;text-align:left}
+            .api-info h2{font-size:32px;margin-bottom:14px;text-align:left}
+            .api-desc{font-size:17px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:14px;gap:8px;justify-content:flex-start;flex-wrap:wrap}
-            .tab{padding:10px 18px;font-size:14px}
-            .code-block{font-size:12px;padding:16px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
+            .tab{padding:12px 20px;font-size:15px}
+            .code-block{font-size:13px;padding:16px;min-height:150px;text-align:left;white-space:pre;overflow-x:auto}
             
             .capabilities{padding:56px 20px}
             .capabilities .section-header{margin-bottom:36px}
             .capabilities-grid{grid-template-columns:1fr 1fr;gap:28px 20px}
             .capability-card{text-align:center}
-            .capability-card h3{font-size:16px;margin-bottom:8px}
-            .capability-card p{font-size:14px;line-height:1.55}
+            .capability-card h3{font-size:18px;margin-bottom:8px}
+            .capability-card p{font-size:15px;line-height:1.55}
             
             .cta-section{padding:56px 20px}
-            .cta-section h2{font-size:28px;line-height:1.2}
+            .cta-section h2{font-size:32px;line-height:1.2}
             
             .ftr{padding:24px 20px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-            .ftr-contact{font-size:15px}
+            .ftr-contact{font-size:16px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
-            .hero-left h1{font-size:28px;line-height:1.18}
-            .hero-left p{font-size:16px}
+            .hero-left h1{font-size:30px;line-height:1.18}
+            .hero-left p{font-size:17px}
             .hero-stats{gap:10px}
             .stat{padding:14px 16px;border-radius:12px;min-width:90px}
-            .stat span{font-size:20px}
-            .stat small{font-size:11px}
+            .stat span{font-size:22px}
+            .stat small{font-size:13px}
             
             .mockup-wrapper{padding:14px;border-radius:18px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
             .phone-header{padding:10px 12px}
-            .avatar{width:34px;height:34px;font-size:14px}
-            .contact-name{font-size:14px}
+            .avatar{width:34px;height:34px;font-size:15px}
+            .contact-name{font-size:15px}
             .chat-area{min-height:170px;padding:12px 10px}
-            .msg{font-size:13px;padding:9px 11px}
+            .msg{font-size:14px;padding:9px 11px}
             
             .code-box{border-radius:12px}
-            .code-body{font-size:11px;padding:12px}
+            .code-body{font-size:12px;padding:12px}
             
-            .section-header h2{font-size:26px}
-            .section-header p{font-size:15px}
+            .section-header h2{font-size:28px}
+            .section-header p{font-size:16px}
             
             .touchpoint{padding:48px 16px}
             .usecase-pills{gap:8px}
-            .pill{padding:11px 18px;font-size:13px}
+            .pill{padding:12px 20px;font-size:15px}
             
             .api{padding:48px 16px}
-            .api-info h2{font-size:26px;text-align:left}
-            .api-desc{font-size:15px;text-align:left}
+            .api-info h2{font-size:28px;text-align:left}
+            .api-desc{font-size:16px;text-align:left}
             .code-tabs{gap:6px}
-            .tab{padding:9px 16px;font-size:13px}
+            .tab{padding:10px 18px;font-size:14px}
             .code-block{font-size:11px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
             
             .capabilities{padding:48px 16px}

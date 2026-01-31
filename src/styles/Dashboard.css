@@ -983,6 +983,493 @@
   }
 }
 
+/* ========================================
+   TABLET RESPONSIVE (768px - 1024px)
+   ======================================== */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .dash-header {
+    padding: var(--space-md) var(--space-lg);
+  }
+  
+  .dash-brand h1 {
+    font-size: 24px;
+  }
+  
+  .dash-tabs {
+    padding: var(--space-sm) var(--space-lg);
+  }
+  
+  .dash-tabs .tab {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 15px;
+  }
+  
+  .tab-content {
+    padding: var(--space-lg);
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-sm);
+  }
+  
+  .stat-card .stat-value {
+    font-size: 32px;
+  }
+  
+  .actions-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .phones-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .guide-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ========================================
+   MOBILE RESPONSIVE (max-width: 768px)
+   ======================================== */
+@media (max-width: 768px) {
+  /* Dashboard header */
+  .dash-header {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .dash-brand h1 {
+    font-size: 22px;
+  }
+  
+  .dash-status {
+    font-size: 12px;
+  }
+  
+  .refresh-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  /* Tabs - horizontal scroll */
+  .dash-tabs {
+    padding: 8px 12px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .dash-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .dash-tabs .tab {
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 44px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .dash-tabs .tab span:last-child {
+    display: none;
+  }
+  
+  /* Tab content */
+  .tab-content {
+    padding: 16px;
+  }
+  
+  /* Stats grid - 2 columns */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .stats-grid.small {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 100%;
+  }
+  
+  .stat-card {
+    padding: 14px 12px;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 26px;
+  }
+  
+  .stat-card .stat-label {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  
+  /* Section */
+  .section {
+    padding: 14px;
+    border-radius: 10px;
+  }
+  
+  .section h3 {
+    font-size: 17px;
+    margin-bottom: 12px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  /* Actions grid - 2 columns */
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .action-card {
+    padding: 14px 10px;
+  }
+  
+  .action-card .icon {
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  
+  .action-card span:last-child {
+    font-size: 13px;
+  }
+  
+  /* Messages list */
+  .msg-list {
+    gap: 6px;
+  }
+  
+  .msg-item {
+    padding: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .msg-item .dir {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+  
+  .msg-item .name {
+    font-size: 14px;
+    min-width: 70px;
+    flex: 0 0 auto;
+  }
+  
+  .msg-item .content {
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    order: 3;
+    width: 100%;
+    margin-top: 4px;
+  }
+  
+  .msg-item .time {
+    font-size: 11px;
+    margin-left: auto;
+  }
+  
+  .msg-item .status {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+  
+  /* Phones grid */
+  .phones-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .phone-card {
+    padding: 12px;
+  }
+  
+  .phone-card .phone-name {
+    font-size: 13px;
+  }
+  
+  .phone-card .phone-num {
+    font-size: 14px;
+  }
+  
+  /* Search bar */
+  .search-bar {
+    padding: 6px;
+    border-radius: 10px;
+  }
+  
+  .search-bar input {
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+  
+  .search-bar.large input {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+  
+  /* Data table */
+  .data-table {
+    font-size: 13px;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+  }
+  
+  /* Delete options */
+  .delete-options {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .delete-options button {
+    width: 100%;
+    padding: 14px;
+    min-height: 48px;
+  }
+  
+  .delete-panel {
+    padding: 14px;
+  }
+  
+  .delete-panel .warning {
+    padding: 12px;
+    font-size: 13px;
+  }
+  
+  .delete-panel select,
+  .delete-panel input[type="text"] {
+    padding: 12px 14px;
+    font-size: 16px;
+    min-height: 48px;
+  }
+  
+  /* Message selection */
+  .msg-select-list {
+    max-height: 250px;
+  }
+  
+  .msg-select-row {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .msg-select-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .msg-select-row .content {
+    font-size: 12px;
+  }
+  
+  /* Delete actions */
+  .delete-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .btn-secondary,
+  .btn-danger {
+    width: 100%;
+    min-height: 48px;
+    padding: 14px 20px;
+  }
+  
+  /* Billing */
+  .billing-summary {
+    padding: 16px;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .billing-total .amount {
+    font-size: 32px;
+  }
+  
+  .billing-total .label {
+    font-size: 12px;
+  }
+  
+  .billing-meta {
+    text-align: center;
+  }
+  
+  .billing-meta .period {
+    font-size: 13px;
+  }
+  
+  .billing-table {
+    font-size: 13px;
+  }
+  
+  .billing-table th,
+  .billing-table td {
+    padding: 10px 12px;
+  }
+  
+  /* Guide cards */
+  .guide-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .guide-card {
+    padding: 14px;
+  }
+  
+  .guide-card .guide-icon {
+    font-size: 24px;
+  }
+  
+  .guide-card h4 {
+    font-size: 15px;
+  }
+  
+  .guide-card p {
+    font-size: 13px;
+  }
+  
+  .guide-list li {
+    padding: 12px 0;
+    font-size: 13px;
+  }
+  
+  /* Search results */
+  .search-results {
+    gap: 8px;
+  }
+  
+  .result-item {
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .result-item .name {
+    font-size: 14px;
+  }
+  
+  .result-item .phone {
+    font-size: 12px;
+  }
+  
+  /* Empty state */
+  .empty-state {
+    padding: 32px 16px;
+  }
+  
+  .empty-state .icon {
+    font-size: 40px;
+  }
+  
+  .empty-state p {
+    font-size: 14px;
+  }
+  
+  /* Payment info */
+  .payment-info {
+    padding: 12px;
+    font-size: 13px;
+  }
+}
+
+/* ========================================
+   SMALL MOBILE (max-width: 480px)
+   ======================================== */
+@media (max-width: 480px) {
+  .dash-header {
+    padding: 10px 12px;
+  }
+  
+  .dash-brand h1 {
+    font-size: 20px;
+  }
+  
+  .refresh-btn {
+    top: 10px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .dash-tabs {
+    padding: 6px 10px;
+  }
+  
+  .dash-tabs .tab {
+    padding: 8px 10px;
+    font-size: 18px;
+  }
+  
+  .tab-content {
+    padding: 12px;
+  }
+  
+  .stats-grid {
+    gap: 8px;
+  }
+  
+  .stat-card {
+    padding: 12px 10px;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 22px;
+  }
+  
+  .stat-card .stat-label {
+    font-size: 10px;
+  }
+  
+  .section {
+    padding: 12px;
+  }
+  
+  .section h3 {
+    font-size: 16px;
+  }
+  
+  .actions-grid {
+    gap: 8px;
+  }
+  
+  .action-card {
+    padding: 12px 8px;
+  }
+  
+  .action-card .icon {
+    font-size: 24px;
+  }
+  
+  .action-card span:last-child {
+    font-size: 12px;
+  }
+  
+  .billing-total .amount {
+    font-size: 28px;
+  }
+}
+
 /* Search Tab */
 .search-tab {
   display: flex;
