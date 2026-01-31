@@ -35,8 +35,45 @@ const HomePage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>Base CRM by WECARE.DIGITAL - WhatsApp Business API Platform</title>
-        <meta name="description" content="Connect with 2B+ users on WhatsApp. Multi-channel messaging CRM platform." />
+        <title>Base CRM by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM</title>
+        <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Free trial available." />
+        <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://base.wecare.digital/" />
+        <meta property="og:title" content="Base CRM - WhatsApp Business API Platform | WECARE.DIGITAL" />
+        <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
+        <meta property="og:image" content="https://auth.wecare.digital/stream/media/m/wecare-digital.png" />
+        <meta property="og:site_name" content="Base CRM by WECARE.DIGITAL" />
+        <meta property="og:locale" content="en_IN" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://base.wecare.digital/" />
+        <meta name="twitter:title" content="Base CRM - WhatsApp Business API Platform" />
+        <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
+        <meta name="twitter:image" content="https://auth.wecare.digital/stream/media/m/wecare-digital.png" />
+        
+        {/* Additional SEO */}
+        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+        <meta name="googlebot" content="index, follow" />
+        <meta name="author" content="WECARE.DIGITAL" />
+        <meta name="publisher" content="WECARE.DIGITAL" />
+        <meta name="copyright" content="WECARE.DIGITAL" />
+        <meta name="language" content="English" />
+        <meta name="geo.region" content="IN" />
+        <meta name="geo.placename" content="India" />
+        <link rel="canonical" href="https://base.wecare.digital/" />
+        
+        {/* Mobile & PWA */}
+        <meta name="theme-color" content="#25d366" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Base CRM" />
+        <meta name="application-name" content="Base CRM" />
+        <meta name="format-detection" content="telephone=no" />
       </Head>
       <div className="page">
         <header className="hdr">

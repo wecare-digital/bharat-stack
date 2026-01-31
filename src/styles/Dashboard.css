@@ -1088,3 +1088,72 @@
   margin: 0;
   font-size: 16px;
 }
+
+
+/* User Guide Tab */
+.guide-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.guide-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-md);
+}
+
+.guide-card {
+  padding: var(--space-lg);
+  background: var(--notion-bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--notion-border);
+  transition: all 0.2s ease;
+}
+
+.guide-card:hover {
+  border-color: var(--wa-teal);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.guide-card .guide-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.guide-card h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--notion-text);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.guide-card p {
+  font-size: 14px;
+  color: var(--notion-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.guide-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.guide-list li {
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--notion-border);
+  font-size: 14px;
+  color: var(--notion-text-secondary);
+  line-height: 1.6;
+}
+
+.guide-list li:last-child {
+  border-bottom: none;
+}
+
+.guide-list li strong {
+  color: var(--notion-text);
+}

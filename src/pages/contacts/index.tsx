@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import ContactImportExport from '../../components/ContactImportExport';
+import SEO, { PAGE_SEO } from '../../components/SEO';
 import * as api from '../../api/client';
 
 interface PageProps {
@@ -186,6 +187,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title={PAGE_SEO.contacts.title}
+        description={PAGE_SEO.contacts.description}
+        keywords={PAGE_SEO.contacts.keywords}
+        canonical="/contacts"
+        noindex={true}
+      />
       <div className="page">
         <PageHeader 
           title="Contacts" 

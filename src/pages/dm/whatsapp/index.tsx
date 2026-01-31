@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
 import Toast, { useToast } from '../../../components/Toast';
+import SEO, { PAGE_SEO } from '../../../components/SEO';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
@@ -602,6 +603,13 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title={PAGE_SEO.whatsapp.title}
+        description={PAGE_SEO.whatsapp.description}
+        keywords={PAGE_SEO.whatsapp.keywords}
+        canonical="/dm/whatsapp"
+        noindex={true}
+      />
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="whatsapp-inbox">
         {/* Contacts Sidebar */}

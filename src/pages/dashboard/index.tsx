@@ -8,6 +8,7 @@ import Layout from '../../components/Layout';
 import Link from 'next/link';
 import { BarChart, DonutChart, Sparkline, ProgressBar, DateRangePicker } from '../../components/Charts';
 import { SkeletonStat, SkeletonCard } from '../../components/Skeleton';
+import SEO, { PAGE_SEO } from '../../components/SEO';
 import * as api from '../../api/client';
 
 interface PageProps {
@@ -15,7 +16,7 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing' | 'search' | 'ai' | 'webhook';
+type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing' | 'search' | 'ai' | 'webhook' | 'guide';
 
 const PAYMENT_PHONE = '+91 93309 94400';
 const PAYMENT_NAME = 'WECARE.DIGITAL';
@@ -592,6 +593,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title={PAGE_SEO.dashboard.title}
+        description={PAGE_SEO.dashboard.description}
+        keywords={PAGE_SEO.dashboard.keywords}
+        canonical="/dashboard"
+        noindex={true}
+      />
       <div className="dash">
         {/* Header */}
         <header className="dash-header">
@@ -611,7 +619,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'payments', 'data', 'billing', 'ai', 'webhook', 'search'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'payments', 'data', 'billing', 'ai', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -624,8 +632,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'billing' && '≡'}
               {tab === 'ai' && '🤖'}
               {tab === 'webhook' && '🔗'}
+              {tab === 'guide' && '📖'}
               {tab === 'search' && '⌕'}
-              <span>{tab === 'ai' ? 'AI Assistant' : tab === 'webhook' ? 'Webhook' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              <span>{tab === 'ai' ? 'AI Assistant' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'User Guide' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -1283,6 +1292,79 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
                 <strong>Webhook Info:</strong> Webhooks send HTTP POST requests to your URL when events occur.
                 Each request includes a signature header for verification.
+              </div>
+            </div>
+          )}
+
+          {/* USER GUIDE TAB */}
+          {activeTab === 'guide' && (
+            <div className="guide-tab">
+              <div className="section">
+                <h3>Welcome to WECARE.DIGITAL</h3>
+                <p style={{ color: 'var(--notion-text-secondary)', marginBottom: '24px' }}>
+                  Your multi-channel messaging platform for WhatsApp, SMS, Email, and Voice communications.
+                </p>
+              </div>
+
+              <div className="section">
+                <h3>Getting Started</h3>
+                <div className="guide-cards">
+                  <div className="guide-card">
+                    <span className="guide-icon">◈</span>
+                    <h4>WhatsApp Messaging</h4>
+                    <p>Send and receive WhatsApp messages. Go to Messages → WhatsApp to start conversations.</p>
+                  </div>
+                  <div className="guide-card">
+                    <span className="guide-icon">💳</span>
+                    <h4>Payments</h4>
+                    <p>Send payment requests via WhatsApp using Razorpay integration. Navigate to Pay → WhatsApp Pay.</p>
+                  </div>
+                  <div className="guide-card">
+                    <span className="guide-icon">◉</span>
+                    <h4>Contacts</h4>
+                    <p>Manage your contact list. Import/export contacts and organize them for campaigns.</p>
+                  </div>
+                  <div className="guide-card">
+                    <span className="guide-icon">⫶</span>
+                    <h4>Bulk Messaging</h4>
+                    <p>Send messages to multiple recipients at once. Use templates for consistent communication.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="section">
+                <h3>Key Features</h3>
+                <ul className="guide-list">
+                  <li><strong>Multi-Channel:</strong> WhatsApp, SMS (AWS Pinpoint, Airtel), Email (SES), Voice calls</li>
+                  <li><strong>Templates:</strong> Create and manage WhatsApp message templates</li>
+                  <li><strong>AI Assistant:</strong> Get AI-powered response suggestions</li>
+                  <li><strong>Webhooks:</strong> Integrate with external systems via webhooks</li>
+                  <li><strong>Billing:</strong> Track AWS resource usage and costs</li>
+                  <li><strong>Bulk Operations:</strong> Send campaigns to multiple contacts</li>
+                </ul>
+              </div>
+
+              <div className="section">
+                <h3>WhatsApp Numbers</h3>
+                <div className="phones-grid">
+                  <div className="phone-card">
+                    <div className="phone-name">WECARE.DIGITAL</div>
+                    <div className="phone-num">+91 93309 94400</div>
+                    <span className="badge green">Razorpay Enabled</span>
+                  </div>
+                  <div className="phone-card">
+                    <div className="phone-name">Manish Agarwal</div>
+                    <div className="phone-num">+91 99033 00044</div>
+                    <span className="badge">Active</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="section">
+                <h3>Need Help?</h3>
+                <p style={{ color: 'var(--notion-text-secondary)' }}>
+                  Use the AI Assistant tab for quick answers, or contact support for technical issues.
+                </p>
               </div>
             </div>
           )}

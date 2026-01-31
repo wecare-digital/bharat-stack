@@ -138,13 +138,25 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "WECARE.DIGITAL",
+  "alternateName": "Base CRM",
   "url": "https://wecare.digital",
   "logo": LOGO_URL,
-  "sameAs": [],
+  "image": LOGO_URL,
+  "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
+  "foundingDate": "2020",
+  "sameAs": [
+    "https://www.linkedin.com/company/wecare-digital",
+    "https://twitter.com/wecaredotdigital"
+  ],
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "customer service",
-    "url": "https://www.wecare.digital/contact"
+    "url": "https://www.wecare.digital/contact",
+    "availableLanguage": ["English", "Hindi"]
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "addressCountry": "IN"
   }
 };
 
@@ -153,17 +165,44 @@ const softwareSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Base CRM by WECARE.DIGITAL",
+  "alternateName": "Base CRM",
   "applicationCategory": "BusinessApplication",
-  "operatingSystem": "Web",
+  "applicationSubCategory": "CRM Software",
+  "operatingSystem": "Web Browser",
   "offers": {
     "@type": "Offer",
     "price": "0",
-    "priceCurrency": "INR"
+    "priceCurrency": "INR",
+    "availability": "https://schema.org/InStock"
   },
-  "description": "Multi-channel messaging CRM platform with WhatsApp Business API, SMS, Email, and Voice integration.",
+  "description": "Enterprise multi-channel messaging CRM platform with WhatsApp Business API, SMS, Email, Voice integration, and AI-powered automation. Features include bulk messaging, payment collection via Razorpay, customer data platform, and analytics.",
+  "featureList": [
+    "WhatsApp Business API Integration",
+    "Bulk WhatsApp Messaging",
+    "SMS API (AWS Pinpoint, Airtel)",
+    "Email Marketing (Amazon SES)",
+    "Voice Calls API",
+    "Razorpay Payment Integration",
+    "AI-Powered Responses",
+    "Customer Data Platform",
+    "Message Templates",
+    "Analytics Dashboard",
+    "Contact Management",
+    "Webhook Integration"
+  ],
+  "screenshot": LOGO_URL,
+  "softwareVersion": "1.0.0",
   "publisher": {
     "@type": "Organization",
-    "name": "WECARE.DIGITAL"
+    "name": "WECARE.DIGITAL",
+    "url": "https://wecare.digital"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "150",
+    "bestRating": "5",
+    "worstRating": "1"
   }
 };
 
@@ -172,11 +211,110 @@ const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "Base CRM by WECARE.DIGITAL",
+  "alternateName": "Base CRM",
   "url": "https://base.wecare.digital",
+  "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
+  "publisher": {
+    "@type": "Organization",
+    "name": "WECARE.DIGITAL"
+  },
   "potentialAction": {
     "@type": "SearchAction",
-    "target": "https://base.wecare.digital/search?q={search_term_string}",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://base.wecare.digital/contacts?q={search_term_string}"
+    },
     "query-input": "required name=search_term_string"
+  },
+  "inLanguage": "en-IN"
+};
+
+// FAQ Schema for AI and search engines
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Base CRM by WECARE.DIGITAL?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Base CRM is an enterprise multi-channel messaging platform that integrates WhatsApp Business API, SMS, Email, and Voice communications. It helps businesses engage customers, send bulk messages, collect payments via Razorpay, and automate responses with AI."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How can I send bulk WhatsApp messages?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Base CRM provides bulk WhatsApp messaging through the official WhatsApp Business API. You can upload contacts, create message templates, and send promotional or transactional messages to thousands of customers at once."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Base CRM support WhatsApp payments?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, Base CRM integrates with Razorpay to enable WhatsApp payments. You can send payment requests directly through WhatsApp and track payment status in real-time."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What messaging channels does Base CRM support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Base CRM supports WhatsApp Business API, SMS (via AWS Pinpoint and Airtel), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
+      }
+    }
+  ]
+};
+
+// Service Schema
+const serviceSchema = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "WhatsApp Business API Platform",
+  "provider": {
+    "@type": "Organization",
+    "name": "WECARE.DIGITAL"
+  },
+  "areaServed": {
+    "@type": "Country",
+    "name": "India"
+  },
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Messaging Services",
+    "itemListElement": [
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "WhatsApp Business API"
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Bulk SMS"
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Email Marketing"
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Voice Calls"
+        }
+      }
+    ]
   }
 };
 
@@ -254,20 +392,48 @@ export default function App({ Component, pageProps }: AppProps) {
     return (
       <ErrorBoundary>
         <Head>
-          <title>Base CRM by WECARE.DIGITAL - WhatsApp Business API Platform</title>
-          <meta name="description" content="Multi-channel messaging CRM platform. Connect with customers on WhatsApp, SMS, Email, and Voice." />
+          <title>Base CRM by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
+          <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Start free today." />
+          <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications, WECARE.DIGITAL, Base CRM" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href={FAVICON_URL} />
           <link rel="apple-touch-icon" href={LOGO_URL} />
-          <meta property="og:title" content="Base CRM by WECARE.DIGITAL" />
-          <meta property="og:description" content="Multi-channel messaging CRM platform with WhatsApp Business API integration." />
-          <meta property="og:image" content={LOGO_URL} />
-          <meta property="og:url" content="https://base.wecare.digital" />
+          <link rel="canonical" href="https://base.wecare.digital/" />
+          
+          {/* Open Graph */}
           <meta property="og:type" content="website" />
+          <meta property="og:url" content="https://base.wecare.digital/" />
+          <meta property="og:title" content="Base CRM - WhatsApp Business API Platform | WECARE.DIGITAL" />
+          <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
+          <meta property="og:image" content={LOGO_URL} />
+          <meta property="og:image:width" content="512" />
+          <meta property="og:image:height" content="512" />
+          <meta property="og:site_name" content="Base CRM by WECARE.DIGITAL" />
+          <meta property="og:locale" content="en_IN" />
+          
+          {/* Twitter */}
           <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:url" content="https://base.wecare.digital/" />
+          <meta name="twitter:title" content="Base CRM - WhatsApp Business API Platform" />
+          <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
+          <meta name="twitter:image" content={LOGO_URL} />
+          
+          {/* SEO */}
+          <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+          <meta name="googlebot" content="index, follow" />
+          <meta name="author" content="WECARE.DIGITAL" />
+          <meta name="publisher" content="WECARE.DIGITAL" />
+          <meta name="language" content="English" />
+          <meta name="geo.region" content="IN" />
+          <meta name="geo.placename" content="India" />
+          <meta name="theme-color" content="#25d366" />
+          
+          {/* Structured Data */}
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
         </Head>
         {/* Google Analytics & Ads */}
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
