@@ -102,7 +102,7 @@ const HomePage: React.FC = () => {
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
           <div className="section-header">
             <h2>Every touchpoint<br/>One seamless experience</h2>
-            <p>Engage, support, and convert customers across their journey</p>
+            <p>Engage, support, and convert customers across their entire journey — from first contact to lasting loyalty</p>
           </div>
           <div className="usecase-pills">
             {useCases.map((title, i) => (
