@@ -299,7 +299,7 @@ const HomePage: React.FC = () => {
           
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
-          .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:center}
+          .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
           .ftr-contact{font-size:15px;color:#6b7280;text-decoration:none;font-weight:500}
           .ftr-contact:hover{color:#1a1a1a}
 
