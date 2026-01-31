@@ -10,7 +10,6 @@ import Head from 'next/head';
 const HomePage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
   const [activeCode, setActiveCode] = useState(0);
-  const [activeCapability, setActiveCapability] = useState(0);
   
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -35,10 +34,10 @@ const HomePage: React.FC = () => {
 
   const capabilities = [
     { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: '📊' },
-    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: '🔧' },
-    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: '📱' },
+    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: '⚙️' },
+    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: '👥' },
     { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: '🎯' },
-    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: '🏢' },
+    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: '✓' },
     { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: '📈' },
   ];
 
@@ -173,24 +172,14 @@ const HomePage: React.FC = () => {
             <h2>Everything you need<br/>to grow customer relationships</h2>
             <p>AI-powered lifecycle management that delivers results</p>
           </div>
-          <div className="capabilities-tabs">
-            <div className="cap-tabs-list">
-              {capabilities.map((cap, i) => (
-                <button 
-                  key={i} 
-                  className={`cap-tab ${activeCapability === i ? 'active' : ''}`}
-                  onClick={() => setActiveCapability(i)}
-                >
-                  <span className="cap-tab-icon">{cap.icon}</span>
-                  <span className="cap-tab-title">{cap.title}</span>
-                </button>
-              ))}
-            </div>
-            <div className="cap-content">
-              <div className="cap-content-icon">{capabilities[activeCapability].icon}</div>
-              <h3 className="cap-content-title">{capabilities[activeCapability].title}</h3>
-              <p className="cap-content-desc">{capabilities[activeCapability].desc}</p>
-            </div>
+          <div className="capabilities-grid">
+            {capabilities.map((cap, i) => (
+              <div key={i} className="capability-card">
+                <div className="cap-icon">{cap.icon}</div>
+                <h3>{cap.title}</h3>
+                <p>{cap.desc}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -289,20 +278,15 @@ const HomePage: React.FC = () => {
           .tab.active{background:#25d366;color:#fff}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
-          /* Capabilities Section - Tabbed */
+          /* Capabilities Section - Card Grid */
           .capabilities{padding:100px 24px;background:#fff}
-          .capabilities .section-header{margin-bottom:48px}
-          .capabilities-tabs{max-width:900px;margin:0 auto}
-          .cap-tabs-list{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:32px}
-          .cap-tab{display:flex;align-items:center;gap:8px;padding:14px 24px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;color:#4b5563}
-          .cap-tab:hover{border-color:#25d366;color:#25d366}
-          .cap-tab.active{background:#25d366;border-color:#25d366;color:#fff}
-          .cap-tab-icon{font-size:18px}
-          .cap-tab-title{white-space:nowrap}
-          .cap-content{text-align:center;padding:48px 32px;background:#f9fafb;border-radius:20px;border:1px solid #e5e7eb}
-          .cap-content-icon{font-size:56px;margin-bottom:20px}
-          .cap-content-title{font-size:28px;font-weight:700;color:#1a1a1a;margin:0 0 12px}
-          .cap-content-desc{font-size:20px;color:#6b7280;margin:0;line-height:1.6}
+          .capabilities .section-header{margin-bottom:56px}
+          .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
+          .capability-card{background:#fafafa;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
+          .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
+          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:20px}
+          .capability-card h3{font-size:18px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card p{font-size:15px;color:#6b7280;margin:0;line-height:1.5}
           
           /* CTA Section */
           .cta-section{padding:100px 24px;text-align:center;background:#fff}
@@ -348,12 +332,11 @@ const HomePage: React.FC = () => {
             .api-demo{max-width:500px;margin:0}
             
             .capabilities{padding:70px 20px}
-            .cap-tabs-list{gap:8px}
-            .cap-tab{padding:12px 20px;font-size:14px}
-            .cap-content{padding:36px 24px}
-            .cap-content-icon{font-size:48px}
-            .cap-content-title{font-size:24px}
-            .cap-content-desc{font-size:17px}
+            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:16px}
+            .capability-card{padding:24px 20px}
+            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
+            .capability-card h3{font-size:17px}
+            .capability-card p{font-size:14px}
             
             .cta-section{padding:70px 20px}
             .cta-section h2{font-size:34px}
@@ -418,13 +401,11 @@ const HomePage: React.FC = () => {
             
             .capabilities{padding:60px 20px}
             .capabilities .section-header{margin-bottom:32px}
-            .cap-tabs-list{gap:10px;overflow-x:auto;justify-content:flex-start;flex-wrap:nowrap;padding-bottom:8px;-webkit-overflow-scrolling:touch}
-            .cap-tab{padding:14px 20px;font-size:16px;flex-shrink:0}
-            .cap-tab-icon{font-size:20px}
-            .cap-content{padding:32px 20px;border-radius:16px}
-            .cap-content-icon{font-size:52px;margin-bottom:16px}
-            .cap-content-title{font-size:26px}
-            .cap-content-desc{font-size:18px}
+            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
+            .capability-card{padding:22px 18px;border-radius:14px}
+            .cap-icon{width:42px;height:42px;font-size:20px;margin-bottom:16px;border-radius:10px}
+            .capability-card h3{font-size:17px;margin-bottom:6px}
+            .capability-card p{font-size:15px}
             
             .cta-section{padding:60px 20px}
             .cta-section h2{font-size:38px;line-height:1.15}
@@ -469,12 +450,11 @@ const HomePage: React.FC = () => {
             .code-block{font-size:14px;padding:14px;min-height:130px;text-align:left;white-space:pre;overflow-x:auto}
             
             .capabilities{padding:50px 16px}
-            .cap-tabs-list{gap:8px}
-            .cap-tab{padding:12px 18px;font-size:15px}
-            .cap-content{padding:28px 16px}
-            .cap-content-icon{font-size:48px}
-            .cap-content-title{font-size:24px}
-            .cap-content-desc{font-size:17px}
+            .capabilities-grid{grid-template-columns:1fr;gap:12px}
+            .capability-card{padding:20px 18px;border-radius:12px}
+            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:14px}
+            .capability-card h3{font-size:18px}
+            .capability-card p{font-size:16px}
             
             .cta-section{padding:50px 16px}
             .cta-section h2{font-size:32px}
