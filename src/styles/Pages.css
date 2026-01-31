@@ -204,7 +204,7 @@
 .section-description {
   color: var(--text-secondary);
   margin-bottom: 16px;
-  font-size: var(--text-sm);
+  font-size: var(--text-desc);
   line-height: var(--leading-normal);
 }
 
@@ -2335,7 +2335,7 @@
   
   .page-header p,
   .page-header .page-subtitle {
-    font-size: 13px;
+    font-size: var(--text-desc);
   }
 }
 
@@ -2377,8 +2377,8 @@
 
 .page-header p,
 .page-header .page-subtitle {
-  font-size: 14px;
-  color: #666666;
+  font-size: var(--text-desc);
+  color: var(--text-secondary);
   margin: 4px 0 0 0;
 }
 

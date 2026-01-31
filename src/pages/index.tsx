@@ -277,13 +277,13 @@ response = requests.post(
           .dot-red{background:#ff5f57}
           .dot-yellow{background:#febc2e}
           .dot-green{background:#28c840}
-          .file-name{margin-left:auto;font-size:14px;color:#64748b}
+          .file-name{margin-left:auto;font-size:14px;color:#fff}
           .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 48px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
           .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:20px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
+          .section-header p{font-size:21px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:100px 24px;background:#fff}
@@ -295,7 +295,7 @@ response = requests.post(
           .api{padding:100px 24px;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:38px;font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:20px;color:#6b7280;line-height:1.7;margin:0}
+          .api-desc{font-size:21px;color:#6b7280;line-height:1.7;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#fff;background:transparent;cursor:pointer;transition:all .2s}
@@ -312,7 +312,7 @@ response = requests.post(
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:20px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
-          .capability-card p{font-size:20px;color:#6b7280;margin:0;line-height:1.5}
+          .capability-card p{font-size:21px;color:#6b7280;margin:0;line-height:1.5}
           
           /* CTA Section */
           .cta-section{padding:100px 24px;text-align:center;background:#fff}

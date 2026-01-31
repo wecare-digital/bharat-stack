@@ -70,6 +70,7 @@
   --text-sm: 14px;    /* Was 12-13px */
   --text-md: 15px;    /* Standard body text */
   --text-base: 16px;  /* Base size */
+  --text-desc: 21px;  /* Common description text */
   --text-lg: 18px;    /* Larger body */
   --text-xl: 20px;    /* Subheadings */
   
@@ -219,6 +220,7 @@ body {
     --text-sm: 13px;
     --text-md: 14px;
     --text-base: 15px;
+    --text-desc: 18px;
     --text-lg: 17px;
     --text-xl: 19px;
     --h1: 26px;
