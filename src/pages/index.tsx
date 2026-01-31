@@ -373,25 +373,25 @@ response = requests.post(
             .logo{gap:8px}
             .logo-img{width:42px;height:42px;border-radius:10px}
             .logo-main{font-size:19px}
-            .logo-sub{font-size:11px}
+            .logo-sub{font-size:12px}
             
             .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 50px}
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
             .hero-right{order:-1;width:100%;display:flex;justify-content:flex-start}
             .hero-left{text-align:left;order:1}
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
-            .hero-left p{font-size:20px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-left p{font-size:22px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{display:flex;justify-content:flex-start;gap:12px;flex-wrap:wrap}
             .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 22px;text-align:center;min-width:100px}
             .stat span{font-size:28px;font-weight:800}
-            .stat small{font-size:16px;margin-top:4px;line-height:1.3}
+            .stat small{font-size:17px;margin-top:4px;line-height:1.3}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}
             .contact-name{font-size:18px}
-            .contact-status{font-size:14px}
+            .contact-status{font-size:15px}
             .verified-badge{width:24px;height:24px}
             .chat-area{min-height:200px;padding:14px 12px;gap:10px}
             .msg{font-size:17px;padding:12px 14px;max-width:85%}
@@ -408,7 +408,7 @@ response = requests.post(
             
             .section-header{margin-bottom:40px;padding:0 20px;text-align:center}
             .section-header h2{font-size:38px;margin-bottom:16px;line-height:1.15;text-align:center}
-            .section-header p{font-size:19px;line-height:1.6;text-align:center}
+            .section-header p{font-size:21px;line-height:1.6;text-align:center}
             
             .touchpoint{padding:60px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
@@ -418,7 +418,7 @@ response = requests.post(
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
             .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
-            .api-desc{font-size:19px;line-height:1.65;max-width:100%;text-align:left}
+            .api-desc{font-size:21px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
             .tab{padding:14px 24px;font-size:17px}
@@ -429,8 +429,8 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:42px;height:42px;font-size:20px;margin-bottom:16px;border-radius:10px;color:#000 !important;-webkit-text-fill-color:#000}
-            .capability-card h3{font-size:17px;margin-bottom:6px;text-align:left}
-            .capability-card p{font-size:15px;text-align:left}
+            .capability-card h3{font-size:18px;margin-bottom:8px;text-align:left}
+            .capability-card p{font-size:17px;text-align:left;line-height:1.5}
             
             .cta-section{padding:60px 20px}
             .cta-section h2{font-size:38px;line-height:1.15}
