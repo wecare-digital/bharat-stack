@@ -94,12 +94,12 @@ input, textarea, select {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 7px;
 }
 
 .sidebar-logo {
-  width: 42px;
-  height: 42px;
+  width: 52px;
+  height: 52px;
   border-radius: 10px;
   object-fit: cover;
 }
@@ -107,20 +107,25 @@ input, textarea, select {
 .sidebar-brand-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  justify-content: center;
+  height: 52px;
+  text-align: left;
 }
 
 .sidebar-brand-main {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--text);
   letter-spacing: -0.3px;
+  line-height: 1;
 }
 
 .sidebar-brand-sub {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
+  line-height: 1;
+  margin-top: 4px;
 }
 
 .app-title {
@@ -609,20 +614,22 @@ input, textarea, select {
 .agent-header-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 7px;
 }
 
 .agent-avatar-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
   object-fit: cover;
 }
 
 .agent-header-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  justify-content: center;
+  height: 52px;
+  text-align: left;
 }
 
 .agent-avatar {
@@ -630,17 +637,21 @@ input, textarea, select {
 }
 
 .agent-name {
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 800;
+  font-size: 24px;
   color: var(--text);
   display: block;
+  letter-spacing: -0.3px;
+  line-height: 1;
 }
 
 .agent-subtitle {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
   display: block;
+  line-height: 1;
+  margin-top: 4px;
 }
 
 .agent-status,
