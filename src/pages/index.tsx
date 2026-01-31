@@ -58,12 +58,12 @@ response = requests.post(
   ];
 
   const capabilities = [
-    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: '☰' },
-    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: '⚙' },
-    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: '◎' },
-    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: '⚡' },
-    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: '✓' },
-    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: '▤' },
+    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: 'https://img.icons8.com/ios/250/000000/database.png' },
+    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: 'https://img.icons8.com/ios/250/000000/layers.png' },
+    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: 'https://img.icons8.com/ios/250/000000/source-code.png' },
+    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: 'https://img.icons8.com/ios/250/000000/conference-background-selected.png' },
+    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: 'https://img.icons8.com/ios/250/000000/lightning-bolt.png' },
+    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: 'https://img.icons8.com/ios/250/000000/area-chart.png' },
   ];
 
   return (
@@ -200,7 +200,7 @@ response = requests.post(
           <div className="capabilities-grid">
             {capabilities.map((cap, i) => (
               <div key={i} className="capability-card">
-                <div className="cap-icon">{cap.icon}</div>
+                <div className="cap-icon"><img src={cap.icon} alt={cap.title} /></div>
                 <h3>{cap.title}</h3>
                 <p>{cap.desc}</p>
               </div>
@@ -309,7 +309,8 @@ response = requests.post(
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
           .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
-          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:20px;color:#000 !important;font-style:normal;-webkit-text-fill-color:#000}
+          .cap-icon{width:44px;height:44px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:8px}
+          .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:19px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
           .capability-card p{font-size:16px;color:#6b7280;margin:0;line-height:1.5}
           
@@ -428,7 +429,7 @@ response = requests.post(
             .capabilities .section-header{margin-bottom:32px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
-            .cap-icon{width:42px;height:42px;font-size:20px;margin-bottom:16px;border-radius:10px;color:#000 !important;-webkit-text-fill-color:#000}
+            .cap-icon{width:42px;height:42px;margin-bottom:16px;border-radius:10px;padding:8px}
             .capability-card h3{font-size:20px;margin-bottom:8px;text-align:left}
             .capability-card p{font-size:18px;text-align:left;line-height:1.5}
             
@@ -481,7 +482,7 @@ response = requests.post(
             .capabilities{padding:50px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
-            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:14px;color:#000 !important;-webkit-text-fill-color:#000}
+            .cap-icon{width:40px;height:40px;margin-bottom:14px;padding:7px}
             .capability-card h3{font-size:19px;text-align:left}
             .capability-card p{font-size:17px;text-align:left}
             
