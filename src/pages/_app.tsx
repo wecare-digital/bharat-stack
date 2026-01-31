@@ -203,7 +203,12 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
 
 const AuthHeader = () => (
   <div style={{ textAlign: 'center', padding: '20px' }}>
-    <img src={LOGO_URL} alt="Base CRM" style={{ width: '64px', height: '64px', borderRadius: '12px', marginBottom: '12px' }} />
+    <img 
+      src={LOGO_URL} 
+      alt="Base CRM" 
+      style={{ width: '64px', height: '64px', borderRadius: '12px', marginBottom: '12px' }}
+      onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
+    />
     <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a1a1a', margin: '0 0 4px' }}>Base CRM</h1>
     <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>by WECARE.DIGITAL</p>
   </div>
