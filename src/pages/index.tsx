@@ -380,11 +380,11 @@ response = requests.post(
             .hero-right{order:-1;width:100%;display:flex;justify-content:flex-start}
             .hero-left{text-align:left;order:1}
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
-            .hero-left p{font-size:22px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-left p{font-size:24px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{display:flex;justify-content:flex-start;gap:12px;flex-wrap:wrap}
             .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 22px;text-align:center;min-width:100px}
             .stat span{font-size:28px;font-weight:800}
-            .stat small{font-size:17px;margin-top:4px;line-height:1.3}
+            .stat small{font-size:18px;margin-top:4px;line-height:1.3}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
@@ -408,20 +408,20 @@ response = requests.post(
             
             .section-header{margin-bottom:40px;padding:0 20px;text-align:center}
             .section-header h2{font-size:38px;margin-bottom:16px;line-height:1.15;text-align:center}
-            .section-header p{font-size:21px;line-height:1.6;text-align:center}
+            .section-header p{font-size:24px;line-height:1.6;text-align:center}
             
             .touchpoint{padding:60px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:16px 28px;font-size:18px}
+            .pill{padding:16px 28px;font-size:19px}
             
             .api{padding:60px 20px}
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
             .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
-            .api-desc{font-size:21px;line-height:1.65;max-width:100%;text-align:left}
+            .api-desc{font-size:24px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
-            .tab{padding:14px 24px;font-size:17px}
+            .tab{padding:14px 24px;font-size:18px}
             .code-block{font-size:14px;padding:18px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.7}
             
             .capabilities{padding:60px 20px}
@@ -429,14 +429,14 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:42px;height:42px;font-size:20px;margin-bottom:16px;border-radius:10px;color:#000 !important;-webkit-text-fill-color:#000}
-            .capability-card h3{font-size:18px;margin-bottom:8px;text-align:left}
-            .capability-card p{font-size:17px;text-align:left;line-height:1.5}
+            .capability-card h3{font-size:20px;margin-bottom:8px;text-align:left}
+            .capability-card p{font-size:18px;text-align:left;line-height:1.5}
             
             .cta-section{padding:60px 20px}
             .cta-section h2{font-size:32px;line-height:1.25;max-width:280px}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
-            .ftr-contact{font-size:18px}
+            .ftr-contact{font-size:19px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -447,11 +447,11 @@ response = requests.post(
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
             .hero-left h1{font-size:36px;line-height:1.15}
-            .hero-left p{font-size:18px}
+            .hero-left p{font-size:20px}
             .hero-stats{gap:10px}
             .stat{padding:16px 18px;border-radius:12px;min-width:95px}
             .stat span{font-size:26px}
-            .stat small{font-size:15px}
+            .stat small{font-size:16px}
             
             .mockup-wrapper{padding:14px;border-radius:18px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
@@ -465,25 +465,25 @@ response = requests.post(
             .code-body{font-size:14px;padding:14px}
             
             .section-header h2{font-size:34px}
-            .section-header p{font-size:18px}
+            .section-header p{font-size:20px}
             
             .touchpoint{padding:50px 16px}
             .usecase-pills{gap:10px}
-            .pill{padding:14px 22px;font-size:17px}
+            .pill{padding:14px 22px;font-size:18px}
             
             .api{padding:50px 16px}
             .api-info h2{font-size:34px;text-align:left}
-            .api-desc{font-size:18px;text-align:left}
+            .api-desc{font-size:20px;text-align:left}
             .code-tabs{gap:8px;padding:14px}
-            .tab{padding:12px 20px;font-size:16px}
-            .code-block{font-size:13px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
+            .tab{padding:12px 20px;font-size:17px}
+            .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
             
             .capabilities{padding:50px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:14px;color:#000 !important;-webkit-text-fill-color:#000}
-            .capability-card h3{font-size:18px;text-align:left}
-            .capability-card p{font-size:16px;text-align:left}
+            .capability-card h3{font-size:19px;text-align:left}
+            .capability-card p{font-size:17px;text-align:left}
             
             .cta-section{padding:50px 16px}
             .cta-section h2{font-size:28px;line-height:1.3;max-width:240px}
@@ -498,19 +498,19 @@ response = requests.post(
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{font-size:30px}
-            .hero-left p{font-size:17px}
+            .hero-left p{font-size:18px}
             .hero-stats{gap:8px}
             .stat{padding:14px 16px;min-width:85px}
             .stat span{font-size:22px}
-            .stat small{font-size:14px}
+            .stat small{font-size:15px}
             
             .section-header h2{font-size:28px}
-            .section-header p{font-size:16px}
+            .section-header p{font-size:17px}
             
-            .pill{padding:12px 18px;font-size:15px}
+            .pill{padding:12px 18px;font-size:16px}
             
             .api-info h2{font-size:26px}
-            .api-desc{font-size:16px}
+            .api-desc{font-size:17px}
             
             .cta-section h2{font-size:26px}
           }
