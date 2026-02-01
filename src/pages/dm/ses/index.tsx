@@ -116,14 +116,14 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="ses-header">
           <a href="/dm" className="back-btn">←</a>
           <div className="ses-header-info">
-            <span className="ses-icon">✉️</span>
+            <span className="ses-icon">@</span>
             <div>
               <h1>Email - AWS SES</h1>
               <span className="ses-provider">Simple Email Service</span>
             </div>
           </div>
           <button onClick={() => setShowCompose(true)} className="compose-btn" disabled={!selectedContact}>
-            ✎ Compose
+            Compose
           </button>
           <button onClick={loadData} className="refresh-btn" disabled={loading}>
             {loading ? '...' : '↻'}
@@ -188,8 +188,8 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
                       <div className="email-body">{email.content}</div>
                       <div className="email-status">
                         <span className={`status-badge ${email.status}`}>
-                          {email.status === 'delivered' ? '✓ Delivered' : 
-                           email.status === 'opened' ? '◉ Opened' : '✓ Sent'}
+                          {email.status === 'delivered' ? 'Delivered' : 
+                           email.status === 'opened' ? 'Opened' : 'Sent'}
                         </span>
                       </div>
                     </div>
@@ -201,7 +201,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
               </>
             ) : (
               <div className="no-contact">
-                <p>✉️ Select a contact</p>
+                <p>Select a contact</p>
                 <small>Choose a contact from the list to view emails</small>
               </div>
             )}
@@ -213,7 +213,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="info-section">
               <h4>Sender Identity</h4>
               <p>noreply@wecare.digital</p>
-              <span className="verified-badge">✓ Verified</span>
+              <span className="verified-badge">Verified</span>
             </div>
             <div className="info-section">
               <h4>Sending Limits</h4>
@@ -222,10 +222,10 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="info-section">
               <h4>Features</h4>
               <ul className="feature-list">
-                <li>✓ Transactional Email</li>
-                <li>✓ HTML Templates</li>
-                <li>✓ Bounce Handling</li>
-                <li>✓ Open/Click Tracking</li>
+                <li>Transactional Email</li>
+                <li>HTML Templates</li>
+                <li>Bounce Handling</li>
+                <li>Open/Click Tracking</li>
               </ul>
             </div>
           </div>
@@ -237,7 +237,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="compose-modal" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Compose Email</h2>
-                <button onClick={() => setShowCompose(false)}>✕</button>
+                <button onClick={() => setShowCompose(false)}>X</button>
               </div>
               <div className="compose-form">
                 <div className="form-row">

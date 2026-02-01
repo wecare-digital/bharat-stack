@@ -46,7 +46,7 @@ const BulkWhatsAppIndex: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="waba-grid">
           {WABA_ACCOUNTS.map((waba) => (
             <Link key={waba.id} href={`/bulk/whatsapp/${waba.id}`} className="waba-card">
-              <div className="waba-icon">💬</div>
+              <div className="waba-icon">WA</div>
               <div className="waba-info">
                 <h3 className="waba-name">{waba.name}</h3>
                 <p className="waba-phone">{waba.phone}</p>

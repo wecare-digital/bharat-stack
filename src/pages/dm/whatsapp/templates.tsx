@@ -476,7 +476,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
                 ))}
               </select>
               <button className="btn-carousel" onClick={() => setShowCarouselModal(true)}>
-                🎠 Carousel
+                Carousel
               </button>
               <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
                 + Create Template
@@ -491,25 +491,25 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
             className={`tab ${activeTab === 'my-templates' ? 'active' : ''}`}
             onClick={() => setActiveTab('my-templates')}
           >
-            📋 My Templates
+            My Templates
           </button>
           <button
             className={`tab ${activeTab === 'library' ? 'active' : ''}`}
             onClick={() => setActiveTab('library')}
           >
-            📚 Meta Library
+            Meta Library
           </button>
           <button
             className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveTab('analytics')}
           >
-            📊 Analytics
+            Analytics
           </button>
           <button
             className={`tab ${activeTab === 'scheduled' ? 'active' : ''}`}
             onClick={() => setActiveTab('scheduled')}
           >
-            📅 Scheduled
+            Scheduled
           </button>
         </div>
 
@@ -709,7 +709,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
                       <span className="scheduled-contact">{msg.contactName || msg.contactPhone}</span>
                     </div>
                     <div className="scheduled-time">
-                      <span className="time-icon">📅</span>
+                      <span className="time-icon">Scheduled:</span>
                       <span>{new Date(msg.scheduledAt).toLocaleString()}</span>
                     </div>
                     <div className="scheduled-status">
@@ -951,7 +951,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="modal-overlay" onClick={() => setShowCarouselModal(false)}>
             <div className="modal carousel-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>🎠 Create Carousel Template</h2>
+                <h2>Create Carousel Template</h2>
                 <button className="close-btn" onClick={() => setShowCarouselModal(false)}>×</button>
               </div>
               <div className="modal-body">
@@ -1051,7 +1051,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
                           <div className="media-upload">
                             {card.headerHandle ? (
                               <div className="media-uploaded">
-                                <span className="upload-success">✓ Media uploaded</span>
+                                <span className="upload-success">Media uploaded</span>
                                 <button 
                                   className="btn-change-media"
                                   onClick={() => updateCarouselCard(cardIdx, 'headerHandle', '')}
@@ -1139,7 +1139,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
                       {carouselTemplate.cards.map((card, idx) => (
                         <div key={idx} className="preview-card">
                           <div className={`preview-media ${card.headerHandle ? 'has-media' : ''}`}>
-                            {card.headerHandle ? '✓' : card.headerType === 'image' ? '🖼️' : '🎬'}
+                            {card.headerHandle ? 'OK' : card.headerType === 'image' ? 'IMG' : 'VID'}
                           </div>
                           <div className="preview-card-body">{card.bodyText || `Card ${idx + 1}`}</div>
                           {card.buttons?.map((btn, bIdx) => (

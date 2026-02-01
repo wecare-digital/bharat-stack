@@ -188,19 +188,19 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               onClick={() => setActiveTab(tab)}
               style={{
                 padding: '0.5rem 1rem',
-                border: 'none',
-                background: activeTab === tab ? '#3b82f6' : 'transparent',
-                color: activeTab === tab ? 'white' : '#666',
-                borderRadius: '0.375rem',
+                border: '1px solid #000',
+                background: activeTab === tab ? '#f5f5f5' : '#fff',
+                color: '#000',
+                borderRadius: '13px',
                 cursor: 'pointer',
                 fontWeight: activeTab === tab ? 600 : 400,
               }}
             >
-              {tab === 'config' && '⚙️ Settings'}
-              {tab === 'prompts' && '📝 Prompts'}
-              {tab === 'fallbacks' && '💬 Fallbacks'}
-              {tab === 'logs' && '📊 Logs'}
-              {tab === 'test' && '🧪 Test'}
+              {tab === 'config' && 'Settings'}
+              {tab === 'prompts' && 'Prompts'}
+              {tab === 'fallbacks' && 'Fallbacks'}
+              {tab === 'logs' && 'Logs'}
+              {tab === 'test' && 'Test'}
             </button>
           ))}
         </div>
@@ -246,10 +246,10 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             <h4 style={{ marginBottom: '0.75rem', marginTop: '1.5rem' }}>Respond to Message Types</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
               {[
-                { key: 'respondToText', label: '💬 Text Messages', desc: 'Regular text messages' },
-                { key: 'respondToInteractive', label: '🔘 Interactive Replies', desc: 'Button and list replies' },
-                { key: 'respondToLocation', label: '📍 Location Messages', desc: 'Shared locations' },
-                { key: 'respondToMedia', label: '📷 Media Messages', desc: 'Images, videos, documents' },
+                { key: 'respondToText', label: 'Text Messages', desc: 'Regular text messages' },
+                { key: 'respondToInteractive', label: 'Interactive Replies', desc: 'Button and list replies' },
+                { key: 'respondToLocation', label: 'Location Messages', desc: 'Shared locations' },
+                { key: 'respondToMedia', label: 'Media Messages', desc: 'Images, videos, documents' },
               ].map(item => (
                 <label key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', cursor: 'pointer' }}>
                   <input
@@ -354,7 +354,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             <button
               onClick={handlePromptUpdate}
               disabled={saving}
-              style={{ padding: '0.5rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+              style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer' }}
             >
               {saving ? 'Saving...' : 'Save Prompt'}
             </button>
@@ -398,7 +398,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             <button
               onClick={handleFallbackUpdate}
               disabled={saving}
-              style={{ padding: '0.5rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+              style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer' }}
             >
               {saving ? 'Saving...' : 'Save Fallback'}
             </button>
@@ -476,16 +476,16 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             <button
               onClick={handleTestAI}
               disabled={saving || !testMessage.trim()}
-              style={{ padding: '0.5rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', marginBottom: '1rem' }}
+              style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer', marginBottom: '1rem' }}
             >
-              {saving ? 'Testing...' : '🧪 Test Response'}
+              {saving ? 'Testing...' : 'Test Response'}
             </button>
 
             {testResult && (
-              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f5f5f5', borderRadius: '13px', border: '1px solid #e5e5e5' }}>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 500 }}>Detected Language:</span>{' '}
-                  <span style={{ padding: '0.25rem 0.5rem', background: '#dcfce7', borderRadius: '0.25rem' }}>
+                  <span style={{ padding: '0.25rem 0.5rem', background: '#e5e5e5', borderRadius: '0.25rem' }}>
                     {testResult.language}
                   </span>
                 </div>

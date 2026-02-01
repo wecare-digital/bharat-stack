@@ -99,14 +99,14 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
-      case 'APPROVED': return '✅';
-      case 'REJECTED': return '❌';
-      case 'PENDING': return '⏳';
-      case 'PAUSED': return '⏸️';
-      case 'DISABLED': return '🚫';
-      case 'FLAGGED': return '🚩';
-      case 'UNFLAGGED': return '✓';
-      default: return '📋';
+      case 'APPROVED': return 'OK';
+      case 'REJECTED': return 'X';
+      case 'PENDING': return '...';
+      case 'PAUSED': return '||';
+      case 'DISABLED': return 'OFF';
+      case 'FLAGGED': return '!';
+      case 'UNFLAGGED': return 'OK';
+      default: return '-';
     }
   };
 
@@ -152,13 +152,13 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
                 onClick={() => setActiveTab('overview')}
               >
-                📱 Phone Numbers
+                Phone Numbers
               </button>
               <button
                 className={`tab ${activeTab === 'events' ? 'active' : ''}`}
                 onClick={() => setActiveTab('events')}
               >
-                📋 System Events
+                System Events
               </button>
             </div>
 
@@ -186,13 +186,13 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <div className="info-item">
                       <span className="label">Sending</span>
                       <span className={`value ${selectedWaba.enableSending ? 'enabled' : 'disabled'}`}>
-                        {selectedWaba.enableSending ? '✓ Enabled' : '✗ Disabled'}
+                        {selectedWaba.enableSending ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
                     <div className="info-item">
                       <span className="label">Receiving</span>
                       <span className={`value ${selectedWaba.enableReceiving ? 'enabled' : 'disabled'}`}>
-                        {selectedWaba.enableReceiving ? '✓ Enabled' : '✗ Disabled'}
+                        {selectedWaba.enableReceiving ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
                   </div>
@@ -254,7 +254,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="events-section">
                 {/* Template Status Events */}
                 <div className="events-card">
-                  <h3>📝 Template Status Updates</h3>
+                  <h3>Template Status Updates</h3>
                   <div className="events-list">
                     {systemEvents.templateStatus.length > 0 ? (
                       systemEvents.templateStatus.map((event, idx) => (
@@ -282,7 +282,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
                 {/* Phone Quality Events */}
                 <div className="events-card">
-                  <h3>📱 Phone Quality Updates</h3>
+                  <h3>Phone Quality Updates</h3>
                   <div className="events-list">
                     {systemEvents.phoneQuality.length > 0 ? (
                       systemEvents.phoneQuality.map((event, idx) => (
@@ -313,12 +313,12 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
                 {/* Account Updates */}
                 <div className="events-card">
-                  <h3>🏢 Account Updates</h3>
+                  <h3>Account Updates</h3>
                   <div className="events-list">
                     {systemEvents.accountUpdates.length > 0 ? (
                       systemEvents.accountUpdates.map((event, idx) => (
                         <div key={idx} className="event-item">
-                          <span className="event-icon">📋</span>
+                          <span className="event-icon">-</span>
                           <div className="event-content">
                             <div className="event-title">
                               {event.data?.event || 'Account Update'}

@@ -56,11 +56,11 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getChannelBadge = (channel: string) => {
     const badges: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-      whatsapp: { bg: '#f5f5f5', color: '#000', icon: '💬', label: 'WhatsApp' },
-      sms: { bg: '#f5f5f5', color: '#000', icon: '📱', label: 'SMS' },
-      email: { bg: '#f5f5f5', color: '#000', icon: '📧', label: 'Email' },
-      voice: { bg: '#f5f5f5', color: '#000', icon: '📞', label: 'Voice' },
-      rcs: { bg: '#f5f5f5', color: '#000', icon: '💎', label: 'RCS' },
+      whatsapp: { bg: '#f5f5f5', color: '#000', icon: 'WA', label: 'WhatsApp' },
+      sms: { bg: '#f5f5f5', color: '#000', icon: 'SMS', label: 'SMS' },
+      email: { bg: '#f5f5f5', color: '#000', icon: '@', label: 'Email' },
+      voice: { bg: '#f5f5f5', color: '#000', icon: 'V', label: 'Voice' },
+      rcs: { bg: '#f5f5f5', color: '#000', icon: 'RCS', label: 'RCS' },
     };
     return badges[channel] || badges.whatsapp;
   };
@@ -121,11 +121,11 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             <label>Channel:</label>
             <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}>
               <option value="all">All Channels</option>
-              <option value="whatsapp">💬 WhatsApp</option>
-              <option value="sms">📱 SMS</option>
-              <option value="email">📧 Email</option>
-              <option value="voice">📞 Voice</option>
-              <option value="rcs">💎 RCS</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="sms">SMS</option>
+              <option value="email">Email</option>
+              <option value="voice">Voice</option>
+              <option value="rcs">RCS</option>
             </select>
           </div>
           <div className="filter-group">
@@ -148,7 +148,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             </select>
           </div>
           <button className="refresh-btn" onClick={loadMessageLogs} disabled={loading}>
-            {loading ? '...' : '🔄'} Refresh
+            {loading ? '...' : 'Refresh'}
           </button>
         </div>
 
@@ -173,7 +173,6 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <tr>
                   <td colSpan={6} className="empty-cell">
                     <div className="empty-state">
-                      <span className="empty-icon">📭</span>
                       <p>No messages found</p>
                     </div>
                   </td>
@@ -213,28 +212,28 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
         <div className="summary-cards">
           <div className="summary-card">
-            <div className="card-icon">📤</div>
+            <div className="card-icon">Total</div>
             <div className="card-info">
               <span className="card-value">{logs.length}</span>
               <span className="card-label">Total</span>
             </div>
           </div>
           <div className="summary-card outbound">
-            <div className="card-icon">↑</div>
+            <div className="card-icon">Out</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.direction === 'OUTBOUND').length}</span>
               <span className="card-label">Outbound</span>
             </div>
           </div>
           <div className="summary-card inbound">
-            <div className="card-icon">↓</div>
+            <div className="card-icon">In</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.direction === 'INBOUND').length}</span>
               <span className="card-label">Inbound</span>
             </div>
           </div>
           <div className="summary-card error">
-            <div className="card-icon">❌</div>
+            <div className="card-icon">Err</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.status === 'failed').length}</span>
               <span className="card-label">Failed</span>

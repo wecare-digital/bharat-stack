@@ -189,7 +189,7 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
                       </td>
                       <td>
                         <span className={`badge ${service.status}`}>
-                          {service.status === 'free' ? '✓ Free Tier' : service.status === 'warning' ? '⚠ Near Limit' : '$ Paid'}
+                          {service.status === 'free' ? 'Free Tier' : service.status === 'warning' ? 'Near Limit' : 'Paid'}
                         </span>
                       </td>
                     </tr>
@@ -204,13 +204,13 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
         )}
 
         {/* Free Tier Tips */}
-        <div className="section" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-          <h3 className="section-title" style={{ color: '#166534' }}>Free Tier Tips</h3>
+        <div className="section" style={{ background: '#f5f5f5', borderColor: '#e5e5e5' }}>
+          <h3 className="section-title" style={{ color: '#000' }}>Free Tier Tips</h3>
           <ul style={{ 
             margin: 0, 
             paddingLeft: '20px', 
             fontSize: '13px', 
-            color: '#166534', 
+            color: '#4a4a4a', 
             lineHeight: 2 
           }}>
             <li>Lambda: 1M free requests/month, 400K GB-seconds compute</li>

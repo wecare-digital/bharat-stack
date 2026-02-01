@@ -75,7 +75,7 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       sent: { bg: '#e5e5e5', color: '#000', label: 'Sent' },
       delivered: { bg: '#f0f0f0', color: '#000', label: 'Delivered' },
       read: { bg: '#f0f0f0', color: '#000', label: 'Read' },
-      paid: { bg: '#f0f0f0', color: '#000', label: '✓ Paid' },
+      paid: { bg: '#f0f0f0', color: '#000', label: 'Paid' },
       failed: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Failed' },
       expired: { bg: '#f5f5f5', color: '#6b6b6b', label: 'Expired' },
     };
@@ -84,9 +84,9 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getTypeBadge = (type: 'wa' | 'link') => {
     if (type === 'wa') {
-      return { bg: '#f5f5f5', color: '#000', icon: '💬', label: 'WhatsApp' };
+      return { bg: '#f5f5f5', color: '#000', icon: 'WA', label: 'WhatsApp' };
     }
-    return { bg: '#f5f5f5', color: '#000', icon: '🔗', label: 'Link' };
+    return { bg: '#f5f5f5', color: '#000', icon: 'Link', label: 'Link' };
   };
 
   const filteredLogs = logs.filter(log => {
@@ -120,8 +120,8 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             <label>Type:</label>
             <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
               <option value="all">All Types</option>
-              <option value="wa">💬 WhatsApp</option>
-              <option value="link">🔗 Link</option>
+              <option value="wa">WhatsApp</option>
+              <option value="link">Link</option>
             </select>
           </div>
           <div className="filter-group">
@@ -137,7 +137,7 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             </select>
           </div>
           <button className="refresh-btn" onClick={loadPaymentLogs} disabled={loading}>
-            {loading ? '...' : '🔄'} Refresh
+            {loading ? '...' : 'Refresh'}
           </button>
         </div>
 
@@ -163,7 +163,6 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <tr>
                   <td colSpan={7} className="empty-cell">
                     <div className="empty-state">
-                      <span className="empty-icon">📭</span>
                       <p>No payment logs found</p>
                     </div>
                   </td>
@@ -208,28 +207,28 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
         <div className="summary-cards">
           <div className="summary-card">
-            <div className="card-icon">📤</div>
+            <div className="card-icon">Total</div>
             <div className="card-info">
               <span className="card-value">{logs.length}</span>
               <span className="card-label">Total Sent</span>
             </div>
           </div>
           <div className="summary-card success">
-            <div className="card-icon">✅</div>
+            <div className="card-icon">Paid</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.status === 'paid').length}</span>
               <span className="card-label">Paid</span>
             </div>
           </div>
           <div className="summary-card warning">
-            <div className="card-icon">⏳</div>
+            <div className="card-icon">Wait</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => ['pending', 'sent', 'delivered'].includes(l.status)).length}</span>
               <span className="card-label">Pending</span>
             </div>
           </div>
           <div className="summary-card error">
-            <div className="card-icon">❌</div>
+            <div className="card-icon">Err</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.status === 'failed').length}</span>
               <span className="card-label">Failed</span>

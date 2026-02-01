@@ -150,7 +150,7 @@ export default function DashboardPaymentsPage({ signOut, user }: PageProps) {
                 <RefreshIcon size={16} />
                 {loading ? 'Loading...' : 'Refresh'}
               </button>
-              <Link href="/pay/wa" className="btn-primary" style={{ background: 'var(--color-whatsapp)' }}>
+              <Link href="/pay/wa" className="btn-primary">
                 WhatsApp Pay
               </Link>
               <Link href="/pay/link" className="btn-secondary">
@@ -163,7 +163,7 @@ export default function DashboardPaymentsPage({ signOut, user }: PageProps) {
         {/* Error Banner */}
         {error && (
           <div className="error-banner" style={{ marginBottom: '20px' }}>
-            <span>⚠️ {error}</span>
+            <span>{error}</span>
             <button onClick={loadPayments}>Retry</button>
           </div>
         )}

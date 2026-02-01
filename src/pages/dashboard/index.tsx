@@ -1008,7 +1008,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                               <td>${svc.cost.toFixed(4)}</td>
                               <td>
                                 <span className={`badge ${svc.status}`}>
-                                  {svc.status === 'free' ? '✓ Free' : svc.status === 'warning' ? '! Near' : '$ Paid'}
+                                  {svc.status === 'free' ? 'Free' : svc.status === 'warning' ? 'Near' : 'Paid'}
                                 </span>
                               </td>
                             </tr>
@@ -1152,9 +1152,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <button
                   onClick={handleTestAi}
                   disabled={aiSaving || !testMessage.trim()}
-                  style={{ padding: '0.5rem 1.5rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', marginBottom: '1rem' }}
+                  style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer', marginBottom: '1rem' }}
                 >
-                  {aiSaving ? 'Testing...' : '🧪 Test Response'}
+                  {aiSaving ? 'Testing...' : 'Test Response'}
                 </button>
 
                 {testResult && (

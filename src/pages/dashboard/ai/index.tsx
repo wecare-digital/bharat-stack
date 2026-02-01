@@ -237,7 +237,7 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
             onClick={handleTest}
             disabled={saving || !testMessage.trim()}
           >
-            {saving ? 'Testing...' : '🧪 Test Response'}
+            {saving ? 'Testing...' : 'Test Response'}
           </button>
 
           {testResult && (

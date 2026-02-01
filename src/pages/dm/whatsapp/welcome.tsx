@@ -149,10 +149,10 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user }) => {
             style={{ 
               width: '100%', 
               padding: 12, 
-              background: saving ? '#ccc' : '#25D366', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: 8, 
+              background: saving ? '#f5f5f5' : '#fff', 
+              color: saving ? '#999' : '#000', 
+              border: '1px solid #000', 
+              borderRadius: 13, 
               fontSize: 14, 
               fontWeight: 600, 
               cursor: saving ? 'not-allowed' : 'pointer' 

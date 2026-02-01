@@ -60,11 +60,11 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getChannelBadge = (channel: string) => {
     const badges: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-      whatsapp: { bg: '#f5f5f5', color: '#000', icon: '💬', label: 'WhatsApp' },
-      sms: { bg: '#f5f5f5', color: '#000', icon: '📱', label: 'SMS' },
-      email: { bg: '#f5f5f5', color: '#000', icon: '📧', label: 'Email' },
-      voice: { bg: '#f5f5f5', color: '#000', icon: '📞', label: 'Voice' },
-      rcs: { bg: '#f5f5f5', color: '#000', icon: '💎', label: 'RCS' },
+      whatsapp: { bg: '#f5f5f5', color: '#000', icon: 'WA', label: 'WhatsApp' },
+      sms: { bg: '#f5f5f5', color: '#000', icon: 'SMS', label: 'SMS' },
+      email: { bg: '#f5f5f5', color: '#000', icon: '@', label: 'Email' },
+      voice: { bg: '#f5f5f5', color: '#000', icon: 'V', label: 'Voice' },
+      rcs: { bg: '#f5f5f5', color: '#000', icon: 'RCS', label: 'RCS' },
     };
     return badges[channel] || badges.whatsapp;
   };
@@ -97,7 +97,7 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
     <Layout user={user} onSignOut={signOut}>
       <div className="logs-page">
         <div className="page-header">
-          <h1>📊 Bulk Campaign Logs</h1>
+          <h1>Bulk Campaign Logs</h1>
           <p>View all bulk message campaigns across channels</p>
         </div>
 
@@ -106,11 +106,11 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             <label>Channel:</label>
             <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}>
               <option value="all">All Channels</option>
-              <option value="whatsapp">💬 WhatsApp</option>
-              <option value="sms">📱 SMS</option>
-              <option value="email">📧 Email</option>
-              <option value="voice">📞 Voice</option>
-              <option value="rcs">💎 RCS</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="sms">SMS</option>
+              <option value="email">Email</option>
+              <option value="voice">Voice</option>
+              <option value="rcs">RCS</option>
             </select>
           </div>
           <div className="filter-group">
@@ -125,7 +125,7 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             </select>
           </div>
           <button className="refresh-btn" onClick={loadBulkLogs} disabled={loading}>
-            {loading ? '...' : '🔄'} Refresh
+            {loading ? '...' : 'Refresh'}
           </button>
         </div>
 
@@ -152,7 +152,6 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <tr>
                   <td colSpan={8} className="empty-cell">
                     <div className="empty-state">
-                      <span className="empty-icon">📭</span>
                       <p>No bulk campaigns found</p>
                     </div>
                   </td>
@@ -189,28 +188,28 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
         <div className="summary-cards">
           <div className="summary-card">
-            <div className="card-icon">📤</div>
+            <div className="card-icon">Total</div>
             <div className="card-info">
               <span className="card-value">{logs.length}</span>
               <span className="card-label">Campaigns</span>
             </div>
           </div>
           <div className="summary-card running">
-            <div className="card-icon">▶</div>
+            <div className="card-icon">Active</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.status === 'running').length}</span>
               <span className="card-label">Running</span>
             </div>
           </div>
           <div className="summary-card success">
-            <div className="card-icon">✅</div>
+            <div className="card-icon">Done</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.status === 'completed').length}</span>
               <span className="card-label">Completed</span>
             </div>
           </div>
           <div className="summary-card error">
-            <div className="card-icon">❌</div>
+            <div className="card-icon">Err</div>
             <div className="card-info">
               <span className="card-value">{logs.filter(l => l.status === 'failed').length}</span>
               <span className="card-label">Failed</span>

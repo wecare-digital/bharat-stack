@@ -207,7 +207,7 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="bulk-header">
           <button onClick={() => router.push('/bulk/whatsapp')} className="back-btn">←</button>
           <div className="bulk-header-info">
-            <span className="bulk-icon">💬</span>
+            <span className="bulk-icon">WA</span>
             <div>
               <h1>Bulk WhatsApp - {wabaInfo.name}</h1>
               <span className="bulk-phone">{wabaInfo.phone}</span>
@@ -229,12 +229,12 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
                   {activeJob.status === 'PAUSED' && (
                     <button onClick={() => handleResumeJob(activeJob.jobId || activeJob.id)} className="resume-btn">▶ Resume</button>
                   )}
-                  <button onClick={() => handleCancelJob(activeJob.jobId || activeJob.id)} className="cancel-btn">✕ Cancel</button>
+                  <button onClick={() => handleCancelJob(activeJob.jobId || activeJob.id)} className="cancel-btn">Cancel</button>
                 </div>
               </div>
               <div className="progress-stats">
-                <span className="progress-sent">✓ {sendingProgress.sent} sent</span>
-                <span className="progress-failed">✕ {sendingProgress.failed} failed</span>
+                <span className="progress-sent">{sendingProgress.sent} sent</span>
+                <span className="progress-failed">{sendingProgress.failed} failed</span>
                 <span className="progress-remaining">◌ {sendingProgress.total - sendingProgress.sent - sendingProgress.failed} remaining</span>
               </div>
               <div className="progress-bar-container">
