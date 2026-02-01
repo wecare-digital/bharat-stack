@@ -10,13 +10,19 @@ import { BarChart, DonutChart, Sparkline, ProgressBar, DateRangePicker } from '.
 import { SkeletonStat, SkeletonCard } from '../../components/Skeleton';
 import SEO, { PAGE_SEO } from '../../components/SEO';
 import * as api from '../../api/client';
+import { 
+  DashboardIcon, MessageIcon, PaymentIcon, DataIcon, BillingIcon, 
+  AIIcon, LinkIcon, SearchIcon, WhatsAppIcon, InvoiceIcon, 
+  ContactsIcon, BulkIcon, SmsIcon, EmailIcon, RefreshIcon,
+  DocumentIcon
+} from '../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'payments' | 'data' | 'billing' | 'search' | 'ai' | 'webhook' | 'guide';
+type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'search' | 'ai' | 'webhook' | 'guide';
 
 const PAYMENT_PHONE = '+91 93309 94400';
 const PAYMENT_NAME = 'WECARE.DIGITAL';
@@ -619,21 +625,21 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'payments', 'data', 'billing', 'ai', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'pay', 'data', 'billing', 'ai', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === 'overview' && '◉'}
-              {tab === 'messages' && '◫'}
-              {tab === 'payments' && '$'}
-              {tab === 'data' && '⊗'}
-              {tab === 'billing' && '≡'}
-              {tab === 'ai' && '🤖'}
-              {tab === 'webhook' && '🔗'}
-              {tab === 'guide' && '📖'}
-              {tab === 'search' && '⌕'}
+              {tab === 'overview' && <DashboardIcon size={16} />}
+              {tab === 'messages' && <MessageIcon size={16} />}
+              {tab === 'pay' && <PaymentIcon size={16} />}
+              {tab === 'data' && <DataIcon size={16} />}
+              {tab === 'billing' && <BillingIcon size={16} />}
+              {tab === 'ai' && <AIIcon size={16} />}
+              {tab === 'webhook' && <LinkIcon size={16} />}
+              {tab === 'guide' && <DocumentIcon size={16} />}
+              {tab === 'search' && <SearchIcon size={16} />}
               <span>{tab === 'ai' ? 'AI Assistant' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'User Guide' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
@@ -675,35 +681,35 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <h3>Quick Actions</h3>
                 <div className="actions-grid">
                   <Link href="/dm/whatsapp" className="action-card whatsapp">
-                    <span className="icon">◈</span>
+                    <span className="icon"><WhatsAppIcon size={24} /></span>
                     <span>WhatsApp</span>
                   </Link>
                   <Link href="/pay" className="action-card payment">
-                    <span className="icon">$</span>
+                    <span className="icon"><PaymentIcon size={24} /></span>
                     <span>Pay</span>
                   </Link>
                   <Link href="/invoice" className="action-card invoice">
-                    <span className="icon">⎘</span>
+                    <span className="icon"><InvoiceIcon size={24} /></span>
                     <span>Invoice</span>
                   </Link>
                   <Link href="/link" className="action-card link-card">
-                    <span className="icon">⊕</span>
+                    <span className="icon"><LinkIcon size={24} /></span>
                     <span>Link</span>
                   </Link>
                   <Link href="/contacts" className="action-card">
-                    <span className="icon">◉</span>
+                    <span className="icon"><ContactsIcon size={24} /></span>
                     <span>Contacts</span>
                   </Link>
                   <Link href="/bulk" className="action-card">
-                    <span className="icon">⫶</span>
+                    <span className="icon"><BulkIcon size={24} /></span>
                     <span>Bulk</span>
                   </Link>
                   <Link href="/dm/sms" className="action-card">
-                    <span className="icon">▤</span>
+                    <span className="icon"><SmsIcon size={24} /></span>
                     <span>SMS</span>
                   </Link>
                   <Link href="/dm/ses" className="action-card">
-                    <span className="icon">◇</span>
+                    <span className="icon"><EmailIcon size={24} /></span>
                     <span>Email</span>
                   </Link>
                 </div>
@@ -778,9 +784,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
           )}
 
-          {/* PAYMENTS TAB */}
-          {activeTab === 'payments' && (
-            <div className="payments-tab">
+          {/* PAY TAB */}
+          {activeTab === 'pay' && (
+            <div className="pay-tab">
               <div className="section-header">
                 <h3>Payment Records</h3>
                 <Link href="/pay" className="btn-primary">+ New Payment</Link>
@@ -1233,7 +1239,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ textAlign: 'center', padding: '2rem' }}>Loading webhooks...</div>
               ) : webhooks.length === 0 ? (
                 <div className="empty-state">
-                  <span className="icon">🔗</span>
+                  <span className="icon"><LinkIcon size={32} /></span>
                   <p>No webhooks configured</p>
                   <p style={{ fontSize: '0.85rem', color: '#666' }}>Add a webhook to receive real-time notifications</p>
                 </div>
@@ -1310,22 +1316,22 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <h3>Getting Started</h3>
                 <div className="guide-cards">
                   <div className="guide-card">
-                    <span className="guide-icon">◈</span>
+                    <span className="guide-icon"><WhatsAppIcon size={24} /></span>
                     <h4>WhatsApp Messaging</h4>
                     <p>Send and receive WhatsApp messages. Go to Messages → WhatsApp to start conversations.</p>
                   </div>
                   <div className="guide-card">
-                    <span className="guide-icon">💳</span>
+                    <span className="guide-icon"><PaymentIcon size={24} /></span>
                     <h4>Payments</h4>
                     <p>Send payment requests via WhatsApp using Razorpay integration. Navigate to Pay → WhatsApp Pay.</p>
                   </div>
                   <div className="guide-card">
-                    <span className="guide-icon">◉</span>
+                    <span className="guide-icon"><ContactsIcon size={24} /></span>
                     <h4>Contacts</h4>
                     <p>Manage your contact list. Import/export contacts and organize them for campaigns.</p>
                   </div>
                   <div className="guide-card">
-                    <span className="guide-icon">⫶</span>
+                    <span className="guide-icon"><BulkIcon size={24} /></span>
                     <h4>Bulk Messaging</h4>
                     <p>Send messages to multiple recipients at once. Use templates for consistent communication.</p>
                   </div>
@@ -1398,7 +1404,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                           c.phone?.includes(searchQuery)
                         ).slice(0, 10).map(c => (
                           <div key={c.id} className="result-item contact">
-                            <span className="icon">◉</span>
+                            <span className="icon"><ContactsIcon size={18} /></span>
                             <span className="name">{c.name || 'Unknown'}</span>
                             <span className="phone">{c.phone}</span>
                           </div>
@@ -1433,7 +1439,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     c.phone?.includes(searchQuery)
                   ).length === 0 && filteredMessages.length === 0 && (
                     <div className="empty-state">
-                      <span className="icon">⌕</span>
+                      <span className="icon"><SearchIcon size={32} /></span>
                       <p>No results for "{searchQuery}"</p>
                     </div>
                   )}
@@ -1442,7 +1448,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
               {!searchQuery.trim() && (
                 <div className="empty-state">
-                  <span className="icon">⌕</span>
+                  <span className="icon"><SearchIcon size={32} /></span>
                   <p>Type to search contacts and messages</p>
                 </div>
               )}
