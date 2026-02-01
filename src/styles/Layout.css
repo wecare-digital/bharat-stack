@@ -440,17 +440,18 @@ input, textarea, select {
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-w);
-  padding: 24px;
+  padding: 0;
   background: #ffffff;
   min-height: 100vh;
   color: #000000;
-  animation: mainContentEnter 0.25s ease-out;
+  animation: mainContentEnter 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
 }
 
 @keyframes mainContentEnter {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -496,7 +497,7 @@ input, textarea, select {
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar { width: 260px; }
-  .main-content { margin-left: 260px; padding: 20px; }
+  .main-content { margin-left: 260px; }
 }
 
 /* ========================================
@@ -522,7 +523,8 @@ input, textarea, select {
   
   .main-content {
     margin-left: 0;
-    padding: 70px 24px 24px 24px;
+    padding: 0;
+    padding-top: 60px;
   }
   
   .mobile-overlay {
@@ -572,10 +574,11 @@ input, textarea, select {
   /* Main content - full width with proper spacing */
   .main-content {
     margin-left: 0;
-    padding: 64px 16px 80px 16px;
+    padding: 0;
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
+    padding-top: 56px;
   }
   
   /* Mobile overlay */
@@ -693,7 +696,9 @@ input, textarea, select {
   }
   
   .main-content {
-    padding: 60px 12px 90px 12px;
+    margin-left: 0;
+    padding: 0;
+    padding-top: 52px;
   }
   
   /* Compact sidebar brand */
