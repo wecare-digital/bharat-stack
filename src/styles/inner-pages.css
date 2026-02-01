@@ -386,3 +386,15 @@
     padding: 0 !important;
   }
 }
+/* Refresh button icon color - match border */
+.layout .main-content .refresh-btn {
+  color: #10B981 !important;
+}
+
+.layout .main-content .refresh-btn svg {
+  color: #10B981 !important;
+}
+
+.layout .main-content .refresh-btn:hover svg {
+  color: #059669 !important;
+}
