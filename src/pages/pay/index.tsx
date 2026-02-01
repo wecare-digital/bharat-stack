@@ -1,11 +1,12 @@
 /**
- * Pay Hub - Quick Action Cards
+ * Pay Hub - Payments Hub
+ * Clean, responsive design with enhanced UX
  */
 
-import React from 'react';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
+import SEO from '../../components/SEO';
 import { WhatsAppIcon, LinkIcon, LogsIcon } from '../../lib/icons';
 
 interface PageProps {
@@ -13,9 +14,19 @@ interface PageProps {
   user?: any;
 }
 
-const PayHubPage: React.FC<PageProps> = ({ signOut, user }) => {
+const paymentOptions = [
+  { href: '/pay/wa', icon: WhatsAppIcon, label: 'WhatsApp Pay', sublabel: 'Razorpay', variant: 'whatsapp' },
+  { href: '/pay/link', icon: LinkIcon, label: 'Pay Link', sublabel: 'Share link', variant: '' },
+  { href: '/pay/logs', icon: LogsIcon, label: 'Logs', sublabel: 'History', variant: '' },
+];
+
+export default function PayHub({ signOut, user }: PageProps) {
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title="Payments | WECARE.DIGITAL"
+        description="Send payment requests and track transactions"
+      />
       <div className="hub-page">
         <PageHeader 
           title="Payments" 
@@ -23,74 +34,20 @@ const PayHubPage: React.FC<PageProps> = ({ signOut, user }) => {
           icon="payment"
         />
 
-        <div className="actions-grid">
-          <Link href="/pay/wa" className="action-card">
-            <span className="icon"><WhatsAppIcon size={28} /></span>
-            <span>WhatsApp Pay</span>
-          </Link>
-          <Link href="/pay/link" className="action-card">
-            <span className="icon"><LinkIcon size={28} /></span>
-            <span>Pay Link</span>
-          </Link>
-          <Link href="/pay/logs" className="action-card">
-            <span className="icon"><LogsIcon size={28} /></span>
-            <span>Logs</span>
-          </Link>
+        <div className="hub-grid">
+          {paymentOptions.map(({ href, icon: Icon, label, sublabel, variant }) => (
+            <Link 
+              key={href} 
+              href={href} 
+              className={`hub-card ${variant ? `hub-card-${variant}` : ''}`}
+            >
+              <span className="hub-icon"><Icon size={32} /></span>
+              <span className="hub-label">{label}</span>
+              {sublabel && <span className="hub-sublabel">{sublabel}</span>}
+            </Link>
+          ))}
         </div>
       </div>
-
-      <style jsx>{`
-        .hub-page { padding: 24px; }
-        
-        .actions-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-          max-width: 450px;
-          margin: 0 auto;
-        }
-        
-        .action-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 24px 16px;
-          background: #f5f5f5;
-          border-radius: 12px;
-          text-decoration: none;
-          color: #000;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
-        }
-        
-        .action-card:hover {
-          background: #fff;
-          border-color: #e5e5e5;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-        }
-        
-        .action-card .icon {
-          margin-bottom: 8px;
-          color: #000;
-        }
-        
-        .action-card span:last-child {
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        @media (max-width: 480px) {
-          .hub-page { padding: 16px; }
-          .actions-grid { gap: 12px; }
-          .action-card { padding: 20px 12px; }
-          .action-card .icon { margin-bottom: 6px; }
-          .action-card span:last-child { font-size: 13px; }
-        }
-      `}</style>
     </Layout>
   );
-};
-
-export default PayHubPage;
+}

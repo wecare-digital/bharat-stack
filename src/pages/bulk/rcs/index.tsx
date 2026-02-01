@@ -1,9 +1,7 @@
 /**
- * Bulk RCS - IN RCS
- * Bulk RCS campaigns via IN RCS API
+ * Bulk RCS - Rich Communication Services campaigns
  */
 
-import React from 'react';
 import ComingSoon from '../../../components/ComingSoon';
 
 interface PageProps {
@@ -11,7 +9,7 @@ interface PageProps {
   user?: any;
 }
 
-const BulkRcs: React.FC<PageProps> = ({ signOut, user }) => {
+export default function BulkRcs({ signOut, user }: PageProps) {
   return (
     <ComingSoon
       title="Bulk RCS"
@@ -32,6 +30,4 @@ const BulkRcs: React.FC<PageProps> = ({ signOut, user }) => {
       signOut={signOut}
     />
   );
-};
-
-export default BulkRcs;
+}

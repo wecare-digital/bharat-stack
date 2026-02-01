@@ -1,12 +1,16 @@
 /**
  * Dashboard - Payments Overview
  * Payment statistics and transaction history
+ * Enhanced responsive design
  */
-import React, { useState, useEffect, useMemo } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
-import { BarChart, DonutChart, Sparkline } from '../../../components/Charts';
-import * as api from '../../../api/client';
+import SEO from '../../../components/SEO';
+import { Sparkline } from '../../../components/Charts';
+import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
@@ -24,7 +28,9 @@ interface Payment {
   completedAt?: string;
 }
 
-const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+
+export default function DashboardPaymentsPage({ signOut, user }: PageProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,21 +44,18 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch from payments API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod'}/payments`);
+      const response = await fetch(`${API_BASE}/payments`);
       if (response.ok) {
         const data = await response.json();
         const paymentsList = Array.isArray(data) ? data : data.payments || [];
         setPayments(paymentsList.map(normalizePayment));
       } else if (response.status === 404) {
-        // No payments yet - this is OK
         setPayments([]);
       } else {
-        setError(`Failed to load payments: ${response.status} ${response.statusText}`);
+        setError(`Failed to load payments: ${response.status}`);
         setPayments([]);
       }
     } catch (err: any) {
-      console.error('Failed to load payments:', err);
       setError(err.message || 'Failed to connect to payments API');
       setPayments([]);
     } finally {
@@ -60,7 +63,6 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  // Normalize payment data from API
   const normalizePayment = (p: any): Payment => ({
     id: p.id || p.paymentId || '',
     referenceId: p.referenceId || p.orderId || '',
@@ -75,7 +77,6 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
     completedAt: p.completedAt ? new Date(p.completedAt * 1000).toISOString() : undefined,
   });
 
-  // Calculate stats
   const stats = useMemo(() => {
     const completed = payments.filter(p => p.status === 'completed');
     const pending = payments.filter(p => p.status === 'pending');
@@ -90,7 +91,6 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
       upi: payments.filter(p => p.channel === 'upi').length,
     };
 
-    // Last 7 days trend
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
@@ -127,25 +127,19 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
     }).format(amount / 100);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return '#4CAF50';
-      case 'pending': return '#FF9800';
-      case 'failed': return '#F44336';
-      case 'refunded': return '#9C27B0';
-      default: return '#666';
-    }
-  };
-
   const channelData = [
-    { label: 'WhatsApp', value: stats.byChannel.whatsapp, color: '#25D366' },
-    { label: 'Pay Link', value: stats.byChannel.link, color: '#2196F3' },
-    { label: 'UPI', value: stats.byChannel.upi, color: '#9C27B0' },
+    { label: 'WhatsApp', value: stats.byChannel.whatsapp, color: 'var(--color-whatsapp)' },
+    { label: 'Pay Link', value: stats.byChannel.link, color: 'var(--color-sms)' },
+    { label: 'UPI', value: stats.byChannel.upi, color: 'var(--color-email)' },
   ].filter(d => d.value > 0);
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <div className="page">
+      <SEO 
+        title="Payments Overview | WECARE.DIGITAL"
+        description="Payment statistics and transaction history"
+      />
+      <div className="page-content">
         <PageHeader 
           title="Payments Overview" 
           subtitle="Payment statistics and transaction history"
@@ -153,60 +147,47 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
           actions={
             <div className="header-actions">
               <button className="btn-secondary" onClick={loadPayments} disabled={loading}>
-                ↻ {loading ? 'Loading...' : 'Refresh'}
+                <RefreshIcon size={16} />
+                {loading ? 'Loading...' : 'Refresh'}
               </button>
-              <a href="/pay/wa" className="btn-primary" style={{ background: '#25D366' }}>+ WhatsApp Pay</a>
-              <a href="/pay/link" className="btn-secondary">+ Pay Link</a>
+              <Link href="/pay/wa" className="btn-primary" style={{ background: 'var(--color-whatsapp)' }}>
+                WhatsApp Pay
+              </Link>
+              <Link href="/pay/link" className="btn-secondary">
+                Pay Link
+              </Link>
             </div>
           }
         />
 
         {/* Error Banner */}
         {error && (
-          <div style={{ 
-            background: '#FFF3E0', 
-            border: '1px solid #FF9800', 
-            borderRadius: 8, 
-            padding: 16, 
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12
-          }}>
-            <span style={{ fontSize: 20 }}>⚠️</span>
-            <div>
-              <strong style={{ color: '#E65100' }}>Unable to load payments</strong>
-              <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{error}</div>
-            </div>
-            <button 
-              onClick={loadPayments} 
-              style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 4, border: '1px solid #FF9800', background: 'white', cursor: 'pointer' }}
-            >
-              Retry
-            </button>
+          <div className="error-banner" style={{ marginBottom: '20px' }}>
+            <span>⚠️ {error}</span>
+            <button onClick={loadPayments}>Retry</button>
           </div>
         )}
 
         {/* Summary Stats */}
         <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#4CAF50' }}>
+          <div className="stat-card success">
+            <div className="stat-value" style={{ color: 'var(--color-success)' }}>
               {formatAmount(stats.totalAmount)}
             </div>
             <div className="stat-label">Total Collected</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: '#FF9800' }}>
+            <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
               {formatAmount(stats.pendingAmount)}
             </div>
             <div className="stat-label">Pending</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{stats.total}</div>
-            <div className="stat-label">Total Transactions</div>
+            <div className="stat-label">Transactions</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: stats.successRate >= 90 ? '#4CAF50' : '#FF9800' }}>
+            <div className="stat-value" style={{ color: stats.successRate >= 90 ? 'var(--color-success)' : 'var(--color-warning)' }}>
               {stats.successRate}%
             </div>
             <div className="stat-label">Success Rate</div>
@@ -214,44 +195,49 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         {/* Charts Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginTop: 20 }}>
-          {/* Revenue Trend */}
-          <div className="section" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Revenue Trend (7 Days)</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+          <div className="section">
+            <h3 className="section-title">Revenue Trend (7 Days)</h3>
             <Sparkline 
               data={stats.byDay} 
-              height={100} 
-              color="#4CAF50"
-              showArea={true}
+              height={100}
+              width={280}
+              color="var(--color-success)"
             />
           </div>
 
-          {/* Channel Distribution */}
-          <div className="section" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>By Channel</h3>
+          <div className="section">
+            <h3 className="section-title">By Channel</h3>
             {channelData.length > 0 ? (
-              <DonutChart data={channelData} size={140} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {channelData.map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: item.color }} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div style={{ textAlign: 'center', color: '#666', padding: 30 }}>No data</div>
+              <div className="empty">No data</div>
             )}
           </div>
 
-          {/* Status Breakdown */}
-          <div className="section" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Status</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#4CAF50' }} />
+          <div className="section">
+            <h3 className="section-title">Status</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-success)' }} />
                 <span style={{ flex: 1 }}>Completed</span>
                 <strong>{stats.completed}</strong>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF9800' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-warning)' }} />
                 <span style={{ flex: 1 }}>Pending</span>
                 <strong>{stats.pending}</strong>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#F44336' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-danger)' }} />
                 <span style={{ flex: 1 }}>Failed</span>
                 <strong>{stats.failed}</strong>
               </div>
@@ -260,23 +246,15 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         {/* Transactions Table */}
-        <div className="section" style={{ marginTop: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>Recent Transactions</h3>
-            <div style={{ display: 'flex', gap: 8 }}>
+        <div className="section">
+          <div className="section-header">
+            <h3 className="section-title">Recent Transactions</h3>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {(['all', 'completed', 'pending', 'failed'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: 16,
-                    border: 'none',
-                    background: filter === f ? '#1a1a1a' : '#f3f4f6',
-                    color: filter === f ? '#fff' : '#666',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                  }}
+                  className={`btn-secondary btn-sm ${filter === f ? 'active' : ''}`}
                 >
                   {f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
@@ -298,37 +276,25 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
               <tbody>
                 {filteredPayments.map(payment => (
                   <tr key={payment.id}>
-                    <td><code style={{ fontSize: 11 }}>{payment.referenceId}</code></td>
+                    <td><code style={{ fontSize: '11px', background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>{payment.referenceId}</code></td>
                     <td>
                       <div>
-                        <strong>{payment.contactName || 'Unknown'}</strong>
-                        <div style={{ fontSize: 11, color: '#666' }}>{payment.contactPhone}</div>
+                        <strong style={{ fontSize: '13px' }}>{payment.contactName || 'Unknown'}</strong>
+                        <div style={{ fontSize: '11px', color: 'var(--color-muted)' }}>{payment.contactPhone}</div>
                       </div>
                     </td>
                     <td style={{ fontWeight: 600 }}>{formatAmount(payment.amount, payment.currency)}</td>
                     <td>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        fontSize: 10,
-                        background: payment.channel === 'whatsapp' ? '#25D36620' : payment.channel === 'link' ? '#2196F320' : '#9C27B020',
-                        color: payment.channel === 'whatsapp' ? '#25D366' : payment.channel === 'link' ? '#2196F3' : '#9C27B0',
-                      }}>
+                      <span className={`badge ${payment.channel}`}>
                         {payment.channel === 'whatsapp' ? 'WhatsApp' : payment.channel === 'link' ? 'Pay Link' : 'UPI'}
                       </span>
                     </td>
                     <td>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        fontSize: 10,
-                        background: getStatusColor(payment.status) + '20',
-                        color: getStatusColor(payment.status),
-                      }}>
+                      <span className={`badge ${payment.status}`}>
                         {payment.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: 12, color: '#666' }}>
+                    <td style={{ fontSize: '12px', color: 'var(--color-muted)' }}>
                       {new Date(payment.createdAt).toLocaleString()}
                     </td>
                   </tr>
@@ -343,6 +309,4 @@ const DashboardPaymentsPage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
     </Layout>
   );
-};
-
-export default DashboardPaymentsPage;
+}

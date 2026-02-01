@@ -1,11 +1,12 @@
 /**
- * Bulk Hub - Quick Action Cards
+ * Bulk Hub - Bulk Messaging Hub
+ * Clean, responsive design with enhanced UX
  */
 
-import React from 'react';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
+import SEO from '../../components/SEO';
 import { WhatsAppIcon, SmsIcon, EmailIcon, VoiceIcon, RcsIcon, LogsIcon } from '../../lib/icons';
 
 interface PageProps {
@@ -13,9 +14,22 @@ interface PageProps {
   user?: any;
 }
 
-const BulkHub: React.FC<PageProps> = ({ signOut, user }) => {
+const channels = [
+  { href: '/bulk/whatsapp', icon: WhatsAppIcon, label: 'WhatsApp', variant: 'whatsapp' },
+  { href: '/bulk/sms', icon: SmsIcon, label: 'SMS', variant: 'sms' },
+  { href: '/bulk/ses', icon: EmailIcon, label: 'Email', variant: 'email' },
+  { href: '/bulk/voice', icon: VoiceIcon, label: 'Voice', variant: 'voice' },
+  { href: '/bulk/rcs', icon: RcsIcon, label: 'RCS', variant: 'rcs' },
+  { href: '/bulk/logs', icon: LogsIcon, label: 'Logs', variant: '' },
+];
+
+export default function BulkHub({ signOut, user }: PageProps) {
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title="Bulk Messaging | WECARE.DIGITAL"
+        description="Send messages to multiple recipients across all channels"
+      />
       <div className="hub-page">
         <PageHeader 
           title="Bulk Messaging" 
@@ -23,86 +37,19 @@ const BulkHub: React.FC<PageProps> = ({ signOut, user }) => {
           icon="bulk"
         />
 
-        <div className="actions-grid">
-          <Link href="/bulk/whatsapp" className="action-card">
-            <span className="icon"><WhatsAppIcon size={28} /></span>
-            <span>WhatsApp</span>
-          </Link>
-          <Link href="/bulk/sms" className="action-card">
-            <span className="icon"><SmsIcon size={28} /></span>
-            <span>SMS</span>
-          </Link>
-          <Link href="/bulk/ses" className="action-card">
-            <span className="icon"><EmailIcon size={28} /></span>
-            <span>Email</span>
-          </Link>
-          <Link href="/bulk/voice" className="action-card">
-            <span className="icon"><VoiceIcon size={28} /></span>
-            <span>Voice</span>
-          </Link>
-          <Link href="/bulk/rcs" className="action-card">
-            <span className="icon"><RcsIcon size={28} /></span>
-            <span>RCS</span>
-          </Link>
-          <Link href="/bulk/logs" className="action-card">
-            <span className="icon"><LogsIcon size={28} /></span>
-            <span>Logs</span>
-          </Link>
+        <div className="hub-grid">
+          {channels.map(({ href, icon: Icon, label, variant }) => (
+            <Link 
+              key={href} 
+              href={href} 
+              className={`hub-card ${variant ? `hub-card-${variant}` : ''}`}
+            >
+              <span className="hub-icon"><Icon size={32} /></span>
+              <span className="hub-label">{label}</span>
+            </Link>
+          ))}
         </div>
       </div>
-
-      <style jsx>{`
-        .hub-page { padding: 24px; }
-        
-        .actions-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-          max-width: 450px;
-          margin: 0 auto;
-        }
-        
-        .action-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 24px 16px;
-          background: #f5f5f5;
-          border-radius: 12px;
-          text-decoration: none;
-          color: #000;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
-        }
-        
-        .action-card:hover {
-          background: #fff;
-          border-color: #e5e5e5;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-        }
-        
-        .action-card .icon {
-          margin-bottom: 8px;
-          color: #000;
-        }
-        
-        .action-card span:last-child {
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        @media (max-width: 480px) {
-          .hub-page { padding: 16px; }
-          .actions-grid { gap: 12px; }
-          .action-card { padding: 20px 12px; }
-          .action-card .icon { margin-bottom: 6px; }
-          .action-card span:last-child { font-size: 13px; }
-        }
-      `}</style>
     </Layout>
   );
-};
-
-export default BulkHub;
+}

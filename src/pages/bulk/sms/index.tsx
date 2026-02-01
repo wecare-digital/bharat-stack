@@ -1,11 +1,12 @@
 /**
- * Bulk SMS Hub - Quick Action Cards
+ * Bulk SMS Hub - Provider Selection
+ * Clean, responsive design
  */
 
-import React from 'react';
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
+import SEO from '../../../components/SEO';
 import { SmsIcon } from '../../../lib/icons';
 
 interface PageProps {
@@ -13,41 +14,37 @@ interface PageProps {
   user?: any;
 }
 
-const BulkSmsHub: React.FC<PageProps> = ({ signOut, user }) => {
+const providers = [
+  { href: '/bulk/sms/airtel', label: 'IN SMS', sublabel: 'Airtel IQ' },
+  { href: '/bulk/sms/aws', label: 'AWS Pinpoint', sublabel: 'Global' },
+];
+
+export default function BulkSmsHub({ signOut, user }: PageProps) {
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title="Bulk SMS | WECARE.DIGITAL"
+        description="Send bulk SMS messages via Airtel IQ or AWS Pinpoint"
+      />
       <div className="hub-page">
         <PageHeader 
           title="Bulk SMS" 
           subtitle="Select SMS provider"
           icon="sms"
           backLink="/bulk"
-          backLabel="Back"
+          backLabel="← Bulk"
         />
 
-        <div className="actions-grid">
-          <Link href="/bulk/sms/airtel" className="action-card">
-            <span className="icon"><SmsIcon size={28} /></span>
-            <span>IN SMS</span>
-          </Link>
-          <Link href="/bulk/sms/aws" className="action-card">
-            <span className="icon"><SmsIcon size={28} /></span>
-            <span>AWS Pinpoint</span>
-          </Link>
+        <div className="hub-grid hub-grid-2">
+          {providers.map(({ href, label, sublabel }) => (
+            <Link key={href} href={href} className="hub-card hub-card-sms">
+              <span className="hub-icon"><SmsIcon size={32} /></span>
+              <span className="hub-label">{label}</span>
+              <span className="hub-sublabel">{sublabel}</span>
+            </Link>
+          ))}
         </div>
       </div>
-
-      <style jsx>{`
-        .hub-page { padding: 24px; }
-        .actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 300px; margin: 0 auto; }
-        .action-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #f5f5f5; border-radius: 12px; text-decoration: none; color: #000; transition: all 0.2s ease; border: 1px solid transparent; }
-        .action-card:hover { background: #fff; border-color: #e5e5e5; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-        .action-card .icon { margin-bottom: 8px; color: #000; }
-        .action-card span:last-child { font-size: 14px; font-weight: 500; }
-        @media (max-width: 480px) { .hub-page { padding: 16px; } .actions-grid { gap: 12px; } .action-card { padding: 20px 12px; } }
-      `}</style>
     </Layout>
   );
-};
-
-export default BulkSmsHub;
+}

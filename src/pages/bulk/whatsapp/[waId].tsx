@@ -393,10 +393,11 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
         
         .jobs-section h2 { font-size: 18px; margin: 0 0 16px 0; }
         .empty-state { text-align: center; padding: 40px; color: #666; }
-        .empty-state button { margin-top: 12px; background: #1a1a1a; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        .empty-state button { margin-top: 12px; background: #fff; color: #000; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; }
+        .empty-state button:hover { background: #f5f5f5; }
         .jobs-list { display: grid; gap: 12px; }
-        .job-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 20px; }
-        .status-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; text-transform: uppercase; }
+        .job-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 13px; padding: 16px; display: flex; align-items: center; gap: 20px; }
+        .status-badge { font-size: 12px; padding: 4px 12px; border-radius: 13px; text-transform: uppercase; }
         .status-badge.completed { background: #dcfce7; color: #166534; }
         .status-badge.in-progress { background: #dbeafe; color: #1e40af; }
         .status-badge.pending { background: #fef3c7; color: #92400e; }
@@ -412,25 +413,28 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
         .mini-progress-text { font-size: 12px; color: #666; min-width: 35px; }
         .job-date { font-size: 13px; color: #999; }
         .job-actions { display: flex; gap: 4px; }
-        .action-btn { width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; }
+        .action-btn { width: 28px; height: 28px; border-radius: 13px; border: none; cursor: pointer; font-size: 12px; }
         .action-btn.resume { background: #dcfce7; color: #166534; }
         .action-btn.cancel { background: #fee2e2; color: #991b1b; }
         
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: #fff; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+        .modal { background: #fff; border-radius: 13px; width: 90%; max-width: 700px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
         .modal-header h2 { margin: 0; font-size: 18px; }
         .modal-header button { background: none; border: none; font-size: 20px; cursor: pointer; }
         .modal-body { padding: 20px; flex: 1; overflow-y: auto; }
         .form-section { margin-bottom: 20px; }
         .form-section h3 { font-size: 14px; margin: 0 0 12px 0; }
-        .select-all-btn { background: #f5f5f5; border: 1px solid #e5e5e5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-bottom: 12px; }
+        .select-all-btn { background: #fff; border: 1px solid #000; padding: 6px 12px; border-radius: 13px; cursor: pointer; font-size: 12px; margin-bottom: 12px; }
+        .select-all-btn:hover { background: #f5f5f5; }
         .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; }
-        .contact-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .contact-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 13px; cursor: pointer; font-size: 13px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid #e5e5e5; }
-        .btn-secondary { background: #fff; border: 1px solid #e5e5e5; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-        .btn-primary { background: #25D366; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-        .btn-primary:disabled { background: #ccc; }
+        .btn-secondary { background: #fff; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; color: #000; }
+        .btn-secondary:hover { background: #f5f5f5; }
+        .btn-primary { background: #fff; color: #000; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; }
+        .btn-primary:hover { background: #f5f5f5; }
+        .btn-primary:disabled { background: #f5f5f5; color: #999; border-color: #e5e5e5; cursor: not-allowed; }
       `}</style>
     </Layout>
   );

@@ -228,9 +228,10 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         .filters { display: flex; gap: 16px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
         .filter-group { display: flex; align-items: center; gap: 8px; }
         .filter-group label { font-size: 13px; color: #666; }
-        .filter-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
-        .refresh-btn { padding: 8px 16px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 13px; margin-left: auto; }
-        .refresh-btn:hover { background: #e5e5e5; }
+        .filter-group select { padding: 8px 12px; border: 1px solid #000; border-radius: 13px; font-size: 13px; background: #fff; }
+        .filter-group select:hover { background: #f5f5f5; }
+        .refresh-btn { padding: 8px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 13px; margin-left: auto; }
+        .refresh-btn:hover { background: #f5f5f5; }
         .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         
         .table-container { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }

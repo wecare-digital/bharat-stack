@@ -1,12 +1,17 @@
 /**
  * Dashboard - Messages Analytics
  * Message statistics, trends, and channel breakdown
+ * Enhanced responsive design
  */
-import React, { useState, useEffect, useMemo } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
-import { BarChart, DonutChart, Sparkline, DateRangePicker } from '../../../components/Charts';
+import SEO from '../../../components/SEO';
+import { BarChart, Sparkline, DateRangePicker } from '../../../components/Charts';
 import * as api from '../../../api/client';
+import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
@@ -21,7 +26,7 @@ interface MessageStats {
   byDay: { date: string; count: number }[];
 }
 
-const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
+export default function DashboardMessagesPage({ signOut, user }: PageProps) {
   const [messages, setMessages] = useState<api.Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
@@ -45,7 +50,6 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  // Calculate stats from messages
   const stats: MessageStats = useMemo(() => {
     const filtered = messages.filter(m => {
       const ts = new Date(m.timestamp);
@@ -82,9 +86,9 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
   }, [messages, dateRange]);
 
   const channelData = [
-    { label: 'WhatsApp', value: stats.byChannel.whatsapp, color: '#25D366' },
-    { label: 'SMS', value: stats.byChannel.sms, color: '#2196F3' },
-    { label: 'Email', value: stats.byChannel.email, color: '#9C27B0' },
+    { label: 'WhatsApp', value: stats.byChannel.whatsapp, color: 'var(--color-whatsapp)' },
+    { label: 'SMS', value: stats.byChannel.sms, color: 'var(--color-sms)' },
+    { label: 'Email', value: stats.byChannel.email, color: 'var(--color-email)' },
   ].filter(d => d.value > 0);
 
   const directionData = [
@@ -102,7 +106,11 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <div className="page">
+      <SEO 
+        title="Messages Analytics | WECARE.DIGITAL"
+        description="Message statistics, trends, and channel breakdown"
+      />
+      <div className="page-content">
         <PageHeader 
           title="Messages Analytics" 
           subtitle="Message statistics, trends, and channel breakdown"
@@ -110,19 +118,23 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
           actions={
             <div className="header-actions">
               <button className="btn-secondary" onClick={loadMessages} disabled={loading}>
-                ↻ {loading ? 'Loading...' : 'Refresh'}
+                <RefreshIcon size={16} />
+                {loading ? 'Loading...' : 'Refresh'}
               </button>
-              <a href="/dm/whatsapp" className="btn-primary">→ WhatsApp Inbox</a>
+              <Link href="/dm/whatsapp" className="btn-primary">
+                WhatsApp Inbox
+              </Link>
             </div>
           }
         />
 
         {/* Date Range Picker */}
-        <div className="section" style={{ marginBottom: 20 }}>
+        <div className="section" style={{ marginBottom: '20px', padding: '16px' }}>
           <DateRangePicker
-            startDate={dateRange.start}
-            endDate={dateRange.end}
-            onChange={(start, end) => setDateRange({ start, end })}
+            startDate={dateRange.start.toISOString().split('T')[0]}
+            endDate={dateRange.end.toISOString().split('T')[0]}
+            onStartChange={(date) => setDateRange(prev => ({ ...prev, start: new Date(date) }))}
+            onEndChange={(date) => setDateRange(prev => ({ ...prev, end: new Date(date) }))}
           />
         </div>
 
@@ -132,16 +144,16 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="stat-value">{stats.total.toLocaleString()}</div>
             <div className="stat-label">Total Messages</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#25D366' }}>{stats.inbound.toLocaleString()}</div>
+          <div className="stat-card accent">
+            <div className="stat-value" style={{ color: 'var(--color-whatsapp)' }}>{stats.inbound.toLocaleString()}</div>
             <div className="stat-label">Inbound</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#2196F3' }}>{stats.outbound.toLocaleString()}</div>
+          <div className="stat-card accent2">
+            <div className="stat-value" style={{ color: 'var(--color-sms)' }}>{stats.outbound.toLocaleString()}</div>
             <div className="stat-label">Outbound</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: deliveryRate >= 95 ? '#4CAF50' : '#FF9800' }}>
+            <div className="stat-value" style={{ color: deliveryRate >= 95 ? 'var(--color-success)' : 'var(--color-warning)' }}>
               {deliveryRate}%
             </div>
             <div className="stat-label">Delivery Rate</div>
@@ -149,94 +161,102 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         {/* Charts Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 20, marginTop: 20 }}>
-          {/* Message Trend */}
-          <div className="section" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Message Trend (7 Days)</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+          <div className="section">
+            <h3 className="section-title">Message Trend (7 Days)</h3>
             <Sparkline 
               data={stats.byDay.map(d => d.count)} 
-              height={120} 
-              color="#25D366"
-              showArea={true}
+              height={120}
+              width={300}
+              color="var(--color-whatsapp)"
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: '#666' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '11px', color: 'var(--color-muted)' }}>
               {stats.byDay.map(d => (
                 <span key={d.date}>{new Date(d.date).toLocaleDateString('en', { weekday: 'short' })}</span>
               ))}
             </div>
           </div>
 
-          {/* Channel Distribution */}
-          <div className="section" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>By Channel</h3>
+          <div className="section">
+            <h3 className="section-title">By Channel</h3>
             {channelData.length > 0 ? (
-              <DonutChart data={channelData} size={160} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {channelData.map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: item.color }} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div style={{ textAlign: 'center', color: '#666', padding: 40 }}>No messages yet</div>
+              <div className="empty">No messages yet</div>
             )}
           </div>
 
-          {/* Direction Breakdown */}
-          <div className="section" style={{ padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Direction</h3>
+          <div className="section">
+            <h3 className="section-title">Direction</h3>
             <BarChart data={directionData} height={160} />
           </div>
         </div>
 
         {/* Delivery Stats */}
-        <div className="section" style={{ marginTop: 20, padding: 20 }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Delivery Performance</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
+        <div className="section">
+          <h3 className="section-title">Delivery Performance</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
                 <span>Delivered</span>
                 <span>{stats.delivered} / {stats.outbound}</span>
               </div>
-              <div style={{ background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{ background: 'var(--color-border)', borderRadius: '6px', height: '10px', overflow: 'hidden' }}>
                 <div style={{ 
                   width: `${deliveryRate}%`, 
                   height: '100%', 
-                  background: deliveryRate >= 95 ? '#4CAF50' : '#FF9800',
-                  borderRadius: 4,
+                  background: deliveryRate >= 95 ? 'var(--color-success)' : 'var(--color-warning)',
+                  borderRadius: '6px',
+                  transition: 'width 0.3s ease'
                 }} />
               </div>
             </div>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
                 <span>Read</span>
                 <span>{stats.read} / {stats.delivered}</span>
               </div>
-              <div style={{ background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{ background: 'var(--color-border)', borderRadius: '6px', height: '10px', overflow: 'hidden' }}>
                 <div style={{ 
                   width: `${readRate}%`, 
                   height: '100%', 
-                  background: '#2196F3',
-                  borderRadius: 4,
+                  background: 'var(--color-sms)',
+                  borderRadius: '6px',
+                  transition: 'width 0.3s ease'
                 }} />
               </div>
             </div>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
                 <span>Failed</span>
-                <span style={{ color: stats.failed > 0 ? '#F44336' : '#666' }}>{stats.failed}</span>
+                <span style={{ color: stats.failed > 0 ? 'var(--color-danger)' : 'var(--color-muted)' }}>{stats.failed}</span>
               </div>
-              <div style={{ background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{ background: 'var(--color-border)', borderRadius: '6px', height: '10px', overflow: 'hidden' }}>
                 <div style={{ 
                   width: `${stats.outbound > 0 ? (stats.failed / stats.outbound) * 100 : 0}%`, 
                   height: '100%', 
-                  background: '#F44336',
-                  borderRadius: 4,
+                  background: 'var(--color-danger)',
+                  borderRadius: '6px',
+                  transition: 'width 0.3s ease'
                 }} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Recent Messages Preview */}
-        <div className="section" style={{ marginTop: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>Recent Messages</h3>
-            <a href="/dm/whatsapp" style={{ fontSize: 12, color: '#25D366' }}>View All →</a>
+        {/* Recent Messages */}
+        <div className="section">
+          <div className="section-header">
+            <h3 className="section-title">Recent Messages</h3>
+            <Link href="/dm/whatsapp" className="link">View All →</Link>
           </div>
           <div className="table-container">
             <table className="data-table">
@@ -252,36 +272,24 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
               <tbody>
                 {messages.slice(0, 10).map(msg => (
                   <tr key={msg.messageId}>
-                    <td style={{ fontSize: 12, color: '#666' }}>
+                    <td style={{ fontSize: '12px', color: 'var(--color-muted)' }}>
                       {new Date(msg.timestamp).toLocaleString()}
                     </td>
                     <td>
-                      <span style={{
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        fontSize: 10,
-                        background: msg.channel === 'WHATSAPP' ? '#25D36620' : msg.channel === 'SMS' ? '#2196F320' : '#9C27B020',
-                        color: msg.channel === 'WHATSAPP' ? '#25D366' : msg.channel === 'SMS' ? '#2196F3' : '#9C27B0',
-                      }}>
+                      <span className={`badge ${msg.channel?.toLowerCase()}`}>
                         {msg.channel}
                       </span>
                     </td>
                     <td>
-                      <span style={{ color: msg.direction === 'INBOUND' ? '#25D366' : '#2196F3' }}>
+                      <span style={{ color: msg.direction === 'INBOUND' ? 'var(--color-whatsapp)' : 'var(--color-sms)' }}>
                         {msg.direction === 'INBOUND' ? '← In' : '→ Out'}
                       </span>
                     </td>
-                    <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {msg.content || `[${msg.messageType || 'media'}]`}
                     </td>
                     <td>
-                      <span style={{
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        fontSize: 10,
-                        background: msg.status === 'read' ? '#4CAF5020' : msg.status === 'delivered' ? '#2196F320' : msg.status === 'failed' ? '#F4433620' : '#66666620',
-                        color: msg.status === 'read' ? '#4CAF50' : msg.status === 'delivered' ? '#2196F3' : msg.status === 'failed' ? '#F44336' : '#666',
-                      }}>
+                      <span className={`badge ${msg.status}`}>
                         {msg.status}
                       </span>
                     </td>
@@ -297,6 +305,4 @@ const DashboardMessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
     </Layout>
   );
-};
-
-export default DashboardMessagesPage;
+}

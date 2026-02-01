@@ -1,9 +1,7 @@
 /**
- * RCS DM - IN RCS
- * Rich Communication Services via IN RCS
+ * RCS DM - Rich Communication Services
  */
 
-import React from 'react';
 import ComingSoon from '../../../components/ComingSoon';
 
 interface PageProps {
@@ -11,7 +9,7 @@ interface PageProps {
   user?: any;
 }
 
-const RcsDM: React.FC<PageProps> = ({ signOut, user }) => {
+export default function RcsDM({ signOut, user }: PageProps) {
   return (
     <ComingSoon
       title="RCS"
@@ -34,6 +32,4 @@ const RcsDM: React.FC<PageProps> = ({ signOut, user }) => {
       signOut={signOut}
     />
   );
-};
-
-export default RcsDM;
+}

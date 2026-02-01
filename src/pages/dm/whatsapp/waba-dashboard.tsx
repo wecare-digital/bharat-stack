@@ -385,16 +385,21 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .refresh-btn {
-          background: #25D366;
-          color: white;
-          border: none;
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
           padding: 10px 20px;
-          border-radius: 8px;
+          border-radius: 13px;
           cursor: pointer;
+        }
+
+        .refresh-btn:hover {
+          background: #f5f5f5;
         }
 
         .refresh-btn:disabled {
           opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .loading-state, .empty-state {
@@ -427,12 +432,13 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .tab {
-          background: none;
-          border: none;
+          background: #fff;
+          border: 1px solid #000;
           padding: 10px 20px;
           cursor: pointer;
-          border-radius: 8px;
+          border-radius: 13px;
           font-size: 14px;
+          color: #000;
         }
 
         .tab:hover {
@@ -440,8 +446,9 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .tab.active {
-          background: #25D366;
-          color: white;
+          background: #f5f5f5;
+          color: #000;
+          font-weight: 600;
         }
 
         .info-card {

@@ -1197,10 +1197,10 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .back-btn {
-          background: none;
-          border: 1px solid #ddd;
+          background: #fff;
+          border: 1px solid #000;
           padding: 8px 16px;
-          border-radius: 8px;
+          border-radius: 13px;
           cursor: pointer;
         }
 
@@ -1215,24 +1215,43 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
 
         .waba-select {
           padding: 10px 16px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
+          border: 1px solid #000;
+          border-radius: 13px;
           font-size: 14px;
           min-width: 200px;
+          background: #fff;
+        }
+
+        .waba-select:hover {
+          background: #f5f5f5;
+        }
+
+        .btn-carousel {
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
+          padding: 10px 20px;
+          border-radius: 13px;
+          cursor: pointer;
+          font-weight: 500;
+        }
+
+        .btn-carousel:hover {
+          background: #f5f5f5;
         }
 
         .btn-primary {
-          background: #25D366;
-          color: white;
-          border: none;
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
           padding: 10px 20px;
-          border-radius: 8px;
+          border-radius: 13px;
           cursor: pointer;
           font-weight: 500;
         }
 
         .btn-primary:hover {
-          background: #128C7E;
+          background: #f5f5f5;
         }
 
         .tabs {
@@ -1244,12 +1263,13 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .tab {
-          background: none;
-          border: none;
+          background: #fff;
+          border: 1px solid #000;
           padding: 10px 20px;
           cursor: pointer;
-          border-radius: 8px;
+          border-radius: 13px;
           font-size: 14px;
+          color: #000;
         }
 
         .tab:hover {
@@ -1257,8 +1277,9 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .tab.active {
-          background: #25D366;
-          color: white;
+          background: #f5f5f5;
+          color: #000;
+          font-weight: 600;
         }
 
         .search-section {
@@ -1269,14 +1290,19 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
           width: 100%;
           max-width: 400px;
           padding: 12px 16px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
+          border: 1px solid #000;
+          border-radius: 13px;
           font-size: 14px;
+        }
+
+        .search-input:hover {
+          background: #f5f5f5;
         }
 
         .search-input:focus {
           outline: none;
-          border-color: #25D366;
+          background: #fff;
+          box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
         }
 
         .templates-grid {
@@ -1288,7 +1314,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         .template-card {
           background: white;
           border: 1px solid #eee;
-          border-radius: 12px;
+          border-radius: 13px;
           padding: 16px;
           transition: box-shadow 0.2s;
         }
@@ -1315,7 +1341,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
 
         .status-badge, .category-badge {
           padding: 4px 10px;
-          border-radius: 20px;
+          border-radius: 13px;
           font-size: 11px;
           color: white;
           font-weight: 500;
@@ -1350,30 +1376,29 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
 
         .btn-view, .btn-delete {
           padding: 8px 16px;
-          border-radius: 6px;
+          border-radius: 13px;
           font-size: 13px;
           cursor: pointer;
         }
 
         .btn-view {
-          background: #f5f5f5;
-          border: 1px solid #ddd;
-          color: #333;
+          background: #fff;
+          border: 1px solid #000;
+          color: #000;
         }
 
         .btn-view:hover {
-          background: #eee;
+          background: #f5f5f5;
         }
 
         .btn-delete {
-          background: none;
+          background: #fff;
           border: 1px solid #DC3545;
           color: #DC3545;
         }
 
         .btn-delete:hover {
-          background: #DC3545;
-          color: white;
+          background: #fef2f2;
         }
 
         .loading-state, .empty-state {
@@ -1656,17 +1681,17 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .btn-add-card {
-          background: #25D366;
-          color: white;
-          border: none;
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
           padding: 6px 12px;
-          border-radius: 6px;
+          border-radius: 13px;
           cursor: pointer;
           font-size: 13px;
         }
 
         .btn-add-card:hover {
-          background: #128C7E;
+          background: #f5f5f5;
         }
 
         .cards-list {

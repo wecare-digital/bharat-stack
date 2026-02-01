@@ -283,21 +283,27 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
       <style jsx>{`
         .ses-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
         .ses-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #000; color: #fff; }
-        .back-btn, .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
-        .compose-btn { background: #fff; border: none; color: #000; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .back-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 13px; cursor: pointer; text-decoration: none; }
+        .back-btn:hover { background: rgba(255,255,255,0.3); }
+        .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 13px; cursor: pointer; }
+        .refresh-btn:hover { background: rgba(255,255,255,0.3); }
+        .compose-btn { background: #fff; border: 1px solid #000; color: #000; padding: 8px 16px; border-radius: 13px; cursor: pointer; font-weight: 500; }
+        .compose-btn:hover { background: #f5f5f5; }
         .ses-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
         .ses-icon { font-size: 28px; }
         .ses-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
         .ses-provider { font-size: 13px; opacity: 0.9; }
-        .error-bar { background: #f5f5f5; color: #000; padding: 8px 16px; font-size: 13px; }
+        .error-bar { background: #fef2f2; color: #dc2626; padding: 8px 16px; font-size: 13px; }
         .ses-layout { display: grid; grid-template-columns: 280px 1fr 260px; flex: 1; overflow: hidden; }
         .ses-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }
-        .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; }
+        .sidebar-search input { width: 100%; padding: 12px 14px; border: 1px solid #000; border-radius: 13px; font-size: 14px; }
+        .sidebar-search input:hover { background: #f5f5f5; }
+        .sidebar-search input:focus { outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
         .contacts-list { flex: 1; overflow-y: auto; }
         .contact-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
-        .contact-row:hover { background: #f9f9f9; }
-        .contact-row.active { background: #f0f0f0; }
+        .contact-row:hover { background: #f5f5f5; }
+        .contact-row.active { background: #f5f5f5; font-weight: 600; }
         .contact-avatar { width: 40px; height: 40px; background: #e5e5e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; color: #666; flex-shrink: 0; }
         .contact-avatar.large { width: 44px; height: 44px; }
         .contact-details { flex: 1; min-width: 0; }
@@ -311,7 +317,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .email-name { font-weight: 500; }
         .email-address { font-size: 12px; color: #666; }
         .emails-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-        .email-item { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; }
+        .email-item { background: #fff; border: 1px solid #e5e5e5; border-radius: 13px; padding: 16px; }
         .email-item.inbound { border-left: 3px solid #000; }
         .email-item.outbound { border-left: 3px solid #4a4a4a; }
         .email-item-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
@@ -320,7 +326,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .email-subject { font-weight: 500; margin-bottom: 8px; }
         .email-body { font-size: 14px; line-height: 1.5; color: #333; }
         .email-status { margin-top: 12px; }
-        .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; background: #f0f0f0; }
+        .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 13px; background: #f0f0f0; }
         .no-emails, .no-contact { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #999; }
         .info-panel { background: #fff; border-left: 1px solid #e5e5e5; padding: 20px; overflow-y: auto; }
         .info-panel h3 { font-size: 16px; margin: 0 0 20px 0; }
@@ -331,19 +337,23 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .feature-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
         .feature-list li { padding: 4px 0; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .compose-modal { background: #fff; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+        .compose-modal { background: #fff; border-radius: 13px; width: 90%; max-width: 600px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
         .modal-header h2 { margin: 0; font-size: 18px; }
         .modal-header button { background: none; border: none; font-size: 20px; cursor: pointer; }
         .compose-form { padding: 20px; flex: 1; overflow-y: auto; }
         .form-row { margin-bottom: 16px; }
         .form-row label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
-        .form-row input { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; }
-        .form-row input:disabled { background: #f5f5f5; }
+        .form-row input { width: 100%; padding: 12px 14px; border: 1px solid #000; border-radius: 13px; font-size: 14px; }
+        .form-row input:hover { background: #f5f5f5; }
+        .form-row input:focus { outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
+        .form-row input:disabled { background: #f5f5f5; border-color: #e5e5e5; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid #e5e5e5; }
-        .btn-secondary { background: #fff; border: 1px solid #e5e5e5; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-        .btn-primary { background: #1a1a1a; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-        .btn-primary:disabled { background: #ccc; }
+        .btn-secondary { background: #fff; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; color: #000; }
+        .btn-secondary:hover { background: #f5f5f5; }
+        .btn-primary { background: #fff; color: #000; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; }
+        .btn-primary:hover { background: #f5f5f5; }
+        .btn-primary:disabled { background: #f5f5f5; color: #999; border-color: #e5e5e5; cursor: not-allowed; }
       `}</style>
     </Layout>
   );

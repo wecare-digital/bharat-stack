@@ -109,7 +109,7 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
           icon="sms"
           backLink="/dm/sms"
           backLabel="← SMS"
-          action={
+          actions={
             <button onClick={loadData} className="refresh-btn" disabled={loading}>
               {loading ? '...' : '↻'}
             </button>
@@ -179,17 +179,17 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
 
       <style jsx>{`
         .sms-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #ffffff; }
-        .refresh-btn { background: #f5f5f5; border: 1px solid #e5e5e5; color: #000; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
-        .refresh-btn:hover { background: #e5e5e5; }
-        .error-bar { background: #f5f5f5; color: #000; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #e5e5e5; }
+        .error-bar { background: #fef2f2; color: #dc2626; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #fecaca; }
         .sms-layout { display: grid; grid-template-columns: 280px 1fr 260px; flex: 1; overflow: hidden; }
         .sms-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }
-        .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; }
+        .sidebar-search input { width: 100%; padding: 12px 14px; border: 1px solid #000; border-radius: 13px; font-size: 14px; background: #fff; }
+        .sidebar-search input:hover { background: #f5f5f5; }
+        .sidebar-search input:focus { outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
         .contacts-list { flex: 1; overflow-y: auto; }
         .contact-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
-        .contact-row:hover { background: #f9f9f9; }
-        .contact-row.active { background: #f0f0f0; }
+        .contact-row:hover { background: #f5f5f5; }
+        .contact-row.active { background: #f5f5f5; font-weight: 600; }
         .contact-avatar { width: 40px; height: 40px; background: #e5e5e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; color: #000; }
         .contact-details { flex: 1; }
         .contact-name { font-size: 14px; font-weight: 500; color: #000; }
@@ -204,8 +204,8 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
         .message { display: flex; max-width: 70%; }
         .message.inbound { align-self: flex-start; }
         .message.outbound { align-self: flex-end; }
-        .message-bubble { background: #fff; padding: 10px 14px; border-radius: 12px; border: 1px solid #e5e5e5; }
-        .message.outbound .message-bubble { background: #000; color: #fff; border-color: #000; }
+        .message-bubble { background: #fff; padding: 10px 14px; border-radius: 13px; border: 1px solid #e5e5e5; }
+        .message.outbound .message-bubble { background: #f5f5f5; color: #000; border-color: #e5e5e5; }
         .message-text { font-size: 14px; }
         .message-time { font-size: 11px; opacity: 0.7; margin-top: 4px; text-align: right; }
         .compose-area { padding: 12px 16px; background: #fff; border-top: 1px solid #e5e5e5; }

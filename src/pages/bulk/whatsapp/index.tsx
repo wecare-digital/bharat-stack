@@ -71,8 +71,8 @@ const BulkWhatsAppIndex: React.FC<PageProps> = ({ signOut, user }) => {
           .page-title { font-size: 24px; font-weight: 500; margin: 8px 0 4px 0; }
           .page-subtitle { color: #666; margin: 0; }
           .waba-grid { display: grid; gap: 16px; max-width: 600px; }
-          .waba-card { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; text-decoration: none; color: inherit; transition: all 0.2s; }
-          .waba-card:hover { border-color: #25D366; box-shadow: 0 4px 12px rgba(37,211,102,0.15); }
+          .waba-card { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: #fff; border: 1px solid #000; border-radius: 13px; text-decoration: none; color: inherit; transition: all 0.2s; }
+          .waba-card:hover { background: #f5f5f5; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
           .waba-icon { font-size: 36px; }
           .waba-info { flex: 1; }
           .waba-name { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }

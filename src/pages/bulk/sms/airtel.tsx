@@ -149,10 +149,10 @@ const BulkINSms: React.FC<PageProps> = ({ signOut, user }) => {
 
       <style jsx>{`
         .bulk-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #fff; }
-        .tabs { display: flex; gap: 4px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
-        .tab { background: none; border: none; padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 6px; color: #4a4a4a; }
+        .tabs { display: flex; gap: 8px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+        .tab { background: #fff; border: 1px solid #000; padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 13px; color: #000; }
         .tab:hover { background: #f5f5f5; }
-        .tab.active { background: #000; color: #fff; }
+        .tab.active { background: #f5f5f5; color: #000; font-weight: 600; }
         .main-content { flex: 1; display: flex; overflow: hidden; }
         .tab-content { flex: 1; padding: 24px; overflow-y: auto; }
         .info-panel { width: 280px; background: #fff; border-left: 1px solid #e5e5e5; padding: 20px; overflow-y: auto; }
@@ -164,10 +164,11 @@ const BulkINSms: React.FC<PageProps> = ({ signOut, user }) => {
         .info-section a { color: #000; text-decoration: none; font-size: 13px; }
         .info-section a:hover { text-decoration: underline; }
         .empty-state { text-align: center; padding: 40px; color: #4a4a4a; }
-        .empty-state button { margin-top: 12px; background: #000; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        .empty-state button { margin-top: 12px; background: #fff; color: #000; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; }
+        .empty-state button:hover { background: #f5f5f5; }
         .jobs-list { display: grid; gap: 12px; }
-        .job-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 20px; }
-        .status-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; text-transform: uppercase; background: #f5f5f5; color: #000; }
+        .job-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 13px; padding: 16px; display: flex; align-items: center; gap: 20px; }
+        .status-badge { font-size: 12px; padding: 4px 12px; border-radius: 13px; text-transform: uppercase; background: #f5f5f5; color: #000; }
         .job-stats { display: flex; gap: 24px; flex: 1; }
         .stat { text-align: center; }
         .stat-value { display: block; font-size: 20px; font-weight: 500; color: #000; }
@@ -176,11 +177,13 @@ const BulkINSms: React.FC<PageProps> = ({ signOut, user }) => {
         .create-section h2 { font-size: 20px; margin: 0 0 20px 0; color: #000; }
         .form-section { margin-bottom: 20px; }
         .form-section h3 { font-size: 14px; margin: 0 0 12px 0; color: #000; }
-        .select-all-btn { background: #f5f5f5; border: 1px solid #e5e5e5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-bottom: 12px; color: #000; }
+        .select-all-btn { background: #fff; border: 1px solid #000; padding: 6px 12px; border-radius: 13px; cursor: pointer; font-size: 12px; margin-bottom: 12px; color: #000; }
+        .select-all-btn:hover { background: #f5f5f5; }
         .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; }
-        .contact-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 6px; cursor: pointer; font-size: 13px; color: #000; }
-        .btn-primary { background: #000; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; }
-        .btn-primary:disabled { background: #ccc; }
+        .contact-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 13px; cursor: pointer; font-size: 13px; color: #000; }
+        .btn-primary { background: #fff; color: #000; border: 1px solid #000; padding: 12px 24px; border-radius: 13px; cursor: pointer; font-size: 14px; }
+        .btn-primary:hover { background: #f5f5f5; }
+        .btn-primary:disabled { background: #f5f5f5; color: #999; border-color: #e5e5e5; cursor: not-allowed; }
         .coming-soon { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; text-align: center; }
         .coming-soon h2 { font-size: 28px; font-weight: 600; color: #000; margin: 0 0 8px 0; }
         .coming-soon p { font-size: 16px; color: #4a4a4a; margin: 0; }

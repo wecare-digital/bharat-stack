@@ -1,16 +1,20 @@
 /**
  * Dashboard - Billing Tab
  * AWS resource usage and cost tracking
+ * Enhanced responsive design
  */
-import React, { useState, useEffect } from 'react';
+
+import { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
-import { BarChart, DonutChart, ProgressBar } from '../../../components/Charts';
+import SEO from '../../../components/SEO';
+import { BarChart } from '../../../components/Charts';
 import * as api from '../../../api/client';
+import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
-const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
+export default function DashboardBillingPage({ signOut, user }: PageProps) {
   const [billing, setBilling] = useState<api.AWSBillingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'chart'>('list');
@@ -33,16 +37,14 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'free': return '#4CAF50';
-      case 'paid': return '#2196F3';
-      case 'warning': return '#FF9800';
-      default: return '#666';
+      case 'free': return 'var(--color-success)';
+      case 'paid': return 'var(--color-sms)';
+      case 'warning': return 'var(--color-warning)';
+      default: return 'var(--color-muted)';
     }
   };
 
-  const formatCost = (cost: number) => {
-    return cost === 0 ? 'Free' : `$${cost.toFixed(2)}`;
-  };
+  const formatCost = (cost: number) => cost === 0 ? 'Free' : `$${cost.toFixed(2)}`;
 
   const formatUsage = (usage: number, unit: string) => {
     if (usage >= 1000000) return `${(usage / 1000000).toFixed(1)}M ${unit}`;
@@ -50,21 +52,18 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
     return `${usage} ${unit}`;
   };
 
-  // Prepare chart data
   const chartData = billing?.services.slice(0, 10).map(s => ({
     label: s.service.replace('Amazon ', '').replace('AWS ', ''),
     value: s.usage,
   })) || [];
 
-  const donutData = billing?.services.slice(0, 6).map(s => ({
-    label: s.service.replace('Amazon ', '').replace('AWS ', ''),
-    value: s.usage,
-    color: s.status === 'free' ? '#4CAF50' : s.status === 'warning' ? '#FF9800' : '#2196F3',
-  })) || [];
-
   return (
     <Layout user={user} onSignOut={signOut}>
-      <div className="page">
+      <SEO 
+        title="AWS Billing | WECARE.DIGITAL"
+        description="Resource usage and cost tracking"
+      />
+      <div className="page-content">
         <PageHeader 
           title="AWS Billing" 
           subtitle="Resource usage and cost tracking"
@@ -72,19 +71,20 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
           actions={
             <div className="header-actions">
               <button className="btn-secondary" onClick={loadBilling} disabled={loading}>
-                ↻ {loading ? 'Loading...' : 'Refresh'}
+                <RefreshIcon size={16} />
+                {loading ? 'Loading...' : 'Refresh'}
               </button>
               <button 
                 className={`btn-secondary ${view === 'list' ? 'active' : ''}`}
                 onClick={() => setView('list')}
               >
-                ☰ List
+                List
               </button>
               <button 
                 className={`btn-secondary ${view === 'chart' ? 'active' : ''}`}
                 onClick={() => setView('chart')}
               >
-                ◫ Charts
+                Charts
               </button>
             </div>
           }
@@ -92,8 +92,8 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Summary Cards */}
         <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#4CAF50' }}>
+          <div className="stat-card success">
+            <div className="stat-value" style={{ color: 'var(--color-success)' }}>
               {billing ? formatCost(billing.totalCost) : '-'}
             </div>
             <div className="stat-label">Total Cost (MTD)</div>
@@ -102,14 +102,14 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="stat-value">{billing?.services.length || 0}</div>
             <div className="stat-label">Active Services</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#4CAF50' }}>
+          <div className="stat-card success">
+            <div className="stat-value" style={{ color: 'var(--color-success)' }}>
               {billing?.services.filter(s => s.status === 'free').length || 0}
             </div>
-            <div className="stat-label">Within Free Tier</div>
+            <div className="stat-label">Free Tier</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: '#FF9800' }}>
+            <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
               {billing?.services.filter(s => s.status === 'warning').length || 0}
             </div>
             <div className="stat-label">Near Limit</div>
@@ -117,25 +117,47 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         {/* Account Info */}
-        <div className="section" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13, color: '#666' }}>
-            <span>◈ Account: 809904170947</span>
-            <span>◈ Region: us-east-1</span>
-            <span>◈ Period: {billing?.period || '-'}</span>
-            <span>◈ Updated: {billing?.lastUpdated ? new Date(billing.lastUpdated).toLocaleString() : '-'}</span>
+        <div className="section" style={{ marginBottom: '20px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '20px', 
+            flexWrap: 'wrap', 
+            fontSize: '13px', 
+            color: 'var(--color-muted)' 
+          }}>
+            <span>Account: 809904170947</span>
+            <span>Region: us-east-1</span>
+            <span>Period: {billing?.period || '-'}</span>
+            <span>Updated: {billing?.lastUpdated ? new Date(billing.lastUpdated).toLocaleString() : '-'}</span>
           </div>
         </div>
 
         {view === 'chart' && billing && (
-          <div className="section">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 20 }}>
-              <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e5e7eb' }}>
-                <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Usage by Service</h3>
-                <BarChart data={chartData} height={250} />
-              </div>
-              <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e5e7eb' }}>
-                <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 500 }}>Service Distribution</h3>
-                <DonutChart data={donutData} size={200} />
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
+            gap: '20px',
+            marginBottom: '20px'
+          }}>
+            <div className="section">
+              <h3 className="section-title">Usage by Service</h3>
+              <BarChart data={chartData} height={250} />
+            </div>
+            <div className="section">
+              <h3 className="section-title">Service Distribution</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {billing.services.slice(0, 6).map((s, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      borderRadius: '50%', 
+                      background: s.status === 'free' ? 'var(--color-success)' : s.status === 'warning' ? 'var(--color-warning)' : 'var(--color-sms)' 
+                    }} />
+                    <span style={{ flex: 1, fontSize: '13px' }}>{s.service.replace('Amazon ', '').replace('AWS ', '')}</span>
+                    <strong style={{ fontSize: '13px' }}>{s.usage}</strong>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -161,20 +183,12 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
                     <tr key={idx}>
                       <td><strong>{service.service}</strong></td>
                       <td>{formatUsage(service.usage, service.unit)}</td>
-                      <td style={{ color: '#666', fontSize: 12 }}>{service.freeLimit}</td>
-                      <td style={{ fontWeight: 500, color: service.cost > 0 ? '#2196F3' : '#4CAF50' }}>
+                      <td style={{ color: 'var(--color-muted)', fontSize: '12px' }}>{service.freeLimit}</td>
+                      <td style={{ fontWeight: 600, color: service.cost > 0 ? 'var(--color-sms)' : 'var(--color-success)' }}>
                         {formatCost(service.cost)}
                       </td>
                       <td>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: 12,
-                          fontSize: 11,
-                          fontWeight: 500,
-                          background: getStatusColor(service.status) + '20',
-                          color: getStatusColor(service.status),
-                        }}>
+                        <span className={`badge ${service.status}`}>
                           {service.status === 'free' ? '✓ Free Tier' : service.status === 'warning' ? '⚠ Near Limit' : '$ Paid'}
                         </span>
                       </td>
@@ -190,21 +204,23 @@ const DashboardBillingPage: React.FC<PageProps> = ({ signOut, user }) => {
         )}
 
         {/* Free Tier Tips */}
-        <div className="section" style={{ marginTop: 20 }}>
-          <div style={{ background: '#f0fdf4', borderRadius: 12, padding: 16, border: '1px solid #bbf7d0' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#166534' }}>◈ Free Tier Tips</h4>
-            <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: '#166534', lineHeight: 1.8 }}>
-              <li>Lambda: 1M free requests/month, 400K GB-seconds compute</li>
-              <li>DynamoDB: 25GB storage, 200M read/write requests</li>
-              <li>S3: 5GB storage, 20K GET, 2K PUT requests</li>
-              <li>API Gateway: 1M REST API calls/month</li>
-              <li>Amplify: 1000 build minutes, 15GB hosting/month</li>
-            </ul>
-          </div>
+        <div className="section" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+          <h3 className="section-title" style={{ color: '#166534' }}>Free Tier Tips</h3>
+          <ul style={{ 
+            margin: 0, 
+            paddingLeft: '20px', 
+            fontSize: '13px', 
+            color: '#166534', 
+            lineHeight: 2 
+          }}>
+            <li>Lambda: 1M free requests/month, 400K GB-seconds compute</li>
+            <li>DynamoDB: 25GB storage, 200M read/write requests</li>
+            <li>S3: 5GB storage, 20K GET, 2K PUT requests</li>
+            <li>API Gateway: 1M REST API calls/month</li>
+            <li>Amplify: 1000 build minutes, 15GB hosting/month</li>
+          </ul>
         </div>
       </div>
     </Layout>
   );
-};
-
-export default DashboardBillingPage;
+}
