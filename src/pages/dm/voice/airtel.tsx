@@ -191,8 +191,8 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Info Banner */}
         <div style={{
-          background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-          color: 'white',
+          background: '#ffffff',
+          color: '#111827',
           padding: '16px 20px',
           borderRadius: '12px',
           marginBottom: '24px',
@@ -200,11 +200,12 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px'
+          gap: '12px',
+          border: '1px solid #10B981'
         }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: '16px' }}>Inbound Number: +91 9319767034</div>
-            <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
+            <div style={{ fontWeight: 600, fontSize: '16px', color: '#111827' }}>Inbound Number: +91 9319767034</div>
+            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
               Email: voice@wecare.digital | Cloud Communication Platform
             </div>
           </div>
@@ -213,10 +214,10 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
             disabled={loading}
             style={{
               padding: '8px 16px',
-              background: 'rgba(255,255,255,0.2)',
-              border: '1px solid rgba(255,255,255,0.3)',
+              background: '#ECFDF5',
+              border: '1px solid #10B981',
               borderRadius: '8px',
-              color: 'white',
+              color: '#111827',
               cursor: loading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
