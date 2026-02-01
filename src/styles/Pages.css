@@ -2123,29 +2123,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--bg-secondary);
+  background: var(--bg);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
-  border: 1px solid var(--border);
+  padding: 0;
+  border: none;
   transition: border-color var(--transition-normal);
 }
 
 .input-wrapper:focus-within {
   border-color: var(--accent);
-}
-
-.attach-btn {
-  background: none;
-  border: none;
-  font-size: var(--text-base);
-  cursor: pointer;
-  padding: 4px;
-  color: var(--text-secondary);
-  transition: color var(--transition-normal);
-}
-
-.attach-btn:hover {
-  color: var(--text);
 }
 
 .input-box {
@@ -2161,30 +2147,6 @@
   padding: 4px 0;
   outline: none;
   resize: none;
-}
-
-.send-btn {
-  background: var(--accent);
-  border: none;
-  color: white;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-normal);
-}
-
-.send-btn:disabled {
-  background: var(--border);
-  cursor: not-allowed;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
 }
 
 /* Empty Chat State */

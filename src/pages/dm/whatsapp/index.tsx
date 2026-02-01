@@ -926,7 +926,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
                 )}
                 
                 <div className="input-wrapper">
-                  {/* Media Upload Button */}
+                  {/* Hidden file input for RichTextEditor attachment button */}
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -934,14 +934,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
                     accept="image/jpeg,image/png,image/webp,video/mp4,video/3gpp,audio/mpeg,audio/mp3,audio/ogg,audio/aac,audio/amr,audio/mp4,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain"
                     style={{ display: 'none' }}
                   />
-                  <button 
-                    className="attach-btn"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingMedia}
-                    title="Attach media"
-                  >
-                    ◰
-                  </button>
                   
                   <div className="input-box">
                     <RichTextEditor
@@ -954,15 +946,9 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
                       selectedContactId={selectedContact?.id}
                       phoneNumberId={selectedWaba}
                       contactContext={selectedContact?.name}
+                      onAttachClick={() => fileInputRef.current?.click()}
                     />
                   </div>
-                  <button 
-                    className="send-btn"
-                    onClick={handleSend}
-                    disabled={(!messageText.trim() && !mediaFile) || sending}
-                  >
-                    {sending ? '...' : '→'}
-                  </button>
                 </div>
               </div>
             </>

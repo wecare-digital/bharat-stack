@@ -36,6 +36,7 @@ interface RichTextEditorProps {
   onTemplateSelect?: (template: api.WhatsAppTemplate) => void;
   selectedContactId?: string;
   phoneNumberId?: string;
+  onAttachClick?: () => void;
 }
 
 // Variable placeholders for templates
@@ -60,6 +61,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onTemplateSelect,
   selectedContactId,
   phoneNumberId,
+  onAttachClick,
 }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
@@ -711,7 +713,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Send Payment Request (UPI)"
           >
-            <img src="https://img.icons8.com/ios/250/000000/card-in-use.png" alt="Pay" style={{ width: 16, height: 16 }} />
+            <img src="https://img.icons8.com/ios/250/000000/bank-card-back-side.png" alt="Pay" style={{ width: 16, height: 16 }} />
           </button>
         )}
 
@@ -743,18 +745,22 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             type="button"
             className={styles['toolbar-btn']}
             onClick={() => {
-              // Trigger file input for attachment
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx';
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) {
-                  // For now, just show the file name in the message
-                  insertAtCursor(`[Attachment: ${file.name}]`);
-                }
-              };
-              input.click();
+              if (onAttachClick) {
+                // Use parent's file input
+                onAttachClick();
+              } else {
+                // Fallback: create temporary file input
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    insertAtCursor(`[Attachment: ${file.name}]`);
+                  }
+                };
+                input.click();
+              }
             }}
             title="Attach File"
           >
@@ -771,7 +777,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             disabled={loadingAI}
             title={aiError || "Get AI Suggestion (Bedrock)"}
           >
-            {loadingAI ? '...' : '◇ AI'}
+            {loadingAI ? '...' : <img src="https://img.icons8.com/ios/250/000000/swiss-army-knife.png" alt="AI" style={{ width: 16, height: 16, filter: 'invert(1)' }} />}
           </button>
         )}
 
