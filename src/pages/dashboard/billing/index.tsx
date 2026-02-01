@@ -204,8 +204,8 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
         )}
 
         {/* Free Tier Tips */}
-        <div className="section" style={{ background: '#f0fdf4', borderColor: '#047857' }}>
-          <h3 className="section-title" style={{ color: '#065f46' }}>Free Tier Tips</h3>
+        <div className="section" style={{ background: '#ecfdf5', borderColor: '#bbf7d0' }}>
+          <h3 className="section-title" style={{ color: '#059669' }}>Free Tier Tips</h3>
           <ul style={{ 
             margin: 0, 
             paddingLeft: '20px', 

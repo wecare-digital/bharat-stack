@@ -82,7 +82,7 @@ const BulkWhatsAppIndex: React.FC<PageProps> = ({ signOut, user }) => {
           .quality-badge.green { background: #dcfce7; color: #166534; }
           .quality-badge.yellow { background: #fef3c7; color: #92400e; }
           .quality-badge.red { background: #fee2e2; color: #991b1b; }
-          .status-badge { font-size: 11px; color: #047857; }
+          .status-badge { font-size: 11px; color: #10b981; }
           .status-badge.inactive { color: #999; }
           .waba-arrow { font-size: 24px; color: #ccc; }
         `}</style>
