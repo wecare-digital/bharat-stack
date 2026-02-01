@@ -444,10 +444,10 @@ response = requests.post(
             .hero-left{text-align:left;order:1}
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
             .hero-left p{font-size:24px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
-            .hero-stats{display:flex;flex-direction:row;gap:12px;width:calc(100% + 40px);margin:0 -20px;padding:0 20px;overflow-x:auto}
-            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:center;min-width:120px;flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
-            .stat span{font-size:28px;font-weight:800;min-width:auto}
-            .stat small{font-size:18px;line-height:1.3;margin:0;color:#6b7280}
+            .hero-stats{display:flex;flex-direction:column;gap:12px;width:100%}
+            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px}
+            .stat span{font-size:28px;font-weight:800;min-width:70px}
+            .stat small{font-size:20px;line-height:1.3;margin:0}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
@@ -512,9 +512,9 @@ response = requests.post(
             .hero-left h1{font-size:36px;line-height:1.15}
             .hero-left p{font-size:20px}
             .hero-stats{gap:10px}
-            .stat{padding:16px 14px;border-radius:12px;min-width:100px}
-            .stat span{font-size:24px;min-width:auto}
-            .stat small{font-size:16px}
+            .stat{padding:18px 20px;border-radius:12px}
+            .stat span{font-size:26px;min-width:65px}
+            .stat small{font-size:18px}
             
             .mockup-wrapper{padding:14px;border-radius:18px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
@@ -565,9 +565,9 @@ response = requests.post(
             .hero-left h1{font-size:30px}
             .hero-left p{font-size:18px}
             .hero-stats{gap:8px}
-            .stat{padding:12px 10px;min-width:80px}
-            .stat span{font-size:20px}
-            .stat small{font-size:14px}
+            .stat{padding:14px 16px;min-width:85px}
+            .stat span{font-size:22px}
+            .stat small{font-size:15px}
             
             .section-header h2{font-size:28px}
             .section-header p{font-size:17px}
