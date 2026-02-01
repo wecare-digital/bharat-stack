@@ -172,82 +172,81 @@
 
 /* Tab Content */
 .tab-content {
-  padding: var(--space-xl);
-  max-width: 1400px;
+  padding: var(--space-lg) var(--space-xl);
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-/* Overview Tab */
+/* Overview Tab - Two Column Layout */
 .overview {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xl);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
 }
 
-/* Stats Grid - Notion Cards - Centered 2 rows */
+/* Full width sections */
+.overview .section.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Stats Grid - Horizontal compact layout */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-md);
-  max-width: 600px;
-  margin: 0 auto;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-sm);
 }
 
 .stats-grid.small {
   grid-template-columns: repeat(3, 1fr);
-  max-width: 400px;
-  margin: 0 auto;
 }
 
 .stat-card {
-  background: var(--notion-bg);
-  padding: var(--space-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--notion-border);
+  background: var(--notion-bg-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: none;
   text-align: center;
   transition: all 0.2s ease;
 }
 
 .stat-card:hover {
-  border-color: var(--notion-border-dark);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: var(--notion-bg-hover);
 }
 
 .stat-card .stat-value {
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 700;
   color: #000000;
   line-height: 1;
 }
 
 .stat-card .stat-label {
-  font-size: 14px;
-  color: #4a4a4a;
-  margin-top: var(--space-sm);
+  font-size: 11px;
+  color: #6b6b6b;
+  margin-top: 6px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Accent stat cards - clean monochrome style */
+/* Accent stat cards - subtle bottom border */
 .stat-card.accent {
-  border-left: 4px solid #000000;
+  border-bottom: 3px solid #000000;
 }
 
 .stat-card.accent2 {
-  border-left: 4px solid #4a4a4a;
+  border-bottom: 3px solid #6b6b6b;
 }
 
 .stat-card.success {
-  border-left: 4px solid #000000;
-  background: #ffffff;
+  border-bottom: 3px solid #000000;
 }
 
 .stat-card.error {
-  border-left: 4px solid #6b6b6b;
+  border-bottom: 3px solid #999999;
 }
 
-/* Section - Notion Block Style */
+/* Section - Clean Card Style */
 .section {
   background: var(--notion-bg);
   border-radius: var(--radius-lg);
@@ -256,7 +255,7 @@
 }
 
 .section h3 {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   color: #000000;
   margin: 0 0 var(--space-md) 0;
@@ -277,23 +276,21 @@
 }
 
 .link {
-  color: #000000;
+  color: #6b6b6b;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
 }
 
 .link:hover {
-  text-decoration: underline;
+  color: #000000;
 }
 
-/* Quick Actions Grid - Notion Style - Centered 2 rows */
+/* Quick Actions Grid - Compact */
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-md);
-  max-width: 600px;
-  margin: 0 auto;
+  gap: var(--space-sm);
 }
 
 .action-card {
@@ -301,68 +298,66 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-lg) var(--space-md);
+  padding: var(--space-md) var(--space-sm);
   background: var(--notion-bg-secondary);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   text-decoration: none;
   color: #000000;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   border: 1px solid transparent;
 }
 
 .action-card:hover {
-  background: var(--notion-bg);
+  background: var(--notion-bg-hover);
   border-color: var(--notion-border);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.action-card:active {
+  transform: scale(0.98);
 }
 
 .action-card .icon {
-  font-size: 32px;
-  margin-bottom: var(--space-sm);
+  font-size: 24px;
+  margin-bottom: 4px;
+  opacity: 0.8;
 }
 
 .action-card span:last-child {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
 }
 
-/* Action card variants - clean style */
-.action-card.whatsapp {
-  background: #f5f5f5;
-}
-
-.action-card.whatsapp:hover {
-  background: #ffffff;
-  border-color: #000000;
-}
-
-.action-card.payment {
-  background: #f5f5f5;
-}
-
+/* Action card variants - all same style */
+.action-card.whatsapp,
+.action-card.payment,
 .action-card.invoice {
-  background: #f5f5f5;
+  background: var(--notion-bg-secondary);
 }
 
-/* Messages List - Notion Style */
+.action-card.whatsapp:hover,
+.action-card.payment:hover,
+.action-card.invoice:hover {
+  background: var(--notion-bg-hover);
+}
+
+/* Messages List - Compact Style */
 .msg-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 2px;
 }
 
 .msg-list.full {
-  gap: var(--space-sm);
+  gap: var(--space-xs);
 }
 
 .msg-item {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
+  gap: var(--space-sm);
+  padding: 10px 12px;
   background: var(--notion-bg-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   transition: background 0.15s ease;
 }
 
@@ -371,88 +366,90 @@
 }
 
 .msg-item.inbound {
-  border-left: 3px solid var(--wa-green);
+  border-left: 2px solid #000000;
 }
 
 .msg-item.outbound {
-  border-left: 3px solid var(--accent-blue);
+  border-left: 2px solid #999999;
 }
 
 .msg-item .dir {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--notion-bg);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 12px;
   color: var(--notion-text-secondary);
 }
 
 .msg-item .name {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13px;
   color: #000000;
-  min-width: 120px;
+  min-width: 100px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .msg-item .content {
   flex: 1;
-  font-size: 15px;
-  color: #4a4a4a;
+  font-size: 13px;
+  color: #6b6b6b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .msg-item .time {
-  font-size: 13px;
-  color: #6b6b6b;
+  font-size: 11px;
+  color: #999999;
   white-space: nowrap;
 }
 
 .msg-item .status {
-  font-size: 12px;
-  padding: 2px 8px;
+  font-size: 10px;
+  padding: 2px 6px;
   background: var(--notion-bg);
   border-radius: var(--radius-sm);
   color: var(--notion-text-secondary);
   text-transform: capitalize;
 }
 
-/* Phone Cards - WhatsApp Style */
+/* Phone Cards - Compact Style */
 .phones-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-md);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
 }
 
 .phone-card {
   padding: var(--space-md);
   background: var(--notion-bg-secondary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--notion-border);
+  border: none;
 }
 
 .phone-card .phone-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: #000000;
 }
 
 .phone-card .phone-num {
-  font-size: 15px;
-  color: #000000;
+  font-size: 13px;
+  color: #6b6b6b;
   font-family: var(--font-mono);
-  margin-top: var(--space-xs);
+  margin-top: 2px;
 }
 
 .phone-card .badge {
   display: inline-block;
   margin-top: var(--space-sm);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   border-radius: var(--radius-sm);
   background: var(--notion-bg-hover);
@@ -972,12 +969,16 @@
     padding: var(--space-md);
   }
   
+  .overview {
+    grid-template-columns: 1fr;
+  }
+  
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
   
   .actions-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
   
   .billing-summary {
@@ -992,6 +993,7 @@
   
   .msg-item .name {
     min-width: 80px;
+    max-width: 80px;
   }
 }
 
@@ -1009,24 +1011,34 @@
   
   .dash-tabs {
     padding: var(--space-sm) var(--space-lg);
+    max-width: 600px;
   }
   
   .dash-tabs .tab {
-    padding: var(--space-sm) var(--space-md);
-    font-size: 15px;
+    padding: 10px 14px;
+    font-size: 13px;
   }
   
   .tab-content {
     padding: var(--space-lg);
   }
   
+  .overview {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
   .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-sm);
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--space-xs);
   }
   
   .stat-card .stat-value {
-    font-size: 32px;
+    font-size: 24px;
+  }
+  
+  .stat-card .stat-label {
+    font-size: 10px;
   }
   
   .actions-grid {
@@ -1080,6 +1092,7 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    max-width: 100%;
   }
   
   .dash-tabs::-webkit-scrollbar {
@@ -1087,7 +1100,7 @@
   }
   
   .dash-tabs .tab {
-    padding: 8px 14px;
+    padding: 8px 12px;
     font-size: 12px;
     min-height: 36px;
     white-space: nowrap;
@@ -1100,106 +1113,102 @@
   
   /* Tab content */
   .tab-content {
-    padding: 16px;
+    padding: 12px;
   }
   
-  /* Stats grid - 2 columns */
+  /* Overview - single column */
+  .overview {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  /* Stats grid - 3 columns on mobile */
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    max-width: 100%;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
   }
   
   .stats-grid.small {
     grid-template-columns: repeat(3, 1fr);
-    max-width: 100%;
   }
   
   .stat-card {
-    padding: 14px 12px;
+    padding: 10px 8px;
   }
   
   .stat-card .stat-value {
-    font-size: 26px;
+    font-size: 20px;
   }
   
   .stat-card .stat-label {
-    font-size: 11px;
+    font-size: 9px;
     margin-top: 4px;
   }
   
   /* Section */
   .section {
-    padding: 14px;
+    padding: 12px;
     border-radius: 10px;
   }
   
   .section h3 {
-    font-size: 17px;
-    margin-bottom: 12px;
+    font-size: 14px;
+    margin-bottom: 10px;
   }
   
   .section-header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
   }
   
-  /* Actions grid - 2 columns */
+  /* Actions grid - 4 columns on mobile */
   .actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    max-width: 100%;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
   
   .action-card {
-    padding: 14px 10px;
+    padding: 10px 6px;
   }
   
   .action-card .icon {
-    font-size: 26px;
-    margin-bottom: 6px;
+    font-size: 20px;
+    margin-bottom: 4px;
   }
   
   .action-card span:last-child {
-    font-size: 13px;
+    font-size: 10px;
   }
   
   /* Messages list */
   .msg-list {
-    gap: 6px;
+    gap: 2px;
   }
   
   .msg-item {
-    padding: 12px;
-    gap: 10px;
-    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 8px;
   }
   
   .msg-item .dir {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
   }
   
   .msg-item .name {
-    font-size: 14px;
-    min-width: 70px;
-    flex: 0 0 auto;
+    font-size: 12px;
+    min-width: 60px;
+    max-width: 60px;
   }
   
   .msg-item .content {
-    font-size: 13px;
-    flex: 1;
-    min-width: 0;
-    order: 3;
-    width: 100%;
-    margin-top: 4px;
+    font-size: 11px;
   }
   
   .msg-item .time {
-    font-size: 11px;
-    margin-left: auto;
+    font-size: 10px;
   }
   
   .msg-item .status {

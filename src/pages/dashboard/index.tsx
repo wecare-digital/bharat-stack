@@ -650,7 +650,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
             <div className="overview">
-              <div className="section">
+              <div className="section full-width">
                 <h3>Statistics</h3>
                 <div className="stats-grid">
                   <div className="stat-card">
@@ -683,58 +683,38 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="section">
                 <h3>Quick Actions</h3>
                 <div className="actions-grid">
-                  <Link href="/dm/whatsapp" className="action-card whatsapp">
-                    <span className="icon"><WhatsAppIcon size={24} /></span>
+                  <Link href="/dm/whatsapp" className="action-card">
+                    <span className="icon"><WhatsAppIcon size={20} /></span>
                     <span>WhatsApp</span>
                   </Link>
-                  <Link href="/pay" className="action-card payment">
-                    <span className="icon"><PaymentIcon size={24} /></span>
+                  <Link href="/pay" className="action-card">
+                    <span className="icon"><PaymentIcon size={20} /></span>
                     <span>Pay</span>
                   </Link>
-                  <Link href="/invoice" className="action-card invoice">
-                    <span className="icon"><InvoiceIcon size={24} /></span>
+                  <Link href="/invoice" className="action-card">
+                    <span className="icon"><InvoiceIcon size={20} /></span>
                     <span>Invoice</span>
                   </Link>
-                  <Link href="/link" className="action-card link-card">
-                    <span className="icon"><LinkIcon size={24} /></span>
+                  <Link href="/link" className="action-card">
+                    <span className="icon"><LinkIcon size={20} /></span>
                     <span>Link</span>
                   </Link>
                   <Link href="/contacts" className="action-card">
-                    <span className="icon"><ContactsIcon size={24} /></span>
+                    <span className="icon"><ContactsIcon size={20} /></span>
                     <span>Contacts</span>
                   </Link>
                   <Link href="/bulk" className="action-card">
-                    <span className="icon"><BulkIcon size={24} /></span>
+                    <span className="icon"><BulkIcon size={20} /></span>
                     <span>Bulk</span>
                   </Link>
                   <Link href="/dm/sms" className="action-card">
-                    <span className="icon"><SmsIcon size={24} /></span>
+                    <span className="icon"><SmsIcon size={20} /></span>
                     <span>SMS</span>
                   </Link>
                   <Link href="/dm/ses" className="action-card">
-                    <span className="icon"><EmailIcon size={24} /></span>
+                    <span className="icon"><EmailIcon size={20} /></span>
                     <span>Email</span>
                   </Link>
-                </div>
-              </div>
-
-              <div className="section">
-                <div className="section-header">
-                  <h3>Recent Messages</h3>
-                  <Link href="/dm/whatsapp" className="link">View All →</Link>
-                </div>
-                <div className="msg-list">
-                  {messages.slice(0, 5).map(msg => {
-                    const contact = contacts.find(c => c.id === msg.contactId);
-                    return (
-                      <div key={msg.id} className={`msg-item ${msg.direction.toLowerCase()}`}>
-                        <span className="dir">{msg.direction === 'INBOUND' ? '↓' : '↑'}</span>
-                        <span className="name">{contact?.name || contact?.phone || '...'}</span>
-                        <span className="content">{msg.content?.slice(0, 40) || '[Media]'}</span>
-                        <span className="time">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 
@@ -751,6 +731,27 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <div className="phone-num">+91 99033 00044</div>
                     <span className="badge">Active</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="section full-width">
+                <div className="section-header">
+                  <h3>Recent Messages</h3>
+                  <Link href="/dm/whatsapp" className="link">View All →</Link>
+                </div>
+                <div className="msg-list">
+                  {messages.slice(0, 5).map(msg => {
+                    const contact = contacts.find(c => c.id === msg.contactId);
+                    return (
+                      <div key={msg.id} className={`msg-item ${msg.direction.toLowerCase()}`}>
+                        <span className="dir">{msg.direction === 'INBOUND' ? '↓' : '↑'}</span>
+                        <span className="name">{contact?.name || contact?.phone || '...'}</span>
+                        <span className="content">{msg.content?.slice(0, 50) || '[Media]'}</span>
+                        <span className="time">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                      </div>
+                    );
+                  })}
+                  {messages.length === 0 && <div className="empty">No messages yet</div>}
                 </div>
               </div>
             </div>
