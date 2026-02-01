@@ -214,11 +214,9 @@ export const SearchIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, 
 );
 
 // Refresh
-export const RefreshIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = 'currentColor' }) => (
+export const RefreshIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = '#10B981' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polyline points="23 4 23 10 17 10" />
-    <polyline points="1 20 1 14 7 14" />
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    <path d="M2 10s2.005-2.732 3.634-4.362A9 9 0 1 1 12 21a9.004 9.004 0 0 1-8.648-6.5M2 10V4m0 6h6" />
   </svg>
 );
 
