@@ -509,8 +509,8 @@ response = requests.post(
             .logo-sub{font-size:14px}
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
-            .hero-left h1{font-size:36px;line-height:1.15}
-            .hero-left p{font-size:20px}
+            .hero-left h1{font-size:38px;line-height:1.15}
+            .hero-left p{font-size:22px}
             .hero-stats{gap:10px}
             .stat{padding:18px 20px;border-radius:12px}
             .stat span{font-size:26px;min-width:65px}
@@ -527,16 +527,16 @@ response = requests.post(
             .code-box{border-radius:12px}
             .code-body{font-size:14px;padding:14px}
             
-            .section-header h2{font-size:34px}
-            .section-header p{font-size:20px}
+            .section-header h2{font-size:36px}
+            .section-header p{font-size:22px}
             
             .touchpoint{padding:50px 16px}
             .usecase-pills{gap:10px}
             .pill{padding:14px 22px;font-size:19px}
             
             .api{padding:50px 16px}
-            .api-info h2{font-size:34px;text-align:left}
-            .api-desc{font-size:20px;text-align:left}
+            .api-info h2{font-size:36px;text-align:left}
+            .api-desc{font-size:22px;text-align:left}
             .code-tabs{gap:8px;padding:14px}
             .tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
@@ -545,13 +545,13 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
-            .capability-card h3{font-size:19px;text-align:left}
-            .capability-card p{font-size:19px;text-align:left}
+            .capability-card h3{font-size:20px;text-align:left}
+            .capability-card p{font-size:20px;text-align:left}
             
             .cta-section{padding:50px 16px}
-            .cta-section h2{font-size:30px;line-height:1.2;max-width:100%}
+            .cta-section h2{font-size:32px;line-height:1.2;max-width:100%}
             
-            .ftr-contact{font-size:20px}
+            .ftr-contact{font-size:22px}
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
@@ -562,22 +562,27 @@ response = requests.post(
             .logo-sub{font-size:13px}
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
-            .hero-left h1{font-size:30px}
-            .hero-left p{font-size:18px}
+            .hero-left h1{font-size:32px}
+            .hero-left p{font-size:19px}
             .hero-stats{gap:8px}
             .stat{padding:14px 16px;min-width:85px}
             .stat span{font-size:22px}
-            .stat small{font-size:15px}
+            .stat small{font-size:16px}
             
-            .section-header h2{font-size:28px}
-            .section-header p{font-size:17px}
+            .section-header h2{font-size:30px}
+            .section-header p{font-size:19px}
             
             .pill{padding:12px 18px;font-size:17px}
             
-            .api-info h2{font-size:26px}
-            .api-desc{font-size:17px}
+            .api-info h2{font-size:30px}
+            .api-desc{font-size:19px}
             
-            .cta-section h2{font-size:26px}
+            .capability-card h3{font-size:18px}
+            .capability-card p{font-size:18px}
+            
+            .cta-section h2{font-size:28px}
+            
+            .ftr-contact{font-size:19px}
             
             .ftr-contact{font-size:17px}
           }
