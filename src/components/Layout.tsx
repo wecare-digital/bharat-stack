@@ -3,7 +3,6 @@
  */
 import React, { ReactNode, useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import FloatingAgent from './FloatingAgent';
 import SearchModal from './SearchModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem } from '../config/navigation';
@@ -131,7 +130,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       </aside>
       {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
       <main className="main-content">{children}</main>
-      <FloatingAgent />
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
