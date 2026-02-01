@@ -107,25 +107,40 @@
 }
 
 .refresh-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: var(--notion-bg-secondary);
-  border-radius: var(--radius-md);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  border: 1.5px solid #10B981;
+  background: #ffffff;
+  border-radius: 12px;
   font-size: 18px;
   cursor: pointer;
   transition: all 0.15s ease;
-  color: var(--notion-text-secondary);
+  color: #10B981;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .refresh-btn:hover {
-  background: var(--notion-bg-hover);
-  color: var(--notion-text);
+  background: #ECFDF5;
+  border-color: #059669;
+  color: #059669;
 }
 
 .refresh-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.refresh-btn svg {
+  width: 20px;
+  height: 20px;
+  color: #10B981;
 }
 
 /* Tabs - Chip/Pill Style */
