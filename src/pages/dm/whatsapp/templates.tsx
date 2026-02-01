@@ -49,7 +49,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
   const [templates, setTemplates] = useState<api.WhatsAppTemplate[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<api.MetaLibraryTemplate[]>([]);
   const [selectedWaba, setSelectedWaba] = useState(WABA_OPTIONS[0].id);
-  const [activeTab, setActiveTab] = useState<'my-templates' | 'library' | 'analytics' | 'scheduled'>('my-templates');
+  const [activeTab, setActiveTab] = useState<'my-templates' | 'analytics' | 'scheduled'>('my-templates');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [selectedTemplate, setSelectedTemplate] = useState<api.WhatsAppTemplate | null>(null);
@@ -166,8 +166,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
   useEffect(() => {
     if (activeTab === 'my-templates') {
       loadTemplates();
-    } else if (activeTab === 'library') {
-      loadLibrary();
     } else if (activeTab === 'analytics') {
       loadAnalytics();
     } else if (activeTab === 'scheduled') {
@@ -494,12 +492,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
             My Templates
           </button>
           <button
-            className={`tab ${activeTab === 'library' ? 'active' : ''}`}
-            onClick={() => setActiveTab('library')}
-          >
-            Meta Library
-          </button>
-          <button
             className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveTab('analytics')}
           >
@@ -513,8 +505,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
           </button>
         </div>
 
-        {/* Search - only show for templates and library */}
-        {(activeTab === 'my-templates' || activeTab === 'library') && (
+        {/* Search - only show for templates */}
+        {activeTab === 'my-templates' && (
           <div className="search-section">
             <input
               type="text"
@@ -577,44 +569,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         )}
 
-        {/* Library Tab */}
-        {activeTab === 'library' && (
-          <div className="templates-grid">
-            {loading ? (
-              <div className="loading-state">Loading library...</div>
-            ) : filteredLibrary.length === 0 ? (
-              <div className="empty-state">No library templates found</div>
-            ) : (
-              filteredLibrary.map((template, idx) => (
-                <div key={idx} className="template-card library">
-                  <div className="template-header">
-                    <span className="template-name">{template.templateName}</span>
-                  </div>
-                  <div className="template-meta">
-                    <span
-                      className="category-badge"
-                      style={{ backgroundColor: CATEGORY_COLORS[template.templateCategory] || '#6c757d' }}
-                    >
-                      {template.templateCategory}
-                    </span>
-                    <span className="language">{template.templateLanguage || 'en_US'}</span>
-                  </div>
-                  <div className="template-body">
-                    {template.templateBody || 'Preview not available'}
-                  </div>
-                  <div className="template-actions">
-                    <button
-                      className="btn-primary"
-                      onClick={() => handleCreateFromLibrary(template)}
-                    >
-                      Use Template
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
 
         {/* Analytics Tab */}
         {activeTab === 'analytics' && (

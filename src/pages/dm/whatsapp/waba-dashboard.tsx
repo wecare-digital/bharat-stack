@@ -115,7 +115,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="page waba-dashboard">
         <PageHeader 
-          title="WABA Dashboard" 
+          title="WA Board" 
           subtitle="WhatsApp Business Account details, phone quality, and system events"
           icon="whatsapp"
           backLink="/dm/whatsapp"

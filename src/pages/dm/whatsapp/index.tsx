@@ -615,7 +615,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Contacts Sidebar */}
         <div className="contacts-sidebar">
           <div className="sidebar-header">
-            <h2>WhatsApp Inbox</h2>
+            <h2>WA Inbox</h2>
             <div className="search-box">
               <input
                 type="text"

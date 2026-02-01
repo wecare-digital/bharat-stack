@@ -76,15 +76,12 @@ export const navigationConfig: NavItem[] = [
     icon: 'message',
     children: [
       { 
-        path: '/dm/whatsapp', 
-        label: 'WhatsApp', 
+        path: '/dm/whatsapp/waba-dashboard', 
+        label: 'WA Board', 
         icon: 'whatsapp',
         children: [
-          { path: '/dm/whatsapp', label: 'Inbox', icon: 'inbox' },
-          { path: '/dm/whatsapp/waba-dashboard', label: 'Dashboard', icon: 'dashboard' },
+          { path: '/dm/whatsapp', label: 'WA Inbox', icon: 'inbox' },
           { path: '/dm/whatsapp/templates', label: 'Templates', icon: 'template' },
-          { path: '/dm/whatsapp/welcome', label: 'Welcome', icon: 'welcome' },
-          { path: '/dm/whatsapp/ai-config', label: 'AI Config', icon: 'ai' },
         ]
       },
       { 
