@@ -343,18 +343,18 @@ response = requests.post(
           .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
-          .section-header{text-align:center;margin:0 auto 48px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 16px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
+          .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
+          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:21px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
-          .touchpoint{padding:100px 24px;background:#fff}
+          .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
           .pill:hover{border-color:#25d366;color:#25d366;transform:translateY(-2px)}
           
           /* API Section */
-          .api{padding:100px 24px;background:#fff}
+          .api{padding:60px 24px;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:38px;font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
           .api-desc{font-size:21px;color:#6b7280;line-height:1.7;margin:0}
@@ -366,8 +366,8 @@ response = requests.post(
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
-          .capabilities{padding:100px 24px;background:#fff}
-          .capabilities .section-header{margin-bottom:56px}
+          .capabilities{padding:60px 24px;background:#fff}
+          .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
           .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
@@ -377,7 +377,7 @@ response = requests.post(
           .capability-card p{font-size:21px;color:#6b7280;margin:0;line-height:1.5}
           
           /* CTA Section */
-          .cta-section{padding:100px 24px;text-align:center;background:#fff}
+          .cta-section{padding:60px 24px;text-align:center;background:#fff}
           .cta-section h2{font-size:42px;font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           
           /* Footer */
@@ -409,24 +409,24 @@ response = requests.post(
             .section-header h2{font-size:34px}
             .section-header p{font-size:16px}
             
-            .touchpoint{padding:70px 20px}
+            .touchpoint{padding:50px 20px}
             .usecase-pills{gap:10px}
             .pill{padding:12px 22px;font-size:14px}
             
-            .api{padding:70px 20px}
+            .api{padding:50px 20px}
             .api-grid{grid-template-columns:1fr;gap:36px;text-align:left}
             .api-info h2{font-size:32px;text-align:left}
             .api-desc{font-size:16px;max-width:100%;text-align:left}
             .api-demo{max-width:500px;margin:0}
             
-            .capabilities{padding:70px 20px}
+            .capabilities{padding:50px 20px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:16px}
             .capability-card{padding:24px 20px}
             .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
             .capability-card h3{font-size:17px}
             .capability-card p{font-size:14px}
             
-            .cta-section{padding:70px 20px}
+            .cta-section{padding:50px 20px}
             .cta-section h2{font-size:34px}
           }
 
@@ -469,15 +469,15 @@ response = requests.post(
             .file-name{font-size:15px}
             .code-body{font-size:15px;padding:16px;line-height:1.6}
             
-            .section-header{margin-bottom:40px;padding:0 20px;text-align:center}
-            .section-header h2{font-size:38px;margin-bottom:16px;line-height:1.15;text-align:center}
+            .section-header{margin-bottom:28px;padding:0 20px;text-align:center}
+            .section-header h2{font-size:38px;margin-bottom:12px;line-height:1.15;text-align:center}
             .section-header p{font-size:24px;line-height:1.6;text-align:center}
             
-            .touchpoint{padding:60px 20px}
+            .touchpoint{padding:44px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
             .pill{padding:16px 28px;font-size:20px}
             
-            .api{padding:60px 20px}
+            .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
             .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
@@ -487,15 +487,15 @@ response = requests.post(
             .tab{padding:14px 24px;font-size:18px}
             .code-block{font-size:14px;padding:18px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.7}
             
-            .capabilities{padding:60px 20px}
-            .capabilities .section-header{margin-bottom:32px}
+            .capabilities{padding:44px 20px}
+            .capabilities .section-header{margin-bottom:24px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
             .capability-card h3{font-size:20px;margin-bottom:8px;text-align:left}
             .capability-card p{font-size:20px;text-align:left;line-height:1.5}
             
-            .cta-section{padding:60px 20px}
+            .cta-section{padding:44px 20px}
             .cta-section h2{font-size:34px;line-height:1.2;max-width:100%}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
@@ -530,25 +530,25 @@ response = requests.post(
             .section-header h2{font-size:36px}
             .section-header p{font-size:22px}
             
-            .touchpoint{padding:50px 16px}
+            .touchpoint{padding:36px 16px}
             .usecase-pills{gap:10px}
             .pill{padding:14px 22px;font-size:19px}
             
-            .api{padding:50px 16px}
+            .api{padding:36px 16px}
             .api-info h2{font-size:36px;text-align:left}
             .api-desc{font-size:22px;text-align:left}
             .code-tabs{gap:8px;padding:14px}
             .tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
             
-            .capabilities{padding:50px 16px}
+            .capabilities{padding:36px 16px}
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
             .capability-card h3{font-size:20px;text-align:left}
             .capability-card p{font-size:20px;text-align:left}
             
-            .cta-section{padding:50px 16px}
+            .cta-section{padding:36px 16px}
             .cta-section h2{font-size:32px;line-height:1.2;max-width:100%}
             
             .ftr-contact{font-size:22px}
