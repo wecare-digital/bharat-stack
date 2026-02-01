@@ -1,188 +1,246 @@
-﻿/* Inner Pages Theme - WECARE.DIGITAL
- * Emerald color scheme with black text
- * White bg, emerald border, 13px radius
+﻿/**
+ * Inner Pages Theme - WECARE.DIGITAL
+ * Emerald color scheme - Clean, Modern, Professional
+ * Only affects pages using Layout component (not home page)
  */
 
-/* PAGE BACKGROUND */
-.layout .main-content {
-  background: #F8FAFC !important;
+/* ========================================
+   SIDEBAR - Clean nav WITHOUT borders
+   ======================================== */
+.layout .sidebar .nav-item,
+.layout .sidebar .nav-subitem,
+.layout .sidebar button.nav-item,
+.layout .sidebar button.nav-subitem,
+.layout .nav-item,
+.layout .nav-subitem,
+.layout .nav-item-expandable,
+.layout .nav-subitem-expandable {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-/* ALL BUTTONS */
-.layout button,
-.layout .btn,
-.layout .btn-primary,
-.layout .btn-secondary,
-.layout .refresh-btn,
-.layout .tab-btn,
-.layout .action-btn,
-.layout [class*="-btn"]:not(.nav-item):not(.nav-subitem) {
+.layout .sidebar .nav-item:hover,
+.layout .sidebar .nav-subitem:hover,
+.layout .nav-item:hover,
+.layout .nav-subitem:hover {
+  background: #ECFDF5 !important;
+  border: none !important;
+}
+
+.layout .sidebar .nav-item-active,
+.layout .sidebar .nav-item.active,
+.layout .nav-item-active,
+.layout .nav-item--active {
+  background: #D1FAE5 !important;
+  border: none !important;
+  border-left: 3px solid #10B981 !important;
+}
+
+/* ========================================
+   CONTENT BUTTONS - Emerald theme
+   White bg, black text, emerald border
+   ======================================== */
+.layout .main-content button,
+.layout .main-content .btn,
+.layout .main-content .btn-primary,
+.layout .main-content .btn-secondary,
+.layout .main-content .btn-outline,
+.layout .main-content .refresh-btn,
+.layout .main-content .tab-btn,
+.layout .main-content .action-btn {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1px solid #10B981 !important;
+  border: 1.5px solid #10B981 !important;
   border-radius: 13px !important;
   padding: 10px 18px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: all 0.2s ease !important;
 }
 
-/* Button Hover */
-.layout button:hover,
-.layout .btn:hover,
-.layout .refresh-btn:hover,
-.layout .tab-btn:hover,
-.layout .action-btn:hover {
+.layout .main-content button:hover,
+.layout .main-content .btn:hover,
+.layout .main-content .refresh-btn:hover,
+.layout .main-content .tab-btn:hover,
+.layout .main-content .action-btn:hover {
   background: #ECFDF5 !important;
   border-color: #059669 !important;
 }
 
-/* Button Active */
-.layout button:active,
-.layout .btn:active {
+.layout .main-content button:active,
+.layout .main-content .btn:active {
   background: #D1FAE5 !important;
-  border-color: #A7F3D0 !important;
+  border-color: #10B981 !important;
 }
 
-/* Button Focus */
-.layout button:focus,
-.layout .btn:focus {
+.layout .main-content button:focus-visible,
+.layout .main-content .btn:focus-visible {
   outline: none !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
 }
 
-/* Active State */
-.layout button.active,
-.layout .btn.active,
-.layout .tab-btn.active {
+.layout .main-content button.active,
+.layout .main-content .btn.active,
+.layout .main-content .tab-btn.active,
+.layout .main-content .tab.active {
   background: #D1FAE5 !important;
-  border-color: #A7F3D0 !important;
+  border-color: #10B981 !important;
   font-weight: 600 !important;
 }
 
-/* Disabled */
-.layout button:disabled {
+.layout .main-content button:disabled {
   opacity: 0.5 !important;
   cursor: not-allowed !important;
 }
 
-/* TABS */
-.layout .tab,
-.layout .tabs button,
-.layout .dash-tabs .tab,
-.layout .tabs-nav button,
-.layout .tab-btn {
+/* ========================================
+   TABS
+   ======================================== */
+.layout .main-content .tab,
+.layout .main-content .tabs button,
+.layout .main-content .tabs-nav button {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1px solid #10B981 !important;
+  border: 1.5px solid #10B981 !important;
   border-radius: 13px !important;
-  padding: 10px 18px !important;
 }
 
-.layout .tab:hover,
-.layout .tabs button:hover,
-.layout .tab-btn:hover {
+.layout .main-content .tab:hover,
+.layout .main-content .tabs button:hover {
   background: #ECFDF5 !important;
   border-color: #059669 !important;
 }
 
-.layout .tab.active,
-.layout .tabs button.active,
-.layout .tab-btn.active {
+.layout .main-content .tab.active,
+.layout .main-content .tabs button.active {
   background: #D1FAE5 !important;
-  border-color: #A7F3D0 !important;
+  border-color: #10B981 !important;
   font-weight: 600 !important;
 }
 
-/* DIALER KEYS */
-.layout .dialer-key {
+/* ========================================
+   DIALER KEYS
+   ======================================== */
+.layout .main-content .dialer-key {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1px solid #10B981 !important;
-  border-radius: 13px !important;
+  border: 1.5px solid #10B981 !important;
+  border-radius: 16px !important;
   padding: 20px !important;
   font-size: 24px !important;
   font-weight: 600 !important;
 }
 
-.layout .dialer-key:hover {
+.layout .main-content .dialer-key:hover {
   background: #ECFDF5 !important;
   border-color: #059669 !important;
 }
 
-/* SELECTS */
-.layout select,
-.layout .filter-select {
+/* ========================================
+   FORM INPUTS
+   ======================================== */
+.layout .main-content select,
+.layout .main-content .filter-select {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1px solid #10B981 !important;
+  border: 1.5px solid #d1d5db !important;
   border-radius: 13px !important;
   padding: 10px 14px !important;
 }
 
-.layout select:hover {
-  border-color: #059669 !important;
+.layout .main-content select:hover {
+  border-color: #10B981 !important;
 }
 
-.layout select:focus {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+.layout .main-content select:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
   outline: none !important;
 }
 
-/* INPUTS */
-.layout input[type="text"],
-.layout input[type="search"],
-.layout .search-input {
-  border: 1px solid #10B981 !important;
+.layout .main-content input[type="text"],
+.layout .main-content input[type="search"],
+.layout .main-content .search-input,
+.layout .main-content textarea {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1.5px solid #d1d5db !important;
   border-radius: 13px !important;
 }
 
-.layout input:focus {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+.layout .main-content input:focus,
+.layout .main-content textarea:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
   outline: none !important;
 }
 
-/* NAV */
-.layout .nav-item:hover {
-  background: #ECFDF5 !important;
+/* ========================================
+   CARDS
+   ======================================== */
+.layout .main-content .section {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
 }
 
-.layout .nav-item-active {
-  background: #D1FAE5 !important;
-  border-left: 3px solid #10B981 !important;
+.layout .main-content .stat-card {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
 }
 
-/* HUB CARDS */
-.layout .hub-card,
-.layout .action-card {
+.layout .main-content .stat-card:hover {
+  border-color: #10B981 !important;
+}
+
+.layout .main-content .stat-card.accent,
+.layout .main-content .stat-card.success {
+  border-left: 4px solid #10B981 !important;
+}
+
+.layout .main-content .hub-card,
+.layout .main-content .action-card,
+.layout .main-content .quick-action-card {
+  background: #ffffff !important;
   border: 1px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
-.layout .hub-card:hover,
-.layout .action-card:hover {
+.layout .main-content .hub-card:hover,
+.layout .main-content .action-card:hover,
+.layout .main-content .quick-action-card:hover {
   border-color: #10B981 !important;
   background: #f0fdf4 !important;
 }
 
-/* BADGES */
-.layout .badge.success,
-.layout .badge.active {
+/* ========================================
+   BADGES
+   ======================================== */
+.layout .main-content .badge.success,
+.layout .main-content .status-badge.free {
   background: #ECFDF5 !important;
   color: #059669 !important;
 }
 
-/* STAT CARDS */
-.layout .stat-card.accent {
-  border-left: 3px solid #10B981 !important;
-}
-
-/* CONTACT ROWS */
-.layout .contact-row:hover {
+/* ========================================
+   LIST ROWS
+   ======================================== */
+.layout .main-content .contact-row:hover,
+.layout .main-content .contact-item:hover {
   background: #ECFDF5 !important;
 }
 
-.layout .contact-row.active {
+.layout .main-content .contact-row.active,
+.layout .main-content .contact-item.active {
   background: #D1FAE5 !important;
   border-left: 3px solid #10B981 !important;
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+.layout .main-content tbody tr:hover {
+  background: #ECFDF5 !important;
 }
