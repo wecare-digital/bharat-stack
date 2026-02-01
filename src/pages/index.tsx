@@ -225,11 +225,11 @@ response = requests.post(
           /* Header */
           .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
           .hdr-in{max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
-          .logo{display:flex;align-items:center;gap:10px}
+          .logo{display:flex;align-items:center;gap:3px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
-          .logo-main{font-size:22px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.1}
-          .logo-sub{font-size:12px;font-weight:600;color:#6b7280;line-height:1;margin-top:2px}
-          .logo-img{width:48px;height:48px;border-radius:12px}
+          .logo-main{font-size:32px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.1}
+          .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px}
+          .logo-img{width:74px;height:74px;border-radius:14px}
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
@@ -327,9 +327,9 @@ response = requests.post(
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
             .hdr-in{padding:14px 20px}
-            .logo-img{width:44px;height:44px}
-            .logo-main{font-size:20px}
-            .logo-sub{font-size:11px}
+            .logo-img{width:66px;height:66px}
+            .logo-main{font-size:28px}
+            .logo-sub{font-size:15px}
             
             .hero{padding:110px 20px 60px}
             .hero-content{grid-template-columns:1fr;gap:40px;text-align:left}
@@ -371,8 +371,8 @@ response = requests.post(
           /* ========== MOBILE (up to 767px) ========== */
           @media(max-width:767px){
             .hdr-in{padding:12px 16px}
-            .logo{gap:12px}
-            .logo-img{width:58px;height:58px;border-radius:14px}
+            .logo{gap:3px}
+            .logo-img{width:66px;height:66px;border-radius:14px}
             .logo-main{font-size:28px}
             .logo-sub{font-size:16px}
             
@@ -442,9 +442,9 @@ response = requests.post(
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
-            .logo-img{width:54px;height:54px;border-radius:12px}
+            .logo-img{width:58px;height:58px;border-radius:12px}
             .logo-main{font-size:26px}
-            .logo-sub{font-size:15px}
+            .logo-sub{font-size:14px}
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
             .hero-left h1{font-size:36px;line-height:1.15}
@@ -495,9 +495,9 @@ response = requests.post(
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             .hdr-in{padding:10px 12px}
-            .logo-img{width:50px;height:50px;border-radius:11px}
+            .logo-img{width:54px;height:54px;border-radius:11px}
             .logo-main{font-size:24px}
-            .logo-sub{font-size:14px}
+            .logo-sub{font-size:13px}
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{font-size:30px}

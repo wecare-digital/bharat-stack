@@ -348,11 +348,11 @@ const AuthHeader = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  const logoSize = isMobile ? '40px' : '52px';
-  const gap = isMobile ? '5px' : '7px';
-  const titleSize = isMobile ? '18px' : '24px';
-  const subSize = isMobile ? '10px' : '13px';
-  const marginTop = isMobile ? '2px' : '4px';
+  const logoSize = isMobile ? '58px' : '74px';
+  const gap = '3px';
+  const titleSize = isMobile ? '26px' : '32px';
+  const subSize = isMobile ? '14px' : '17px';
+  const marginTop = '3px';
   
   return (
     <div style={{ textAlign: 'center', padding: '24px 20px' }}>
@@ -360,7 +360,7 @@ const AuthHeader = () => {
         <img 
           src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
           alt="Base CRM" 
-          style={{ width: logoSize, height: logoSize, borderRadius: '10px' }}
+          style={{ width: logoSize, height: logoSize, borderRadius: '14px' }}
           onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
         />
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', height: logoSize }}>

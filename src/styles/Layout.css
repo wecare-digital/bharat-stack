@@ -94,12 +94,12 @@ input, textarea, select {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 3px;
 }
 
 .sidebar-logo {
-  width: 72px;
-  height: 72px;
+  width: 74px;
+  height: 74px;
   border-radius: 14px;
   object-fit: cover;
 }
@@ -108,7 +108,7 @@ input, textarea, select {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 72px;
+  height: 74px;
   text-align: left;
 }
 
@@ -125,7 +125,7 @@ input, textarea, select {
   font-weight: 600;
   color: var(--text-secondary);
   line-height: 1;
-  margin-top: 6px;
+  margin-top: 3px;
 }
 
 .app-title {
@@ -589,17 +589,17 @@ input, textarea, select {
   }
   
   .sidebar-brand {
-    gap: 12px;
+    gap: 3px;
   }
   
   .sidebar-logo {
-    width: 64px;
-    height: 64px;
+    width: 66px;
+    height: 66px;
     border-radius: 12px;
   }
   
   .sidebar-brand-text {
-    height: 64px;
+    height: 66px;
   }
   
   .sidebar-brand-main {
@@ -608,7 +608,7 @@ input, textarea, select {
   
   .sidebar-brand-sub {
     font-size: 15px;
-    margin-top: 4px;
+    margin-top: 3px;
   }
   
   /* Navigation - larger touch targets */
@@ -686,16 +686,16 @@ input, textarea, select {
   
   /* Compact sidebar brand */
   .sidebar-brand {
-    gap: 10px;
+    gap: 3px;
   }
   
   .sidebar-logo {
-    width: 56px;
-    height: 56px;
+    width: 58px;
+    height: 58px;
   }
   
   .sidebar-brand-text {
-    height: 56px;
+    height: 58px;
   }
   
   .sidebar-brand-main {
@@ -794,13 +794,13 @@ input, textarea, select {
 .agent-header-info {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 3px;
 }
 
 .agent-avatar-logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 10px;
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
   object-fit: cover;
 }
 
@@ -808,7 +808,7 @@ input, textarea, select {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 52px;
+  height: 74px;
   text-align: left;
 }
 
@@ -818,7 +818,7 @@ input, textarea, select {
 
 .agent-name {
   font-weight: 800;
-  font-size: 24px;
+  font-size: 32px;
   color: var(--text);
   display: block;
   letter-spacing: -0.3px;
@@ -826,7 +826,7 @@ input, textarea, select {
 }
 
 .agent-subtitle {
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-secondary);
   display: block;
@@ -1079,24 +1079,24 @@ input, textarea, select {
   
   /* Mobile agent header brand */
   .agent-header-info {
-    gap: 8px;
+    gap: 3px;
   }
   
   .agent-avatar-logo {
-    width: 44px;
-    height: 44px;
+    width: 58px;
+    height: 58px;
   }
   
   .agent-header-text {
-    height: 44px;
+    height: 58px;
   }
   
   .agent-name {
-    font-size: 18px;
+    font-size: 26px;
   }
   
   .agent-subtitle {
-    font-size: 11px;
+    font-size: 14px;
     margin-top: 3px;
   }
   
