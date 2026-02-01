@@ -724,7 +724,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); }}
           title="Insert Variable"
         >
-          <img src="https://img.icons8.com/ios/250/000000/control.png" alt="Variables" style={{ width: 16, height: 16 }} />
+          <img src="https://img.icons8.com/ios/250/000000/stacked-organizational-chart-highlighted-parent-node.png" alt="Variables" style={{ width: 16, height: 16 }} />
         </button>
 
         {/* Formatting Button (WhatsApp only) */}
@@ -777,7 +777,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             disabled={loadingAI}
             title={aiError || "Get AI Suggestion (Bedrock)"}
           >
-            {loadingAI ? '...' : <img src="https://img.icons8.com/ios/250/000000/swiss-army-knife.png" alt="AI" style={{ width: 16, height: 16, filter: 'invert(1)' }} />}
+            {loadingAI ? '...' : <img src="https://img.icons8.com/ios/250/000000/light-on.png" alt="AI" style={{ width: 16, height: 16 }} />}
           </button>
         )}
 
