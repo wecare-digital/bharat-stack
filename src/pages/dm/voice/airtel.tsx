@@ -212,41 +212,19 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           <button
             onClick={fetchCDRRecords}
             disabled={loading}
-            style={{
-              padding: '8px 16px',
-              background: '#ECFDF5',
-              border: '1px solid #10B981',
-              borderRadius: '8px',
-              color: '#111827',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '14px'
-            }}
+            className="refresh-btn"
           >
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="tabs-nav" style={{ marginBottom: '24px' }}>
+        <div className="tabs-nav" style={{ marginBottom: '24px', display: 'flex', gap: '8px' }}>
           {(['cdr', 'stats', 'dialer'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
               onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '10px 20px',
-                border: 'none',
-                background: activeTab === tab ? 'var(--color-primary)' : 'var(--color-bg-secondary)',
-                color: activeTab === tab ? 'white' : 'var(--color-text)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 500,
-                marginRight: '8px',
-                transition: 'all 0.2s ease',
-              }}
             >
               {tab === 'cdr' && 'CDR Logs'}
               {tab === 'stats' && 'Statistics'}
@@ -603,14 +581,11 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                   <button
                     key={key}
                     onClick={() => handleKeyPress(key)}
+                    className="dialer-key"
                     style={{
                       padding: '20px',
                       fontSize: '24px',
                       fontWeight: 600,
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '12px',
-                      background: 'white',
-                      cursor: 'pointer',
                     }}
                   >
                     {key}
@@ -621,33 +596,16 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   onClick={() => handleKeyPress('backspace')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    fontSize: '16px',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '12px',
-                    background: 'white',
-                    cursor: 'pointer',
-                  }}
+                  className="delete-btn"
+                  style={{ flex: 1, padding: '16px', fontSize: '16px' }}
                 >
                   Delete
                 </button>
                 <button
                   onClick={handleDial}
                   disabled={!dialerNumber.trim() || calling}
-                  style={{
-                    flex: 2,
-                    padding: '16px',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    border: 'none',
-                    borderRadius: '12px',
-                    background: calling ? 'var(--color-warning)' : 'var(--color-success)',
-                    color: 'white',
-                    cursor: dialerNumber.trim() && !calling ? 'pointer' : 'not-allowed',
-                    opacity: dialerNumber.trim() ? 1 : 0.5,
-                  }}
+                  className="call-btn"
+                  style={{ flex: 2, padding: '16px', fontSize: '16px', fontWeight: 600 }}
                 >
                   {calling ? 'Calling...' : 'Call'}
                 </button>
@@ -660,9 +618,9 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
         <div style={{
           marginTop: '24px',
           padding: '16px',
-          background: '#f0f9ff',
-          borderRadius: '8px',
-          borderLeft: '4px solid #0ea5e9'
+          background: '#ECFDF5',
+          borderRadius: '13px',
+          borderLeft: '4px solid #10B981'
         }}>
           <strong>CDR Webhook</strong>
           <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#666' }}>
