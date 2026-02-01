@@ -31,15 +31,15 @@ const WABA_OPTIONS = [
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  MARKETING: '#FF9800',
-  UTILITY: '#2196F3',
-  AUTHENTICATION: '#9C27B0',
+  MARKETING: '#1a1a1a',
+  UTILITY: '#4a4a4a',
+  AUTHENTICATION: '#6b6b6b',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  APPROVED: '#4CAF50',
-  PENDING: '#FFC107',
-  REJECTED: '#F44336',
+  APPROVED: '#1a1a1a',
+  PENDING: '#6b6b6b',
+  REJECTED: '#dc2626',
 };
 
 const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
@@ -1584,17 +1584,17 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
 
         /* Carousel Button */
         .btn-carousel {
-          background: #FF9800;
-          color: white;
-          border: none;
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
           padding: 10px 20px;
-          border-radius: 8px;
+          border-radius: 13px;
           cursor: pointer;
           font-weight: 500;
         }
 
         .btn-carousel:hover {
-          background: #F57C00;
+          background: #f5f5f5;
         }
 
         /* Carousel Modal */
@@ -1607,10 +1607,10 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
           align-items: center;
           gap: 8px;
           padding: 12px;
-          background: #e0f2fe;
+          background: #f5f5f5;
           border-radius: 8px;
           font-size: 13px;
-          color: #0369a1;
+          color: #4a4a4a;
           margin-bottom: 16px;
         }
 

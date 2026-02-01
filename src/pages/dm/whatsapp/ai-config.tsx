@@ -144,14 +144,14 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
         />
         <div style={{ marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <span style={{ padding: '0.25rem 0.5rem', background: '#dcfce7', color: '#166534', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 600 }}>
+            <span style={{ padding: '0.25rem 0.5rem', background: '#f5f5f5', color: '#1a1a1a', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #000' }}>
               EXTERNAL
             </span>
-            <span style={{ padding: '0.25rem 0.5rem', background: '#dbeafe', color: '#1e40af', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
+            <span style={{ padding: '0.25rem 0.5rem', background: '#f5f5f5', color: '#4a4a4a', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
               Customer-Facing
             </span>
           </div>
-          <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+          <p style={{ color: '#6b6b6b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
             Agent: JDXIOU2UR9 | KB: CTH8DH3RXY | For internal admin AI, go to Dashboard → AI
           </p>
         </div>
@@ -172,7 +172,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               <div className="stat-label">Approval Rate</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: config?.enabled ? '#22c55e' : '#ef4444' }}>
+              <div className="stat-value" style={{ color: config?.enabled ? '#1a1a1a' : '#dc2626' }}>
                 {config?.enabled ? 'ON' : 'OFF'}
               </div>
               <div className="stat-label">AI Status</div>
@@ -441,7 +441,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
                           {item.response}
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                          <span style={{ padding: '0.25rem 0.5rem', background: '#e0f2fe', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
+                          <span style={{ padding: '0.25rem 0.5rem', background: '#f5f5f5', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
                             {item.detectedLanguage || 'en'}
                           </span>
                         </td>
@@ -507,9 +507,9 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             bottom: '1rem',
             right: '1rem',
             padding: '0.75rem 1.5rem',
-            background: toast.type === 'success' ? '#22c55e' : '#ef4444',
+            background: toast.type === 'success' ? '#1a1a1a' : '#dc2626',
             color: 'white',
-            borderRadius: '0.5rem',
+            borderRadius: '13px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
             zIndex: 1000,
           }}>

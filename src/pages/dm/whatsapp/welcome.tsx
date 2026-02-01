@@ -78,8 +78,9 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user }) => {
             padding: '10px 14px', 
             borderRadius: 8, 
             marginBottom: 16,
-            background: message.type === 'success' ? '#dcfce7' : '#fee2e2',
-            color: message.type === 'success' ? '#166534' : '#991b1b',
+            background: message.type === 'success' ? '#f5f5f5' : '#fee2e2',
+            color: message.type === 'success' ? '#1a1a1a' : '#dc2626',
+            border: message.type === 'success' ? '1px solid #000' : '1px solid #dc2626',
             display: 'flex',
             justifyContent: 'space-between'
           }}>
@@ -106,7 +107,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user }) => {
             <select
               value={config.phoneNumberId}
               onChange={(e) => setConfig({ ...config, phoneNumberId: e.target.value })}
-              style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 8 }}
+              style={{ width: '100%', padding: 10, border: '1px solid #000', borderRadius: 13 }}
             >
               <option value={WHATSAPP_PHONES.primary.id}>
                 {WHATSAPP_PHONES.primary.display} ({WHATSAPP_PHONES.primary.name})
@@ -124,7 +125,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user }) => {
               onChange={(e) => setConfig({ ...config, textMessage: e.target.value })}
               placeholder="Enter your welcome message..."
               rows={4}
-              style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 8, resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: 10, border: '1px solid #000', borderRadius: 13, resize: 'vertical', boxSizing: 'border-box' }}
             />
           </div>
 
@@ -137,7 +138,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user }) => {
                 onChange={(e) => setConfig({ ...config, delaySeconds: parseInt(e.target.value) || 0 })}
                 min={0}
                 max={30}
-                style={{ width: 80, padding: 10, border: '1px solid #ddd', borderRadius: 8 }}
+                style={{ width: 80, padding: 10, border: '1px solid #000', borderRadius: 13 }}
               />
               <span style={{ color: '#666' }}>seconds before sending</span>
             </div>

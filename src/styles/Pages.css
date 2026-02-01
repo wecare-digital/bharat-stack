@@ -38,9 +38,9 @@
   --color-bg-hover: #f5f5f5;
   --color-bg-active: #ebebeb;
   
-  /* Semantic Colors - Muted */
-  --color-success: #16a34a;
-  --color-warning: #d97706;
+  /* Semantic Colors - Black/Grey Theme */
+  --color-success: #1a1a1a;
+  --color-warning: #6b6b6b;
   --color-danger: #dc2626;
   
   /* Channel Colors - Black for consistency */
@@ -425,7 +425,7 @@
 }
 
 .stat-card.success {
-  border-left: 3px solid var(--color-success);
+  border-left: 3px solid var(--color-primary);
 }
 
 .stat-card.error {
