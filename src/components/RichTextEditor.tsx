@@ -722,7 +722,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); }}
           title="Insert Variable"
         >
-          <img src="https://img.icons8.com/ios/250/000000/edit.png" alt="Variables" style={{ width: 16, height: 16 }} />
+          <img src="https://img.icons8.com/ios/250/000000/control.png" alt="Variables" style={{ width: 16, height: 16 }} />
         </button>
 
         {/* Formatting Button (WhatsApp only) */}
@@ -733,7 +733,32 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowFormatting(!showFormatting); setShowTemplates(false); setShowVariables(false); setShowPaymentDialog(false); }}
             title="Formatting"
           >
-            ◈
+            <img src="https://img.icons8.com/ios/250/000000/edit.png" alt="Format" style={{ width: 16, height: 16 }} />
+          </button>
+        )}
+
+        {/* Attachment Button */}
+        {channel === 'whatsapp' && (
+          <button
+            type="button"
+            className={styles['toolbar-btn']}
+            onClick={() => {
+              // Trigger file input for attachment
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx';
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) {
+                  // For now, just show the file name in the message
+                  insertAtCursor(`[Attachment: ${file.name}]`);
+                }
+              };
+              input.click();
+            }}
+            title="Attach File"
+          >
+            <img src="https://img.icons8.com/ios/250/000000/attach.png" alt="Attach" style={{ width: 16, height: 16 }} />
           </button>
         )}
 

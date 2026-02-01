@@ -23,6 +23,7 @@ import * as api from '../../../api/client';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 const WABA_OPTIONS = [
@@ -42,7 +43,7 @@ const STATUS_COLORS: Record<string, string> = {
   REJECTED: '#dc2626',
 };
 
-const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
+const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -452,36 +453,59 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
-      <div className="page template-management">
-        <PageHeader 
-          title="WA Template" 
-          subtitle="Create, edit, and manage WhatsApp message templates"
-          icon="whatsapp"
-          backLink="/dm/whatsapp"
-          backLabel="← Back"
-          actions={
-            <div className="header-actions">
-              <select
-                className="waba-select"
-                value={selectedWaba}
-                onChange={(e) => setSelectedWaba(e.target.value)}
-              >
-                {WABA_OPTIONS.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-              <button className="btn-carousel" onClick={() => setShowCarouselModal(true)}>
-                Carousel
-              </button>
-              <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-                + Create Template
-              </button>
-            </div>
-          }
-        />
+      <div className={`page template-management ${embedded ? 'embedded' : ''}`}>
+        {!embedded && (
+          <PageHeader 
+            title="WA Template" 
+            subtitle="Create, edit, and manage WhatsApp message templates"
+            icon="whatsapp"
+            backLink="/dm/whatsapp"
+            backLabel="← Back"
+            actions={
+              <div className="header-actions">
+                <select
+                  className="waba-select"
+                  value={selectedWaba}
+                  onChange={(e) => setSelectedWaba(e.target.value)}
+                >
+                  {WABA_OPTIONS.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+                <button className="btn-carousel" onClick={() => setShowCarouselModal(true)}>
+                  Carousel
+                </button>
+                <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+                  + Create Template
+                </button>
+              </div>
+            }
+          />
+        )}
+
+        {/* Embedded header with actions */}
+        {embedded && (
+          <div className="embedded-header">
+            <select
+              className="waba-select"
+              value={selectedWaba}
+              onChange={(e) => setSelectedWaba(e.target.value)}
+            >
+              {WABA_OPTIONS.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+            <button className="btn-carousel" onClick={() => setShowCarouselModal(true)}>
+              Carousel
+            </button>
+            <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+              + Create
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="tabs">
@@ -2166,7 +2190,33 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
             text-align: left;
           }
         }
+
+        .embedded {
+          padding: 0;
+        }
+
+        .embedded-header {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+        }
+
+        .embedded-header .waba-select {
+          flex: 1;
+          min-width: 150px;
+        }
       `}</style>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

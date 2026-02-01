@@ -16,6 +16,10 @@ import PageHeader from '../../../components/PageHeader';
 import Toast, { useToast } from '../../../components/Toast';
 import * as api from '../../../api/client';
 
+// Import Templates and Welcome content
+import TemplatesPage from './templates';
+import WelcomePage from './welcome';
+
 interface PageProps {
   signOut?: () => void;
   user?: any;
@@ -46,7 +50,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
     phoneQuality: [],
     accountUpdates: [],
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'events'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'templates' | 'welcome'>('overview');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -160,7 +164,33 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
               >
                 System Events
               </button>
+              <button
+                className={`tab ${activeTab === 'templates' ? 'active' : ''}`}
+                onClick={() => setActiveTab('templates')}
+              >
+                Templates
+              </button>
+              <button
+                className={`tab ${activeTab === 'welcome' ? 'active' : ''}`}
+                onClick={() => setActiveTab('welcome')}
+              >
+                Welcome
+              </button>
             </div>
+
+            {/* Templates Tab */}
+            {activeTab === 'templates' && (
+              <div className="embedded-page">
+                <TemplatesPage signOut={signOut} user={user} embedded={true} />
+              </div>
+            )}
+
+            {/* Welcome Tab */}
+            {activeTab === 'welcome' && (
+              <div className="embedded-page">
+                <WelcomePage signOut={signOut} user={user} embedded={true} />
+              </div>
+            )}
 
             {/* Overview Tab */}
             {activeTab === 'overview' && selectedWaba && (
@@ -586,6 +616,19 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
           display: flex;
           flex-direction: column;
           gap: 24px;
+        }
+
+        .embedded-page {
+          margin-top: 0;
+        }
+
+        .embedded-page :global(.page) {
+          padding: 0;
+          max-width: none;
+        }
+
+        .embedded-page :global(.page-header) {
+          display: none;
         }
 
         .events-card {
