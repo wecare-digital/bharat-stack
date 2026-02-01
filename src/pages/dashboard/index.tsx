@@ -1176,8 +1176,89 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           {/* WEBHOOK TAB */}
           {activeTab === 'webhook' && (
             <div className="webhook-tab">
-              <div className="section-header">
-                <h3>Webhook Configuration</h3>
+              {/* Razorpay Webhook Section */}
+              <div className="section" style={{ background: 'linear-gradient(135deg, #072654 0%, #0a3d7c 100%)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: 'white' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#072654" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Razorpay Webhook</h3>
+                    <span className="badge" style={{ background: '#22c55e', color: 'white', marginTop: '4px' }}>Active</span>
+                  </div>
+                </div>
+                
+                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', opacity: 0.8, display: 'block' }}>Webhook URL</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/razorpay-webhook</code>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', opacity: 0.8, display: 'block' }}>Webhook Secret</label>
+                    <code style={{ fontSize: '0.85rem' }}>b@c4mk9t9Z8qLq3</code>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Supported Events</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {[
+                      { event: 'payment.captured', desc: 'Payment successful', color: '#22c55e' },
+                      { event: 'payment.failed', desc: 'Payment failed', color: '#ef4444' },
+                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#3b82f6' },
+                      { event: 'refund.created', desc: 'Refund initiated', color: '#f59e0b' },
+                      { event: 'refund.processed', desc: 'Refund completed', color: '#22c55e' },
+                      { event: 'order.paid', desc: 'Order paid', color: '#22c55e' },
+                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#8b5cf6' },
+                      { event: 'payment.dispute.*', desc: 'Dispute events', color: '#ef4444' },
+                      { event: 'settlement.*', desc: 'Settlement events', color: '#06b6d4' },
+                    ].map(({ event, desc, color }) => (
+                      <div key={event} style={{ background: 'rgba(255,255,255,0.15)', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                          <span style={{ fontFamily: 'monospace' }}>{event}</span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '2px' }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Razorpay Data Captured */}
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <DataIcon size={18} />
+                  Data Captured for Payments
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  {[
+                    { field: 'paymentId', desc: 'Razorpay Payment ID' },
+                    { field: 'orderId', desc: 'Razorpay Order ID' },
+                    { field: 'referenceId', desc: 'Custom Reference ID' },
+                    { field: 'amount', desc: 'Amount in paise' },
+                    { field: 'amountInRupees', desc: 'Amount in rupees' },
+                    { field: 'currency', desc: 'Currency (INR)' },
+                    { field: 'method', desc: 'UPI, Card, Netbanking, Wallet' },
+                    { field: 'contact', desc: 'Customer phone' },
+                    { field: 'email', desc: 'Customer email' },
+                    { field: 'status', desc: 'captured, failed, etc.' },
+                    { field: 'notes', desc: 'Custom metadata' },
+                    { field: 'createdAt', desc: 'Timestamp' },
+                  ].map(({ field, desc }) => (
+                    <div key={field} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', borderLeft: '3px solid #3b82f6' }}>
+                      <code style={{ fontSize: '0.85rem', color: '#1e40af' }}>{field}</code>
+                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Webhooks Section */}
+              <div className="section-header" style={{ marginTop: '2rem' }}>
+                <h3>Custom Webhooks</h3>
                 <button className="btn-primary" onClick={() => setShowWebhookForm(!showWebhookForm)}>
                   {showWebhookForm ? 'Cancel' : '+ Add Webhook'}
                 </button>
@@ -1244,7 +1325,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               ) : webhooks.length === 0 ? (
                 <div className="empty-state">
                   <span className="icon"><LinkIcon size={32} /></span>
-                  <p>No webhooks configured</p>
+                  <p>No custom webhooks configured</p>
                   <p style={{ fontSize: '0.85rem', color: '#666' }}>Add a webhook to receive real-time notifications</p>
                 </div>
               ) : (
@@ -1301,7 +1382,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {/* Info */}
               <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
                 <strong>Webhook Info:</strong> Webhooks send HTTP POST requests to your URL when events occur.
-                Each request includes a signature header for verification.
+                Each request includes a signature header (X-Razorpay-Signature) for HMAC SHA256 verification.
               </div>
             </div>
           )}
