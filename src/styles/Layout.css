@@ -132,7 +132,7 @@ input, textarea, select {
   font-size: 18px;
   font-weight: 650;
   letter-spacing: -0.2px;
-  color: var(--text);
+  color: #000000;
 }
 
 /* Sidebar Search */
@@ -279,13 +279,13 @@ input, textarea, select {
   margin-right: 0;
   font-size: 16px;
   text-align: center;
-  color: var(--text);
+  color: #000000;
 }
 
 .nav-label {
   font-size: 15px;
   font-weight: 560;
-  color: var(--text);
+  color: #000000;
 }
 
 .nav-arrow {
@@ -444,6 +444,7 @@ input, textarea, select {
   padding: 24px;
   background: #ffffff;
   min-height: 100vh;
+  color: #000000;
 }
 
 /* Mobile Menu Toggle */

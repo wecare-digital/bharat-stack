@@ -9,13 +9,14 @@
 
 .page-container {
   min-height: 100vh;
-  background: var(--bg);
+  background: #ffffff;
 }
 
 .page-content {
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  background: #ffffff;
 }
 
 /* Page Header */
@@ -27,9 +28,9 @@
 }
 
 .page-title {
-  font-size: var(--h1);
+  font-size: 28px;
   font-weight: var(--font-bold);
-  color: var(--text);
+  color: #000000;
   margin: 0;
   letter-spacing: -0.5px;
 }
@@ -165,13 +166,13 @@
 .stat-value {
   font-size: 28px;
   font-weight: var(--font-bold);
-  color: var(--text);
+  color: #000000;
   line-height: 1;
 }
 
 .stat-label {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #4a4a4a;
   margin-top: 6px;
   font-weight: var(--font-medium);
   text-transform: uppercase;
@@ -195,16 +196,16 @@
 }
 
 .section-title {
-  font-size: var(--text-lg);
+  font-size: 20px;
   font-weight: var(--font-semibold);
-  color: var(--text);
+  color: #000000;
   margin: 0 0 16px 0;
 }
 
 .section-description {
-  color: var(--text-secondary);
+  color: #4a4a4a;
   margin-bottom: 16px;
-  font-size: var(--text-desc);
+  font-size: 21px;
   line-height: var(--leading-normal);
 }
 
@@ -251,9 +252,10 @@
 }
 
 .qa-title {
-  font-size: var(--text-xs);
+  font-size: 14px;
   font-weight: var(--font-medium);
   text-align: center;
+  color: #000000;
 }
 
 /* Messages List */
@@ -304,13 +306,13 @@
 
 .message-contact {
   font-weight: var(--font-semibold);
-  font-size: var(--text-sm);
-  color: var(--text);
+  font-size: 15px;
+  color: #000000;
 }
 
 .message-preview {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #4a4a4a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -399,9 +401,9 @@
 }
 
 .form-group label {
-  font-size: var(--text-sm);
+  font-size: 15px;
   font-weight: var(--font-medium);
-  color: var(--text);
+  color: #000000;
 }
 
 .form-group select, 
@@ -410,8 +412,9 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  background: var(--bg);
+  font-size: 15px;
+  background: #ffffff;
+  color: #000000;
   transition: border-color var(--transition-normal);
 }
 
@@ -465,9 +468,9 @@
 }
 
 .config-card h3 {
-  font-size: var(--text-md);
+  font-size: 17px;
   font-weight: var(--font-semibold);
-  color: var(--text);
+  color: #000000;
   margin: 0 0 12px 0;
 }
 
@@ -550,14 +553,14 @@
 
 .delete-option-title {
   font-weight: var(--font-semibold);
-  font-size: var(--text-sm);
-  color: var(--text);
+  font-size: 15px;
+  color: #000000;
   margin-bottom: 4px;
 }
 
 .delete-option-desc {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #4a4a4a;
   line-height: 1.4;
 }
 
@@ -816,15 +819,15 @@
 }
 
 .billing-amount {
-  font-size: var(--h1);
+  font-size: 32px;
   font-weight: var(--font-bold);
-  color: var(--text);
+  color: #000000;
   font-family: var(--font-mono);
 }
 
 .billing-label {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #4a4a4a;
   text-transform: uppercase;
   letter-spacing: 0.3px;
   font-weight: var(--font-medium);
@@ -925,11 +928,11 @@
 
 .service-name {
   font-weight: var(--font-medium);
-  color: var(--text);
+  color: #000000;
 }
 
 .service-usage {
-  color: var(--text);
+  color: #000000;
 }
 
 .usage-unit {
@@ -944,7 +947,7 @@
 
 .service-cost {
   font-family: var(--font-mono);
-  color: var(--text);
+  color: #000000;
   font-weight: var(--font-medium);
 }
 
@@ -1337,17 +1340,17 @@
 }
 
 .contact-name {
-  font-size: var(--text-sm);
+  font-size: 15px;
   font-weight: var(--font-medium);
-  color: var(--text);
+  color: #000000;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .contact-last-msg {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #4a4a4a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1428,9 +1431,9 @@
 }
 
 .chat-contact-name {
-  font-size: var(--text-md);
+  font-size: 17px;
   font-weight: var(--font-semibold);
-  color: var(--text);
+  color: #000000;
 }
 
 .chat-contact-phone {
@@ -1524,9 +1527,9 @@
 }
 
 .message-content {
-  font-size: var(--text-sm);
+  font-size: 15px;
   line-height: 1.45;
-  color: var(--text);
+  color: #000000;
   word-wrap: break-word;
   white-space: pre-wrap;
 }
@@ -1789,15 +1792,15 @@
 }
 
 .empty-chat h3 {
-  font-size: var(--text-lg);
+  font-size: 18px;
   font-weight: var(--font-semibold);
-  color: var(--text);
+  color: #000000;
   margin: 0 0 8px 0;
 }
 
 .empty-chat p {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: 15px;
+  color: #4a4a4a;
   margin: 0;
 }
 
@@ -1968,7 +1971,7 @@
   }
   
   .page-title {
-    font-size: 24px;
+    font-size: 26px;
   }
   
   .header-actions {
@@ -2017,7 +2020,7 @@
   }
   
   .section-title {
-    font-size: 16px;
+    font-size: 18px;
   }
   
   /* Quick actions - 2 columns */
@@ -2246,7 +2249,7 @@
   }
   
   .page-title {
-    font-size: 22px;
+    font-size: 24px;
   }
   
   /* Stats - still 2 columns but tighter */
@@ -2259,11 +2262,11 @@
   }
   
   .stat-value {
-    font-size: 22px;
+    font-size: 24px;
   }
   
   .stat-label {
-    font-size: 10px;
+    font-size: 12px;
     margin-top: 4px;
   }
   
@@ -2330,12 +2333,12 @@
   
   .page-header h1,
   .page-header .page-title {
-    font-size: 20px;
+    font-size: 22px;
   }
   
   .page-header p,
   .page-header .page-subtitle {
-    font-size: var(--text-desc);
+    font-size: 18px;
   }
 }
 
@@ -2368,7 +2371,7 @@
 
 .page-header h1,
 .page-header .page-title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: var(--font-bold);
   color: #000000;
   margin: 0;
@@ -2377,15 +2380,15 @@
 
 .page-header p,
 .page-header .page-subtitle {
-  font-size: var(--text-desc);
-  color: var(--text-secondary);
+  font-size: 21px;
+  color: #4a4a4a;
   margin: 4px 0 0 0;
 }
 
 .back-link {
-  color: #666666;
+  color: #4a4a4a;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   display: inline-flex;
   align-items: center;
   gap: 4px;

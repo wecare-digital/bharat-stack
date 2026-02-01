@@ -479,6 +479,8 @@ export default function App({ Component, pageProps }: AppProps) {
           gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
         `}
       </Script>
+      {/* WhatsApp Chat Widget */}
+      <Script src="https://auth.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
         <Authenticator hideSignUp={true} components={{ Header: AuthHeader }}>
           {({ signOut, user }) => (
