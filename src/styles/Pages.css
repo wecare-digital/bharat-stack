@@ -3639,6 +3639,31 @@ pre code {
   color: #991b1b;
 }
 
+/* Badge styles for contacts opt-in */
+.badge-active {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #f5f5f5;
+  color: #000;
+  border: 1px solid #000;
+}
+
+.badge-pending {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #fff;
+  color: #4a4a4a;
+  border: 1px solid #4a4a4a;
+}
+
 .table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

@@ -485,7 +485,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const isVoiceNote = s3Key?.match(/\.(ogg|opus)$/i) || content === '[Audio]';
       return (
         <div className={`audio-message ${isVoiceNote ? 'voice-note' : ''}`}>
-          <div className="audio-icon">{isVoiceNote ? '🎤' : '🎵'}</div>
+          <div className="audio-icon">{isVoiceNote ? 'Voice' : 'Audio'}</div>
           <audio src={mediaUrl} controls className="message-audio" preload="metadata" />
           {renderDownloadButton(mediaUrl)}
         </div>
@@ -504,7 +504,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
               <span className="doc-name">{fileName}</span>
               <span className="doc-type">{getDocumentType(s3Key || '')}</span>
             </div>
-            <span className="doc-download">⬇️</span>
+            <span className="doc-download">DL</span>
           </a>
         </div>
       );
@@ -531,7 +531,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 <div className="location-overlay">
-                  <span className="location-icon">📍</span>
+                  <span className="location-icon">Loc</span>
                   <span>View on Maps</span>
                 </div>
               </div>
@@ -546,7 +546,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'contacts' || content === '[Contact Card]') {
       return (
         <div className="contact-card-message">
-          <div className="contact-card-icon">👤</div>
+          <div className="contact-card-icon">C</div>
           <div className="contact-card-info">
             <span className="contact-card-label">Contact Card</span>
             <span className="contact-card-hint">Tap to view contact details</span>
@@ -564,9 +564,9 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       return (
         <div className="interactive-message">
           <div className="interactive-icon">
-            {interactiveType.includes('Button') ? '🔘' : 
-             interactiveType.includes('List') ? '📋' : 
-             interactiveType.includes('Flow') ? '📝' : '💬'}
+            {interactiveType.includes('Button') ? 'Btn' : 
+             interactiveType.includes('List') ? 'List' : 
+             interactiveType.includes('Flow') ? 'Flow' : 'Msg'}
           </div>
           <div className="interactive-content">
             <span className="interactive-label">{interactiveType}</span>
@@ -580,7 +580,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'order' || content === '[Order]') {
       return (
         <div className="order-message">
-          <div className="order-icon">🛒</div>
+          <div className="order-icon">Order</div>
           <div className="order-info">
             <span className="order-label">Order Received</span>
             <span className="order-hint">View order details in dashboard</span>
@@ -593,7 +593,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'payment') {
       return (
         <div className="payment-message">
-          <div className="payment-icon">💳</div>
+          <div className="payment-icon">Pay</div>
           <div className="payment-info">
             <span className="payment-label">Payment</span>
             <span className="payment-content">{content}</span>
@@ -628,7 +628,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         return (
           <div className="template-message otp-template">
             <div className="template-header">
-              <span className="template-icon">🔐</span>
+              <span className="template-icon">Auth</span>
               <span className="template-label">Authentication</span>
             </div>
             <div className="template-body">
@@ -638,7 +638,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="template-button copy-code-btn" onClick={() => {
               navigator.clipboard.writeText(otpMatch[1]);
             }}>
-              <span className="btn-icon">📋</span>
+              <span className="btn-icon">Copy</span>
               <span>Copy Code</span>
             </div>
           </div>
@@ -656,17 +656,17 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         
         // Select icon based on sub-type
         const utilityIcon = isOrderRelated ? (
-          content?.toLowerCase().includes('shipped') || content?.toLowerCase().includes('delivery') ? '🚚' :
-          content?.toLowerCase().includes('tracking') ? '📍' :
-          content?.toLowerCase().includes('refund') ? '💰' :
-          content?.toLowerCase().includes('cancel') ? '❌' : '📦'
+          content?.toLowerCase().includes('shipped') || content?.toLowerCase().includes('delivery') ? 'Ship' :
+          content?.toLowerCase().includes('tracking') ? 'Track' :
+          content?.toLowerCase().includes('refund') ? 'Refund' :
+          content?.toLowerCase().includes('cancel') ? 'Cancel' : 'Order'
         ) : isAccountAlert ? (
-          content?.toLowerCase().includes('balance') ? '💳' :
-          content?.toLowerCase().includes('payment') || content?.toLowerCase().includes('reminder') ? '⏰' :
-          content?.toLowerCase().includes('security') || content?.toLowerCase().includes('alert') ? '🔔' : '👤'
-        ) : isFeedback ? '⭐' :
-        isOptIn ? '✅' :
-        isAppointment ? '📅' : '📋';
+          content?.toLowerCase().includes('balance') ? 'Bal' :
+          content?.toLowerCase().includes('payment') || content?.toLowerCase().includes('reminder') ? 'Alert' :
+          content?.toLowerCase().includes('security') || content?.toLowerCase().includes('alert') ? 'Alert' : 'Acct'
+        ) : isFeedback ? 'Review' :
+        isOptIn ? 'Sub' :
+        isAppointment ? 'Appt' : 'Update';
         
         // Determine sub-label
         const utilitySubLabel = isOrderRelated ? 'Order Update' :
@@ -700,7 +700,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                     <div className="reference-item">
                       <span className="ref-label">Tracking:</span>
                       <span className="ref-value">{trackingMatch[1]}</span>
-                      <span className="ref-copy" onClick={() => navigator.clipboard.writeText(trackingMatch[1])}>📋</span>
+                      <span className="ref-copy" onClick={() => navigator.clipboard.writeText(trackingMatch[1])}>Copy</span>
                     </div>
                   )}
                 </div>
@@ -729,9 +729,9 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         return (
           <div className="template-message marketing-template">
             <div className="template-header">
-              <span className="template-icon">📢</span>
+              <span className="template-icon">Promo</span>
               <span className="template-label">Marketing</span>
-              {isLimitedTime && <span className="template-badge urgent">⏰ Limited Time</span>}
+              {isLimitedTime && <span className="template-badge urgent">Limited Time</span>}
             </div>
             <div className="template-body">
               <div className="template-text">{content}</div>
@@ -739,12 +739,12 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                 <div className="coupon-code" onClick={() => navigator.clipboard.writeText(couponMatch[1])}>
                   <span className="coupon-label">Promo Code:</span>
                   <span className="coupon-value">{couponMatch[1]}</span>
-                  <span className="coupon-copy">📋</span>
+                  <span className="coupon-copy">Copy</span>
                 </div>
               )}
               {urlMatch && (
                 <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="template-cta-btn">
-                  <span>🔗</span>
+                  <span>Link</span>
                   <span>Open Link</span>
                 </a>
               )}
@@ -757,7 +757,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       return (
         <div className="template-message">
           <div className="template-header">
-            <span className="template-icon">📝</span>
+            <span className="template-icon">Tmpl</span>
             <span className="template-label">Template</span>
           </div>
           <div className="template-body">
@@ -771,7 +771,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'button' || content?.startsWith('[Button]')) {
       return (
         <div className="button-message">
-          <div className="button-icon">🔘</div>
+          <div className="button-icon">Btn</div>
           <div className="button-content">
             <span className="button-text">{content?.replace('[Button]', '').trim() || 'Button pressed'}</span>
           </div>
@@ -783,7 +783,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'system' || content === '[System Message]') {
       return (
         <div className="system-message">
-          <span className="system-icon">ℹ️</span>
+          <span className="system-icon">Info</span>
           <span className="system-text">{content?.replace('[System Message]', '') || 'System notification'}</span>
         </div>
       );
@@ -793,7 +793,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'request_welcome' || content?.includes('requested to start conversation')) {
       return (
         <div className="welcome-message">
-          <span className="welcome-icon">👋</span>
+          <span className="welcome-icon">Hi</span>
           <span className="welcome-text">User started the conversation</span>
         </div>
       );
@@ -805,15 +805,15 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="unsupported-message">
           {mediaUrl ? (
             <>
-              <span className="unsupported-icon">📎</span>
+              <span className="unsupported-icon">File</span>
               <span className="unsupported-text">Media attachment</span>
               <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="unsupported-download">
-                Download ⬇️
+                Download
               </a>
             </>
           ) : (
             <>
-              <span className="unsupported-icon">⚠️</span>
+              <span className="unsupported-icon">!</span>
               <span className="unsupported-text">
                 {content?.match(/\[Unsupported: (.+?)\]/)?.[1] || 'Message type not viewable'}
               </span>
@@ -829,7 +829,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="media-message">
           <div className="media-container">
             <div className="generic-media">
-              <span className="generic-icon">📎</span>
+              <span className="generic-icon">File</span>
               <span>Attachment</span>
             </div>
             {renderDownloadButton(mediaUrl)}
@@ -848,19 +848,19 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (!url) return null;
     return (
       <a href={url} download target="_blank" rel="noopener noreferrer" className="download-btn" title="Download">
-        ⬇️
+        DL
       </a>
     );
   };
 
   // Helper: Get document icon based on file extension
   const getDocumentIcon = (filename: string): string => {
-    if (filename.match(/\.pdf$/i)) return '📕';
-    if (filename.match(/\.(doc|docx)$/i)) return '📘';
-    if (filename.match(/\.(xls|xlsx)$/i)) return '📗';
-    if (filename.match(/\.(ppt|pptx)$/i)) return '📙';
-    if (filename.match(/\.txt$/i)) return '📄';
-    return '📎';
+    if (filename.match(/\.pdf$/i)) return 'PDF';
+    if (filename.match(/\.(doc|docx)$/i)) return 'DOC';
+    if (filename.match(/\.(xls|xlsx)$/i)) return 'XLS';
+    if (filename.match(/\.(ppt|pptx)$/i)) return 'PPT';
+    if (filename.match(/\.txt$/i)) return 'TXT';
+    return 'FILE';
   };
 
   // Helper: Get document type label
@@ -889,7 +889,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="wa-header">
           <button onClick={() => router.push('/dm/whatsapp')} className="back-btn">←</button>
           <div className="wa-header-info">
-            <span className="wa-icon">💬</span>
+            <span className="wa-icon">WA</span>
             <div>
               <h1>{wabaInfo.name}</h1>
               <span className="wa-phone">{wabaInfo.phone}</span>
@@ -964,18 +964,18 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                       onClick={() => setShowMessageSearch(!showMessageSearch)}
                       title="Search messages (Ctrl+F)"
                     >
-                      🔍
+                      Search
                     </button>
                     <div className="export-dropdown">
                       <button 
                         className="chat-action-btn" 
                         title="Export chat"
                       >
-                        ⬇️
+                        Export
                       </button>
                       <div className="export-menu">
-                        <button onClick={exportChat}>📄 Export as Text</button>
-                        <button onClick={exportChatPDF}>📑 Export as PDF</button>
+                        <button onClick={exportChat}>Export as Text</button>
+                        <button onClick={exportChatPDF}>Export as PDF</button>
                       </div>
                     </div>
                     <div className={`window-badge ${selectedContact.windowOpen ? 'open' : 'closed'}`}>
@@ -1026,9 +1026,9 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                         <button 
                           className="reaction-btn" 
                           onClick={() => handleReaction(msg.whatsappMessageId!)}
-                          title="React with 👍"
+                          title="React"
                         >
-                          👍
+                          +
                         </button>
                       )}
                       <button 
@@ -1047,13 +1047,13 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                   {/* Window Closed Warning */}
                   {!selectedContact.windowOpen && (
                     <div className="window-closed-warning">
-                      <span className="warning-icon">⚠️</span>
+                      <span className="warning-icon">!</span>
                       <span className="warning-text">24-hour window closed. You can only send template messages.</span>
                       <button 
                         className="template-btn"
                         onClick={() => setShowTemplateSender(true)}
                       >
-                        📝 Send Template
+                        Send Template
                       </button>
                     </div>
                   )}
@@ -1095,7 +1095,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                         title="Record Voice Note"
                         disabled={!selectedContact.windowOpen}
                       >
-                        🎤
+                        Mic
                       </button>
                       <button 
                         className="interactive-btn" 
@@ -1103,14 +1103,14 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                         title="Send Interactive Message"
                         disabled={!selectedContact.windowOpen}
                       >
-                        📋
+                        List
                       </button>
                       <button 
                         className="template-send-btn" 
                         onClick={() => setShowTemplateSender(true)}
                         title="Send Template Message"
                       >
-                        📝
+                        Tmpl
                       </button>
                       <div className="compose-input">
                         <RichTextEditor
@@ -1153,7 +1153,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
               </>
             ) : (
               <div className="no-chat">
-                <p>💬 Select a conversation</p>
+                <p>Select a conversation</p>
                 <small>Choose a contact from the list</small>
               </div>
             )}
@@ -1163,21 +1163,21 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
 
       <style jsx>{`
         .wa-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
-        .wa-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #25D366; color: #fff; }
-        .back-btn, .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .wa-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #000; color: #fff; }
+        .back-btn, .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 13px; cursor: pointer; }
         .wa-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .wa-icon { font-size: 28px; }
+        .wa-icon { font-size: 14px; font-weight: 600; background: #fff; color: #000; padding: 4px 8px; border-radius: 6px; }
         .wa-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
         .wa-phone { font-size: 13px; opacity: 0.9; }
-        .error-bar { background: #fee2e2; color: #991b1b; padding: 8px 16px; font-size: 13px; }
+        .error-bar { background: #f5f5f5; color: #000; padding: 8px 16px; font-size: 13px; border: 1px solid #000; }
         .wa-layout { display: grid; grid-template-columns: 300px 1fr; flex: 1; overflow: hidden; }
         .wa-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }
-        .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 20px; font-size: 14px; }
+        .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #000; border-radius: 13px; font-size: 14px; }
         .contacts-list { flex: 1; overflow-y: auto; }
         .contact-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
-        .contact-row:hover { background: #f9f9f9; }
-        .contact-row.active { background: #e7f5e7; }
+        .contact-row:hover { background: #f5f5f5; }
+        .contact-row.active { background: #f5f5f5; }
         .contact-avatar { width: 44px; height: 44px; background: #e5e5e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; color: #666; }
         .contact-avatar.large { width: 40px; height: 40px; }
         .contact-details { flex: 1; min-width: 0; }

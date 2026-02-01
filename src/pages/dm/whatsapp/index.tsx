@@ -131,13 +131,13 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
             const msgType = msg.messageType?.toLowerCase();
             
             // Add media type icon prefix
-            if (msgType === 'image') lastMsgPreview = '🖼️ ';
-            else if (msgType === 'video') lastMsgPreview = '🎬 ';
-            else if (msgType === 'audio' || msgType === 'voice') lastMsgPreview = '🎵 ';
-            else if (msgType === 'document') lastMsgPreview = '📄 ';
-            else if (msgType === 'sticker') lastMsgPreview = '🏷️ ';
-            else if (msgType === 'location') lastMsgPreview = '📍 ';
-            else if (msgType === 'contacts') lastMsgPreview = '👤 ';
+            if (msgType === 'image') lastMsgPreview = '[Image] ';
+            else if (msgType === 'video') lastMsgPreview = '[Video] ';
+            else if (msgType === 'audio' || msgType === 'voice') lastMsgPreview = '[Audio] ';
+            else if (msgType === 'document') lastMsgPreview = '[Doc] ';
+            else if (msgType === 'sticker') lastMsgPreview = '[Sticker] ';
+            else if (msgType === 'location') lastMsgPreview = '[Location] ';
+            else if (msgType === 'contacts') lastMsgPreview = '[Contact] ';
             
             // Add content preview
             const content = msg.content || '';
@@ -514,7 +514,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
     if (isUnsupported && msg.mediaUrl) {
       return (
         <span className="unsupported-with-media">
-          <span className="unsupported-label">📎 Media attachment</span>
+          <span className="unsupported-label">Media attachment</span>
           <a 
             href={msg.mediaUrl} 
             target="_blank" 
@@ -534,7 +534,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
       const detail = match ? match[1] : 'Message type not viewable';
       return (
         <span className="unsupported-msg">
-          ⚠️ {detail}
+          {detail}
         </span>
       );
     }
@@ -566,7 +566,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
             rel="noopener noreferrer"
             className="location-link"
           >
-            📍 View Location
+            View Location
           </a>
         );
       }
@@ -574,7 +574,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
     
     // Contact card
     if (content === '[Contact Card]') {
-      return <span className="special-msg">👤 Contact Card</span>;
+      return <span className="special-msg">Contact Card</span>;
     }
     
     // Interactive messages
@@ -584,17 +584,17 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
     
     // Flow responses
     if (content.startsWith('[Flow Response:')) {
-      return <span className="special-msg">📝 Flow Response</span>;
+      return <span className="special-msg">Flow Response</span>;
     }
     
     // Order messages
     if (content === '[Order]') {
-      return <span className="special-msg">🛒 Order</span>;
+      return <span className="special-msg">Order</span>;
     }
     
     // System messages
     if (content === '[System Message]') {
-      return <span className="system-msg">ℹ️ System Message</span>;
+      return <span className="system-msg">System Message</span>;
     }
     
     // Default: show content as-is

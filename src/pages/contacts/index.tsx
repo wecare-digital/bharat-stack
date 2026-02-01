@@ -207,7 +207,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           }
         />
 
-        {error && <div className="error-banner">{error} <button onClick={() => setError(null)}>✕</button></div>}
+        {error && <div className="error-banner">{error} <button onClick={() => setError(null)}>x</button></div>}
 
         <div className="stats-grid">
           <div className="stat-card">
@@ -265,12 +265,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     <td>{contact.email || '-'}</td>
                     <td>
                       <div className="opt-in-badges">
-                        {contact.optInWhatsApp && contact.allowlistWhatsApp && <span className="badge badge-green">WA ✓</span>}
-                        {contact.optInWhatsApp && !contact.allowlistWhatsApp && <span className="badge badge-yellow">WA</span>}
-                        {contact.optInSms && contact.allowlistSms && <span className="badge badge-blue">SMS ✓</span>}
-                        {contact.optInSms && !contact.allowlistSms && <span className="badge badge-yellow">SMS</span>}
-                        {contact.optInEmail && contact.allowlistEmail && <span className="badge badge-purple">Email ✓</span>}
-                        {contact.optInEmail && !contact.allowlistEmail && <span className="badge badge-yellow">Email</span>}
+                        {contact.optInWhatsApp && contact.allowlistWhatsApp && <span className="badge badge-active">WA</span>}
+                        {contact.optInWhatsApp && !contact.allowlistWhatsApp && <span className="badge badge-pending">WA</span>}
+                        {contact.optInSms && contact.allowlistSms && <span className="badge badge-active">SMS</span>}
+                        {contact.optInSms && !contact.allowlistSms && <span className="badge badge-pending">SMS</span>}
+                        {contact.optInEmail && contact.allowlistEmail && <span className="badge badge-active">Email</span>}
+                        {contact.optInEmail && !contact.allowlistEmail && <span className="badge badge-pending">Email</span>}
                         {!contact.optInWhatsApp && !contact.optInSms && !contact.optInEmail && (
                           <span className="badge badge-gray">None</span>
                         )}
@@ -279,9 +279,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     <td>{contact.lastInboundMessageAt ? new Date(contact.lastInboundMessageAt).toLocaleDateString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
-                        <button className="btn-icon" title="Edit" onClick={() => handleEdit(contact)}>✎</button>
-                        <button className="btn-icon" title="Message" onClick={() => window.location.href = '/messaging'}>✉</button>
-                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={() => handleDelete(contact.contactId)}>⌫</button>
+                        <button className="btn-icon" title="Edit" onClick={() => handleEdit(contact)}>Edit</button>
+                        <button className="btn-icon" title="Message" onClick={() => window.location.href = '/messaging'}>Msg</button>
+                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={() => handleDelete(contact.contactId)}>Del</button>
                       </div>
                     </td>
                   </tr>

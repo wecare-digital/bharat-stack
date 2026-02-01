@@ -148,7 +148,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         />
 
         <div className="sender-notice">
-          <div className="sender-icon">📱</div>
+          <div className="sender-icon">Phone</div>
           <div className="sender-info">
             <div className="sender-label">Sending From</div>
             <div className="sender-number">{PAYMENT_CONFIG.phoneDisplay}</div>
@@ -167,7 +167,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="pay-layout">
           <div className="order-form">
             <div className="form-section">
-              <h3>📱 Recipient *</h3>
+              <h3>Recipient *</h3>
               <select value={selectedContact} onChange={(e) => setSelectedContact(e.target.value)} disabled={loading}>
                 <option value="">Select contact (+91 only)</option>
                 {contacts.map(c => <option key={c.contactId} value={c.contactId}>{c.name || c.phone} - {c.phone}</option>)}
@@ -175,7 +175,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
 
             <div className="form-section">
-              <h3>🔖 Reference ID</h3>
+              <h3>Reference ID</h3>
               <div className="ref-row">
                 <input type="text" value={formatReferenceNumber(referenceId)} readOnly placeholder="WDSRXXXXXXXX" />
                 <button type="button" onClick={handleGenerateReferenceId} className="gen-btn">New</button>
@@ -183,7 +183,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
 
             <div className="form-section">
-              <h3>📦 Item Details *</h3>
+              <h3>Item Details *</h3>
               <div className="item-grid">
                 <div className="item-field"><label>Item Name *</label><input type="text" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Service Fee" /></div>
                 <div className="item-field"><label>Amount (₹) *</label><input type="number" value={itemAmount || ''} onChange={(e) => setItemAmount(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
@@ -192,7 +192,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
 
             <div className="form-section">
-              <h3>💰 Breakdown</h3>
+              <h3>Breakdown</h3>
               <div className="breakdown-grid">
                 <div className="breakdown-field"><label>Promo (₹)</label><input type="number" value={discount || ''} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
                 <div className="breakdown-field"><label>Express (₹)</label><input type="number" value={shipping || ''} onChange={(e) => setShipping(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
@@ -203,10 +203,10 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
 
           <div className="order-preview">
-            <h3>📋 Preview</h3>
+            <h3>Preview</h3>
             <div className="preview-card">
-              <div className="preview-header"><span className="wa-icon">💬</span><span>Interactive Payment</span></div>
-              <div className="preview-body">Your payment is overdue—please tap below to complete it 💳🤝</div>
+              <div className="preview-header"><span className="wa-icon">WA</span><span>Interactive Payment</span></div>
+              <div className="preview-body">Your payment is overdue - please tap below to complete it</div>
               <div className="preview-section">
                 <div className="section-title">CART ITEMS</div>
                 <div className="cart-item"><span>{itemName || '—'}</span><span>₹{itemAmount.toFixed(2)} × {itemQuantity}</span></div>
@@ -223,7 +223,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="preview-config"><small>To: {selectedContactInfo?.name || '—'}</small><small>Ref: {formatReferenceNumber(referenceId)}</small></div>
             </div>
             <button className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0}>
-              {sending ? 'Sending...' : '💳 Send Payment'}
+              {sending ? 'Sending...' : 'Send Payment'}
             </button>
           </div>
         </div>
@@ -233,50 +233,50 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         .pay-page { padding: 20px; max-width: 1100px; margin: 0 auto; }
         .pay-header { margin-bottom: 20px; }
         .pay-header h1 { font-size: 22px; margin: 0 0 4px 0; }
-        .pay-header p { color: #666; margin: 0; font-size: 14px; }
-        .sender-notice { display: flex; align-items: center; gap: 16px; background: var(--notion-green-bg, #f0fdf4); padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; border: 1px solid var(--notion-border, #e9e9e7); }
-        .sender-icon { font-size: 24px; }
+        .pay-header p { color: #4a4a4a; margin: 0; font-size: 14px; }
+        .sender-notice { display: flex; align-items: center; gap: 16px; background: #f5f5f5; padding: 12px 16px; border-radius: 13px; margin-bottom: 16px; border: 1px solid #000; }
+        .sender-icon { font-size: 14px; font-weight: 600; color: #000; }
         .sender-info { flex: 1; }
-        .sender-label { font-size: 10px; color: #166534; text-transform: uppercase; }
-        .sender-number { font-size: 16px; font-weight: 600; color: #166534; }
-        .sender-name { font-size: 12px; color: #15803d; }
-        .sender-badge { display: flex; align-items: center; gap: 4px; background: #166534; color: #fff; padding: 4px 10px; border-radius: 16px; font-size: 11px; }
-        .badge-dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; }
-        .message-bar { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; }
-        .message-bar.success { background: #dcfce7; color: #166534; }
-        .message-bar.error { background: #fee2e2; color: #991b1b; }
+        .sender-label { font-size: 10px; color: #4a4a4a; text-transform: uppercase; }
+        .sender-number { font-size: 16px; font-weight: 600; color: #000; }
+        .sender-name { font-size: 12px; color: #4a4a4a; }
+        .sender-badge { display: flex; align-items: center; gap: 4px; background: #000; color: #fff; padding: 4px 10px; border-radius: 16px; font-size: 11px; }
+        .badge-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; }
+        .message-bar { padding: 10px 14px; border-radius: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; border: 1px solid #000; }
+        .message-bar.success { background: #f5f5f5; color: #000; }
+        .message-bar.error { background: #f5f5f5; color: #000; }
         .message-bar button { background: none; border: none; font-size: 16px; cursor: pointer; }
         .pay-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
-        .order-form { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .order-form { background: #fff; border-radius: 13px; padding: 20px; border: 1px solid #e5e5e5; }
         .form-section { margin-bottom: 20px; }
-        .form-section h3 { font-size: 13px; margin: 0 0 10px 0; color: #333; }
-        .form-section select, .form-section input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
-        .form-section select:focus, .form-section input:focus { outline: none; border-color: #25D366; }
+        .form-section h3 { font-size: 14px; margin: 0 0 10px 0; color: #000; font-weight: 600; }
+        .form-section select, .form-section input { width: 100%; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
+        .form-section select:focus, .form-section input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); }
         .ref-row { display: flex; gap: 8px; }
-        .ref-row input { flex: 1; background: #f9fafb; }
-        .gen-btn { padding: 8px 12px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 12px; }
-        .gen-btn:hover { background: #e5e5e5; }
+        .ref-row input { flex: 1; background: #f5f5f5; }
+        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; }
+        .gen-btn:hover { background: #f5f5f5; }
         .item-grid { display: grid; grid-template-columns: 2fr 1fr 60px; gap: 10px; }
-        .item-field label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; }
+        .item-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
         .breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .breakdown-field label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; }
+        .breakdown-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
         .breakdown-field.full-width { grid-column: span 2; }
-        .order-preview h3 { font-size: 13px; margin: 0 0 10px 0; }
-        .preview-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 12px; border: 2px solid #25D366; }
-        .preview-header { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px; font-weight: 600; font-size: 13px; }
-        .wa-icon { font-size: 16px; }
-        .preview-body { background: #dcfce7; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
-        .preview-section { margin-bottom: 12px; padding: 10px; background: #f9fafb; border-radius: 6px; }
-        .section-title { font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
-        .cart-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
-        .cart-item.conv-fee { color: #666; font-style: italic; }
-        .breakdown-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
-        .preview-total { display: flex; justify-content: space-between; padding: 10px; background: #25D366; color: #fff; border-radius: 6px; font-size: 16px; font-weight: 600; }
-        .preview-config { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
-        .preview-config small { color: #666; font-size: 11px; }
-        .send-btn { width: 100%; padding: 12px; background: #25D366; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .send-btn:hover:not(:disabled) { background: #128C7E; }
-        .send-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .order-preview h3 { font-size: 14px; margin: 0 0 10px 0; font-weight: 600; }
+        .preview-card { background: #fff; border-radius: 13px; padding: 16px; margin-bottom: 12px; border: 1px solid #000; }
+        .preview-header { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #e5e5e5; margin-bottom: 10px; font-weight: 600; font-size: 14px; }
+        .wa-icon { font-size: 12px; background: #000; color: #fff; padding: 2px 6px; border-radius: 4px; }
+        .preview-body { background: #f5f5f5; padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; color: #000; }
+        .preview-section { margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 10px; }
+        .section-title { font-size: 10px; color: #4a4a4a; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+        .cart-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+        .cart-item.conv-fee { color: #4a4a4a; font-style: italic; }
+        .breakdown-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+        .preview-total { display: flex; justify-content: space-between; padding: 10px; background: #000; color: #fff; border-radius: 10px; font-size: 16px; font-weight: 600; }
+        .preview-config { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e5e5; }
+        .preview-config small { color: #4a4a4a; font-size: 11px; }
+        .send-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .send-btn:hover:not(:disabled) { background: #f5f5f5; }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         @media (max-width: 800px) { .pay-layout { grid-template-columns: 1fr; } .item-grid { grid-template-columns: 1fr; } .breakdown-grid { grid-template-columns: 1fr; } .breakdown-field.full-width { grid-column: span 1; } }
       `}</style>
     </Layout>
