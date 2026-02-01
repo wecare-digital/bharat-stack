@@ -724,7 +724,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); }}
           title="Insert Variable"
         >
-          <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path stroke="#10B981" strokeMiterlimit="10" strokeWidth="1.5" d="M21.51 7.25 8 20.78l-5.5.72.72-5.5L16.75 2.49a3.34 3.34 0 0 1 2.38-1 3.37 3.37 0 0 1 3.37 3.38 3.34 3.34 0 0 1-.99 2.38Zm-6.63-2.89 4.76 4.76"/><path stroke="#10B981" strokeMiterlimit="10" strokeWidth="1.5" fill="none" d="m8 20.77-5.5.73.72-5.5a6.6 6.6 0 0 1 3 1.74A6.6 6.6 0 0 1 8 20.77Zm9.26-14.03-11 11"/></svg>
+          <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M5 4C2.5 9 2.5 14 5 20M19 4c2.5 5 2.5 10 0 16M9 9h1c1 0 1 1 2.016 3.527C13 15 13 16 14 16h1"/><path d="M8 16c1.5 0 3-2 4-3.5S14.5 9 16 9"/></svg>
         </button>
 
         {/* Formatting Button (WhatsApp only) */}
@@ -735,7 +735,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowFormatting(!showFormatting); setShowTemplates(false); setShowVariables(false); setShowPaymentDialog(false); }}
             title="Formatting"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7c0-.932 0-1.398.152-1.765a2 2 0 0 1 1.083-1.083C5.602 4 6.068 4 7 4h10c.932 0 1.398 0 1.765.152a2 2 0 0 1 1.083 1.083C20 5.602 20 6.068 20 7M9 20h6M12 4v16"/></svg>
           </button>
         )}
 
