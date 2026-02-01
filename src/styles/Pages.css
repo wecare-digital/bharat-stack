@@ -2,6 +2,7 @@
  * Pages Styles - WECARE.DIGITAL
  * Unified Theme System - Black/White/Grey
  * Clean Compact Design with Enhanced Responsive UX
+ * v4.0 - Page Transitions & Centralized Layout
  */
 
 /* ========================================
@@ -27,6 +28,7 @@
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
+  --transition-page: 0.25s ease-out;
   
   /* Colors - Clean Emerald Theme (black text) */
   --color-primary: #10b981;
@@ -62,19 +64,65 @@
   --font-bold: 700;
 }
 
+/* ========================================
+   PAGE TRANSITIONS - Smooth animations
+   ======================================== */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes contentFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Page Container */
-.page { padding: 0; }
+.page { 
+  padding: 0;
+  animation: pageEnter var(--transition-page);
+}
 
 .page-container {
   min-height: 100vh;
   background: #f7f6f3;
+  animation: contentFadeIn 0.2s ease-out;
 }
 
 .page-content {
   padding: var(--page-padding-desktop);
   max-width: var(--page-max-width);
   margin: 0 auto;
+  animation: contentFadeIn 0.25s ease-out 0.05s backwards;
 }
+
+/* Section stagger animation */
+.section {
+  animation: contentFadeIn 0.3s ease-out backwards;
+}
+
+.section:nth-child(1) { animation-delay: 0.08s; }
+.section:nth-child(2) { animation-delay: 0.12s; }
+.section:nth-child(3) { animation-delay: 0.16s; }
+.section:nth-child(4) { animation-delay: 0.2s; }
+
+/* Stat card stagger */
+.stat-card {
+  animation: contentFadeIn 0.25s ease-out backwards;
+}
+
+.stats-grid .stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stats-grid .stat-card:nth-child(2) { animation-delay: 0.08s; }
+.stats-grid .stat-card:nth-child(3) { animation-delay: 0.11s; }
+.stats-grid .stat-card:nth-child(4) { animation-delay: 0.14s; }
+.stats-grid .stat-card:nth-child(5) { animation-delay: 0.17s; }
+.stats-grid .stat-card:nth-child(6) { animation-delay: 0.2s; }
 
 @media (max-width: 1024px) {
   .page-content {
@@ -88,18 +136,20 @@
   }
 }
 
-/* Page Header */
+/* Page Header - Centralized with better spacing */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   gap: 16px;
   flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: #000000;
   margin: 0;
@@ -108,7 +158,7 @@
 
 .header-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -130,7 +180,7 @@
 
 /* ========================================
    BUTTONS - Unified Style System
-   White bg, black border, 13px radius
+   Emerald theme, 13px radius, consistent sizing
    ======================================== */
 
 /* Base Button Styles */
@@ -143,7 +193,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   min-height: 44px;
   font-family: var(--font-sans);
   font-size: var(--text-md);
@@ -154,28 +204,49 @@
   transition: all var(--transition-fast);
   white-space: nowrap;
   background: var(--color-bg);
-  color: #1a1a1a;
-  border: 1px solid #e5e7eb;
+  color: #374151;
+  border: 1.5px solid #d1d5db;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* All buttons have emerald hover - gradient effect with black text */
+/* Default hover for all buttons */
 .btn:hover,
-.btn-primary:hover,
 .btn-secondary:hover,
 .btn-outline:hover,
 .refresh-btn:hover {
-  border-color: var(--color-border);
-  background: var(--color-bg-secondary);
+  background: #f9fafb;
+  border-color: #9ca3af;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* All buttons have same active state - darker gradient */
+/* Default active for all buttons */
 .btn:active,
-.btn-primary:active,
 .btn-secondary:active,
 .btn-outline:active,
 .refresh-btn:active {
-  background: var(--color-bg-secondary);
+  background: #f3f4f6;
+  border-color: #6b7280;
   transform: scale(0.98);
+}
+
+/* PRIMARY BUTTON - Main CTA (Emerald) */
+.btn-primary {
+  background: #10B981;
+  color: #ffffff;
+  border: 1.5px solid #10B981;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
+
+.btn-primary:hover {
+  background: #059669;
+  border-color: #059669;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.btn-primary:active {
+  background: #047857;
+  border-color: #047857;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
 }
 
 /* Active/Selected Button State */
@@ -183,8 +254,9 @@
 .btn-primary.active,
 .btn-secondary.active,
 .btn-outline.active {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border);
+  background: #d1fae5;
+  border-color: #10B981;
+  color: #065f46;
   font-weight: var(--font-semibold);
 }
 
@@ -192,7 +264,7 @@
 .btn-primary.active:hover,
 .btn-secondary.active:hover,
 .btn-outline.active:hover {
-  background: var(--color-bg-secondary);
+  background: #a7f3d0;
 }
 
 /* Disabled state */
@@ -201,10 +273,10 @@
 .btn-secondary:disabled,
 .btn-outline:disabled,
 .refresh-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
-  background: var(--color-bg);
+  box-shadow: none;
 }
 
 /* Small button variant */
@@ -217,7 +289,7 @@
 
 /* Large button variant */
 .btn-lg {
-  padding: 14px 24px;
+  padding: 14px 28px;
   min-height: 52px;
   font-size: var(--text-base);
   border-radius: 16px;
@@ -241,18 +313,19 @@
 .btn-danger {
   background: var(--color-bg);
   color: var(--color-danger);
-  border: 1px solid var(--color-danger);
+  border: 1.5px solid var(--color-danger);
 }
 
 .btn-danger:hover {
   background: #fef2f2;
+  border-color: #b91c1c;
 }
 
 /* Success button - outline style */
 .btn-success {
   background: var(--color-bg);
   color: var(--color-success);
-  border: 1px solid var(--color-success);
+  border: 1.5px solid var(--color-success);
 }
 
 .btn-success:hover {
@@ -267,13 +340,14 @@
   padding: 8px 12px;
   min-height: auto;
   font-weight: var(--font-medium);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
+  box-shadow: none;
 }
 
 .btn-link:hover {
   color: var(--color-secondary);
   background: transparent;
+  text-decoration: underline;
 }
 
 /* Button group */
@@ -285,7 +359,7 @@
 .btn-group .btn,
 .btn-group .btn-secondary {
   border-radius: 0;
-  margin-left: -1px;
+  margin-left: -1.5px;
 }
 
 .btn-group .btn:first-child,
@@ -496,18 +570,19 @@
   }
 }
 
-/* Section - Clean Card Style */
+/* Section - Clean Card Style with Centralized Layout */
 .section {
   background: #fff;
   border-radius: var(--card-radius);
   padding: 24px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   border: 1px solid var(--color-border);
-  transition: box-shadow var(--transition-fast);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .section:hover {
   box-shadow: var(--shadow-sm);
+  border-color: #d1d5db;
 }
 
 .section.full-width {
@@ -518,7 +593,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -538,7 +615,7 @@
 }
 
 .view-all-link, .link {
-  color: #6b7280;
+  color: #10b981;
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -735,12 +812,14 @@
   color: var(--danger);
 }
 
-/* Tabs - Consistent Button Style */
+/* Tabs - Consistent Button Style with Emerald Theme */
 .tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
-  padding-bottom: 0;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: #f9fafb;
+  border-radius: 14px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -755,15 +834,15 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   min-height: 44px;
-  background: var(--color-bg);
-  border: 1px solid #e5e7eb;
-  border-radius: var(--btn-radius);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
   font-family: var(--font-sans);
   font-size: var(--text-md);
   font-weight: var(--font-medium);
-  color: #4b5563;
+  color: #6b7280;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
@@ -771,8 +850,9 @@
 }
 
 .tab:hover {
-  border-color: var(--color-border);
-  background: var(--color-bg-secondary);
+  background: #ffffff;
+  color: #374151;
+  border-color: #e5e7eb;
 }
 
 .tab:active {
@@ -781,45 +861,42 @@
 }
 
 .tab.active {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border);
+  background: #ffffff;
+  border-color: #10B981;
+  color: #065f46;
   font-weight: var(--font-semibold);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
 }
 
 .tab.active:hover {
-  background: var(--color-bg-secondary);
+  background: #f0fdf4;
 }
 
-.tab.active:hover {
-  background: #065f46;
-  border-color: #065f46;
-}
-
-/* Form Styles - Unified */
+/* Form Styles - Unified with Emerald Focus */
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 20px;
 }
 
 .form-group label {
   font-family: var(--font-sans);
   font-size: var(--text-md);
   font-weight: var(--font-medium);
-  color: var(--color-primary);
+  color: #374151;
 }
 
 .form-group select, 
 .form-group input, 
 .form-group textarea {
-  padding: 12px 14px;
-  border: 1px solid var(--color-primary);
+  padding: 12px 16px;
+  border: 1.5px solid #d1d5db;
   border-radius: var(--btn-radius);
   font-family: var(--font-sans);
   font-size: var(--text-md);
   background: var(--color-bg);
-  color: var(--color-primary);
+  color: #111827;
   transition: all var(--transition-fast);
   min-height: 44px;
 }
@@ -827,15 +904,15 @@
 .form-group select:hover,
 .form-group input:hover,
 .form-group textarea:hover {
-  background: var(--color-bg-secondary);
+  border-color: #10B981;
 }
 
 .form-group select:focus, 
 .form-group input:focus, 
 .form-group textarea:focus {
   outline: none;
-  background: var(--color-bg);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 .form-group textarea {
@@ -846,8 +923,10 @@
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
   flex-wrap: wrap;
 }
 
@@ -2720,17 +2799,21 @@
 .page-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .page-header-icon {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #000000;
+  color: #10B981;
+  background: #f0fdf4;
+  border-radius: 10px;
 }
 
 .page-header-icon svg {
@@ -2744,32 +2827,33 @@
 
 .page-header h1,
 .page-header .page-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: var(--font-bold);
-  color: #000000;
+  color: #111827;
   margin: 0;
   letter-spacing: -0.5px;
 }
 
 .page-header p,
 .page-header .page-subtitle {
-  font-size: 21px;
-  color: #4a4a4a;
+  font-size: 15px;
+  color: #6b7280;
   margin: 4px 0 0 0;
 }
 
 .back-link {
-  color: #4a4a4a;
+  color: #6b7280;
   text-decoration: none;
-  font-size: 15px;
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  transition: color var(--transition-fast);
 }
 
 .back-link:hover {
-  color: #000000;
+  color: #10B981;
 }
 
 
@@ -3040,25 +3124,27 @@ pre code {
 
 /* ========================================
    HUB PAGES - Enhanced Responsive Design
+   Centralized layout with smooth transitions
    ======================================== */
 
 .hub-page {
   padding: var(--page-padding-desktop);
   max-width: 800px;
   margin: 0 auto;
+  animation: pageEnter var(--transition-page);
 }
 
 .hub-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  max-width: 540px;
+  gap: 20px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
 .hub-grid.hub-grid-2 {
   grid-template-columns: repeat(2, 1fr);
-  max-width: 360px;
+  max-width: 400px;
 }
 
 .hub-card {
@@ -3066,17 +3152,25 @@ pre code {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
-  background: var(--color-bg-secondary);
+  padding: 36px 24px;
+  background: #ffffff;
   border-radius: var(--card-radius);
   text-decoration: none;
-  color: #000;
-  transition: all var(--transition-normal);
-  border: 1px solid transparent;
-  min-height: 120px;
+  color: #111827;
+  transition: all 0.2s ease;
+  border: 1.5px solid #e5e7eb;
+  min-height: 140px;
   position: relative;
   overflow: hidden;
+  animation: contentFadeIn 0.3s ease-out backwards;
 }
+
+.hub-card:nth-child(1) { animation-delay: 0.05s; }
+.hub-card:nth-child(2) { animation-delay: 0.1s; }
+.hub-card:nth-child(3) { animation-delay: 0.15s; }
+.hub-card:nth-child(4) { animation-delay: 0.2s; }
+.hub-card:nth-child(5) { animation-delay: 0.25s; }
+.hub-card:nth-child(6) { animation-delay: 0.3s; }
 
 .hub-card::before {
   content: '';
@@ -3084,20 +3178,20 @@ pre code {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: transparent;
   transition: background var(--transition-fast);
 }
 
 .hub-card:hover {
-  background: #fff;
-  border-color: var(--color-border);
+  background: #f0fdf4;
+  border-color: #10B981;
   transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 24px rgba(16, 185, 129, 0.15);
 }
 
 .hub-card:hover::before {
-  background: #000;
+  background: #10B981;
 }
 
 .hub-card:active {
@@ -3105,28 +3199,29 @@ pre code {
 }
 
 .hub-card .hub-icon {
-  margin-bottom: 12px;
-  color: #000;
+  margin-bottom: 14px;
+  color: #111827;
   transition: transform var(--transition-fast);
 }
 
 .hub-card:hover .hub-icon {
   transform: scale(1.1);
+  color: #10B981;
 }
 
 .hub-card .hub-label {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   text-align: center;
 }
 
 .hub-card .hub-sublabel {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-/* Hub card variants - all use black on hover */
+/* Hub card variants - emerald accent on hover */
 .hub-card.hub-card-whatsapp:hover::before,
 .hub-card.hub-card-sms:hover::before,
 .hub-card.hub-card-email:hover::before,
@@ -3189,26 +3284,30 @@ pre code {
 
 /* ========================================
    DASHBOARD TABS - Consistent Button Style
+   Emerald theme with smooth transitions
    ======================================== */
 
 .dash {
   padding: var(--page-padding-desktop);
   max-width: var(--page-max-width);
   margin: 0 auto;
+  animation: pageEnter var(--transition-page);
 }
 
 .dash-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .dash-brand h1 {
   font-size: 28px;
   font-weight: 700;
-  color: #000;
+  color: #111827;
   margin: 0;
 }
 
@@ -3243,7 +3342,7 @@ pre code {
   width: 44px;
   height: 44px;
   border-radius: var(--btn-radius);
-  border: 1px solid var(--color-primary);
+  border: 1.5px solid #d1d5db;
   background: var(--color-bg);
   font-size: 18px;
   cursor: pointer;
@@ -3251,19 +3350,22 @@ pre code {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #374151;
 }
 
 .refresh-btn:hover {
-  background: var(--color-bg-hover);
+  background: #f0fdf4;
+  border-color: #10B981;
+  color: #10B981;
 }
 
 .refresh-btn:active {
-  background: var(--color-bg-active);
+  background: #d1fae5;
   transform: scale(0.98);
 }
 
 .refresh-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
 }
@@ -3273,7 +3375,9 @@ pre code {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
-  padding-bottom: 0;
+  padding: 4px;
+  background: #f9fafb;
+  border-radius: 14px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -3289,15 +3393,15 @@ pre code {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   min-height: 44px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--btn-radius);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
   font-family: var(--font-sans);
   font-size: var(--text-md);
   font-weight: var(--font-medium);
-  color: var(--color-primary);
+  color: #6b7280;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
@@ -3305,23 +3409,26 @@ pre code {
 }
 
 .dash-tabs .tab:hover {
-  background: var(--color-bg-hover);
+  background: #ffffff;
+  color: #374151;
+  border-color: #e5e7eb;
 }
 
 .dash-tabs .tab:active {
-  background: var(--color-bg-active);
+  background: #d1fae5;
   transform: scale(0.98);
 }
 
 .dash-tabs .tab.active {
-  background: var(--color-bg-hover);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: #ffffff;
+  color: #065f46;
+  border-color: #10B981;
   font-weight: var(--font-semibold);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
 }
 
 .dash-tabs .tab.active:hover {
-  background: var(--color-bg-active);
+  background: #f0fdf4;
 }
 
 .dash-tabs .tab svg {
@@ -3913,40 +4020,41 @@ pre code {
 
 
 /* ========================================
-   SEARCH BAR - Unified Style
+   SEARCH BAR - Unified Style with Emerald Focus
    ======================================== */
 
 .search-bar {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .search-bar .search-input,
 .search-input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid var(--color-primary);
+  border: 1.5px solid #d1d5db;
   border-radius: var(--btn-radius);
   font-family: var(--font-sans);
   font-size: var(--text-md);
   background: var(--color-bg);
-  color: var(--color-primary);
+  color: #111827;
   transition: all var(--transition-fast);
+  min-height: 44px;
 }
 
 .search-bar .search-input:hover,
 .search-input:hover {
-  background: var(--color-bg-hover);
+  border-color: #10B981;
 }
 
 .search-bar .search-input:focus,
 .search-input:focus {
   outline: none;
-  background: var(--color-bg);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 /* ========================================
-   MODAL - Unified Style
+   MODAL - Unified Style with Smooth Transitions
    ======================================== */
 
 .modal-overlay {
@@ -3961,6 +4069,7 @@ pre code {
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  animation: contentFadeIn 0.15s ease-out;
 }
 
 .modal {
@@ -3970,16 +4079,19 @@ pre code {
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
-  padding: 24px;
+  padding: 28px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: pageEnter 0.2s ease-out;
 }
 
 .modal h2 {
   font-family: var(--font-sans);
   font-size: 20px;
   font-weight: var(--font-semibold);
-  color: var(--color-primary);
-  margin: 0 0 20px 0;
+  color: #111827;
+  margin: 0 0 24px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .modal.large {
@@ -4079,4 +4191,34 @@ pre code {
   font-size: 12px;
   color: #6b6b6b;
   margin-top: 4px;
+}
+
+/* ========================================
+   REDUCED MOTION - Accessibility
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .page-container,
+  .page-content,
+  .hub-page,
+  .dash,
+  .section,
+  .stat-card,
+  .hub-card,
+  .modal-overlay,
+  .modal {
+    animation: none !important;
+  }
+  
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline,
+  .refresh-btn,
+  .tab,
+  .hub-card,
+  .action-card,
+  .quick-action-card {
+    transition: none !important;
+  }
 }

@@ -444,6 +444,18 @@ input, textarea, select {
   background: #ffffff;
   min-height: 100vh;
   color: #000000;
+  animation: mainContentEnter 0.25s ease-out;
+}
+
+@keyframes mainContentEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Mobile Menu Toggle */

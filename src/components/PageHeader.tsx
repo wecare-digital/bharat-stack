@@ -1,6 +1,7 @@
 /**
  * PageHeader Component - WECARE.DIGITAL
  * Consistent page headers with icons matching sidebar
+ * Centralized layout with improved UX
  */
 import React from 'react';
 import Link from 'next/link';
@@ -32,7 +33,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           {backLabel}
         </Link>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
         {Icon && (
           <div className="page-header-icon">
             <Icon size={24} />

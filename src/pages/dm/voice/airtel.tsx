@@ -191,21 +191,15 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
         />
 
         {/* Info Banner */}
-        <div style={{
-          background: '#ffffff',
-          color: '#111827',
-          padding: '16px 20px',
-          borderRadius: '12px',
-          marginBottom: '24px',
+        <div className="info-banner" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px',
-          border: '1px solid #10B981'
+          gap: '12px'
         }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: '16px', color: '#111827' }}>Inbound Number: +91 9319767034</div>
+            <div style={{ fontWeight: 600, fontSize: '16px', color: '#065f46' }}>Inbound Number: +91 9319767034</div>
             <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
               Email: voice@wecare.digital | Cloud Communication Platform
             </div>
@@ -221,11 +215,11 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         {/* Tabs */}
-        <div className="tabs-nav" style={{ marginBottom: '24px', display: 'flex', gap: '8px' }}>
+        <div className="tabs" style={{ marginBottom: '24px' }}>
           {(['cdr', 'stats', 'dialer'] as TabType[]).map(tab => (
             <button
               key={tab}
-              className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+              className={`tab ${activeTab === tab ? 'active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
               {tab === 'cdr' && 'CDR Logs'}
@@ -595,15 +589,12 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
         )}
 
         {/* CDR Field Reference */}
-        <div style={{
+        <div className="info-banner" style={{
           marginTop: '24px',
-          padding: '16px',
-          background: '#ECFDF5',
-          borderRadius: '13px',
           borderLeft: '4px solid #10B981'
         }}>
           <strong>CDR Webhook</strong>
-          <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#666' }}>
+          <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#6b7280' }}>
             Webhook receives CDR data including: vmSessionId, clientCorrelationId, callType, overallCallStatus, 
             duration fields, caller/destination numbers, circle/operator info, and recording URLs.
           </p>

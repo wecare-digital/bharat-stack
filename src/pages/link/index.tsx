@@ -6,7 +6,8 @@ import React from 'react';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
-import { LinkIcon, CreateIcon, LogsIcon } from '../../lib/icons';
+import SEO from '../../components/SEO';
+import { CreateIcon, LogsIcon } from '../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
@@ -16,6 +17,10 @@ interface PageProps {
 const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
+      <SEO 
+        title="Link | WECARE.DIGITAL"
+        description="Create and manage shareable links"
+      />
       <div className="hub-page">
         <PageHeader 
           title="Link" 
@@ -23,27 +28,17 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
           icon="link"
         />
 
-        <div className="actions-grid">
-          <Link href="/link/create" className="action-card">
-            <span className="icon"><CreateIcon size={28} /></span>
-            <span>Create</span>
+        <div className="hub-grid hub-grid-2">
+          <Link href="/link/create" className="hub-card">
+            <span className="hub-icon"><CreateIcon size={32} /></span>
+            <span className="hub-label">Create</span>
           </Link>
-          <Link href="/link/logs" className="action-card">
-            <span className="icon"><LogsIcon size={28} /></span>
-            <span>Logs</span>
+          <Link href="/link/logs" className="hub-card">
+            <span className="hub-icon"><LogsIcon size={32} /></span>
+            <span className="hub-label">Logs</span>
           </Link>
         </div>
       </div>
-
-      <style jsx>{`
-        .hub-page { padding: 24px; }
-        .actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 300px; margin: 0 auto; }
-        .action-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #fff; border-radius: 12px; text-decoration: none; color: #111827; transition: all 0.2s ease; border: 1px solid #e5e7eb; }
-        .action-card:hover { background: #ecfdf5; border-color: #10b981; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16,185,129,0.15); }
-        .action-card .icon { margin-bottom: 8px; color: #111827; }
-        .action-card span:last-child { font-size: 14px; font-weight: 500; }
-        @media (max-width: 480px) { .hub-page { padding: 16px; } .actions-grid { gap: 12px; } .action-card { padding: 20px 12px; } }
-      `}</style>
     </Layout>
   );
 };
