@@ -128,13 +128,13 @@
   cursor: not-allowed;
 }
 
-/* Tabs - Notion Style - Two rows centered */
+/* Tabs - Chip/Pill Style */
 .dash-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, auto);
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-sm) var(--space-md);
-  padding: var(--space-md) var(--space-xl);
+  gap: 8px;
+  padding: 16px 24px;
   background: var(--notion-bg);
   border-bottom: 1px solid var(--notion-border);
 }
@@ -142,27 +142,29 @@
 .dash-tabs .tab {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-md);
-  font-size: 16px;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  border-radius: 20px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
 }
 
 .dash-tabs .tab:hover {
-  background: var(--notion-bg-hover);
-  color: var(--notion-text);
+  background: #f5f5f5;
+  border-color: #d5d5d5;
+  color: #000;
 }
 
 .dash-tabs .tab.active {
-  background: #f0f0f0;
-  color: #000000;
+  background: #000;
+  border-color: #000;
+  color: #fff;
   font-weight: 600;
 }
 
@@ -1066,12 +1068,12 @@
     height: 40px;
   }
   
-  /* Tabs - horizontal scroll on mobile */
+  /* Tabs - chip style on mobile */
   .dash-tabs {
     display: flex;
     flex-wrap: nowrap;
-    padding: 8px 12px;
-    gap: 4px;
+    padding: 12px 16px;
+    gap: 6px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -1083,9 +1085,9 @@
   }
   
   .dash-tabs .tab {
-    padding: 10px 12px;
-    font-size: 14px;
-    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 12px;
+    min-height: 36px;
     white-space: nowrap;
     flex-shrink: 0;
   }
