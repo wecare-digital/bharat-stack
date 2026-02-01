@@ -47,6 +47,30 @@ LAMBDAS = [
             'PAYMENTS_TABLE': 'base-wecare-digital-PaymentsTable',
         }
     },
+    {
+        'name': 'wecare-voice-cdr-webhook',
+        'handler': 'handler.handler',
+        'runtime': 'python3.12',
+        'timeout': 30,
+        'memory': 256,
+        'source': 'amplify/functions/messaging/voice-cdr-webhook/handler.py',
+        'env': {
+            'LOG_LEVEL': 'INFO',
+            'VOICE_CDR_TABLE': 'base-wecare-digital-VoiceCDRTable',
+        }
+    },
+    {
+        'name': 'wecare-voice-cdr-read',
+        'handler': 'handler.handler',
+        'runtime': 'python3.12',
+        'timeout': 30,
+        'memory': 256,
+        'source': 'amplify/functions/messaging/voice-cdr-read/handler.py',
+        'env': {
+            'LOG_LEVEL': 'INFO',
+            'VOICE_CDR_TABLE': 'base-wecare-digital-VoiceCDRTable',
+        }
+    },
 ]
 
 def create_zip(source_file):

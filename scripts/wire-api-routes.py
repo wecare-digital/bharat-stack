@@ -31,6 +31,10 @@ ROUTES = [
     {'path': '/voice/calls/{callId}', 'method': 'GET', 'lambda': 'wecare-voice-calls'},
     {'path': '/voice/call', 'method': 'POST', 'lambda': 'wecare-voice-calls'},
     
+    # Voice CDR (Airtel)
+    {'path': '/voice-cdr-webhook', 'method': 'POST', 'lambda': 'wecare-voice-cdr-webhook'},
+    {'path': '/voice-cdr-read', 'method': 'GET', 'lambda': 'wecare-voice-cdr-read'},
+    
     # Bulk Jobs
     {'path': '/bulk/jobs', 'method': 'GET', 'lambda': 'wecare-bulk-job-create'},
     {'path': '/bulk/jobs', 'method': 'POST', 'lambda': 'wecare-bulk-job-create'},
