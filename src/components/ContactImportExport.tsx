@@ -1,26 +1,17 @@
 /**
  * Contact Import/Export Component
- * CSV import, Google Contacts import, and export functionality
+ * CSV import and export functionality
  */
 
 import React, { useState, useRef } from 'react';
 import * as api from '../api/client';
-
-// Google API Client ID - Replace with your own from Google Cloud Console
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 interface ContactImportExportProps {
   contacts: api.Contact[];
   onImportComplete?: () => void;
 }
 
-type ImportTab = 'csv' | 'google' | 'manual';
-
-interface GoogleContact {
-  name: string;
-  phone: string;
-  email: string;
-}
+type ImportTab = 'csv' | 'manual';
 
 const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onImportComplete }) => {
   const [activeTab, setActiveTab] = useState<ImportTab>('csv');
@@ -30,19 +21,12 @@ const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onI
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Google Contacts state
-  const [googleContacts, setGoogleContacts] = useState<GoogleContact[]>([]);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState<string | null>(null);
-  const [selectedGoogleContacts, setSelectedGoogleContacts] = useState<Set<number>>(new Set());
-  
   // Manual entry state
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
   const [manualEmail, setManualEmail] = useState('');
   const [manualOptInWA, setManualOptInWA] = useState(true);
   const [manualSaving, setManualSaving] = useState(false);
-
 
   // CSV file handling
   const handleFileSelect = async (file: File) => {
@@ -102,7 +86,6 @@ const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onI
     return contacts;
   };
 
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -139,114 +122,6 @@ const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onI
       fileInputRef.current.value = '';
     }
   };
-
-  // Google Contacts OAuth flow
-  const handleGoogleImport = async () => {
-    if (!GOOGLE_CLIENT_ID) {
-      setGoogleError('Google API not configured. Please export contacts from Google as CSV/VCF and use CSV import.');
-      return;
-    }
-    
-    setGoogleLoading(true);
-    setGoogleError(null);
-    
-    try {
-      // Load Google API
-      const gapi = (window as any).gapi;
-      if (!gapi) {
-        // Load Google API script
-        await loadGoogleAPI();
-      }
-      
-      // Initialize and sign in
-      await initGoogleAuth();
-      const contacts = await fetchGoogleContacts();
-      setGoogleContacts(contacts);
-      setSelectedGoogleContacts(new Set(contacts.map((_, i) => i)));
-    } catch (err: any) {
-      console.error('Google import error:', err);
-      setGoogleError(err.message || 'Failed to connect to Google. Try exporting as CSV instead.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-
-  const loadGoogleAPI = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if ((window as any).gapi) {
-        resolve();
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Google API'));
-      document.body.appendChild(script);
-    });
-  };
-
-  const initGoogleAuth = async () => {
-    const gapi = (window as any).gapi;
-    await new Promise<void>((resolve) => gapi.load('client:auth2', resolve));
-    
-    await gapi.client.init({
-      clientId: GOOGLE_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/contacts.readonly',
-      discoveryDocs: ['https://people.googleapis.com/$discovery/rest?version=v1'],
-    });
-    
-    const auth = gapi.auth2.getAuthInstance();
-    if (!auth.isSignedIn.get()) {
-      await auth.signIn();
-    }
-  };
-
-  const fetchGoogleContacts = async (): Promise<GoogleContact[]> => {
-    const gapi = (window as any).gapi;
-    const response = await gapi.client.people.people.connections.list({
-      resourceName: 'people/me',
-      pageSize: 500,
-      personFields: 'names,phoneNumbers,emailAddresses',
-    });
-    
-    const connections = response.result.connections || [];
-    return connections
-      .filter((person: any) => person.phoneNumbers?.length > 0 || person.emailAddresses?.length > 0)
-      .map((person: any) => ({
-        name: person.names?.[0]?.displayName || '',
-        phone: person.phoneNumbers?.[0]?.value?.replace(/[^\d+]/g, '') || '',
-        email: person.emailAddresses?.[0]?.value || '',
-      }));
-  };
-
-  const importSelectedGoogleContacts = async () => {
-    const selected = googleContacts.filter((_, i) => selectedGoogleContacts.has(i));
-    if (selected.length === 0) return;
-    
-    setImporting(true);
-    try {
-      const contactsToImport = selected.map(c => ({
-        name: c.name,
-        phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}`,
-        email: c.email || undefined,
-        optInWhatsApp: true,
-      }));
-      
-      const result = await api.importContacts(contactsToImport);
-      setImportResult(result);
-      if (result.created > 0 || result.updated > 0) {
-        onImportComplete?.();
-      }
-      setGoogleContacts([]);
-      setSelectedGoogleContacts(new Set());
-    } catch (err) {
-      console.error('Import failed:', err);
-    } finally {
-      setImporting(false);
-    }
-  };
-
 
   // Manual contact entry
   const handleManualAdd = async () => {
@@ -289,23 +164,6 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
     api.downloadFile(template, 'contacts_template.csv', 'text/csv');
   };
 
-  const toggleGoogleContact = (index: number) => {
-    setSelectedGoogleContacts(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  };
-
-  const selectAllGoogle = () => {
-    if (selectedGoogleContacts.size === googleContacts.length) {
-      setSelectedGoogleContacts(new Set());
-    } else {
-      setSelectedGoogleContacts(new Set(googleContacts.map((_, i) => i)));
-    }
-  };
-
   return (
     <div className="import-export-section">
       <div className="section-header">
@@ -329,14 +187,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         >
           CSV/VCF
         </button>
-        <button 
-          className={`import-tab ${activeTab === 'google' ? 'active' : ''}`}
-          onClick={() => setActiveTab('google')}
-        >
-          G Google
-        </button>
       </div>
-
 
       {/* Manual Entry Tab */}
       {activeTab === 'manual' && (
@@ -441,7 +292,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
               Drop CSV or VCF file here or click to browse
             </div>
             <div className="import-zone-hint">
-              Supports: CSV (comma-separated) | VCF (vCard from Google)
+              Supports: CSV (comma-separated) | VCF (vCard)
             </div>
           </div>
 
@@ -491,84 +342,6 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           )}
         </>
       )}
-
-
-      {/* Google Contacts Tab */}
-      {activeTab === 'google' && (
-        <div className="google-import">
-          {googleContacts.length === 0 ? (
-            <>
-              <div className="google-info">
-                <p>Import contacts directly from your Google account, or export from Google Contacts as VCF/CSV.</p>
-                <div className="google-options">
-                  <button 
-                    className="google-btn"
-                    onClick={handleGoogleImport}
-                    disabled={googleLoading}
-                  >
-                    {googleLoading ? 'Connecting...' : 'G Connect Google Account'}
-                  </button>
-                  <span className="or-divider">or</span>
-                  <a 
-                    href="https://contacts.google.com" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="google-link"
-                  >
-                    Export from Google Contacts →
-                  </a>
-                </div>
-                {googleError && <div className="google-error">{googleError}</div>}
-                <div className="google-hint">
-                  <strong>To export from Google:</strong>
-                  <ol>
-                    <li>Go to contacts.google.com</li>
-                    <li>Select contacts or "All contacts"</li>
-                    <li>Click ⋮ → Export → Google CSV or vCard</li>
-                    <li>Use CSV/VCF tab to import the file</li>
-                  </ol>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="google-contacts-list">
-              <div className="preview-header">
-                <h4>{googleContacts.length} contacts found</h4>
-                <button className="clear-btn" onClick={selectAllGoogle}>
-                  {selectedGoogleContacts.size === googleContacts.length ? 'Deselect All' : 'Select All'}
-                </button>
-              </div>
-              
-              <div className="google-contacts-scroll">
-                {googleContacts.map((contact, i) => (
-                  <label key={i} className="google-contact-row">
-                    <input 
-                      type="checkbox"
-                      checked={selectedGoogleContacts.has(i)}
-                      onChange={() => toggleGoogleContact(i)}
-                    />
-                    <div className="google-contact-info">
-                      <span className="google-contact-name">{contact.name || 'No name'}</span>
-                      <span className="google-contact-details">
-                        {contact.phone} {contact.email && `• ${contact.email}`}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              
-              <button 
-                className="import-btn"
-                onClick={importSelectedGoogleContacts}
-                disabled={importing || selectedGoogleContacts.size === 0}
-              >
-                {importing ? 'Importing...' : `Import ${selectedGoogleContacts.size} Contacts`}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
 
       {/* Import Result */}
       {importResult && (
@@ -620,47 +393,42 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           margin: 0;
         }
         .export-btn {
-          background: #f3f4f6;
-          border: 1px solid #e5e7eb;
+          background: #fff;
+          border: 1px solid #000;
           padding: 8px 14px;
-          border-radius: 8px;
+          border-radius: 13px;
           cursor: pointer;
           font-size: 13px;
           transition: all 0.2s;
         }
         .export-btn:hover {
-          background: #e5e7eb;
+          background: #f5f5f5;
         }
         
         /* Tabs */
         .import-tabs {
           display: flex;
-          gap: 4px;
+          gap: 8px;
           margin-bottom: 16px;
-          background: #f3f4f6;
-          padding: 4px;
-          border-radius: 10px;
         }
         .import-tab {
           flex: 1;
           padding: 10px 16px;
-          border: none;
-          background: transparent;
-          border-radius: 8px;
+          border: 1px solid #000;
+          background: #fff;
+          border-radius: 13px;
           cursor: pointer;
           font-size: 13px;
           font-weight: 500;
-          color: #6b7280;
+          color: #000;
           transition: all 0.2s;
         }
         .import-tab:hover {
-          color: #374151;
+          background: #f5f5f5;
         }
         .import-tab.active {
-          background: #fff;
-          color: #000;
+          background: #f5f5f5;
           font-weight: 600;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
         /* Manual Entry */
@@ -682,17 +450,16 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .form-field label {
           font-size: 12px;
           font-weight: 500;
-          color: #6b7280;
+          color: #4a4a4a;
         }
         .form-field input {
           padding: 10px 12px;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
+          border: 1px solid #000;
+          border-radius: 13px;
           font-size: 14px;
         }
         .form-field input:focus {
           outline: none;
-          border-color: #000;
           box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
         }
         .checkbox-inline {
@@ -709,9 +476,9 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
 
         /* CSV Format Info */
         .csv-format-info {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
+          background: #f5f5f5;
+          border: 1px solid #e5e5e5;
+          border-radius: 13px;
           padding: 14px;
           margin-bottom: 16px;
         }
@@ -722,14 +489,14 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           margin-bottom: 12px;
           font-size: 13px;
           font-weight: 600;
-          color: #374151;
+          color: #000;
         }
         .template-download-btn {
           background: #fff;
           color: #000;
           border: 1px solid #000;
           padding: 6px 12px;
-          border-radius: 8px;
+          border-radius: 13px;
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
@@ -749,14 +516,14 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .format-table th {
           text-align: left;
           padding: 6px 8px;
-          background: #e5e7eb;
+          background: #e5e5e5;
           font-weight: 600;
-          color: #374151;
+          color: #000;
         }
         .format-table td {
           padding: 6px 8px;
-          border-bottom: 1px solid #e5e7eb;
-          color: #6b7280;
+          border-bottom: 1px solid #e5e5e5;
+          color: #4a4a4a;
         }
         .format-table td:first-child {
           font-family: monospace;
@@ -765,16 +532,15 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         }
         .format-note {
           font-size: 11px;
-          color: #9ca3af;
+          color: #6b6b6b;
           margin-top: 8px;
           font-style: italic;
         }
-
         
         /* Import Zone */
         .import-zone {
-          border: 2px dashed #e5e7eb;
-          border-radius: 12px;
+          border: 2px dashed #e5e5e5;
+          border-radius: 13px;
           padding: 32px;
           text-align: center;
           cursor: pointer;
@@ -791,12 +557,12 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .import-zone-text {
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: #000;
           margin-bottom: 4px;
         }
         .import-zone-hint {
           font-size: 12px;
-          color: #9ca3af;
+          color: #6b6b6b;
         }
         
         /* Preview */
@@ -817,12 +583,12 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .clear-btn {
           background: none;
           border: none;
-          color: #6b7280;
+          color: #6b6b6b;
           cursor: pointer;
           font-size: 13px;
         }
         .clear-btn:hover {
-          color: #ef4444;
+          color: #dc2626;
         }
         .preview-table {
           overflow-x: auto;
@@ -836,18 +602,18 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .preview-table th {
           text-align: left;
           padding: 8px;
-          background: #f9fafb;
-          border-bottom: 1px solid #e5e7eb;
+          background: #f5f5f5;
+          border-bottom: 1px solid #e5e5e5;
           font-weight: 600;
-          color: #6b7280;
+          color: #4a4a4a;
         }
         .preview-table td {
           padding: 8px;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid #f5f5f5;
         }
         .more-rows {
           text-align: center;
-          color: #9ca3af;
+          color: #6b6b6b;
           font-style: italic;
         }
         
@@ -868,149 +634,22 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           background: #f5f5f5;
         }
         .import-btn:disabled {
-          background: #9ca3af;
-          cursor: not-allowed;
-        }
-
-        
-        /* Google Import */
-        .google-import {
-          padding: 8px 0;
-        }
-        .google-info {
-          text-align: center;
-        }
-        .google-info p {
-          font-size: 14px;
-          color: #6b7280;
-          margin-bottom: 16px;
-        }
-        .google-options {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 16px;
-          margin-bottom: 16px;
-        }
-        .google-btn {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          padding: 12px 20px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 500;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          transition: all 0.2s;
-        }
-        .google-btn:hover:not(:disabled) {
-          border-color: #000;
           background: #f5f5f5;
-        }
-        .google-btn:disabled {
-          opacity: 0.6;
+          color: #999;
+          border-color: #e5e5e5;
           cursor: not-allowed;
         }
-        .or-divider {
-          color: #9ca3af;
-          font-size: 13px;
-        }
-        .google-link {
-          color: #000;
-          font-size: 13px;
-          text-decoration: underline;
-        }
-        .google-link:hover {
-          color: #4a4a4a;
-        }
-        .google-error {
-          background: #fef2f2;
-          color: #dc2626;
-          padding: 10px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          margin-bottom: 16px;
-        }
-        .google-hint {
-          text-align: left;
-          background: #f9fafb;
-          padding: 16px;
-          border-radius: 8px;
-          font-size: 13px;
-          color: #6b7280;
-        }
-        .google-hint strong {
-          display: block;
-          margin-bottom: 8px;
-          color: #374151;
-        }
-        .google-hint ol {
-          margin: 0;
-          padding-left: 20px;
-        }
-        .google-hint li {
-          margin-bottom: 4px;
-        }
-        
-        /* Google Contacts List */
-        .google-contacts-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .google-contacts-scroll {
-          max-height: 300px;
-          overflow-y: auto;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-        }
-        .google-contact-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 12px;
-          cursor: pointer;
-          border-bottom: 1px solid #f3f4f6;
-        }
-        .google-contact-row:hover {
-          background: #f9fafb;
-        }
-        .google-contact-row:last-child {
-          border-bottom: none;
-        }
-        .google-contact-row input {
-          width: 16px;
-          height: 16px;
-        }
-        .google-contact-info {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .google-contact-name {
-          font-size: 14px;
-          font-weight: 500;
-        }
-        .google-contact-details {
-          font-size: 12px;
-          color: #6b7280;
-        }
-
         
         /* Import Result */
         .import-result {
           margin-top: 16px;
           padding: 16px;
-          border-radius: 8px;
+          border-radius: 13px;
           background: #f5f5f5;
-          border: 1px solid #e5e5e5;
+          border: 1px solid #000;
         }
         .import-result.has-errors {
-          background: #fef2f2;
-          border-color: #fecaca;
+          border-color: #dc2626;
         }
         .import-stats {
           display: flex;
@@ -1022,38 +661,34 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         }
         .import-stat-value {
           font-size: 24px;
-          font-weight: 700;
+          font-weight: 600;
           color: #000;
-        }
-        .import-result.has-errors .import-stat-value {
-          color: #dc2626;
         }
         .import-stat-label {
           font-size: 12px;
-          color: #6b7280;
+          color: #4a4a4a;
         }
         .import-errors {
           margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid #e5e5e5;
           font-size: 13px;
           color: #dc2626;
         }
         .import-errors ul {
-          margin: 8px 0 0 20px;
-          padding: 0;
+          margin: 8px 0 0 0;
+          padding-left: 20px;
         }
         .import-errors li {
           margin-bottom: 4px;
         }
-        
+
         @media (max-width: 640px) {
           .form-row {
             flex-direction: column;
           }
-          .google-options {
-            flex-direction: column;
-          }
-          .import-tabs {
-            flex-wrap: wrap;
+          .import-stats {
+            gap: 16px;
           }
         }
       `}</style>

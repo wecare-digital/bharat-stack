@@ -80,7 +80,6 @@ export const navigationConfig: NavItem[] = [
         label: 'WA Board', 
         icon: 'whatsapp',
         children: [
-          { path: '/dm/whatsapp', label: 'WA Inbox', icon: 'inbox' },
           { 
             path: '/dm/whatsapp/templates', 
             label: 'WA Template', 
@@ -90,6 +89,7 @@ export const navigationConfig: NavItem[] = [
               { path: '/dm/whatsapp/welcome', label: 'Welcome', icon: 'welcome' },
             ]
           },
+          { path: '/dm/whatsapp', label: 'WA Inbox', icon: 'inbox' },
         ]
       },
       { 
