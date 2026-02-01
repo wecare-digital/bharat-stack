@@ -1,33 +1,33 @@
 /* ============================================
-   WECARE.DIGITAL Dashboard - Notion + WhatsApp Style
-   Color Scheme: Notion neutrals + WhatsApp green
+   WECARE.DIGITAL Dashboard - Clean Black/White Style
+   Consistent with home page styling
    ============================================ */
 
-/* CSS Variables - Notion + WhatsApp Theme */
+/* CSS Variables - Clean Black/White Theme */
 :root {
-  /* Notion-style neutrals */
+  /* Clean neutrals */
   --notion-bg: #ffffff;
   --notion-bg-secondary: #f7f6f3;
   --notion-bg-hover: #efefef;
-  --notion-text: #37352f;
-  --notion-text-secondary: #787774;
-  --notion-text-light: #9b9a97;
+  --notion-text: #000000;
+  --notion-text-secondary: #4a4a4a;
+  --notion-text-light: #6b6b6b;
   --notion-border: #e9e9e7;
   --notion-border-dark: #d3d3d0;
   
-  /* WhatsApp greens */
+  /* Accent colors - minimal use */
   --wa-green: #25d366;
   --wa-green-dark: #128c7e;
   --wa-green-light: #dcf8c6;
-  --wa-teal: #075e54;
-  --wa-teal-light: #00a884;
+  --wa-teal: #000000;
+  --wa-teal-light: #000000;
   
-  /* Accent colors */
-  --accent-blue: #2383e2;
-  --accent-red: #eb5757;
-  --accent-orange: #ffa344;
-  --accent-yellow: #ffdc49;
-  --accent-purple: #9065b0;
+  /* Accent colors - minimal */
+  --accent-blue: #000000;
+  --accent-red: #dc2626;
+  --accent-orange: #ea580c;
+  --accent-yellow: #ca8a04;
+  --accent-purple: #7c3aed;
   
   /* Spacing */
   --space-xs: 4px;
@@ -160,8 +160,8 @@
 }
 
 .dash-tabs .tab.active {
-  background: var(--wa-green-light);
-  color: var(--wa-teal);
+  background: #f0f0f0;
+  color: #000000;
   font-weight: 600;
 }
 
@@ -208,13 +208,13 @@
 .stat-card .stat-value {
   font-size: 40px;
   font-weight: 700;
-  color: var(--notion-text);
+  color: #000000;
   line-height: 1;
 }
 
 .stat-card .stat-label {
   font-size: 14px;
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   margin-top: var(--space-sm);
   font-weight: 500;
   text-transform: uppercase;
@@ -223,20 +223,20 @@
 
 /* Accent stat cards */
 .stat-card.accent {
-  border-left: 4px solid var(--accent-blue);
+  border-left: 4px solid #000000;
 }
 
 .stat-card.accent2 {
-  border-left: 4px solid var(--wa-green);
+  border-left: 4px solid #4a4a4a;
 }
 
 .stat-card.success {
-  border-left: 4px solid var(--wa-green-dark);
-  background: linear-gradient(135deg, var(--notion-bg) 0%, rgba(37, 211, 102, 0.05) 100%);
+  border-left: 4px solid #16a34a;
+  background: #ffffff;
 }
 
 .stat-card.error {
-  border-left: 4px solid var(--accent-red);
+  border-left: 4px solid #dc2626;
 }
 
 /* Section - Notion Block Style */
@@ -250,7 +250,7 @@
 .section h3 {
   font-size: 20px;
   font-weight: 600;
-  color: var(--notion-text);
+  color: #000000;
   margin: 0 0 var(--space-md) 0;
   display: flex;
   align-items: center;
@@ -269,7 +269,7 @@
 }
 
 .link {
-  color: var(--wa-teal-light);
+  color: #000000;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -295,7 +295,7 @@
   background: var(--notion-bg-secondary);
   border-radius: var(--radius-lg);
   text-decoration: none;
-  color: var(--notion-text);
+  color: #000000;
   transition: all 0.2s ease;
   border: 1px solid transparent;
 }
@@ -317,22 +317,22 @@
   font-weight: 500;
 }
 
-/* WhatsApp themed action cards */
+/* Action card variants - clean style */
 .action-card.whatsapp {
-  background: linear-gradient(135deg, var(--wa-green-light) 0%, rgba(37, 211, 102, 0.1) 100%);
+  background: #f5f5f5;
 }
 
 .action-card.whatsapp:hover {
-  background: var(--wa-green-light);
-  border-color: var(--wa-green);
+  background: #ffffff;
+  border-color: #000000;
 }
 
 .action-card.payment {
-  background: linear-gradient(135deg, #fff3e0 0%, rgba(255, 163, 68, 0.1) 100%);
+  background: #f5f5f5;
 }
 
 .action-card.invoice {
-  background: linear-gradient(135deg, #e3f2fd 0%, rgba(35, 131, 226, 0.1) 100%);
+  background: #f5f5f5;
 }
 
 /* Messages List - Notion Style */
@@ -383,14 +383,14 @@
 .msg-item .name {
   font-weight: 600;
   font-size: 15px;
-  color: var(--notion-text);
+  color: #000000;
   min-width: 120px;
 }
 
 .msg-item .content {
   flex: 1;
   font-size: 15px;
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -398,7 +398,7 @@
 
 .msg-item .time {
   font-size: 13px;
-  color: var(--notion-text-light);
+  color: #6b6b6b;
   white-space: nowrap;
 }
 
@@ -428,12 +428,12 @@
 .phone-card .phone-name {
   font-weight: 600;
   font-size: 14px;
-  color: var(--notion-text);
+  color: #000000;
 }
 
 .phone-card .phone-num {
   font-size: 15px;
-  color: var(--wa-teal);
+  color: #000000;
   font-family: var(--font-mono);
   margin-top: var(--space-xs);
 }
@@ -446,12 +446,12 @@
   font-weight: 600;
   border-radius: var(--radius-sm);
   background: var(--notion-bg-hover);
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
 }
 
 .phone-card .badge.green {
-  background: var(--wa-green-light);
-  color: var(--wa-teal);
+  background: #f0f0f0;
+  color: #000000;
 }
 
 /* Messages Tab */
@@ -565,13 +565,13 @@
 }
 
 .data-table .badge.captured {
-  background: var(--wa-green-light);
-  color: var(--wa-teal);
+  background: #f0f0f0;
+  color: #000000;
 }
 
 .data-table .badge.failed {
   background: #fee2e2;
-  color: var(--accent-red);
+  color: #dc2626;
 }
 
 /* Data Tab */
@@ -584,7 +584,7 @@
 .data-tab h3 {
   font-size: 20px;
   font-weight: 600;
-  color: var(--notion-text);
+  color: #000000;
   margin: 0;
 }
 
@@ -656,7 +656,7 @@
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: var(--notion-text);
+  color: #000000;
   margin-bottom: var(--space-sm);
 }
 
@@ -673,8 +673,8 @@
 .delete-panel select:focus,
 .delete-panel input:focus {
   outline: none;
-  border-color: var(--wa-teal-light);
-  box-shadow: 0 0 0 3px rgba(0, 168, 132, 0.1);
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .delete-panel .preview {
@@ -713,7 +713,7 @@
 .select-header button {
   background: none;
   border: none;
-  color: var(--wa-teal-light);
+  color: #000000;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
@@ -740,7 +740,7 @@
 .msg-select-row input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: var(--wa-teal);
+  accent-color: #000000;
 }
 
 .msg-select-row .dir {
@@ -751,7 +751,7 @@
 .msg-select-row .content {
   flex: 1;
   font-size: 13px;
-  color: var(--notion-text);
+  color: #000000;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -759,7 +759,7 @@
 
 .msg-select-row .time {
   font-size: 12px;
-  color: var(--notion-text-light);
+  color: #6b6b6b;
 }
 
 /* Delete Actions */
@@ -832,13 +832,13 @@
 .billing-total .amount {
   font-size: 42px;
   font-weight: 700;
-  color: var(--wa-teal);
+  color: #000000;
   font-family: var(--font-mono);
 }
 
 .billing-total .label {
   font-size: 13px;
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-top: var(--space-xs);
@@ -850,13 +850,13 @@
 
 .billing-meta .period {
   font-size: 14px;
-  color: var(--notion-text);
+  color: #000000;
   font-weight: 500;
 }
 
 .billing-meta .account {
   font-size: 12px;
-  color: var(--notion-text-light);
+  color: #6b6b6b;
   margin-top: var(--space-xs);
 }
 
@@ -893,12 +893,12 @@
 
 .billing-table .service-name {
   font-weight: 500;
-  color: var(--notion-text);
+  color: #000000;
 }
 
 .billing-table .service-cost {
   font-family: var(--font-mono);
-  color: var(--notion-text);
+  color: #000000;
 }
 
 .billing-table .status-badge {
@@ -910,8 +910,8 @@
 }
 
 .billing-table .status-badge.free {
-  background: var(--wa-green-light);
-  color: var(--wa-teal);
+  background: #f0f0f0;
+  color: #000000;
 }
 
 .billing-table .status-badge.warning {
@@ -921,7 +921,7 @@
 
 .billing-table .status-badge.paid {
   background: #fee2e2;
-  color: var(--accent-red);
+  color: #dc2626;
 }
 
 /* Primary Button */
@@ -930,7 +930,7 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  background: var(--wa-teal);
+  background: #000000;
   color: white;
   border: none;
   border-radius: var(--radius-md);
@@ -942,7 +942,7 @@
 }
 
 .btn-primary:hover {
-  background: var(--wa-green);
+  background: #333333;
   transform: translateY(-1px);
 }
 
@@ -1537,20 +1537,20 @@
 
 .result-item:hover {
   background: var(--notion-bg-secondary);
-  border-color: var(--wa-teal);
+  border-color: #000000;
 }
 
 .result-item .icon {
-  color: var(--wa-teal);
+  color: #000000;
 }
 
 .result-item .name {
   font-weight: 500;
-  color: var(--notion-text);
+  color: #000000;
 }
 
 .result-item .phone {
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   font-family: var(--font-mono);
   font-size: 13px;
 }
@@ -1561,7 +1561,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-xxl);
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   text-align: center;
 }
 
@@ -1599,7 +1599,7 @@
 }
 
 .guide-card:hover {
-  border-color: var(--wa-teal);
+  border-color: #000000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -1612,13 +1612,13 @@
 .guide-card h4 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--notion-text);
+  color: #000000;
   margin: 0 0 var(--space-sm) 0;
 }
 
 .guide-card p {
   font-size: 14px;
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   margin: 0;
   line-height: 1.5;
 }
@@ -1633,7 +1633,7 @@
   padding: var(--space-md) 0;
   border-bottom: 1px solid var(--notion-border);
   font-size: 14px;
-  color: var(--notion-text-secondary);
+  color: #4a4a4a;
   line-height: 1.6;
 }
 
@@ -1642,5 +1642,5 @@
 }
 
 .guide-list li strong {
-  color: var(--notion-text);
+  color: #000000;
 }
