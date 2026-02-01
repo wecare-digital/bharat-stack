@@ -1,6 +1,6 @@
 /**
- * Bulk RCS - Airtel IQ
- * Bulk RCS campaigns via Airtel IQ RCS API
+ * Bulk RCS - IN RCS
+ * Bulk RCS campaigns via IN RCS API
  */
 
 import React from 'react';
@@ -27,7 +27,7 @@ const BulkRcs: React.FC<PageProps> = ({ signOut, user }) => {
         'Campaign Analytics',
       ]}
       docsUrl="https://www.airtel.in/business/b2b/airtel-iq/api-docs/rcs/overview"
-      docsLabel="Airtel IQ RCS API Docs"
+      docsLabel="IN RCS API Docs"
       user={user}
       signOut={signOut}
     />

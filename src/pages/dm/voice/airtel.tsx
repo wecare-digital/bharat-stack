@@ -1,6 +1,6 @@
 /**
- * Airtel IQ Voice DM
- * Voice calls via Airtel IQ Voice API
+ * IN Voice DM
+ * Voice calls via IN Voice API
  */
 
 import React from 'react';
@@ -11,10 +11,10 @@ interface PageProps {
   user?: any;
 }
 
-const AirtelVoiceDM: React.FC<PageProps> = ({ signOut, user }) => {
+const INVoiceDM: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <ComingSoon
-      title="Airtel IQ Voice"
+      title="IN Voice"
       subtitle="Voice API for India"
       icon="voice"
       backLink="/dm/voice"
@@ -28,11 +28,11 @@ const AirtelVoiceDM: React.FC<PageProps> = ({ signOut, user }) => {
         'DND Compliance',
       ]}
       docsUrl="https://www.airtel.in/business/b2b/airtel-iq/api-docs/voice/callflow-component-apis"
-      docsLabel="Airtel IQ Voice API Docs"
+      docsLabel="IN Voice API Docs"
       user={user}
       signOut={signOut}
     />
   );
 };
 
-export default AirtelVoiceDM;
+export default INVoiceDM;

@@ -1,6 +1,6 @@
 /**
- * Bulk Airtel IQ SMS Campaigns
- * Bulk SMS campaigns via Airtel IQ
+ * Bulk IN SMS Campaigns
+ * Bulk SMS campaigns via IN SMS
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -16,7 +16,7 @@ interface PageProps {
 
 const TABS = ['Campaigns', 'Create', 'Templates', 'Analytics'];
 
-const BulkAirtelSms: React.FC<PageProps> = ({ signOut, user }) => {
+const BulkINSms: React.FC<PageProps> = ({ signOut, user }) => {
   const [activeTab, setActiveTab] = useState('Campaigns');
   const [jobs, setJobs] = useState<api.BulkJob[]>([]);
   const [contacts, setContacts] = useState<api.Contact[]>([]);
@@ -63,7 +63,7 @@ const BulkAirtelSms: React.FC<PageProps> = ({ signOut, user }) => {
     <Layout user={user} onSignOut={signOut}>
       <div className="bulk-page">
         <PageHeader 
-          title="Bulk SMS - Airtel IQ" 
+          title="Bulk SMS - IN SMS" 
           subtitle="India SMS Gateway"
           icon="sms"
           backLink="/bulk/sms"
@@ -140,9 +140,9 @@ const BulkAirtelSms: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
 
           <div className="info-panel">
-            <h3>Airtel IQ SMS</h3>
+            <h3>IN SMS</h3>
             <div className="info-section"><h4>Features</h4><ul><li>Transactional SMS</li><li>Promotional SMS</li><li>DLT Compliance</li><li>Delivery Reports</li></ul></div>
-            <div className="info-section"><h4>Documentation</h4><a href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/sms/overview" target="_blank" rel="noopener noreferrer">Airtel IQ SMS API →</a></div>
+            <div className="info-section"><h4>Documentation</h4><a href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/sms/overview" target="_blank" rel="noopener noreferrer">IN SMS API →</a></div>
           </div>
         </div>
       </div>
@@ -190,4 +190,4 @@ const BulkAirtelSms: React.FC<PageProps> = ({ signOut, user }) => {
   );
 };
 
-export default BulkAirtelSms;
+export default BulkINSms;

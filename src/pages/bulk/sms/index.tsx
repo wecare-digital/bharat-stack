@@ -28,7 +28,7 @@ const BulkSmsHub: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="actions-grid">
           <Link href="/bulk/sms/airtel" className="action-card">
             <span className="icon"><SmsIcon size={28} /></span>
-            <span>Airtel IQ</span>
+            <span>IN SMS</span>
           </Link>
           <Link href="/bulk/sms/aws" className="action-card">
             <span className="icon"><SmsIcon size={28} /></span>

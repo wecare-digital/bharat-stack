@@ -23,7 +23,7 @@ export default function SmsDMHub({ signOut, user }: PageProps) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', maxWidth: '300px', margin: '0 auto' }}>
           <Link href="/dm/sms/airtel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: '#f5f5f5', borderRadius: '12px', textDecoration: 'none', color: '#000' }}>
             <span style={{ marginBottom: '8px' }}><SmsIcon size={28} /></span>
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>Airtel IQ</span>
+            <span style={{ fontSize: '14px', fontWeight: 500 }}>IN SMS</span>
           </Link>
           <Link href="/dm/sms/aws" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: '#f5f5f5', borderRadius: '12px', textDecoration: 'none', color: '#000' }}>
             <span style={{ marginBottom: '8px' }}><SmsIcon size={28} /></span>

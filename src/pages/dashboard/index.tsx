@@ -1341,7 +1341,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="section">
                 <h3>Key Features</h3>
                 <ul className="guide-list">
-                  <li><strong>Multi-Channel:</strong> WhatsApp, SMS (AWS Pinpoint, Airtel), Email (SES), Voice calls</li>
+                  <li><strong>Multi-Channel:</strong> WhatsApp, SMS (AWS Pinpoint, IN SMS), Email (SES), Voice calls</li>
                   <li><strong>Templates:</strong> Create and manage WhatsApp message templates</li>
                   <li><strong>AI Assistant:</strong> Get AI-powered response suggestions</li>
                   <li><strong>Webhooks:</strong> Integrate with external systems via webhooks</li>

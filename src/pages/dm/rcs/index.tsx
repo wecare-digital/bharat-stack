@@ -1,6 +1,6 @@
 /**
- * RCS DM - Airtel IQ RCS
- * Rich Communication Services via Airtel IQ
+ * RCS DM - IN RCS
+ * Rich Communication Services via IN RCS
  */
 
 import React from 'react';
@@ -29,7 +29,7 @@ const RcsDM: React.FC<PageProps> = ({ signOut, user }) => {
         'Typing Indicators',
       ]}
       docsUrl="https://www.airtel.in/business/b2b/airtel-iq/api-docs/rcs/overview"
-      docsLabel="Airtel IQ RCS API Docs"
+      docsLabel="IN RCS API Docs"
       user={user}
       signOut={signOut}
     />

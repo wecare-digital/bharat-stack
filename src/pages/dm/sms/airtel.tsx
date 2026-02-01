@@ -1,6 +1,6 @@
 /**
- * Airtel IQ SMS DM
- * Direct messaging via Airtel IQ SMS Gateway
+ * IN SMS DM
+ * Direct messaging via IN SMS Gateway
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -32,7 +32,7 @@ interface Message {
   contactId: string;
 }
 
-const AirtelSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
+const INSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -105,12 +105,12 @@ const AirtelSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
     <Layout user={user} onSignOut={signOut}>
       <div className="sms-page">
         <PageHeader 
-          title="Airtel IQ SMS" 
+          title="IN SMS" 
           subtitle="India SMS Gateway"
           icon="sms"
           backLink="/dm/sms"
           backLabel="← SMS"
-          action={
+          actions={
             <button onClick={loadData} className="refresh-btn" disabled={loading}>
               {loading ? '...' : '↻'}
             </button>
@@ -171,9 +171,9 @@ const AirtelSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
 
           <div className="info-panel">
-            <h3>Airtel IQ SMS</h3>
+            <h3>IN SMS</h3>
             <div className="info-section"><h4>Features</h4><ul><li>Transactional SMS</li><li>Promotional SMS</li><li>DLT Compliance</li><li>Delivery Reports</li></ul></div>
-            <div className="info-section"><h4>Documentation</h4><a href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/sms/overview" target="_blank" rel="noopener noreferrer">Airtel IQ SMS API →</a></div>
+            <div className="info-section"><h4>Documentation</h4><a href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/sms/overview" target="_blank" rel="noopener noreferrer">IN SMS API →</a></div>
           </div>
         </div>
       </div>
@@ -226,4 +226,4 @@ const AirtelSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
   );
 };
 
-export default AirtelSmsDM;
+export default INSmsDM;

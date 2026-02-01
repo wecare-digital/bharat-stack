@@ -28,7 +28,7 @@ const VoiceDMHub: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="actions-grid">
           <Link href="/dm/voice/airtel" className="action-card">
             <span className="icon"><VoiceIcon size={28} /></span>
-            <span>Airtel IQ</span>
+            <span>IN Voice</span>
           </Link>
           <Link href="/dm/voice/aws" className="action-card">
             <span className="icon"><VoiceIcon size={28} /></span>

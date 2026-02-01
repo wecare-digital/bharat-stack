@@ -179,7 +179,7 @@ const softwareSchema = {
   "featureList": [
     "WhatsApp Business API Integration",
     "Bulk WhatsApp Messaging",
-    "SMS API (AWS Pinpoint, Airtel)",
+    "SMS API (AWS Pinpoint, IN SMS)",
     "Email Marketing (Amazon SES)",
     "Voice Calls API",
     "Razorpay Payment Integration",
@@ -263,7 +263,7 @@ const faqSchema = {
       "name": "What messaging channels does Base CRM support?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Base CRM supports WhatsApp Business API, SMS (via AWS Pinpoint and Airtel), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
+        "text": "Base CRM supports WhatsApp Business API, SMS (via AWS Pinpoint and IN SMS), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
       }
     }
   ]
