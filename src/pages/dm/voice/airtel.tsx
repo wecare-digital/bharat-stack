@@ -246,13 +246,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
               <select
                 value={callTypeFilter}
                 onChange={(e) => setCallTypeFilter(e.target.value)}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  background: 'white',
-                  minWidth: '140px'
-                }}
+                className="filter-select"
               >
                 <option value="">All Call Types</option>
                 <option value="INBOUND">Inbound</option>
@@ -262,13 +256,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  background: 'white',
-                  minWidth: '140px'
-                }}
+                className="filter-select"
               >
                 <option value="">All Status</option>
                 <option value="Answered">Answered</option>
@@ -281,13 +269,8 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                 placeholder="Search by Call ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  flex: 1,
-                  minWidth: '200px'
-                }}
+                className="search-input"
+                style={{ flex: 1, minWidth: '200px' }}
               />
             </div>
 
@@ -582,11 +565,6 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                     key={key}
                     onClick={() => handleKeyPress(key)}
                     className="dialer-key"
-                    style={{
-                      padding: '20px',
-                      fontSize: '24px',
-                      fontWeight: 600,
-                    }}
                   >
                     {key}
                   </button>
@@ -596,16 +574,16 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   onClick={() => handleKeyPress('backspace')}
-                  className="delete-btn"
-                  style={{ flex: 1, padding: '16px', fontSize: '16px' }}
+                  className="action-btn"
+                  style={{ flex: 1 }}
                 >
                   Delete
                 </button>
                 <button
                   onClick={handleDial}
                   disabled={!dialerNumber.trim() || calling}
-                  className="call-btn"
-                  style={{ flex: 2, padding: '16px', fontSize: '16px', fontWeight: 600 }}
+                  className="action-btn"
+                  style={{ flex: 2 }}
                 >
                   {calling ? 'Calling...' : 'Call'}
                 </button>
