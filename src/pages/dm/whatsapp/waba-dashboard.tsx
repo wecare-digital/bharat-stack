@@ -22,10 +22,10 @@ interface PageProps {
 }
 
 const QUALITY_COLORS: Record<string, string> = {
-  GREEN: '#25D366',
-  YELLOW: '#FFC107',
-  RED: '#DC3545',
-  UNKNOWN: '#6c757d',
+  GREEN: '#000',
+  YELLOW: '#4a4a4a',
+  RED: '#dc2626',
+  UNKNOWN: '#6b6b6b',
 };
 
 const QUALITY_LABELS: Record<string, string> = {
@@ -497,11 +497,11 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .info-item .value.enabled {
-          color: #25D366;
+          color: #000;
         }
 
         .info-item .value.disabled {
-          color: #DC3545;
+          color: #dc2626;
         }
 
         .phone-numbers-section h3 {

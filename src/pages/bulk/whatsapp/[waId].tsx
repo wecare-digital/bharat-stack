@@ -278,11 +278,11 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
                         <span className="stat-label">Recipients</span>
                       </div>
                       <div className="stat">
-                        <span className="stat-value" style={{ color: '#25D366' }}>{job.sentCount}</span>
+                        <span className="stat-value" style={{ color: '#000' }}>{job.sentCount}</span>
                         <span className="stat-label">Sent</span>
                       </div>
                       <div className="stat">
-                        <span className="stat-value" style={{ color: job.failedCount > 0 ? '#F44336' : '#666' }}>{job.failedCount}</span>
+                        <span className="stat-value" style={{ color: job.failedCount > 0 ? '#dc2626' : '#666' }}>{job.failedCount}</span>
                         <span className="stat-label">Failed</span>
                       </div>
                     </div>
@@ -363,17 +363,17 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
 
       <style jsx>{`
         .bulk-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
-        .bulk-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #25D366; color: #fff; }
+        .bulk-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #000; color: #fff; }
         .back-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
         .bulk-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
         .bulk-icon { font-size: 28px; }
         .bulk-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
         .bulk-phone { font-size: 13px; opacity: 0.9; }
-        .create-btn { background: #fff; color: #25D366; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .create-btn { background: #fff; color: #000; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
         .bulk-content { flex: 1; padding: 24px; overflow-y: auto; }
         
         /* Progress Banner */
-        .progress-banner { background: #25D366; color: #fff; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+        .progress-banner { background: #000; color: #fff; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
         .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .progress-title { font-size: 16px; font-weight: 500; }
         .progress-actions { display: flex; gap: 8px; }
@@ -409,12 +409,12 @@ const BulkWhatsAppCampaign: React.FC<PageProps> = ({ signOut, user }) => {
         .stat-label { font-size: 12px; color: #666; }
         .job-progress { display: flex; align-items: center; gap: 8px; min-width: 100px; }
         .mini-progress-bar { flex: 1; height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
-        .mini-progress-fill { height: 100%; background: #25D366; transition: width 0.3s ease; }
+        .mini-progress-fill { height: 100%; background: #000; transition: width 0.3s ease; }
         .mini-progress-text { font-size: 12px; color: #666; min-width: 35px; }
         .job-date { font-size: 13px; color: #999; }
         .job-actions { display: flex; gap: 4px; }
         .action-btn { width: 28px; height: 28px; border-radius: 13px; border: none; cursor: pointer; font-size: 12px; }
-        .action-btn.resume { background: #dcfce7; color: #166534; }
+        .action-btn.resume { background: #f5f5f5; color: #000; }
         .action-btn.cancel { background: #fee2e2; color: #991b1b; }
         
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }

@@ -309,9 +309,9 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
   return (
     <div className="import-export-section">
       <div className="section-header">
-        <h3>⊕ Add Contacts</h3>
+        <h3>Add Contacts</h3>
         <button className="export-btn" onClick={handleExport}>
-          ⬇️ Export CSV ({contacts.length})
+          Export CSV ({contacts.length})
         </button>
       </div>
 
@@ -321,13 +321,13 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           className={`import-tab ${activeTab === 'manual' ? 'active' : ''}`}
           onClick={() => setActiveTab('manual')}
         >
-          ✎ Manual
+          Manual
         </button>
         <button 
           className={`import-tab ${activeTab === 'csv' ? 'active' : ''}`}
           onClick={() => setActiveTab('csv')}
         >
-          📁 CSV/VCF
+          CSV/VCF
         </button>
         <button 
           className={`import-tab ${activeTab === 'google' ? 'active' : ''}`}
@@ -398,9 +398,9 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           {/* CSV Format Info */}
           <div className="csv-format-info">
             <div className="format-header">
-              <span>📋 CSV Format (Simple)</span>
+              <span>CSV Format (Simple)</span>
               <button className="template-download-btn" onClick={downloadTemplate}>
-                ⬇️ Download Template
+                Download Template
               </button>
             </div>
             <div className="format-table">
@@ -436,7 +436,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
               style={{ display: 'none' }}
               onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
             />
-            <div className="import-zone-icon">📁</div>
+            <div className="import-zone-icon">CSV</div>
             <div className="import-zone-text">
               Drop CSV or VCF file here or click to browse
             </div>
@@ -658,7 +658,8 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         }
         .import-tab.active {
           background: #fff;
-          color: #25d366;
+          color: #000;
+          font-weight: 600;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
@@ -691,7 +692,8 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         }
         .form-field input:focus {
           outline: none;
-          border-color: #25d366;
+          border-color: #000;
+          box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
         }
         .checkbox-inline {
           display: flex;
@@ -723,18 +725,18 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           color: #374151;
         }
         .template-download-btn {
-          background: #25d366;
-          color: #fff;
-          border: none;
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
           padding: 6px 12px;
-          border-radius: 6px;
+          border-radius: 8px;
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
           transition: background 0.2s;
         }
         .template-download-btn:hover {
-          background: #128c7e;
+          background: #f5f5f5;
         }
         .format-table {
           overflow-x: auto;
@@ -758,7 +760,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         }
         .format-table td:first-child {
           font-family: monospace;
-          color: #059669;
+          color: #000;
           font-weight: 500;
         }
         .format-note {
@@ -779,8 +781,8 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           transition: all 0.2s;
         }
         .import-zone:hover, .import-zone.dragging {
-          border-color: #25d366;
-          background: #f0fdf4;
+          border-color: #000;
+          background: #f5f5f5;
         }
         .import-zone-icon {
           font-size: 32px;
@@ -853,17 +855,17 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .import-btn {
           width: 100%;
           padding: 12px;
-          background: #25d366;
-          color: #fff;
-          border: none;
-          border-radius: 8px;
+          background: #fff;
+          color: #000;
+          border: 1px solid #000;
+          border-radius: 13px;
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           transition: background 0.2s;
         }
         .import-btn:hover:not(:disabled) {
-          background: #128c7e;
+          background: #f5f5f5;
         }
         .import-btn:disabled {
           background: #9ca3af;
@@ -904,8 +906,8 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           transition: all 0.2s;
         }
         .google-btn:hover:not(:disabled) {
-          border-color: #4285f4;
-          background: #f8faff;
+          border-color: #000;
+          background: #f5f5f5;
         }
         .google-btn:disabled {
           opacity: 0.6;
@@ -916,12 +918,12 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           font-size: 13px;
         }
         .google-link {
-          color: #4285f4;
+          color: #000;
           font-size: 13px;
-          text-decoration: none;
+          text-decoration: underline;
         }
         .google-link:hover {
-          text-decoration: underline;
+          color: #4a4a4a;
         }
         .google-error {
           background: #fef2f2;
@@ -1003,12 +1005,12 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           margin-top: 16px;
           padding: 16px;
           border-radius: 8px;
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
+          background: #f5f5f5;
+          border: 1px solid #e5e5e5;
         }
         .import-result.has-errors {
-          background: #fef3c7;
-          border-color: #fcd34d;
+          background: #fef2f2;
+          border-color: #fecaca;
         }
         .import-stats {
           display: flex;
@@ -1021,10 +1023,10 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .import-stat-value {
           font-size: 24px;
           font-weight: 700;
-          color: #166534;
+          color: #000;
         }
         .import-result.has-errors .import-stat-value {
-          color: #92400e;
+          color: #dc2626;
         }
         .import-stat-label {
           font-size: 12px;
@@ -1033,7 +1035,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
         .import-errors {
           margin-top: 12px;
           font-size: 13px;
-          color: #92400e;
+          color: #dc2626;
         }
         .import-errors ul {
           margin: 8px 0 0 20px;

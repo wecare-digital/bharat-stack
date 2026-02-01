@@ -223,31 +223,31 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
             className={`type-btn ${messageType === 'button' ? 'active' : ''}`}
             onClick={() => setMessageType('button')}
           >
-            🔘 Buttons
+            Buttons
           </button>
           <button
             className={`type-btn ${messageType === 'list' ? 'active' : ''}`}
             onClick={() => setMessageType('list')}
           >
-            📋 List
+            List
           </button>
           <button
             className={`type-btn ${messageType === 'cta_url' ? 'active' : ''}`}
             onClick={() => setMessageType('cta_url')}
           >
-            🔗 CTA URL
+            CTA URL
           </button>
           <button
             className={`type-btn ${messageType === 'flow' ? 'active' : ''}`}
             onClick={() => setMessageType('flow')}
           >
-            📝 Flow
+            Flow
           </button>
           <button
             className={`type-btn ${messageType === 'location_request' ? 'active' : ''}`}
             onClick={() => setMessageType('location_request')}
           >
-            📍 Location
+            Location
           </button>
         </div>
 
@@ -394,7 +394,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
               />
             </div>
             <div className="info-box">
-              <span className="info-icon">💡</span>
+              <span className="info-icon">Info:</span>
               <span>CTA URL buttons let you share a clickable link without showing the raw URL in the message.</span>
             </div>
           </div>
@@ -434,7 +434,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
               <small>Leave empty to start from the first screen</small>
             </div>
             <div className="info-box">
-              <span className="info-icon">📝</span>
+              <span className="info-icon">Note:</span>
               <span>WhatsApp Flows let you create interactive forms and surveys. Create flows in Meta Business Suite first.</span>
             </div>
           </div>
@@ -443,7 +443,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
         {/* Location Request Info */}
         {messageType === 'location_request' && (
           <div className="info-box">
-            <span className="info-icon">ℹ️</span>
+            <span className="info-icon">Info:</span>
             <span>This will ask the user to share their current location.</span>
           </div>
         )}
@@ -514,9 +514,10 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           background: #f0f0f0;
         }
         .type-btn.active {
-          background: #25D366;
-          color: white;
-          border-color: #25D366;
+          background: #f5f5f5;
+          color: #000;
+          border-color: #000;
+          font-weight: 600;
         }
         .form-group {
           margin-bottom: 12px;
@@ -539,7 +540,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
         .form-group input:focus,
         .form-group textarea:focus {
           outline: none;
-          border-color: #25D366;
+          border-color: #000;
         }
         .buttons-section,
         .list-section,
@@ -596,8 +597,8 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           font-size: 13px;
         }
         .add-btn:hover {
-          border-color: #25D366;
-          color: #25D366;
+          border-color: #000;
+          color: #000;
         }
         .add-btn.small {
           padding: 6px;
@@ -672,16 +673,16 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
         }
         .send-btn {
           padding: 8px 20px;
-          border: none;
-          background: #25D366;
-          color: white;
-          border-radius: 6px;
+          border: 1px solid #000;
+          background: #fff;
+          color: #000;
+          border-radius: 13px;
           cursor: pointer;
           font-size: 14px;
           font-weight: 500;
         }
         .send-btn:hover:not(:disabled) {
-          background: #128C7E;
+          background: #f5f5f5;
         }
         .send-btn:disabled {
           background: #9ca3af;

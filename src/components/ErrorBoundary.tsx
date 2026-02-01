@@ -48,7 +48,7 @@ class ErrorBoundary extends Component<Props, State> {
       return (
         <div style={styles.container}>
           <div style={styles.card}>
-            <div style={styles.icon}>⚠️</div>
+            <div style={styles.icon}>Warning</div>
             <h2 style={styles.title}>Something went wrong</h2>
             <p style={styles.message}>
               An unexpected error occurred. Please try refreshing the page.

@@ -956,7 +956,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
               <div className="modal-body">
                 <div className="carousel-info">
-                  <span className="info-icon">💡</span>
+                  <span className="info-icon">Info:</span>
                   <span>Carousel templates display up to 10 scrollable cards with images/videos and buttons.</span>
                 </div>
 
@@ -1567,7 +1567,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         .form-group select:focus,
         .form-group textarea:focus {
           outline: none;
-          border-color: #25D366;
+          border-color: #000;
         }
 
         .form-group small {
@@ -1619,8 +1619,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .btn-add:hover {
-          border-color: #25D366;
-          color: #25D366;
+          border-color: #000;
+          color: #000;
         }
 
         .warning {
@@ -1774,8 +1774,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .upload-btn:hover {
-          border-color: #25D366;
-          color: #25D366;
+          border-color: #000;
+          color: #000;
         }
 
         .media-uploaded {
@@ -1785,14 +1785,14 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         }
 
         .upload-success {
-          color: #22c55e;
+          color: #000;
           font-size: 13px;
         }
 
         .btn-change-media {
           background: none;
           border: none;
-          color: #3b82f6;
+          color: #000;
           cursor: pointer;
           font-size: 12px;
           text-decoration: underline;
@@ -1914,7 +1914,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
           display: block;
           font-size: 32px;
           font-weight: 700;
-          color: #25D366;
+          color: #000;
           margin-bottom: 8px;
         }
 
@@ -2009,7 +2009,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
         .rank {
           font-size: 14px;
           font-weight: 700;
-          color: #25D366;
+          color: #000;
           min-width: 30px;
         }
 

@@ -175,7 +175,7 @@ const FloatingAgent: React.FC = () => {
         const inbound = todayMessages.filter((m: any) => m.direction === 'INBOUND').length;
         const outbound = todayMessages.filter((m: any) => m.direction === 'OUTBOUND').length;
         
-        return `📊 Today's Stats:\n\nMessages: ${todayMessages.length}\n  ↙ Inbound: ${inbound}\n  ↗ Outbound: ${outbound}\n\nTotal Contacts: ${contacts.length}`;
+        return `Today's Stats:\n\nMessages: ${todayMessages.length}\n  - Inbound: ${inbound}\n  - Outbound: ${outbound}\n\nTotal Contacts: ${contacts.length}`;
       }
       
       // Help

@@ -129,7 +129,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
     <div className="search-overlay" onClick={onClose}>
       <div className="search-modal" onClick={e => e.stopPropagation()}>
         <div className="search-input-wrapper">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon">Search</span>
           <input
             ref={inputRef}
             type="text"

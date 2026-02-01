@@ -27,7 +27,7 @@ export const BarChart: React.FC<BarChartProps> = ({ data, title, maxValue, heigh
               className="bar-chart-bar"
               style={{ 
                 height: `${(item.value / max) * 100}%`,
-                background: item.color || '#25d366',
+                background: item.color || '#000',
               }}
             />
             <div className="bar-chart-label">{item.label}</div>
@@ -51,7 +51,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
   value, 
   total, 
   label, 
-  color = '#25d366',
+  color = '#000',
   size = 120 
 }) => {
   const percentage = total > 0 ? (value / total) * 100 : 0;
@@ -130,7 +130,7 @@ interface SparklineProps {
 
 export const Sparkline: React.FC<SparklineProps> = ({ 
   data, 
-  color = '#25d366',
+  color = '#000',
   width = 100,
   height = 30 
 }) => {
@@ -173,7 +173,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   value, 
   max, 
   label,
-  color = '#25d366',
+  color = '#000',
   showPercentage = true 
 }) => {
   const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;

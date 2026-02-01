@@ -47,13 +47,13 @@ const WABA_CONFIG = {
   [WHATSAPP_PHONES.primary.id]: {
     name: WHATSAPP_PHONES.primary.name,
     phone: WHATSAPP_PHONES.primary.display,
-    color: '#25D366',
+    color: '#000',
     shortName: 'WC'
   },
   [WHATSAPP_PHONES.secondary.id]: {
     name: WHATSAPP_PHONES.secondary.name,
     phone: WHATSAPP_PHONES.secondary.display,
-    color: '#128C7E',
+    color: '#4a4a4a',
     shortName: 'MA'
   },
 };

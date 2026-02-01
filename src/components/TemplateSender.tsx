@@ -254,7 +254,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
   return (
     <div className="template-sender">
       <div className="sender-header">
-        <h3>📝 Send Template Message</h3>
+        <h3>Send Template Message</h3>
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
@@ -503,8 +503,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
           transition: all 0.2s;
         }
         .template-item:hover {
-          border-color: #25D366;
-          background: #f9fff9;
+          border-color: #000;
+          background: #f5f5f5;
         }
         .template-info {
           display: flex;
@@ -596,7 +596,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
         }
         .variable-row input:focus {
           outline: none;
-          border-color: #25D366;
+          border-color: #000;
         }
         .card-vars {
           background: #f5f5f5;
@@ -696,16 +696,16 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
         }
         .send-btn {
           padding: 10px 24px;
-          border: none;
-          background: #25D366;
-          color: white;
-          border-radius: 8px;
+          border: 1px solid #000;
+          background: #fff;
+          color: #000;
+          border-radius: 13px;
           cursor: pointer;
           font-size: 14px;
           font-weight: 500;
         }
         .send-btn:hover:not(:disabled) {
-          background: #128C7E;
+          background: #f5f5f5;
         }
         .send-btn:disabled {
           background: #9ca3af;

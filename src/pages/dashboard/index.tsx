@@ -724,7 +724,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div className="phone-card">
                     <div className="phone-name">WECARE.DIGITAL</div>
                     <div className="phone-num">+91 93309 94400</div>
-                    <span className="badge green">Razorpay</span>
+                    <span className="badge">Razorpay</span>
                   </div>
                   <div className="phone-card">
                     <div className="phone-name">Manish Agarwal</div>
@@ -1360,7 +1360,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div className="phone-card">
                     <div className="phone-name">WECARE.DIGITAL</div>
                     <div className="phone-num">+91 93309 94400</div>
-                    <span className="badge green">Razorpay Enabled</span>
+                    <span className="badge">Razorpay Enabled</span>
                   </div>
                   <div className="phone-card">
                     <div className="phone-name">Manish Agarwal</div>

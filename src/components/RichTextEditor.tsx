@@ -515,7 +515,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       {showPaymentDialog && (
         <div className={`${styles['variable-dialog']} ${styles['payment-dialog']}`}>
           <div className={styles['variable-dialog-header']}>
-            <span>💳 Payment Request</span>
+            <span>Payment Request</span>
             <button onClick={() => setShowPaymentDialog(false)}>×</button>
           </div>
           <div className={styles['variable-dialog-preview']}>
@@ -620,7 +620,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               onClick={sendPaymentMessage}
               disabled={sendingPayment || !paymentForm.itemName || !paymentForm.amount || !paymentForm.referenceId}
             >
-              {sendingPayment ? 'Sending...' : '💳 Send'}
+              {sendingPayment ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>
@@ -711,7 +711,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Send Payment Request (UPI)"
           >
-            💳
+            Pay
           </button>
         )}
 

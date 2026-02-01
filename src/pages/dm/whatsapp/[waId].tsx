@@ -1184,8 +1184,8 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .contact-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
         .contact-phone-sub { font-size: 11px; color: #666; margin-top: 1px; }
         .contact-preview { font-size: 12px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .unread { background: #25D366; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
-        .window-indicator { color: #25D366; font-size: 10px; }
+        .unread { background: #000; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
+        .window-indicator { color: #000; font-size: 10px; }
         .wa-chat { display: flex; flex-direction: column; background: #e5ddd5; }
         .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #f0f0f0; border-bottom: 1px solid #e5e5e5; }
         .chat-contact { display: flex; align-items: center; gap: 12px; }
@@ -1368,14 +1368,14 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .template-btn:hover { background: #d97706; }
         .compose-row { display: flex; align-items: flex-end; gap: 8px; }
         .compose-input { flex: 1; }
-        .voice-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #25D366; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
-        .voice-btn:hover:not(:disabled) { background: #128C7E; transform: scale(1.05); }
+        .voice-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+        .voice-btn:hover:not(:disabled) { background: #f5f5f5; transform: scale(1.05); }
         .voice-btn:disabled { background: #9ca3af; cursor: not-allowed; opacity: 0.6; }
-        .interactive-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #3b82f6; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
-        .interactive-btn:hover:not(:disabled) { background: #2563eb; transform: scale(1.05); }
+        .interactive-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+        .interactive-btn:hover:not(:disabled) { background: #f5f5f5; transform: scale(1.05); }
         .interactive-btn:disabled { background: #9ca3af; cursor: not-allowed; opacity: 0.6; }
-        .template-send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #f59e0b; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
-        .template-send-btn:hover { background: #d97706; transform: scale(1.05); }
+        .template-send-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+        .template-send-btn:hover { background: #f5f5f5; transform: scale(1.05); }
         .voice-recording { display: flex; align-items: center; gap: 12px; background: #fff; padding: 12px 16px; border-radius: 24px; }
         .cancel-record-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: #ef4444; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .cancel-record-btn:hover { background: #dc2626; }
@@ -1383,12 +1383,12 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .recording-dot { color: #ef4444; font-size: 12px; animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .recording-time { font-size: 16px; font-weight: 500; color: #333; font-family: monospace; }
-        .stop-record-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #25D366; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .stop-record-btn:hover { background: #128C7E; }
+        .stop-record-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .stop-record-btn:hover { background: #f5f5f5; }
         .voice-preview { display: flex; align-items: center; gap: 12px; background: #fff; padding: 8px 16px; border-radius: 24px; }
         .preview-audio { flex: 1; height: 36px; }
-        .send-voice-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: #25D366; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .send-voice-btn:hover { background: #128C7E; }
+        .send-voice-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .send-voice-btn:hover { background: #f5f5f5; }
         .send-voice-btn:disabled { background: #9ca3af; cursor: not-allowed; }
         .no-chat { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #999; }
         .no-chat p { font-size: 24px; margin: 0; }
@@ -1409,7 +1409,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         /* Message search bar */
         .message-search-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; }
         .message-search-bar input { flex: 1; padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 20px; font-size: 14px; }
-        .message-search-bar input:focus { outline: none; border-color: #25D366; }
+        .message-search-bar input:focus { outline: none; border-color: #000; }
         .message-search-bar .search-count { font-size: 12px; color: #666; }
         .message-search-bar button { background: none; border: none; cursor: pointer; font-size: 16px; color: #999; padding: 4px; }
         .message-search-bar button:hover { color: #333; }
