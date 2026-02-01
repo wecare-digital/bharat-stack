@@ -1,91 +1,339 @@
-﻿/* Inner Pages Theme - Emerald */
+﻿/* inner-pages.css (v2)
+ * Central theme for INNER pages only.
+ * Uses .layout class (from Layout component)
+ * Home page does NOT use Layout, so it won't be affected.
+ */
+
+.layout {
+  /* ---------- Page ---------- */
+  --page-bg: #F8FAFC;
+
+  /* ---------- Brand greens ---------- */
+  --green-500: #10B981;
+  --green-600: #059669;
+
+  /* ---------- Button tokens (white bg + black text) ---------- */
+  --btn-bg: #FFFFFF;
+  --btn-text: #111827;
+  /* Default border (slate-300, not green) */
+  --btn-border: #CBD5E1;
+
+  /* Hover / active */
+  --btn-hover-bg: #ECFDF5;
+  --btn-active-bg: #D1FAE5;
+  --btn-active-border: #A7F3D0;
+
+  /* Focus ring */
+  --btn-focus-ring: rgba(16, 185, 129, 0.30);
+
+  /* ---------- Nav item (sidebar/menu) ---------- */
+  --nav-hover-bg: #ECFDF5;
+  --nav-active-bg: #D1FAE5;
+  --nav-active-border: #A7F3D0;
+  --nav-indicator: #10B981;
+
+  /* ---------- Radii ---------- */
+  --radius-btn: 13px;
+  --radius-pill: 12px;
+}
+
+/* Page background */
+.layout,
+.layout .main-content {
+  background: var(--page-bg) !important;
+}
+
+/* ============================================================
+   BUTTONS
+   Apply to all buttons in inner pages
+   ============================================================ */
 .layout button,
 .layout .btn,
+.layout .btn-primary,
+.layout .btn-secondary,
+.layout .btn-outline,
 .layout .refresh-btn,
 .layout .tab-btn,
-.layout .action-btn {
-  background: #ffffff !important;
-  color: #111827 !important;
-  border: 1px solid #10B981 !important;
-  border-radius: 13px !important;
-  padding: 10px 18px !important;
-  font-weight: 500 !important;
+.layout .action-btn,
+.layout a.btn,
+.layout [class*="-btn"]:not(.nav-item):not(.nav-subitem) {
+  background: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--radius-btn) !important;
+  padding: 10px 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.1 !important;
   cursor: pointer !important;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transition: background 140ms ease, border-color 140ms ease, transform 80ms ease, box-shadow 140ms ease !important;
+  text-decoration: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
+/* Gradient border overlay (shows on hover) */
+.layout button::before,
+.layout .btn::before,
+.layout .tab-btn::before,
+.layout .action-btn::before,
+.layout .refresh-btn::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  padding: 1.5px !important;
+  background: linear-gradient(90deg, var(--green-500), var(--green-600)) !important;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+  -webkit-mask-composite: xor !important;
+  mask-composite: exclude !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 140ms ease !important;
+}
+
+/* Hover - show gradient border */
 .layout button:hover,
 .layout .btn:hover,
-.layout .tab-btn:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+.layout .tab-btn:hover,
+.layout .action-btn:hover,
+.layout .refresh-btn:hover {
+  background: var(--btn-hover-bg) !important;
+  border-color: transparent !important;
 }
 
+.layout button:hover::before,
+.layout .btn:hover::before,
+.layout .tab-btn:hover::before,
+.layout .action-btn:hover::before,
+.layout .refresh-btn:hover::before {
+  opacity: 1 !important;
+}
+
+/* Active / pressed */
+.layout button:active,
+.layout .btn:active,
+.layout .tab-btn:active {
+  background: var(--btn-active-bg) !important;
+  border-color: var(--btn-active-border) !important;
+  transform: translateY(0.5px) !important;
+}
+
+/* Focus */
+.layout button:focus-visible,
+.layout .btn:focus-visible,
+.layout button:focus,
+.layout .btn:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--btn-focus-ring) !important;
+}
+
+/* Active/Selected state (for tabs) */
 .layout button.active,
-.layout .tab-btn.active {
-  background: #D1FAE5 !important;
-  border-color: #A7F3D0 !important;
+.layout .btn.active,
+.layout .tab-btn.active,
+.layout .tab.active {
+  background: var(--btn-active-bg) !important;
+  border-color: var(--btn-active-border) !important;
+  font-weight: 700 !important;
+}
+
+/* Disabled */
+.layout button:disabled,
+.layout .btn:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.layout .tab,
+.layout .tabs button,
+.layout .dash-tabs .tab,
+.layout .tabs-nav button {
+  background: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--radius-btn) !important;
+  padding: 10px 18px !important;
   font-weight: 600 !important;
 }
 
-.layout button:focus {
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+.layout .tab:hover,
+.layout .tabs button:hover,
+.layout .dash-tabs .tab:hover {
+  background: var(--btn-hover-bg) !important;
+  border-color: transparent !important;
 }
 
-.layout button:disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
+.layout .tab.active,
+.layout .tabs button.active,
+.layout .dash-tabs .tab.active {
+  background: var(--btn-active-bg) !important;
+  border-color: var(--btn-active-border) !important;
+  font-weight: 700 !important;
 }
 
+/* ============================================================
+   DIALER KEYS (Voice IN page)
+   ============================================================ */
 .layout .dialer-key {
-  background: #ffffff !important;
-  color: #111827 !important;
-  border: 1px solid #10B981 !important;
-  border-radius: 13px !important;
+  background: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--radius-btn) !important;
   padding: 20px !important;
   font-size: 24px !important;
   font-weight: 600 !important;
 }
 
 .layout .dialer-key:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: var(--btn-hover-bg) !important;
+  border-color: transparent !important;
 }
 
-.layout select {
-  background: #ffffff !important;
-  color: #111827 !important;
-  border: 1px solid #10B981 !important;
-  border-radius: 13px !important;
+/* ============================================================
+   SELECTS & INPUTS
+   ============================================================ */
+.layout select,
+.layout .filter-select {
+  background: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--radius-btn) !important;
   padding: 10px 14px !important;
+  cursor: pointer !important;
 }
 
 .layout select:hover {
-  border-color: #059669 !important;
+  border-color: var(--green-500) !important;
 }
 
-.layout input {
-  border: 1px solid #10B981 !important;
-  border-radius: 13px !important;
+.layout select:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--btn-focus-ring) !important;
+}
+
+.layout input[type="text"],
+.layout input[type="search"],
+.layout input[type="email"],
+.layout input[type="number"],
+.layout input[type="tel"],
+.layout textarea {
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--radius-btn) !important;
+  padding: 10px 14px !important;
 }
 
 .layout input:focus,
-.layout select:focus {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+.layout textarea:focus {
   outline: none !important;
+  border-color: var(--green-500) !important;
+  box-shadow: 0 0 0 3px var(--btn-focus-ring) !important;
+}
+
+/* ============================================================
+   SIDEBAR / NAV ITEMS
+   ============================================================ */
+.layout .nav-item,
+.layout .sidebar a,
+.layout .menu a {
+  border-radius: var(--radius-pill) !important;
+  transition: background 140ms ease, border-color 140ms ease !important;
+}
+
+.layout .nav-item:hover,
+.layout .sidebar a:hover,
+.layout .menu a:hover {
+  background: var(--nav-hover-bg) !important;
+}
+
+.layout .nav-item.active,
+.layout .nav-item-active,
+.layout .sidebar a.active,
+.layout .menu a.active {
+  background: var(--nav-active-bg) !important;
+  border: 1px solid var(--nav-active-border) !important;
+  position: relative !important;
+}
+
+/* Left indicator bar for active nav */
+.layout .nav-item.active::before,
+.layout .nav-item-active::before,
+.layout .sidebar a.active::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 8px !important;
+  bottom: 8px !important;
+  width: 4px !important;
+  border-radius: 6px !important;
+  background: var(--nav-indicator) !important;
+}
+
+/* ============================================================
+   HUB CARDS
+   ============================================================ */
+.layout .hub-card,
+.layout .action-card,
+.layout .quick-action-card {
+  border: 1.5px solid var(--btn-border) !important;
+  border-radius: var(--radius-btn) !important;
+  transition: all 140ms ease !important;
 }
 
 .layout .hub-card:hover,
-.layout .action-card:hover {
-  border-color: #10B981 !important;
-  background: #f0fdf4 !important;
+.layout .action-card:hover,
+.layout .quick-action-card:hover {
+  border-color: var(--green-500) !important;
+  background: var(--btn-hover-bg) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15) !important;
 }
 
-.layout .nav-item:hover {
-  background: #ECFDF5 !important;
+/* ============================================================
+   BADGES
+   ============================================================ */
+.layout .badge.success,
+.layout .badge.active,
+.layout .badge.delivered,
+.layout .badge.sent {
+  background: var(--btn-hover-bg) !important;
+  color: var(--green-600) !important;
 }
 
-.layout .nav-item-active {
-  background: #D1FAE5 !important;
-  border-left: 3px solid #10B981 !important;
+/* ============================================================
+   STAT CARDS
+   ============================================================ */
+.layout .stat-card.accent,
+.layout .stat-card.success {
+  border-left: 3px solid var(--green-500) !important;
+}
+
+/* ============================================================
+   CONTACT ROWS
+   ============================================================ */
+.layout .contact-row:hover {
+  background: var(--nav-hover-bg) !important;
+}
+
+.layout .contact-row.active {
+  background: var(--nav-active-bg) !important;
+  border-left: 3px solid var(--nav-indicator) !important;
+}
+
+/* ============================================================
+   MESSAGE ITEMS
+   ============================================================ */
+.layout .msg-item.inbound {
+  border-left-color: var(--green-500) !important;
+}
+
+.layout .msg-item.outbound {
+  border-left-color: var(--green-600) !important;
 }
