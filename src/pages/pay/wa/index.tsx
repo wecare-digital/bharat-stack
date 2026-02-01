@@ -244,18 +244,20 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         .badge-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; }
         .message-bar { padding: 10px 14px; border-radius: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; border: 1px solid #000; }
         .message-bar.success { background: #f5f5f5; color: #000; }
-        .message-bar.error { background: #f5f5f5; color: #000; }
+        .message-bar.error { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
         .message-bar button { background: none; border: none; font-size: 16px; cursor: pointer; }
         .pay-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
         .order-form { background: #fff; border-radius: 13px; padding: 20px; border: 1px solid #e5e5e5; }
         .form-section { margin-bottom: 20px; }
         .form-section h3 { font-size: 14px; margin: 0 0 10px 0; color: #000; font-weight: 600; }
         .form-section select, .form-section input { width: 100%; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
-        .form-section select:focus, .form-section input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); }
+        .form-section select:hover, .form-section input:hover { background: #f5f5f5; }
+        .form-section select:focus, .form-section input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); background: #fff; }
         .ref-row { display: flex; gap: 8px; }
         .ref-row input { flex: 1; background: #f5f5f5; }
-        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; }
+        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500; }
         .gen-btn:hover { background: #f5f5f5; }
+        .gen-btn:active { background: #ebebeb; }
         .item-grid { display: grid; grid-template-columns: 2fr 1fr 60px; gap: 10px; }
         .item-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
         .breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -276,6 +278,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         .preview-config small { color: #4a4a4a; font-size: 11px; }
         .send-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .send-btn:hover:not(:disabled) { background: #f5f5f5; }
+        .send-btn:active:not(:disabled) { background: #ebebeb; }
         .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         @media (max-width: 800px) { .pay-layout { grid-template-columns: 1fr; } .item-grid { grid-template-columns: 1fr; } .breakdown-grid { grid-template-columns: 1fr; } .breakdown-field.full-width { grid-column: span 1; } }
       `}</style>

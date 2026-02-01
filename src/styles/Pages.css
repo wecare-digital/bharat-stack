@@ -1,35 +1,65 @@
 /**
  * Pages Styles - WECARE.DIGITAL
+ * Unified Theme System - Black/White/Grey
  * Clean Compact Design with Enhanced Responsive UX
  */
 
 /* ========================================
-   CSS CUSTOM PROPERTIES
+   CSS CUSTOM PROPERTIES - Unified Theme
    ======================================== */
 :root {
+  /* Layout */
   --page-max-width: 1200px;
   --page-padding-desktop: 32px;
   --page-padding-tablet: 24px;
   --page-padding-mobile: 16px;
+  
+  /* Border Radius - Consistent 13px for buttons */
   --card-radius: 16px;
   --card-radius-sm: 12px;
+  --btn-radius: 13px;
+  
+  /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  
+  /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
+  
+  /* Colors - Black/White/Grey Only */
   --color-primary: #000;
   --color-secondary: #4a4a4a;
   --color-muted: #6b6b6b;
   --color-border: #e5e5e5;
   --color-bg: #fff;
   --color-bg-secondary: #f5f5f5;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-whatsapp: #25D366;
-  --color-sms: #2196F3;
-  --color-email: #9C27B0;
+  --color-bg-hover: #f5f5f5;
+  --color-bg-active: #ebebeb;
+  
+  /* Semantic Colors - Muted */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  
+  /* Channel Colors - Black for consistency */
+  --color-whatsapp: #000;
+  --color-sms: #000;
+  --color-email: #000;
+  
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Monaco, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 16px;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
 }
 
 /* Page Container */
@@ -99,8 +129,8 @@
 }
 
 /* ========================================
-   BUTTONS - Consistent Style System
-   White bg, 13px radius, black border
+   BUTTONS - Unified Style System
+   White bg, black border, 13px radius
    ======================================== */
 
 /* Base Button Styles */
@@ -115,69 +145,54 @@
   gap: 8px;
   padding: 10px 18px;
   min-height: 44px;
-  font-size: 14px;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
   text-decoration: none;
-  border-radius: 13px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   white-space: nowrap;
-  background: #fff;
-  color: #000;
-  border: 1px solid #000;
+  background: var(--color-bg);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
-/* Primary Button - White with black border (consistent style) */
-.btn-primary {
-  background: #fff;
-  color: #000;
-  border: 1px solid #000;
-}
-
-.btn-primary:hover {
-  background: #f5f5f5;
-  border-color: #000;
-}
-
-.btn-primary:active {
-  background: #ebebeb;
-  transform: scale(0.98);
-}
-
-/* Secondary Button - White with black border */
-.btn-secondary,
-.btn-outline,
-.refresh-btn {
-  background: #fff;
-  color: #000;
-  border: 1px solid #000;
-}
-
+/* All buttons have same hover - light grey */
+.btn:hover,
+.btn-primary:hover,
 .btn-secondary:hover,
 .btn-outline:hover,
 .refresh-btn:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-hover);
 }
 
+/* All buttons have same active state */
+.btn:active,
+.btn-primary:active,
 .btn-secondary:active,
 .btn-outline:active,
 .refresh-btn:active {
-  background: #ebebeb;
+  background: var(--color-bg-active);
   transform: scale(0.98);
 }
 
-/* Active state for toggle buttons - light grey */
+/* Active/Selected state - light grey with bold text */
+.btn.active,
+.btn-primary.active,
 .btn-secondary.active,
 .btn-outline.active {
-  background: #f5f5f5;
-  color: #000;
-  border-color: #000;
-  font-weight: 600;
+  background: var(--color-bg-hover);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: var(--font-semibold);
 }
 
+.btn.active:hover,
+.btn-primary.active:hover,
 .btn-secondary.active:hover,
 .btn-outline.active:hover {
-  background: #ebebeb;
+  background: var(--color-bg-active);
 }
 
 /* Disabled state */
@@ -189,23 +204,14 @@
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
-}
-
-.btn-primary:disabled:hover {
-  background: #fff;
-}
-
-.btn-secondary:disabled:hover,
-.btn-outline:disabled:hover,
-.refresh-btn:disabled:hover {
-  background: #fff;
+  background: var(--color-bg);
 }
 
 /* Small button variant */
 .btn-sm {
   padding: 6px 14px;
   min-height: 36px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   border-radius: 10px;
 }
 
@@ -213,7 +219,7 @@
 .btn-lg {
   padding: 14px 24px;
   min-height: 52px;
-  font-size: 15px;
+  font-size: var(--text-base);
   border-radius: 16px;
 }
 
@@ -231,60 +237,43 @@
   min-width: 36px;
 }
 
-/* Danger button */
+/* Danger button - outline style */
 .btn-danger {
-  background: #fff;
-  color: #dc2626;
-  border: 1px solid #dc2626;
+  background: var(--color-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
 }
 
 .btn-danger:hover {
   background: #fef2f2;
 }
 
-.btn-danger.btn-filled {
-  background: #dc2626;
-  color: #fff;
-}
-
-.btn-danger.btn-filled:hover {
-  background: #b91c1c;
-}
-
-/* Success button */
+/* Success button - outline style */
 .btn-success {
-  background: #fff;
-  color: #16a34a;
-  border: 1px solid #16a34a;
+  background: var(--color-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
 }
 
 .btn-success:hover {
   background: #f0fdf4;
 }
 
-.btn-success.btn-filled {
-  background: #16a34a;
-  color: #fff;
-}
-
-.btn-success.btn-filled:hover {
-  background: #15803d;
-}
-
 /* Link style button */
 .btn-link {
   background: transparent;
   border: none;
-  color: #000;
+  color: var(--color-primary);
   padding: 8px 12px;
   min-height: auto;
-  font-weight: 500;
+  font-weight: var(--font-medium);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .btn-link:hover {
-  color: #666;
+  color: var(--color-secondary);
+  background: transparent;
 }
 
 /* Button group */
@@ -301,18 +290,18 @@
 
 .btn-group .btn:first-child,
 .btn-group .btn-secondary:first-child {
-  border-radius: 13px 0 0 13px;
+  border-radius: var(--btn-radius) 0 0 var(--btn-radius);
   margin-left: 0;
 }
 
 .btn-group .btn:last-child,
 .btn-group .btn-secondary:last-child {
-  border-radius: 0 13px 13px 0;
+  border-radius: 0 var(--btn-radius) var(--btn-radius) 0;
 }
 
 .btn-group .btn:only-child,
 .btn-group .btn-secondary:only-child {
-  border-radius: 13px;
+  border-radius: var(--btn-radius);
 }
 
 /* Mobile responsive */
@@ -428,11 +417,11 @@
 }
 
 .stat-card.accent {
-  border-left: 3px solid var(--color-whatsapp);
+  border-left: 3px solid var(--color-primary);
 }
 
 .stat-card.accent2 {
-  border-left: 3px solid var(--color-sms);
+  border-left: 3px solid var(--color-secondary);
 }
 
 .stat-card.success {
@@ -671,11 +660,11 @@
 }
 
 .message-row.inbound {
-  border-left: 2px solid #000;
+  border-left: 2px solid var(--color-primary);
 }
 
 .message-row.outbound {
-  border-left: 2px solid #999;
+  border-left: 2px solid var(--color-secondary);
 }
 
 .message-direction {
@@ -768,39 +757,40 @@
   gap: 8px;
   padding: 10px 18px;
   min-height: 44px;
-  background: #fff;
-  border: 1px solid #000;
-  border-radius: 13px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #000;
+  background: var(--color-bg);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--btn-radius);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  color: var(--color-primary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   white-space: nowrap;
   text-decoration: none;
 }
 
 .tab:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-hover);
 }
 
 .tab:active {
-  background: #ebebeb;
+  background: var(--color-bg-active);
   transform: scale(0.98);
 }
 
 .tab.active {
-  background: #f5f5f5;
-  color: #000;
-  border-color: #000;
-  font-weight: 600;
+  background: var(--color-bg-hover);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: var(--font-semibold);
 }
 
 .tab.active:hover {
-  background: #ebebeb;
+  background: var(--color-bg-active);
 }
 
-/* Form Styles */
+/* Form Styles - Unified */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -809,35 +799,37 @@
 }
 
 .form-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #000000;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  color: var(--color-primary);
 }
 
 .form-group select, 
 .form-group input, 
 .form-group textarea {
   padding: 12px 14px;
-  border: 1px solid #000;
-  border-radius: 13px;
-  font-size: 14px;
-  background: #ffffff;
-  color: #000000;
-  transition: all 0.15s ease;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--btn-radius);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  background: var(--color-bg);
+  color: var(--color-primary);
+  transition: all var(--transition-fast);
   min-height: 44px;
 }
 
 .form-group select:hover,
 .form-group input:hover,
 .form-group textarea:hover {
-  background: #fafafa;
+  background: var(--color-bg-secondary);
 }
 
 .form-group select:focus, 
 .form-group input:focus, 
 .form-group textarea:focus {
   outline: none;
-  background: #fff;
+  background: var(--color-bg);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -3167,12 +3159,14 @@ pre code {
   margin-top: 4px;
 }
 
-/* Hub card variants */
-.hub-card.hub-card-whatsapp:hover::before { background: var(--color-whatsapp); }
-.hub-card.hub-card-sms:hover::before { background: var(--color-sms); }
-.hub-card.hub-card-email:hover::before { background: var(--color-email); }
-.hub-card.hub-card-voice:hover::before { background: #FF5722; }
-.hub-card.hub-card-rcs:hover::before { background: #673AB7; }
+/* Hub card variants - all use black on hover */
+.hub-card.hub-card-whatsapp:hover::before,
+.hub-card.hub-card-sms:hover::before,
+.hub-card.hub-card-email:hover::before,
+.hub-card.hub-card-voice:hover::before,
+.hub-card.hub-card-rcs:hover::before { 
+  background: var(--color-primary); 
+}
 
 @media (max-width: 768px) {
   .hub-page {
@@ -3281,23 +3275,23 @@ pre code {
 .refresh-btn {
   width: 44px;
   height: 44px;
-  border-radius: 13px;
-  border: 1px solid #000;
-  background: #fff;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--color-primary);
+  background: var(--color-bg);
   font-size: 18px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .refresh-btn:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-hover);
 }
 
 .refresh-btn:active {
-  background: #ebebeb;
+  background: var(--color-bg-active);
   transform: scale(0.98);
 }
 
@@ -3307,7 +3301,7 @@ pre code {
   transform: none;
 }
 
-/* Dashboard Tabs Navigation */
+/* Dashboard Tabs Navigation - Unified */
 .dash-tabs {
   display: flex;
   gap: 8px;
@@ -3330,36 +3324,37 @@ pre code {
   gap: 8px;
   padding: 10px 18px;
   min-height: 44px;
-  background: #fff;
-  border: 1px solid #000;
-  border-radius: 13px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #000;
+  background: var(--color-bg);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--btn-radius);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  color: var(--color-primary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   white-space: nowrap;
   text-decoration: none;
 }
 
 .dash-tabs .tab:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-hover);
 }
 
 .dash-tabs .tab:active {
-  background: #ebebeb;
+  background: var(--color-bg-active);
   transform: scale(0.98);
 }
 
 .dash-tabs .tab.active {
-  background: #f5f5f5;
-  color: #000;
-  border-color: #000;
-  font-weight: 600;
+  background: var(--color-bg-hover);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: var(--font-semibold);
 }
 
 .dash-tabs .tab.active:hover {
-  background: #ebebeb;
+  background: var(--color-bg-active);
 }
 
 .dash-tabs .tab svg {
@@ -3458,8 +3453,8 @@ pre code {
 }
 
 .phone-card .badge.green {
-  background: #f5f5f5;
-  color: #000;
+  background: var(--color-bg-hover);
+  color: var(--color-primary);
 }
 
 /* Messages List */
@@ -3489,11 +3484,11 @@ pre code {
 }
 
 .msg-item.inbound {
-  border-left: 3px solid var(--color-whatsapp);
+  border-left: 3px solid var(--color-primary);
 }
 
 .msg-item.outbound {
-  border-left: 3px solid var(--color-sms);
+  border-left: 3px solid var(--color-secondary);
 }
 
 .msg-item .dir {
@@ -3951,7 +3946,7 @@ pre code {
 
 
 /* ========================================
-   SEARCH BAR - Consistent Style
+   SEARCH BAR - Unified Style
    ======================================== */
 
 .search-bar {
@@ -3962,28 +3957,29 @@ pre code {
 .search-input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #000;
-  border-radius: 13px;
-  font-size: 14px;
-  background: #fff;
-  color: #000;
-  transition: all 0.15s ease;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--btn-radius);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  background: var(--color-bg);
+  color: var(--color-primary);
+  transition: all var(--transition-fast);
 }
 
 .search-bar .search-input:hover,
 .search-input:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-hover);
 }
 
 .search-bar .search-input:focus,
 .search-input:focus {
   outline: none;
-  background: #fff;
+  background: var(--color-bg);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 /* ========================================
-   MODAL - Consistent Style
+   MODAL - Unified Style
    ======================================== */
 
 .modal-overlay {
@@ -4001,8 +3997,8 @@ pre code {
 }
 
 .modal {
-  background: #fff;
-  border-radius: 16px;
+  background: var(--color-bg);
+  border-radius: var(--card-radius);
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
@@ -4012,9 +4008,10 @@ pre code {
 }
 
 .modal h2 {
+  font-family: var(--font-sans);
   font-size: 20px;
-  font-weight: 600;
-  color: #000;
+  font-weight: var(--font-semibold);
+  color: var(--color-primary);
   margin: 0 0 20px 0;
 }
 
@@ -4023,7 +4020,7 @@ pre code {
 }
 
 /* ========================================
-   CHECKBOX GROUP - Consistent Style
+   CHECKBOX GROUP - Unified Style
    ======================================== */
 
 .checkbox-group {
@@ -4037,14 +4034,15 @@ pre code {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  font-size: 14px;
-  color: #000;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-primary);
 }
 
 .checkbox-label input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #000;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 

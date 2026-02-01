@@ -1,95 +1,103 @@
 /**
  * Design Tokens - WECARE.DIGITAL
- * Single Source of Truth for all design variables
- * Notion-style theme with larger, readable typography
+ * Unified Theme System - Inspired by Home Page
+ * Black/White/Grey color scheme with consistent typography
  */
 
 :root {
   /* ========================================
-   * COLORS - Notion Neutral Palette
+   * COLORS - Clean Black/White/Grey Palette
    * ======================================== */
+  
+  /* Primary Colors */
+  --color-black: #1a1a1a;
+  --color-white: #ffffff;
+  --color-grey-50: #fafafa;
+  --color-grey-100: #f5f5f5;
+  --color-grey-200: #e5e7eb;
+  --color-grey-300: #d1d5db;
+  --color-grey-400: #9ca3af;
+  --color-grey-500: #6b7280;
+  --color-grey-600: #4b5563;
+  --color-grey-700: #374151;
+  --color-grey-800: #1f2937;
+  --color-grey-900: #111827;
   
   /* Backgrounds */
   --bg: #ffffff;
-  --bg-secondary: #f7f6f3;
-  --bg-hover: #efefef;
-  --bg-active: #e8e8e5;
+  --bg-secondary: #f5f5f5;
+  --bg-hover: #f5f5f5;
+  --bg-active: #ebebeb;
   --surface: #ffffff;
   --surface-hover: #fafafa;
   
   /* Text */
-  --text: #000000;
-  --text-secondary: #4a4a4a;
-  --text-muted: #6b6b6b;
-  --text-light: #999999;
+  --text: #1a1a1a;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
   
   /* Borders */
-  --border: #e9e9e7;
-  --border-dark: #d3d3d0;
-  --border-light: #f0f0ef;
+  --border: #e5e7eb;
+  --border-dark: #d1d5db;
+  --border-light: #f0f0f0;
   
-  /* Accent - Primary Blue */
-  --accent: #2383e2;
-  --accent-light: #e8f4fd;
-  --accent-hover: #1a6bc4;
-  
-  /* Semantic Colors */
-  --success: #0f7b6c;
-  --success-light: #dbeddb;
+  /* Semantic Colors - Muted versions */
+  --success: #16a34a;
+  --success-light: #f0fdf4;
   --success-bg: #f0fdf4;
   
-  --danger: #e03e3e;
-  --danger-light: #fbe4e4;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
   --danger-bg: #fef2f2;
   
-  --warning: #d9730d;
-  --warning-light: #faebdd;
+  --warning: #d97706;
+  --warning-light: #fffbeb;
   --warning-bg: #fffbeb;
   
-  --info: #6940a5;
-  --info-light: #f3e8ff;
-  
-  /* WhatsApp Brand Colors */
-  --wa-green: #25d366;
-  --wa-green-light: rgba(37, 211, 102, 0.15);
-  --wa-green-dark: #128c7e;
-  --wa-teal: #075e54;
-  --wa-teal-light: #00a884;
+  --info: #2563eb;
+  --info-light: #eff6ff;
   
   /* ========================================
-   * TYPOGRAPHY - Notion Large Style
-   * Base: 16px for readability
+   * TYPOGRAPHY - Home Page Style
+   * Clean, readable, consistent
    * ======================================== */
   
   /* Font Families */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Monaco, Consolas, monospace;
   
-  /* Font Sizes - Larger for readability */
-  --text-xs: 13px;    /* Was 10-11px, now minimum 13px */
-  --text-sm: 14px;    /* Was 12-13px */
-  --text-md: 15px;    /* Standard body text */
-  --text-base: 16px;  /* Base size */
-  --text-desc: 21px;  /* Common description text */
-  --text-lg: 18px;    /* Larger body */
-  --text-xl: 20px;    /* Subheadings */
+  /* Font Sizes */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 21px;
+  --text-3xl: 24px;
   
   /* Heading Sizes */
   --h1: 32px;
   --h2: 26px;
-  --h3: 22px;
+  --h3: 21px;
   --h4: 18px;
   
   /* Line Heights */
-  --leading-tight: 1.25;
+  --leading-tight: 1.15;
   --leading-normal: 1.5;
-  --leading-relaxed: 1.625;
+  --leading-relaxed: 1.6;
   
   /* Font Weights */
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
+  
+  /* Letter Spacing */
+  --tracking-tight: -0.5px;
+  --tracking-normal: 0;
+  --tracking-wide: 0.5px;
   
   /* ========================================
    * SPACING
@@ -105,19 +113,23 @@
   --space-12: 48px;
   
   /* ========================================
-   * BORDER RADIUS
+   * BORDER RADIUS - Consistent with home page
    * ======================================== */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
   --radius-full: 9999px;
   
+  /* Button radius - consistent 13px */
+  --radius-btn: 13px;
+  
   /* ========================================
-   * SHADOWS - Subtle, Notion-style
+   * SHADOWS - Subtle
    * ======================================== */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
   
@@ -126,10 +138,17 @@
    * ======================================== */
   --transition-fast: 0.1s ease;
   --transition-normal: 0.15s ease;
-  --transition-slow: 0.2s ease;
+  --transition-slow: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   
   /* ========================================
-   * LEGACY ALIASES (for backward compatibility)
+   * LAYOUT
+   * ======================================== */
+  --max-width: 1200px;
+  --sidebar-width: 240px;
+  --header-height: 60px;
+  
+  /* ========================================
+   * LEGACY ALIASES (backward compatibility)
    * ======================================== */
   --notion-bg: var(--bg);
   --notion-bg-secondary: var(--bg-secondary);
@@ -141,8 +160,8 @@
   --notion-text-light: var(--text-muted);
   --notion-border: var(--border);
   --notion-border-dark: var(--border-dark);
-  --notion-accent: var(--accent);
-  --notion-accent-light: var(--accent-light);
+  --notion-accent: var(--color-black);
+  --notion-accent-light: var(--bg-secondary);
   --notion-green: var(--success);
   --notion-green-light: var(--success-light);
   --notion-red: var(--danger);
@@ -151,8 +170,17 @@
   --notion-orange-light: var(--warning-light);
   --notion-purple: var(--info);
   --notion-purple-light: var(--info-light);
-  --notion-yellow: #dfab01;
-  --notion-yellow-light: #fef9c3;
+  
+  /* Pages.css compatibility */
+  --color-primary: #000;
+  --color-secondary: #4a4a4a;
+  --color-muted: #6b6b6b;
+  --color-border: #e5e5e5;
+  --color-bg: #fff;
+  --color-bg-secondary: #f5f5f5;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
 }
 
 /* ========================================
@@ -170,24 +198,112 @@ body {
   font-weight: var(--font-normal);
   line-height: var(--leading-normal);
   color: var(--text);
-  background: #ffffff;
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ========================================
- * MOBILE TYPOGRAPHY & TOUCH TARGETS
+ * UNIFIED BUTTON SYSTEM
+ * White bg, black border, 13px radius
+ * ======================================== */
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  min-height: 44px;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: var(--radius-btn);
+  transition: all var(--transition-normal);
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--text);
+}
+
+.btn:hover,
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-outline:hover {
+  background: var(--bg-hover);
+}
+
+.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-outline:active {
+  background: var(--bg-active);
+  transform: scale(0.98);
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-outline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Active/Selected state */
+.btn.active,
+.btn-primary.active,
+.btn-secondary.active,
+.btn-outline.active {
+  background: var(--bg-hover);
+  font-weight: var(--font-semibold);
+}
+
+/* ========================================
+ * UNIFIED FORM INPUTS
+ * ======================================== */
+
+input,
+select,
+textarea {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  min-height: 44px;
+  transition: all var(--transition-normal);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--border-dark);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+ * MOBILE RESPONSIVE
  * ======================================== */
 
 @media (max-width: 768px) {
   html {
-    font-size: 16px;
     -webkit-tap-highlight-color: transparent;
-  }
-  
-  body {
-    font-size: 16px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
   
   /* Prevent zoom on input focus */
@@ -206,32 +322,28 @@ body {
     min-width: 44px;
   }
   
-  /* Better tap feedback */
-  button:active,
-  a:active,
-  [role="button"]:active {
-    opacity: 0.7;
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline {
+    padding: 10px 16px;
+    font-size: var(--text-sm);
+    border-radius: 12px;
   }
 }
 
 @media (max-width: 480px) {
   :root {
-    --text-xs: 12px;
-    --text-sm: 13px;
-    --text-md: 14px;
-    --text-base: 15px;
-    --text-desc: 18px;
-    --text-lg: 17px;
-    --text-xl: 19px;
-    --h1: 26px;
-    --h2: 22px;
-    --h3: 19px;
+    --h1: 28px;
+    --h2: 24px;
+    --h3: 20px;
     --h4: 17px;
+    --text-2xl: 18px;
   }
 }
 
 /* ========================================
- * SKELETON PULSE ANIMATION (No Gradient)
+ * SKELETON ANIMATION
  * ======================================== */
 
 @keyframes skeleton-pulse {

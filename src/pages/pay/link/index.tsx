@@ -190,7 +190,7 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         .pay-link-page { padding: 20px; max-width: 1100px; margin: 0 auto; }
         .page-header { margin-bottom: 20px; }
         .page-header h1 { font-size: 22px; margin: 0 0 4px 0; }
-        .page-header p { color: #666; margin: 0; font-size: 14px; }
+        .page-header p { color: #4a4a4a; margin: 0; font-size: 14px; }
         
         .coming-soon-banner { display: flex; align-items: center; gap: 16px; background: #f5f5f5; padding: 16px 20px; border-radius: 13px; margin-bottom: 20px; border: 1px solid #000; }
         .banner-icon { font-size: 24px; color: #4a4a4a; }
@@ -205,18 +205,22 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         
         .ref-row { display: flex; gap: 8px; }
         .ref-row input { flex: 1; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; background: #fff; }
-        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; }
+        .ref-row input:hover { background: #f5f5f5; }
+        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500; }
         .gen-btn:hover { background: #f5f5f5; }
+        .gen-btn:active { background: #ebebeb; }
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .form-field { }
         .form-field.full-width { grid-column: span 2; }
         .form-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
         .form-field input, .form-field select { width: 100%; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
-        .form-field input:focus, .form-field select:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); }
+        .form-field input:hover, .form-field select:hover { background: #f5f5f5; }
+        .form-field input:focus, .form-field select:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); background: #fff; }
         
         .generate-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .generate-btn:hover:not(:disabled) { background: #f5f5f5; }
+        .generate-btn:active:not(:disabled) { background: #ebebeb; }
         .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         
         .link-preview h3 { font-size: 14px; margin: 0 0 10px 0; font-weight: 600; }
@@ -224,8 +228,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         
         .link-display { display: flex; gap: 8px; margin-bottom: 16px; }
         .link-display input { flex: 1; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; background: #f5f5f5; }
-        .copy-btn { padding: 10px 16px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+        .copy-btn { padding: 10px 16px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500; white-space: nowrap; }
         .copy-btn:hover { background: #f5f5f5; }
+        .copy-btn:active { background: #ebebeb; }
         
         .link-details { padding: 12px; background: #f5f5f5; border-radius: 10px; margin-bottom: 16px; }
         .detail-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
@@ -233,8 +238,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         .detail-row span:last-child { font-weight: 500; color: #000; }
         
         .share-buttons { display: flex; gap: 8px; }
-        .share-btn { flex: 1; padding: 10px; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 13px; background: #fff; color: #000; }
+        .share-btn { flex: 1; padding: 10px; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 13px; background: #fff; color: #000; font-weight: 500; }
         .share-btn:hover { background: #f5f5f5; }
+        .share-btn:active { background: #ebebeb; }
         
         .empty-state { text-align: center; padding: 40px 20px; color: #4a4a4a; }
         .empty-icon { font-size: 24px; margin-bottom: 12px; opacity: 0.5; }
