@@ -42,15 +42,15 @@
   --border-dark: #d1d5db;
   --border-light: #f0f0f0;
   
-  /* Accent - Black theme */
-  --accent: #1a1a1a;
-  --accent-light: #f5f5f5;
-  --accent-hover: #374151;
+  /* Accent - Green theme */
+  --accent: #10b981;
+  --accent-light: #ecfdf5;
+  --accent-hover: #059669;
   
   /* Semantic Colors - Muted versions */
-  --success: #16a34a;
-  --success-light: #f0fdf4;
-  --success-bg: #f0fdf4;
+  --success: #10b981;
+  --success-light: #ecfdf5;
+  --success-bg: #ecfdf5;
   
   --danger: #dc2626;
   --danger-light: #fef2f2;
@@ -165,10 +165,10 @@
   --notion-text-light: var(--text-muted);
   --notion-border: var(--border);
   --notion-border-dark: var(--border-dark);
-  --notion-accent: var(--color-black);
-  --notion-accent-light: var(--bg-secondary);
-  --notion-green: var(--success);
-  --notion-green-light: var(--success-light);
+  --notion-accent: #10b981;
+  --notion-accent-light: #ecfdf5;
+  --notion-green: #10b981;
+  --notion-green-light: #ecfdf5;
   --notion-red: var(--danger);
   --notion-red-light: var(--danger-light);
   --notion-orange: var(--warning);
@@ -177,15 +177,15 @@
   --notion-purple-light: var(--info-light);
   
   /* Pages.css compatibility */
-  --color-primary: #000;
-  --color-secondary: #4a4a4a;
-  --color-muted: #6b6b6b;
-  --color-border: #e5e5e5;
+  --color-primary: #10b981;
+  --color-secondary: #059669;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
   --color-bg: #fff;
   --color-bg-secondary: #f5f5f5;
-  --color-success: #16a34a;
-  --color-warning: #d97706;
-  --color-danger: #dc2626;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
 }
 
 /* ========================================

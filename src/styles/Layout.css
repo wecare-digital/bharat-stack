@@ -232,19 +232,19 @@ input, textarea, select {
 }
 
 .nav-item:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .nav-item-active,
 .nav-item--active {
-  background: var(--active);
-  color: var(--text);
+  background: #10b981;
+  color: #fff;
 }
 
 .nav-item-active:hover,
 .nav-item--active:hover {
-  background: var(--active);
+  background: #059669;
 }
 
 .nav-item-expandable {
@@ -267,13 +267,13 @@ input, textarea, select {
 }
 
 .nav-item-expandable:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .nav-item-expandable.nav-item-active {
-  background: var(--active);
-  color: var(--text);
+  background: #10b981;
+  color: #fff;
 }
 
 .nav-icon {
@@ -330,18 +330,18 @@ input, textarea, select {
 }
 
 .nav-subitem:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .nav-subitem-active {
-  background: var(--active);
-  color: var(--text);
+  background: #d1fae5;
+  color: #059669;
 }
 
 .nav-subitem-active:hover {
-  background: var(--active);
-  color: var(--text);
+  background: #d1fae5;
+  color: #059669;
 }
 
 .nav-subitem-expandable {
@@ -364,13 +364,13 @@ input, textarea, select {
 }
 
 .nav-subitem-expandable:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .nav-subitem-expandable.nav-subitem-active {
-  background: var(--active);
-  color: var(--text);
+  background: #d1fae5;
+  color: #059669;
 }
 
 /* Nested levels indentation */
@@ -1164,7 +1164,7 @@ input, textarea, select {
   padding: 8px 12px;
   border-radius: 10px;
   font-weight: 560;
-  color: var(--muted);
+  color: #6b7280;
   border: none;
   background: none;
   cursor: pointer;
@@ -1173,11 +1173,12 @@ input, textarea, select {
 }
 
 .tab:hover {
-  background: var(--hover);
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .tab--active,
 .tab.active {
-  color: var(--text);
-  background: var(--active);
+  color: #fff;
+  background: #10b981;
 }
