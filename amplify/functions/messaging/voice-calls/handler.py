@@ -1,8 +1,13 @@
 """
 Voice Calls Lambda Function
 
-Purpose: Make and manage voice calls via AWS Connect or Airtel IQ
-Supports: TTS, Audio playback, IVR, Click-to-call
+Purpose: Make and manage voice calls via AWS Connect or Airtel CCP
+Supports: TTS, Audio playback, IVR, Click-to-call (C2C)
+
+Airtel CCP Click-to-Call API:
+- Connects two users on a call with recording
+- Initiates call to first participant, then patches second participant
+- Real-time events and CDR with recording URL
 """
 
 import os
@@ -11,6 +16,9 @@ import uuid
 import time
 import logging
 import boto3
+import base64
+import urllib.request
+import urllib.error
 from typing import Dict, Any
 from decimal import Decimal
 
@@ -31,6 +39,16 @@ CONNECT_CONTACT_FLOW_ID = os.environ.get('CONNECT_CONTACT_FLOW_ID', '')
 CONNECT_QUEUE_ID = os.environ.get('CONNECT_QUEUE_ID', '')
 SOURCE_PHONE_NUMBER = os.environ.get('SOURCE_PHONE_NUMBER', '')
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
+
+# Airtel CCP Configuration
+AIRTEL_CCP_HOST = os.environ.get('AIRTEL_CCP_HOST', 'cpaas.airtel.in')
+AIRTEL_CCP_USERNAME = os.environ.get('AIRTEL_CCP_USERNAME', '')
+AIRTEL_CCP_PASSWORD = os.environ.get('AIRTEL_CCP_PASSWORD', '')
+AIRTEL_CCP_CALL_FLOW_ID = os.environ.get('AIRTEL_CCP_CALL_FLOW_ID', '')
+AIRTEL_CCP_CUSTOMER_ID = os.environ.get('AIRTEL_CCP_CUSTOMER_ID', '')
+AIRTEL_CCP_CALLER_ID = os.environ.get('AIRTEL_CCP_CALLER_ID', '9319767034')  # Virtual number
+AIRTEL_CDR_WEBHOOK_URL = os.environ.get('AIRTEL_CDR_WEBHOOK_URL', 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook')
+AIRTEL_EVENTS_WEBHOOK_URL = os.environ.get('AIRTEL_EVENTS_WEBHOOK_URL', 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook')
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -133,11 +151,67 @@ def _make_call(body: Dict, request_id: str) -> Dict[str, Any]:
     phone_number = body.get('phoneNumber')
     contact_id = body.get('contactId')
     provider = body.get('provider', 'aws')
-    call_type = body.get('callType', 'tts')
+    call_type = body.get('callType', 'tts')  # tts, audio, c2c (click-to-call)
     message_text = body.get('messageText', '')
     voice_id = body.get('voiceId', 'Aditi')  # Indian English voice
     audio_url = body.get('audioUrl')
     
+    # Click-to-Call specific params
+    from_number = body.get('fromNumber')  # First participant (agent/caller)
+    to_number = body.get('toNumber')  # Second participant (customer)
+    enable_recording = body.get('enableRecording', True)
+    
+    # Handle C2C call type
+    if call_type == 'c2c':
+        if not from_number or not to_number:
+            return _response(400, {'error': 'fromNumber and toNumber are required for click-to-call'})
+        
+        # Generate call ID
+        call_id = str(uuid.uuid4())
+        
+        # Make C2C call via Airtel CCP
+        result = _make_airtel_c2c_call(from_number, to_number, enable_recording, request_id)
+        
+        # Store call record
+        _store_call(
+            call_id=call_id,
+            contact_id=contact_id or '',
+            phone=to_number,
+            provider='airtel_ccp',
+            call_type='c2c',
+            status=result.get('status', 'failed'),
+            provider_call_id=result.get('providerCallId'),
+            extra_data={
+                'fromNumber': from_number,
+                'toNumber': to_number,
+                'enableRecording': enable_recording
+            }
+        )
+        
+        if not result.get('success'):
+            return _response(500, {
+                'error': result.get('error', 'Failed to initiate click-to-call'),
+                'errorCode': result.get('errorCode'),
+                'callId': call_id
+            })
+        
+        logger.info(json.dumps({
+            'event': 'c2c_call_initiated',
+            'callId': call_id,
+            'fromNumber': from_number,
+            'toNumber': to_number,
+            'correlationId': result.get('providerCallId'),
+            'requestId': request_id
+        }))
+        
+        return _response(200, {
+            'callId': call_id,
+            'status': 'initiated',
+            'correlationId': result.get('providerCallId'),
+            'message': 'Click-to-call initiated. First participant will be called, then connected to second participant.'
+        })
+    
+    # Standard outbound call (TTS/Audio)
     if not phone_number:
         # Try to get phone from contact
         if contact_id:
@@ -224,9 +298,7 @@ def _make_aws_call(phone: str, call_type: str, message: str,
 
 def _make_airtel_call(phone: str, call_type: str, message: str, 
                       audio_url: str, request_id: str) -> Dict[str, Any]:
-    """Make call via Airtel IQ Voice API."""
-    import urllib.request
-    
+    """Make call via Airtel IQ Voice API (legacy)."""
     try:
         airtel_api_key = os.environ.get('AIRTEL_API_KEY', '')
         airtel_caller_id = os.environ.get('AIRTEL_CALLER_ID', '')
@@ -268,6 +340,177 @@ def _make_airtel_call(phone: str, call_type: str, message: str,
         return {'success': False, 'error': str(e)}
 
 
+def _make_airtel_c2c_call(from_number: str, to_number: str, 
+                          enable_recording: bool, request_id: str) -> Dict[str, Any]:
+    """
+    Make Click-to-Call via Airtel CCP API.
+    
+    This connects two participants:
+    - First participant (from_number) is called first
+    - Once answered, second participant (to_number) is called
+    - Both are patched together with optional recording
+    
+    API: POST /v2/execute/workflow
+    """
+    try:
+        if not AIRTEL_CCP_USERNAME or not AIRTEL_CCP_PASSWORD:
+            return {'success': False, 'error': 'Airtel CCP credentials not configured'}
+        
+        if not AIRTEL_CCP_CALL_FLOW_ID or not AIRTEL_CCP_CUSTOMER_ID:
+            return {'success': False, 'error': 'Airtel CCP call flow not configured'}
+        
+        # Clean phone numbers (ensure 10 digits)
+        from_clean = _clean_phone_number(from_number)
+        to_clean = _clean_phone_number(to_number)
+        
+        if not from_clean or not to_clean:
+            return {'success': False, 'error': 'Invalid phone number format'}
+        
+        # Build Basic Auth header
+        credentials = f"{AIRTEL_CCP_USERNAME}:{AIRTEL_CCP_PASSWORD}"
+        auth_header = base64.b64encode(credentials.encode()).decode()
+        
+        # Build Click-to-Call payload per Airtel CCP spec
+        payload = {
+            "callFlowId": AIRTEL_CCP_CALL_FLOW_ID,
+            "customerId": AIRTEL_CCP_CUSTOMER_ID,
+            "callType": "OUTBOUND",
+            "callFlowConfiguration": {
+                "initiateCall_1": {
+                    "callerId": AIRTEL_CCP_CALLER_ID,
+                    "mergingStrategy": "SEQUENTIAL",
+                    "maxTime": 0,
+                    "participants": [
+                        {
+                            "participantAddress": from_clean,
+                            "callerId": AIRTEL_CCP_CALLER_ID,
+                            "participantName": "A",
+                            "maxRetries": 1,
+                            "maxTime": 0
+                        }
+                    ],
+                    "callBackURLs": [
+                        {
+                            "eventType": "CDR",
+                            "notifyURL": AIRTEL_CDR_WEBHOOK_URL,
+                            "method": "POST",
+                            "headers": {}
+                        },
+                        {
+                            "eventType": "ALL",
+                            "notifyURL": AIRTEL_EVENTS_WEBHOOK_URL,
+                            "method": "POST",
+                            "headers": {}
+                        }
+                    ]
+                },
+                "addParticipant_1": {
+                    "mergingStrategy": "SEQUENTIAL",
+                    "maxTime": 0,
+                    "participants": [
+                        {
+                            "participantAddress": to_clean,
+                            "callerId": AIRTEL_CCP_CALLER_ID,
+                            "participantName": "B",
+                            "maxRetries": 1,
+                            "maxTime": 0,
+                            "enableEarlyMedia": True
+                        }
+                    ]
+                },
+                "record": {
+                    "enabled": enable_recording
+                }
+            }
+        }
+        
+        url = f"https://{AIRTEL_CCP_HOST}/v2/execute/workflow"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Basic {auth_header}'
+        }
+        
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+        
+        logger.info(json.dumps({
+            'event': 'airtel_c2c_request',
+            'url': url,
+            'from': from_clean,
+            'to': to_clean,
+            'requestId': request_id
+        }))
+        
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            
+            logger.info(json.dumps({
+                'event': 'airtel_c2c_response',
+                'status': result.get('status'),
+                'correlationId': result.get('correlationId'),
+                'requestId': request_id
+            }))
+            
+            if result.get('status') == 'success':
+                return {
+                    'success': True,
+                    'status': 'initiated',
+                    'providerCallId': result.get('correlationId')
+                }
+            
+            return {
+                'success': False, 
+                'error': result.get('errorMessage', 'Airtel CCP API error'),
+                'errorCode': result.get('errorCode')
+            }
+            
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(json.dumps({
+            'event': 'airtel_c2c_http_error',
+            'status': e.code,
+            'error': error_body,
+            'requestId': request_id
+        }))
+        
+        # Parse error response
+        try:
+            error_data = json.loads(error_body)
+            error_msg = error_data.get('errorMessage', f'HTTP {e.code}')
+        except:
+            error_msg = f'HTTP {e.code}: {error_body[:200]}'
+        
+        return {'success': False, 'error': error_msg}
+        
+    except Exception as e:
+        logger.error(f"Airtel C2C error: {str(e)}")
+        return {'success': False, 'error': str(e)}
+
+
+def _clean_phone_number(phone: str) -> str:
+    """Clean phone number to 10 digits for Airtel CCP."""
+    if not phone:
+        return ''
+    
+    # Remove all non-digits
+    digits = ''.join(c for c in phone if c.isdigit())
+    
+    # Handle +91 prefix
+    if digits.startswith('91') and len(digits) == 12:
+        digits = digits[2:]
+    
+    # Handle 0 prefix
+    if digits.startswith('0') and len(digits) == 11:
+        digits = digits[1:]
+    
+    # Validate 10 digits
+    if len(digits) == 10:
+        return digits
+    
+    return ''
+
+
 def _get_contact(contact_id: str) -> Dict[str, Any]:
     """Get contact from DynamoDB."""
     try:
@@ -279,7 +522,8 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
 
 
 def _store_call(call_id: str, contact_id: str, phone: str, provider: str,
-                call_type: str, status: str, provider_call_id: str = None) -> None:
+                call_type: str, status: str, provider_call_id: str = None,
+                extra_data: Dict = None) -> None:
     """Store call record in DynamoDB."""
     try:
         now = int(time.time())
@@ -302,6 +546,12 @@ def _store_call(call_id: str, contact_id: str, phone: str, provider: str,
         
         if provider_call_id:
             item['providerCallId'] = provider_call_id
+            item['correlationId'] = provider_call_id
+        
+        # Add extra data for C2C calls
+        if extra_data:
+            for key, value in extra_data.items():
+                item[key] = value
         
         table.put_item(Item=item)
         

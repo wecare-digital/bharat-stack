@@ -33,6 +33,23 @@ API Gateway: `https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod`
 |--------|-------|----------------|--------|
 | POST | /sms/send | wecare-outbound-sms | ✅ WIRED & TESTED |
 
+### Airtel IQ SMS API (DLT Compliant)
+POST /sms/send with `provider: "airtel"` sends via Airtel IQ:
+```json
+{
+  "phoneNumber": "9876543210",
+  "content": "Your OTP is 123456",
+  "provider": "airtel",
+  "messageType": "SERVICE_IMPLICIT",
+  "dltTemplateId": "1234567890123456789",
+  "sourceAddress": "WECARE",
+  "otp": true,
+  "apiVersion": "v4"
+}
+```
+Message Types: `PROMOTIONAL`, `TRANSACTIONAL`, `SERVICE_IMPLICIT`, `SERVICE_EXPLICIT`
+API Versions: `v4` (standard), `v5` (content moderation), `v6` (enhanced response)
+
 ## Email API
 | Method | Route | Lambda Handler | Status |
 |--------|-------|----------------|--------|
@@ -44,6 +61,18 @@ API Gateway: `https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod`
 | GET | /voice/calls | wecare-voice-calls | ✅ WIRED & TESTED |
 | GET | /voice/calls/{callId} | wecare-voice-calls | ✅ WIRED & TESTED |
 | POST | /voice/call | wecare-voice-calls | ✅ WIRED & TESTED |
+
+### Click-to-Call (C2C) via Airtel CCP
+POST /voice/call with `callType: "c2c"` initiates a Click-to-Call:
+```json
+{
+  "callType": "c2c",
+  "fromNumber": "9876543210",  // Agent number (called first)
+  "toNumber": "9123456789",    // Customer number (patched in)
+  "enableRecording": true
+}
+```
+Response: `{ "callId": "...", "correlationId": "...", "status": "initiated" }`
 
 ## Airtel Voice CDR API
 | Method | Route | Lambda Handler | Status |

@@ -13,6 +13,14 @@ export const outboundSms = defineFunction({
     MESSAGES_TABLE: 'base-wecare-digital-MessagesTable',
     PINPOINT_APP_ID: '',
     ORIGINATION_NUMBER: '',
-    SENDER_ID: 'WECARE',
+    SENDER_ID: 'WDBEEP',
+    // Airtel IQ SMS Configuration
+    AIRTEL_IQ_HOST: 'iqmessaging.airtel.in',
+    AIRTEL_IQ_USERNAME: '',
+    AIRTEL_IQ_PASSWORD: '',
+    AIRTEL_IQ_CUSTOMER_ID: '',
+    // DLT Registration Details - WECARE.DIGITAL
+    AIRTEL_IQ_ENTITY_ID: '1201161991108627443',  // PE ID
+    AIRTEL_IQ_SOURCE_ADDRESS: 'WDBEEP',  // Header (DLT ID: 1405170900886606599)
   },
 });

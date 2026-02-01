@@ -6,6 +6,7 @@
  * Email: voice@wecare.digital
  * 
  * Tabs: CDR Logs, Statistics, Dialer
+ * Features: Click-to-Call (C2C), Callback, Outbound calls
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -95,7 +96,10 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
   
   // Dialer state
   const [dialerNumber, setDialerNumber] = useState('');
+  const [agentNumber, setAgentNumber] = useState('');
   const [calling, setCalling] = useState(false);
+  const [callResult, setCallResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [enableRecording, setEnableRecording] = useState(true);
 
   // Fetch CDR records
   const fetchCDRRecords = useCallback(async () => {
@@ -160,18 +164,99 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  // Dialer handlers
-  const handleDial = () => {
-    if (!dialerNumber.trim()) return;
+  // Click-to-Call handler (C2C)
+  const handleClickToCall = async () => {
+    if (!dialerNumber.trim() || !agentNumber.trim()) {
+      setCallResult({ success: false, message: 'Both agent number and customer number are required' });
+      return;
+    }
+    
     setCalling(true);
-    setTimeout(() => setCalling(false), 3000);
+    setCallResult(null);
+    
+    try {
+      const response = await fetch(`${API_BASE}/voice/call`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callType: 'c2c',
+          fromNumber: agentNumber.trim(),
+          toNumber: dialerNumber.trim(),
+          enableRecording: enableRecording,
+          provider: 'airtel_ccp'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCallResult({ 
+          success: true, 
+          message: `Call initiated! Correlation ID: ${data.correlationId || data.callId}` 
+        });
+      } else {
+        setCallResult({ 
+          success: false, 
+          message: data.error || 'Failed to initiate call' 
+        });
+      }
+    } catch (err: any) {
+      setCallResult({ success: false, message: err.message || 'Network error' });
+    } finally {
+      setCalling(false);
+    }
   };
 
+  // Callback handler - calls customer first, then connects to agent
+  const handleCallback = async (customerNumber: string) => {
+    if (!agentNumber.trim()) {
+      setCallResult({ success: false, message: 'Please enter your agent number first' });
+      setActiveTab('dialer');
+      return;
+    }
+    
+    setCalling(true);
+    setCallResult(null);
+    
+    try {
+      const response = await fetch(`${API_BASE}/voice/call`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callType: 'c2c',
+          fromNumber: agentNumber.trim(),
+          toNumber: customerNumber,
+          enableRecording: true,
+          provider: 'airtel_ccp'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCallResult({ 
+          success: true, 
+          message: `Callback initiated to ${customerNumber}` 
+        });
+      } else {
+        setCallResult({ 
+          success: false, 
+          message: data.error || 'Failed to initiate callback' 
+        });
+      }
+    } catch (err: any) {
+      setCallResult({ success: false, message: err.message || 'Network error' });
+    } finally {
+      setCalling(false);
+    }
+  };
+
+  // Dialer handlers
   const handleKeyPress = (key: string) => {
     if (key === 'backspace') {
       setDialerNumber(prev => prev.slice(0, -1));
     } else if (key === 'call') {
-      handleDial();
+      handleClickToCall();
     } else {
       setDialerNumber(prev => prev + key);
     }
@@ -214,6 +299,29 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           </button>
         </div>
 
+        {/* Call Result Toast */}
+        {callResult && (
+          <div style={{
+            padding: '12px 16px',
+            background: callResult.success ? '#d1fae5' : '#fef2f2',
+            border: `1px solid ${callResult.success ? '#a7f3d0' : '#fecaca'}`,
+            borderRadius: '8px',
+            color: callResult.success ? '#065f46' : '#dc2626',
+            marginBottom: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span>{callResult.message}</span>
+            <button 
+              onClick={() => setCallResult(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="tabs" style={{ marginBottom: '24px' }}>
           {(['cdr', 'stats', 'dialer'] as TabType[]).map(tab => (
@@ -224,7 +332,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
             >
               {tab === 'cdr' && 'CDR Logs'}
               {tab === 'stats' && 'Statistics'}
-              {tab === 'dialer' && 'Dialer'}
+              {tab === 'dialer' && 'Click-to-Call'}
             </button>
           ))}
         </div>
@@ -298,7 +406,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>Wait Time</th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>Duration</th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>Circle</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>Recording</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -335,7 +443,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                             background: record.callType === 'INBOUND' ? '#dbeafe' : '#fef3c7',
                             color: record.callType === 'INBOUND' ? '#1d4ed8' : '#92400e'
                           }}>
-                            {record.callType === 'INBOUND' ? 'Inbound' : 'Outbound'}
+                            {record.callType === 'INBOUND' ? '📞 Inbound' : '📤 Outbound'}
                           </span>
                         </td>
                         <td style={{ padding: '12px' }}>
@@ -375,25 +483,54 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                           </div>
                         </td>
                         <td style={{ padding: '12px' }}>
-                          {record.recordingURL ? (
-                            <a
-                              href={record.recordingURL}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                padding: '6px 12px',
-                                background: 'var(--color-primary)',
-                                color: 'white',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                textDecoration: 'none'
-                              }}
-                            >
-                              Play
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--color-muted)', fontSize: '12px' }}>-</span>
-                          )}
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {/* Callback Button - for inbound calls */}
+                            {record.callType === 'INBOUND' && record.callerNumber && (
+                              <button
+                                onClick={() => handleCallback(record.callerNumber)}
+                                disabled={calling}
+                                title={`Callback ${record.callerNumber}`}
+                                style={{
+                                  padding: '6px 10px',
+                                  background: '#10b981',
+                                  color: 'white',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  border: 'none',
+                                  cursor: calling ? 'not-allowed' : 'pointer',
+                                  opacity: calling ? 0.6 : 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                📞 Callback
+                              </button>
+                            )}
+                            {/* Recording Button */}
+                            {record.recordingURL ? (
+                              <a
+                                href={record.recordingURL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  padding: '6px 10px',
+                                  background: 'var(--color-primary)',
+                                  color: 'white',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  textDecoration: 'none',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                🎵 Play
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--color-muted)', fontSize: '12px' }}>-</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -516,44 +653,74 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         )}
 
-        {/* DIALER TAB */}
+        {/* DIALER TAB - Click-to-Call */}
         {activeTab === 'dialer' && (
           <div className="section">
-            <h3 className="section-title">Voice Dialer</h3>
+            <h3 className="section-title">Click-to-Call (C2C)</h3>
             <p style={{ color: 'var(--color-muted)', marginBottom: '20px' }}>
-              Make outbound voice calls using Cloud Communication Platform.
+              Connect two participants via Airtel CCP. The agent is called first, then connected to the customer.
             </p>
 
-            <div style={{ maxWidth: '320px', margin: '0 auto' }}>
-              <div style={{
-                background: 'var(--color-bg-secondary)',
-                padding: '20px',
-                borderRadius: '12px',
-                marginBottom: '16px',
-                textAlign: 'center',
-              }}>
+            <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+              {/* Agent Number Input */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>
+                  Your Number (Agent)
+                </label>
                 <input
-                  type="text"
-                  value={dialerNumber}
-                  onChange={(e) => setDialerNumber(e.target.value.replace(/[^0-9+]/g, ''))}
-                  placeholder="Enter phone number"
+                  type="tel"
+                  value={agentNumber}
+                  onChange={(e) => setAgentNumber(e.target.value.replace(/[^0-9+]/g, ''))}
+                  placeholder="Enter your 10-digit number"
                   style={{
                     width: '100%',
-                    fontSize: '24px',
-                    fontWeight: 600,
-                    textAlign: 'center',
-                    border: 'none',
-                    background: 'transparent',
+                    padding: '12px 16px',
+                    fontSize: '16px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '8px',
                     outline: 'none',
-                    letterSpacing: '2px',
                   }}
                 />
+                <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px' }}>
+                  You will receive the call first, then be connected to the customer
+                </div>
               </div>
 
+              {/* Customer Number Display */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>
+                  Customer Number
+                </label>
+                <div style={{
+                  background: 'var(--color-bg-secondary)',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginBottom: '8px',
+                }}>
+                  <input
+                    type="tel"
+                    value={dialerNumber}
+                    onChange={(e) => setDialerNumber(e.target.value.replace(/[^0-9+]/g, ''))}
+                    placeholder="Enter customer number"
+                    style={{
+                      width: '100%',
+                      fontSize: '24px',
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      letterSpacing: '2px',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Dial Pad */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '12px',
+                gap: '10px',
                 marginBottom: '16px',
               }}>
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(key => (
@@ -561,28 +728,94 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                     key={key}
                     onClick={() => handleKeyPress(key)}
                     className="dialer-key"
+                    style={{
+                      padding: '16px',
+                      fontSize: '20px',
+                      fontWeight: 600,
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      background: 'white',
+                      cursor: 'pointer',
+                    }}
                   >
                     {key}
                   </button>
                 ))}
               </div>
 
+              {/* Recording Toggle */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                marginBottom: '16px',
+                padding: '12px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: '8px'
+              }}>
+                <input
+                  type="checkbox"
+                  id="enableRecording"
+                  checked={enableRecording}
+                  onChange={(e) => setEnableRecording(e.target.checked)}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                <label htmlFor="enableRecording" style={{ fontSize: '14px', cursor: 'pointer' }}>
+                  Enable call recording
+                </label>
+              </div>
+
+              {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   onClick={() => handleKeyPress('backspace')}
                   className="btn-secondary"
-                  style={{ flex: 1 }}
+                  style={{ 
+                    flex: 1,
+                    padding: '14px',
+                    fontSize: '16px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    background: 'white',
+                    cursor: 'pointer'
+                  }}
                 >
-                  Delete
+                  ⌫ Delete
                 </button>
                 <button
-                  onClick={handleDial}
-                  disabled={!dialerNumber.trim() || calling}
-                  className="btn-primary"
-                  style={{ flex: 2 }}
+                  onClick={handleClickToCall}
+                  disabled={!dialerNumber.trim() || !agentNumber.trim() || calling}
+                  style={{ 
+                    flex: 2,
+                    padding: '14px',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: (!dialerNumber.trim() || !agentNumber.trim() || calling) ? '#9ca3af' : '#10b981',
+                    color: 'white',
+                    cursor: (!dialerNumber.trim() || !agentNumber.trim() || calling) ? 'not-allowed' : 'pointer'
+                  }}
                 >
-                  {calling ? 'Calling...' : 'Call'}
+                  {calling ? '📞 Connecting...' : '📞 Click to Call'}
                 </button>
+              </div>
+
+              {/* How it works */}
+              <div style={{
+                marginTop: '24px',
+                padding: '16px',
+                background: '#f0fdf4',
+                borderRadius: '8px',
+                border: '1px solid #bbf7d0'
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px', color: '#166534' }}>How Click-to-Call Works:</div>
+                <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#166534', lineHeight: 1.6 }}>
+                  <li>You (agent) receive a call on your number</li>
+                  <li>Once you answer, the customer is called</li>
+                  <li>Both parties are connected with optional recording</li>
+                  <li>CDR with recording URL is sent to webhook</li>
+                </ol>
               </div>
             </div>
           </div>
@@ -593,10 +826,10 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           marginTop: '24px',
           borderLeft: '4px solid #10B981'
         }}>
-          <strong>CDR Webhook</strong>
+          <strong>Airtel CCP Click-to-Call API</strong>
           <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#6b7280' }}>
-            Webhook receives CDR data including: vmSessionId, clientCorrelationId, callType, overallCallStatus, 
-            duration fields, caller/destination numbers, circle/operator info, and recording URLs.
+            Click-to-Call connects two participants with recording. Agent receives call first, then customer is patched in.
+            CDR webhook receives: correlationId, callType, overallCallStatus, duration fields, participant info, and recording URLs.
           </p>
         </div>
       </div>
