@@ -1227,6 +1227,59 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </div>
 
+              {/* Voice IN CDR Webhook Section */}
+              <div className="section" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: 'white' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Voice IN CDR Webhook</h3>
+                    <span className="badge" style={{ background: '#d1fae5', color: '#111827', marginTop: '4px' }}>Active</span>
+                  </div>
+                </div>
+                
+                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', opacity: 0.8, display: 'block' }}>Webhook URL</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', opacity: 0.8, display: 'block' }}>Inbound Number</label>
+                    <code style={{ fontSize: '0.85rem' }}>+91 9319767034</code>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', opacity: 0.8, display: 'block' }}>Contact Email</label>
+                    <code style={{ fontSize: '0.85rem' }}>voice@wecare.digital</code>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>CDR Data Fields</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {[
+                      { field: 'vmSessionId', desc: 'Session ID' },
+                      { field: 'callType', desc: 'INBOUND/OUTBOUND' },
+                      { field: 'overallCallStatus', desc: 'Answered/Missed/Busy' },
+                      { field: 'callerNumber', desc: 'Caller phone' },
+                      { field: 'destinationNumber', desc: 'Destination phone' },
+                      { field: 'conversationDuration', desc: 'Talk time' },
+                      { field: 'billableDuration', desc: 'Billable time' },
+                      { field: 'recordingURL', desc: 'Call recording' },
+                      { field: 'circleNameCaller', desc: 'Caller state' },
+                      { field: 'operatorNameCaller', desc: 'Caller operator' },
+                    ].map(({ field, desc }) => (
+                      <div key={field} style={{ background: 'rgba(255,255,255,0.15)', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem' }}>
+                        <span style={{ fontFamily: 'monospace' }}>{field}</span>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '2px' }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Razorpay Data Captured */}
               <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
