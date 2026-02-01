@@ -15,12 +15,12 @@
   --notion-border: #e9e9e7;
   --notion-border-dark: #d3d3d0;
   
-  /* Accent colors - minimal use */
-  --wa-green: #25d366;
-  --wa-green-dark: #128c7e;
-  --wa-green-light: #dcf8c6;
+  /* Accent colors - minimal use (black/grey theme) */
+  --wa-green: #000000;
+  --wa-green-dark: #4a4a4a;
+  --wa-green-light: #f5f5f5;
   --wa-teal: #000000;
-  --wa-teal-light: #000000;
+  --wa-teal-light: #f5f5f5;
   
   /* Accent colors - minimal */
   --accent-blue: #000000;
