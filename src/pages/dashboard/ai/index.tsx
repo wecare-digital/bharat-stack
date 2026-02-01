@@ -246,9 +246,9 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
               padding: '16px', 
               background: '#ecfdf5', 
               borderRadius: '13px', 
-              border: '1px solid #bbf7d0' 
+              border: '1px solid #a7f3d0' 
             }}>
-              <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '13px', color: '#059669' }}>AI Response:</div>
+              <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '13px', color: '#111827' }}>AI Response:</div>
               <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px' }}>{testResult}</div>
             </div>
           )}
@@ -274,7 +274,8 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
             bottom: '24px',
             right: '24px',
             padding: '12px 24px',
-            background: toast.type === 'success' ? '#10b981' : '#ef4444',
+            background: toast.type === 'success' ? '#d1fae5' : '#fee2e2',
+            color: '#111827',
             color: 'white',
             borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',

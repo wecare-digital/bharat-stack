@@ -232,19 +232,18 @@ input, textarea, select {
 }
 
 .nav-item:hover {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  color: #1a1a1a;
+  background: var(--hover);
 }
 
 .nav-item-active,
 .nav-item--active {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  color: #1a1a1a;
+  background: var(--hover);
+  font-weight: 600;
 }
 
 .nav-item-active:hover,
 .nav-item--active:hover {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: var(--active);
 }
 
 .nav-item-expandable {
@@ -267,13 +266,12 @@ input, textarea, select {
 }
 
 .nav-item-expandable:hover {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  color: #1a1a1a;
+  background: var(--hover);
 }
 
 .nav-item-expandable.nav-item-active {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  color: #1a1a1a;
+  background: var(--hover);
+  font-weight: 600;
 }
 
 .nav-icon {
@@ -330,18 +328,16 @@ input, textarea, select {
 }
 
 .nav-subitem:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: var(--hover);
 }
 
 .nav-subitem-active {
-  background: #d1fae5;
-  color: #059669;
+  background: var(--hover);
+  font-weight: 500;
 }
 
 .nav-subitem-active:hover {
-  background: #d1fae5;
-  color: #059669;
+  background: var(--hover);
 }
 
 .nav-subitem-expandable {
@@ -364,13 +360,12 @@ input, textarea, select {
 }
 
 .nav-subitem-expandable:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: var(--hover);
 }
 
 .nav-subitem-expandable.nav-subitem-active {
-  background: #d1fae5;
-  color: #059669;
+  background: var(--hover);
+  font-weight: 500;
 }
 
 /* Nested levels indentation */
@@ -1173,12 +1168,11 @@ input, textarea, select {
 }
 
 .tab:hover {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  color: #1a1a1a;
+  background: var(--hover);
 }
 
 .tab--active,
 .tab.active {
-  color: #1a1a1a;
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  background: var(--hover);
+  font-weight: 600;
 }

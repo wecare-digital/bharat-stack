@@ -1186,7 +1186,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Razorpay Webhook</h3>
-                    <span className="badge" style={{ background: '#10b981', color: '#1a1a1a', marginTop: '4px' }}>Active</span>
+                    <span className="badge" style={{ background: '#d1fae5', color: '#111827', marginTop: '4px' }}>Active</span>
                   </div>
                 </div>
                 
