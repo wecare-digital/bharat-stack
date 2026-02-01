@@ -1,7 +1,6 @@
 /**
  * Pages Styles - WECARE.DIGITAL
- * Notion-Style Theme with Larger Typography
- * Uses tokens from tokens.css (imported via Layout.css)
+ * Clean Compact Design
  */
 
 /* Page Container */
@@ -9,14 +8,13 @@
 
 .page-container {
   min-height: 100vh;
-  background: #ffffff;
+  background: #f7f6f3;
 }
 
 .page-content {
-  padding: 24px;
-  max-width: 1200px;
+  padding: 16px 20px;
+  max-width: 1000px;
   margin: 0 auto;
-  background: #ffffff;
 }
 
 /* Page Header */
@@ -24,58 +22,58 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .page-title {
-  font-size: 28px;
-  font-weight: var(--font-bold);
+  font-size: 20px;
+  font-weight: 700;
   color: #000000;
   margin: 0;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .header-actions {
   display: flex;
-  gap: 8px;
-}
-
-/* Buttons - Notion Style */
-.btn-primary {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: background var(--transition-normal);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
 }
 
+/* Buttons - Compact Style */
+.btn-primary {
+  background: #000;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: #333;
 }
 
 .btn-secondary {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  background: #fff;
+  color: #000;
+  border: 1px solid #e5e5e5;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.15s;
 }
 
 .btn-secondary:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-dark);
+  background: #f5f5f5;
+  border-color: #d5d5d5;
 }
 
 .btn-secondary:disabled, .btn-primary:disabled {
@@ -85,23 +83,23 @@
 
 /* Error Banner */
 .error-banner {
-  background: var(--danger-light);
-  color: var(--danger);
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  margin-bottom: 16px;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: var(--text-sm);
+  font-size: 12px;
 }
 
 .error-banner button {
   background: none;
   border: none;
-  color: var(--danger);
+  color: #dc2626;
   cursor: pointer;
-  font-size: var(--text-base);
+  font-size: 14px;
   padding: 4px;
 }
 
@@ -109,126 +107,124 @@
 .api-status-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  margin-bottom: 16px;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: #6b6b6b;
+  border: 1px solid #e5e5e5;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
 .status-dot.connected {
-  background: var(--success);
+  background: #22c55e;
 }
 
 .status-dot.disconnected {
-  background: var(--danger);
+  background: #dc2626;
 }
 
-/* Stats Grid - Notion Cards - Centered */
+/* Stats Grid - Compact Horizontal */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .stats-grid.stats-compact {
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  max-width: 500px;
+  gap: 8px;
+  max-width: 400px;
 }
 
 .stat-card {
-  background: var(--bg);
-  padding: 16px;
-  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 12px 10px;
+  border-radius: 8px;
   text-align: center;
-  border: 1px solid var(--border);
-  transition: border-color var(--transition-normal);
+  border: 1px solid #e5e5e5;
+  transition: border-color 0.15s;
 }
 
 .stat-card:hover {
-  border-color: var(--border-dark);
+  border-color: #d5d5d5;
 }
 
 .stat-icon {
-  font-size: var(--h2);
-  margin-bottom: 8px;
+  font-size: 18px;
+  margin-bottom: 4px;
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: var(--font-bold);
+  font-size: 22px;
+  font-weight: 700;
   color: #000000;
   line-height: 1;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #4a4a4a;
-  margin-top: 6px;
-  font-weight: var(--font-medium);
+  font-size: 10px;
+  color: #6b6b6b;
+  margin-top: 4px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
-/* Section - Notion Block Style */
+/* Section - Clean Card Style */
 .section {
-  background: var(--bg);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e5e5;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .section-title {
   font-size: 20px;
-  font-weight: var(--font-semibold);
+  font-weight: 600;
   color: #000000;
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
 }
 
 .section-description {
-  color: #4a4a4a;
-  margin-bottom: 16px;
-  font-size: 21px;
-  line-height: var(--leading-normal);
+  color: #6b6b6b;
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .view-all-link {
-  color: var(--accent);
+  color: #6b6b6b;
   text-decoration: none;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .view-all-link:hover {
-  text-decoration: underline;
+  color: #000;
 }
 
 /* Quick Actions Grid */
 .quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 .quick-action-card {
@@ -236,28 +232,28 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 12px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  padding: 12px 8px;
+  background: #f5f5f5;
+  border-radius: 8px;
   text-decoration: none;
-  color: var(--text);
-  transition: all var(--transition-normal);
+  color: #000;
+  transition: all 0.15s;
   border: 1px solid transparent;
 }
 
 .quick-action-card:hover {
-  background: var(--bg);
-  border-color: var(--border);
+  background: #efefef;
+  border-color: #e5e5e5;
 }
 
 .qa-icon {
-  font-size: var(--h2);
-  margin-bottom: 8px;
+  font-size: 20px;
+  margin-bottom: 4px;
 }
 
 .qa-title {
-  font-size: 14px;
-  font-weight: var(--font-medium);
+  font-size: 11px;
+  font-weight: 500;
   text-align: center;
   color: #000000;
 }
@@ -266,41 +262,39 @@
 .messages-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .message-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  transition: background 0.15s;
 }
 
 .message-row:hover {
-  background: var(--bg-hover);
+  background: #efefef;
 }
 
 .message-row.inbound {
-  border-left: 3px solid var(--success);
+  border-left: 2px solid #000;
 }
 
 .message-row.outbound {
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid #999;
 }
 
 .message-direction {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  background: var(--bg);
-  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: #6b6b6b;
 }
 
 .message-info {
@@ -309,49 +303,49 @@
 }
 
 .message-contact {
-  font-weight: var(--font-semibold);
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 13px;
   color: #000000;
 }
 
 .message-preview {
-  font-size: 14px;
-  color: #4a4a4a;
+  font-size: 12px;
+  color: #6b6b6b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .message-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .message-channel {
-  font-size: var(--text-xs);
-  padding: 3px 8px;
-  background: var(--bg-hover);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-weight: var(--font-semibold);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #e5e5e5;
+  border-radius: 4px;
+  color: #6b6b6b;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
 .message-time {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-size: 10px;
+  color: #999;
 }
 
 .delete-btn {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: #999;
   cursor: pointer;
-  font-size: var(--text-sm);
-  padding: 6px;
+  font-size: 12px;
+  padding: 4px;
   border-radius: var(--radius-sm);
   transition: all var(--transition-normal);
 }
@@ -1962,98 +1956,92 @@
 @media (max-width: 768px) {
   /* Page layout */
   .page-content {
-    padding: 16px;
+    padding: 12px;
     max-width: 100%;
   }
   
   /* Page header */
   .dashboard-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    margin-bottom: 20px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
   }
   
   .page-title {
-    font-size: 26px;
+    font-size: 18px;
   }
   
   .header-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
+    gap: 6px;
   }
   
   .header-actions .btn-primary,
   .header-actions .btn-secondary {
-    flex: 1;
-    min-width: 120px;
-    justify-content: center;
-    padding: 12px 16px;
-    font-size: 14px;
+    padding: 8px 12px;
+    font-size: 12px;
   }
   
-  /* Stats grid - 2 columns on mobile */
+  /* Stats grid - 3 columns on mobile */
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
   }
   
   .stats-grid.stats-compact {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
   
   .stat-card {
-    padding: 14px 12px;
+    padding: 10px 8px;
   }
   
   .stat-value {
-    font-size: 24px;
+    font-size: 18px;
   }
   
   .stat-label {
-    font-size: 11px;
+    font-size: 9px;
   }
   
   /* Section */
   .section {
-    padding: 16px;
-    margin-bottom: 16px;
-    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 8px;
   }
   
   .section-title {
-    font-size: 18px;
+    font-size: 14px;
   }
   
-  /* Quick actions - 2 columns */
+  /* Quick actions - 4 columns */
   .quick-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
   
   .quick-action-card {
-    padding: 14px 10px;
+    padding: 10px 6px;
   }
   
   .qa-icon {
-    font-size: 24px;
-    margin-bottom: 6px;
+    font-size: 18px;
+    margin-bottom: 4px;
   }
   
   .qa-title {
-    font-size: 12px;
+    font-size: 10px;
   }
   
   /* Messages list */
   .messages-list {
-    gap: 8px;
+    gap: 4px;
   }
   
   .message-row {
-    flex-wrap: wrap;
-    padding: 12px;
+    padding: 10px;
     gap: 8px;
   }
   
