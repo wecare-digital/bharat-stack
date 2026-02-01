@@ -1844,7 +1844,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
 
         .preview-media.has-media {
           background: #f0fdf4;
-          color: #059669;
+          color: #047857;
         }
 
         .preview-card-body {

@@ -1186,7 +1186,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Razorpay Webhook</h3>
-                    <span className="badge" style={{ background: '#059669', color: 'white', marginTop: '4px' }}>Active</span>
+                    <span className="badge" style={{ background: '#047857', color: 'white', marginTop: '4px' }}>Active</span>
                   </div>
                 </div>
                 
@@ -1205,12 +1205,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Supported Events</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { event: 'payment.captured', desc: 'Payment successful', color: '#059669' },
+                      { event: 'payment.captured', desc: 'Payment successful', color: '#047857' },
                       { event: 'payment.failed', desc: 'Payment failed', color: '#ef4444' },
                       { event: 'payment.authorized', desc: 'Payment authorized', color: '#3b82f6' },
                       { event: 'refund.created', desc: 'Refund initiated', color: '#f59e0b' },
-                      { event: 'refund.processed', desc: 'Refund completed', color: '#059669' },
-                      { event: 'order.paid', desc: 'Order paid', color: '#059669' },
+                      { event: 'refund.processed', desc: 'Refund completed', color: '#047857' },
+                      { event: 'order.paid', desc: 'Order paid', color: '#047857' },
                       { event: 'payment_link.paid', desc: 'Payment link used', color: '#8b5cf6' },
                       { event: 'payment.dispute.*', desc: 'Dispute events', color: '#ef4444' },
                       { event: 'settlement.*', desc: 'Settlement events', color: '#06b6d4' },

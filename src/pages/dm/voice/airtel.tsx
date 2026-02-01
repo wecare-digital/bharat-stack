@@ -151,7 +151,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
   // Get status badge color
   const getStatusColor = (status: string): string => {
     switch (status?.toLowerCase()) {
-      case 'answered': return '#059669';
+      case 'answered': return '#047857';
       case 'missed': return '#ef4444';
       case 'busy': return '#f59e0b';
       case 'disconnected': return '#6b7280';
@@ -461,7 +461,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
               <StatCard label="Total Calls" value={stats?.total || 0} icon="T" color="#6366f1" />
               <StatCard label="Inbound" value={stats?.inbound || 0} icon="I" color="#3b82f6" />
               <StatCard label="Outbound" value={stats?.outbound || 0} icon="O" color="#8b5cf6" />
-              <StatCard label="Answered" value={stats?.answered || 0} icon="A" color="#059669" />
+              <StatCard label="Answered" value={stats?.answered || 0} icon="A" color="#047857" />
               <StatCard label="Missed" value={stats?.missed || 0} icon="M" color="#ef4444" />
               <StatCard label="Busy" value={stats?.busy || 0} icon="B" color="#f59e0b" />
             </div>
@@ -542,7 +542,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                           <span>{operator}</span>
                           <span style={{
                             padding: '2px 8px',
-                            background: '#059669',
+                            background: '#047857',
                             color: 'white',
                             borderRadius: '12px',
                             fontSize: '12px'

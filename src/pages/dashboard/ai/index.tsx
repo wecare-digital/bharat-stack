@@ -169,7 +169,7 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
                 type="checkbox"
                 checked={config.enabled}
                 onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-                style={{ width: '20px', height: '20px', accentColor: '#059669' }}
+                style={{ width: '20px', height: '20px', accentColor: '#047857' }}
               />
               <span style={{ fontWeight: 600 }}>Enable Internal AI Assistant</span>
             </label>
@@ -246,9 +246,9 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
               padding: '16px', 
               background: '#f0fdf4', 
               borderRadius: '13px', 
-              border: '1px solid #059669' 
+              border: '1px solid #047857' 
             }}>
-              <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '13px', color: '#047857' }}>AI Response:</div>
+              <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '13px', color: '#065f46' }}>AI Response:</div>
               <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px' }}>{testResult}</div>
             </div>
           )}
@@ -274,7 +274,7 @@ export default function InternalAIConfigPage({ signOut, user }: PageProps) {
             bottom: '24px',
             right: '24px',
             padding: '12px 24px',
-            background: toast.type === 'success' ? '#059669' : '#ef4444',
+            background: toast.type === 'success' ? '#047857' : '#ef4444',
             color: 'white',
             borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',

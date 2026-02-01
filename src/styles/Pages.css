@@ -28,9 +28,9 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
   
-  /* Colors - Green Theme (softer, professional) */
-  --color-primary: #059669;
-  --color-secondary: #047857;
+  /* Colors - Green Theme (contrast-compliant emerald) */
+  --color-primary: #047857;
+  --color-secondary: #065f46;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-bg: #fff;
@@ -38,15 +38,15 @@
   --color-bg-hover: #f0fdf4;
   --color-bg-active: #d1fae5;
   
-  /* Semantic Colors - Green Theme (softer) */
-  --color-success: #059669;
+  /* Semantic Colors - Green Theme (contrast-compliant) */
+  --color-success: #047857;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   
-  /* Channel Colors - Green for consistency */
-  --color-whatsapp: #059669;
-  --color-sms: #059669;
-  --color-email: #059669;
+  /* Channel Colors - Emerald for consistency */
+  --color-whatsapp: #047857;
+  --color-sms: #047857;
+  --color-email: #047857;
   
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -164,8 +164,8 @@
 .btn-secondary:hover,
 .btn-outline:hover,
 .refresh-btn:hover {
-  border-color: #059669;
-  color: #047857;
+  border-color: #047857;
+  color: #065f46;
   background: #f0fdf4;
 }
 
@@ -184,9 +184,9 @@
 .btn-primary.active,
 .btn-secondary.active,
 .btn-outline.active {
-  background: #059669;
+  background: #047857;
   color: #fff;
-  border-color: #059669;
+  border-color: #047857;
   font-weight: var(--font-semibold);
 }
 
@@ -194,8 +194,8 @@
 .btn-primary.active:hover,
 .btn-secondary.active:hover,
 .btn-outline.active:hover {
-  background: #059669;
-  border-color: #059669;
+  background: #065f46;
+  border-color: #065f46;
 }
 
 /* Disabled state */
@@ -549,7 +549,7 @@
 }
 
 .view-all-link:hover, .link:hover {
-  color: #059669;
+  color: #047857;
 }
 
 @media (max-width: 768px) {
@@ -774,8 +774,8 @@
 }
 
 .tab:hover {
-  border-color: #059669;
-  color: #047857;
+  border-color: #047857;
+  color: #065f46;
   background: #f0fdf4;
 }
 
@@ -785,15 +785,20 @@
 }
 
 .tab.active {
-  background: #059669;
+  background: #047857;
   color: #fff;
-  border-color: #059669;
+  border-color: #047857;
   font-weight: var(--font-semibold);
 }
 
 .tab.active:hover {
-  background: #059669;
-  border-color: #059669;
+  background: #065f46;
+  border-color: #065f46;
+}
+
+.tab.active:hover {
+  background: #065f46;
+  border-color: #065f46;
 }
 
 /* Form Styles - Unified */
