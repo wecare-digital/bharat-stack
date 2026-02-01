@@ -15,7 +15,7 @@ interface PageProps {
 }
 
 const providers = [
-  { href: '/dm/voice/airtel', label: 'IN Voice', sublabel: 'Airtel IQ' },
+  { href: '/dm/voice/airtel', label: 'Voice IN', sublabel: 'India' },
   { href: '/dm/voice/aws', label: 'AWS Connect', sublabel: 'Global' },
 ];
 

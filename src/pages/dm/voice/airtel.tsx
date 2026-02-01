@@ -1,7 +1,7 @@
 /**
- * Airtel Voice CDR Dashboard
+ * Voice IN CDR Dashboard
  * 
- * Displays Call Detail Records from Airtel Cloud Communication Platform
+ * Displays Call Detail Records from Cloud Communication Platform
  * Inbound Number: +91 9319767034
  * Email: voice@wecare.digital
  * 
@@ -179,12 +179,12 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO 
-        title="Airtel Voice CDR | WECARE.DIGITAL"
-        description="Airtel Cloud Communication Platform - Call Detail Records"
+        title="Voice IN CDR | WECARE.DIGITAL"
+        description="Voice IN Cloud Communication Platform - Call Detail Records"
       />
       <div className="page-content">
         <PageHeader 
-          title="Airtel Voice CDR" 
+          title="Voice IN CDR" 
           subtitle="Call Detail Records Dashboard"
           icon="voice"
         />
@@ -205,7 +205,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           <div>
             <div style={{ fontWeight: 600, fontSize: '16px' }}>Inbound Number: +91 9319767034</div>
             <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
-              Email: voice@wecare.digital | Airtel Cloud Communication Platform
+              Email: voice@wecare.digital | Cloud Communication Platform
             </div>
           </div>
           <button
@@ -353,7 +353,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                   ) : records.length === 0 ? (
                     <tr>
                       <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'var(--color-muted)' }}>
-                        No CDR records found. Records will appear here when Airtel sends webhook data.
+                        No CDR records found. Records will appear here when webhook data is received.
                       </td>
                     </tr>
                   ) : (
@@ -563,7 +563,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="section">
             <h3 className="section-title">Voice Dialer</h3>
             <p style={{ color: 'var(--color-muted)', marginBottom: '20px' }}>
-              Make outbound voice calls using Airtel Cloud Communication Platform.
+              Make outbound voice calls using Cloud Communication Platform.
             </p>
 
             <div style={{ maxWidth: '320px', margin: '0 auto' }}>
@@ -663,18 +663,10 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           borderRadius: '8px',
           borderLeft: '4px solid #0ea5e9'
         }}>
-          <strong>Airtel CDR Webhook</strong>
+          <strong>CDR Webhook</strong>
           <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#666' }}>
             Webhook receives CDR data including: vmSessionId, clientCorrelationId, callType, overallCallStatus, 
             duration fields, caller/destination numbers, circle/operator info, and recording URLs.
-            <a 
-              href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/voice/callflow-component-apis" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ marginLeft: '8px', color: '#0ea5e9' }}
-            >
-              View API Docs
-            </a>
           </p>
         </div>
       </div>
