@@ -3,8 +3,8 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 /**
  * WECARE.DIGITAL DynamoDB Schema
  * 
- * 12 Tables with PAY_PER_REQUEST billing mode
- * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d)
+ * 13 Tables with PAY_PER_REQUEST billing mode
+ * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d)
  */
 const schema = a.schema({
   // Table 1: Contacts - Contact records with opt-in preferences
@@ -208,6 +208,79 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('contactId'),
       index('phoneNumber'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 13: VoiceCDR - Airtel Voice CDR Records (TTL: 90 days)
+  // Inbound Number: +91 9319767034 | Email: voice@wecare.digital
+  VoiceCDR: a
+    .model({
+      id: a.id().required(),
+      vmSessionId: a.string().required(), // Airtel unique session ID
+      clientCorrelationId: a.string(), // Xchange ID for searching
+      customerId: a.string(), // Customer name in Airtel system
+      
+      // Timestamps (epoch milliseconds from Airtel)
+      startTime: a.integer(),
+      endTime: a.integer(),
+      callAnswerTime: a.integer(),
+      timestamp: a.string(), // Airtel formatted timestamp
+      
+      // Duration fields (milliseconds)
+      durationMs: a.integer(),
+      durationSec: a.float(),
+      fromWaitingTimeMs: a.integer(), // IVR wait time
+      fromWaitingTimeSec: a.float(),
+      conversationDurationMs: a.integer(), // Actual talk time
+      conversationDurationSec: a.float(),
+      billableDurationMs: a.integer(),
+      billableDurationSec: a.float(),
+      
+      // Call details
+      callType: a.enum(['INBOUND', 'OUTBOUND']),
+      overallCallStatus: a.string(), // Answered, Missed, Disconnected, Busy
+      hangupStatus: a.string(), // Party A, Party B, SYSTEM_INITIATED
+      hangupCause: a.string(), // SYSTEM_INITIATED, USER_INITIATED
+      
+      // Phone numbers
+      callerId: a.string(), // CLI number
+      callerNumber: a.string(), // From number
+      destinationNumber: a.string(), // To number
+      calledNumber: a.string(), // Airtel VN for inbound
+      displayCliDestination: a.string(),
+      
+      // Status details
+      callerNumberStatus: a.string(), // Disconnected, NetworkError, NotReachable, Busy, Noanswer, Answer
+      callerNumberStatusDetails: a.string(), // SIP code details
+      destinationNumberStatus: a.string(),
+      destinationNumberStatusDetails: a.string(),
+      
+      // Circle and operator info
+      circleNameCaller: a.string(), // State name
+      circleNameDestination: a.string(),
+      operatorNameCaller: a.string(), // Bharti Airtel, Jio, etc.
+      operatorNameDestination: a.string(),
+      
+      // Recording
+      recordingURL: a.string(),
+      
+      // Retry info
+      retryCountCaller: a.integer(),
+      retryCountDestination: a.integer(),
+      
+      // Metadata
+      participantsCount: a.integer(),
+      source: a.string().default('airtel_cdr_webhook'),
+      inboundNumber: a.string().default('+919319767034'),
+      
+      createdAt: a.integer(), // Unix epoch seconds
+      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('vmSessionId'),
+      index('callerNumber'),
+      index('callType'),
     ])
     .authorization((allow) => [allow.authenticated()]),
 });

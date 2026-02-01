@@ -45,6 +45,18 @@ API Gateway: `https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod`
 | GET | /voice/calls/{callId} | wecare-voice-calls | ✅ WIRED & TESTED |
 | POST | /voice/call | wecare-voice-calls | ✅ WIRED & TESTED |
 
+## Airtel Voice CDR API
+| Method | Route | Lambda Handler | Status |
+|--------|-------|----------------|--------|
+| POST | /voice-cdr-webhook | wecare-voice-cdr-webhook | ✅ Active |
+| GET | /voice-cdr-read | wecare-voice-cdr-read | ✅ Active |
+
+### Airtel CDR Configuration
+- Inbound Number: +91 9319767034
+- Email: voice@wecare.digital
+- Webhook URL: `https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook`
+- DynamoDB Table: `base-wecare-digital-VoiceCDRTable`
+
 ## Bulk Jobs API
 | Method | Route | Lambda Handler | Status |
 |--------|-------|----------------|--------|
@@ -149,12 +161,14 @@ API Gateway: `https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod`
 20. wecare-razorpay-webhook
 21. wecare-dlq-replay
 
-### New Functions (5 functions)
+### New Functions (7 functions)
 1. wecare-outbound-sms - SMS sending via AWS SNS/Pinpoint or Airtel
 2. wecare-outbound-email - Email sending via Amazon SES
 3. wecare-voice-calls - Voice call management (make/list/get calls)
 4. wecare-bulk-job-create - Bulk job creation and listing
 5. wecare-payments-read - Payment records listing
+6. wecare-voice-cdr-webhook - Airtel Voice CDR webhook receiver
+7. wecare-voice-cdr-read - Read Airtel Voice CDR records
 
 ---
 
