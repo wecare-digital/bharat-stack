@@ -232,19 +232,19 @@ input, textarea, select {
 }
 
 .nav-item:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f0fdf4;
+  color: #047857;
 }
 
 .nav-item-active,
 .nav-item--active {
-  background: #10b981;
+  background: #059669;
   color: #fff;
 }
 
 .nav-item-active:hover,
 .nav-item--active:hover {
-  background: #059669;
+  background: #047857;
 }
 
 .nav-item-expandable {
@@ -267,12 +267,12 @@ input, textarea, select {
 }
 
 .nav-item-expandable:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f0fdf4;
+  color: #047857;
 }
 
 .nav-item-expandable.nav-item-active {
-  background: #10b981;
+  background: #059669;
   color: #fff;
 }
 
@@ -330,18 +330,18 @@ input, textarea, select {
 }
 
 .nav-subitem:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f0fdf4;
+  color: #047857;
 }
 
 .nav-subitem-active {
   background: #d1fae5;
-  color: #059669;
+  color: #047857;
 }
 
 .nav-subitem-active:hover {
   background: #d1fae5;
-  color: #059669;
+  color: #047857;
 }
 
 .nav-subitem-expandable {
@@ -364,13 +364,13 @@ input, textarea, select {
 }
 
 .nav-subitem-expandable:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f0fdf4;
+  color: #047857;
 }
 
 .nav-subitem-expandable.nav-subitem-active {
   background: #d1fae5;
-  color: #059669;
+  color: #047857;
 }
 
 /* Nested levels indentation */
@@ -1173,12 +1173,12 @@ input, textarea, select {
 }
 
 .tab:hover {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f0fdf4;
+  color: #047857;
 }
 
 .tab--active,
 .tab.active {
   color: #fff;
-  background: #10b981;
+  background: #059669;
 }

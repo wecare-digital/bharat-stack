@@ -1267,7 +1267,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .order-hint { font-size: 11px; color: #a16207; }
         
         /* Payment messages */
-        .payment-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #ecfdf5; border-radius: 8px; border-left: 3px solid #10b981; }
+        .payment-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #059669; }
         .payment-icon { font-size: 24px; }
         .payment-info { display: flex; flex-direction: column; }
         .payment-label { font-size: 11px; color: #166534; font-weight: 500; text-transform: uppercase; }
@@ -1320,7 +1320,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .template-cta-btn:hover { background: #d97706; }
         
         /* Button messages (quick reply) */
-        .button-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #ecfdf5; border-radius: 8px; border-left: 3px solid #10b981; }
+        .button-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #059669; }
         .button-icon { font-size: 18px; }
         .button-content { display: flex; flex-direction: column; }
         .button-text { font-size: 14px; color: #166534; }

@@ -351,7 +351,7 @@ response = requests.post(
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .pill:hover{border-color:#059669;color:#047857;transform:translateY(-2px);box-shadow:0 4px 12px rgba(5,150,105,0.2)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
@@ -362,7 +362,7 @@ response = requests.post(
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:17px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
-          .tab.active{background:#10b981;color:#fff}
+          .tab.active{background:#059669;color:#fff}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
@@ -384,7 +384,7 @@ response = requests.post(
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
           .ftr-contact{font-size:21px;color:#6b7280;text-decoration:none;font-weight:500;transition:all .25s}
-          .ftr-contact:hover{color:#10b981}
+          .ftr-contact:hover{color:#059669}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
