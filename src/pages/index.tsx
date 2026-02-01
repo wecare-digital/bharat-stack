@@ -94,7 +94,7 @@ response = requests.post(
         <meta name="geo.region" content="IN" />
         <meta name="geo.placename" content="India" />
         <link rel="canonical" href="https://base.wecare.digital/" />
-        <meta name="theme-color" content="#25d366" />
+        <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -311,17 +311,17 @@ response = requests.post(
           .hero-right{display:flex;justify-content:center}
           .mockup-wrapper{position:relative;width:100%;max-width:580px;aspect-ratio:1.1;background:#fff;border-radius:28px;padding:24px}
           .phone{position:absolute;left:24px;top:20px;width:55%;max-width:300px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
-          .phone-header{background:#075e54;padding:12px 14px;display:flex;align-items:center;gap:10px}
+          .phone-header{background:#000;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
-          .avatar{width:40px;height:40px;background:#25d366;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+          .avatar{width:40px;height:40px;background:#4a4a4a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
           .contact-info{flex:1;display:flex;flex-direction:column}
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
-          .verified-badge{width:22px;height:22px;background:#25d366;border-radius:50%}
-          .chat-area{background:#e8efe5;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
+          .verified-badge{width:22px;height:22px;background:#000;border-radius:50%}
+          .chat-area{background:#f5f5f5;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
           .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
           .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
-          .msg.sent{background:#d9fdd3;align-self:flex-end;border-top-right-radius:3px}
+          .msg.sent{background:#e5e5e5;align-self:flex-end;border-top-right-radius:3px}
           .msg.sent.left-msg{align-self:flex-start !important;border-top-left-radius:3px;border-top-right-radius:8px}
           .msg p{margin:0}
           .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
@@ -351,7 +351,7 @@ response = requests.post(
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#25d366;color:#25d366;transform:translateY(-2px)}
+          .pill:hover{border-color:#000;color:#000;transform:translateY(-2px)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
@@ -362,7 +362,7 @@ response = requests.post(
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:17px;font-weight:600;color:#fff;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
-          .tab.active{background:#25d366;color:#fff}
+          .tab.active{background:#4a4a4a;color:#fff}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */

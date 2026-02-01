@@ -426,7 +426,7 @@ export default function App({ Component, pageProps }: AppProps) {
           <meta name="language" content="English" />
           <meta name="geo.region" content="IN" />
           <meta name="geo.placename" content="India" />
-          <meta name="theme-color" content="#25d366" />
+          <meta name="theme-color" content="#000000" />
           
           {/* Structured Data */}
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
