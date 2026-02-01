@@ -70,9 +70,8 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
           icon="billing"
           actions={
             <div className="header-actions">
-              <button className="btn-secondary" onClick={loadBilling} disabled={loading}>
-                <RefreshIcon size={16} />
-                {loading ? 'Loading...' : 'Refresh'}
+              <button className="btn-secondary" onClick={loadBilling} disabled={loading} title="Refresh">
+                {loading ? '...' : <RefreshIcon size={18} />}
               </button>
               <button 
                 className={`btn-secondary ${view === 'list' ? 'active' : ''}`}

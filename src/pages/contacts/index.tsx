@@ -9,6 +9,7 @@ import PageHeader from '../../components/PageHeader';
 import ContactImportExport from '../../components/ContactImportExport';
 import SEO, { PAGE_SEO } from '../../components/SEO';
 import * as api from '../../api/client';
+import { RefreshIcon } from '../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
@@ -201,7 +202,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           icon="contacts"
           actions={
             <>
-              <button className="btn-secondary" onClick={loadContacts} disabled={loading}>↻ {loading ? 'Loading...' : 'Refresh'}</button>
+              <button className="btn-secondary" onClick={loadContacts} disabled={loading} title="Refresh">{loading ? '...' : <RefreshIcon size={18} />}</button>
               <button className="btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>+ Add Contact</button>
             </>
           }

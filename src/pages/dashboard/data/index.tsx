@@ -51,9 +51,8 @@ export default function DashboardDataPage({ signOut, user }: PageProps) {
           subtitle="Manage contacts, messages, and media files"
           icon="data"
           actions={
-            <button className="btn-secondary" onClick={loadStats} disabled={loading}>
-              <RefreshIcon size={16} />
-              {loading ? 'Loading...' : 'Refresh'}
+            <button className="btn-secondary" onClick={loadStats} disabled={loading} title="Refresh">
+              {loading ? '...' : <RefreshIcon size={18} />}
             </button>
           }
         />

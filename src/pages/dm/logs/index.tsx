@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import * as api from '../../../api/client';
+import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
@@ -147,8 +148,8 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
               <option value="failed">Failed</option>
             </select>
           </div>
-          <button className="refresh-btn" onClick={loadMessageLogs} disabled={loading}>
-            {loading ? '...' : 'Refresh'}
+          <button className="refresh-btn" onClick={loadMessageLogs} disabled={loading} title="Refresh">
+            {loading ? '...' : <RefreshIcon size={18} />}
           </button>
         </div>
 

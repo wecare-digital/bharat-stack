@@ -15,6 +15,7 @@ import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import Toast, { useToast } from '../../../components/Toast';
 import * as api from '../../../api/client';
+import { RefreshIcon } from '../../../lib/icons';
 
 // Import Templates and Welcome content
 import TemplatesPage from './templates';
@@ -125,8 +126,8 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
           backLink="/dm/whatsapp"
           backLabel="← Back"
           actions={
-            <button className="refresh-btn" onClick={loadData} disabled={loading}>
-              {loading ? '...' : '↻ Refresh'}
+            <button className="refresh-btn" onClick={loadData} disabled={loading} title="Refresh">
+              {loading ? '...' : <RefreshIcon size={18} />}
             </button>
           }
         />

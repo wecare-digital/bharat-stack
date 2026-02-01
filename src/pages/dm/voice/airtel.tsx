@@ -13,6 +13,7 @@ import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import SEO from '../../../components/SEO';
 import { API_BASE } from '../../../config/constants';
+import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
@@ -213,8 +214,9 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
             onClick={fetchCDRRecords}
             disabled={loading}
             className="refresh-btn"
+            title="Refresh"
           >
-            {loading ? 'Loading...' : 'Refresh'}
+            {loading ? '...' : <RefreshIcon size={18} />}
           </button>
         </div>
 
@@ -574,7 +576,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   onClick={() => handleKeyPress('backspace')}
-                  className="action-btn"
+                  className="btn-secondary"
                   style={{ flex: 1 }}
                 >
                   Delete
@@ -582,7 +584,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                 <button
                   onClick={handleDial}
                   disabled={!dialerNumber.trim() || calling}
-                  className="action-btn"
+                  className="btn-primary"
                   style={{ flex: 2 }}
                 >
                   {calling ? 'Calling...' : 'Call'}

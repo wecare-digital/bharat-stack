@@ -146,9 +146,8 @@ export default function DashboardPaymentsPage({ signOut, user }: PageProps) {
           icon="payment"
           actions={
             <div className="header-actions">
-              <button className="btn-secondary" onClick={loadPayments} disabled={loading}>
-                <RefreshIcon size={16} />
-                {loading ? 'Loading...' : 'Refresh'}
+              <button className="btn-secondary" onClick={loadPayments} disabled={loading} title="Refresh">
+                {loading ? '...' : <RefreshIcon size={18} />}
               </button>
               <Link href="/pay/wa" className="btn-primary">
                 WhatsApp Pay

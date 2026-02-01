@@ -117,9 +117,8 @@ export default function DashboardMessagesPage({ signOut, user }: PageProps) {
           icon="message"
           actions={
             <div className="header-actions">
-              <button className="btn-secondary" onClick={loadMessages} disabled={loading}>
-                <RefreshIcon size={16} />
-                {loading ? 'Loading...' : 'Refresh'}
+              <button className="btn-secondary" onClick={loadMessages} disabled={loading} title="Refresh">
+                {loading ? '...' : <RefreshIcon size={18} />}
               </button>
               <Link href="/dm/whatsapp" className="btn-primary">
                 WhatsApp Inbox
