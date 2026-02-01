@@ -619,7 +619,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
           </div>
           <button className="refresh-btn" onClick={() => loadData()} disabled={loading}>
-            {loading ? '...' : '↻'}
+            {loading ? '...' : <RefreshIcon size={18} />}
           </button>
         </header>
 
@@ -960,7 +960,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="billing-tab">
               <div className="section-header">
                 <h3>AWS Billing & Usage</h3>
-                <button className="refresh-btn" onClick={() => loadData()}>↻</button>
+                <button className="refresh-btn" onClick={() => loadData()}><RefreshIcon size={18} /></button>
               </div>
               
               {billingData && (

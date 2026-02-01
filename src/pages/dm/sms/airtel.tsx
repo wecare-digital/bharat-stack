@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import RichTextEditor from '../../../components/RichTextEditor';
+import { RefreshIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -111,7 +112,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
           backLabel="← SMS"
           actions={
             <button onClick={loadData} className="refresh-btn" disabled={loading}>
-              {loading ? '...' : '↻'}
+              {loading ? '...' : <RefreshIcon size={18} />}
             </button>
           }
         />

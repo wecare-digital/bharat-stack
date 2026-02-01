@@ -9,6 +9,7 @@ import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
 import TemplateSender from '../../../components/TemplateSender';
+import { RefreshIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 import { useChatShortcuts } from '../../../hooks/useKeyboardShortcuts';
 import { useNotificationSound } from '../../../hooks/useNotificationSound';
@@ -896,7 +897,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
           </div>
           <button onClick={loadData} className="refresh-btn" disabled={loading}>
-            {loading ? '...' : '↻'}
+            {loading ? '...' : <RefreshIcon size={18} />}
           </button>
         </div>
 
