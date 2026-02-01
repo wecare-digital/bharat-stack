@@ -542,8 +542,8 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
                           <span>{operator}</span>
                           <span style={{
                             padding: '2px 8px',
-                            background: '#10b981',
-                            color: 'white',
+                            background: '#d1fae5',
+                            color: '#111827',
                             borderRadius: '12px',
                             fontSize: '12px'
                           }}>{count}</span>

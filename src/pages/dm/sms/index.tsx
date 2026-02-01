@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
+import SEO from '../../../components/SEO';
 import { SmsIcon } from '../../../lib/icons';
 
 interface PageProps {
@@ -9,26 +10,35 @@ interface PageProps {
   user?: any;
 }
 
+const providers = [
+  { href: '/dm/sms/airtel', label: 'IN SMS', sublabel: 'Airtel' },
+  { href: '/dm/sms/aws', label: 'AWS Pinpoint', sublabel: 'Global' },
+];
+
 export default function SmsDMHub({ signOut, user }: PageProps) {
   return (
     <Layout user={user} onSignOut={signOut}>
-      <div style={{ padding: '24px' }}>
+      <SEO 
+        title="SMS | WECARE.DIGITAL"
+        description="Send SMS via Airtel or AWS Pinpoint"
+      />
+      <div className="hub-page">
         <PageHeader 
           title="SMS" 
           subtitle="Select SMS provider"
           icon="sms"
           backLink="/dm"
-          backLabel="Back"
+          backLabel="← Messages"
         />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', maxWidth: '300px', margin: '0 auto' }}>
-          <Link href="/dm/sms/airtel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: '#f5f5f5', borderRadius: '12px', textDecoration: 'none', color: '#000' }}>
-            <span style={{ marginBottom: '8px' }}><SmsIcon size={28} /></span>
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>IN SMS</span>
-          </Link>
-          <Link href="/dm/sms/aws" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: '#f5f5f5', borderRadius: '12px', textDecoration: 'none', color: '#000' }}>
-            <span style={{ marginBottom: '8px' }}><SmsIcon size={28} /></span>
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>AWS Pinpoint</span>
-          </Link>
+
+        <div className="hub-grid hub-grid-2">
+          {providers.map(({ href, label, sublabel }) => (
+            <Link key={href} href={href} className="hub-card hub-card-sms">
+              <span className="hub-icon"><SmsIcon size={32} /></span>
+              <span className="hub-label">{label}</span>
+              <span className="hub-sublabel">{sublabel}</span>
+            </Link>
+          ))}
         </div>
       </div>
     </Layout>

@@ -38,9 +38,9 @@ const FormsPage: React.FC<PageProps> = ({ signOut, user }) => {
       <style jsx>{`
         .hub-page { padding: 24px; }
         .actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 300px; margin: 0 auto; }
-        .action-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #f5f5f5; border-radius: 12px; text-decoration: none; color: #000; transition: all 0.2s ease; border: 1px solid transparent; }
-        .action-card:hover { background: #fff; border-color: #e5e5e5; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-        .action-card .icon { margin-bottom: 8px; color: #000; }
+        .action-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: #fff; border-radius: 12px; text-decoration: none; color: #111827; transition: all 0.2s ease; border: 1px solid #e5e7eb; }
+        .action-card:hover { background: #ecfdf5; border-color: #10b981; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16,185,129,0.15); }
+        .action-card .icon { margin-bottom: 8px; color: #111827; }
         .action-card span:last-child { font-size: 14px; font-weight: 500; }
         @media (max-width: 480px) { .hub-page { padding: 16px; } .actions-grid { gap: 12px; } .action-card { padding: 20px 12px; } }
       `}</style>
