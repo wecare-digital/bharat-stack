@@ -692,7 +692,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowTemplates(!showTemplates); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); }}
             title="Templates (can send outside 24h window)"
           >
-            <img src="https://img.icons8.com/ios/250/000000/todo-list.png" alt="Templates" style={{ width: 16, height: 16 }} />
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path d="M3 4.5h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2m0 1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zM1 2a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 2m0 12a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 14"/></svg>
           </button>
         )}
 
@@ -713,7 +713,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Send Payment Request (UPI)"
           >
-            <img src="https://img.icons8.com/ios/250/000000/bank-card-back-side.png" alt="Pay" style={{ width: 16, height: 16 }} />
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path d="M11 5.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm13 2v5H1V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1m-1 9H2a1 1 0 0 1-1-1v-1h14v1a1 1 0 0 1-1 1"/></svg>
           </button>
         )}
 
@@ -724,7 +724,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); }}
           title="Insert Variable"
         >
-          <img src="https://img.icons8.com/ios/250/000000/stacked-organizational-chart-highlighted-parent-node.png" alt="Variables" style={{ width: 16, height: 16 }} />
+          <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001"/></svg>
         </button>
 
         {/* Formatting Button (WhatsApp only) */}
@@ -735,7 +735,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowFormatting(!showFormatting); setShowTemplates(false); setShowVariables(false); setShowPaymentDialog(false); }}
             title="Formatting"
           >
-            <img src="https://img.icons8.com/ios/250/000000/edit.png" alt="Format" style={{ width: 16, height: 16 }} />
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325"/></svg>
           </button>
         )}
 
@@ -764,7 +764,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Attach File"
           >
-            <img src="https://img.icons8.com/ios/250/000000/attach.png" alt="Attach" style={{ width: 16, height: 16 }} />
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path fillRule="evenodd" d="M3 8a.5.5 0 0 1 .5-.5h6.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H3.5A.5.5 0 0 1 3 8"/><path fillRule="evenodd" d="M12.5 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5"/></svg>
           </button>
         )}
 
@@ -777,7 +777,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             disabled={loadingAI}
             title={aiError || "Get AI Suggestion (Bedrock)"}
           >
-            {loadingAI ? '...' : <img src="https://img.icons8.com/ios/250/000000/light-on.png" alt="AI" style={{ width: 16, height: 16 }} />}
+            {loadingAI ? '...' : <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5M3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.6 26.6 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.93.93 0 0 1-.765.935c-.845.147-2.34.346-4.235.346s-3.39-.2-4.235-.346A.93.93 0 0 1 3 9.219zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a25 25 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.55.076 1.232.149 2.02.193a.25.25 0 0 0 .189-.071l.754-.736.847 1.71a.25.25 0 0 0 .404.062l.932-.97a25 25 0 0 0 1.922-.188.25.25 0 0 0-.068-.495c-.538.074-1.207.145-1.98.189a.25.25 0 0 0-.166.076l-.754.785-.842-1.7a.25.25 0 0 0-.182-.135"/><path d="M8.5 1.866a1 1 0 1 0-1 0V3h-2A4.5 4.5 0 0 0 1 7.5V8a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1v-.5A4.5 4.5 0 0 0 10.5 3h-2zM14 7.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.5A3.5 3.5 0 0 1 5.5 4h5A3.5 3.5 0 0 1 14 7.5"/></svg>}
           </button>
         )}
 
