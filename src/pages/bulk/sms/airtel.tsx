@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import RichTextEditor from '../../../components/RichTextEditor';
 import * as api from '../../../api/client';
 
@@ -62,16 +62,13 @@ const BulkAirtelSms: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="bulk-page">
-        <div className="bulk-header">
-          <Link href="/bulk/sms" className="back-btn">←</Link>
-          <div className="bulk-header-info">
-            <span className="bulk-icon">📱</span>
-            <div>
-              <h1>Bulk SMS - Airtel IQ</h1>
-              <span className="bulk-provider">India SMS Gateway</span>
-            </div>
-          </div>
-        </div>
+        <PageHeader 
+          title="Bulk SMS - Airtel IQ" 
+          subtitle="India SMS Gateway"
+          icon="sms"
+          backLink="/bulk/sms"
+          backLabel="← Bulk SMS"
+        />
 
         <div className="tabs">
           {TABS.map(tab => (
@@ -134,65 +131,60 @@ const BulkAirtelSms: React.FC<PageProps> = ({ signOut, user }) => {
             )}
 
             {activeTab === 'Templates' && (
-              <div className="coming-soon"><h2>SMS Templates</h2><p>DLT-approved templates</p><span className="badge">Coming Soon</span></div>
+              <div className="coming-soon"><h2>Coming Soon</h2><p>DLT-approved SMS templates</p></div>
             )}
 
             {activeTab === 'Analytics' && (
-              <div className="coming-soon"><h2>Campaign Analytics</h2><p>Delivery rates and metrics</p><span className="badge">Coming Soon</span></div>
+              <div className="coming-soon"><h2>Coming Soon</h2><p>Campaign delivery rates and metrics</p></div>
             )}
           </div>
 
           <div className="info-panel">
             <h3>Airtel IQ SMS</h3>
-            <div className="info-section"><h4>Features</h4><ul><li>✓ Transactional SMS</li><li>✓ Promotional SMS</li><li>✓ DLT Compliance</li><li>✓ Delivery Reports</li></ul></div>
+            <div className="info-section"><h4>Features</h4><ul><li>Transactional SMS</li><li>Promotional SMS</li><li>DLT Compliance</li><li>Delivery Reports</li></ul></div>
             <div className="info-section"><h4>Documentation</h4><a href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/sms/overview" target="_blank" rel="noopener noreferrer">Airtel IQ SMS API →</a></div>
           </div>
         </div>
       </div>
 
       <style jsx>{`
-        .bulk-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
-        .bulk-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #e31837; color: #fff; }
-        .back-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
-        .bulk-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .bulk-icon { font-size: 28px; }
-        .bulk-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
-        .bulk-provider { font-size: 13px; opacity: 0.9; }
+        .bulk-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #fff; }
         .tabs { display: flex; gap: 4px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
-        .tab { background: none; border: none; padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 6px; color: #666; }
+        .tab { background: none; border: none; padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 6px; color: #4a4a4a; }
         .tab:hover { background: #f5f5f5; }
-        .tab.active { background: #e31837; color: #fff; }
+        .tab.active { background: #000; color: #fff; }
         .main-content { flex: 1; display: flex; overflow: hidden; }
         .tab-content { flex: 1; padding: 24px; overflow-y: auto; }
         .info-panel { width: 280px; background: #fff; border-left: 1px solid #e5e5e5; padding: 20px; overflow-y: auto; }
-        .info-panel h3 { font-size: 16px; margin: 0 0 20px 0; }
+        .info-panel h3 { font-size: 16px; margin: 0 0 20px 0; color: #000; }
         .info-section { margin-bottom: 20px; }
-        .info-section h4 { font-size: 12px; color: #666; text-transform: uppercase; margin: 0 0 8px 0; }
-        .info-section ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+        .info-section h4 { font-size: 12px; color: #4a4a4a; text-transform: uppercase; margin: 0 0 8px 0; }
+        .info-section ul { list-style: none; padding: 0; margin: 0; font-size: 13px; color: #000; }
         .info-section li { padding: 4px 0; }
-        .info-section a { color: #e31837; text-decoration: none; font-size: 13px; }
-        .empty-state { text-align: center; padding: 40px; color: #666; }
-        .empty-state button { margin-top: 12px; background: #1a1a1a; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        .info-section a { color: #000; text-decoration: none; font-size: 13px; }
+        .info-section a:hover { text-decoration: underline; }
+        .empty-state { text-align: center; padding: 40px; color: #4a4a4a; }
+        .empty-state button { margin-top: 12px; background: #000; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
         .jobs-list { display: grid; gap: 12px; }
         .job-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 20px; }
-        .status-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; text-transform: uppercase; background: #f5f5f5; }
+        .status-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; text-transform: uppercase; background: #f5f5f5; color: #000; }
         .job-stats { display: flex; gap: 24px; flex: 1; }
         .stat { text-align: center; }
-        .stat-value { display: block; font-size: 20px; font-weight: 500; }
-        .stat-label { font-size: 12px; color: #666; }
-        .job-date { font-size: 13px; color: #999; }
-        .create-section h2 { font-size: 20px; margin: 0 0 20px 0; }
+        .stat-value { display: block; font-size: 20px; font-weight: 500; color: #000; }
+        .stat-label { font-size: 12px; color: #4a4a4a; }
+        .job-date { font-size: 13px; color: #4a4a4a; }
+        .create-section h2 { font-size: 20px; margin: 0 0 20px 0; color: #000; }
         .form-section { margin-bottom: 20px; }
-        .form-section h3 { font-size: 14px; margin: 0 0 12px 0; }
-        .select-all-btn { background: #f5f5f5; border: 1px solid #e5e5e5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-bottom: 12px; }
+        .form-section h3 { font-size: 14px; margin: 0 0 12px 0; color: #000; }
+        .select-all-btn { background: #f5f5f5; border: 1px solid #e5e5e5; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-bottom: 12px; color: #000; }
         .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; }
-        .contact-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .btn-primary { background: #e31837; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .contact-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 6px; cursor: pointer; font-size: 13px; color: #000; }
+        .btn-primary { background: #000; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; }
         .btn-primary:disabled { background: #ccc; }
-        .coming-soon { text-align: center; padding: 60px 20px; }
-        .coming-soon h2 { font-size: 24px; margin: 0 0 8px 0; }
-        .coming-soon p { color: #666; margin: 0 0 16px 0; }
-        .badge { background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+        .coming-soon { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; text-align: center; }
+        .coming-soon h2 { font-size: 28px; font-weight: 600; color: #000; margin: 0 0 8px 0; }
+        .coming-soon p { font-size: 16px; color: #4a4a4a; margin: 0; }
+        @media (max-width: 1024px) { .info-panel { display: none; } }
       `}</style>
     </Layout>
   );

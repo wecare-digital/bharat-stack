@@ -56,32 +56,32 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getChannelBadge = (channel: string) => {
     const badges: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-      whatsapp: { bg: '#dcfce7', color: '#166534', icon: '💬', label: 'WhatsApp' },
-      sms: { bg: '#dbeafe', color: '#1e40af', icon: '📱', label: 'SMS' },
-      email: { bg: '#fef3c7', color: '#92400e', icon: '📧', label: 'Email' },
-      voice: { bg: '#ede9fe', color: '#5b21b6', icon: '📞', label: 'Voice' },
-      rcs: { bg: '#fce7f3', color: '#9d174d', icon: '💎', label: 'RCS' },
+      whatsapp: { bg: '#f5f5f5', color: '#000', icon: '💬', label: 'WhatsApp' },
+      sms: { bg: '#f5f5f5', color: '#000', icon: '📱', label: 'SMS' },
+      email: { bg: '#f5f5f5', color: '#000', icon: '📧', label: 'Email' },
+      voice: { bg: '#f5f5f5', color: '#000', icon: '📞', label: 'Voice' },
+      rcs: { bg: '#f5f5f5', color: '#000', icon: '💎', label: 'RCS' },
     };
     return badges[channel] || badges.whatsapp;
   };
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; color: string; label: string }> = {
-      pending: { bg: '#fef3c7', color: '#92400e', label: 'Pending' },
-      sent: { bg: '#dbeafe', color: '#1e40af', label: 'Sent' },
-      delivered: { bg: '#dcfce7', color: '#166534', label: 'Delivered' },
-      read: { bg: '#e0e7ff', color: '#3730a3', label: 'Read' },
-      failed: { bg: '#fee2e2', color: '#991b1b', label: 'Failed' },
-      received: { bg: '#dcfce7', color: '#166534', label: 'Received' },
+      pending: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Pending' },
+      sent: { bg: '#e5e5e5', color: '#000', label: 'Sent' },
+      delivered: { bg: '#f0f0f0', color: '#000', label: 'Delivered' },
+      read: { bg: '#f0f0f0', color: '#000', label: 'Read' },
+      failed: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Failed' },
+      received: { bg: '#f0f0f0', color: '#000', label: 'Received' },
     };
-    return badges[status] || { bg: '#f3f4f6', color: '#6b7280', label: status };
+    return badges[status] || { bg: '#f5f5f5', color: '#6b6b6b', label: status };
   };
 
   const getDirectionBadge = (direction: string) => {
     if (direction === 'INBOUND') {
-      return { bg: '#dbeafe', color: '#1e40af', icon: '↓', label: 'In' };
+      return { bg: '#e5e5e5', color: '#000', icon: '↓', label: 'In' };
     }
-    return { bg: '#dcfce7', color: '#166534', icon: '↑', label: 'Out' };
+    return { bg: '#f0f0f0', color: '#000', icon: '↑', label: 'Out' };
   };
 
   const filteredLogs = logs.filter(log => {
@@ -283,9 +283,9 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         .card-info { display: flex; flex-direction: column; }
         .card-value { font-size: 24px; font-weight: 700; color: #111; }
         .card-label { font-size: 12px; color: #6b7280; }
-        .summary-card.outbound .card-value { color: #166534; }
-        .summary-card.inbound .card-value { color: #1e40af; }
-        .summary-card.error .card-value { color: #991b1b; }
+        .summary-card.outbound .card-value { color: #000; }
+        .summary-card.inbound .card-value { color: #000; }
+        .summary-card.error .card-value { color: #4a4a4a; }
         
         @media (max-width: 800px) {
           .summary-cards { grid-template-columns: repeat(2, 1fr); }

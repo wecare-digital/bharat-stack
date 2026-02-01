@@ -3,8 +3,7 @@
  */
 
 import React from 'react';
-import Layout from '../../../components/Layout';
-import PageHeader from '../../../components/PageHeader';
+import ComingSoon from '../../../components/ComingSoon';
 
 interface PageProps {
   signOut?: () => void;
@@ -13,21 +12,21 @@ interface PageProps {
 
 const LinkCreatePage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
-    <Layout user={user} onSignOut={signOut}>
-      <div className="page">
-        <PageHeader 
-          title="Create Link" 
-          subtitle="Create shareable links for payments, forms, and more"
-          icon="create"
-        />
-        <div className="section">
-          <div className="empty-state">
-            <p>🔗 Link creation coming soon</p>
-            <p className="help-text">Create shareable links for payments, forms, and more</p>
-          </div>
-        </div>
-      </div>
-    </Layout>
+    <ComingSoon
+      title="Create Link"
+      subtitle="Create shareable links for payments, forms, and more"
+      icon="create"
+      backLink="/link"
+      backLabel="← Link"
+      features={[
+        'Short URLs',
+        'Payment Links',
+        'Form Links',
+        'QR Codes',
+      ]}
+      user={user}
+      signOut={signOut}
+    />
   );
 };
 

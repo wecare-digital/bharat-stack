@@ -60,24 +60,24 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getChannelBadge = (channel: string) => {
     const badges: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-      whatsapp: { bg: '#dcfce7', color: '#166534', icon: '💬', label: 'WhatsApp' },
-      sms: { bg: '#dbeafe', color: '#1e40af', icon: '📱', label: 'SMS' },
-      email: { bg: '#fef3c7', color: '#92400e', icon: '📧', label: 'Email' },
-      voice: { bg: '#ede9fe', color: '#5b21b6', icon: '📞', label: 'Voice' },
-      rcs: { bg: '#fce7f3', color: '#9d174d', icon: '💎', label: 'RCS' },
+      whatsapp: { bg: '#f5f5f5', color: '#000', icon: '💬', label: 'WhatsApp' },
+      sms: { bg: '#f5f5f5', color: '#000', icon: '📱', label: 'SMS' },
+      email: { bg: '#f5f5f5', color: '#000', icon: '📧', label: 'Email' },
+      voice: { bg: '#f5f5f5', color: '#000', icon: '📞', label: 'Voice' },
+      rcs: { bg: '#f5f5f5', color: '#000', icon: '💎', label: 'RCS' },
     };
     return badges[channel] || badges.whatsapp;
   };
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; color: string; label: string }> = {
-      pending: { bg: '#fef3c7', color: '#92400e', label: 'Pending' },
-      running: { bg: '#dbeafe', color: '#1e40af', label: 'Running' },
-      completed: { bg: '#dcfce7', color: '#166534', label: 'Completed' },
-      failed: { bg: '#fee2e2', color: '#991b1b', label: 'Failed' },
-      paused: { bg: '#f3f4f6', color: '#6b7280', label: 'Paused' },
+      pending: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Pending' },
+      running: { bg: '#e5e5e5', color: '#000', label: 'Running' },
+      completed: { bg: '#f0f0f0', color: '#000', label: 'Completed' },
+      failed: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Failed' },
+      paused: { bg: '#f5f5f5', color: '#6b6b6b', label: 'Paused' },
     };
-    return badges[status] || { bg: '#f3f4f6', color: '#6b7280', label: status };
+    return badges[status] || { bg: '#f5f5f5', color: '#6b6b6b', label: status };
   };
 
   const filteredLogs = logs.filter(log => {
@@ -245,8 +245,8 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         
         .campaign-cell { font-weight: 500; }
         .num-cell { font-family: monospace; text-align: right; }
-        .num-cell.success { color: #166534; }
-        .num-cell.error { color: #991b1b; }
+        .num-cell.success { color: #000; font-weight: 500; }
+        .num-cell.error { color: #4a4a4a; }
         .date-cell { color: #6b7280; font-size: 12px; }
         
         .loading-cell, .empty-cell { text-align: center; padding: 40px !important; color: #9ca3af; }
@@ -260,9 +260,9 @@ const BulkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         .card-info { display: flex; flex-direction: column; }
         .card-value { font-size: 24px; font-weight: 700; color: #111; }
         .card-label { font-size: 12px; color: #6b7280; }
-        .summary-card.running .card-value { color: #1e40af; }
-        .summary-card.success .card-value { color: #166534; }
-        .summary-card.error .card-value { color: #991b1b; }
+        .summary-card.running .card-value { color: #000; }
+        .summary-card.success .card-value { color: #000; }
+        .summary-card.error .card-value { color: #4a4a4a; }
         
         @media (max-width: 800px) {
           .summary-cards { grid-template-columns: repeat(2, 1fr); }

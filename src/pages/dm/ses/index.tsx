@@ -282,14 +282,14 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
 
       <style jsx>{`
         .ses-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
-        .ses-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #232f3e; color: #fff; }
+        .ses-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #000; color: #fff; }
         .back-btn, .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
-        .compose-btn { background: #ff9900; border: none; color: #000; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .compose-btn { background: #fff; border: none; color: #000; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
         .ses-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
         .ses-icon { font-size: 28px; }
         .ses-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
         .ses-provider { font-size: 13px; opacity: 0.9; }
-        .error-bar { background: #fee2e2; color: #991b1b; padding: 8px 16px; font-size: 13px; }
+        .error-bar { background: #f5f5f5; color: #000; padding: 8px 16px; font-size: 13px; }
         .ses-layout { display: grid; grid-template-columns: 280px 1fr 260px; flex: 1; overflow: hidden; }
         .ses-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }
@@ -297,14 +297,14 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .contacts-list { flex: 1; overflow-y: auto; }
         .contact-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
         .contact-row:hover { background: #f9f9f9; }
-        .contact-row.active { background: #fff3e0; }
+        .contact-row.active { background: #f0f0f0; }
         .contact-avatar { width: 40px; height: 40px; background: #e5e5e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; color: #666; flex-shrink: 0; }
         .contact-avatar.large { width: 44px; height: 44px; }
         .contact-details { flex: 1; min-width: 0; }
         .contact-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
         .contact-email { font-size: 12px; color: #666; }
         .contact-preview { font-size: 12px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
-        .unread { background: #ff9900; color: #000; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
+        .unread { background: #000; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
         .ses-main { display: flex; flex-direction: column; background: #f5f5f5; }
         .email-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
         .email-contact { display: flex; align-items: center; gap: 12px; }
@@ -312,8 +312,8 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .email-address { font-size: 12px; color: #666; }
         .emails-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
         .email-item { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; }
-        .email-item.inbound { border-left: 3px solid #3b82f6; }
-        .email-item.outbound { border-left: 3px solid #22c55e; }
+        .email-item.inbound { border-left: 3px solid #000; }
+        .email-item.outbound { border-left: 3px solid #4a4a4a; }
         .email-item-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .email-direction { font-size: 12px; color: #666; }
         .email-time { font-size: 12px; color: #999; }
@@ -327,7 +327,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .info-section { margin-bottom: 20px; }
         .info-section h4 { font-size: 12px; color: #666; text-transform: uppercase; margin: 0 0 8px 0; }
         .info-section p { margin: 0; font-size: 14px; }
-        .verified-badge { font-size: 11px; color: #22c55e; }
+        .verified-badge { font-size: 11px; color: #000; }
         .feature-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
         .feature-list li { padding: 4px 0; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }

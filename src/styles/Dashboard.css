@@ -128,14 +128,15 @@
   cursor: not-allowed;
 }
 
-/* Tabs - Notion Style */
+/* Tabs - Notion Style - Two rows centered */
 .dash-tabs {
-  display: flex;
-  gap: var(--space-xs);
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  justify-content: center;
+  gap: var(--space-sm) var(--space-md);
   padding: var(--space-md) var(--space-xl);
   background: var(--notion-bg);
   border-bottom: 1px solid var(--notion-border);
-  overflow-x: auto;
 }
 
 .dash-tabs .tab {
@@ -179,16 +180,19 @@
   gap: var(--space-xl);
 }
 
-/* Stats Grid - Notion Cards */
+/* Stats Grid - Notion Cards - Centered 2 rows */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-md);
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .stats-grid.small {
   grid-template-columns: repeat(3, 1fr);
   max-width: 400px;
+  margin: 0 auto;
 }
 
 .stat-card {
@@ -221,7 +225,7 @@
   letter-spacing: 0.5px;
 }
 
-/* Accent stat cards */
+/* Accent stat cards - clean monochrome style */
 .stat-card.accent {
   border-left: 4px solid #000000;
 }
@@ -231,12 +235,12 @@
 }
 
 .stat-card.success {
-  border-left: 4px solid #16a34a;
+  border-left: 4px solid #000000;
   background: #ffffff;
 }
 
 .stat-card.error {
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid #6b6b6b;
 }
 
 /* Section - Notion Block Style */
@@ -279,11 +283,13 @@
   text-decoration: underline;
 }
 
-/* Quick Actions Grid - Notion Style */
+/* Quick Actions Grid - Notion Style - Centered 2 rows */
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-md);
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .action-card {
@@ -509,10 +515,12 @@
 
 .payment-info {
   padding: var(--space-md);
-  background: var(--wa-green-light);
+  background: #f5f5f5;
   border-radius: var(--radius-md);
   font-size: 14px;
-  color: var(--wa-teal);
+  color: #000000;
+  margin-top: var(--space-lg);
+  border: 1px solid var(--notion-border);
 }
 
 .payment-info strong {
@@ -1058,8 +1066,10 @@
     height: 40px;
   }
   
-  /* Tabs - horizontal scroll */
+  /* Tabs - horizontal scroll on mobile */
   .dash-tabs {
+    display: flex;
+    flex-wrap: nowrap;
     padding: 8px 12px;
     gap: 4px;
     overflow-x: auto;
@@ -1093,6 +1103,7 @@
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+    max-width: 100%;
   }
   
   .stats-grid.small {
@@ -1134,6 +1145,7 @@
   .actions-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+    max-width: 100%;
   }
   
   .action-card {

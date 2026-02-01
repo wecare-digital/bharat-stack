@@ -71,22 +71,22 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; color: string; label: string }> = {
-      pending: { bg: '#fef3c7', color: '#92400e', label: 'Pending' },
-      sent: { bg: '#dbeafe', color: '#1e40af', label: 'Sent' },
-      delivered: { bg: '#dcfce7', color: '#166534', label: 'Delivered' },
-      read: { bg: '#e0e7ff', color: '#3730a3', label: 'Read' },
-      paid: { bg: '#dcfce7', color: '#166534', label: '✓ Paid' },
-      failed: { bg: '#fee2e2', color: '#991b1b', label: 'Failed' },
-      expired: { bg: '#f3f4f6', color: '#6b7280', label: 'Expired' },
+      pending: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Pending' },
+      sent: { bg: '#e5e5e5', color: '#000', label: 'Sent' },
+      delivered: { bg: '#f0f0f0', color: '#000', label: 'Delivered' },
+      read: { bg: '#f0f0f0', color: '#000', label: 'Read' },
+      paid: { bg: '#f0f0f0', color: '#000', label: '✓ Paid' },
+      failed: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Failed' },
+      expired: { bg: '#f5f5f5', color: '#6b6b6b', label: 'Expired' },
     };
     return badges[status] || badges.pending;
   };
 
   const getTypeBadge = (type: 'wa' | 'link') => {
     if (type === 'wa') {
-      return { bg: '#dcfce7', color: '#166534', icon: '💬', label: 'WhatsApp' };
+      return { bg: '#f5f5f5', color: '#000', icon: '💬', label: 'WhatsApp' };
     }
-    return { bg: '#dbeafe', color: '#1e40af', icon: '🔗', label: 'Link' };
+    return { bg: '#f5f5f5', color: '#000', icon: '🔗', label: 'Link' };
   };
 
   const filteredLogs = logs.filter(log => {
@@ -267,7 +267,7 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         .recipient-cell { display: flex; flex-direction: column; gap: 2px; }
         .recipient-name { font-weight: 500; }
         .recipient-id { font-size: 11px; color: #9ca3af; }
-        .amount-cell { font-weight: 600; color: #166534; }
+        .amount-cell { font-weight: 600; color: #000; }
         .date-cell { color: #6b7280; font-size: 12px; }
         
         .loading-cell, .empty-cell { text-align: center; padding: 40px !important; color: #9ca3af; }
@@ -281,9 +281,9 @@ const PaymentLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         .card-info { display: flex; flex-direction: column; }
         .card-value { font-size: 24px; font-weight: 700; color: #111; }
         .card-label { font-size: 12px; color: #6b7280; }
-        .summary-card.success .card-value { color: #166534; }
-        .summary-card.warning .card-value { color: #92400e; }
-        .summary-card.error .card-value { color: #991b1b; }
+        .summary-card.success .card-value { color: #000; }
+        .summary-card.warning .card-value { color: #4a4a4a; }
+        .summary-card.error .card-value { color: #4a4a4a; }
         
         @media (max-width: 800px) {
           .summary-cards { grid-template-columns: repeat(2, 1fr); }

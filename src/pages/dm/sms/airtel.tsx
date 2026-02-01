@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
 import RichTextEditor from '../../../components/RichTextEditor';
 import * as api from '../../../api/client';
 
@@ -103,19 +104,18 @@ const AirtelSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <div className="sms-page">
-        <div className="sms-header">
-          <Link href="/dm/sms" className="back-btn">←</Link>
-          <div className="sms-header-info">
-            <span className="sms-icon">📱</span>
-            <div>
-              <h1>Airtel IQ SMS</h1>
-              <span className="sms-provider">India SMS Gateway</span>
-            </div>
-          </div>
-          <button onClick={loadData} className="refresh-btn" disabled={loading}>
-            {loading ? '...' : '↻'}
-          </button>
-        </div>
+        <PageHeader 
+          title="Airtel IQ SMS" 
+          subtitle="India SMS Gateway"
+          icon="sms"
+          backLink="/dm/sms"
+          backLabel="← SMS"
+          action={
+            <button onClick={loadData} className="refresh-btn" disabled={loading}>
+              {loading ? '...' : '↻'}
+            </button>
+          }
+        />
 
         {error && <div className="error-bar">{error}</div>}
 
@@ -166,62 +166,61 @@ const AirtelSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </>
             ) : (
-              <div className="no-chat"><p>📱 Select a contact</p></div>
+              <div className="no-chat"><p>Select a contact to start messaging</p></div>
             )}
           </div>
 
           <div className="info-panel">
             <h3>Airtel IQ SMS</h3>
-            <div className="info-section"><h4>Features</h4><ul><li>✓ Transactional SMS</li><li>✓ Promotional SMS</li><li>✓ DLT Compliance</li><li>✓ Delivery Reports</li></ul></div>
+            <div className="info-section"><h4>Features</h4><ul><li>Transactional SMS</li><li>Promotional SMS</li><li>DLT Compliance</li><li>Delivery Reports</li></ul></div>
             <div className="info-section"><h4>Documentation</h4><a href="https://www.airtel.in/business/b2b/airtel-iq/api-docs/sms/overview" target="_blank" rel="noopener noreferrer">Airtel IQ SMS API →</a></div>
           </div>
         </div>
       </div>
 
       <style jsx>{`
-        .sms-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
-        .sms-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #e31837; color: #fff; }
-        .back-btn, .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
-        .sms-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .sms-icon { font-size: 28px; }
-        .sms-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
-        .sms-provider { font-size: 13px; opacity: 0.9; }
-        .error-bar { background: #fee2e2; color: #991b1b; padding: 8px 16px; font-size: 13px; }
+        .sms-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #ffffff; }
+        .refresh-btn { background: #f5f5f5; border: 1px solid #e5e5e5; color: #000; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .refresh-btn:hover { background: #e5e5e5; }
+        .error-bar { background: #f5f5f5; color: #000; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #e5e5e5; }
         .sms-layout { display: grid; grid-template-columns: 280px 1fr 260px; flex: 1; overflow: hidden; }
         .sms-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }
-        .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 20px; font-size: 14px; }
+        .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; }
         .contacts-list { flex: 1; overflow-y: auto; }
         .contact-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
         .contact-row:hover { background: #f9f9f9; }
-        .contact-row.active { background: #fef2f2; }
-        .contact-avatar { width: 40px; height: 40px; background: #e5e5e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+        .contact-row.active { background: #f0f0f0; }
+        .contact-avatar { width: 40px; height: 40px; background: #e5e5e5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; color: #000; }
         .contact-details { flex: 1; }
-        .contact-name { font-size: 14px; font-weight: 500; }
-        .contact-preview { font-size: 12px; color: #999; }
-        .sms-chat { display: flex; flex-direction: column; background: #f5f5f5; }
+        .contact-name { font-size: 14px; font-weight: 500; color: #000; }
+        .contact-preview { font-size: 12px; color: #4a4a4a; }
+        .sms-chat { display: flex; flex-direction: column; background: #fafafa; }
         .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
         .chat-contact { display: flex; align-items: center; gap: 12px; }
-        .chat-name { font-weight: 500; }
-        .chat-phone { font-size: 12px; color: #666; }
-        .char-info { font-size: 12px; color: #666; }
+        .chat-name { font-weight: 500; color: #000; }
+        .chat-phone { font-size: 12px; color: #4a4a4a; }
+        .char-info { font-size: 12px; color: #4a4a4a; }
         .messages-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
         .message { display: flex; max-width: 70%; }
         .message.inbound { align-self: flex-start; }
         .message.outbound { align-self: flex-end; }
-        .message-bubble { background: #fff; padding: 10px 14px; border-radius: 12px; }
-        .message.outbound .message-bubble { background: #e31837; color: #fff; }
+        .message-bubble { background: #fff; padding: 10px 14px; border-radius: 12px; border: 1px solid #e5e5e5; }
+        .message.outbound .message-bubble { background: #000; color: #fff; border-color: #000; }
         .message-text { font-size: 14px; }
         .message-time { font-size: 11px; opacity: 0.7; margin-top: 4px; text-align: right; }
-        .compose-area { padding: 12px 16px; background: #fff; }
-        .no-chat { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
+        .compose-area { padding: 12px 16px; background: #fff; border-top: 1px solid #e5e5e5; }
+        .no-chat { flex: 1; display: flex; align-items: center; justify-content: center; color: #4a4a4a; }
         .info-panel { background: #fff; border-left: 1px solid #e5e5e5; padding: 20px; overflow-y: auto; }
-        .info-panel h3 { font-size: 16px; margin: 0 0 20px 0; }
+        .info-panel h3 { font-size: 16px; margin: 0 0 20px 0; color: #000; }
         .info-section { margin-bottom: 20px; }
-        .info-section h4 { font-size: 12px; color: #666; text-transform: uppercase; margin: 0 0 8px 0; }
-        .info-section ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+        .info-section h4 { font-size: 12px; color: #4a4a4a; text-transform: uppercase; margin: 0 0 8px 0; }
+        .info-section ul { list-style: none; padding: 0; margin: 0; font-size: 13px; color: #000; }
         .info-section li { padding: 4px 0; }
-        .info-section a { color: #e31837; text-decoration: none; font-size: 13px; }
+        .info-section a { color: #000; text-decoration: none; font-size: 13px; }
+        .info-section a:hover { text-decoration: underline; }
+        @media (max-width: 1024px) { .sms-layout { grid-template-columns: 240px 1fr; } .info-panel { display: none; } }
+        @media (max-width: 768px) { .sms-layout { grid-template-columns: 1fr; } .sms-sidebar { display: none; } }
       `}</style>
     </Layout>
   );

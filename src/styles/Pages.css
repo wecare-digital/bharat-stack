@@ -132,17 +132,21 @@
   background: var(--danger);
 }
 
-/* Stats Grid - Notion Cards */
+/* Stats Grid - Notion Cards - Centered */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 24px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .stats-grid.stats-compact {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
+  max-width: 500px;
 }
 
 .stat-card {

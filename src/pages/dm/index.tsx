@@ -1,111 +1,106 @@
 /**
- * DM Hub - Direct Messaging Overview
- * Links to all messaging channels
+ * DM Hub - Quick Action Cards
  */
 
 import React from 'react';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
+import { WhatsAppIcon, SmsIcon, EmailIcon, VoiceIcon, RcsIcon, LogsIcon } from '../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-const CHANNELS = [
-  {
-    id: 'whatsapp',
-    name: 'WhatsApp',
-    icon: '💬',
-    description: 'AWS End User Messaging Social',
-    href: '/dm/whatsapp',
-    status: 'active',
-    accounts: ['WECARE.DIGITAL (+91 93309 94400)', 'Manish Agarwal (+91 99033 00044)'],
-  },
-  {
-    id: 'sms',
-    name: 'SMS',
-    icon: '📱',
-    description: 'Airtel IQ SMS Gateway',
-    href: '/dm/sms',
-    status: 'active',
-    accounts: ['Airtel IQ Account'],
-  },
-  {
-    id: 'ses',
-    name: 'Email (SES)',
-    icon: '✉️',
-    description: 'AWS Simple Email Service',
-    href: '/dm/ses',
-    status: 'active',
-    accounts: ['noreply@wecare.digital'],
-  },
-  {
-    id: 'voice',
-    name: 'Voice',
-    icon: '📞',
-    description: 'Airtel IQ Voice Calls',
-    href: '/dm/voice',
-    status: 'coming',
-    accounts: ['Airtel IQ Voice'],
-  },
-  {
-    id: 'rcs',
-    name: 'RCS',
-    icon: '💎',
-    description: 'Airtel IQ Rich Communication',
-    href: '/dm/rcs',
-    status: 'coming',
-    accounts: ['Airtel IQ RCS'],
-  },
-];
-
 const DMHub: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
-      <div className="page">
+      <div className="hub-page">
         <PageHeader 
           title="Direct Messaging" 
           subtitle="Send messages across all channels"
           icon="message"
         />
 
-        <div className="channels-grid">
-          {CHANNELS.map((channel) => (
-            <Link key={channel.id} href={channel.href} className="channel-card">
-              <div className="channel-icon">{channel.icon}</div>
-              <div className="channel-info">
-                <h3 className="channel-name">
-                  {channel.name}
-                  {channel.status === 'coming' && <span className="badge-coming">Coming Soon</span>}
-                </h3>
-                <p className="channel-desc">{channel.description}</p>
-                <div className="channel-accounts">
-                  {channel.accounts.map((acc, i) => (
-                    <span key={i} className="account-badge">{acc}</span>
-                  ))}
-                </div>
-              </div>
-              <span className="channel-arrow">→</span>
-            </Link>
-          ))}
+        <div className="actions-grid">
+          <Link href="/dm/whatsapp" className="action-card">
+            <span className="icon"><WhatsAppIcon size={28} /></span>
+            <span>WhatsApp</span>
+          </Link>
+          <Link href="/dm/sms" className="action-card">
+            <span className="icon"><SmsIcon size={28} /></span>
+            <span>SMS</span>
+          </Link>
+          <Link href="/dm/ses" className="action-card">
+            <span className="icon"><EmailIcon size={28} /></span>
+            <span>Email</span>
+          </Link>
+          <Link href="/dm/voice" className="action-card">
+            <span className="icon"><VoiceIcon size={28} /></span>
+            <span>Voice</span>
+          </Link>
+          <Link href="/dm/rcs" className="action-card">
+            <span className="icon"><RcsIcon size={28} /></span>
+            <span>RCS</span>
+          </Link>
+          <Link href="/dm/logs" className="action-card">
+            <span className="icon"><LogsIcon size={28} /></span>
+            <span>Logs</span>
+          </Link>
         </div>
-
-        <style jsx>{`
-          .channels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-          .channel-card { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; text-decoration: none; color: inherit; transition: all 0.2s; }
-          .channel-card:hover { border-color: #1a1a1a; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-          .channel-icon { font-size: 32px; flex-shrink: 0; }
-          .channel-info { flex: 1; }
-          .channel-name { font-size: 16px; font-weight: 500; margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; }
-          .channel-desc { font-size: 13px; color: #666; margin: 0 0 8px 0; }
-          .channel-accounts { display: flex; flex-wrap: wrap; gap: 4px; }
-          .account-badge { font-size: 11px; background: #f5f5f5; padding: 2px 8px; border-radius: 4px; color: #666; }
-          .channel-arrow { font-size: 20px; color: #ccc; }
-          .badge-coming { font-size: 10px; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; }
-        `}</style>
       </div>
+
+      <style jsx>{`
+        .hub-page { padding: 24px; }
+        
+        .actions-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+          max-width: 450px;
+          margin: 0 auto;
+        }
+        
+        .action-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 24px 16px;
+          background: #f5f5f5;
+          border-radius: 12px;
+          text-decoration: none;
+          color: #000;
+          transition: all 0.2s ease;
+          border: 1px solid transparent;
+        }
+        
+        .action-card:hover {
+          background: #fff;
+          border-color: #e5e5e5;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        
+        .action-card .icon {
+          margin-bottom: 8px;
+          color: #000;
+        }
+        
+        .action-card span:last-child {
+          font-size: 14px;
+          font-weight: 500;
+        }
+        
+        @media (max-width: 480px) {
+          .hub-page { padding: 16px; }
+          .actions-grid { gap: 12px; }
+          .action-card { padding: 20px 12px; }
+          .action-card .icon { margin-bottom: 6px; }
+          .action-card span:last-child { font-size: 13px; }
+        }
+      `}</style>
     </Layout>
   );
 };
