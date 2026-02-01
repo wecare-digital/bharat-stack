@@ -457,7 +457,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user }) => {
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="page template-management">
         <PageHeader 
-          title="Template Management" 
+          title="WA Template" 
           subtitle="Create, edit, and manage WhatsApp message templates"
           icon="whatsapp"
           backLink="/dm/whatsapp"

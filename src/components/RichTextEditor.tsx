@@ -690,7 +690,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowTemplates(!showTemplates); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); }}
             title="Templates (can send outside 24h window)"
           >
-            ▤
+            <img src="https://img.icons8.com/ios/250/000000/todo-list.png" alt="Templates" style={{ width: 16, height: 16 }} />
           </button>
         )}
 
@@ -711,7 +711,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Send Payment Request (UPI)"
           >
-            Pay
+            <img src="https://img.icons8.com/ios/250/000000/card-in-use.png" alt="Pay" style={{ width: 16, height: 16 }} />
           </button>
         )}
 
@@ -722,7 +722,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); }}
           title="Insert Variable"
         >
-          {'{{}}'}
+          <img src="https://img.icons8.com/ios/250/000000/edit.png" alt="Variables" style={{ width: 16, height: 16 }} />
         </button>
 
         {/* Formatting Button (WhatsApp only) */}

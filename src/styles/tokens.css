@@ -42,6 +42,11 @@
   --border-dark: #d1d5db;
   --border-light: #f0f0f0;
   
+  /* Accent - Black theme */
+  --accent: #1a1a1a;
+  --accent-light: #f5f5f5;
+  --accent-hover: #374151;
+  
   /* Semantic Colors - Muted versions */
   --success: #16a34a;
   --success-light: #f0fdf4;
