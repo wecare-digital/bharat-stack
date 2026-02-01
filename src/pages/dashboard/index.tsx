@@ -650,30 +650,33 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
             <div className="overview">
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-value">{contacts.length}</div>
-                  <div className="stat-label">Contacts</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">{messages.length}</div>
-                  <div className="stat-label">Messages</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">{todayMessages.length}</div>
-                  <div className="stat-label">Today</div>
-                </div>
-                <div className="stat-card accent">
-                  <div className="stat-value">{inboundCount}</div>
-                  <div className="stat-label">Inbound</div>
-                </div>
-                <div className="stat-card accent2">
-                  <div className="stat-value">{outboundCount}</div>
-                  <div className="stat-label">Outbound</div>
-                </div>
-                <div className="stat-card success">
-                  <div className="stat-value">{capturedPayments}</div>
-                  <div className="stat-label">Paid</div>
+              <div className="section">
+                <h3>Statistics</h3>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-value">{contacts.length}</div>
+                    <div className="stat-label">Contacts</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">{messages.length}</div>
+                    <div className="stat-label">Messages</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">{todayMessages.length}</div>
+                    <div className="stat-label">Today</div>
+                  </div>
+                  <div className="stat-card accent">
+                    <div className="stat-value">{inboundCount}</div>
+                    <div className="stat-label">Inbound</div>
+                  </div>
+                  <div className="stat-card accent2">
+                    <div className="stat-value">{outboundCount}</div>
+                    <div className="stat-label">Outbound</div>
+                  </div>
+                  <div className="stat-card success">
+                    <div className="stat-value">{capturedPayments}</div>
+                    <div className="stat-label">Paid</div>
+                  </div>
                 </div>
               </div>
 
