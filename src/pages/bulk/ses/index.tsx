@@ -184,7 +184,7 @@ const BulkSes: React.FC<PageProps> = ({ signOut, user }) => {
         .info-section { margin-bottom: 20px; }
         .info-section h4 { font-size: 12px; color: #666; text-transform: uppercase; margin: 0 0 8px 0; }
         .info-section p { margin: 0; font-size: 14px; }
-        .verified { font-size: 11px; color: #22c55e; }
+        .verified { font-size: 11px; color: #10b981; }
         .info-section ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }
         .info-section li { padding: 4px 0; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }

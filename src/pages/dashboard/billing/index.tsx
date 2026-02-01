@@ -204,13 +204,13 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
         )}
 
         {/* Free Tier Tips */}
-        <div className="section" style={{ background: '#f5f5f5', borderColor: '#e5e5e5' }}>
-          <h3 className="section-title" style={{ color: '#000' }}>Free Tier Tips</h3>
+        <div className="section" style={{ background: '#ecfdf5', borderColor: '#10b981' }}>
+          <h3 className="section-title" style={{ color: '#059669' }}>Free Tier Tips</h3>
           <ul style={{ 
             margin: 0, 
             paddingLeft: '20px', 
             fontSize: '13px', 
-            color: '#4a4a4a', 
+            color: '#374151', 
             lineHeight: 2 
           }}>
             <li>Lambda: 1M free requests/month, 400K GB-seconds compute</li>
