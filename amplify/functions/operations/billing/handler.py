@@ -711,8 +711,14 @@ def get_trusted_advisor_checks(request_id: str) -> Dict[str, Any]:
                     else:
                         checks_summary['notAvailable'] += 1
                     
-                    # Add to checks list if has issues
+                    # Add to checks list if has issues (exclude S3 versioning check)
                     if status in ['error', 'warning']:
+                        # Skip S3 Bucket Versioning check (R365s2Qddf) - not needed
+                        if check_id == 'R365s2Qddf':
+                            checks_summary['investigationRecommended'] -= 1
+                            checks_summary['noProblemsDetected'] += 1
+                            continue
+                        
                         resources_flagged = summary.get('resourcesSummary', {}).get('resourcesFlagged', 0)
                         checks_summary['checks'].append({
                             'id': check_id,
