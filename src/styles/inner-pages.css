@@ -745,3 +745,646 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ========================================
+   CAMPAIGN PAGE STYLES - Standardized
+   Consistent with inner-page design system
+   ======================================== */
+.layout .main-content .campaign-page {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.layout .main-content .campaign-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.layout .main-content .campaign-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Campaign Sub-tabs - Match main tab styling */
+.layout .main-content .campaign-page .sub-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: #f9fafb;
+  border-radius: 14px;
+}
+
+.layout .main-content .campaign-page .sub-tab {
+  padding: 10px 18px !important;
+  min-height: 44px !important;
+  background: transparent !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #6b7280 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .campaign-page .sub-tab:hover {
+  background: #ffffff !important;
+  color: #374151 !important;
+  border-color: #e5e7eb !important;
+}
+
+.layout .main-content .campaign-page .sub-tab.active {
+  background: #ffffff !important;
+  border-color: #10B981 !important;
+  color: #065f46 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+}
+
+/* Campaign Form Styles */
+.layout .main-content .campaign-page .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.layout .main-content .campaign-page .form-group {
+  margin-bottom: 16px;
+}
+
+.layout .main-content .campaign-page .form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.layout .main-content .campaign-page .form-group input,
+.layout .main-content .campaign-page .form-group select,
+.layout .main-content .campaign-page .form-group textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 13px;
+  font-size: 14px;
+  background: #ffffff;
+  color: #111827;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .campaign-page .form-group input:hover,
+.layout .main-content .campaign-page .form-group select:hover,
+.layout .main-content .campaign-page .form-group textarea:hover {
+  border-color: #10B981;
+}
+
+.layout .main-content .campaign-page .form-group input:focus,
+.layout .main-content .campaign-page .form-group select:focus,
+.layout .main-content .campaign-page .form-group textarea:focus {
+  outline: none;
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* Campaign Contacts Section */
+.layout .main-content .campaign-page .contacts-section {
+  background: #f9fafb;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
+}
+
+.layout .main-content .campaign-page .contacts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.layout .main-content .campaign-page .contacts-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.layout .main-content .campaign-page .contacts-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.layout .main-content .campaign-page .search-input {
+  padding: 10px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 13px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.layout .main-content .campaign-page .select-all-btn {
+  padding: 10px 18px;
+  background: #ffffff;
+  border: 1.5px solid #10B981;
+  border-radius: 13px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  min-height: 44px;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .campaign-page .select-all-btn:hover {
+  background: #ECFDF5;
+  border-color: #059669;
+}
+
+.layout .main-content .campaign-page .contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.layout .main-content .campaign-page .contact-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .campaign-page .contact-item:hover {
+  border-color: #10B981;
+}
+
+.layout .main-content .campaign-page .contact-item.selected {
+  background: #ECFDF5;
+  border-color: #10B981;
+}
+
+.layout .main-content .campaign-page .contact-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #10B981;
+}
+
+.layout .main-content .campaign-page .contact-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.layout .main-content .campaign-page .contact-phone {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Campaign Send Button */
+.layout .main-content .campaign-page .send-section {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.layout .main-content .campaign-page .send-btn {
+  padding: 14px 32px;
+  background: #10B981;
+  color: #ffffff;
+  border: none;
+  border-radius: 13px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 52px;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .campaign-page .send-btn:hover {
+  background: #059669;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.layout .main-content .campaign-page .send-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Campaign Message Bar */
+.layout .main-content .campaign-page .msg-bar {
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.layout .main-content .campaign-page .msg-bar.success {
+  background: #D1FAE5;
+  color: #065f46;
+  border: 1px solid #A7F3D0;
+}
+
+.layout .main-content .campaign-page .msg-bar.error {
+  background: #FEF2F2;
+  color: #dc2626;
+  border: 1px solid #FECACA;
+}
+
+.layout .main-content .campaign-page .msg-bar button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: inherit;
+  padding: 0 4px;
+}
+
+/* Campaign Logs Table */
+.layout .main-content .campaign-page .logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.layout .main-content .campaign-page .logs-table th,
+.layout .main-content .campaign-page .logs-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.layout .main-content .campaign-page .logs-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+}
+
+.layout .main-content .campaign-page .logs-table tbody tr:hover {
+  background: #ECFDF5;
+}
+
+.layout .main-content .campaign-page .logs-table .success {
+  color: #10B981;
+  font-weight: 600;
+}
+
+.layout .main-content .campaign-page .logs-table .error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.layout .main-content .campaign-page .empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Campaign Mobile Responsive */
+@media (max-width: 768px) {
+  .layout .main-content .campaign-page {
+    padding: 16px;
+  }
+  
+  .layout .main-content .campaign-page .campaign-header h2 {
+    font-size: 18px;
+  }
+  
+  .layout .main-content .campaign-page .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .layout .main-content .campaign-page .contacts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .layout .main-content .campaign-page .search-input {
+    min-width: 150px;
+    width: 100%;
+  }
+  
+  .layout .main-content .campaign-page .send-btn {
+    width: 100%;
+  }
+  
+  .layout .main-content .campaign-page .logs-table {
+    font-size: 12px;
+  }
+  
+  .layout .main-content .campaign-page .logs-table th,
+  .layout .main-content .campaign-page .logs-table td {
+    padding: 10px 12px;
+  }
+}
+
+/* ========================================
+   STORE PAGE STYLES - Standardized
+   ======================================== */
+.layout .main-content .store-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.layout .main-content .store-page .page-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: #f9fafb;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+
+.layout .main-content .store-page .tab-btn {
+  padding: 10px 18px !important;
+  min-height: 44px !important;
+  background: transparent !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #6b7280 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.layout .main-content .store-page .tab-btn:hover {
+  background: #ffffff !important;
+  color: #374151 !important;
+  border-color: #e5e7eb !important;
+}
+
+.layout .main-content .store-page .tab-btn.active {
+  background: #ffffff !important;
+  border-color: #10B981 !important;
+  color: #065f46 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+}
+
+.layout .main-content .store-page .info-banner {
+  background: #f9fafb;
+  padding: 24px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
+}
+
+.layout .main-content .store-page .info-banner h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.layout .main-content .store-page .info-banner p {
+  margin: 0 0 12px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.layout .main-content .store-page .docs-link {
+  color: #10B981;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.layout .main-content .store-page .docs-link:hover {
+  color: #059669;
+  text-decoration: underline;
+}
+
+.layout .main-content .store-page .features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.layout .main-content .store-page .feature-card {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .store-page .feature-card:hover {
+  border-color: #10B981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.layout .main-content .store-page .feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: #ECFDF5;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  color: #10B981;
+}
+
+.layout .main-content .store-page .feature-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.layout .main-content .store-page .feature-card p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.layout .main-content .store-page .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.layout .main-content .store-page .section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.layout .main-content .store-page .add-btn {
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #111827;
+  border: 1.5px solid #10B981;
+  border-radius: 13px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  min-height: 44px;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .store-page .add-btn:hover {
+  background: #ECFDF5;
+  border-color: #059669;
+}
+
+.layout .main-content .store-page .products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.layout .main-content .store-page .product-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .store-page .product-card:hover {
+  border-color: #10B981;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.layout .main-content .store-page .product-image {
+  height: 160px;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layout .main-content .store-page .product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.layout .main-content .store-page .placeholder {
+  font-size: 48px;
+  opacity: 0.2;
+  color: #9ca3af;
+}
+
+.layout .main-content .store-page .product-info {
+  padding: 16px;
+}
+
+.layout .main-content .store-page .product-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.layout .main-content .store-page .product-info p {
+  margin: 0 0 12px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.layout .main-content .store-page .product-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.layout .main-content .store-page .price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.layout .main-content .store-page .stock {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.layout .main-content .store-page .stock.in {
+  background: #D1FAE5;
+  color: #065f46;
+}
+
+.layout .main-content .store-page .stock.out {
+  background: #FEF2F2;
+  color: #dc2626;
+}
+
+.layout .main-content .store-page .empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.layout .main-content .store-page .empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 16px;
+  background: #f9fafb;
+  border-radius: 50%;
+  color: #9ca3af;
+}
+
+.layout .main-content .store-page .empty-state h3 {
+  margin: 0 0 8px 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.layout .main-content .store-page .empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .layout .main-content .store-page .features-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .layout .main-content .store-page .features-grid {
+    grid-template-columns: 1fr;
+  }
+}

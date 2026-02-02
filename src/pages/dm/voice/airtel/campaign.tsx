@@ -186,17 +186,17 @@ const VoiceInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       </div>
 
       <div className="info-banner">
-        <span>📞 Inbound: +91 9319767034</span>
+        <span>Inbound: +91 9319767034</span>
         <span>•</span>
         <span>Click-to-Call (C2C) campaigns via Airtel CCP</span>
       </div>
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          Create
+          Create Campaign
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          Logs ({campaigns.length})
+          Campaign Logs ({campaigns.length})
         </button>
       </div>
 
@@ -252,7 +252,7 @@ const VoiceInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
           <div className="send-section">
             <button className="send-btn" onClick={handleStartCampaign} disabled={calling || selectedContacts.length === 0 || !agentNumber}>
-              {calling ? `Calling...` : `📞 Call ${selectedContacts.length} contacts`}
+              {calling ? `Calling...` : `Call ${selectedContacts.length} Contacts`}
             </button>
           </div>
         </div>

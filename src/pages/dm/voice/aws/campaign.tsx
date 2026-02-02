@@ -197,10 +197,10 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          Create
+          Create Campaign
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          Logs ({campaigns.length})
+          Campaign Logs ({campaigns.length})
         </button>
       </div>
 
@@ -261,7 +261,7 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
           <div className="send-section">
             <button className="send-btn" onClick={handleStartCampaign} disabled={calling || selectedContacts.length === 0}>
-              {calling ? `Calling...` : `📞 Call ${selectedContacts.length} contacts`}
+              {calling ? `Calling...` : `Call ${selectedContacts.length} Contacts`}
             </button>
           </div>
         </div>

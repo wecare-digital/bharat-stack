@@ -138,78 +138,45 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
 
       <style jsx>{`
-        .store-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .page-tabs { 
-          display: flex; 
-          gap: 8px; 
-          margin-bottom: 20px;
-          padding: 0;
-          overflow-x: auto;
-        }
-        .tab-btn { 
-          padding: 10px 18px; 
-          border: 1.5px solid #10B981;
-          border-radius: 13px; 
-          background: #fff; 
-          cursor: pointer; 
-          font-size: 14px; 
-          font-weight: 500;
-          color: #111827;
-          white-space: nowrap;
-          transition: all 0.15s ease;
-          min-height: 44px;
-        }
-        .tab-btn:hover { background: #ECFDF5; border-color: #059669; }
-        .tab-btn.active { 
-          background: #D1FAE5; 
-          border-color: #10B981;
-          font-weight: 600;
-        }
+        .store-page { }
+        .page-tabs { }
+        .tab-btn { }
+        .tab-btn:hover { }
+        .tab-btn.active { }
         .tab-content { min-height: 400px; }
-        
-        .info-banner { background: #f5f5f5; padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e5e5e5; }
-        .info-banner h3 { margin: 0 0 8px 0; font-size: 18px; }
-        .info-banner p { margin: 0 0 12px 0; color: #666; }
-        .docs-link { color: #10B981; font-weight: 500; text-decoration: none; }
-        .docs-link:hover { text-decoration: underline; }
-        
-        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-        .feature-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e5e5e5; }
-        .feature-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: #ECFDF5; border-radius: 10px; margin-bottom: 12px; color: #10B981; }
-        .feature-card h4 { margin: 0 0 8px 0; font-size: 16px; }
-        .feature-card p { margin: 0; color: #666; font-size: 13px; }
-        
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .section-header h3 { margin: 0; }
-        .add-btn { padding: 10px 20px; background: #fff; color: #111827; border: 1.5px solid #10B981; border-radius: 13px; cursor: pointer; font-size: 14px; min-height: 44px; }
-        .add-btn:hover { background: #ECFDF5; }
-        
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-        .product-card { background: white; border-radius: 12px; border: 1px solid #e5e5e5; overflow: hidden; }
-        .product-image { height: 160px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; }
-        .product-image img { width: 100%; height: 100%; object-fit: cover; }
-        .placeholder { font-size: 48px; opacity: 0.3; color: #9ca3af; }
-        .product-info { padding: 16px; }
-        .product-info h4 { margin: 0 0 8px 0; font-size: 16px; }
-        .product-info p { margin: 0 0 12px 0; color: #666; font-size: 13px; }
-        .product-meta { display: flex; justify-content: space-between; align-items: center; }
-        .price { font-size: 18px; font-weight: 600; }
-        .stock { font-size: 12px; padding: 4px 8px; border-radius: 4px; }
-        .stock.in { background: #d1fae5; color: #065f46; }
-        .stock.out { background: #fef2f2; color: #dc2626; }
-        
-        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
-        .empty-icon { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; margin: 0 auto 16px; background: #f5f5f5; border-radius: 50%; color: #9ca3af; }
-        .empty-state h3 { margin: 0 0 8px 0; color: #333; }
-        .empty-state p { margin: 0; }
-        
-        @media (max-width: 768px) {
-          .tab-btn { padding: 10px 14px; font-size: 13px; }
-          .features-grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 480px) {
-          .features-grid { grid-template-columns: 1fr; }
-        }
+        .info-banner { }
+        .info-banner h3 { }
+        .info-banner p { }
+        .docs-link { }
+        .docs-link:hover { }
+        .features-grid { }
+        .feature-card { }
+        .feature-icon { }
+        .feature-card h4 { }
+        .feature-card p { }
+        .section-header { }
+        .section-header h3 { }
+        .add-btn { }
+        .add-btn:hover { }
+        .products-grid { }
+        .product-card { }
+        .product-image { }
+        .product-image img { }
+        .placeholder { }
+        .product-info { }
+        .product-info h4 { }
+        .product-info p { }
+        .product-meta { }
+        .price { }
+        .stock { }
+        .stock.in { }
+        .stock.out { }
+        .empty-state { }
+        .empty-icon { }
+        .empty-state h3 { }
+        .empty-state p { }
+        @media (max-width: 768px) { }
+        @media (max-width: 480px) { }
       `}</style>
     </Layout>
   );

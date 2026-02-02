@@ -177,10 +177,10 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          Create
+          Create Campaign
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          Logs ({campaigns.length})
+          Campaign Logs ({campaigns.length})
         </button>
       </div>
 
@@ -240,7 +240,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
           <div className="send-section">
             <button className="send-btn" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0}>
-              {sending ? `Sending... (${selectedContacts.length})` : `Send to ${selectedContacts.length} contacts`}
+              {sending ? `Sending... (${selectedContacts.length})` : `Send Campaign to ${selectedContacts.length} Contacts`}
             </button>
           </div>
         </div>
@@ -283,42 +283,42 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
       )}
 
       <style jsx>{`
-        .campaign-page { padding: 20px; height: 100%; overflow-y: auto; }
-        .campaign-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .campaign-header h2 { margin: 0; font-size: 20px; }
-        .refresh-btn { padding: 8px 12px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; cursor: pointer; }
-        .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-        .sub-tab { padding: 8px 16px; border: 1px solid #e5e5e5; border-radius: 6px; background: white; cursor: pointer; font-size: 13px; }
-        .sub-tab.active { background: #f5f5f5; font-weight: 600; }
-        .msg-bar { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; font-size: 13px; }
-        .msg-bar.success { background: #d1fae5; color: #065f46; }
-        .msg-bar.error { background: #fef2f2; color: #dc2626; }
-        .msg-bar button { background: none; border: none; font-size: 18px; cursor: pointer; }
-        .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
-        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; }
-        .contacts-section { background: #f9f9f9; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
-        .contacts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; }
-        .contacts-header h3 { margin: 0; font-size: 14px; }
-        .contacts-actions { display: flex; gap: 8px; }
-        .search-input { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 6px; font-size: 13px; width: 200px; }
-        .select-all-btn { padding: 8px 12px; background: white; border: 1px solid #e5e5e5; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; max-height: 300px; overflow-y: auto; }
-        .contact-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: white; border: 1px solid #e5e5e5; border-radius: 8px; cursor: pointer; }
-        .contact-item.selected { background: #f0fdf4; border-color: #10b981; }
-        .contact-item input { width: 16px; height: 16px; }
-        .contact-name { flex: 1; font-size: 13px; font-weight: 500; }
-        .contact-phone { font-size: 12px; color: #666; }
-        .send-section { text-align: center; }
-        .send-btn { padding: 14px 32px; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .send-btn:disabled { background: #9ca3af; cursor: not-allowed; }
-        .logs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .logs-table th, .logs-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
-        .logs-table th { background: #f5f5f5; font-weight: 600; font-size: 12px; }
-        .logs-table .success { color: #10b981; }
-        .logs-table .error { color: #dc2626; }
-        .empty { text-align: center; padding: 40px; color: #666; }
-        @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } .contacts-grid { grid-template-columns: 1fr; } }
+        .campaign-page { }
+        .campaign-header { }
+        .campaign-header h2 { }
+        .refresh-btn { }
+        .sub-tabs { }
+        .sub-tab { }
+        .sub-tab.active { }
+        .msg-bar { }
+        .msg-bar.success { }
+        .msg-bar.error { }
+        .msg-bar button { }
+        .form-row { }
+        .form-group label { }
+        .form-group input, .form-group select { }
+        .contacts-section { }
+        .contacts-header { }
+        .contacts-header h3 { }
+        .contacts-actions { }
+        .search-input { }
+        .select-all-btn { }
+        .contacts-grid { }
+        .contact-item { }
+        .contact-item.selected { }
+        .contact-item input { }
+        .contact-name { }
+        .contact-phone { }
+        .send-section { }
+        .send-btn { }
+        .send-btn:disabled { }
+        .logs-table { }
+        .logs-table th, .logs-table td { }
+        .logs-table th { }
+        .logs-table .success { }
+        .logs-table .error { }
+        .empty { }
+        @media (max-width: 768px) { }
       `}</style>
     </div>
   );

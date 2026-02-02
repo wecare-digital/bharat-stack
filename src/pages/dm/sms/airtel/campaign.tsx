@@ -178,10 +178,10 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          Create
+          Create Campaign
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          Logs ({campaigns.length})
+          Campaign Logs ({campaigns.length})
         </button>
         <button className={`sub-tab ${activeTab === 'dlt' ? 'active' : ''}`} onClick={() => setActiveTab('dlt')}>
           DLT Config
@@ -243,7 +243,7 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
           <div className="send-section">
             <button className="send-btn" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0}>
-              {sending ? `Sending...` : `Send to ${selectedContacts.length} contacts`}
+              {sending ? `Sending...` : `Send Campaign to ${selectedContacts.length} Contacts`}
             </button>
           </div>
         </div>

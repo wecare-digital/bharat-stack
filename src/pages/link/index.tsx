@@ -62,26 +62,28 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
           overflow-x: auto;
         }
         .tab-btn { 
-          padding: 8px 16px; 
-          border: none; 
-          border-radius: 6px; 
-          background: transparent; 
+          padding: 10px 18px; 
+          border: 1.5px solid #10B981;
+          border-radius: 13px; 
+          background: #fff; 
           cursor: pointer; 
           font-size: 14px;
           font-weight: 500;
-          color: var(--color-muted, #6b7280);
+          color: #111827;
           white-space: nowrap;
           transition: all 0.15s ease;
+          min-height: 44px;
         }
-        .tab-btn:hover { background: var(--color-bg, #f3f4f6); color: var(--color-text, #111827); }
+        .tab-btn:hover { background: #ECFDF5; border-color: #059669; }
         .tab-btn.active { 
-          background: var(--color-primary, #10b981); 
-          color: white; 
+          background: #D1FAE5; 
+          border-color: #10B981;
+          font-weight: 600;
         }
         .tab-content { flex: 1; overflow: auto; }
         @media (max-width: 768px) {
           .page-tabs { padding: 12px 16px; gap: 6px; }
-          .tab-btn { padding: 8px 12px; font-size: 13px; }
+          .tab-btn { padding: 10px 14px; font-size: 13px; }
         }
       `}</style>
     </Layout>
