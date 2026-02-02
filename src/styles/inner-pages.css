@@ -398,3 +398,350 @@
 .layout .main-content .refresh-btn:hover svg {
   color: #059669 !important;
 }
+
+
+/* ========================================
+   SUB-TABS - Standardized Design
+   Consistent with main tab styling
+   ======================================== */
+.layout .main-content .sub-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: #f9fafb;
+  border-radius: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.layout .main-content .sub-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.layout .main-content .sub-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px !important;
+  min-height: 44px !important;
+  background: transparent !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #6b7280 !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.layout .main-content .sub-tab:hover {
+  background: #ffffff !important;
+  color: #374151 !important;
+  border-color: #e5e7eb !important;
+}
+
+.layout .main-content .sub-tab.active {
+  background: #ffffff !important;
+  border-color: #10B981 !important;
+  color: #065f46 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+}
+
+/* ========================================
+   TAB CONTENT CONTAINER - Fixed Layout
+   Ensures content renders in correct position
+   ======================================== */
+.layout .main-content .tabbed-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout .main-content .tabbed-page .page-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.layout .main-content .tabbed-page .tab-content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* Ensure embedded components respect container */
+.layout .main-content .tabbed-page .tab-content > div {
+  height: 100%;
+  min-height: 0;
+}
+
+/* ========================================
+   HEALTH & ADVISOR TABS - Standardized
+   Replace inline styles with CSS classes
+   ======================================== */
+.layout .main-content .health-tab,
+.layout .main-content .advisor-tab {
+  padding: 0;
+}
+
+.layout .main-content .health-tab .stats-grid,
+.layout .main-content .advisor-tab .stats-grid {
+  margin-bottom: 1rem;
+}
+
+.layout .main-content .health-status-card {
+  background: #ecfdf5;
+  border-radius: 8px;
+  text-align: center;
+  padding: 3rem;
+  margin-top: 1rem;
+  border: 1px solid #a7f3d0;
+}
+
+.layout .main-content .health-status-card.healthy {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.layout .main-content .health-status-card.warning {
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.layout .main-content .health-status-card.error {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.layout .main-content .health-status-card .status-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.layout .main-content .health-status-card h3 {
+  color: #059669;
+  margin: 0 0 0.5rem;
+}
+
+.layout .main-content .health-status-card.warning h3 {
+  color: #d97706;
+}
+
+.layout .main-content .health-status-card.error h3 {
+  color: #dc2626;
+}
+
+.layout .main-content .health-status-card p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.layout .main-content .info-banner-blue {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+
+.layout .main-content .info-banner-blue p {
+  font-size: 13px;
+  color: #4b5563;
+  margin: 0;
+}
+
+.layout .main-content .info-banner-blue a {
+  margin-left: 8px;
+  color: #2563eb;
+}
+
+/* Issue Card */
+.layout .main-content .issue-card {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+.layout .main-content .issue-card.error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+
+.layout .main-content .issue-card.warning {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.layout .main-content .issue-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.layout .main-content .issue-card-header strong {
+  color: #111827;
+}
+
+.layout .main-content .issue-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: white;
+}
+
+.layout .main-content .issue-badge.error {
+  background: #dc2626;
+}
+
+.layout .main-content .issue-badge.warning {
+  background: #d97706;
+}
+
+.layout .main-content .issue-card p {
+  margin: 8px 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.layout .main-content .issue-card .meta {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.layout .main-content .resolve-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: #2563eb;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+}
+
+.layout .main-content .resolve-btn:hover {
+  background: #1d4ed8;
+}
+
+/* Category Cards for Advisor */
+.layout .main-content .category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.layout .main-content .category-card {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  text-align: center;
+}
+
+.layout .main-content .category-card .category-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.layout .main-content .category-card .category-name {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 0.5rem;
+  text-transform: capitalize;
+}
+
+.layout .main-content .category-card .category-counts {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.layout .main-content .count-badge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.layout .main-content .count-badge.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.layout .main-content .count-badge.warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.layout .main-content .count-badge.ok {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+/* ========================================
+   LOADING STATES
+   ======================================== */
+.layout .main-content .loading-state {
+  text-align: center;
+  padding: 3rem;
+}
+
+.layout .main-content .loading-state .loading-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.layout .main-content .loading-state p {
+  color: #6b7280;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE - Sub-tabs
+   ======================================== */
+@media (max-width: 768px) {
+  .layout .main-content .sub-tabs {
+    padding: 3px;
+    border-radius: 12px;
+  }
+  
+  .layout .main-content .sub-tab {
+    padding: 8px 14px !important;
+    min-height: 40px !important;
+    font-size: 13px !important;
+    border-radius: 9px !important;
+  }
+  
+  .layout .main-content .tabbed-page .page-tabs {
+    padding: 12px 16px;
+    gap: 6px;
+  }
+  
+  .layout .main-content .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .layout .main-content .category-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -227,9 +227,9 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
               className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === 'chat' && '💬 Chat'}
-              {tab === 'compose' && '✏️ Compose'}
-              {tab === 'templates' && '📋 DLT Config'}
+              {tab === 'chat' && 'Chat'}
+              {tab === 'compose' && 'Compose'}
+              {tab === 'templates' && 'DLT Config'}
             </button>
           ))}
         </div>
@@ -383,7 +383,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
                 disabled={!composePhone.trim() || !composeMessage.trim() || sending}
                 className="send-btn"
               >
-                {sending ? 'Sending...' : '📤 Send SMS'}
+                {sending ? 'Sending...' : 'Send SMS'}
               </button>
             </div>
           </div>
@@ -398,7 +398,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
 
               {/* Entity Info */}
               <div className="entity-info">
-                <h4>📋 Registered Entity</h4>
+                <h4>Registered Entity</h4>
                 <div className="entity-details">
                   <div className="entity-row">
                     <span className="label">Entity Name:</span>
@@ -417,7 +417,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
 
               {/* Registered Header */}
               <div className="header-info">
-                <h4>📡 Registered Header</h4>
+                <h4>Registered Header</h4>
                 <table className="dlt-table">
                   <thead>
                     <tr>
@@ -442,7 +442,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
 
               {/* Registered Templates */}
               <div className="templates-info">
-                <h4>📝 Registered Templates</h4>
+                <h4>Registered Templates</h4>
                 <table className="dlt-table">
                   <thead>
                     <tr>
@@ -489,7 +489,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
 
               <div className="config-grid">
                 <div className="config-card">
-                  <h4>📋 Message Type</h4>
+                  <h4>Message Type</h4>
                   <select value={messageType} onChange={(e) => setMessageType(e.target.value)}>
                     <option value="SERVICE_IMPLICIT">Service Implicit</option>
                     <option value="SERVICE_EXPLICIT">Service Explicit</option>
@@ -505,7 +505,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
                 </div>
 
                 <div className="config-card">
-                  <h4>🔑 DLT Template ID</h4>
+                  <h4>DLT Template ID</h4>
                   <input
                     type="text"
                     value={dltTemplateId}
@@ -516,7 +516,7 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
                 </div>
 
                 <div className="config-card">
-                  <h4>📡 Header (Sender ID)</h4>
+                  <h4>Header (Sender ID)</h4>
                   <input
                     type="text"
                     value={sourceAddress}

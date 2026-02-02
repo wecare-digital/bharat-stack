@@ -197,10 +197,10 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          ✏️ Create
+          Create
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          📋 Logs ({campaigns.length})
+          Logs ({campaigns.length})
         </button>
       </div>
 

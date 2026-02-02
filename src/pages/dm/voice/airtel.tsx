@@ -446,7 +446,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
                             background: record.callType === 'INBOUND' ? '#dbeafe' : '#fef3c7',
                             color: record.callType === 'INBOUND' ? '#1d4ed8' : '#92400e'
                           }}>
-                            {record.callType === 'INBOUND' ? '📞 Inbound' : '📤 Outbound'}
+                            {record.callType === 'INBOUND' ? 'Inbound' : 'Outbound'}
                           </span>
                         </td>
                         <td style={{ padding: '12px' }}>

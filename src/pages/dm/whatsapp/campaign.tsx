@@ -177,10 +177,10 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          ✏️ Create
+          Create
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          📋 Logs ({campaigns.length})
+          Logs ({campaigns.length})
         </button>
       </div>
 
@@ -240,7 +240,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
           <div className="send-section">
             <button className="send-btn" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0}>
-              {sending ? `Sending... (${selectedContacts.length})` : `📤 Send to ${selectedContacts.length} contacts`}
+              {sending ? `Sending... (${selectedContacts.length})` : `Send to ${selectedContacts.length} contacts`}
             </button>
           </div>
         </div>

@@ -178,13 +178,13 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
       <div className="sub-tabs">
         <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          ✏️ Create
+          Create
         </button>
         <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          📋 Logs ({campaigns.length})
+          Logs ({campaigns.length})
         </button>
         <button className={`sub-tab ${activeTab === 'dlt' ? 'active' : ''}`} onClick={() => setActiveTab('dlt')}>
-          ⚙️ DLT Config
+          DLT Config
         </button>
       </div>
 
@@ -243,7 +243,7 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
           <div className="send-section">
             <button className="send-btn" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0}>
-              {sending ? `Sending...` : `📤 Send to ${selectedContacts.length} contacts`}
+              {sending ? `Sending...` : `Send to ${selectedContacts.length} contacts`}
             </button>
           </div>
         </div>
@@ -291,19 +291,19 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           </div>
 
           <div className="dlt-card">
-            <h4>📋 Registered Entity</h4>
+            <h4>Registered Entity</h4>
             <div className="dlt-row"><span>Entity Name:</span><strong>WECARE.DIGITAL</strong></div>
             <div className="dlt-row"><span>PE ID:</span><code>1201161991108627443</code></div>
           </div>
 
           <div className="dlt-card">
-            <h4>📡 Registered Header</h4>
+            <h4>Registered Header</h4>
             <div className="dlt-row"><span>Header:</span><strong>WDBEEP</strong></div>
             <div className="dlt-row"><span>Header DLT ID:</span><code>1405170900886606599</code></div>
           </div>
 
           <div className="dlt-card">
-            <h4>📝 Template</h4>
+            <h4>Template</h4>
             <div className="form-group">
               <label>DLT Template ID</label>
               <input type="text" value={dltTemplateId} onChange={e => setDltTemplateId(e.target.value)} />
