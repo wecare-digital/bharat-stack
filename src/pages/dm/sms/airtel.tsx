@@ -554,7 +554,6 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
           </div>
         )}
       </div>
-    </div>
   );
 
   const styles = `
