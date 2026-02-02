@@ -237,8 +237,8 @@ def generate_cost_recommendations(services: List[Dict], total_cost: float) -> Li
                 'id': 'support-plan',
                 'severity': 'high',
                 'title': 'Consider Downgrading Support Plan',
-                'description': f'AWS Business Support costs ${support_cost:.2f}/month. For development/testing, consider Developer Support ($29/month) or Basic Support (free).',
-                'potentialSavings': round(support_cost - 29, 2) if support_cost > 29 else 0,
+                'description': f'AWS Business Support costs ${support_cost:.2f}/month. For development/testing, consider Basic Support (free) to save the full amount, or Developer Support ($29/month) for technical support.',
+                'potentialSavings': round(support_cost, 2),  # Full savings if downgrading to Basic
                 'action': 'Review support plan in AWS Support Center',
                 'link': 'https://console.aws.amazon.com/support/plans/home'
             })
@@ -365,6 +365,76 @@ def generate_cost_recommendations(services: List[Dict], total_cost: float) -> Li
                 'potentialSavings': round(tax['cost'], 2),
                 'action': 'Upload tax exemption certificate',
                 'link': 'https://console.aws.amazon.com/billing/home#/tax'
+            })
+    
+    # Check S3 costs
+    if 'Amazon Simple Storage Service' in service_map:
+        s3 = service_map['Amazon Simple Storage Service']
+        if s3['cost'] > 0:
+            recommendations.append({
+                'id': 's3-lifecycle',
+                'severity': 'low',
+                'title': 'Enable S3 Lifecycle Policies',
+                'description': f'S3 costs ${s3["cost"]:.2f}. Move infrequently accessed data to S3 Glacier or enable Intelligent-Tiering.',
+                'potentialSavings': round(s3['cost'] * 0.4, 2),
+                'action': 'Configure lifecycle rules for buckets',
+                'link': 'https://console.aws.amazon.com/s3/home'
+            })
+    
+    # Check CloudWatch costs
+    if 'AmazonCloudWatch' in service_map:
+        cloudwatch = service_map['AmazonCloudWatch']
+        if cloudwatch['cost'] > 0:
+            recommendations.append({
+                'id': 'cloudwatch-logs',
+                'severity': 'low',
+                'title': 'Review CloudWatch Log Retention',
+                'description': f'CloudWatch costs ${cloudwatch["cost"]:.2f}. Set log retention periods to reduce storage costs.',
+                'potentialSavings': round(cloudwatch['cost'] * 0.3, 2),
+                'action': 'Set retention policies on log groups',
+                'link': 'https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups'
+            })
+    
+    # Check Bedrock costs
+    if 'Amazon Bedrock' in service_map:
+        bedrock = service_map['Amazon Bedrock']
+        if bedrock['cost'] > 0:
+            recommendations.append({
+                'id': 'bedrock-model',
+                'severity': 'medium',
+                'title': 'Optimize Bedrock Model Usage',
+                'description': f'Bedrock costs ${bedrock["cost"]:.2f}. Consider using smaller models (Nova Lite vs Pro) for simpler tasks.',
+                'potentialSavings': round(bedrock['cost'] * 0.5, 2),
+                'action': 'Review model selection per use case',
+                'link': 'https://console.aws.amazon.com/bedrock/home'
+            })
+    
+    # Check Secrets Manager costs
+    if 'AWS Secrets Manager' in service_map:
+        secrets = service_map['AWS Secrets Manager']
+        if secrets['cost'] > 0:
+            recommendations.append({
+                'id': 'secrets-cleanup',
+                'severity': 'low',
+                'title': 'Review Secrets Manager Usage',
+                'description': f'Secrets Manager costs ${secrets["cost"]:.2f} ($0.40/secret/month). Delete unused secrets or use Parameter Store for non-sensitive config.',
+                'potentialSavings': round(secrets['cost'] * 0.3, 2),
+                'action': 'Audit and delete unused secrets',
+                'link': 'https://console.aws.amazon.com/secretsmanager/home'
+            })
+    
+    # Check KMS costs
+    if 'AWS Key Management Service' in service_map:
+        kms = service_map['AWS Key Management Service']
+        if kms['cost'] > 1:
+            recommendations.append({
+                'id': 'kms-keys',
+                'severity': 'low',
+                'title': 'Review KMS Key Usage',
+                'description': f'KMS costs ${kms["cost"]:.2f}. Each customer-managed key costs $1/month. Use AWS-managed keys where possible.',
+                'potentialSavings': round(kms['cost'] * 0.5, 2),
+                'action': 'Switch to AWS-managed keys where possible',
+                'link': 'https://console.aws.amazon.com/kms/home'
             })
     
     # Sort by potential savings
