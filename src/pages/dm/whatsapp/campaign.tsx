@@ -137,12 +137,10 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
 
       for (const contactId of selectedContacts) {
         try {
-          await api.sendWhatsAppTemplate({
+          await api.sendWhatsAppTemplateMessage({
             contactId,
             templateName: selectedTemplate,
             phoneNumberId: selectedWaba,
-            campaignId,
-            campaignName
           });
           sent++;
         } catch (e) {
