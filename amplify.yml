@@ -11,7 +11,7 @@ frontend:
         - npm install --no-audit --no-fund --legacy-peer-deps
     build:
       commands:
-        - npm run build
+        - npm run build -- --webpack
   artifacts:
     baseDirectory: out
     files:
