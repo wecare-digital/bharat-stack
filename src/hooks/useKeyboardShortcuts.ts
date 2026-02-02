@@ -63,7 +63,7 @@ export const useNavigationShortcuts = () => {
     { key: 'd', ctrl: true, action: () => router.push('/dashboard'), description: 'Go to Dashboard' },
     { key: 'm', ctrl: true, action: () => router.push('/dm/whatsapp'), description: 'Go to Messages' },
     { key: 'c', ctrl: true, shift: true, action: () => router.push('/contacts'), description: 'Go to Contacts' },
-    { key: 'b', ctrl: true, action: () => router.push('/bulk/whatsapp'), description: 'Go to Bulk' },
+    { key: 'b', ctrl: true, action: () => router.push('/dm/whatsapp/campaign'), description: 'Go to Campaign' },
     { key: 'p', ctrl: true, shift: true, action: () => router.push('/pay'), description: 'Go to Pay' },
   ];
 
@@ -100,7 +100,7 @@ export const getShortcutGroups = () => [
       { keys: ['Ctrl', 'D'], description: 'Dashboard' },
       { keys: ['Ctrl', 'M'], description: 'Messages' },
       { keys: ['Ctrl', 'Shift', 'C'], description: 'Contacts' },
-      { keys: ['Ctrl', 'B'], description: 'Bulk' },
+      { keys: ['Ctrl', 'B'], description: 'Campaign' },
       { keys: ['Ctrl', 'Shift', 'P'], description: 'Pay' },
     ],
   },

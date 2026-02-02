@@ -35,19 +35,19 @@ const PayPage: React.FC<PageProps> = ({ signOut, user }) => {
             className={`tab-btn ${activeTab === 'whatsapp' ? 'active' : ''}`}
             onClick={() => setActiveTab('whatsapp')}
           >
-            💬 WhatsApp
+            WhatsApp
           </button>
           <button 
             className={`tab-btn ${activeTab === 'link' ? 'active' : ''}`}
             onClick={() => setActiveTab('link')}
           >
-            🔗 Link
+            Link
           </button>
           <button 
             className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => setActiveTab('logs')}
           >
-            📋 Logs
+            Logs
           </button>
         </div>
 
@@ -59,32 +59,38 @@ const PayPage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
 
       <style jsx>{`
-        .tabbed-page { display: flex; flex-direction: column; height: calc(100vh - 60px); }
+        .tabbed-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
         .page-tabs { 
           display: flex; 
-          gap: 4px; 
-          padding: 12px 16px; 
-          background: #fafafa; 
-          border-bottom: 1px solid #e5e5e5;
+          gap: 8px; 
+          padding: 16px 20px; 
+          background: var(--color-bg-secondary, #f9fafb); 
+          border-bottom: 1px solid var(--color-border, #e5e7eb);
           flex-shrink: 0;
+          overflow-x: auto;
         }
         .tab-btn { 
-          padding: 10px 20px; 
-          border: 1px solid #e5e5e5; 
-          border-radius: 8px; 
-          background: white; 
+          padding: 8px 16px; 
+          border: none; 
+          border-radius: 6px; 
+          background: transparent; 
           cursor: pointer; 
           font-size: 14px;
           font-weight: 500;
+          color: var(--color-muted, #6b7280);
+          white-space: nowrap;
           transition: all 0.15s ease;
         }
-        .tab-btn:hover { background: #f5f5f5; }
+        .tab-btn:hover { background: var(--color-bg, #f3f4f6); color: var(--color-text, #111827); }
         .tab-btn.active { 
-          background: #000; 
+          background: var(--color-primary, #10b981); 
           color: white; 
-          border-color: #000; 
         }
         .tab-content { flex: 1; overflow: auto; }
+        @media (max-width: 768px) {
+          .page-tabs { padding: 12px 16px; gap: 6px; }
+          .tab-btn { padding: 8px 12px; font-size: 13px; }
+        }
       `}</style>
     </Layout>
   );

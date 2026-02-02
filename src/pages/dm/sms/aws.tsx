@@ -13,6 +13,7 @@ import * as api from '../../../api/client';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 interface Contact {
@@ -32,7 +33,7 @@ interface Message {
   contactId: string;
 }
 
-const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
+const AWSSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -101,9 +102,9 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <div className="sms-page">
+  const smsContent = (
+    <div className="sms-page">
+      {!embedded && (
         <PageHeader 
           title="SMS" 
           subtitle="Global SMS Gateway"
@@ -114,70 +115,70 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
             </button>
           }
         />
+      )}
 
-        {error && <div className="error-bar">{error}</div>}
+      {error && <div className="error-bar">{error}</div>}
 
-        <div className="sms-layout">
-          <div className="sms-sidebar">
-            <div className="sidebar-search">
-              <input type="text" placeholder="Search contacts..." />
-            </div>
-            <div className="contacts-list">
-              {contacts.map(contact => (
-                <div key={contact.id} className={`contact-row ${selectedContact?.id === contact.id ? 'active' : ''}`} onClick={() => setSelectedContact(contact)}>
-                  <div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div>
-                  <div className="contact-details">
-                    <div className="contact-name">{contact.name}</div>
-                    <div className="contact-preview">{contact.phone}</div>
+      <div className="sms-layout">
+        <div className="sms-sidebar">
+          <div className="sidebar-search">
+            <input type="text" placeholder="Search contacts..." />
+          </div>
+          <div className="contacts-list">
+            {contacts.map(contact => (
+              <div key={contact.id} className={`contact-row ${selectedContact?.id === contact.id ? 'active' : ''}`} onClick={() => setSelectedContact(contact)}>
+                <div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div>
+                <div className="contact-details">
+                  <div className="contact-name">{contact.name}</div>
+                  <div className="contact-preview">{contact.phone}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="sms-chat">
+          {selectedContact ? (
+            <>
+              <div className="chat-header">
+                <div className="chat-contact">
+                  <div className="contact-avatar">{selectedContact.name.charAt(0).toUpperCase()}</div>
+                  <div>
+                    <div className="chat-name">{selectedContact.name}</div>
+                    <div className="chat-phone">{selectedContact.phone}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="sms-chat">
-            {selectedContact ? (
-              <>
-                <div className="chat-header">
-                  <div className="chat-contact">
-                    <div className="contact-avatar">{selectedContact.name.charAt(0).toUpperCase()}</div>
-                    <div>
-                      <div className="chat-name">{selectedContact.name}</div>
-                      <div className="chat-phone">{selectedContact.phone}</div>
+                <div className="char-info">{messageText.length}/160</div>
+              </div>
+              <div className="messages-area">
+                {filteredMessages.map(msg => (
+                  <div key={msg.id} className={`message ${msg.direction}`}>
+                    <div className="message-bubble">
+                      <div className="message-text">{msg.content}</div>
+                      <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   </div>
-                  <div className="char-info">{messageText.length}/160</div>
-                </div>
-                <div className="messages-area">
-                  {filteredMessages.map(msg => (
-                    <div key={msg.id} className={`message ${msg.direction}`}>
-                      <div className="message-bubble">
-                        <div className="message-text">{msg.content}</div>
-                        <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-                <div className="compose-area">
-                  <RichTextEditor value={messageText} onChange={setMessageText} placeholder="Type an SMS..." channel="sms" showCharCount={true} maxLength={1600} onSend={handleSend} disabled={sending} />
-                </div>
-              </>
-            ) : (
-              <div className="no-chat"><p>Select a contact to start messaging</p></div>
-            )}
-          </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="compose-area">
+                <RichTextEditor value={messageText} onChange={setMessageText} placeholder="Type an SMS..." channel="sms" showCharCount={true} maxLength={1600} onSend={handleSend} disabled={sending} />
+              </div>
+            </>
+          ) : (
+            <div className="no-chat"><p>Select a contact to start messaging</p></div>
+          )}
+        </div>
 
-          <div className="info-panel">
-            <h3>SMS</h3>
-            <div className="info-section"><h4>Features</h4><ul><li>Global Coverage</li><li>Two-way SMS</li><li>Delivery Reports</li><li>SNS Integration</li></ul></div>
-            <div className="info-section"><h4>Documentation</h4><a href="https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms.html" target="_blank" rel="noopener noreferrer">SMS Docs →</a></div>
-          </div>
+        <div className="info-panel">
+          <h3>SMS</h3>
+          <div className="info-section"><h4>Features</h4><ul><li>Global Coverage</li><li>Two-way SMS</li><li>Delivery Reports</li><li>SNS Integration</li></ul></div>
+          <div className="info-section"><h4>Documentation</h4><a href="https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms.html" target="_blank" rel="noopener noreferrer">SMS Docs →</a></div>
         </div>
       </div>
 
       <style jsx>{`
-        .sms-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #ffffff; }
+        .sms-page { height: ${embedded ? '100%' : 'calc(100vh - 60px)'}; display: flex; flex-direction: column; background: #ffffff; }
         .error-bar { background: #fef2f2; color: #dc2626; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #fecaca; }
         .sms-layout { display: grid; grid-template-columns: 280px 1fr 260px; flex: 1; overflow: hidden; }
         .sms-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
@@ -220,6 +221,16 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
         @media (max-width: 1024px) { .sms-layout { grid-template-columns: 240px 1fr; } .info-panel { display: none; } }
         @media (max-width: 768px) { .sms-layout { grid-template-columns: 1fr; } .sms-sidebar { display: none; } }
       `}</style>
+    </div>
+  );
+
+  if (embedded) {
+    return smsContent;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {smsContent}
     </Layout>
   );
 };

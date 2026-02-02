@@ -20,6 +20,7 @@ import * as api from '../../../api/client';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 interface Contact {
@@ -43,7 +44,7 @@ interface Message {
 
 type TabType = 'chat' | 'compose' | 'templates';
 
-const INSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
+const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -198,9 +199,9 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <div className="sms-page">
+  const content = (
+    <div className="sms-page" style={{ height: embedded ? '100%' : 'calc(100vh - 60px)' }}>
+      {!embedded && (
         <PageHeader 
           title="Airtel IQ SMS" 
           subtitle="DLT Compliant SMS Gateway"
@@ -213,9 +214,10 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
             </button>
           }
         />
+      )}
 
-        {error && <div className="error-bar">{error} <button onClick={() => setError(null)}>×</button></div>}
-        {success && <div className="success-bar">{success} <button onClick={() => setSuccess(null)}>×</button></div>}
+      {error && <div className="error-bar">{error} <button onClick={() => setError(null)}>×</button></div>}
+      {success && <div className="success-bar">{success} <button onClick={() => setSuccess(null)}>×</button></div>}
 
         {/* Tabs */}
         <div className="tabs-bar">
@@ -649,6 +651,16 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
           .config-grid { grid-template-columns: 1fr; }
         }
       `}</style>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

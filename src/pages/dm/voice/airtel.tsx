@@ -19,6 +19,7 @@ import { RefreshIcon } from '../../../lib/icons';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 type TabType = 'cdr' | 'stats' | 'dialer';
@@ -82,7 +83,7 @@ const StatCard: React.FC<{ label: string; value: number; icon: string; color: st
   </div>
 );
 
-const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
+const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [activeTab, setActiveTab] = useState<TabType>('cdr');
   const [records, setRecords] = useState<CDRRecord[]>([]);
   const [stats, setStats] = useState<CDRStats | null>(null);
@@ -262,18 +263,20 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO 
         title="Voice IN CDR | WECARE.DIGITAL"
         description="Voice IN Cloud Communication Platform - Call Detail Records"
       />
-      <div className="page-content">
-        <PageHeader 
-          title="Voice IN CDR" 
-          subtitle="Call Detail Records Dashboard"
-          icon="voice"
-        />
+      <div className="page-content" style={{ height: embedded ? '100%' : 'auto' }}>
+        {!embedded && (
+          <PageHeader 
+            title="Voice IN CDR" 
+            subtitle="Call Detail Records Dashboard"
+            icon="voice"
+          />
+        )}
 
         {/* Info Banner */}
         <div className="info-banner" style={{
@@ -833,6 +836,16 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user }) => {
           </p>
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

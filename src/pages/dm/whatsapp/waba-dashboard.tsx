@@ -24,6 +24,7 @@ import WelcomePage from './welcome';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 const QUALITY_COLORS: Record<string, string> = {
@@ -40,7 +41,7 @@ const QUALITY_LABELS: Record<string, string> = {
   UNKNOWN: 'Unknown',
 };
 
-const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
+const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -115,22 +116,24 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const dashboardContent = (
+    <>
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
-      <div className="page waba-dashboard">
-        <PageHeader 
-          title="WA Board" 
-          subtitle="WhatsApp Business Account details, phone quality, and system events"
-          icon="whatsapp"
-          backLink="/dm/whatsapp"
-          backLabel="← Back"
-          actions={
-            <button className="refresh-btn" onClick={loadData} disabled={loading} title="Refresh">
+      <div className={`page waba-dashboard ${embedded ? 'embedded' : ''}`}>
+        {!embedded && (
+          <PageHeader 
+            title="WA Board" 
+            subtitle="WhatsApp Business Account details, phone quality, and system events"
+            icon="whatsapp"
+            backLink="/dm/whatsapp"
+            backLabel="← Back"
+            actions={
+              <button className="refresh-btn" onClick={loadData} disabled={loading} title="Refresh">
               {loading ? '...' : <RefreshIcon size={18} />}
             </button>
           }
         />
+        )}
 
         {loading && wabas.length === 0 ? (
           <div className="loading-state">Loading WABA data...</div>
@@ -698,7 +701,21 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user }) => {
           color: #999;
           margin-top: 4px;
         }
+
+        .embedded {
+          padding: 0;
+        }
       `}</style>
+    </>
+  );
+
+  if (embedded) {
+    return dashboardContent;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {dashboardContent}
     </Layout>
   );
 };

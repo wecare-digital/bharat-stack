@@ -45,13 +45,13 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
         <div className="page-tabs">
           <button className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`} onClick={() => setActiveTab('catalog')}>
-            📦 Catalog
+            Catalog
           </button>
           <button className={`tab-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
-            🏷️ Products
+            Products
           </button>
           <button className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
-            📋 Orders
+            Orders
           </button>
         </div>
 
@@ -138,10 +138,30 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
       <style jsx>{`
         .store-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab-btn { padding: 10px 20px; border: 1px solid #e5e5e5; border-radius: 8px; background: white; cursor: pointer; font-size: 14px; font-weight: 500; }
-        .tab-btn:hover { background: #f5f5f5; }
-        .tab-btn.active { background: #000; color: white; border-color: #000; }
+        .page-tabs { 
+          display: flex; 
+          gap: 8px; 
+          margin-bottom: 20px;
+          padding: 0;
+          overflow-x: auto;
+        }
+        .tab-btn { 
+          padding: 8px 16px; 
+          border: none; 
+          border-radius: 6px; 
+          background: transparent; 
+          cursor: pointer; 
+          font-size: 14px; 
+          font-weight: 500;
+          color: var(--color-muted, #6b7280);
+          white-space: nowrap;
+          transition: all 0.15s ease;
+        }
+        .tab-btn:hover { background: var(--color-bg, #f3f4f6); color: var(--color-text, #111827); }
+        .tab-btn.active { 
+          background: var(--color-primary, #10b981); 
+          color: white; 
+        }
         .tab-content { min-height: 400px; }
         
         .info-banner { background: #f5f5f5; padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e5e5e5; }

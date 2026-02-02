@@ -15,6 +15,7 @@ import { WHATSAPP_PHONES } from '../../../config/constants';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 interface Message {
@@ -58,7 +59,7 @@ const WABA_CONFIG = {
   },
 };
 
-const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
+const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -601,15 +602,17 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
     return content;
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO 
-        title={PAGE_SEO.whatsapp.title}
-        description={PAGE_SEO.whatsapp.description}
-        keywords={PAGE_SEO.whatsapp.keywords}
-        canonical="/dm/whatsapp"
-        noindex={true}
-      />
+  const inboxContent = (
+    <>
+      {!embedded && (
+        <SEO 
+          title={PAGE_SEO.whatsapp.title}
+          description={PAGE_SEO.whatsapp.description}
+          keywords={PAGE_SEO.whatsapp.keywords}
+          canonical="/dm/whatsapp"
+          noindex={true}
+        />
+      )}
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="whatsapp-inbox">
         {/* Contacts Sidebar */}
@@ -964,6 +967,16 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user }) => {
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return inboxContent;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {inboxContent}
     </Layout>
   );
 };

@@ -11,6 +11,7 @@ import { RefreshIcon } from '../../../../lib/icons';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 type TabType = 'create' | 'logs';
@@ -26,7 +27,7 @@ interface CampaignLog {
   createdAt: string;
 }
 
-const VoiceInCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
+const VoiceInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [activeTab, setActiveTab] = useState<TabType>('create');
   const [loading, setLoading] = useState(false);
   const [calling, setCalling] = useState(false);

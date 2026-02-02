@@ -14,7 +14,7 @@ import {
   DashboardIcon, MessageIcon, PaymentIcon, DataIcon, BillingIcon, 
   AIIcon, LinkIcon, SearchIcon, WhatsAppIcon, InvoiceIcon, 
   ContactsIcon, BulkIcon, SmsIcon, EmailIcon, RefreshIcon,
-  DocumentIcon
+  DocumentIcon, HealthIcon, AdvisorIcon
 } from '../../lib/icons';
 
 interface PageProps {
@@ -22,7 +22,7 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'search' | 'ai' | 'webhook' | 'guide';
+type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'webhook' | 'guide';
 
 const PAYMENT_PHONE = '+91 93309 94400';
 const PAYMENT_NAME = 'WECARE.DIGITAL';
@@ -625,7 +625,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'pay', 'data', 'billing', 'ai', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -636,11 +636,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'pay' && <PaymentIcon size={16} />}
               {tab === 'data' && <DataIcon size={16} />}
               {tab === 'billing' && <BillingIcon size={16} />}
+              {tab === 'health' && <HealthIcon size={16} />}
+              {tab === 'advisor' && <AdvisorIcon size={16} />}
               {tab === 'ai' && <AIIcon size={16} />}
               {tab === 'webhook' && <LinkIcon size={16} />}
               {tab === 'guide' && <DocumentIcon size={16} />}
               {tab === 'search' && <SearchIcon size={16} />}
-              <span>{tab === 'ai' ? 'AI Assistant' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'User Guide' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              <span>{tab === 'ai' ? 'AI' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -960,9 +962,24 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="billing-tab">
               <div className="section-header">
                 <h3>AWS Billing & Usage</h3>
-                <button className="refresh-btn" onClick={() => loadData()}><RefreshIcon size={18} /></button>
+                <button className="refresh-btn" onClick={() => loadData()} disabled={loading}><RefreshIcon size={18} /></button>
               </div>
               
+              {loading && !billingData && (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+                  <p style={{ color: '#6b7280' }}>Loading billing data...</p>
+                </div>
+              )}
+
+              {!loading && !billingData && (
+                <div style={{ background: '#fef3c7', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #fcd34d' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
+                  <h3 style={{ color: '#d97706', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
+                  <p style={{ color: '#6b7280', margin: 0 }}>Check API connection or try refreshing.</p>
+                </div>
+              )}
+
               {billingData && (
                 <>
                   <div className="billing-summary">
@@ -1040,6 +1057,209 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </table>
                 </>
               )}
+            </div>
+          )}
+
+          {/* HEALTH TAB */}
+          {activeTab === 'health' && (
+            <div className="health-tab">
+              <div className="section-header">
+                <h3>AWS Health</h3>
+                <button className="refresh-btn" onClick={() => loadData()} disabled={loading}><RefreshIcon size={18} /></button>
+              </div>
+              
+              {loading && !billingData?.health && (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+                  <p style={{ color: '#6b7280' }}>Loading health data...</p>
+                </div>
+              )}
+
+              {!loading && billingData?.health && (
+                <>
+                  <div className="stats-grid small">
+                    <div className="stat-card" style={{ background: billingData?.health?.openIssues === 0 ? '#ecfdf5' : '#fef2f2' }}>
+                      <div className="stat-value" style={{ color: billingData?.health?.openIssues === 0 ? '#059669' : '#dc2626' }}>
+                        {billingData?.health?.openIssues ?? 0}
+                      </div>
+                      <div className="stat-label">Open Issues</div>
+                    </div>
+                    <div className="stat-card" style={{ background: '#eff6ff' }}>
+                      <div className="stat-value" style={{ color: '#2563eb' }}>
+                        {billingData?.health?.scheduledChanges ?? 0}
+                      </div>
+                      <div className="stat-label">Scheduled Changes</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{billingData?.health?.otherNotifications ?? 0}</div>
+                      <div className="stat-label">Notifications</div>
+                    </div>
+                    <div className="stat-card" style={{ background: billingData?.health?.status === 'healthy' ? '#ecfdf5' : '#fef3c7' }}>
+                      <div className="stat-value" style={{ color: billingData?.health?.status === 'healthy' ? '#059669' : '#d97706', fontSize: '1.5rem' }}>
+                        {billingData?.health?.status === 'healthy' ? '✓' : '⚠'}
+                      </div>
+                      <div className="stat-label">Status</div>
+                    </div>
+                  </div>
+
+                  {billingData?.health?.events && billingData.health.events.length > 0 && (
+                    <div className="section" style={{ marginTop: '1rem' }}>
+                      <h4>Open Issues</h4>
+                      {billingData.health.events.map((event: any, idx: number) => (
+                        <div key={idx} style={{ padding: '1rem', background: '#fef2f2', borderRadius: '8px', marginTop: '0.75rem', border: '1px solid #fca5a5' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong>{event.service}</strong>
+                            <span style={{ background: '#dc2626', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' }}>{event.statusCode}</span>
+                          </div>
+                          <p style={{ margin: '8px 0', fontSize: '13px', color: '#4b5563' }}>{event.eventTypeCode}</p>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>Region: {event.region}</div>
+                          <a href="https://health.aws.amazon.com/health/home" target="_blank" rel="noopener noreferrer" 
+                             style={{ display: 'inline-block', marginTop: '12px', padding: '8px 16px', background: '#2563eb', color: 'white', borderRadius: '6px', fontSize: '13px', textDecoration: 'none' }}>
+                            View & Resolve →
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(billingData.health.openIssues === 0 && billingData.health.scheduledChanges === 0) && (
+                    <div style={{ background: '#ecfdf5', borderRadius: '8px', textAlign: 'center', padding: '3rem', marginTop: '1rem', border: '1px solid #a7f3d0' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✓</div>
+                      <h3 style={{ color: '#059669', margin: '0 0 0.5rem' }}>All Systems Healthy</h3>
+                      <p style={{ color: '#6b7280', margin: 0 }}>No open issues or scheduled changes.</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {!loading && !billingData?.health && (
+                <div style={{ background: '#f0f9ff', borderRadius: '8px', textAlign: 'center', padding: '3rem', marginTop: '1rem', border: '1px solid #bae6fd' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>ℹ️</div>
+                  <h3 style={{ color: '#2563eb', margin: '0 0 0.5rem' }}>Health Data Unavailable</h3>
+                  <p style={{ color: '#6b7280', margin: 0 }}>AWS Health API requires Business or Enterprise Support plan.</p>
+                </div>
+              )}
+
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+                <p style={{ fontSize: '13px', color: '#4b5563', margin: 0 }}>
+                  AWS Health provides personalized information about events that can affect your AWS infrastructure.
+                  <a href="https://health.aws.amazon.com/health/home" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '8px', color: '#2563eb' }}>
+                    Open AWS Health Dashboard →
+                  </a>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ADVISOR TAB */}
+          {activeTab === 'advisor' && (
+            <div className="advisor-tab">
+              <div className="section-header">
+                <h3>Trusted Advisor</h3>
+                <button className="refresh-btn" onClick={() => loadData()} disabled={loading}><RefreshIcon size={18} /></button>
+              </div>
+              
+              {loading && !billingData?.trustedAdvisor && (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+                  <p style={{ color: '#6b7280' }}>Loading Trusted Advisor data...</p>
+                </div>
+              )}
+
+              {!loading && billingData?.trustedAdvisor && (
+                <>
+                  <div className="stats-grid small">
+                    <div className="stat-card" style={{ background: '#fef2f2' }}>
+                      <div className="stat-value" style={{ color: '#dc2626' }}>{billingData?.trustedAdvisor?.actionRecommended ?? 0}</div>
+                      <div className="stat-label">Action Required</div>
+                    </div>
+                    <div className="stat-card" style={{ background: '#fef3c7' }}>
+                      <div className="stat-value" style={{ color: '#d97706' }}>{billingData?.trustedAdvisor?.investigationRecommended ?? 0}</div>
+                      <div className="stat-label">Investigation</div>
+                    </div>
+                    <div className="stat-card" style={{ background: '#ecfdf5' }}>
+                      <div className="stat-value" style={{ color: '#059669' }}>{billingData?.trustedAdvisor?.noProblemsDetected ?? 0}</div>
+                      <div className="stat-label">No Problems</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value" style={{ color: '#6b7280' }}>{billingData?.trustedAdvisor?.notAvailable ?? 0}</div>
+                      <div className="stat-label">Not Available</div>
+                    </div>
+                  </div>
+
+                  {billingData?.trustedAdvisor?.categories && Object.keys(billingData.trustedAdvisor.categories).length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                      {Object.entries(billingData.trustedAdvisor.categories).map(([key, counts]: [string, any]) => (
+                        <div key={key} style={{ padding: '1rem', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fff', textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>
+                            {key === 'cost_optimizing' ? '💰' : key === 'security' ? '🔒' : key === 'fault_tolerance' ? '🛡️' : key === 'performance' ? '⚡' : '📊'}
+                          </div>
+                          <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '0.5rem', textTransform: 'capitalize' }}>{key.replace('_', ' ')}</div>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                            {counts.error > 0 && <span style={{ background: '#fef2f2', color: '#dc2626', padding: '2px 6px', borderRadius: '10px', fontSize: '11px' }}>{counts.error}</span>}
+                            {counts.warning > 0 && <span style={{ background: '#fef3c7', color: '#d97706', padding: '2px 6px', borderRadius: '10px', fontSize: '11px' }}>{counts.warning}</span>}
+                            {counts.ok > 0 && <span style={{ background: '#ecfdf5', color: '#059669', padding: '2px 6px', borderRadius: '10px', fontSize: '11px' }}>{counts.ok}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {billingData?.trustedAdvisor?.checks && billingData.trustedAdvisor.checks.length > 0 && (
+                    <div className="section" style={{ marginTop: '1rem' }}>
+                      <h4>Checks Requiring Attention</h4>
+                      {billingData.trustedAdvisor.checks.map((check: any, idx: number) => (
+                        <div key={idx} style={{ 
+                          padding: '1rem', 
+                          borderRadius: '8px', 
+                          marginTop: '0.75rem',
+                          border: `1px solid ${check.status === 'error' ? '#fca5a5' : '#fcd34d'}`,
+                          background: check.status === 'error' ? '#fef2f2' : '#fffbeb'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <strong>{check.name}</strong>
+                            <span style={{ background: check.status === 'error' ? '#dc2626' : '#d97706', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
+                              {check.status === 'error' ? 'Action' : 'Warning'}
+                            </span>
+                          </div>
+                          <p style={{ margin: '8px 0', fontSize: '13px', color: '#4b5563' }}>{check.description}</p>
+                          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px' }}>Resources: {check.resourcesFlagged}</div>
+                          <a href={`https://console.aws.amazon.com/trustedadvisor/home#/category/${check.category}`} 
+                             target="_blank" rel="noopener noreferrer"
+                             style={{ display: 'inline-block', padding: '8px 16px', background: '#2563eb', color: 'white', borderRadius: '6px', fontSize: '13px', textDecoration: 'none' }}>
+                            View & Resolve →
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(billingData.trustedAdvisor.actionRecommended === 0 && billingData.trustedAdvisor.investigationRecommended === 0) && (
+                    <div style={{ background: '#ecfdf5', borderRadius: '8px', textAlign: 'center', padding: '3rem', marginTop: '1rem', border: '1px solid #a7f3d0' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🛡️</div>
+                      <h3 style={{ color: '#059669', margin: '0 0 0.5rem' }}>All Checks Passed</h3>
+                      <p style={{ color: '#6b7280', margin: 0 }}>No action or investigation recommended.</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {!loading && !billingData?.trustedAdvisor && (
+                <div style={{ background: '#f0f9ff', borderRadius: '8px', textAlign: 'center', padding: '3rem', marginTop: '1rem', border: '1px solid #bae6fd' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>ℹ️</div>
+                  <h3 style={{ color: '#2563eb', margin: '0 0 0.5rem' }}>Trusted Advisor Data Unavailable</h3>
+                  <p style={{ color: '#6b7280', margin: 0 }}>Full Trusted Advisor access requires Business or Enterprise Support plan.</p>
+                </div>
+              )}
+
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+                <p style={{ fontSize: '13px', color: '#4b5563', margin: 0 }}>
+                  AWS Trusted Advisor inspects your AWS environment and provides recommendations.
+                  <a href="https://console.aws.amazon.com/trustedadvisor/home" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '8px', color: '#2563eb' }}>
+                    Open Trusted Advisor Console →
+                  </a>
+                </p>
+              </div>
             </div>
           )}
 

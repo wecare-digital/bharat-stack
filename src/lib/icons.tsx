@@ -284,6 +284,21 @@ export const AccessIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, 
   </svg>
 );
 
+// Health / Activity
+export const HealthIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  </svg>
+);
+
+// Advisor / Shield Check
+export const AdvisorIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <polyline points="9 12 11 14 15 10" />
+  </svg>
+);
+
 // Inbox
 export const InboxIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -326,4 +341,6 @@ export const IconMap: Record<string, React.FC<IconProps>> = {
   access: AccessIcon,
   inbox: InboxIcon,
   store: StoreIcon,
+  health: HealthIcon,
+  advisor: AdvisorIcon,
 };
