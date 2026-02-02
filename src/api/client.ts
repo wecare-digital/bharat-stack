@@ -855,6 +855,10 @@ export interface AWSBillingData {
   period: string;
   services: AWSServiceUsage[];
   lastUpdated: string;
+  accountId?: string;
+  currency?: string;
+  previousMonthCost?: number;
+  previousMonthPeriod?: string;
 }
 
 // AWS Free Tier limits for reference
@@ -884,9 +888,13 @@ const FREE_TIER_LIMITS: Record<string, { limit: string; unit: string }> = {
   'Amazon Location Service': { limit: '10K requests/month', unit: 'requests' },
 };
 
-export async function getAWSBilling(): Promise<AWSBillingData> {
-  // Try to fetch from our billing API endpoint
-  const data = await apiCall<any>(`${API_BASE}/billing`);
+export async function getAWSBilling(monthOffset: number = 0): Promise<AWSBillingData> {
+  // Try to fetch from our billing API endpoint with month parameter
+  const url = monthOffset === 0 
+    ? `${API_BASE}/billing` 
+    : `${API_BASE}/billing?month=${monthOffset}`;
+  
+  const data = await apiCall<any>(url);
   
   if (data && data.services) {
     return {
@@ -894,6 +902,10 @@ export async function getAWSBilling(): Promise<AWSBillingData> {
       period: data.period || `${new Date().toISOString().slice(0, 7)}-01 to ${new Date().toISOString().slice(0, 10)}`,
       services: data.services,
       lastUpdated: data.lastUpdated || new Date().toISOString(),
+      accountId: data.accountId,
+      currency: data.currency || 'USD',
+      previousMonthCost: data.previousMonthCost,
+      previousMonthPeriod: data.previousMonthPeriod,
     };
   }
   

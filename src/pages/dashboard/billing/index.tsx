@@ -1,7 +1,6 @@
 /**
  * Dashboard - Billing Tab
- * AWS resource usage and cost tracking
- * Enhanced responsive design
+ * AWS resource usage and cost tracking with month filter
  */
 
 import { useState, useEffect } from 'react';
@@ -14,19 +13,36 @@ import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
+// Generate last 12 months for dropdown
+function getMonthOptions() {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      value: -i,
+      label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    });
+  }
+  return months;
+}
+
 export default function DashboardBillingPage({ signOut, user }: PageProps) {
   const [billing, setBilling] = useState<api.AWSBillingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'chart'>('list');
+  const [selectedMonth, setSelectedMonth] = useState(0); // 0 = current month
+  const monthOptions = getMonthOptions();
 
   useEffect(() => {
-    loadBilling();
-  }, []);
+    loadBilling(selectedMonth);
+  }, [selectedMonth]);
 
-  const loadBilling = async () => {
+  const loadBilling = async (month: number = 0) => {
     setLoading(true);
     try {
-      const data = await api.getAWSBilling();
+      const data = await api.getAWSBilling(month);
       setBilling(data);
     } catch (err) {
       console.error('Failed to load billing:', err);
@@ -70,7 +86,7 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
           icon="billing"
           actions={
             <div className="header-actions">
-              <button className="btn-secondary" onClick={loadBilling} disabled={loading} title="Refresh">
+              <button className="btn-secondary" onClick={() => loadBilling(selectedMonth)} disabled={loading} title="Refresh">
                 {loading ? '...' : <RefreshIcon size={18} />}
               </button>
               <button 
@@ -91,11 +107,11 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
 
         {/* Summary Cards */}
         <div className="stats-grid">
-          <div className="stat-card success">
-            <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-              {billing ? formatCost(billing.totalCost) : '-'}
+          <div className="stat-card" style={{ background: billing && billing.totalCost > 0 ? '#fef3c7' : '#ecfdf5' }}>
+            <div className="stat-value" style={{ color: billing && billing.totalCost > 0 ? '#d97706' : 'var(--color-success)' }}>
+              ${billing ? billing.totalCost.toFixed(2) : '0.00'}
             </div>
-            <div className="stat-label">Total Cost (MTD)</div>
+            <div className="stat-label">{selectedMonth === 0 ? 'Current Month (MTD)' : 'Total Cost'}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{billing?.services.length || 0}</div>
@@ -108,28 +124,74 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
             <div className="stat-label">Free Tier</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
-              {billing?.services.filter(s => s.status === 'warning').length || 0}
+            <div className="stat-value" style={{ color: '#dc2626' }}>
+              {billing?.services.filter(s => s.status === 'paid').length || 0}
             </div>
-            <div className="stat-label">Near Limit</div>
+            <div className="stat-label">Paid Services</div>
           </div>
         </div>
 
-        {/* Account Info */}
+        {/* Month Filter & Account Info */}
         <div className="section" style={{ marginBottom: '20px' }}>
           <div style={{ 
             display: 'flex', 
-            gap: '20px', 
-            flexWrap: 'wrap', 
-            fontSize: '13px', 
-            color: 'var(--color-muted)' 
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px'
           }}>
-            <span>Account: 809904170947</span>
-            <span>Region: us-east-1</span>
-            <span>Period: {billing?.period || '-'}</span>
-            <span>Updated: {billing?.lastUpdated ? new Date(billing.lastUpdated).toLocaleString() : '-'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 500 }}>Invoice Month:</label>
+              <select 
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg)',
+                  fontSize: '13px',
+                  minWidth: '180px',
+                }}
+              >
+                {monthOptions.map((opt) => (
+                  <option key={opt.key} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              gap: '20px', 
+              flexWrap: 'wrap', 
+              fontSize: '13px', 
+              color: 'var(--color-muted)' 
+            }}>
+              <span>Account: {billing?.accountId || '809904170947'}</span>
+              <span>Currency: {billing?.currency || 'USD'}</span>
+              <span>Period: {billing?.period || '-'}</span>
+            </div>
           </div>
         </div>
+
+        {/* Previous Month Comparison (only for current month) */}
+        {selectedMonth === 0 && billing?.previousMonthCost !== undefined && (
+          <div className="section" style={{ marginBottom: '20px', background: '#f0f9ff', borderColor: '#bae6fd' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <span style={{ fontSize: '13px', color: '#0369a1' }}>Previous Month Total: </span>
+                <strong style={{ fontSize: '16px', color: '#0c4a6e' }}>${billing.previousMonthCost.toFixed(2)}</strong>
+              </div>
+              <div style={{ fontSize: '13px', color: '#0369a1' }}>
+                {billing.totalCost < billing.previousMonthCost 
+                  ? `↓ ${((billing.previousMonthCost - billing.totalCost) / billing.previousMonthCost * 100).toFixed(0)}% less so far`
+                  : billing.totalCost > billing.previousMonthCost
+                    ? `↑ ${((billing.totalCost - billing.previousMonthCost) / billing.previousMonthCost * 100).toFixed(0)}% more than last month`
+                    : 'Same as last month'
+                }
+              </div>
+            </div>
+          </div>
+        )}
 
         {view === 'chart' && billing && (
           <div style={{ 

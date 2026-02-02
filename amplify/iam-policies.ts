@@ -192,6 +192,23 @@ export const IAM_POLICIES = {
     ],
   },
 
+  // Cost Explorer permissions (for billing)
+  billing: {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: [
+          'ce:GetCostAndUsage',
+          'ce:GetCostForecast',
+          'ce:GetDimensionValues',
+          'ce:GetTags',
+        ],
+        Resource: '*',
+      },
+    ],
+  },
+
   // Cognito permissions
   cognito: {
     Version: '2012-10-17',
@@ -231,4 +248,5 @@ export const FUNCTION_POLICIES = {
   'dlq-replay': ['common', 'sqs', 'sns'],
   'ai-query-kb': ['common', 'bedrock'],
   'ai-generate-response': ['common', 'bedrock'],
+  'billing': ['common', 'billing'],
 };
