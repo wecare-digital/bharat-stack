@@ -264,6 +264,95 @@ export default function DashboardBillingPage({ signOut, user }: PageProps) {
           </div>
         )}
 
+        {/* Cost Optimizer Recommendations */}
+        {billing?.recommendations && billing.recommendations.length > 0 && (
+          <div className="section" style={{ marginTop: '20px' }}>
+            <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>💡</span>
+              Cost Optimization Recommendations
+              <span style={{ 
+                background: '#fef3c7', 
+                color: '#92400e', 
+                padding: '2px 8px', 
+                borderRadius: '12px', 
+                fontSize: '12px',
+                fontWeight: 500
+              }}>
+                Save up to ${billing.recommendations.reduce((sum, r) => sum + (r.potentialSavings || 0), 0).toFixed(2)}/month
+              </span>
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+              {billing.recommendations.map((rec, idx) => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    padding: '16px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: rec.severity === 'high' ? '#fca5a5' : rec.severity === 'medium' ? '#fcd34d' : rec.severity === 'info' ? '#93c5fd' : '#d1d5db',
+                    background: rec.severity === 'high' ? '#fef2f2' : rec.severity === 'medium' ? '#fffbeb' : rec.severity === 'info' ? '#eff6ff' : '#f9fafb',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '250px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: 600, 
+                          textTransform: 'uppercase',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: rec.severity === 'high' ? '#dc2626' : rec.severity === 'medium' ? '#d97706' : rec.severity === 'info' ? '#2563eb' : '#6b7280',
+                          color: 'white'
+                        }}>
+                          {rec.severity}
+                        </span>
+                        <strong style={{ fontSize: '14px' }}>{rec.title}</strong>
+                      </div>
+                      <p style={{ margin: '8px 0', fontSize: '13px', color: '#4b5563', lineHeight: 1.5 }}>
+                        {rec.description}
+                      </p>
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                        <strong>Action:</strong> {rec.action}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {rec.potentialSavings > 0 && (
+                        <div style={{ 
+                          fontSize: '18px', 
+                          fontWeight: 700, 
+                          color: '#059669',
+                          marginBottom: '8px'
+                        }}>
+                          Save ${rec.potentialSavings.toFixed(2)}
+                        </div>
+                      )}
+                      {rec.link && (
+                        <a 
+                          href={rec.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block',
+                            padding: '6px 12px',
+                            background: '#2563eb',
+                            color: 'white',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          Open Console →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Free Tier Tips */}
         <div className="section" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>
           <h3 className="section-title" style={{ color: '#111827' }}>Free Tier Tips</h3>

@@ -200,10 +200,14 @@ def get_cost_and_usage(start_date: str, end_date: str, request_id: str) -> Dict[
     # Sort by cost descending
     services.sort(key=lambda x: x['cost'], reverse=True)
     
+    # Generate cost optimization recommendations
+    recommendations = generate_cost_recommendations(services, total_cost)
+    
     logger.info(json.dumps({
         'event': 'billing_fetched',
         'totalCost': total_cost,
         'serviceCount': len(services),
+        'recommendationCount': len(recommendations),
         'period': f'{start_date} to {end_date}',
         'requestId': request_id
     }))
@@ -214,8 +218,159 @@ def get_cost_and_usage(start_date: str, end_date: str, request_id: str) -> Dict[
         'services': services,
         'lastUpdated': datetime.utcnow().isoformat() + 'Z',
         'accountId': AWS_ACCOUNT_ID,
-        'currency': 'USD'
+        'currency': 'USD',
+        'recommendations': recommendations
     }
+
+
+def generate_cost_recommendations(services: List[Dict], total_cost: float) -> List[Dict[str, Any]]:
+    """Generate cost optimization recommendations based on usage patterns."""
+    recommendations = []
+    
+    service_map = {s['service']: s for s in services}
+    
+    # Check for AWS Business Support
+    if 'AWS Business Support+' in service_map or 'AWS Business Support (Business)' in service_map:
+        support_cost = service_map.get('AWS Business Support+', service_map.get('AWS Business Support (Business)', {})).get('cost', 0)
+        if support_cost > 0:
+            recommendations.append({
+                'id': 'support-plan',
+                'severity': 'high',
+                'title': 'Consider Downgrading Support Plan',
+                'description': f'AWS Business Support costs ${support_cost:.2f}/month. For development/testing, consider Developer Support ($29/month) or Basic Support (free).',
+                'potentialSavings': round(support_cost - 29, 2) if support_cost > 29 else 0,
+                'action': 'Review support plan in AWS Support Center',
+                'link': 'https://console.aws.amazon.com/support/plans/home'
+            })
+    
+    # Check OpenSearch costs
+    if 'Amazon OpenSearch Service' in service_map:
+        opensearch = service_map['Amazon OpenSearch Service']
+        if opensearch['cost'] > 0:
+            recommendations.append({
+                'id': 'opensearch-serverless',
+                'severity': 'medium',
+                'title': 'Optimize OpenSearch Serverless',
+                'description': f'OpenSearch Serverless costs ${opensearch["cost"]:.2f}. Consider reducing OCU capacity or using time-based scaling.',
+                'potentialSavings': round(opensearch['cost'] * 0.3, 2),
+                'action': 'Configure auto-scaling policies',
+                'link': 'https://console.aws.amazon.com/aos/home'
+            })
+    
+    # Check Amplify build minutes
+    if 'AWS Amplify' in service_map:
+        amplify = service_map['AWS Amplify']
+        if amplify['usage'] > 1000:  # Over free tier
+            recommendations.append({
+                'id': 'amplify-builds',
+                'severity': 'medium',
+                'title': 'Reduce Amplify Build Minutes',
+                'description': f'Using {amplify["usage"]} build minutes (free tier: 1000). Consider caching dependencies or reducing build frequency.',
+                'potentialSavings': round((amplify['usage'] - 1000) * 0.01, 2),
+                'action': 'Enable build caching in amplify.yml',
+                'link': 'https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html'
+            })
+    
+    # Check Route 53 costs
+    if 'Amazon Route 53' in service_map:
+        route53 = service_map['Amazon Route 53']
+        if route53['cost'] > 0.5:
+            recommendations.append({
+                'id': 'route53-zones',
+                'severity': 'low',
+                'title': 'Review Route 53 Hosted Zones',
+                'description': f'Route 53 costs ${route53["cost"]:.2f}. Each hosted zone costs $0.50/month. Remove unused zones.',
+                'potentialSavings': round(route53['cost'] * 0.2, 2),
+                'action': 'Delete unused hosted zones',
+                'link': 'https://console.aws.amazon.com/route53/v2/hostedzones'
+            })
+    
+    # Check WAF costs
+    if 'AWS WAF' in service_map:
+        waf = service_map['AWS WAF']
+        if waf['cost'] > 5:
+            recommendations.append({
+                'id': 'waf-rules',
+                'severity': 'low',
+                'title': 'Optimize WAF Rules',
+                'description': f'WAF costs ${waf["cost"]:.2f}. Review and consolidate rules. Each web ACL costs $5/month + $1/rule.',
+                'potentialSavings': round(waf['cost'] * 0.2, 2),
+                'action': 'Consolidate WAF rules',
+                'link': 'https://console.aws.amazon.com/wafv2/homev2'
+            })
+    
+    # Check End User Messaging (WhatsApp) costs
+    if 'AWS End User Messaging' in service_map:
+        messaging = service_map['AWS End User Messaging']
+        if messaging['cost'] > 10:
+            recommendations.append({
+                'id': 'messaging-templates',
+                'severity': 'medium',
+                'title': 'Optimize WhatsApp Messaging',
+                'description': f'Messaging costs ${messaging["cost"]:.2f}. Use template messages (cheaper) instead of session messages when possible.',
+                'potentialSavings': round(messaging['cost'] * 0.4, 2),
+                'action': 'Use approved templates for outbound messages',
+                'link': 'https://console.aws.amazon.com/social-messaging/home'
+            })
+    
+    # Check Lambda costs (usually free tier)
+    if 'AWS Lambda' in service_map:
+        lambda_svc = service_map['AWS Lambda']
+        if lambda_svc['cost'] > 0:
+            recommendations.append({
+                'id': 'lambda-memory',
+                'severity': 'low',
+                'title': 'Right-size Lambda Functions',
+                'description': f'Lambda costs ${lambda_svc["cost"]:.2f}. Review function memory settings - lower memory = lower cost.',
+                'potentialSavings': round(lambda_svc['cost'] * 0.3, 2),
+                'action': 'Use AWS Lambda Power Tuning',
+                'link': 'https://console.aws.amazon.com/lambda/home'
+            })
+    
+    # Check DynamoDB costs
+    if 'Amazon DynamoDB' in service_map:
+        dynamodb = service_map['Amazon DynamoDB']
+        if dynamodb['cost'] > 0:
+            recommendations.append({
+                'id': 'dynamodb-capacity',
+                'severity': 'medium',
+                'title': 'Review DynamoDB Capacity Mode',
+                'description': f'DynamoDB costs ${dynamodb["cost"]:.2f}. Consider on-demand pricing for variable workloads or provisioned for steady traffic.',
+                'potentialSavings': round(dynamodb['cost'] * 0.25, 2),
+                'action': 'Switch to on-demand or enable auto-scaling',
+                'link': 'https://console.aws.amazon.com/dynamodbv2/home'
+            })
+    
+    # General recommendation if total cost is high
+    if total_cost > 50:
+        recommendations.append({
+            'id': 'cost-anomaly',
+            'severity': 'high',
+            'title': 'Enable Cost Anomaly Detection',
+            'description': 'Set up AWS Cost Anomaly Detection to get alerts when spending patterns change unexpectedly.',
+            'potentialSavings': 0,
+            'action': 'Enable in AWS Cost Management',
+            'link': 'https://console.aws.amazon.com/cost-management/home#/anomaly-detection'
+        })
+    
+    # Check for tax (can't optimize but inform)
+    if 'Tax' in service_map:
+        tax = service_map['Tax']
+        if tax['cost'] > 0:
+            recommendations.append({
+                'id': 'tax-exemption',
+                'severity': 'info',
+                'title': 'Tax Exemption Status',
+                'description': f'Tax charges: ${tax["cost"]:.2f}. If your organization is tax-exempt, upload exemption certificate.',
+                'potentialSavings': round(tax['cost'], 2),
+                'action': 'Upload tax exemption certificate',
+                'link': 'https://console.aws.amazon.com/billing/home#/tax'
+            })
+    
+    # Sort by potential savings
+    recommendations.sort(key=lambda x: x.get('potentialSavings', 0), reverse=True)
+    
+    return recommendations
 
 
 def get_service_unit(service_name: str) -> str:

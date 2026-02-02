@@ -850,6 +850,16 @@ export interface AWSServiceUsage {
   status: 'free' | 'paid' | 'warning';
 }
 
+export interface CostRecommendation {
+  id: string;
+  severity: 'high' | 'medium' | 'low' | 'info';
+  title: string;
+  description: string;
+  potentialSavings: number;
+  action: string;
+  link?: string;
+}
+
 export interface AWSBillingData {
   totalCost: number;
   period: string;
@@ -859,6 +869,7 @@ export interface AWSBillingData {
   currency?: string;
   previousMonthCost?: number;
   previousMonthPeriod?: string;
+  recommendations?: CostRecommendation[];
 }
 
 // AWS Free Tier limits for reference
@@ -906,6 +917,7 @@ export async function getAWSBilling(monthOffset: number = 0): Promise<AWSBilling
       currency: data.currency || 'USD',
       previousMonthCost: data.previousMonthCost,
       previousMonthPeriod: data.previousMonthPeriod,
+      recommendations: data.recommendations || [],
     };
   }
   
