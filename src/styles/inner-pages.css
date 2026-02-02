@@ -1388,3 +1388,645 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ========================================
+   STAT CARD VARIANTS - Health/Advisor Tabs
+   ======================================== */
+.layout .main-content .stat-card.error {
+  background: #fef2f2 !important;
+  border-left: 4px solid #dc2626 !important;
+}
+
+.layout .main-content .stat-card.error .stat-value {
+  color: #dc2626 !important;
+}
+
+.layout .main-content .stat-card.warning {
+  background: #fef3c7 !important;
+  border-left: 4px solid #d97706 !important;
+}
+
+.layout .main-content .stat-card.warning .stat-value {
+  color: #d97706 !important;
+}
+
+.layout .main-content .stat-card.success .stat-value {
+  color: #059669 !important;
+}
+
+.layout .main-content .stat-card.accent .stat-value {
+  color: #2563eb !important;
+}
+
+.layout .main-content .stat-card.accent {
+  background: #eff6ff !important;
+  border-left: 4px solid #2563eb !important;
+}
+
+.layout .main-content .stat-card .status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+/* Health Status Card - Info variant */
+.layout .main-content .health-status-card.info {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.layout .main-content .health-status-card.info h3 {
+  color: #2563eb;
+}
+
+.layout .main-content .health-status-card .status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: #10B981;
+}
+
+.layout .main-content .health-status-card.info .status-icon {
+  color: #2563eb;
+}
+
+.layout .main-content .health-status-card.healthy .status-icon {
+  color: #059669;
+}
+
+/* Issues Section */
+.layout .main-content .issues-section {
+  margin-top: 1rem;
+}
+
+.layout .main-content .issues-section h4 {
+  margin: 0 0 0.75rem;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Category Card Icons */
+.layout .main-content .category-card .category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10B981;
+}
+
+/* Resolve Button - Emerald theme */
+.layout .main-content .resolve-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 18px;
+  background: #10B981 !important;
+  color: white !important;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .resolve-btn:hover {
+  background: #059669 !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+
+/* ========================================
+   WHATSAPP INBOX - Embedded Fix
+   Fix alignment when embedded in tabbed page
+   ======================================== */
+.layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
+.layout .main-content .tab-content .whatsapp-inbox {
+  height: 100% !important;
+  max-height: calc(100vh - 180px) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.layout .main-content .whatsapp-inbox {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Fix contacts sidebar width */
+.layout .main-content .whatsapp-inbox .contacts-sidebar {
+  min-width: 280px;
+  max-width: 320px;
+  flex-shrink: 0;
+}
+
+/* Fix chat area to fill remaining space */
+.layout .main-content .whatsapp-inbox .chat-area {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ========================================
+   ISSUE BADGE COLORS - Emerald Theme
+   Override orange/amber with emerald variants
+   ======================================== */
+.layout .main-content .issue-badge.warning {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+/* Keep error badges red for visibility */
+.layout .main-content .issue-badge.error {
+  background: #dc2626 !important;
+  color: white !important;
+}
+
+/* ========================================
+   EMBEDDED COMPONENTS - Full Width Fix
+   Ensure all embedded components fill container
+   ======================================== */
+.layout .main-content .tabbed-page .tab-content > div,
+.layout .main-content .tab-content > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Campaign pages embedded */
+.layout .main-content .tabbed-page .tab-content .campaign-page,
+.layout .main-content .tab-content .campaign-page {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Board/Dashboard pages embedded */
+.layout .main-content .tabbed-page .tab-content .waba-dashboard,
+.layout .main-content .tabbed-page .tab-content .board-page,
+.layout .main-content .tab-content .waba-dashboard,
+.layout .main-content .tab-content .board-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* ========================================
+   ALL EMBEDDED PAGES - Full Width Override
+   Remove max-width centering from all pages
+   ======================================== */
+.layout .main-content .tab-content .pay-page,
+.layout .main-content .tab-content .pay-link-page,
+.layout .main-content .tab-content .pay-wa-page,
+.layout .main-content .tab-content .sms-page,
+.layout .main-content .tab-content .voice-page,
+.layout .main-content .tab-content .invoice-page,
+.layout .main-content .tab-content .docs-page,
+.layout .main-content .tab-content .forms-page,
+.layout .main-content .tab-content .link-page,
+.layout .main-content .tab-content > div[class*="page"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 20px !important;
+}
+
+/* Remove nested Layout wrapper styles */
+.layout .main-content .tab-content .layout,
+.layout .main-content .tab-content .main-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: auto !important;
+  background: transparent !important;
+}
+
+/* ========================================
+   MOBILE - Embedded Components
+   ======================================== */
+@media (max-width: 768px) {
+  .layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
+  .layout .main-content .tab-content .whatsapp-inbox {
+    max-height: none !important;
+    height: auto !important;
+    min-height: calc(100vh - 200px);
+    flex-direction: column;
+  }
+  
+  .layout .main-content .whatsapp-inbox .contacts-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    max-height: 35vh;
+    min-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .layout .main-content .whatsapp-inbox .chat-area {
+    width: 100% !important;
+    min-height: 50vh;
+  }
+  
+  .layout .main-content .tab-content .pay-page,
+  .layout .main-content .tab-content .pay-link-page,
+  .layout .main-content .tab-content > div[class*="page"] {
+    padding: 16px !important;
+  }
+}
+
+
+/* ========================================
+   SMS/VOICE PAGES - Emerald Theme Override
+   Apply emerald theme to messaging pages
+   ======================================== */
+.layout .main-content .sms-page,
+.layout .main-content .voice-page {
+  height: 100% !important;
+}
+
+/* Sidebar search input - emerald focus */
+.layout .main-content .sms-sidebar input,
+.layout .main-content .voice-sidebar input,
+.layout .main-content .sidebar-search input {
+  border: 1.5px solid #d1d5db !important;
+  border-radius: 13px !important;
+}
+
+.layout .main-content .sms-sidebar input:focus,
+.layout .main-content .voice-sidebar input:focus,
+.layout .main-content .sidebar-search input:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Contact row active state - emerald */
+.layout .main-content .contact-row.active,
+.layout .main-content .contact-item.active {
+  background: #D1FAE5 !important;
+  border-left: 3px solid #10B981 !important;
+}
+
+.layout .main-content .contact-row:hover,
+.layout .main-content .contact-item:hover {
+  background: #ECFDF5 !important;
+}
+
+/* Message bubbles - emerald outbound */
+.layout .main-content .message.outbound .message-bubble {
+  background: #D1FAE5 !important;
+  border-color: #10B981 !important;
+}
+
+/* Info panel links - emerald */
+.layout .main-content .info-panel a,
+.layout .main-content .info-section a {
+  color: #10B981 !important;
+}
+
+.layout .main-content .info-panel a:hover,
+.layout .main-content .info-section a:hover {
+  color: #059669 !important;
+}
+
+/* ========================================
+   PAY PAGES - Emerald Theme Override
+   Apply emerald theme to payment pages
+   ======================================== */
+.layout .main-content .pay-page,
+.layout .main-content .pay-link-page,
+.layout .main-content .pay-wa-page {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Pay page inputs - emerald focus */
+.layout .main-content .pay-page input,
+.layout .main-content .pay-page select,
+.layout .main-content .pay-link-page input,
+.layout .main-content .pay-link-page select {
+  border: 1.5px solid #d1d5db !important;
+  border-radius: 13px !important;
+}
+
+.layout .main-content .pay-page input:focus,
+.layout .main-content .pay-page select:focus,
+.layout .main-content .pay-link-page input:focus,
+.layout .main-content .pay-link-page select:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+
+.layout .main-content .pay-page input:hover,
+.layout .main-content .pay-page select:hover,
+.layout .main-content .pay-link-page input:hover,
+.layout .main-content .pay-link-page select:hover {
+  border-color: #10B981 !important;
+}
+
+/* Pay page buttons - emerald theme */
+.layout .main-content .pay-page .gen-btn,
+.layout .main-content .pay-page .send-btn,
+.layout .main-content .pay-page .copy-btn,
+.layout .main-content .pay-page .share-btn,
+.layout .main-content .pay-link-page .gen-btn,
+.layout .main-content .pay-link-page .generate-btn,
+.layout .main-content .pay-link-page .copy-btn,
+.layout .main-content .pay-link-page .share-btn {
+  border: 1.5px solid #10B981 !important;
+  border-radius: 13px !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.layout .main-content .pay-page .gen-btn:hover,
+.layout .main-content .pay-page .send-btn:hover:not(:disabled),
+.layout .main-content .pay-page .copy-btn:hover,
+.layout .main-content .pay-page .share-btn:hover,
+.layout .main-content .pay-link-page .gen-btn:hover,
+.layout .main-content .pay-link-page .generate-btn:hover:not(:disabled),
+.layout .main-content .pay-link-page .copy-btn:hover,
+.layout .main-content .pay-link-page .share-btn:hover {
+  background: #ECFDF5 !important;
+  border-color: #059669 !important;
+}
+
+/* Pay page sender notice - emerald */
+.layout .main-content .sender-notice {
+  border: 1.5px solid #10B981 !important;
+  background: #ECFDF5 !important;
+}
+
+.layout .main-content .sender-badge {
+  background: #10B981 !important;
+}
+
+/* Pay page preview card - emerald */
+.layout .main-content .preview-card {
+  border: 1.5px solid #10B981 !important;
+}
+
+.layout .main-content .preview-total {
+  background: #10B981 !important;
+}
+
+/* Pay page coming soon banner - emerald */
+.layout .main-content .coming-soon-banner {
+  border: 1.5px solid #10B981 !important;
+  background: #ECFDF5 !important;
+}
+
+/* ========================================
+   ALL FORM INPUTS - Emerald Theme
+   Global override for all form elements
+   ======================================== */
+.layout .main-content .form-section input,
+.layout .main-content .form-section select,
+.layout .main-content .form-section textarea,
+.layout .main-content .form-field input,
+.layout .main-content .form-field select,
+.layout .main-content .form-field textarea,
+.layout .main-content .form-group input,
+.layout .main-content .form-group select,
+.layout .main-content .form-group textarea {
+  border: 1.5px solid #d1d5db !important;
+  border-radius: 13px !important;
+}
+
+.layout .main-content .form-section input:hover,
+.layout .main-content .form-section select:hover,
+.layout .main-content .form-field input:hover,
+.layout .main-content .form-field select:hover,
+.layout .main-content .form-group input:hover,
+.layout .main-content .form-group select:hover {
+  border-color: #10B981 !important;
+}
+
+.layout .main-content .form-section input:focus,
+.layout .main-content .form-section select:focus,
+.layout .main-content .form-section textarea:focus,
+.layout .main-content .form-field input:focus,
+.layout .main-content .form-field select:focus,
+.layout .main-content .form-field textarea:focus,
+.layout .main-content .form-group input:focus,
+.layout .main-content .form-group select:focus,
+.layout .main-content .form-group textarea:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  outline: none !important;
+}
+
+/* ========================================
+   ALL CARDS/SECTIONS - Emerald Hover
+   ======================================== */
+.layout .main-content .order-form,
+.layout .main-content .link-form,
+.layout .main-content .preview-card,
+.layout .main-content .info-banner,
+.layout .main-content .feature-card,
+.layout .main-content .product-card {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+}
+
+.layout .main-content .order-form:hover,
+.layout .main-content .link-form:hover,
+.layout .main-content .feature-card:hover,
+.layout .main-content .product-card:hover {
+  border-color: #10B981 !important;
+}
+
+/* ========================================
+   LINKS - Emerald Color
+   ======================================== */
+.layout .main-content a.docs-link,
+.layout .main-content .docs-link {
+  color: #10B981 !important;
+}
+
+.layout .main-content a.docs-link:hover,
+.layout .main-content .docs-link:hover {
+  color: #059669 !important;
+}
+
+
+/* ========================================
+   DASHBOARD TAB CONTENT - Full Width Fix
+   Override centered max-width for embedded content
+   ======================================== */
+.layout .main-content .dash .tab-content,
+.layout .main-content .dash .tab-content > div {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 20px !important;
+}
+
+/* Health and Advisor tabs - full width */
+.layout .main-content .health-tab,
+.layout .main-content .advisor-tab,
+.layout .main-content .ai-tab,
+.layout .main-content .webhook-tab,
+.layout .main-content .overview,
+.layout .main-content .messages-tab,
+.layout .main-content .pay-tab,
+.layout .main-content .data-tab,
+.layout .main-content .billing-tab {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Stats grid - responsive */
+.layout .main-content .stats-grid.small {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+}
+
+/* Overview grid - full width */
+.layout .main-content .overview {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 20px !important;
+}
+
+.layout .main-content .overview .section.full-width {
+  grid-column: 1 / -1 !important;
+}
+
+@media (max-width: 768px) {
+  .layout .main-content .stats-grid.small {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .layout .main-content .overview {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .layout .main-content .dash .tab-content,
+  .layout .main-content .dash .tab-content > div {
+    padding: 16px !important;
+  }
+}
+
+
+/* ========================================
+   PAGE CONTENT - Full Width Override
+   Remove max-width centering from all pages
+   ======================================== */
+.layout .main-content .page-content,
+.layout .main-content .page,
+.layout .main-content .dash {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Grid layouts - full width */
+.layout .main-content .pay-layout,
+.layout .main-content .page-layout,
+.layout .main-content .sms-layout,
+.layout .main-content .voice-layout {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* ========================================
+   COMING SOON PAGES - Emerald Theme
+   ======================================== */
+.layout .main-content .coming-soon {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.layout .main-content .coming-soon .feature-list li::before {
+  color: #10B981 !important;
+}
+
+.layout .main-content .coming-soon a {
+  color: #10B981 !important;
+}
+
+.layout .main-content .coming-soon a:hover {
+  color: #059669 !important;
+}
+
+/* ========================================
+   CONTACTS PAGE - Emerald Theme
+   ======================================== */
+.layout .main-content .badge-active {
+  background: #D1FAE5 !important;
+  color: #065f46 !important;
+}
+
+.layout .main-content .badge-pending {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.layout .main-content .btn-primary {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1.5px solid #10B981 !important;
+}
+
+.layout .main-content .btn-primary:hover {
+  background: #ECFDF5 !important;
+  border-color: #059669 !important;
+}
+
+.layout .main-content .btn-secondary {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1.5px solid #d1d5db !important;
+}
+
+.layout .main-content .btn-secondary:hover {
+  background: #f9fafb !important;
+  border-color: #10B981 !important;
+}
+
+/* ========================================
+   ERROR/SUCCESS BANNERS - Theme Colors
+   ======================================== */
+.layout .main-content .error-banner,
+.layout .main-content .error-bar {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+  border-radius: 13px !important;
+}
+
+.layout .main-content .success-banner,
+.layout .main-content .message-bar.success {
+  background: #ECFDF5 !important;
+  color: #065f46 !important;
+  border: 1px solid #A7F3D0 !important;
+  border-radius: 13px !important;
+}
+
+/* ========================================
+   MODAL - Emerald Theme
+   ======================================== */
+.layout .main-content .modal {
+  border-radius: 16px !important;
+}
+
+.layout .main-content .modal .btn-primary {
+  background: #10B981 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.layout .main-content .modal .btn-primary:hover {
+  background: #059669 !important;
+}
+
+.layout .main-content .modal input:focus,
+.layout .main-content .modal select:focus,
+.layout .main-content .modal textarea:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}

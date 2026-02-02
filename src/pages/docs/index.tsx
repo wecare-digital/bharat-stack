@@ -80,7 +80,8 @@ const DocsPage: React.FC<PageProps> = ({ signOut, user }) => {
           border-color: #10B981;
           font-weight: 600;
         }
-        .tab-content { flex: 1; overflow: auto; }
+        .tab-content { flex: 1; overflow: auto; min-height: 0; width: 100%; }
+        .tab-content > :global(div) { height: 100%; width: 100%; }
         @media (max-width: 768px) {
           .page-tabs { padding: 12px 16px; gap: 6px; }
           .tab-btn { padding: 10px 14px; font-size: 13px; }

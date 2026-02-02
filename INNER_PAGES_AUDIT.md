@@ -165,28 +165,115 @@ All tabbed pages now use consistent styling:
 
 ## DESIGN TOKENS REFERENCE
 
+### Inner Pages Color Scheme (Emerald Theme)
+
 ```css
-/* Colors - Emerald Theme */
---color-primary: #10B981;
---color-primary-hover: #059669;
---color-primary-light: #ECFDF5;
---color-primary-active: #D1FAE5;
+/* ========================================
+   PRIMARY COLORS - Emerald Theme
+   ======================================== */
+--color-primary: #10B981;           /* Main emerald - buttons, borders, accents */
+--color-primary-hover: #059669;     /* Darker emerald - hover states */
+--color-primary-light: #ECFDF5;     /* Very light emerald - hover backgrounds */
+--color-primary-active: #D1FAE5;    /* Light emerald - active/selected states */
 
-/* Typography */
---font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
---text-sm: 13px;
---text-md: 14px;
---text-base: 15px;
---text-lg: 16px;
+/* ========================================
+   TEXT COLORS
+   ======================================== */
+--color-text: #111827;              /* Primary text - dark gray/black */
+--color-text-secondary: #6b7280;    /* Secondary text - gray */
+--color-text-muted: #9ca3af;        /* Muted text - light gray */
 
-/* Spacing */
---radius-btn: 13px;
---radius-card: 16px;
---min-touch-target: 44px;
+/* ========================================
+   BACKGROUND COLORS
+   ======================================== */
+--color-bg: #ffffff;                /* Main background - white */
+--color-bg-secondary: #f9fafb;      /* Secondary background - light gray */
+--color-bg-hover: #ECFDF5;          /* Hover background - light emerald */
+--color-bg-active: #D1FAE5;         /* Active background - emerald tint */
 
-/* Borders */
---border-color: #e5e7eb;
---border-width: 1.5px;
+/* ========================================
+   BORDER COLORS
+   ======================================== */
+--color-border: #e5e7eb;            /* Default border - light gray */
+--color-border-primary: #10B981;    /* Primary border - emerald */
+--color-border-hover: #059669;      /* Hover border - darker emerald */
+
+/* ========================================
+   STATUS COLORS
+   ======================================== */
+--color-success: #059669;           /* Success - emerald */
+--color-success-bg: #ecfdf5;        /* Success background */
+--color-error: #dc2626;             /* Error - red */
+--color-error-bg: #fef2f2;          /* Error background */
+--color-warning: #d97706;           /* Warning - amber */
+--color-warning-bg: #fef3c7;        /* Warning background */
+--color-info: #2563eb;              /* Info - blue */
+--color-info-bg: #eff6ff;           /* Info background */
+
+/* ========================================
+   BUTTON STANDARDS
+   ======================================== */
+--btn-min-height: 44px;             /* Touch-friendly minimum */
+--btn-padding: 10px 18px;           /* Standard padding */
+--btn-radius: 13px;                 /* Border radius */
+--btn-border-width: 1.5px;          /* Border thickness */
+--btn-font-size: 14px;              /* Font size */
+--btn-font-weight: 500;             /* Font weight */
+
+/* ========================================
+   SPACING
+   ======================================== */
+--spacing-xs: 4px;
+--spacing-sm: 8px;
+--spacing-md: 16px;
+--spacing-lg: 20px;
+--spacing-xl: 24px;
+
+/* ========================================
+   BORDER RADIUS
+   ======================================== */
+--radius-sm: 8px;
+--radius-md: 13px;                  /* Buttons, inputs */
+--radius-lg: 16px;                  /* Cards, sections */
+```
+
+### Button Styling Rules
+
+```css
+/* Primary Button (Default) */
+button {
+  background: #ffffff;
+  color: #111827;
+  border: 1.5px solid #10B981;
+  border-radius: 13px;
+  padding: 10px 18px;
+  min-height: 44px;
+  font-weight: 500;
+}
+
+button:hover {
+  background: #ECFDF5;
+  border-color: #059669;
+}
+
+button.active {
+  background: #D1FAE5;
+  border-color: #10B981;
+  font-weight: 600;
+}
+
+/* CTA/Send Button */
+.send-btn {
+  background: #10B981;
+  color: #ffffff;
+  border: none;
+  min-height: 52px;
+  padding: 14px 32px;
+}
+
+.send-btn:hover {
+  background: #059669;
+}
 ```
 
 ---
@@ -206,8 +293,121 @@ All tabbed pages now use consistent styling:
 
 ## KNOWN REMAINING ITEMS
 
-1. **Dashboard Health/Advisor tabs**: Still use some inline styles for status cards (functional, not breaking)
+1. ~~**Dashboard Health/Advisor tabs**: Still use some inline styles for status cards~~ ✅ FIXED
 2. **Airtel SMS/Voice pages**: Have extensive inline styles for complex layouts (functional)
 3. **WhatsApp Inbox**: Has its own layout system for chat interface (intentional)
 
 These items are functional and don't break the design system - they're specialized components with unique layout requirements.
+
+---
+
+## UPDATE: Comprehensive Inner Pages Fix (Feb 2, 2026)
+
+### Issues Identified:
+1. **Content floating/centering** - Pages had `max-width: 1200px` and `margin: 0 auto` causing content to float in the middle
+2. **Color scheme inconsistency** - Many pages used black/gray colors instead of emerald theme
+3. **Embedded pages double-wrapping** - Sub-pages had their own Layout wrapper causing nested styling issues
+4. **Form inputs not themed** - Inputs used black borders instead of emerald focus states
+
+### CSS Fixes Applied to `inner-pages.css`:
+
+#### 1. Full Width Overrides
+```css
+/* Remove centering from all page containers */
+.layout .main-content .page-content,
+.layout .main-content .page,
+.layout .main-content .dash,
+.layout .main-content .tab-content > div {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+```
+
+#### 2. Emerald Theme for Pay Pages
+```css
+/* Pay page inputs - emerald focus */
+.layout .main-content .pay-page input:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Pay page buttons - emerald theme */
+.layout .main-content .pay-page .send-btn {
+  border: 1.5px solid #10B981 !important;
+}
+
+/* Sender notice - emerald */
+.layout .main-content .sender-notice {
+  border: 1.5px solid #10B981 !important;
+  background: #ECFDF5 !important;
+}
+```
+
+#### 3. Dashboard Tab Content Fix
+```css
+/* Override centered max-width */
+.layout .main-content .dash .tab-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* All dashboard tabs - full width */
+.layout .main-content .health-tab,
+.layout .main-content .advisor-tab,
+.layout .main-content .overview {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+```
+
+#### 4. WhatsApp Inbox Embedded Fix
+```css
+/* Fix alignment when embedded in tabbed page */
+.layout .main-content .tab-content .whatsapp-inbox {
+  height: 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border: none !important;
+}
+```
+
+#### 5. Global Form Input Theme
+```css
+/* All form inputs - emerald focus */
+.layout .main-content .form-section input:focus,
+.layout .main-content .form-field input:focus,
+.layout .main-content .form-group input:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+```
+
+### Pages Affected:
+- `/dashboard` - All tabs (overview, messages, pay, data, billing, health, advisor, ai, webhook)
+- `/dm/whatsapp` - Board, Inbox, Campaign tabs
+- `/dm/sms` - Inbox, Campaign tabs
+- `/dm/voice` - Calls, Campaign tabs
+- `/pay` - WhatsApp, Link, Logs tabs
+- `/invoice` - Create, Logs tabs
+- `/forms` - Create, Logs tabs
+- `/docs` - Create, Logs tabs
+- `/link` - Create, Logs tabs
+- `/store` - Catalog, Products, Orders tabs
+- `/contacts` - Single page
+
+### Color Scheme Reference:
+| Token | Value | Usage |
+|-------|-------|-------|
+| Primary | `#10B981` | Buttons, borders, accents |
+| Primary Hover | `#059669` | Hover states |
+| Primary Light | `#ECFDF5` | Hover backgrounds |
+| Primary Active | `#D1FAE5` | Active/selected states |
+| Text | `#111827` | Primary text |
+| Text Secondary | `#6b7280` | Secondary text |
+| Border | `#e5e7eb` | Default borders |
+| Error | `#dc2626` | Error states |
+| Warning | `#d97706` | Warning states |
+| Success | `#059669` | Success states |

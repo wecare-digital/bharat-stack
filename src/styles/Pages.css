@@ -1478,9 +1478,10 @@
   display: flex;
   height: calc(100vh - 60px);
   background: var(--bg);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: none;
+  width: 100%;
 }
 
 /* Contacts Sidebar */
@@ -1693,7 +1694,7 @@
 
 @media (max-width: 480px) {
   .whatsapp-inbox {
-    border-radius: 8px;
+    border-radius: 0;
   }
   
   .contacts-sidebar {
