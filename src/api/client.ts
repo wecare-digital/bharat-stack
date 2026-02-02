@@ -860,6 +860,29 @@ export interface CostRecommendation {
   link?: string;
 }
 
+export interface AWSHealthData {
+  openIssues: number;
+  scheduledChanges: number;
+  otherNotifications: number;
+  events: any[];
+  scheduledEvents: any[];
+  notifications: any[];
+  lastChecked: string;
+  status: 'healthy' | 'issues' | 'unknown';
+  error?: string;
+}
+
+export interface TrustedAdvisorData {
+  actionRecommended: number;
+  investigationRecommended: number;
+  noProblemsDetected: number;
+  notAvailable: number;
+  checks: any[];
+  categories: Record<string, { ok: number; warning: number; error: number }>;
+  lastChecked: string;
+  error?: string;
+}
+
 export interface AWSBillingData {
   totalCost: number;
   period: string;
@@ -870,6 +893,8 @@ export interface AWSBillingData {
   previousMonthCost?: number;
   previousMonthPeriod?: string;
   recommendations?: CostRecommendation[];
+  health?: AWSHealthData;
+  trustedAdvisor?: TrustedAdvisorData;
 }
 
 // AWS Free Tier limits for reference
@@ -918,6 +943,8 @@ export async function getAWSBilling(monthOffset: number = 0): Promise<AWSBilling
       previousMonthCost: data.previousMonthCost,
       previousMonthPeriod: data.previousMonthPeriod,
       recommendations: data.recommendations || [],
+      health: data.health,
+      trustedAdvisor: data.trustedAdvisor,
     };
   }
   

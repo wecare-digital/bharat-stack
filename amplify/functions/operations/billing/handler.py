@@ -1,11 +1,11 @@
 """
 AWS Billing Lambda Function
 
-Purpose: Fetch real AWS Cost Explorer data for the dashboard
+Purpose: Fetch real AWS Cost Explorer, Health, and Trusted Advisor data
 Account: 809904170947
 Region: us-east-1
 
-Uses AWS Cost Explorer API to get actual billing data.
+Uses AWS Cost Explorer, Health, and Support APIs.
 """
 
 import os
@@ -21,14 +21,16 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 # AWS clients
-ce_client = boto3.client('ce', region_name='us-east-1')  # Cost Explorer is global but use us-east-1
+ce_client = boto3.client('ce', region_name='us-east-1')
+health_client = boto3.client('health', region_name='us-east-1')
+support_client = boto3.client('support', region_name='us-east-1')
 
 # Account info
 AWS_ACCOUNT_ID = '809904170947'
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Handle billing data requests."""
+    """Handle billing, health, and trusted advisor requests."""
     request_id = context.aws_request_id if context else 'local'
     
     logger.info(json.dumps({
@@ -37,9 +39,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     }))
     
     try:
-        # Parse query parameters for month selection
+        # Parse query parameters
         query_params = event.get('queryStringParameters') or {}
-        month_offset = int(query_params.get('month', '0'))  # 0 = current, -1 = previous
+        month_offset = int(query_params.get('month', '0'))
+        include_health = query_params.get('health', 'true').lower() == 'true'
+        include_advisor = query_params.get('advisor', 'true').lower() == 'true'
         
         now = datetime.utcnow()
         
@@ -105,6 +109,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 billing_data['previousMonthPeriod'] = f'{prev_start} to {prev_end}'
             except Exception as e:
                 logger.warning(f'Failed to fetch previous month: {e}')
+        
+        # Fetch AWS Health data
+        if include_health:
+            billing_data['health'] = get_aws_health_status(request_id)
+        
+        # Fetch Trusted Advisor data
+        if include_advisor:
+            billing_data['trustedAdvisor'] = get_trusted_advisor_checks(request_id)
         
         return _response(200, billing_data)
         
@@ -568,3 +580,174 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
         },
         'body': json.dumps(body, default=str)
     }
+
+
+def get_aws_health_status(request_id: str) -> Dict[str, Any]:
+    """Fetch AWS Health Dashboard status."""
+    try:
+        now = datetime.utcnow()
+        seven_days_ago = now - timedelta(days=7)
+        
+        # Get open events
+        open_events = []
+        scheduled_changes = []
+        other_notifications = []
+        
+        try:
+            # Describe events affecting this account
+            events_response = health_client.describe_events(
+                filter={
+                    'eventStatusCodes': ['open', 'upcoming'],
+                    'startTimes': [
+                        {'from': seven_days_ago}
+                    ]
+                }
+            )
+            
+            for event in events_response.get('events', []):
+                event_data = {
+                    'arn': event.get('arn', ''),
+                    'service': event.get('service', 'Unknown'),
+                    'eventTypeCode': event.get('eventTypeCode', ''),
+                    'eventTypeCategory': event.get('eventTypeCategory', ''),
+                    'region': event.get('region', 'global'),
+                    'startTime': event.get('startTime', '').isoformat() if event.get('startTime') else None,
+                    'endTime': event.get('endTime', '').isoformat() if event.get('endTime') else None,
+                    'statusCode': event.get('statusCode', ''),
+                }
+                
+                category = event.get('eventTypeCategory', '')
+                if category == 'issue':
+                    open_events.append(event_data)
+                elif category == 'scheduledChange':
+                    scheduled_changes.append(event_data)
+                else:
+                    other_notifications.append(event_data)
+                    
+        except ClientError as e:
+            if 'SubscriptionRequiredException' in str(e):
+                logger.info('AWS Health API requires Business/Enterprise Support')
+            else:
+                logger.warning(f'Health API error: {e}')
+        
+        return {
+            'openIssues': len(open_events),
+            'scheduledChanges': len(scheduled_changes),
+            'otherNotifications': len(other_notifications),
+            'events': open_events[:5],  # Return top 5 events
+            'scheduledEvents': scheduled_changes[:5],
+            'notifications': other_notifications[:5],
+            'lastChecked': now.isoformat() + 'Z',
+            'status': 'healthy' if len(open_events) == 0 else 'issues'
+        }
+        
+    except Exception as e:
+        logger.error(f'Failed to fetch health status: {e}')
+        return {
+            'openIssues': 0,
+            'scheduledChanges': 0,
+            'otherNotifications': 0,
+            'events': [],
+            'scheduledEvents': [],
+            'notifications': [],
+            'lastChecked': datetime.utcnow().isoformat() + 'Z',
+            'status': 'unknown',
+            'error': str(e)
+        }
+
+
+def get_trusted_advisor_checks(request_id: str) -> Dict[str, Any]:
+    """Fetch Trusted Advisor check results."""
+    try:
+        checks_summary = {
+            'actionRecommended': 0,
+            'investigationRecommended': 0,
+            'noProblemsDetected': 0,
+            'notAvailable': 0,
+            'checks': [],
+            'categories': {
+                'cost_optimizing': {'ok': 0, 'warning': 0, 'error': 0},
+                'security': {'ok': 0, 'warning': 0, 'error': 0},
+                'fault_tolerance': {'ok': 0, 'warning': 0, 'error': 0},
+                'performance': {'ok': 0, 'warning': 0, 'error': 0},
+                'service_limits': {'ok': 0, 'warning': 0, 'error': 0},
+            }
+        }
+        
+        try:
+            # Get all Trusted Advisor checks
+            checks_response = support_client.describe_trusted_advisor_checks(language='en')
+            checks = checks_response.get('checks', [])
+            
+            # Get check summaries
+            check_ids = [c['id'] for c in checks[:50]]  # Limit to 50 checks
+            
+            if check_ids:
+                summaries_response = support_client.describe_trusted_advisor_check_summaries(
+                    checkIds=check_ids
+                )
+                
+                for summary in summaries_response.get('summaries', []):
+                    check_id = summary.get('checkId', '')
+                    status = summary.get('status', 'not_available')
+                    
+                    # Find check details
+                    check_info = next((c for c in checks if c['id'] == check_id), {})
+                    category = check_info.get('category', 'other')
+                    
+                    # Count by status
+                    if status == 'error':
+                        checks_summary['actionRecommended'] += 1
+                        if category in checks_summary['categories']:
+                            checks_summary['categories'][category]['error'] += 1
+                    elif status == 'warning':
+                        checks_summary['investigationRecommended'] += 1
+                        if category in checks_summary['categories']:
+                            checks_summary['categories'][category]['warning'] += 1
+                    elif status == 'ok':
+                        checks_summary['noProblemsDetected'] += 1
+                        if category in checks_summary['categories']:
+                            checks_summary['categories'][category]['ok'] += 1
+                    else:
+                        checks_summary['notAvailable'] += 1
+                    
+                    # Add to checks list if has issues
+                    if status in ['error', 'warning']:
+                        resources_flagged = summary.get('resourcesSummary', {}).get('resourcesFlagged', 0)
+                        checks_summary['checks'].append({
+                            'id': check_id,
+                            'name': check_info.get('name', 'Unknown'),
+                            'category': category,
+                            'status': status,
+                            'resourcesFlagged': resources_flagged,
+                            'description': check_info.get('description', '')[:200],
+                        })
+            
+            # Sort checks by severity (errors first)
+            checks_summary['checks'].sort(key=lambda x: (0 if x['status'] == 'error' else 1, -x.get('resourcesFlagged', 0)))
+            checks_summary['checks'] = checks_summary['checks'][:10]  # Top 10 issues
+            
+        except ClientError as e:
+            if 'SubscriptionRequiredException' in str(e):
+                logger.info('Trusted Advisor requires Business/Enterprise Support for full access')
+                # Return basic checks available to all accounts
+                checks_summary['error'] = 'Business Support required for full Trusted Advisor access'
+            else:
+                logger.warning(f'Trusted Advisor API error: {e}')
+                checks_summary['error'] = str(e)
+        
+        checks_summary['lastChecked'] = datetime.utcnow().isoformat() + 'Z'
+        return checks_summary
+        
+    except Exception as e:
+        logger.error(f'Failed to fetch Trusted Advisor: {e}')
+        return {
+            'actionRecommended': 0,
+            'investigationRecommended': 0,
+            'noProblemsDetected': 0,
+            'notAvailable': 0,
+            'checks': [],
+            'categories': {},
+            'lastChecked': datetime.utcnow().isoformat() + 'Z',
+            'error': str(e)
+        }

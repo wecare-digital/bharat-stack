@@ -206,6 +206,25 @@ export const IAM_POLICIES = {
         ],
         Resource: '*',
       },
+      {
+        Effect: 'Allow',
+        Action: [
+          'health:DescribeEvents',
+          'health:DescribeEventDetails',
+          'health:DescribeAffectedEntities',
+        ],
+        Resource: '*',
+      },
+      {
+        Effect: 'Allow',
+        Action: [
+          'support:DescribeTrustedAdvisorChecks',
+          'support:DescribeTrustedAdvisorCheckSummaries',
+          'support:DescribeTrustedAdvisorCheckResult',
+          'support:RefreshTrustedAdvisorCheck',
+        ],
+        Resource: '*',
+      },
     ],
   },
 

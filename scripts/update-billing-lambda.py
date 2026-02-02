@@ -22,7 +22,7 @@ ROLE_ARN = f'arn:aws:iam::{ACCOUNT_ID}:role/wecare-digital-lambda-role'
 FUNCTION_NAME = 'wecare-billing'
 
 # Cost Explorer IAM policy
-COST_EXPLORER_POLICY = {
+BILLING_POLICY = {
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -32,6 +32,25 @@ COST_EXPLORER_POLICY = {
                 "ce:GetCostForecast",
                 "ce:GetDimensionValues",
                 "ce:GetTags"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "health:DescribeEvents",
+                "health:DescribeEventDetails",
+                "health:DescribeAffectedEntities"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "support:DescribeTrustedAdvisorChecks",
+                "support:DescribeTrustedAdvisorCheckSummaries",
+                "support:DescribeTrustedAdvisorCheckResult",
+                "support:RefreshTrustedAdvisorCheck"
             ],
             "Resource": "*"
         }
@@ -155,29 +174,21 @@ def main():
     except Exception as e:
         print(f"⚠️  Permission error: {e}")
     
-    # Update IAM role with Cost Explorer permissions
-    print(f"\n📋 Updating IAM role with Cost Explorer permissions...")
+    # Update IAM role with billing permissions (Cost Explorer, Health, Trusted Advisor)
+    print(f"\n📋 Updating IAM role with billing permissions...")
     policy_name = 'wecare-billing-cost-explorer'
     
     try:
-        # Check if policy exists
-        try:
-            iam_client.get_role_policy(
-                RoleName='wecare-digital-lambda-role',
-                PolicyName=policy_name
-            )
-            print(f"⏭️  Cost Explorer policy already attached")
-        except iam_client.exceptions.NoSuchEntityException:
-            # Attach inline policy
-            iam_client.put_role_policy(
-                RoleName='wecare-digital-lambda-role',
-                PolicyName=policy_name,
-                PolicyDocument=json.dumps(COST_EXPLORER_POLICY)
-            )
-            print(f"✅ Cost Explorer policy attached to role")
+        # Always update the policy to ensure latest permissions
+        iam_client.put_role_policy(
+            RoleName='wecare-digital-lambda-role',
+            PolicyName=policy_name,
+            PolicyDocument=json.dumps(BILLING_POLICY)
+        )
+        print(f"✅ Billing policy (Cost Explorer + Health + Trusted Advisor) attached to role")
     except Exception as e:
         print(f"⚠️  IAM policy error: {e}")
-        print("   You may need to manually add Cost Explorer permissions to the Lambda role")
+        print("   You may need to manually add permissions to the Lambda role")
     
     print("\n" + "=" * 60)
     print("✅ Billing Lambda deployment complete!")
