@@ -2738,3 +2738,90 @@ export async function updateSystemConfig(configKey: string, config: SystemConfig
   });
   return data !== null;
 }
+
+
+// ============================================================================
+// CLEAR ALL DATA FUNCTIONS
+// ============================================================================
+
+/**
+ * Clear all WhatsApp messages (keeps contacts)
+ */
+export async function clearAllWhatsAppMessages(): Promise<{ deleted: number; failed: number }> {
+  try {
+    const messages = await listMessages(undefined, 'WHATSAPP');
+    console.log(`Clearing ${messages.length} WhatsApp messages`);
+    
+    let deleted = 0;
+    let failed = 0;
+    
+    for (const msg of messages) {
+      const result = await deleteMessage(msg.id, msg.direction);
+      if (result) {
+        deleted++;
+      } else {
+        failed++;
+      }
+      // Rate limit to avoid overwhelming the API
+      if (deleted % 50 === 0) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    
+    return { deleted, failed };
+  } catch (error) {
+    console.error('Clear all messages error:', error);
+    return { deleted: 0, failed: 0 };
+  }
+}
+
+/**
+ * Clear all contacts (soft delete)
+ */
+export async function clearAllContacts(): Promise<{ deleted: number; failed: number }> {
+  try {
+    const contacts = await listContacts();
+    console.log(`Clearing ${contacts.length} contacts`);
+    
+    let deleted = 0;
+    let failed = 0;
+    
+    for (const contact of contacts) {
+      const result = await deleteContact(contact.contactId);
+      if (result) {
+        deleted++;
+      } else {
+        failed++;
+      }
+    }
+    
+    return { deleted, failed };
+  } catch (error) {
+    console.error('Clear all contacts error:', error);
+    return { deleted: 0, failed: 0 };
+  }
+}
+
+/**
+ * Clear everything - messages, contacts, and media
+ * WARNING: This is destructive and irreversible!
+ */
+export async function clearAllInboxData(): Promise<{
+  messagesDeleted: number;
+  messagesFailed: number;
+  contactsDeleted: number;
+  contactsFailed: number;
+}> {
+  // First clear messages
+  const msgResult = await clearAllWhatsAppMessages();
+  
+  // Then clear contacts
+  const contactResult = await clearAllContacts();
+  
+  return {
+    messagesDeleted: msgResult.deleted,
+    messagesFailed: msgResult.failed,
+    contactsDeleted: contactResult.deleted,
+    contactsFailed: contactResult.failed,
+  };
+}

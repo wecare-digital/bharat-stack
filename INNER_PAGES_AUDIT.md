@@ -309,6 +309,49 @@ These items are functional and don't break the design system - they're specializ
 3. **Embedded pages double-wrapping** - Sub-pages had their own Layout wrapper causing nested styling issues
 4. **Form inputs not themed** - Inputs used black borders instead of emerald focus states
 
+---
+
+## DEEP AUDIT: Button & Component Inconsistencies (Feb 2, 2026)
+
+### BUTTON VARIATIONS FOUND
+
+| Button Class | Pages Using | Current Style | Issue |
+|--------------|-------------|---------------|-------|
+| `.refresh-btn` | All pages | 44x44px emerald | ✅ Consistent |
+| `.send-btn` | Campaign pages | Varies by page | ⚠️ Different colors |
+| `.select-all-btn` | Campaign pages | Varies | ⚠️ Different styles |
+| `.sub-tab` | Campaign pages | Varies | ⚠️ Different styles |
+| `.tab-btn` | Index pages | Emerald theme | ✅ Consistent |
+| `.add-btn` | Store page | Emerald theme | ✅ Consistent |
+| `.btn-primary` | Dashboard, Contacts | Emerald theme | ✅ Consistent |
+| `.btn-secondary` | Dashboard | Gray border | ✅ Consistent |
+| `.resolve-btn` | Dashboard Health | Emerald theme | ✅ Consistent |
+
+### CAMPAIGN PAGE INCONSISTENCIES
+
+| Page | Send Button Color | Selected Contact Color | Sub-tab Style |
+|------|-------------------|------------------------|---------------|
+| WhatsApp Campaign | Emerald (#10B981) | Emerald (#ECFDF5) | Uses global CSS |
+| SMS AWS Campaign | Emerald (#10B981) | Emerald (#ECFDF5) | Uses global CSS |
+| SMS Airtel Campaign | Amber (#f59e0b) | Amber (#fef3c7) | Inline styled-jsx |
+| Voice AWS Campaign | Purple (#8b5cf6) | Emerald (#f0fdf4) | Inline styled-jsx |
+| Voice Airtel Campaign | Purple (#8b5cf6) | Emerald (#f0fdf4) | Inline styled-jsx |
+
+### PAGES STILL USING INLINE STYLED-JSX (Need Migration)
+
+1. `src/pages/dm/sms/airtel/campaign.tsx` - Full inline styles with amber theme
+2. `src/pages/dm/voice/aws/campaign.tsx` - Full inline styles with purple theme
+3. `src/pages/dm/voice/airtel/campaign.tsx` - Full inline styles with purple theme
+
+### RECOMMENDED FIXES
+
+1. **Standardize all campaign send buttons to emerald theme**
+2. **Standardize all selected contact states to emerald**
+3. **Remove inline styled-jsx from Airtel/Voice campaign pages**
+4. **Use global `.campaign-page` CSS classes from inner-pages.css**
+
+---
+
 ### CSS Fixes Applied to `inner-pages.css`:
 
 #### 1. Full Width Overrides

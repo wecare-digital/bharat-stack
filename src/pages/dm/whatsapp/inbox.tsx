@@ -73,10 +73,36 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [contactsPage, setContactsPage] = useState(1);
+  const [clearing, setClearing] = useState(false);
+  const [messagesPage, setMessagesPage] = useState(1);
   const CONTACTS_PER_PAGE = 20;
+  const MESSAGES_PER_PAGE = 50;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+
+  // Clear all inbox data handler
+  const handleClearAllInbox = async () => {
+    const confirmMsg = `⚠️ WARNING: This will permanently delete:\n\n• All WhatsApp messages\n• All contacts\n• All media files\n\nThis action cannot be undone!\n\nType "DELETE ALL" to confirm:`;
+    const userInput = prompt(confirmMsg);
+    
+    if (userInput !== 'DELETE ALL') {
+      toast.error('Clear cancelled - confirmation text did not match');
+      return;
+    }
+    
+    setClearing(true);
+    try {
+      const result = await api.clearAllInboxData();
+      toast.success(`Cleared: ${result.messagesDeleted} messages, ${result.contactsDeleted} contacts`);
+      setSelectedContact(null);
+      await loadData();
+    } catch (err: any) {
+      toast.error('Failed to clear inbox: ' + (err.message || 'Unknown error'));
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -618,7 +644,26 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         {/* Contacts Sidebar */}
         <div className="contacts-sidebar">
           <div className="sidebar-header">
-            <h2>WA Inbox</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2>WA Inbox</h2>
+              <button
+                onClick={handleClearAllInbox}
+                disabled={clearing || loading}
+                title="Clear all messages and contacts"
+                style={{
+                  background: '#fee2e2',
+                  color: '#991b1b',
+                  border: '1px solid #fca5a5',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  cursor: clearing ? 'not-allowed' : 'pointer',
+                  opacity: clearing ? 0.6 : 1
+                }}
+              >
+                {clearing ? '...' : 'Clear All'}
+              </button>
+            </div>
             <div className="search-box">
               <input
                 type="text"

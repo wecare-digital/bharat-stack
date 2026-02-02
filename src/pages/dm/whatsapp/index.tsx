@@ -1,26 +1,21 @@
 /**
  * WhatsApp Page with Tabs (Board + Inbox + Campaign)
- * WhatsApp Business API
  */
 
-import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useState, lazy, Suspense } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 
-// Dynamic imports to avoid SSR issues with complex components
-const WhatsAppBoard = dynamic(() => import('./waba-dashboard'), { 
-  ssr: false,
-  loading: () => <div style={{ padding: '40px', textAlign: 'center' }}>Loading Board...</div>
-});
-const WhatsAppInbox = dynamic(() => import('./inbox'), { 
-  ssr: false,
-  loading: () => <div style={{ padding: '40px', textAlign: 'center' }}>Loading Inbox...</div>
-});
-const WhatsAppCampaign = dynamic(() => import('./campaign'), { 
-  ssr: false,
-  loading: () => <div style={{ padding: '40px', textAlign: 'center' }}>Loading Campaign...</div>
-});
+// Lazy load components
+const WhatsAppBoard = lazy(() => import('./waba-dashboard'));
+const WhatsAppInbox = lazy(() => import('./inbox'));
+const WhatsAppCampaign = lazy(() => import('./campaign'));
+
+const LoadingFallback = () => (
+  <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>
+    Loading...
+  </div>
+);
 
 interface PageProps {
   signOut?: () => void;
@@ -32,55 +27,66 @@ type TabType = 'board' | 'inbox' | 'campaign';
 const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [activeTab, setActiveTab] = useState<TabType>('inbox');
 
-  const tabStyle = (isActive: boolean): React.CSSProperties => ({
-    padding: '10px 18px',
-    border: '1.5px solid #10B981',
-    borderRadius: '13px',
-    background: isActive ? '#D1FAE5' : '#fff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: isActive ? 600 : 500,
-    color: '#111827',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.15s ease',
-    minHeight: '44px',
-  });
-
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO 
         title="WhatsApp | WECARE.DIGITAL"
-        description="WhatsApp Business API - Inbox, Board, and Campaigns"
+        description="WhatsApp Business API"
       />
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', gap: '8px', padding: '16px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', flexShrink: 0, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', gap: 8, padding: '16px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
           <button 
-            type="button"
-            style={tabStyle(activeTab === 'board')}
             onClick={() => setActiveTab('board')}
+            style={{ 
+              padding: '10px 20px', 
+              background: activeTab === 'board' ? '#D1FAE5' : '#fff',
+              color: '#111827',
+              border: '1.5px solid #10B981',
+              borderRadius: 13,
+              cursor: 'pointer',
+              fontWeight: activeTab === 'board' ? 600 : 500,
+              fontSize: 14
+            }}
           >
             Board
           </button>
           <button 
-            type="button"
-            style={tabStyle(activeTab === 'inbox')}
             onClick={() => setActiveTab('inbox')}
+            style={{ 
+              padding: '10px 20px', 
+              background: activeTab === 'inbox' ? '#D1FAE5' : '#fff',
+              color: '#111827',
+              border: '1.5px solid #10B981',
+              borderRadius: 13,
+              cursor: 'pointer',
+              fontWeight: activeTab === 'inbox' ? 600 : 500,
+              fontSize: 14
+            }}
           >
             Inbox
           </button>
           <button 
-            type="button"
-            style={tabStyle(activeTab === 'campaign')}
             onClick={() => setActiveTab('campaign')}
+            style={{ 
+              padding: '10px 20px', 
+              background: activeTab === 'campaign' ? '#D1FAE5' : '#fff',
+              color: '#111827',
+              border: '1.5px solid #10B981',
+              borderRadius: 13,
+              cursor: 'pointer',
+              fontWeight: activeTab === 'campaign' ? 600 : 500,
+              fontSize: 14
+            }}
           >
             Campaign
           </button>
         </div>
-
-        <div style={{ flex: 1, overflow: 'auto', minHeight: 0, width: '100%' }}>
-          {activeTab === 'board' && <WhatsAppBoard signOut={signOut} user={user} embedded={true} />}
-          {activeTab === 'inbox' && <WhatsAppInbox signOut={signOut} user={user} embedded={true} />}
-          {activeTab === 'campaign' && <WhatsAppCampaign signOut={signOut} user={user} embedded={true} />}
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <Suspense fallback={<LoadingFallback />}>
+            {activeTab === 'board' && <WhatsAppBoard embedded={true} />}
+            {activeTab === 'inbox' && <WhatsAppInbox embedded={true} />}
+            {activeTab === 'campaign' && <WhatsAppCampaign embedded={true} />}
+          </Suspense>
         </div>
       </div>
     </Layout>

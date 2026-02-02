@@ -155,76 +155,68 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
             </div>
 
             {/* Tabs */}
-            <div className="tabs" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #eee', paddingBottom: '12px', position: 'relative', zIndex: 10 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #eee', paddingBottom: 12 }}>
               <button
                 type="button"
-                style={{
-                  background: activeTab === 'overview' ? '#D1FAE5' : '#fff',
-                  border: '1.5px solid #10B981',
-                  padding: '10px 20px',
-                  cursor: 'pointer',
-                  borderRadius: '13px',
-                  fontSize: '14px',
-                  color: '#111827',
-                  fontWeight: activeTab === 'overview' ? 600 : 500,
-                  position: 'relative',
-                  zIndex: 11,
-                }}
                 onClick={() => setActiveTab('overview')}
+                style={{
+                  padding: '10px 20px',
+                  background: activeTab === 'overview' ? '#D1FAE5' : '#fff',
+                  color: '#111827',
+                  border: '1.5px solid #10B981',
+                  borderRadius: 13,
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'overview' ? 600 : 500,
+                  fontSize: 14
+                }}
               >
                 Phone Numbers
               </button>
               <button
                 type="button"
-                style={{
-                  background: activeTab === 'events' ? '#D1FAE5' : '#fff',
-                  border: '1.5px solid #10B981',
-                  padding: '10px 20px',
-                  cursor: 'pointer',
-                  borderRadius: '13px',
-                  fontSize: '14px',
-                  color: '#111827',
-                  fontWeight: activeTab === 'events' ? 600 : 500,
-                  position: 'relative',
-                  zIndex: 11,
-                }}
                 onClick={() => setActiveTab('events')}
+                style={{
+                  padding: '10px 20px',
+                  background: activeTab === 'events' ? '#D1FAE5' : '#fff',
+                  color: '#111827',
+                  border: '1.5px solid #10B981',
+                  borderRadius: 13,
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'events' ? 600 : 500,
+                  fontSize: 14
+                }}
               >
                 System Events
               </button>
               <button
                 type="button"
-                style={{
-                  background: activeTab === 'templates' ? '#D1FAE5' : '#fff',
-                  border: '1.5px solid #10B981',
-                  padding: '10px 20px',
-                  cursor: 'pointer',
-                  borderRadius: '13px',
-                  fontSize: '14px',
-                  color: '#111827',
-                  fontWeight: activeTab === 'templates' ? 600 : 500,
-                  position: 'relative',
-                  zIndex: 11,
-                }}
                 onClick={() => setActiveTab('templates')}
+                style={{
+                  padding: '10px 20px',
+                  background: activeTab === 'templates' ? '#D1FAE5' : '#fff',
+                  color: '#111827',
+                  border: '1.5px solid #10B981',
+                  borderRadius: 13,
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'templates' ? 600 : 500,
+                  fontSize: 14
+                }}
               >
                 Templates
               </button>
               <button
                 type="button"
-                style={{
-                  background: activeTab === 'welcome' ? '#D1FAE5' : '#fff',
-                  border: '1.5px solid #10B981',
-                  padding: '10px 20px',
-                  cursor: 'pointer',
-                  borderRadius: '13px',
-                  fontSize: '14px',
-                  color: '#111827',
-                  fontWeight: activeTab === 'welcome' ? 600 : 500,
-                  position: 'relative',
-                  zIndex: 11,
-                }}
                 onClick={() => setActiveTab('welcome')}
+                style={{
+                  padding: '10px 20px',
+                  background: activeTab === 'welcome' ? '#D1FAE5' : '#fff',
+                  color: '#111827',
+                  border: '1.5px solid #10B981',
+                  borderRadius: 13,
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'welcome' ? 600 : 500,
+                  fontSize: 14
+                }}
               >
                 Welcome
               </button>
