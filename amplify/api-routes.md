@@ -33,6 +33,25 @@ API Gateway: `https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod`
 |--------|-------|----------------|--------|
 | POST | /sms/send | wecare-outbound-sms | ✅ WIRED & TESTED |
 
+## AWS SMS API (us-east-1)
+| Method | Route | Lambda Handler | Status |
+|--------|-------|----------------|--------|
+| GET | /sms-aws/messages | wecare-sms-aws | 🆕 NEW |
+| GET | /sms-aws/messages/{messageId} | wecare-sms-aws | 🆕 NEW |
+| POST | /sms-aws/send | wecare-sms-aws | 🆕 NEW |
+
+### AWS SMS API Usage
+POST /sms-aws/send sends via Amazon Pinpoint/SNS:
+```json
+{
+  "phoneNumber": "+14155551234",
+  "content": "Your verification code is 123456",
+  "messageType": "TRANSACTIONAL",
+  "senderId": "WECARE"
+}
+```
+Message Types: `TRANSACTIONAL`, `PROMOTIONAL`
+
 ### Airtel IQ SMS API (DLT Compliant)
 POST /sms/send with `provider: "airtel"` sends via Airtel IQ:
 ```json
@@ -61,6 +80,26 @@ API Versions: `v4` (standard), `v5` (content moderation), `v6` (enhanced respons
 | GET | /voice/calls | wecare-voice-calls | ✅ WIRED & TESTED |
 | GET | /voice/calls/{callId} | wecare-voice-calls | ✅ WIRED & TESTED |
 | POST | /voice/call | wecare-voice-calls | ✅ WIRED & TESTED |
+
+## AWS Voice API (us-east-1)
+| Method | Route | Lambda Handler | Status |
+|--------|-------|----------------|--------|
+| GET | /voice-aws/calls | wecare-voice-aws | 🆕 NEW |
+| GET | /voice-aws/calls/{callId} | wecare-voice-aws | 🆕 NEW |
+| POST | /voice-aws/call | wecare-voice-aws | 🆕 NEW |
+
+### AWS Voice API Usage
+POST /voice-aws/call initiates a call via Amazon Connect:
+```json
+{
+  "phoneNumber": "+14155551234",
+  "callType": "tts",
+  "messageText": "Hello, this is a test call from WECARE.",
+  "voiceId": "Joanna"
+}
+```
+Call Types: `tts` (text-to-speech), `audio` (play audio URL)
+Voice IDs: Any Amazon Polly voice (Joanna, Matthew, Amy, etc.)
 
 ### Click-to-Call (C2C) via Airtel CCP
 POST /voice/call with `callType: "c2c"` initiates a Click-to-Call:
@@ -190,7 +229,7 @@ Response: `{ "callId": "...", "correlationId": "...", "status": "initiated" }`
 20. wecare-razorpay-webhook
 21. wecare-dlq-replay
 
-### New Functions (7 functions)
+### New Functions (9 functions)
 1. wecare-outbound-sms - SMS sending via AWS SNS/Pinpoint or Airtel
 2. wecare-outbound-email - Email sending via Amazon SES
 3. wecare-voice-calls - Voice call management (make/list/get calls)
@@ -198,6 +237,8 @@ Response: `{ "callId": "...", "correlationId": "...", "status": "initiated" }`
 5. wecare-payments-read - Payment records listing
 6. wecare-voice-cdr-webhook - Airtel Voice CDR webhook receiver
 7. wecare-voice-cdr-read - Read Airtel Voice CDR records
+8. wecare-voice-aws - AWS Voice calls via Amazon Connect (us-east-1)
+9. wecare-sms-aws - AWS SMS via Amazon Pinpoint/SNS (us-east-1)
 
 ---
 

@@ -268,6 +268,15 @@ export const WelcomeIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5,
   </svg>
 );
 
+// Store / Shopping Bag
+export const StoreIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <path d="M16 10a4 4 0 0 1-8 0" />
+  </svg>
+);
+
 // Access / Key
 export const AccessIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -316,4 +325,5 @@ export const IconMap: Record<string, React.FC<IconProps>> = {
   welcome: WelcomeIcon,
   access: AccessIcon,
   inbox: InboxIcon,
+  store: StoreIcon,
 };

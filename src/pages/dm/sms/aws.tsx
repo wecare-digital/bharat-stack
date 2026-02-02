@@ -1,5 +1,5 @@
 /**
- * AWS Pinpoint SMS DM
+ * SMS DM (AWS Pinpoint)
  * Direct messaging via Amazon Pinpoint SMS
  */
 
@@ -105,11 +105,9 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
     <Layout user={user} onSignOut={signOut}>
       <div className="sms-page">
         <PageHeader 
-          title="AWS Pinpoint SMS" 
+          title="SMS" 
           subtitle="Global SMS Gateway"
           icon="sms"
-          backLink="/dm/sms"
-          backLabel="← SMS"
           actions={
             <button onClick={loadData} className="refresh-btn" disabled={loading}>
               {loading ? '...' : <RefreshIcon size={18} />}
@@ -171,9 +169,9 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
 
           <div className="info-panel">
-            <h3>AWS Pinpoint SMS</h3>
+            <h3>SMS</h3>
             <div className="info-section"><h4>Features</h4><ul><li>Global Coverage</li><li>Two-way SMS</li><li>Delivery Reports</li><li>SNS Integration</li></ul></div>
-            <div className="info-section"><h4>Documentation</h4><a href="https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms.html" target="_blank" rel="noopener noreferrer">AWS Pinpoint SMS Docs →</a></div>
+            <div className="info-section"><h4>Documentation</h4><a href="https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms.html" target="_blank" rel="noopener noreferrer">SMS Docs →</a></div>
           </div>
         </div>
       </div>

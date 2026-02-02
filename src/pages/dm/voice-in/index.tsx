@@ -1,40 +1,32 @@
 /**
- * WhatsApp Page with Tabs (Board + Inbox + Campaign)
- * WhatsApp Business API
+ * Voice IN Page with Tabs (Calls + Campaign)
+ * Airtel CCP Voice Gateway for India
  */
 
 import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
 
-// Dynamic imports to avoid SSR issues with complex components
-const WhatsAppBoard = dynamic(() => import('./waba-dashboard'), { ssr: false });
-const WhatsAppInbox = dynamic(() => import('./inbox'), { ssr: false });
-const WhatsAppCampaign = dynamic(() => import('./campaign'), { ssr: false });
+// Import the actual pages
+import VoiceInCallsPage from '../voice/airtel';
+import VoiceInCampaignPage from '../voice/airtel/campaign';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-type TabType = 'board' | 'inbox' | 'campaign';
+type TabType = 'calls' | 'campaign';
 
-const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('inbox');
+const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('calls');
 
   return (
     <div className="tabbed-page">
       <div className="page-tabs">
         <button 
-          className={`tab-btn ${activeTab === 'board' ? 'active' : ''}`}
-          onClick={() => setActiveTab('board')}
+          className={`tab-btn ${activeTab === 'calls' ? 'active' : ''}`}
+          onClick={() => setActiveTab('calls')}
         >
-          📊 Board
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'inbox' ? 'active' : ''}`}
-          onClick={() => setActiveTab('inbox')}
-        >
-          📥 Inbox
+          📞 Calls
         </button>
         <button 
           className={`tab-btn ${activeTab === 'campaign' ? 'active' : ''}`}
@@ -45,9 +37,8 @@ const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
 
       <div className="tab-content">
-        {activeTab === 'board' && <WhatsAppBoard signOut={signOut} user={user} />}
-        {activeTab === 'inbox' && <WhatsAppInbox signOut={signOut} user={user} />}
-        {activeTab === 'campaign' && <WhatsAppCampaign signOut={signOut} user={user} />}
+        {activeTab === 'calls' && <VoiceInCallsPage signOut={signOut} user={user} />}
+        {activeTab === 'campaign' && <VoiceInCampaignPage signOut={signOut} user={user} />}
       </div>
 
       <style jsx>{`
@@ -83,4 +74,4 @@ const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
   );
 };
 
-export default WhatsAppPage;
+export default VoiceInPage;

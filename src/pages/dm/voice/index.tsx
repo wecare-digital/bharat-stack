@@ -1,50 +1,77 @@
 /**
- * Voice DM Hub - Provider Selection
- * Clean, responsive design
+ * Voice Page with Tabs (Calls + Campaign)
+ * AWS Connect Voice Gateway
  */
 
-import Link from 'next/link';
-import Layout from '../../../components/Layout';
-import PageHeader from '../../../components/PageHeader';
-import SEO from '../../../components/SEO';
-import { VoiceIcon } from '../../../lib/icons';
+import React, { useState } from 'react';
+
+// Import the actual pages
+import VoiceCallsPage from './aws';
+import VoiceCampaignPage from './aws/campaign';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-const providers = [
-  { href: '/dm/voice/airtel', label: 'Voice IN', sublabel: 'India' },
-  { href: '/dm/voice/aws', label: 'AWS Connect', sublabel: 'Global' },
-];
+type TabType = 'calls' | 'campaign';
 
-export default function VoiceDMHub({ signOut, user }: PageProps) {
+const VoicePage: React.FC<PageProps> = ({ signOut, user }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('calls');
+
   return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO 
-        title="Voice | WECARE.DIGITAL"
-        description="Make voice calls via Airtel IQ or AWS Connect"
-      />
-      <div className="hub-page">
-        <PageHeader 
-          title="Voice" 
-          subtitle="Select voice provider"
-          icon="voice"
-          backLink="/dm"
-          backLabel="← Messages"
-        />
-
-        <div className="hub-grid hub-grid-2">
-          {providers.map(({ href, label, sublabel }) => (
-            <Link key={href} href={href} className="hub-card hub-card-voice">
-              <span className="hub-icon"><VoiceIcon size={32} /></span>
-              <span className="hub-label">{label}</span>
-              <span className="hub-sublabel">{sublabel}</span>
-            </Link>
-          ))}
-        </div>
+    <div className="tabbed-page">
+      <div className="page-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'calls' ? 'active' : ''}`}
+          onClick={() => setActiveTab('calls')}
+        >
+          📞 Calls
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'campaign' ? 'active' : ''}`}
+          onClick={() => setActiveTab('campaign')}
+        >
+          📢 Campaign
+        </button>
       </div>
-    </Layout>
+
+      <div className="tab-content">
+        {activeTab === 'calls' && <VoiceCallsPage signOut={signOut} user={user} />}
+        {activeTab === 'campaign' && <VoiceCampaignPage signOut={signOut} user={user} />}
+      </div>
+
+      <style jsx>{`
+        .tabbed-page { display: flex; flex-direction: column; height: 100vh; }
+        .page-tabs { 
+          display: flex; 
+          gap: 4px; 
+          padding: 12px 16px; 
+          background: #fafafa; 
+          border-bottom: 1px solid #e5e5e5;
+          flex-shrink: 0;
+        }
+        .tab-btn { 
+          padding: 10px 20px; 
+          border: 1px solid #e5e5e5; 
+          border-radius: 8px; 
+          background: white; 
+          cursor: pointer; 
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.15s ease;
+        }
+        .tab-btn:hover { background: #f5f5f5; }
+        .tab-btn.active { 
+          background: #000; 
+          color: white; 
+          border-color: #000; 
+        }
+        .tab-content { flex: 1; overflow: hidden; }
+        .tab-content > :global(div) { height: 100%; }
+      `}</style>
+    </div>
   );
-}
+};
+
+export default VoicePage;

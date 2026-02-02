@@ -1,35 +1,27 @@
 /**
- * WhatsApp Page with Tabs (Board + Inbox + Campaign)
- * WhatsApp Business API
+ * SMS IN Page with Tabs (Inbox + Campaign)
+ * Airtel IQ SMS Gateway for India
  */
 
 import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
 
-// Dynamic imports to avoid SSR issues with complex components
-const WhatsAppBoard = dynamic(() => import('./waba-dashboard'), { ssr: false });
-const WhatsAppInbox = dynamic(() => import('./inbox'), { ssr: false });
-const WhatsAppCampaign = dynamic(() => import('./campaign'), { ssr: false });
+// Import the actual pages
+import SmsInInboxPage from '../sms/airtel';
+import SmsInCampaignPage from '../sms/airtel/campaign';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-type TabType = 'board' | 'inbox' | 'campaign';
+type TabType = 'inbox' | 'campaign';
 
-const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
+const SmsInPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [activeTab, setActiveTab] = useState<TabType>('inbox');
 
   return (
     <div className="tabbed-page">
       <div className="page-tabs">
-        <button 
-          className={`tab-btn ${activeTab === 'board' ? 'active' : ''}`}
-          onClick={() => setActiveTab('board')}
-        >
-          📊 Board
-        </button>
         <button 
           className={`tab-btn ${activeTab === 'inbox' ? 'active' : ''}`}
           onClick={() => setActiveTab('inbox')}
@@ -45,9 +37,8 @@ const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
 
       <div className="tab-content">
-        {activeTab === 'board' && <WhatsAppBoard signOut={signOut} user={user} />}
-        {activeTab === 'inbox' && <WhatsAppInbox signOut={signOut} user={user} />}
-        {activeTab === 'campaign' && <WhatsAppCampaign signOut={signOut} user={user} />}
+        {activeTab === 'inbox' && <SmsInInboxPage signOut={signOut} user={user} />}
+        {activeTab === 'campaign' && <SmsInCampaignPage signOut={signOut} user={user} />}
       </div>
 
       <style jsx>{`
@@ -83,4 +74,4 @@ const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
   );
 };
 
-export default WhatsAppPage;
+export default SmsInPage;

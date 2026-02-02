@@ -1,46 +1,79 @@
-﻿import React from 'react';
-import Link from 'next/link';
-import Layout from '../../../components/Layout';
-import PageHeader from '../../../components/PageHeader';
-import SEO from '../../../components/SEO';
-import { SmsIcon } from '../../../lib/icons';
+﻿/**
+ * SMS Page with Tabs (Inbox + Campaign)
+ * AWS Pinpoint SMS Gateway
+ */
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/router';
+
+// Import the actual pages
+import SmsInboxPage from './aws';
+import SmsCampaignPage from './aws/campaign';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-const providers = [
-  { href: '/dm/sms/airtel', label: 'IN SMS', sublabel: 'Airtel' },
-  { href: '/dm/sms/aws', label: 'AWS Pinpoint', sublabel: 'Global' },
-];
+type TabType = 'inbox' | 'campaign';
 
-export default function SmsDMHub({ signOut, user }: PageProps) {
+const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabType>('inbox');
+
   return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO 
-        title="SMS | WECARE.DIGITAL"
-        description="Send SMS via Airtel or AWS Pinpoint"
-      />
-      <div className="hub-page">
-        <PageHeader 
-          title="SMS" 
-          subtitle="Select SMS provider"
-          icon="sms"
-          backLink="/dm"
-          backLabel="← Messages"
-        />
-
-        <div className="hub-grid hub-grid-2">
-          {providers.map(({ href, label, sublabel }) => (
-            <Link key={href} href={href} className="hub-card hub-card-sms">
-              <span className="hub-icon"><SmsIcon size={32} /></span>
-              <span className="hub-label">{label}</span>
-              <span className="hub-sublabel">{sublabel}</span>
-            </Link>
-          ))}
-        </div>
+    <div className="tabbed-page">
+      <div className="page-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'inbox' ? 'active' : ''}`}
+          onClick={() => setActiveTab('inbox')}
+        >
+          📥 Inbox
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'campaign' ? 'active' : ''}`}
+          onClick={() => setActiveTab('campaign')}
+        >
+          📢 Campaign
+        </button>
       </div>
-    </Layout>
+
+      <div className="tab-content">
+        {activeTab === 'inbox' && <SmsInboxPage signOut={signOut} user={user} />}
+        {activeTab === 'campaign' && <SmsCampaignPage signOut={signOut} user={user} />}
+      </div>
+
+      <style jsx>{`
+        .tabbed-page { display: flex; flex-direction: column; height: 100vh; }
+        .page-tabs { 
+          display: flex; 
+          gap: 4px; 
+          padding: 12px 16px; 
+          background: #fafafa; 
+          border-bottom: 1px solid #e5e5e5;
+          flex-shrink: 0;
+        }
+        .tab-btn { 
+          padding: 10px 20px; 
+          border: 1px solid #e5e5e5; 
+          border-radius: 8px; 
+          background: white; 
+          cursor: pointer; 
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.15s ease;
+        }
+        .tab-btn:hover { background: #f5f5f5; }
+        .tab-btn.active { 
+          background: #000; 
+          color: white; 
+          border-color: #000; 
+        }
+        .tab-content { flex: 1; overflow: hidden; }
+        .tab-content > :global(div) { height: 100%; }
+      `}</style>
+    </div>
   );
-}
+};
+
+export default SmsPage;

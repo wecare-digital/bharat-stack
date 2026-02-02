@@ -703,9 +703,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <span className="icon"><ContactsIcon size={20} /></span>
                     <span>Contacts</span>
                   </Link>
-                  <Link href="/bulk" className="action-card">
+                  <Link href="/dm/whatsapp" className="action-card" onClick={() => setActiveTab('overview')}>
                     <span className="icon"><BulkIcon size={20} /></span>
-                    <span>Bulk</span>
+                    <span>Campaign</span>
                   </Link>
                   <Link href="/dm/sms" className="action-card">
                     <span className="icon"><SmsIcon size={20} /></span>
