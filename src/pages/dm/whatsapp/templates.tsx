@@ -1145,14 +1145,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
           </div>
         )}
       </div>
-
       <style jsx>{`
-        .template-management {
-          padding: 20px;
-          max-width: 1400px;
-          margin: 0 auto;
-        }
-
         .page-header {
           display: flex;
           justify-content: space-between;

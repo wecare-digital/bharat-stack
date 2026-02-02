@@ -9,9 +9,18 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 
 // Dynamic imports to avoid SSR issues with complex components
-const WhatsAppBoard = dynamic(() => import('./waba-dashboard'), { ssr: false });
-const WhatsAppInbox = dynamic(() => import('./inbox'), { ssr: false });
-const WhatsAppCampaign = dynamic(() => import('./campaign'), { ssr: false });
+const WhatsAppBoard = dynamic(() => import('./waba-dashboard'), { 
+  ssr: false,
+  loading: () => <div style={{ padding: '40px', textAlign: 'center' }}>Loading Board...</div>
+});
+const WhatsAppInbox = dynamic(() => import('./inbox'), { 
+  ssr: false,
+  loading: () => <div style={{ padding: '40px', textAlign: 'center' }}>Loading Inbox...</div>
+});
+const WhatsAppCampaign = dynamic(() => import('./campaign'), { 
+  ssr: false,
+  loading: () => <div style={{ padding: '40px', textAlign: 'center' }}>Loading Campaign...</div>
+});
 
 interface PageProps {
   signOut?: () => void;
@@ -23,79 +32,57 @@ type TabType = 'board' | 'inbox' | 'campaign';
 const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [activeTab, setActiveTab] = useState<TabType>('inbox');
 
+  const tabStyle = (isActive: boolean): React.CSSProperties => ({
+    padding: '10px 18px',
+    border: '1.5px solid #10B981',
+    borderRadius: '13px',
+    background: isActive ? '#D1FAE5' : '#fff',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: isActive ? 600 : 500,
+    color: '#111827',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.15s ease',
+    minHeight: '44px',
+  });
+
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO 
         title="WhatsApp | WECARE.DIGITAL"
         description="WhatsApp Business API - Inbox, Board, and Campaigns"
       />
-      <div className="tabbed-page">
-        <div className="page-tabs">
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: '8px', padding: '16px 20px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', flexShrink: 0, overflowX: 'auto' }}>
           <button 
-            className={`tab-btn ${activeTab === 'board' ? 'active' : ''}`}
+            type="button"
+            style={tabStyle(activeTab === 'board')}
             onClick={() => setActiveTab('board')}
           >
             Board
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'inbox' ? 'active' : ''}`}
+            type="button"
+            style={tabStyle(activeTab === 'inbox')}
             onClick={() => setActiveTab('inbox')}
           >
             Inbox
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'campaign' ? 'active' : ''}`}
+            type="button"
+            style={tabStyle(activeTab === 'campaign')}
             onClick={() => setActiveTab('campaign')}
           >
             Campaign
           </button>
         </div>
 
-        <div className="tab-content">
+        <div style={{ flex: 1, overflow: 'auto', minHeight: 0, width: '100%' }}>
           {activeTab === 'board' && <WhatsAppBoard signOut={signOut} user={user} embedded={true} />}
           {activeTab === 'inbox' && <WhatsAppInbox signOut={signOut} user={user} embedded={true} />}
           {activeTab === 'campaign' && <WhatsAppCampaign signOut={signOut} user={user} embedded={true} />}
         </div>
       </div>
-
-      <style jsx>{`
-        .tabbed-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-        .page-tabs { 
-          display: flex; 
-          gap: 8px; 
-          padding: 16px 20px; 
-          background: var(--color-bg-secondary, #f9fafb); 
-          border-bottom: 1px solid var(--color-border, #e5e7eb);
-          flex-shrink: 0;
-          overflow-x: auto;
-        }
-        .tab-btn { 
-          padding: 10px 18px; 
-          border: 1.5px solid #10B981;
-          border-radius: 13px; 
-          background: #fff; 
-          cursor: pointer; 
-          font-size: 14px;
-          font-weight: 500;
-          color: #111827;
-          white-space: nowrap;
-          transition: all 0.15s ease;
-          min-height: 44px;
-        }
-        .tab-btn:hover { background: #ECFDF5; border-color: #059669; }
-        .tab-btn.active { 
-          background: #D1FAE5; 
-          border-color: #10B981;
-          font-weight: 600;
-        }
-        .tab-content { flex: 1; overflow: auto; min-height: 0; width: 100%; }
-        .tab-content > :global(div) { height: 100%; width: 100%; }
-        .tab-content > :global(.whatsapp-inbox) { width: 100%; border: none; border-radius: 0; }
-        @media (max-width: 768px) {
-          .page-tabs { padding: 12px 16px; gap: 6px; }
-          .tab-btn { padding: 10px 14px; font-size: 13px; }
-        }
-      `}</style>
     </Layout>
   );
 };

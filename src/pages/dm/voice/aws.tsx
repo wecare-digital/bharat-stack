@@ -246,17 +246,22 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
         </div>
       </div>
 
-      <style jsx>{styles}</style>
     </div>
   );
 
   if (embedded) {
-    return content;
+    return (
+      <>
+        {content}
+        <style jsx>{styles}</style>
+      </>
+    );
   }
 
   return (
     <Layout user={user} onSignOut={signOut}>
       {content}
+      <style jsx>{styles}</style>
     </Layout>
   );
 };

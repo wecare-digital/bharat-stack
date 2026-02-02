@@ -155,27 +155,75 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
             </div>
 
             {/* Tabs */}
-            <div className="tabs">
+            <div className="tabs" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #eee', paddingBottom: '12px', position: 'relative', zIndex: 10 }}>
               <button
-                className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+                type="button"
+                style={{
+                  background: activeTab === 'overview' ? '#D1FAE5' : '#fff',
+                  border: '1.5px solid #10B981',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  borderRadius: '13px',
+                  fontSize: '14px',
+                  color: '#111827',
+                  fontWeight: activeTab === 'overview' ? 600 : 500,
+                  position: 'relative',
+                  zIndex: 11,
+                }}
                 onClick={() => setActiveTab('overview')}
               >
                 Phone Numbers
               </button>
               <button
-                className={`tab ${activeTab === 'events' ? 'active' : ''}`}
+                type="button"
+                style={{
+                  background: activeTab === 'events' ? '#D1FAE5' : '#fff',
+                  border: '1.5px solid #10B981',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  borderRadius: '13px',
+                  fontSize: '14px',
+                  color: '#111827',
+                  fontWeight: activeTab === 'events' ? 600 : 500,
+                  position: 'relative',
+                  zIndex: 11,
+                }}
                 onClick={() => setActiveTab('events')}
               >
                 System Events
               </button>
               <button
-                className={`tab ${activeTab === 'templates' ? 'active' : ''}`}
+                type="button"
+                style={{
+                  background: activeTab === 'templates' ? '#D1FAE5' : '#fff',
+                  border: '1.5px solid #10B981',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  borderRadius: '13px',
+                  fontSize: '14px',
+                  color: '#111827',
+                  fontWeight: activeTab === 'templates' ? 600 : 500,
+                  position: 'relative',
+                  zIndex: 11,
+                }}
                 onClick={() => setActiveTab('templates')}
               >
                 Templates
               </button>
               <button
-                className={`tab ${activeTab === 'welcome' ? 'active' : ''}`}
+                type="button"
+                style={{
+                  background: activeTab === 'welcome' ? '#D1FAE5' : '#fff',
+                  border: '1.5px solid #10B981',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  borderRadius: '13px',
+                  fontSize: '14px',
+                  color: '#111827',
+                  fontWeight: activeTab === 'welcome' ? 600 : 500,
+                  position: 'relative',
+                  zIndex: 11,
+                }}
                 onClick={() => setActiveTab('welcome')}
               >
                 Welcome
@@ -463,6 +511,8 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
           margin-bottom: 24px;
           border-bottom: 1px solid #eee;
           padding-bottom: 12px;
+          position: relative;
+          z-index: 10;
         }
 
         .tab {
@@ -473,6 +523,8 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
           border-radius: 13px;
           font-size: 14px;
           color: #000;
+          position: relative;
+          z-index: 11;
         }
 
         .tab:hover {

@@ -2030,3 +2030,117 @@
   border-color: #10B981 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
 }
+
+/* ========================================
+   WHATSAPP TABBED PAGE - Main Tabs
+   Board / Inbox / Campaign tabs
+   ======================================== */
+.layout .main-content .wa-tabbed-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout .main-content .wa-page-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  overflow-x: auto;
+  position: relative;
+  z-index: 10;
+}
+
+.layout .main-content .wa-tab-btn {
+  padding: 10px 18px !important;
+  border: 1.5px solid #10B981 !important;
+  border-radius: 13px !important;
+  background: #fff !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #111827 !important;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  min-height: 44px;
+  position: relative;
+  z-index: 11;
+}
+
+.layout .main-content .wa-tab-btn:hover {
+  background: #ECFDF5 !important;
+  border-color: #059669 !important;
+}
+
+.layout .main-content .wa-tab-btn.active {
+  background: #D1FAE5 !important;
+  border-color: #10B981 !important;
+  font-weight: 600 !important;
+}
+
+.layout .main-content .wa-tab-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.layout .main-content .wa-tab-content > div {
+  height: 100%;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .layout .main-content .wa-page-tabs {
+    padding: 12px 16px;
+    gap: 6px;
+  }
+  
+  .layout .main-content .wa-tab-btn {
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ========================================
+   WABA DASHBOARD - Inner Tabs
+   Phone Numbers / System Events / Templates / Welcome
+   ======================================== */
+.layout .main-content .waba-dashboard .tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 12px;
+  position: relative;
+  z-index: 10;
+}
+
+.layout .main-content .waba-dashboard .tab {
+  background: #fff !important;
+  border: 1px solid #10B981 !important;
+  padding: 10px 20px !important;
+  cursor: pointer !important;
+  border-radius: 13px !important;
+  font-size: 14px !important;
+  color: #111827 !important;
+  position: relative;
+  z-index: 11;
+  transition: all 0.15s ease;
+}
+
+.layout .main-content .waba-dashboard .tab:hover {
+  background: #ECFDF5 !important;
+  border-color: #059669 !important;
+}
+
+.layout .main-content .waba-dashboard .tab.active {
+  background: #D1FAE5 !important;
+  border-color: #10B981 !important;
+  font-weight: 600 !important;
+}
