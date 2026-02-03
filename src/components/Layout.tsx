@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 import SearchModal from './SearchModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
-import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon, SearchIcon } from '../lib/icons';
+import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon } from '../lib/icons';
 
 interface LayoutProps {
   children: ReactNode;
@@ -138,10 +138,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         {/* Sidebar Search */}
         <div className="sidebar-search">
           <div className="sidebar-search-input-wrapper">
-            <SearchIcon size={14} />
             <input
               type="text"
-              placeholder="Quick search..."
+              placeholder="Search pages..."
               value={sidebarSearch}
               onChange={e => setSidebarSearch(e.target.value)}
               className="sidebar-search-input"

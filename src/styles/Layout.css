@@ -148,23 +148,18 @@ input, textarea, select {
 .sidebar-search-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 0;
   border: 1.5px solid #e5e7eb;
   border-radius: 10px;
   background: #fff;
   transition: all 0.15s ease;
+  overflow: hidden;
 }
 
 .sidebar-search-input-wrapper:focus-within {
   border-color: #10B981;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
-}
-
-.sidebar-search-input-wrapper svg {
-  color: #9ca3af;
-  flex-shrink: 0;
 }
 
 .sidebar-search-input {
@@ -175,6 +170,7 @@ input, textarea, select {
   font-size: 13px;
   color: var(--text);
   min-width: 0;
+  padding: 10px 12px;
 }
 
 .sidebar-search-input::placeholder {
@@ -187,8 +183,10 @@ input, textarea, select {
   color: #9ca3af;
   cursor: pointer;
   font-size: 16px;
-  padding: 0 2px;
+  padding: 0 12px 0 0;
   line-height: 1;
+  min-height: auto;
+  min-width: auto;
 }
 
 .sidebar-search-clear:hover {
