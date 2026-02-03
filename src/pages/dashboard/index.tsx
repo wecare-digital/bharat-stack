@@ -2018,7 +2018,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
       {/* Billing table expand styles - other styles in Dashboard.css */}
       <style jsx>{`
-        .billing-row.warning { background: #fffbeb; }
+        .billing-row.warning { background: #ECFDF5; }
         .billing-row.paid { background: #fef2f2; }
         .expand-cell { width: 30px; }
         .expand-btn { width: 28px; height: 28px; border: 1px solid var(--notion-border, #e9e9e7); border-radius: 6px; background: var(--notion-bg, #fff); cursor: pointer; font-size: 16px; color: var(--notion-text-secondary, #787774); }

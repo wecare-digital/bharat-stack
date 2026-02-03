@@ -8,7 +8,7 @@
  * COLOR SCHEME:
  * - Primary: Emerald (#10B981) - All interactive elements
  * - Danger: Red (#dc2626) - Errors, delete actions
- * - Warning: Amber (#d97706) - Warnings only
+ * - Warning: Emerald (#10B981) - Same as primary
  * - Success: Emerald (#10B981) - Same as primary
  * 
  * NO BLUE, PURPLE, CYAN for semantic UI elements
@@ -55,10 +55,10 @@
   --color-danger-light: #fef2f2;
   --color-danger-border: #fecaca;
   
-  /* Warning - Amber (warnings only) */
-  --color-warning: #d97706;
-  --color-warning-light: #fef3c7;
-  --color-warning-border: #fcd34d;
+  /* Warning - Emerald (same as primary) */
+  --color-warning: #10B981;
+  --color-warning-light: #ECFDF5;
+  --color-warning-border: #A7F3D0;
   
   /* Success - Same as Primary */
   --color-success: #10B981;
@@ -738,8 +738,8 @@
 }
 
 .toast-warning .toast-icon {
-  background: #fef3c7;
-  color: #d97706;
+  background: #ECFDF5;
+  color: #10B981;
 }
 
 .toast-info .toast-icon {

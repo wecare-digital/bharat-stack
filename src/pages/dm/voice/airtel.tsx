@@ -160,7 +160,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
     switch (status?.toLowerCase()) {
       case 'answered': return '#10b981';
       case 'missed': return '#ef4444';
-      case 'busy': return '#f59e0b';
+      case 'busy': return '#6b7280';
       case 'disconnected': return '#6b7280';
       default: return '#6b7280';
     }
@@ -555,7 +555,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
               <StatCard label="Outbound" value={stats?.outbound || 0} icon="O" color="#6b6b6b" />
               <StatCard label="Answered" value={stats?.answered || 0} icon="A" color="#10b981" />
               <StatCard label="Missed" value={stats?.missed || 0} icon="M" color="#ef4444" />
-              <StatCard label="Busy" value={stats?.busy || 0} icon="B" color="#f59e0b" />
+              <StatCard label="Busy" value={stats?.busy || 0} icon="B" color="#6b7280" />
             </div>
 
             {/* Duration Stats */}

@@ -514,8 +514,8 @@
 }
 
 .layout .main-content .health-status-card.warning {
-  background: #fef3c7;
-  border-color: #fcd34d;
+  background: #ECFDF5;
+  border-color: #A7F3D0;
 }
 
 .layout .main-content .health-status-card.error {
@@ -534,7 +534,7 @@
 }
 
 .layout .main-content .health-status-card.warning h3 {
-  color: #d97706;
+  color: #10B981;
 }
 
 .layout .main-content .health-status-card.error h3 {
@@ -578,8 +578,8 @@
 }
 
 .layout .main-content .issue-card.warning {
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
 }
 
 .layout .main-content .issue-card-header {
@@ -605,7 +605,7 @@
 }
 
 .layout .main-content .issue-badge.warning {
-  background: #d97706;
+  background: #10B981;
 }
 
 .layout .main-content .issue-card p {
@@ -682,8 +682,8 @@
 }
 
 .layout .main-content .count-badge.warning {
-  background: #fef3c7;
-  color: #d97706;
+  background: #ECFDF5;
+  color: #10B981;
 }
 
 .layout .main-content .count-badge.ok {
@@ -1403,12 +1403,12 @@
 }
 
 .layout .main-content .stat-card.warning {
-  background: #fef3c7 !important;
-  border-left: 4px solid #d97706 !important;
+  background: #ECFDF5 !important;
+  border-left: 4px solid #10B981 !important;
 }
 
 .layout .main-content .stat-card.warning .stat-value {
-  color: #d97706 !important;
+  color: #10B981 !important;
 }
 
 .layout .main-content .stat-card.success .stat-value {
@@ -1538,8 +1538,8 @@
    Override orange/amber with emerald variants
    ======================================== */
 .layout .main-content .issue-badge.warning {
-  background: #fef3c7 !important;
-  color: #92400e !important;
+  background: #ECFDF5 !important;
+  color: #065f46 !important;
 }
 
 /* Keep error badges red for visibility */
@@ -1962,8 +1962,8 @@
 }
 
 .layout .main-content .badge-pending {
-  background: #fef3c7 !important;
-  color: #92400e !important;
+  background: #ECFDF5 !important;
+  color: #065f46 !important;
 }
 
 .layout .main-content .btn-primary {

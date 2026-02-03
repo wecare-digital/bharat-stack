@@ -56,9 +56,9 @@
   --danger-light: #fef2f2;
   --danger-bg: #fef2f2;
   
-  --warning: #d97706;
-  --warning-light: #fffbeb;
-  --warning-bg: #fffbeb;
+  --warning: #10B981;
+  --warning-light: #ECFDF5;
+  --warning-bg: #ECFDF5;
   
   --info: #10B981;
   --info-light: #ECFDF5;
@@ -184,7 +184,7 @@
   --color-bg: #fff;
   --color-bg-secondary: #f5f5f5;
   --color-success: #10b981;
-  --color-warning: #f59e0b;
+  --color-warning: #10b981;
   --color-danger: #ef4444;
 }
 

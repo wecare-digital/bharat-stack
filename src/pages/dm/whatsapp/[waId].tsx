@@ -1416,7 +1416,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         /* Star button */
         .star-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.3; transition: all 0.2s; padding: 2px; }
         .star-btn:hover { opacity: 0.7; }
-        .star-btn.starred { opacity: 1; color: #f59e0b; }
+        .star-btn.starred { opacity: 1; color: #10B981; }
         
         /* No contacts message */
         .no-contacts { padding: 20px; text-align: center; color: #999; font-size: 13px; }

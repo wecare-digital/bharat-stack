@@ -42,7 +42,7 @@
   
   /* Semantic Colors - Clean Emerald */
   --color-success: #10b981;
-  --color-warning: #f59e0b;
+  --color-warning: #10b981;
   --color-danger: #ef4444;
   
   /* Channel Colors - Emerald */
@@ -2992,8 +2992,8 @@ pre code {
 }
 
 .api-method.put {
-  background: #fef3c7;
-  color: #92400e;
+  background: #ECFDF5;
+  color: #065f46;
 }
 
 .api-method.delete {
