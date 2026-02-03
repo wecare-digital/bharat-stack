@@ -2,16 +2,24 @@
  * WhatsApp Campaign Page
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import Layout from '../../../components/Layout';
+import SEO from '../../../components/SEO';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES, API_BASE } from '../../../config/constants';
-import { RefreshIcon } from '../../../lib/icons';
+import Button from '../../../components/ui/Button';
+import Tabs, { TabItem } from '../../../components/ui/Tabs';
 
-interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
+interface PageProps { signOut?: () => void; user?: any; }
 type TabType = 'create' | 'logs';
 interface Template { name: string; language: string; status: string; category: string; }
 interface CampaignLog { id: string; name: string; template: string; recipients: number; sent: number; delivered: number; read: number; failed: number; status: string; createdAt: string; }
 
-const WhatsAppCampaignPage: React.FC<PageProps> = () => {
+const tabItems: TabItem[] = [
+  { id: 'create', label: 'Create Campaign' },
+  { id: 'logs', label: 'Campaign Logs' },
+];
+
+const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [activeTab, setActiveTab] = useState<TabType>('create');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -103,19 +111,19 @@ const WhatsAppCampaignPage: React.FC<PageProps> = () => {
     finally { setSending(false); }
   };
 
-  return (
+  const content = (
     <div className="inner-page campaign-page">
       <div className="page-header">
         <h2>WhatsApp Campaign</h2>
-        <button className="btn-icon" onClick={loadData} disabled={loading}>
-          {loading ? '...' : <RefreshIcon size={18} />}
-        </button>
+        <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
       </div>
 
-      <div className="sub-tabs">
-        <button className={activeTab === 'create' ? 'active' : ''} onClick={() => setActiveTab('create')}>Create Campaign</button>
-        <button className={activeTab === 'logs' ? 'active' : ''} onClick={() => setActiveTab('logs')}>Campaign Logs ({campaigns.length})</button>
-      </div>
+      <Tabs 
+        items={tabItems.map(t => ({ ...t, count: t.id === 'logs' ? campaigns.length : undefined }))} 
+        activeTab={activeTab} 
+        onChange={(id) => setActiveTab(id as TabType)} 
+        variant="sub"
+      />
 
       {message && (
         <div className={'alert alert-' + message.type}>
@@ -169,9 +177,9 @@ const WhatsAppCampaignPage: React.FC<PageProps> = () => {
             </div>
           </div>
 
-          <button className="btn btn-primary btn-block" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0 || !selectedTemplate}>
+          <Button variant="primary" className="btn-block" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0 || !selectedTemplate} loading={sending}>
             {sending ? 'Sending...' : 'Send Campaign to ' + selectedContacts.length + ' Contacts'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -211,6 +219,13 @@ const WhatsAppCampaignPage: React.FC<PageProps> = () => {
         </div>
       )}
     </div>
+  );
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="WhatsApp Campaign | WECARE.DIGITAL" description="Send bulk WhatsApp campaigns" />
+      {content}
+    </Layout>
   );
 };
 

@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { BarChart, DonutChart, Sparkline, ProgressBar, DateRangePicker } from '../../components/Charts';
 import { SkeletonStat, SkeletonCard } from '../../components/Skeleton';
 import SEO, { PAGE_SEO } from '../../components/SEO';
+import Button from '../../components/ui/Button';
+import Tabs, { TabItem } from '../../components/ui/Tabs';
 import * as api from '../../api/client';
 import { 
   DashboardIcon, MessageIcon, PaymentIcon, DataIcon, BillingIcon, 
@@ -930,7 +932,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="pay-tab">
               <div className="section-header">
                 <h3>Payment Records</h3>
-                <Link href="/pay" className="btn-primary">+ New Payment</Link>
+                <Link href="/pay"><Button variant="primary">+ New Payment</Button></Link>
               </div>
               
               <div className="stats-grid small">
@@ -1044,10 +1046,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   
                   <div className="delete-actions">
-                    <button className="btn-secondary" onClick={() => { setDeleteMode(null); setSelectedMessages([]); }}>Cancel</button>
-                    <button className="btn-primary" onClick={handleDeleteMessages} disabled={deleting || selectedMessages.length === 0}>
-                      {deleting ? '...' : `Delete ${selectedMessages.length}`}
-                    </button>
+                    <Button variant="secondary" onClick={() => { setDeleteMode(null); setSelectedMessages([]); }}>Cancel</Button>
+                    <Button variant="danger" onClick={handleDeleteMessages} disabled={deleting || selectedMessages.length === 0} loading={deleting}>
+                      Delete {selectedMessages.length}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1074,10 +1076,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   )}
                   
                   <div className="delete-actions">
-                    <button className="btn-secondary" onClick={() => { setDeleteMode(null); setSelectedContact(''); }}>Cancel</button>
-                    <button className="btn-primary" onClick={() => setShowHardDeleteModal(true)} disabled={deleting || !selectedContact}>
-                      {deleting ? '...' : 'Hard Delete'}
-                    </button>
+                    <Button variant="secondary" onClick={() => { setDeleteMode(null); setSelectedContact(''); }}>Cancel</Button>
+                    <Button variant="danger" onClick={() => setShowHardDeleteModal(true)} disabled={deleting || !selectedContact} loading={deleting}>
+                      Hard Delete
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1104,10 +1106,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   
                   <div className="delete-actions">
-                    <button className="btn-secondary" onClick={() => setDeleteMode(null)}>Cancel</button>
-                    <button className="btn-primary" onClick={() => setShowClearAllModal(true)} disabled={deleting}>
-                      {deleting ? '...' : 'Clear All Data'}
-                    </button>
+                    <Button variant="secondary" onClick={() => setDeleteMode(null)}>Cancel</Button>
+                    <Button variant="danger" onClick={() => setShowClearAllModal(true)} disabled={deleting} loading={deleting}>
+                      Clear All Data
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1121,7 +1123,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               )}
             </div>
           )}
-
           {/* BILLING TAB */}
           {activeTab === 'billing' && (
             <div className="billing-tab">
@@ -1504,13 +1505,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   />
                 </div>
 
-                <button
+                <Button
+                  variant="primary"
                   onClick={handleSaveAiConfig}
                   disabled={aiSaving}
-                  className="btn-primary"
+                  loading={aiSaving}
                 >
-                  {aiSaving ? 'Saving...' : 'Save Configuration'}
-                </button>
+                  Save Configuration
+                </Button>
               </div>
 
               {/* Test Section */}
@@ -1726,9 +1728,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {/* Custom Webhooks Section */}
               <div className="section-header" style={{ marginTop: '2rem' }}>
                 <h3>Custom Webhooks</h3>
-                <button className="btn-primary" onClick={() => setShowWebhookForm(!showWebhookForm)}>
+                <Button variant={showWebhookForm ? 'secondary' : 'primary'} onClick={() => setShowWebhookForm(!showWebhookForm)}>
                   {showWebhookForm ? 'Cancel' : '+ Add Webhook'}
-                </button>
+                </Button>
               </div>
 
               {/* Add Webhook Form */}
@@ -1780,9 +1782,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </div>
                   </div>
 
-                  <button onClick={handleCreateWebhook} className="btn-primary" disabled={!newWebhook.name || !newWebhook.url}>
+                  <Button variant="primary" onClick={handleCreateWebhook} disabled={!newWebhook.name || !newWebhook.url}>
                     Create Webhook
-                  </button>
+                  </Button>
                 </div>
               )}
 

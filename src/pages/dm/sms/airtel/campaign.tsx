@@ -6,7 +6,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as api from '../../../../api/client';
 import { API_BASE } from '../../../../config/constants';
-import { RefreshIcon } from '../../../../lib/icons';
+import Button from '../../../../components/ui/Button';
+import Tabs, { TabItem } from '../../../../components/ui/Tabs';
 
 interface PageProps {
   signOut?: () => void;
@@ -167,26 +168,20 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
     }
   };
 
+  const tabItems: TabItem[] = [
+    { id: 'create', label: 'Create Campaign' },
+    { id: 'logs', label: 'Campaign Logs' },
+    { id: 'dlt', label: 'DLT Config' },
+  ];
+
   return (
     <div className="campaign-page">
       <div className="campaign-header">
         <h2>SMS IN Campaign (Airtel)</h2>
-        <button className="refresh-btn" onClick={loadData} disabled={loading}>
-          {loading ? '...' : <RefreshIcon size={18} />}
-        </button>
+        <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
       </div>
 
-      <div className="sub-tabs">
-        <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          Create Campaign
-        </button>
-        <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          Campaign Logs ({campaigns.length})
-        </button>
-        <button className={`sub-tab ${activeTab === 'dlt' ? 'active' : ''}`} onClick={() => setActiveTab('dlt')}>
-          DLT Config
-        </button>
-      </div>
+      <Tabs items={tabItems.map(t => ({ ...t, count: t.id === 'logs' ? campaigns.length : undefined }))} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} variant="sub" />
 
       {message && (
         <div className={`msg-bar ${message.type}`}>
@@ -242,9 +237,9 @@ const SmsInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           </div>
 
           <div className="send-section">
-            <button className="send-btn" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0}>
+            <Button variant="primary" className="send-btn" onClick={handleSendCampaign} disabled={sending || selectedContacts.length === 0} loading={sending}>
               {sending ? `Sending...` : `Send Campaign to ${selectedContacts.length} Contacts`}
-            </button>
+            </Button>
           </div>
         </div>
       )}

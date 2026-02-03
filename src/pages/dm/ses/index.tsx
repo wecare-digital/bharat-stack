@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
-import { RefreshIcon } from '../../../lib/icons';
+import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -126,9 +126,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
           <button onClick={() => setShowCompose(true)} className="compose-btn" disabled={!selectedContact}>
             Compose
           </button>
-          <button onClick={loadData} className="refresh-btn" disabled={loading}>
-            {loading ? '...' : <RefreshIcon size={18} />}
-          </button>
+          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
         </div>
 
         {error && <div className="error-bar">{error}</div>}
@@ -267,14 +265,15 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button className="btn-secondary" onClick={() => setShowCompose(false)}>Cancel</button>
-                <button 
-                  className="btn-primary" 
+                <Button variant="secondary" onClick={() => setShowCompose(false)}>Cancel</Button>
+                <Button 
+                  variant="primary" 
                   onClick={handleSend}
                   disabled={sending || !subject.trim() || !messageText.trim()}
+                  loading={sending}
                 >
                   {sending ? 'Sending...' : 'Send Email'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -350,11 +349,6 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .form-row input:focus { outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.1); }
         .form-row input:disabled { background: #f5f5f5; border-color: #e5e5e5; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid #e5e5e5; }
-        .btn-secondary { background: #fff; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; color: #000; }
-        .btn-secondary:hover { background: #f5f5f5; }
-        .btn-primary { background: #fff; color: #000; border: 1px solid #000; padding: 10px 20px; border-radius: 13px; cursor: pointer; }
-        .btn-primary:hover { background: #f5f5f5; }
-        .btn-primary:disabled { background: #f5f5f5; color: #999; border-color: #e5e5e5; cursor: not-allowed; }
       `}</style>
     </Layout>
   );

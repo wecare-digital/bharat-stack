@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
+import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
@@ -150,23 +151,9 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           </div>
         </div>
 
-        <button 
-          onClick={saveConfig} 
-          disabled={saving}
-          style={{ 
-            width: '100%', 
-            padding: 12, 
-            background: saving ? '#f5f5f5' : '#fff', 
-            color: saving ? '#999' : '#000', 
-            border: '1px solid #000', 
-            borderRadius: 13, 
-            fontSize: 14, 
-            fontWeight: 600, 
-            cursor: saving ? 'not-allowed' : 'pointer' 
-          }}
-        >
+        <Button variant="primary" onClick={saveConfig} disabled={saving} loading={saving} className="welcome-save-btn">
           {saving ? 'Saving...' : 'Save Configuration'}
-        </button>
+        </Button>
       </div>
     </div>
   );

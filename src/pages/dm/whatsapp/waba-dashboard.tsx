@@ -14,8 +14,9 @@ import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import Toast, { useToast } from '../../../components/Toast';
+import Tabs, { TabItem } from '../../../components/ui/Tabs';
+import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
-import { RefreshIcon } from '../../../lib/icons';
 
 // Import Templates and Welcome content
 import TemplatesPage from './templates';
@@ -53,6 +54,13 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
     accountUpdates: [],
   });
   const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'templates' | 'welcome'>('overview');
+
+  const tabItems: TabItem[] = [
+    { id: 'overview', label: 'Phone Numbers' },
+    { id: 'events', label: 'System Events' },
+    { id: 'templates', label: 'Templates' },
+    { id: 'welcome', label: 'Welcome' },
+  ];
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -128,9 +136,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
             backLink="/dm/whatsapp"
             backLabel="← Back"
             actions={
-              <button className="refresh-btn" onClick={loadData} disabled={loading} title="Refresh">
-              {loading ? '...' : <RefreshIcon size={18} />}
-            </button>
+              <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
           }
         />
         )}
@@ -155,72 +161,11 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #eee', paddingBottom: 12 }}>
-              <button
-                type="button"
-                onClick={() => setActiveTab('overview')}
-                style={{
-                  padding: '10px 20px',
-                  background: activeTab === 'overview' ? '#D1FAE5' : '#fff',
-                  color: '#111827',
-                  border: '1.5px solid #10B981',
-                  borderRadius: 13,
-                  cursor: 'pointer',
-                  fontWeight: activeTab === 'overview' ? 600 : 500,
-                  fontSize: 14
-                }}
-              >
-                Phone Numbers
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('events')}
-                style={{
-                  padding: '10px 20px',
-                  background: activeTab === 'events' ? '#D1FAE5' : '#fff',
-                  color: '#111827',
-                  border: '1.5px solid #10B981',
-                  borderRadius: 13,
-                  cursor: 'pointer',
-                  fontWeight: activeTab === 'events' ? 600 : 500,
-                  fontSize: 14
-                }}
-              >
-                System Events
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('templates')}
-                style={{
-                  padding: '10px 20px',
-                  background: activeTab === 'templates' ? '#D1FAE5' : '#fff',
-                  color: '#111827',
-                  border: '1.5px solid #10B981',
-                  borderRadius: 13,
-                  cursor: 'pointer',
-                  fontWeight: activeTab === 'templates' ? 600 : 500,
-                  fontSize: 14
-                }}
-              >
-                Templates
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('welcome')}
-                style={{
-                  padding: '10px 20px',
-                  background: activeTab === 'welcome' ? '#D1FAE5' : '#fff',
-                  color: '#111827',
-                  border: '1.5px solid #10B981',
-                  borderRadius: 13,
-                  cursor: 'pointer',
-                  fontWeight: activeTab === 'welcome' ? 600 : 500,
-                  fontSize: 14
-                }}
-              >
-                Welcome
-              </button>
-            </div>
+            <Tabs 
+              items={tabItems} 
+              activeTab={activeTab} 
+              onChange={(id) => setActiveTab(id as 'overview' | 'events' | 'templates' | 'welcome')} 
+            />
 
             {/* Templates Tab */}
             {activeTab === 'templates' && (

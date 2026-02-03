@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
+import Button from '../../../components/ui/Button';
 
 interface PageProps {
   signOut?: () => void;
@@ -70,7 +71,7 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
               <h3>Reference ID</h3>
               <div className="ref-row">
                 <input type="text" value={referenceId} readOnly />
-                <button type="button" onClick={handleGenerateReferenceId} className="gen-btn">New</button>
+                <Button variant="secondary" size="sm" onClick={handleGenerateReferenceId}>New</Button>
               </div>
             </div>
 
@@ -143,13 +144,14 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             </div>
 
-            <button
+            <Button
+              variant="primary"
               className="generate-btn"
               onClick={generatePaymentLink}
               disabled={amount <= 0}
             >
               Generate Payment Link
-            </button>
+            </Button>
           </div>
 
           <div className="link-preview">
@@ -159,9 +161,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <>
                   <div className="link-display">
                     <input type="text" value={generatedLink} readOnly />
-                    <button onClick={copyToClipboard} className="copy-btn">
+                    <Button variant="secondary" size="sm" onClick={copyToClipboard}>
                       {copied ? 'Copied' : 'Copy'}
-                    </button>
+                    </Button>
                   </div>
                   <div className="link-details">
                     <div className="detail-row"><span>Amount:</span><span>₹{amount.toFixed(2)}</span></div>
@@ -170,9 +172,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
                     {description && <div className="detail-row"><span>Description:</span><span>{description}</span></div>}
                   </div>
                   <div className="share-buttons">
-                    <button className="share-btn whatsapp">WhatsApp</button>
-                    <button className="share-btn email">Email</button>
-                    <button className="share-btn sms">SMS</button>
+                    <Button variant="secondary" size="sm" className="share-btn">WhatsApp</Button>
+                    <Button variant="secondary" size="sm" className="share-btn">Email</Button>
+                    <Button variant="secondary" size="sm" className="share-btn">SMS</Button>
                   </div>
                 </>
               ) : (
@@ -192,9 +194,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         .page-header h1 { font-size: 22px; margin: 0 0 4px 0; }
         .page-header p { color: #4a4a4a; margin: 0; font-size: 14px; }
         
-        .coming-soon-banner { display: flex; align-items: center; gap: 16px; background: #f5f5f5; padding: 16px 20px; border-radius: 13px; margin-bottom: 20px; border: 1px solid #000; }
-        .banner-icon { font-size: 24px; color: #4a4a4a; }
-        .banner-content h3 { margin: 0 0 4px 0; font-size: 16px; color: #000; }
+        .coming-soon-banner { display: flex; align-items: center; gap: 16px; background: #ECFDF5; padding: 16px 20px; border-radius: 13px; margin-bottom: 20px; border: 1.5px solid #10B981; }
+        .banner-icon { font-size: 24px; color: #10B981; }
+        .banner-content h3 { margin: 0 0 4px 0; font-size: 16px; color: #111827; }
         .banner-content p { margin: 0; font-size: 13px; color: #4a4a4a; }
         
         .page-layout { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
@@ -204,43 +206,32 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         .form-section h3 { font-size: 14px; margin: 0 0 12px 0; color: #000; font-weight: 600; }
         
         .ref-row { display: flex; gap: 8px; }
-        .ref-row input { flex: 1; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; background: #fff; }
-        .ref-row input:hover { background: #f5f5f5; }
-        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500; }
-        .gen-btn:hover { background: #f5f5f5; }
-        .gen-btn:active { background: #ebebeb; }
+        .ref-row input { flex: 1; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; background: #fff; }
+        .ref-row input:hover { background: #ECFDF5; }
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .form-field { }
         .form-field.full-width { grid-column: span 2; }
         .form-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
-        .form-field input, .form-field select { width: 100%; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
-        .form-field input:hover, .form-field select:hover { background: #f5f5f5; }
-        .form-field input:focus, .form-field select:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); background: #fff; }
+        .form-field input, .form-field select { width: 100%; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
+        .form-field input:hover, .form-field select:hover { background: #ECFDF5; }
+        .form-field input:focus, .form-field select:focus { outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); background: #fff; }
         
-        .generate-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .generate-btn:hover:not(:disabled) { background: #f5f5f5; }
-        .generate-btn:active:not(:disabled) { background: #ebebeb; }
-        .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .generate-btn { width: 100%; }
         
         .link-preview h3 { font-size: 14px; margin: 0 0 10px 0; font-weight: 600; }
-        .preview-card { background: #fff; border-radius: 13px; padding: 20px; border: 1px solid #000; }
+        .preview-card { background: #fff; border-radius: 13px; padding: 20px; border: 1.5px solid #10B981; }
         
         .link-display { display: flex; gap: 8px; margin-bottom: 16px; }
-        .link-display input { flex: 1; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; background: #f5f5f5; }
-        .copy-btn { padding: 10px 16px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500; white-space: nowrap; }
-        .copy-btn:hover { background: #f5f5f5; }
-        .copy-btn:active { background: #ebebeb; }
+        .link-display input { flex: 1; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; background: #f5f5f5; }
         
-        .link-details { padding: 12px; background: #f5f5f5; border-radius: 10px; margin-bottom: 16px; }
+        .link-details { padding: 12px; background: #ECFDF5; border-radius: 10px; margin-bottom: 16px; }
         .detail-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
         .detail-row span:first-child { color: #4a4a4a; }
-        .detail-row span:last-child { font-weight: 500; color: #000; }
+        .detail-row span:last-child { font-weight: 500; color: #111827; }
         
         .share-buttons { display: flex; gap: 8px; }
-        .share-btn { flex: 1; padding: 10px; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 13px; background: #fff; color: #000; font-weight: 500; }
-        .share-btn:hover { background: #f5f5f5; }
-        .share-btn:active { background: #ebebeb; }
+        .share-btn { flex: 1; }
         
         .empty-state { text-align: center; padding: 40px 20px; color: #4a4a4a; }
         .empty-icon { font-size: 24px; margin-bottom: 12px; opacity: 0.5; }

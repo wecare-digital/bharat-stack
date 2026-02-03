@@ -13,8 +13,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import SEO from '../../../components/SEO';
+import Button from '../../../components/ui/Button';
+import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import { API_BASE } from '../../../config/constants';
-import { RefreshIcon } from '../../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
@@ -292,14 +293,7 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
               Email: voice@wecare.digital | Cloud Communication Platform
             </div>
           </div>
-          <button
-            onClick={fetchCDRRecords}
-            disabled={loading}
-            className="refresh-btn"
-            title="Refresh"
-          >
-            {loading ? '...' : <RefreshIcon size={18} />}
-          </button>
+          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={fetchCDRRecords} disabled={loading} loading={loading} />
         </div>
 
         {/* Call Result Toast */}
@@ -770,38 +764,22 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => handleKeyPress('backspace')}
-                  className="btn-secondary"
-                  style={{ 
-                    flex: 1,
-                    padding: '14px',
-                    fontSize: '16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
-                    background: 'white',
-                    cursor: 'pointer'
-                  }}
+                  style={{ flex: 1 }}
                 >
                   ⌫ Delete
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
                   onClick={handleClickToCall}
                   disabled={!dialerNumber.trim() || !agentNumber.trim() || calling}
-                  style={{ 
-                    flex: 2,
-                    padding: '14px',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: (!dialerNumber.trim() || !agentNumber.trim() || calling) ? '#9ca3af' : '#10b981',
-                    color: 'white',
-                    cursor: (!dialerNumber.trim() || !agentNumber.trim() || calling) ? 'not-allowed' : 'pointer'
-                  }}
+                  loading={calling}
+                  style={{ flex: 2 }}
                 >
                   {calling ? '📞 Connecting...' : '📞 Click to Call'}
-                </button>
+                </Button>
               </div>
 
               {/* How it works */}

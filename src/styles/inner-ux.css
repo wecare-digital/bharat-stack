@@ -2,6 +2,16 @@
  * Inner UX - WECARE.DIGITAL
  * Unified Inner Page UX Language
  * Single source of truth for all inner page styling
+ * 
+ * VERSION: 2.0 - Unified Design System
+ * 
+ * COLOR SCHEME:
+ * - Primary: Emerald (#10B981) - All interactive elements
+ * - Danger: Red (#dc2626) - Errors, delete actions
+ * - Warning: Amber (#d97706) - Warnings only
+ * - Success: Emerald (#10B981) - Same as primary
+ * 
+ * NO BLUE, PURPLE, CYAN for semantic UI elements
  */
 
 /* ========================================
@@ -28,31 +38,51 @@
   
   /* Responsive Breakpoints */
   --bp-mobile: 480px;
-  --bp-tablet: 1024px;
-  --bp-desktop: 1440px;
+  --bp-tablet: 768px;
+  --bp-desktop: 1024px;
+  --bp-wide: 1440px;
   
-  /* Colors - Emerald Theme */
+  /* Colors - Emerald Theme (SINGLE SOURCE OF TRUTH) */
   --color-primary: #10B981;
   --color-primary-hover: #059669;
   --color-primary-light: #ECFDF5;
   --color-primary-active: #D1FAE5;
+  --color-primary-dark: #065f46;
   
+  /* Danger - Red (errors, delete) */
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
   --color-danger-light: #fef2f2;
+  --color-danger-border: #fecaca;
   
+  /* Warning - Amber (warnings only) */
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-warning-border: #fcd34d;
+  
+  /* Success - Same as Primary */
+  --color-success: #10B981;
+  --color-success-light: #ECFDF5;
+  --color-success-border: #A7F3D0;
+  
+  /* Text */
   --color-text: #111827;
   --color-text-secondary: #6b7280;
   --color-text-muted: #9ca3af;
   
+  /* Backgrounds */
   --color-bg: #ffffff;
   --color-bg-secondary: #f9fafb;
+  --color-bg-hover: #f5f5f5;
+  
+  /* Borders */
   --color-border: #e5e7eb;
   --color-border-dark: #d1d5db;
   
-  /* Border Radius */
+  /* Border Radius - Consistent 13px for buttons */
   --radius-sm: 8px;
   --radius-md: 12px;
+  --radius-btn: 13px;
   --radius-lg: 16px;
 }
 
@@ -125,8 +155,15 @@
   font-size: 16px;
 }
 
+/* Full width button */
+.btn-block {
+  width: 100%;
+}
+
 
 /* Button Variants */
+
+/* PRIMARY: Filled emerald - Main CTA actions */
 .btn-primary {
   background: var(--color-primary);
   color: #ffffff;
@@ -136,8 +173,10 @@
 .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
+/* SECONDARY: White bg, emerald border - Secondary actions */
 .btn-secondary {
   background: var(--color-bg);
   color: var(--color-text);
@@ -149,6 +188,19 @@
   border-color: var(--color-primary-hover);
 }
 
+/* OUTLINE: White bg, gray border - Tertiary actions */
+.btn-outline {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-border-dark);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-primary);
+}
+
+/* GHOST: Transparent - Minimal actions */
 .btn-ghost {
   background: transparent;
   color: var(--color-text-secondary);
@@ -160,6 +212,7 @@
   color: var(--color-text);
 }
 
+/* DANGER: Red border - Delete/destructive actions */
 .btn-danger {
   background: var(--color-bg);
   color: var(--color-danger);
@@ -175,6 +228,18 @@
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3);
 }
 
+/* DANGER FILLED: Red bg - Confirm delete */
+.btn-danger-filled {
+  background: var(--color-danger);
+  color: #ffffff;
+  border: 1.5px solid var(--color-danger);
+}
+
+.btn-danger-filled:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+}
+
 /* Loading State */
 .btn-loading {
   pointer-events: none;
@@ -182,6 +247,11 @@
 
 .btn-text-loading {
   opacity: 0.7;
+}
+
+/* Button with icon */
+.btn svg {
+  flex-shrink: 0;
 }
 
 

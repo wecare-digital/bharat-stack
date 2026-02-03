@@ -4,7 +4,7 @@
  */
 
 export { default as Button } from './Button';
-export type { ButtonVariant, ButtonSize } from './Button';
+export type { ButtonVariant, ButtonSize, ButtonIcon } from './Button';
 
 export { default as IconButton } from './IconButton';
 export type { IconButtonSize } from './IconButton';

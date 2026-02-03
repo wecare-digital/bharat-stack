@@ -18,6 +18,8 @@ import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import Toast, { useToast } from '../../../components/Toast';
+import Button from '../../../components/ui/Button';
+import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -475,12 +477,12 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                     <option key={w.id} value={w.id}>{w.name}</option>
                   ))}
                 </select>
-                <button className="btn-carousel" onClick={() => setShowCarouselModal(true)}>
+                <Button variant="secondary" onClick={() => setShowCarouselModal(true)}>
                   Carousel
-                </button>
-                <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+                </Button>
+                <Button variant="primary" onClick={() => setShowCreateModal(true)}>
                   + Create Template
-                </button>
+                </Button>
               </div>
             }
           />
@@ -498,36 +500,25 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
-            <button className="btn-carousel" onClick={() => setShowCarouselModal(true)}>
+            <Button variant="secondary" onClick={() => setShowCarouselModal(true)}>
               Carousel
-            </button>
-            <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+            </Button>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               + Create
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="tabs">
-          <button
-            className={`tab ${activeTab === 'my-templates' ? 'active' : ''}`}
-            onClick={() => setActiveTab('my-templates')}
-          >
-            My Templates
-          </button>
-          <button
-            className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            Analytics
-          </button>
-          <button
-            className={`tab ${activeTab === 'scheduled' ? 'active' : ''}`}
-            onClick={() => setActiveTab('scheduled')}
-          >
-            Scheduled
-          </button>
-        </div>
+        <Tabs
+          items={[
+            { id: 'my-templates', label: 'My Templates', count: templates.length },
+            { id: 'analytics', label: 'Analytics' },
+            { id: 'scheduled', label: 'Scheduled', count: scheduledMessages.length },
+          ]}
+          activeTab={activeTab}
+          onChange={(id) => setActiveTab(id as 'my-templates' | 'analytics' | 'scheduled')}
+        />
 
         {/* Search - only show for templates */}
         {activeTab === 'my-templates' && (
@@ -885,12 +876,12 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 </div>
               </div>
               <div className="modal-footer">
-                <button className="btn-secondary" onClick={() => setShowCreateModal(false)}>
+                <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
                   Cancel
-                </button>
-                <button className="btn-primary" onClick={handleCreateTemplate}>
+                </Button>
+                <Button variant="primary" onClick={handleCreateTemplate}>
                   Create Template
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -909,16 +900,17 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 <p className="warning">This action cannot be undone.</p>
               </div>
               <div className="modal-footer">
-                <button className="btn-secondary" onClick={() => setShowDeleteConfirm(null)}>
+                <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)}>
                   Cancel
-                </button>
-                <button
-                  className="btn-danger"
+                </Button>
+                <Button
+                  variant="danger"
                   onClick={() => handleDeleteTemplate(showDeleteConfirm)}
                   disabled={deleting}
+                  loading={deleting}
                 >
-                  {deleting ? 'Deleting...' : 'Delete'}
-                </button>
+                  Delete
+                </Button>
               </div>
             </div>
           </div>
@@ -1130,16 +1122,17 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 </div>
               </div>
               <div className="modal-footer">
-                <button className="btn-secondary" onClick={() => setShowCarouselModal(false)}>
+                <Button variant="secondary" onClick={() => setShowCarouselModal(false)}>
                   Cancel
-                </button>
-                <button 
-                  className="btn-primary" 
+                </Button>
+                <Button 
+                  variant="primary" 
                   onClick={handleCreateCarouselTemplate}
                   disabled={carouselCreating}
+                  loading={carouselCreating}
                 >
-                  {carouselCreating ? 'Creating...' : 'Create Carousel Template'}
-                </button>
+                  Create Carousel Template
+                </Button>
               </div>
             </div>
           </div>
@@ -1195,62 +1188,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
 
         .waba-select:hover {
           background: #f5f5f5;
-        }
-
-        .btn-carousel {
-          background: #fff;
-          color: #000;
-          border: 1px solid #000;
-          padding: 10px 20px;
-          border-radius: 13px;
-          cursor: pointer;
-          font-weight: 500;
-        }
-
-        .btn-carousel:hover {
-          background: #f5f5f5;
-        }
-
-        .btn-primary {
-          background: #fff;
-          color: #000;
-          border: 1px solid #000;
-          padding: 10px 20px;
-          border-radius: 13px;
-          cursor: pointer;
-          font-weight: 500;
-        }
-
-        .btn-primary:hover {
-          background: #f5f5f5;
-        }
-
-        .tabs {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 20px;
-          border-bottom: 1px solid #eee;
-          padding-bottom: 12px;
-        }
-
-        .tab {
-          background: #fff;
-          border: 1px solid #000;
-          padding: 10px 20px;
-          cursor: pointer;
-          border-radius: 13px;
-          font-size: 14px;
-          color: #000;
-        }
-
-        .tab:hover {
-          background: #f5f5f5;
-        }
-
-        .tab.active {
-          background: #f5f5f5;
-          color: #000;
-          font-weight: 600;
         }
 
         .search-section {
@@ -1597,21 +1534,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         .warning {
           color: #DC3545;
           font-size: 14px;
-        }
-
-        /* Carousel Button */
-        .btn-carousel {
-          background: #fff;
-          color: #000;
-          border: 1px solid #000;
-          padding: 10px 20px;
-          border-radius: 13px;
-          cursor: pointer;
-          font-weight: 500;
-        }
-
-        .btn-carousel:hover {
-          background: #f5f5f5;
         }
 
         /* Carousel Modal */

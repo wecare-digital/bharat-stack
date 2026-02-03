@@ -379,6 +379,27 @@ input, textarea, select {
 
 .nav-nested-items {
   margin-top: 2px;
+  padding-left: 12px;
+}
+
+/* 3rd level nav items (e.g., WhatsApp sub-pages) */
+.nav-nested-items .nav-subitem {
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--text-secondary);
+  border-radius: 8px;
+}
+
+.nav-nested-items .nav-subitem:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nav-nested-items .nav-subitem-active {
+  background: var(--hover);
+  color: var(--text);
+  font-weight: 500;
 }
 
 .nav-nested-level-1 { padding-left: 8px; }

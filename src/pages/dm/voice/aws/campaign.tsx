@@ -6,7 +6,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as api from '../../../../api/client';
 import { API_BASE } from '../../../../config/constants';
-import { RefreshIcon } from '../../../../lib/icons';
+import Button from '../../../../components/ui/Button';
+import Tabs, { TabItem } from '../../../../components/ui/Tabs';
 
 interface PageProps {
   signOut?: () => void;
@@ -186,23 +187,19 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
 
+  const tabItems: TabItem[] = [
+    { id: 'create', label: 'Create Campaign' },
+    { id: 'logs', label: 'Campaign Logs' },
+  ];
+
   return (
     <div className="campaign-page">
       <div className="campaign-header">
         <h2>Voice Campaign (AWS)</h2>
-        <button className="refresh-btn" onClick={loadData} disabled={loading}>
-          {loading ? '...' : <RefreshIcon size={18} />}
-        </button>
+        <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
       </div>
 
-      <div className="sub-tabs">
-        <button className={`sub-tab ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-          Create Campaign
-        </button>
-        <button className={`sub-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-          Campaign Logs ({campaigns.length})
-        </button>
-      </div>
+      <Tabs items={tabItems.map(t => ({ ...t, count: t.id === 'logs' ? campaigns.length : undefined }))} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} variant="sub" />
 
       {message && (
         <div className={`msg-bar ${message.type}`}>
@@ -260,9 +257,9 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           </div>
 
           <div className="send-section">
-            <button className="send-btn" onClick={handleStartCampaign} disabled={calling || selectedContacts.length === 0}>
+            <Button variant="primary" className="send-btn" onClick={handleStartCampaign} disabled={calling || selectedContacts.length === 0} loading={calling}>
               {calling ? `Calling...` : `Call ${selectedContacts.length} Contacts`}
-            </button>
+            </Button>
           </div>
         </div>
       )}

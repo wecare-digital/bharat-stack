@@ -29,6 +29,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
+import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { formatReferenceNumber, generateReferenceId } from '../../../lib/formatters';
 import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN } from '../../../config/constants';
@@ -178,7 +179,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
               <h3>Reference ID</h3>
               <div className="ref-row">
                 <input type="text" value={formatReferenceNumber(referenceId)} readOnly placeholder="WDSRXXXXXXXX" />
-                <button type="button" onClick={handleGenerateReferenceId} className="gen-btn">New</button>
+                <Button variant="secondary" size="sm" onClick={handleGenerateReferenceId}>New</Button>
               </div>
             </div>
 
@@ -222,9 +223,9 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="preview-total"><span>TOTAL</span><span>₹{calculateTotal().toFixed(2)}</span></div>
               <div className="preview-config"><small>To: {selectedContactInfo?.name || '—'}</small><small>Ref: {formatReferenceNumber(referenceId)}</small></div>
             </div>
-            <button className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0}>
+            <Button variant="primary" className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0} loading={sending}>
               {sending ? 'Sending...' : 'Send Payment'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -234,52 +235,46 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         .pay-header { margin-bottom: 20px; }
         .pay-header h1 { font-size: 22px; margin: 0 0 4px 0; }
         .pay-header p { color: #4a4a4a; margin: 0; font-size: 14px; }
-        .sender-notice { display: flex; align-items: center; gap: 16px; background: #f5f5f5; padding: 12px 16px; border-radius: 13px; margin-bottom: 16px; border: 1px solid #000; }
-        .sender-icon { font-size: 14px; font-weight: 600; color: #000; }
+        .sender-notice { display: flex; align-items: center; gap: 16px; background: #ECFDF5; padding: 12px 16px; border-radius: 13px; margin-bottom: 16px; border: 1.5px solid #10B981; }
+        .sender-icon { font-size: 14px; font-weight: 600; color: #10B981; }
         .sender-info { flex: 1; }
         .sender-label { font-size: 10px; color: #4a4a4a; text-transform: uppercase; }
-        .sender-number { font-size: 16px; font-weight: 600; color: #000; }
+        .sender-number { font-size: 16px; font-weight: 600; color: #111827; }
         .sender-name { font-size: 12px; color: #4a4a4a; }
-        .sender-badge { display: flex; align-items: center; gap: 4px; background: #000; color: #fff; padding: 4px 10px; border-radius: 16px; font-size: 11px; }
+        .sender-badge { display: flex; align-items: center; gap: 4px; background: #10B981; color: #fff; padding: 4px 10px; border-radius: 16px; font-size: 11px; }
         .badge-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; }
-        .message-bar { padding: 10px 14px; border-radius: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; border: 1px solid #000; }
-        .message-bar.success { background: #f5f5f5; color: #000; }
-        .message-bar.error { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+        .message-bar { padding: 10px 14px; border-radius: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; border: 1.5px solid #10B981; }
+        .message-bar.success { background: #ECFDF5; color: #111827; }
+        .message-bar.error { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
         .message-bar button { background: none; border: none; font-size: 16px; cursor: pointer; }
         .pay-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
         .order-form { background: #fff; border-radius: 13px; padding: 20px; border: 1px solid #e5e5e5; }
         .form-section { margin-bottom: 20px; }
         .form-section h3 { font-size: 14px; margin: 0 0 10px 0; color: #000; font-weight: 600; }
-        .form-section select, .form-section input { width: 100%; padding: 10px 12px; border: 1px solid #000; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
-        .form-section select:hover, .form-section input:hover { background: #f5f5f5; }
-        .form-section select:focus, .form-section input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1); background: #fff; }
+        .form-section select, .form-section input { width: 100%; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
+        .form-section select:hover, .form-section input:hover { background: #ECFDF5; }
+        .form-section select:focus, .form-section input:focus { outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); background: #fff; }
         .ref-row { display: flex; gap: 8px; }
         .ref-row input { flex: 1; background: #f5f5f5; }
-        .gen-btn { padding: 10px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 14px; font-weight: 500; }
-        .gen-btn:hover { background: #f5f5f5; }
-        .gen-btn:active { background: #ebebeb; }
         .item-grid { display: grid; grid-template-columns: 2fr 1fr 60px; gap: 10px; }
         .item-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
         .breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .breakdown-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
         .breakdown-field.full-width { grid-column: span 2; }
         .order-preview h3 { font-size: 14px; margin: 0 0 10px 0; font-weight: 600; }
-        .preview-card { background: #fff; border-radius: 13px; padding: 16px; margin-bottom: 12px; border: 1px solid #000; }
+        .preview-card { background: #fff; border-radius: 13px; padding: 16px; margin-bottom: 12px; border: 1.5px solid #10B981; }
         .preview-header { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #e5e5e5; margin-bottom: 10px; font-weight: 600; font-size: 14px; }
-        .wa-icon { font-size: 12px; background: #000; color: #fff; padding: 2px 6px; border-radius: 4px; }
-        .preview-body { background: #f5f5f5; padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; color: #000; }
+        .wa-icon { font-size: 12px; background: #10B981; color: #fff; padding: 2px 6px; border-radius: 4px; }
+        .preview-body { background: #ECFDF5; padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; color: #111827; }
         .preview-section { margin-bottom: 12px; padding: 10px; background: #f5f5f5; border-radius: 10px; }
         .section-title { font-size: 10px; color: #4a4a4a; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
         .cart-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
         .cart-item.conv-fee { color: #4a4a4a; font-style: italic; }
         .breakdown-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
-        .preview-total { display: flex; justify-content: space-between; padding: 10px; background: #000; color: #fff; border-radius: 10px; font-size: 16px; font-weight: 600; }
+        .preview-total { display: flex; justify-content: space-between; padding: 10px; background: #10B981; color: #fff; border-radius: 10px; font-size: 16px; font-weight: 600; }
         .preview-config { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e5e5; }
         .preview-config small { color: #4a4a4a; font-size: 11px; }
-        .send-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #000; border-radius: 13px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .send-btn:hover:not(:disabled) { background: #f5f5f5; }
-        .send-btn:active:not(:disabled) { background: #ebebeb; }
-        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .send-btn { width: 100%; }
         @media (max-width: 800px) { .pay-layout { grid-template-columns: 1fr; } .item-grid { grid-template-columns: 1fr; } .breakdown-grid { grid-template-columns: 1fr; } .breakdown-field.full-width { grid-column: span 1; } }
       `}</style>
     </Layout>

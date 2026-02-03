@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import RichTextEditor from '../../../components/RichTextEditor';
-import { RefreshIcon } from '../../../lib/icons';
+import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -110,9 +110,7 @@ const AWSSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
           subtitle="Global SMS Gateway"
           icon="sms"
           actions={
-            <button onClick={loadData} className="refresh-btn" disabled={loading}>
-              {loading ? '...' : <RefreshIcon size={18} />}
-            </button>
+            <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
           }
         />
       )}

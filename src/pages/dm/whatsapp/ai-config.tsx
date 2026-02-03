@@ -18,6 +18,8 @@
 import { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
+import Button from '../../../components/ui/Button';
+import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import {
   getBedrockAIConfig,
   updateBedrockAIConfig,
@@ -181,29 +183,17 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
         )}
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
-          {(['config', 'prompts', 'fallbacks', 'logs', 'test'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '0.5rem 1rem',
-                border: '1px solid #000',
-                background: activeTab === tab ? '#f5f5f5' : '#fff',
-                color: '#000',
-                borderRadius: '13px',
-                cursor: 'pointer',
-                fontWeight: activeTab === tab ? 600 : 400,
-              }}
-            >
-              {tab === 'config' && 'Settings'}
-              {tab === 'prompts' && 'Prompts'}
-              {tab === 'fallbacks' && 'Fallbacks'}
-              {tab === 'logs' && 'Logs'}
-              {tab === 'test' && 'Test'}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={[
+            { id: 'config', label: 'Settings' },
+            { id: 'prompts', label: 'Prompts' },
+            { id: 'fallbacks', label: 'Fallbacks' },
+            { id: 'logs', label: 'Logs' },
+            { id: 'test', label: 'Test' },
+          ]}
+          activeTab={activeTab}
+          onChange={(id) => setActiveTab(id as typeof activeTab)}
+        />
 
         {/* Config Tab */}
         {activeTab === 'config' && config && (
@@ -351,13 +341,14 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               />
             </div>
 
-            <button
+            <Button
+              variant="primary"
               onClick={handlePromptUpdate}
               disabled={saving}
-              style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer' }}
+              loading={saving}
             >
-              {saving ? 'Saving...' : 'Save Prompt'}
-            </button>
+              Save Prompt
+            </Button>
           </div>
         )}
 
@@ -395,13 +386,14 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               />
             </div>
 
-            <button
+            <Button
+              variant="primary"
               onClick={handleFallbackUpdate}
               disabled={saving}
-              style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer' }}
+              loading={saving}
             >
-              {saving ? 'Saving...' : 'Save Fallback'}
-            </button>
+              Save Fallback
+            </Button>
           </div>
         )}
 
@@ -473,13 +465,15 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               />
             </div>
 
-            <button
+            <Button
+              variant="primary"
               onClick={handleTestAI}
               disabled={saving || !testMessage.trim()}
-              style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer', marginBottom: '1rem' }}
+              loading={saving}
+              style={{ marginBottom: '1rem' }}
             >
-              {saving ? 'Testing...' : 'Test Response'}
-            </button>
+              Test Response
+            </Button>
 
             {testResult && (
               <div style={{ marginTop: '1rem', padding: '1rem', background: '#f5f5f5', borderRadius: '13px', border: '1px solid #e5e5e5' }}>

@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
-import { RefreshIcon } from '../../../lib/icons';
+import Button from '../../../components/ui/Button';
 import { API_BASE } from '../../../config/constants';
 
 interface PageProps {
@@ -114,8 +114,7 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
     .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
     .form-group input, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; }
     .form-group textarea { resize: vertical; }
-    .call-btn { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-    .call-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+    .call-btn { width: 100%; }
     .calls-section { padding: 20px; overflow-y: auto; }
     .calls-section h3 { margin: 0 0 16px 0; font-size: 16px; }
     .calls-list { display: flex; flex-direction: column; gap: 8px; }
@@ -150,9 +149,7 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
           subtitle="Amazon Connect & Polly TTS"
           icon="voice"
           actions={
-            <button onClick={loadCalls} className="refresh-btn" disabled={loading}>
-              {loading ? '...' : <RefreshIcon size={18} />}
-            </button>
+            <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadCalls} disabled={loading} loading={loading} />
           }
         />
       )}
@@ -188,13 +185,15 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
               rows={3}
             />
           </div>
-          <button 
+          <Button 
+            variant="primary"
             className="call-btn"
             onClick={handleMakeCall}
             disabled={calling || !dialerNumber.trim()}
+            loading={calling}
           >
             {calling ? 'Calling...' : 'Make Call'}
-          </button>
+          </Button>
         </div>
 
         {/* Call History */}

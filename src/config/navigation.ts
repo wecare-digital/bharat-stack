@@ -54,7 +54,17 @@ export const navigationConfig: NavItem[] = [
     label: 'Messages',
     icon: 'message',
     children: [
-      { path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp' },
+      { 
+        path: '/dm/whatsapp', 
+        label: 'WhatsApp', 
+        icon: 'whatsapp',
+        children: [
+          { path: '/dm/whatsapp/inbox', label: 'Inbox' },
+          { path: '/dm/whatsapp/board', label: 'Board' },
+          { path: '/dm/whatsapp/campaign', label: 'Campaign' },
+          { path: '/dm/whatsapp/templates', label: 'Templates' },
+        ]
+      },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },
       { path: '/dm/sms-in', label: 'SMS IN', icon: 'sms' },
       { path: '/dm/ses', label: 'Email', icon: 'email' },

@@ -16,6 +16,7 @@ import '../styles/Layout.css';
 import '../styles/Dashboard.css';
 import '../styles/inner-pages.css';
 import '../styles/inner-ux.css';
+import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
 import ErrorBoundary from '../components/ErrorBoundary';
 

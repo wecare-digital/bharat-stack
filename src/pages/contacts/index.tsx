@@ -8,8 +8,8 @@ import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import ContactImportExport from '../../components/ContactImportExport';
 import SEO, { PAGE_SEO } from '../../components/SEO';
+import Button from '../../components/ui/Button';
 import * as api from '../../api/client';
-import { RefreshIcon } from '../../lib/icons';
 
 interface PageProps {
   signOut?: () => void;
@@ -211,8 +211,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           icon="contacts"
           actions={
             <>
-              <button className="btn-secondary" onClick={loadContacts} disabled={loading} title="Refresh">{loading ? '...' : <RefreshIcon size={18} />}</button>
-              <button className="btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>+ Add Contact</button>
+              <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadContacts} disabled={loading} loading={loading} />
+              <Button variant="primary" icon="create" onClick={() => { resetForm(); setShowModal(true); }}>Add Contact</Button>
             </>
           }
         />
@@ -289,9 +289,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     <td>{contact.lastInboundMessageAt ? new Date(contact.lastInboundMessageAt).toLocaleDateString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
-                        <button className="btn-icon" title="Edit" onClick={() => handleEdit(contact)}>Edit</button>
-                        <button className="btn-icon" title="Message" onClick={() => window.location.href = '/messaging'}>Msg</button>
-                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={() => openDeleteModal(contact)}>Del</button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(contact)}>Edit</Button>
+                        <Button variant="ghost" size="sm" onClick={() => window.location.href = '/messaging'}>Msg</Button>
+                        <Button variant="danger" size="sm" onClick={() => openDeleteModal(contact)}>Del</Button>
                       </div>
                     </td>
                   </tr>
@@ -362,10 +362,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </div>
               <div className="form-actions">
-                <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                <button className="btn-primary" onClick={handleCreate} disabled={(!formPhone && !formEmail) || saving}>
+                <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button variant="primary" onClick={handleCreate} disabled={(!formPhone && !formEmail)} loading={saving}>
                   {saving ? 'Saving...' : 'Add Contact'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -424,10 +424,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </div>
               <div className="form-actions">
-                <button className="btn-secondary" onClick={() => { setShowEditModal(false); setEditingContact(null); }}>Cancel</button>
-                <button className="btn-primary" onClick={handleUpdate} disabled={(!formPhone && !formEmail) || saving}>
+                <Button variant="secondary" onClick={() => { setShowEditModal(false); setEditingContact(null); }}>Cancel</Button>
+                <Button variant="primary" onClick={handleUpdate} disabled={(!formPhone && !formEmail)} loading={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -447,8 +447,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 </p>
               </div>
               <div className="confirm-modal-footer">
-                <button className="confirm-modal-cancel" onClick={() => setShowDeleteModal(null)}>Cancel</button>
-                <button className="confirm-modal-confirm" onClick={() => handleDelete(showDeleteModal)}>Delete</button>
+                <Button variant="secondary" onClick={() => setShowDeleteModal(null)}>Cancel</Button>
+                <Button variant="danger" onClick={() => handleDelete(showDeleteModal)}>Delete</Button>
               </div>
             </div>
           </div>
