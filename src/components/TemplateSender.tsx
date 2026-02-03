@@ -545,7 +545,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
         .back-btn {
           background: none;
           border: none;
-          color: #3b82f6;
+          color: #10b981;
           cursor: pointer;
           font-size: 13px;
           padding: 0;

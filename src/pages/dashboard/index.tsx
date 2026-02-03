@@ -1593,7 +1593,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     {[
                       { event: 'payment.captured', desc: 'Payment successful', color: '#10b981' },
                       { event: 'payment.failed', desc: 'Payment failed', color: '#ef4444' },
-                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#3b82f6' },
+                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#10b981' },
                       { event: 'refund.created', desc: 'Refund initiated', color: '#f59e0b' },
                       { event: 'refund.processed', desc: 'Refund completed', color: '#10b981' },
                       { event: 'order.paid', desc: 'Order paid', color: '#10b981' },

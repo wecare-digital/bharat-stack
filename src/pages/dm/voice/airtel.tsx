@@ -437,8 +437,8 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: 500,
-                            background: record.callType === 'INBOUND' ? '#dbeafe' : '#f0fdf4',
-                            color: record.callType === 'INBOUND' ? '#1d4ed8' : '#065f46'
+                            background: record.callType === 'INBOUND' ? '#f5f5f5' : '#f0fdf4',
+                            color: record.callType === 'INBOUND' ? '#000' : '#065f46'
                           }}>
                             {record.callType === 'INBOUND' ? 'Inbound' : 'Outbound'}
                           </span>
@@ -550,9 +550,9 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
               gap: '16px',
               marginBottom: '24px'
             }}>
-              <StatCard label="Total Calls" value={stats?.total || 0} icon="T" color="#6366f1" />
-              <StatCard label="Inbound" value={stats?.inbound || 0} icon="I" color="#3b82f6" />
-              <StatCard label="Outbound" value={stats?.outbound || 0} icon="O" color="#8b5cf6" />
+              <StatCard label="Total Calls" value={stats?.total || 0} icon="T" color="#000" />
+              <StatCard label="Inbound" value={stats?.inbound || 0} icon="I" color="#4a4a4a" />
+              <StatCard label="Outbound" value={stats?.outbound || 0} icon="O" color="#6b6b6b" />
               <StatCard label="Answered" value={stats?.answered || 0} icon="A" color="#10b981" />
               <StatCard label="Missed" value={stats?.missed || 0} icon="M" color="#ef4444" />
               <StatCard label="Busy" value={stats?.busy || 0} icon="B" color="#f59e0b" />

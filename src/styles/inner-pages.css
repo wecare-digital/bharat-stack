@@ -549,9 +549,9 @@
 .layout .main-content .info-banner-blue {
   margin-top: 1rem;
   padding: 1rem;
-  background: #f0f9ff;
+  background: #ECFDF5;
   border-radius: 8px;
-  border: 1px solid #bae6fd;
+  border: 1px solid #A7F3D0;
 }
 
 .layout .main-content .info-banner-blue p {
@@ -562,7 +562,7 @@
 
 .layout .main-content .info-banner-blue a {
   margin-left: 8px;
-  color: #2563eb;
+  color: #10B981;
 }
 
 /* Issue Card */
@@ -623,7 +623,7 @@
   display: inline-block;
   margin-top: 12px;
   padding: 8px 16px;
-  background: #2563eb;
+  background: #10B981;
   color: white;
   border-radius: 6px;
   font-size: 13px;
@@ -633,7 +633,7 @@
 }
 
 .layout .main-content .resolve-btn:hover {
-  background: #1d4ed8;
+  background: #059669;
 }
 
 /* Category Cards for Advisor */
@@ -1416,12 +1416,12 @@
 }
 
 .layout .main-content .stat-card.accent .stat-value {
-  color: #2563eb !important;
+  color: #10B981 !important;
 }
 
 .layout .main-content .stat-card.accent {
-  background: #eff6ff !important;
-  border-left: 4px solid #2563eb !important;
+  background: #ECFDF5 !important;
+  border-left: 4px solid #10B981 !important;
 }
 
 .layout .main-content .stat-card .status-icon {
@@ -1433,12 +1433,12 @@
 
 /* Health Status Card - Info variant */
 .layout .main-content .health-status-card.info {
-  background: #f0f9ff;
-  border-color: #bae6fd;
+  background: #ECFDF5;
+  border-color: #A7F3D0;
 }
 
 .layout .main-content .health-status-card.info h3 {
-  color: #2563eb;
+  color: #10B981;
 }
 
 .layout .main-content .health-status-card .status-icon {
@@ -1450,7 +1450,7 @@
 }
 
 .layout .main-content .health-status-card.info .status-icon {
-  color: #2563eb;
+  color: #10B981;
 }
 
 .layout .main-content .health-status-card.healthy .status-icon {

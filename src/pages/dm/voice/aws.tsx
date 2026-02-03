@@ -124,7 +124,7 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
     .call-type { font-size: 12px; color: #666; background: #e5e5e5; padding: 2px 8px; border-radius: 4px; }
     .call-meta { display: flex; gap: 12px; font-size: 12px; color: #666; }
     .call-status { padding: 2px 8px; border-radius: 4px; }
-    .call-status.initiated { background: #dbeafe; color: #1d4ed8; }
+    .call-status.initiated { background: #f5f5f5; color: #000; }
     .call-status.completed { background: #d1fae5; color: #065f46; }
     .call-status.failed { background: #f3f4f6; color: #6b7280; }
     .empty { color: #666; text-align: center; padding: 40px; }

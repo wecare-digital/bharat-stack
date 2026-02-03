@@ -2200,8 +2200,8 @@
 }
 
 .health-status-card.info {
-  background: #f0f9ff;
-  border-color: #bae6fd;
+  background: #ECFDF5;
+  border-color: #A7F3D0;
 }
 
 .health-status-card .status-icon {
@@ -2213,7 +2213,7 @@
 }
 
 .health-status-card.info .status-icon {
-  color: #2563eb;
+  color: #10b981;
 }
 
 .health-status-card h3 {
@@ -2222,7 +2222,7 @@
 }
 
 .health-status-card.info h3 {
-  color: #2563eb;
+  color: #10b981;
 }
 
 .health-status-card p {
@@ -2234,10 +2234,10 @@
 .info-banner-blue {
   margin-top: 1rem;
   padding: 1rem;
-  background: #f0f9ff;
+  background: #f0fdf4;
   border-radius: 8px;
-  border: 1px solid #bae6fd;
-  border-left: 4px solid #2563eb;
+  border: 1px solid #a7f3d0;
+  border-left: 4px solid #10b981;
 }
 
 .info-banner-blue p {
@@ -2248,7 +2248,7 @@
 
 .info-banner-blue a {
   margin-left: 8px;
-  color: #2563eb;
+  color: #10b981;
 }
 
 /* Loading State */
@@ -2298,12 +2298,12 @@
 }
 
 .stat-card.accent {
-  background: #eff6ff;
-  border-left: 4px solid #2563eb;
+  background: #ECFDF5;
+  border-left: 4px solid #10B981;
 }
 
 .stat-card.accent .stat-value {
-  color: #2563eb;
+  color: #10B981;
 }
 
 .stat-card .status-icon {

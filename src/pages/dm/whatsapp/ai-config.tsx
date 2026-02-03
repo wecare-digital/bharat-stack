@@ -539,7 +539,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
           width: 40px;
           height: 40px;
           border: 3px solid #e5e7eb;
-          border-top-color: #3b82f6;
+          border-top-color: #10b981;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 1rem;

@@ -565,18 +565,20 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                     {template.components?.find(c => c.type === 'BODY')?.text || 'No body text'}
                   </div>
                   <div className="template-actions">
-                    <button
-                      className="btn-view"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setSelectedTemplate(template)}
                     >
                       View
-                    </button>
-                    <button
-                      className="btn-delete"
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => setShowDeleteConfirm(template.name)}
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
@@ -686,12 +688,13 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                     </div>
                     <div className="scheduled-actions">
                       {msg.status === 'PENDING' && (
-                        <button 
-                          className="btn-cancel"
+                        <Button 
+                          variant="danger"
+                          size="sm"
                           onClick={() => handleCancelScheduled(msg.scheduledId)}
                         >
                           Cancel
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -867,11 +870,11 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                           placeholder="+1234567890"
                         />
                       )}
-                      <button className="btn-remove" onClick={() => removeButton(idx)}>×</button>
+                      <Button variant="ghost" size="sm" onClick={() => removeButton(idx)}>×</Button>
                     </div>
                   ))}
                   {newTemplate.buttons.length < 3 && (
-                    <button className="btn-add" onClick={addButton}>+ Add Button</button>
+                    <Button variant="ghost" size="sm" onClick={addButton}>+ Add Button</Button>
                   )}
                 </div>
               </div>
@@ -983,7 +986,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                   <div className="cards-header">
                     <label>Cards ({carouselTemplate.cards.length}/10)</label>
                     {carouselTemplate.cards.length < 10 && (
-                      <button className="btn-add-card" onClick={addCarouselCard}>+ Add Card</button>
+                      <Button variant="ghost" size="sm" onClick={addCarouselCard}>+ Add Card</Button>
                     )}
                   </div>
 
@@ -993,7 +996,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                         <div className="card-header">
                           <span className="card-number">Card {cardIdx + 1}</span>
                           {carouselTemplate.cards.length > 1 && (
-                            <button className="btn-remove-card" onClick={() => removeCarouselCard(cardIdx)}>×</button>
+                            <Button variant="ghost" size="sm" onClick={() => removeCarouselCard(cardIdx)}>×</Button>
                           )}
                         </div>
 
@@ -1022,12 +1025,13 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                             {card.headerHandle ? (
                               <div className="media-uploaded">
                                 <span className="upload-success">Media uploaded</span>
-                                <button 
-                                  className="btn-change-media"
+                                <Button 
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => updateCarouselCard(cardIdx, 'headerHandle', '')}
                                 >
                                   Change
-                                </button>
+                                </Button>
                               </div>
                             ) : (
                               <label className="upload-btn">
@@ -1774,7 +1778,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
           padding: 8px 10px;
           text-align: center;
           font-size: 12px;
-          color: #3b82f6;
+          color: #10b981;
           border-top: 1px solid #eee;
           cursor: pointer;
         }

@@ -2987,8 +2987,8 @@ pre code {
 }
 
 .api-method.get {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #ECFDF5;
+  color: #065f46;
 }
 
 .api-method.put {

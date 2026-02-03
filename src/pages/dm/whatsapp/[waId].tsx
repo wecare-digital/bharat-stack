@@ -1252,10 +1252,10 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .contact-card-hint { font-size: 11px; color: #666; }
         
         /* Interactive messages (button/list/flow replies) */
-        .interactive-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #e7f0fd; border-radius: 8px; border-left: 3px solid #3b82f6; }
+        .interactive-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #10b981; }
         .interactive-icon { font-size: 18px; }
         .interactive-content { display: flex; flex-direction: column; }
-        .interactive-label { font-size: 11px; color: #3b82f6; font-weight: 500; text-transform: uppercase; }
+        .interactive-label { font-size: 11px; color: #10b981; font-weight: 500; text-transform: uppercase; }
         .interactive-value { font-size: 14px; color: #333; }
         
         /* Order messages */
@@ -1281,15 +1281,15 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .template-text { font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
         
         /* OTP/Authentication template */
-        .otp-template .template-header { border-color: #bfdbfe; }
-        .otp-template .template-label { color: #1e40af; }
+        .otp-template .template-header { border-color: #A7F3D0; }
+        .otp-template .template-label { color: #065f46; }
         .otp-template .template-body { text-align: center; padding: 8px 0; }
-        .otp-code { font-size: 28px; font-weight: 700; font-family: monospace; letter-spacing: 4px; color: #1e40af; background: #eff6ff; padding: 12px 20px; border-radius: 8px; margin-bottom: 8px; }
+        .otp-code { font-size: 28px; font-weight: 700; font-family: monospace; letter-spacing: 4px; color: #065f46; background: #ECFDF5; padding: 12px 20px; border-radius: 8px; margin-bottom: 8px; }
         .otp-text { font-size: 13px; color: #666; }
-        .template-button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-        .template-button:hover { background: #dbeafe; border-color: #93c5fd; }
+        .template-button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .template-button:hover { background: #D1FAE5; border-color: #10B981; }
         .template-button .btn-icon { font-size: 14px; }
-        .copy-code-btn { color: #1e40af; font-weight: 500; font-size: 13px; }
+        .copy-code-btn { color: #065f46; font-weight: 500; font-size: 13px; }
         
         /* Utility template (transactional) */
         .utility-template .template-header { border-color: #d1d5db; }
@@ -1337,13 +1337,13 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         /* Welcome messages */
         .welcome-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e0f2fe; border-radius: 8px; }
         .welcome-icon { font-size: 20px; }
-        .welcome-text { font-size: 13px; color: #0369a1; }
+        .welcome-text { font-size: 13px; color: #065f46; }
         
         /* Unsupported messages */
         .unsupported-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; }
         .unsupported-icon { font-size: 16px; }
         .unsupported-text { font-size: 13px; color: #6b7280; font-style: italic; }
-        .unsupported-download { font-size: 12px; color: #3b82f6; text-decoration: none; margin-left: auto; }
+        .unsupported-download { font-size: 12px; color: #10b981; text-decoration: none; margin-left: auto; }
         .unsupported-download:hover { text-decoration: underline; }
         
         /* Generic media fallback */

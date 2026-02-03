@@ -62,39 +62,45 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
       const contactsData = await api.listContacts();
       setContacts(contactsData.filter(c => c.phone));
       
-      // Load voice calls
-      const response = await fetch(`${API_BASE}/voice-aws/calls?limit=100`);
-      if (response.ok) {
-        const data = await response.json();
-        setRecentCalls(data.calls || []);
-        
-        // Group by campaign
-        const campaignCalls = (data.calls || []).filter((c: any) => c.campaignId);
-        const campaignMap = new Map<string, CampaignLog>();
-        campaignCalls.forEach((c: any) => {
-          const cid = c.campaignId;
-          if (!campaignMap.has(cid)) {
-            campaignMap.set(cid, {
-              id: cid,
-              name: c.campaignName || cid,
-              recipients: 0,
-              completed: 0,
-              answered: 0,
-              failed: 0,
-              totalDuration: 0,
-              createdAt: new Date(c.createdAt * 1000).toISOString()
-            });
-          }
-          const camp = campaignMap.get(cid)!;
-          camp.recipients++;
-          if (c.status === 'completed' || c.status === 'answered') camp.completed++;
-          if (c.status === 'answered') camp.answered++;
-          if (c.status === 'failed' || c.status === 'no-answer') camp.failed++;
-          camp.totalDuration += c.duration || 0;
-        });
-        setCampaigns(Array.from(campaignMap.values()).sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ));
+      // Load voice calls - gracefully handle if endpoint doesn't exist
+      try {
+        const response = await fetch(`${API_BASE}/voice-aws/calls?limit=100`);
+        if (response.ok) {
+          const data = await response.json();
+          setRecentCalls(data.calls || []);
+          
+          // Group by campaign
+          const campaignCalls = (data.calls || []).filter((c: any) => c.campaignId);
+          const campaignMap = new Map<string, CampaignLog>();
+          campaignCalls.forEach((c: any) => {
+            const cid = c.campaignId;
+            if (!campaignMap.has(cid)) {
+              campaignMap.set(cid, {
+                id: cid,
+                name: c.campaignName || cid,
+                recipients: 0,
+                completed: 0,
+                answered: 0,
+                failed: 0,
+                totalDuration: 0,
+                createdAt: new Date(c.createdAt * 1000).toISOString()
+              });
+            }
+            const camp = campaignMap.get(cid)!;
+            camp.recipients++;
+            if (c.status === 'completed' || c.status === 'answered') camp.completed++;
+            if (c.status === 'answered') camp.answered++;
+            if (c.status === 'failed' || c.status === 'no-answer') camp.failed++;
+            camp.totalDuration += c.duration || 0;
+          });
+          setCampaigns(Array.from(campaignMap.values()).sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          ));
+        }
+      } catch (apiErr) {
+        console.warn('Voice calls API not available:', apiErr);
+        setRecentCalls([]);
+        setCampaigns([]);
       }
     } catch (err) {
       console.error('Load error:', err);
@@ -382,7 +388,7 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
         .logs-table .success { }
         .logs-table .error { }
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; }
-        .status-badge.initiated { background: #dbeafe; color: #1d4ed8; }
+        .status-badge.initiated { background: #f5f5f5; color: #000; }
         .status-badge.completed, .status-badge.answered { background: #D1FAE5; color: #065f46; }
         .status-badge.failed { background: #f3f4f6; color: #6b7280; }
         .audio-player audio { border-radius: 4px; }
