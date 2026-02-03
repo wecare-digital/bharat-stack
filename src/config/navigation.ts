@@ -86,24 +86,8 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/templates', label: 'Templates' },
         ]
       },
-      { 
-        path: '/dm/sms', 
-        label: 'SMS', 
-        icon: 'sms',
-        children: [
-          { path: '/dm/sms/campaign', label: 'Campaign' },
-          { path: '/dm/sms/logs', label: 'Logs' },
-        ]
-      },
-      { 
-        path: '/dm/sms-in', 
-        label: 'SMS IN', 
-        icon: 'sms',
-        children: [
-          { path: '/dm/sms-in/messages', label: 'Messages' },
-          { path: '/dm/sms-in/logs', label: 'Logs' },
-        ]
-      },
+      { path: '/dm/sms', label: 'SMS', icon: 'sms' },
+      { path: '/dm/sms-in', label: 'SMS IN', icon: 'sms' },
       { 
         path: '/dm/ses', 
         label: 'Email', 
@@ -113,37 +97,9 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/ses/logs', label: 'Logs' },
         ]
       },
-      { 
-        path: '/dm/voice', 
-        label: 'Voice', 
-        icon: 'voice',
-        children: [
-          { path: '/dm/voice/aws', label: 'AWS' },
-          { path: '/dm/voice/airtel', label: 'Airtel' },
-          { path: '/dm/voice/campaign', label: 'Campaign' },
-          { path: '/dm/voice/logs', label: 'Logs' },
-        ]
-      },
-      { 
-        path: '/dm/voice-in', 
-        label: 'Voice IN', 
-        icon: 'voice',
-        children: [
-          { path: '/dm/voice-in/calls', label: 'Calls' },
-          { path: '/dm/voice-in/logs', label: 'Logs' },
-        ]
-      },
-      { 
-        path: '/dm/rcs', 
-        label: 'RCS', 
-        icon: 'rcs',
-        children: [
-          { path: '/dm/rcs/messages', label: 'Messages' },
-          { path: '/dm/rcs/campaign', label: 'Campaign' },
-          { path: '/dm/rcs/logs', label: 'Logs' },
-        ]
-      },
-      { path: '/dm/logs', label: 'All Logs', icon: 'logs' },
+      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
+      { path: '/dm/voice-in', label: 'Voice IN', icon: 'voice' },
+      { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
     ],
   },
   {
