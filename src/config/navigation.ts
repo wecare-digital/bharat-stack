@@ -86,8 +86,24 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/templates', label: 'Templates' },
         ]
       },
-      { path: '/dm/sms', label: 'SMS', icon: 'sms' },
-      { path: '/dm/sms-in', label: 'SMS IN', icon: 'sms' },
+      { 
+        path: '/dm/sms', 
+        label: 'SMS', 
+        icon: 'sms',
+        children: [
+          { path: '/dm/sms/inbox', label: 'Inbox' },
+          { path: '/dm/sms/logs', label: 'Logs' },
+        ]
+      },
+      { 
+        path: '/dm/sms-in', 
+        label: 'SMS IN', 
+        icon: 'sms',
+        children: [
+          { path: '/dm/sms-in/inbox', label: 'Inbox' },
+          { path: '/dm/sms-in/logs', label: 'Logs' },
+        ]
+      },
       { 
         path: '/dm/ses', 
         label: 'Email', 
@@ -97,9 +113,33 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/ses/logs', label: 'Logs' },
         ]
       },
-      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
-      { path: '/dm/voice-in', label: 'Voice IN', icon: 'voice' },
-      { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
+      { 
+        path: '/dm/voice', 
+        label: 'Voice', 
+        icon: 'voice',
+        children: [
+          { path: '/dm/voice/inbox', label: 'Inbox' },
+          { path: '/dm/voice/logs', label: 'Logs' },
+        ]
+      },
+      { 
+        path: '/dm/voice-in', 
+        label: 'Voice IN', 
+        icon: 'voice',
+        children: [
+          { path: '/dm/voice-in/inbox', label: 'Inbox' },
+          { path: '/dm/voice-in/logs', label: 'Logs' },
+        ]
+      },
+      { 
+        path: '/dm/rcs', 
+        label: 'RCS', 
+        icon: 'rcs',
+        children: [
+          { path: '/dm/rcs/inbox', label: 'Inbox' },
+          { path: '/dm/rcs/logs', label: 'Logs' },
+        ]
+      },
     ],
   },
   {

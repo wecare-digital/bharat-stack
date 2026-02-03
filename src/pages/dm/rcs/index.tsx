@@ -1,5 +1,5 @@
 /**
- * RCS Index - Redirects to Messages
+ * RCS Index - Redirects to Inbox
  */
 
 import { useEffect } from 'react';
@@ -9,7 +9,7 @@ const RcsIndex = () => {
   const router = useRouter();
   
   useEffect(() => {
-    router.replace('/dm/rcs/messages');
+    router.replace('/dm/rcs/inbox');
   }, [router]);
 
   return null;

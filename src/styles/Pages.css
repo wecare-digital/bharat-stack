@@ -1765,9 +1765,12 @@
   }
 }
 
-.sidebar-header {
+.whatsapp-inbox .sidebar-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .sidebar-header h2 {
