@@ -813,40 +813,38 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               />
             </div>
             
-            {/* Pagination Controls - Below Search */}
-            {totalContactPages > 1 && (
-              <div className="contacts-pagination top">
-                <button 
-                  onClick={() => setContactsPage(1)}
-                  disabled={contactsPage === 1}
-                  title="First page"
-                >
-                  ««
-                </button>
-                <button 
-                  onClick={() => setContactsPage(p => Math.max(1, p - 1))}
-                  disabled={contactsPage === 1}
-                  title="Previous page"
-                >
-                  ‹
-                </button>
-                <span className="page-info">Page {contactsPage} of {totalContactPages}</span>
-                <button 
-                  onClick={() => setContactsPage(p => Math.min(totalContactPages, p + 1))}
-                  disabled={contactsPage === totalContactPages}
-                  title="Next page"
-                >
-                  ›
-                </button>
-                <button 
-                  onClick={() => setContactsPage(totalContactPages)}
-                  disabled={contactsPage === totalContactPages}
-                  title="Last page"
-                >
-                  »»
-                </button>
-              </div>
-            )}
+            {/* Pagination Controls - Below Search - Always visible */}
+            <div className="contacts-pagination top">
+              <button 
+                onClick={() => setContactsPage(1)}
+                disabled={contactsPage === 1}
+                title="First page"
+              >
+                ««
+              </button>
+              <button 
+                onClick={() => setContactsPage(p => Math.max(1, p - 1))}
+                disabled={contactsPage === 1}
+                title="Previous page"
+              >
+                ‹
+              </button>
+              <span className="page-info">Page {contactsPage} of {totalContactPages || 1}</span>
+              <button 
+                onClick={() => setContactsPage(p => Math.min(totalContactPages || 1, p + 1))}
+                disabled={contactsPage >= (totalContactPages || 1)}
+                title="Next page"
+              >
+                ›
+              </button>
+              <button 
+                onClick={() => setContactsPage(totalContactPages || 1)}
+                disabled={contactsPage >= (totalContactPages || 1)}
+                title="Last page"
+              >
+                »»
+              </button>
+            </div>
           </div>
           
           <div className="contacts-list">
