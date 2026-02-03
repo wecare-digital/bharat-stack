@@ -91,8 +91,6 @@ export const navigationConfig: NavItem[] = [
         label: 'SMS', 
         icon: 'sms',
         children: [
-          { path: '/dm/sms/aws', label: 'AWS' },
-          { path: '/dm/sms/airtel', label: 'Airtel' },
           { path: '/dm/sms/campaign', label: 'Campaign' },
           { path: '/dm/sms/logs', label: 'Logs' },
         ]
@@ -106,7 +104,15 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/sms-in/logs', label: 'Logs' },
         ]
       },
-      { path: '/dm/ses', label: 'Email', icon: 'email' },
+      { 
+        path: '/dm/ses', 
+        label: 'Email', 
+        icon: 'email',
+        children: [
+          { path: '/dm/ses', label: 'Inbox' },
+          { path: '/dm/ses/logs', label: 'Logs' },
+        ]
+      },
       { 
         path: '/dm/voice', 
         label: 'Voice', 
