@@ -1,5 +1,5 @@
 ﻿/**
- * SMS Index - Redirects to AWS SMS
+ * SMS Index - Redirects to SMS IN Messages
  */
 
 import { useEffect } from 'react';
@@ -9,7 +9,7 @@ const SmsIndex = () => {
   const router = useRouter();
   
   useEffect(() => {
-    router.replace('/dm/sms/aws');
+    router.replace('/dm/sms-in/messages');
   }, [router]);
 
   return null;

@@ -1,5 +1,5 @@
 /**
- * Voice Index - Redirects to AWS Voice
+ * Voice Index - Redirects to Voice IN Calls
  */
 
 import { useEffect } from 'react';
@@ -9,7 +9,7 @@ const VoiceIndex = () => {
   const router = useRouter();
   
   useEffect(() => {
-    router.replace('/dm/voice/aws');
+    router.replace('/dm/voice-in/calls');
   }, [router]);
 
   return null;
