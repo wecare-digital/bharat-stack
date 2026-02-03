@@ -612,11 +612,11 @@ const INSmsDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
     .config-card h4 { margin: 0 0 12px 0; font-size: 14px; }
     .config-card input, .config-card select { width: 100%; padding: 10px; border: 1px solid #e5e5e5; border-radius: 6px; }
     .config-hint { font-size: 12px; color: #666; margin-top: 8px; }
-    .info-box { background: #f0fdf4; padding: 16px; border-radius: 12px; border: 1px solid #bbf7d0; }
-    .info-box h4 { margin: 0 0 12px 0; color: #166534; }
+    .info-box { background: #ECFDF5; padding: 16px; border-radius: 12px; border: 1px solid #A7F3D0; }
+    .info-box h4 { margin: 0 0 12px 0; color: #065f46; }
     .info-box ul { margin: 0; padding-left: 20px; }
     .info-box li { margin-bottom: 8px; }
-    .info-box a { color: #166534; text-decoration: none; }
+    .info-box a { color: #065f46; text-decoration: none; }
     .info-box a:hover { text-decoration: underline; }
     .entity-info, .header-info, .templates-info { background: #f9f9f9; padding: 16px; border-radius: 12px; border: 1px solid #e5e5e5; margin-bottom: 20px; }
     .entity-info h4, .header-info h4, .templates-info h4 { margin: 0 0 12px 0; font-size: 14px; }

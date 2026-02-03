@@ -81,7 +81,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ className }) => {
   return (
     <nav className={`breadcrumbs ${className || ''}`} aria-label="Breadcrumb">
       <ol className="breadcrumbs-list" role="list">
-        {breadcrumbs.map((crumb, index) => (
+        {breadcrumbs.map((crumb) => (
           <li key={crumb.path} className="breadcrumbs-item">
             {!crumb.isLast ? (
               <>

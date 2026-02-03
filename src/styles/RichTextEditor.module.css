@@ -51,7 +51,7 @@
 }
 
 .toolbar-btn.has-vars {
-  color: var(--info, #6940a5);
+  color: var(--info, #10B981);
 }
 
 .toolbar-btn.ai-btn {
@@ -98,8 +98,8 @@
 
 .var-indicator {
   font-size: 13px;
-  color: var(--info, #6940a5);
-  background: var(--info-light, #f3e8ff);
+  color: var(--info, #10B981);
+  background: var(--info-light, #ECFDF5);
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
@@ -197,9 +197,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--info-light, #f3e8ff);
+  background: var(--info-light, #ECFDF5);
   border-radius: 6px;
-  color: var(--info, #6940a5);
+  color: var(--info, #10B981);
   font-weight: 600;
 }
 
@@ -568,8 +568,8 @@
 .variable-input-row label {
   font-size: 13px;
   font-weight: 600;
-  color: var(--info, #6940a5);
-  background: var(--info-light, #f3e8ff);
+  color: var(--info, #10B981);
+  background: var(--info-light, #ECFDF5);
   padding: 6px 10px;
   border-radius: 6px;
   min-width: 50px;
@@ -645,7 +645,7 @@
 /* Variable count in template list */
 .var-count {
   font-size: 13px;
-  color: var(--info, #6940a5);
+  color: var(--info, #10B981);
   font-weight: 600;
 }
 

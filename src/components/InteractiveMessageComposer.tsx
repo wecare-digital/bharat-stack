@@ -644,10 +644,10 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           align-items: center;
           gap: 8px;
           padding: 12px;
-          background: #e0f2fe;
+          background: #ECFDF5;
           border-radius: 8px;
           font-size: 13px;
-          color: #0369a1;
+          color: #065f46;
           margin-top: 16px;
         }
         .info-icon {

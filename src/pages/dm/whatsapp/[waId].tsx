@@ -1191,7 +1191,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .chat-name { font-weight: 500; }
         .chat-phone { font-size: 12px; color: #666; }
         .window-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; }
-        .window-badge.open { background: #dcfce7; color: #166534; }
+        .window-badge.open { background: #ECFDF5; color: #065f46; }
         .window-badge.closed { background: #f3f4f6; color: #6b7280; }
         .messages-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
         .message { display: flex; align-items: flex-end; gap: 4px; max-width: 70%; }
@@ -1269,8 +1269,8 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .payment-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #d1fae5; border-radius: 8px; border-left: 3px solid #10b981; }
         .payment-icon { font-size: 24px; }
         .payment-info { display: flex; flex-direction: column; }
-        .payment-label { font-size: 11px; color: #166534; font-weight: 500; text-transform: uppercase; }
-        .payment-content { font-size: 14px; color: #166534; }
+        .payment-label { font-size: 11px; color: #065f46; font-weight: 500; text-transform: uppercase; }
+        .payment-content { font-size: 14px; color: #065f46; }
         
         /* Template messages (OTP, authentication, marketing, utility) */
         .template-message { display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
@@ -1308,7 +1308,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .marketing-template .template-label { color: #065f46; }
         .marketing-template { background: #f0fdf4; margin: -8px -12px; padding: 8px 12px; border-radius: 8px; }
         .template-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto; }
-        .template-badge.urgent { background: #fce7f3; color: #be185d; }
+        .template-badge.urgent { background: #fef2f2; color: #dc2626; }
         .coupon-code { display: flex; align-items: center; gap: 8px; background: #d1fae5; padding: 8px 12px; border-radius: 6px; margin-top: 8px; cursor: pointer; border: 1px dashed #10B981; }
         .coupon-code:hover { background: #a7f3d0; }
         .coupon-label { font-size: 11px; color: #065f46; }
@@ -1322,7 +1322,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .button-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #d1fae5; border-radius: 8px; border-left: 3px solid #10b981; }
         .button-icon { font-size: 18px; }
         .button-content { display: flex; flex-direction: column; }
-        .button-text { font-size: 14px; color: #166534; }
+        .button-text { font-size: 14px; color: #065f46; }
         
         /* Reaction messages */
         .reaction-message { display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
@@ -1335,7 +1335,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .system-text { font-style: italic; }
         
         /* Welcome messages */
-        .welcome-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e0f2fe; border-radius: 8px; }
+        .welcome-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #ECFDF5; border-radius: 8px; }
         .welcome-icon { font-size: 20px; }
         .welcome-text { font-size: 13px; color: #065f46; }
         

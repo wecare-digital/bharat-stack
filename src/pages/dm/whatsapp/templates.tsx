@@ -1236,7 +1236,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .template-card.library {
-          border-left: 4px solid #2196F3;
+          border-left: 4px solid #10B981;
         }
 
         .template-header {
@@ -1941,18 +1941,18 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .rate-badge.good {
-          background: #dcfce7;
-          color: #16a34a;
+          background: #ECFDF5;
+          color: #065f46;
         }
 
         .rate-badge.ok {
-          background: #e0f2fe;
-          color: #0369a1;
+          background: #D1FAE5;
+          color: #065f46;
         }
 
         .rate-badge.bad {
-          background: #fce7f3;
-          color: #be185d;
+          background: #fef2f2;
+          color: #dc2626;
         }
 
         /* Scheduled Section Styles */
@@ -2019,18 +2019,18 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .scheduled-status .status-badge.pending {
-          background: #e0f2fe;
-          color: #0369a1;
+          background: #D1FAE5;
+          color: #065f46;
         }
 
         .scheduled-status .status-badge.sent {
-          background: #dcfce7;
-          color: #16a34a;
+          background: #ECFDF5;
+          color: #065f46;
         }
 
         .scheduled-status .status-badge.failed {
-          background: #fce7f3;
-          color: #be185d;
+          background: #fef2f2;
+          color: #dc2626;
         }
 
         .scheduled-status .status-badge.cancelled {

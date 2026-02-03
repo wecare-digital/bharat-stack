@@ -1543,7 +1543,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </Button>
 
                 {testResult && (
-                  <div style={{ padding: '1rem', background: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
+                  <div style={{ padding: '1rem', background: '#ECFDF5', borderRadius: '0.5rem', border: '1px solid #A7F3D0' }}>
                     <div style={{ fontWeight: 500, marginBottom: '0.5rem' }}>AI Response:</div>
                     <div style={{ whiteSpace: 'pre-wrap' }}>{testResult}</div>
                   </div>

@@ -194,10 +194,34 @@
 }
 
 /* ========================================
-   ICON STYLING
+   ICON STYLING - Emerald Green
    ======================================== */
 .btn svg {
   flex-shrink: 0;
+}
+
+/* Secondary button icons - emerald green */
+.btn-secondary svg {
+  color: #10B981;
+}
+
+.btn-secondary:hover:not(:disabled) svg {
+  color: #059669;
+}
+
+/* Ghost button icons - emerald green on hover */
+.btn-ghost:hover:not(:disabled) svg {
+  color: #10B981;
+}
+
+/* Primary button icons - white */
+.btn-primary svg {
+  color: #ffffff;
+}
+
+/* Danger button icons - red */
+.btn-danger svg {
+  color: #dc2626;
 }
 
 /* ========================================

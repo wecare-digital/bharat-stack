@@ -788,34 +788,65 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         {/* Contacts Sidebar */}
         <div className="contacts-sidebar">
           <div className="sidebar-header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2>WA Inbox</h2>
+            <div className="sidebar-controls">
               <button
                 onClick={() => setShowClearAllModal(true)}
                 disabled={clearing || loading}
-                title="Clear all messages and contacts"
-                style={{
-                  background: '#f0fdf4',
-                  color: '#065f46',
-                  border: '1px solid #a7f3d0',
-                  borderRadius: 6,
-                  padding: '4px 8px',
-                  fontSize: 11,
-                  cursor: clearing ? 'not-allowed' : 'pointer',
-                  opacity: clearing ? 0.6 : 1
-                }}
+                title="Delete all messages and contacts"
+                className="delete-all-btn"
               >
-                {clearing ? '...' : 'Clear All'}
+                {clearing ? '...' : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                )}
               </button>
-            </div>
-            <div className="search-box">
               <input
                 type="text"
                 placeholder="Search contacts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="contacts-search"
               />
             </div>
+            
+            {/* Pagination Controls - Below Search */}
+            {totalContactPages > 1 && (
+              <div className="contacts-pagination top">
+                <button 
+                  onClick={() => setContactsPage(1)}
+                  disabled={contactsPage === 1}
+                  title="First page"
+                >
+                  ««
+                </button>
+                <button 
+                  onClick={() => setContactsPage(p => Math.max(1, p - 1))}
+                  disabled={contactsPage === 1}
+                  title="Previous page"
+                >
+                  ‹
+                </button>
+                <span className="page-info">Page {contactsPage} of {totalContactPages}</span>
+                <button 
+                  onClick={() => setContactsPage(p => Math.min(totalContactPages, p + 1))}
+                  disabled={contactsPage === totalContactPages}
+                  title="Next page"
+                >
+                  ›
+                </button>
+                <button 
+                  onClick={() => setContactsPage(totalContactPages)}
+                  disabled={contactsPage === totalContactPages}
+                  title="Last page"
+                >
+                  »»
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="contacts-list">
@@ -867,25 +898,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             {filteredContacts.length === 0 && (
               <div style={{ padding: '20px', textAlign: 'center', color: '#8696a0' }}>
                 {searchQuery ? 'No contacts found' : 'No WhatsApp conversations yet'}
-              </div>
-            )}
-
-            {/* Pagination Controls */}
-            {totalContactPages > 1 && (
-              <div className="contacts-pagination">
-                <button 
-                  onClick={() => setContactsPage(p => Math.max(1, p - 1))}
-                  disabled={contactsPage === 1}
-                >
-                  ←
-                </button>
-                <span>{contactsPage} / {totalContactPages}</span>
-                <button 
-                  onClick={() => setContactsPage(p => Math.min(totalContactPages, p + 1))}
-                  disabled={contactsPage === totalContactPages}
-                >
-                  →
-                </button>
               </div>
             )}
           </div>

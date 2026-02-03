@@ -786,12 +786,12 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
               <div style={{
                 marginTop: '24px',
                 padding: '16px',
-                background: '#f0fdf4',
+                background: '#ECFDF5',
                 borderRadius: '8px',
-                border: '1px solid #bbf7d0'
+                border: '1px solid #A7F3D0'
               }}>
-                <div style={{ fontWeight: 600, marginBottom: '8px', color: '#166534' }}>How Click-to-Call Works:</div>
-                <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#166534', lineHeight: 1.6 }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px', color: '#065f46' }}>How Click-to-Call Works:</div>
+                <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#065f46', lineHeight: 1.6 }}>
                   <li>You (agent) receive a call on your number</li>
                   <li>Once you answer, the customer is called</li>
                   <li>Both parties are connected with optional recording</li>

@@ -334,7 +334,7 @@
 .action-card .icon {
   font-size: 24px;
   margin-bottom: 4px;
-  opacity: 0.8;
+  color: #10B981;
 }
 
 .action-card span:last-child {
@@ -1298,7 +1298,7 @@
 }
 
 .result-item .icon {
-  color: #6b6b6b;
+  color: #10B981;
 }
 
 .result-item .name {
@@ -1326,7 +1326,7 @@
 .empty-state .icon {
   font-size: 32px;
   margin-bottom: var(--space-sm);
-  opacity: 0.5;
+  color: #10B981;
 }
 
 .empty-state p {
@@ -1945,7 +1945,7 @@
 }
 
 .result-item .icon {
-  color: #000000;
+  color: #10B981;
 }
 
 .result-item .name {

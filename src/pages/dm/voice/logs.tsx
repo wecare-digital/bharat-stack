@@ -22,10 +22,14 @@ interface CallLog {
   createdAt: number;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 const VoiceLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [loading, setLoading] = useState(false);
   const [calls, setCalls] = useState<CallLog[]>([]);
   const [filter, setFilter] = useState<'all' | 'answered' | 'completed' | 'failed'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -44,10 +48,20 @@ const VoiceLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Reset page when filter or search changes
+  useEffect(() => { setCurrentPage(1); }, [filter, searchQuery]);
+
   const filteredCalls = calls.filter(c => {
-    if (filter === 'all') return true;
-    return c.status === filter;
+    const matchesFilter = filter === 'all' || c.status === filter;
+    const matchesSearch = !searchQuery || c.phone?.includes(searchQuery);
+    return matchesFilter && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredCalls.length / ITEMS_PER_PAGE);
+  const paginatedCalls = filteredCalls.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
@@ -77,26 +91,108 @@ const VoiceLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
           <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-          {(['all', 'answered', 'completed', 'failed'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: '8px 16px',
-                border: '1.5px solid #10B981',
-                borderRadius: '13px',
-                background: filter === f ? '#D1FAE5' : '#fff',
-                color: '#111827',
-                fontWeight: filter === f ? 600 : 500,
-                cursor: 'pointer',
-                textTransform: 'capitalize'
-              }}
-            >
-              {f} {f !== 'all' && `(${calls.filter(c => c.status === f).length})`}
-            </button>
-          ))}
+        {/* Search and Filter Row */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search by phone..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '13px',
+              width: '200px',
+              transition: 'all 0.15s ease'
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {(['all', 'answered', 'completed', 'failed'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: '8px 16px',
+                  border: '1.5px solid #10B981',
+                  borderRadius: '13px',
+                  background: filter === f ? '#D1FAE5' : '#fff',
+                  color: '#111827',
+                  fontWeight: filter === f ? 600 : 500,
+                  cursor: 'pointer',
+                  textTransform: 'capitalize'
+                }}
+              >
+                {f} {f !== 'all' && `(${calls.filter(c => c.status === f).length})`}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '16px' }}>
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === 1 ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === 1 ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === 1 ? '#9ca3af' : '#10B981',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.4 : 1
+              }}
+            >««</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === 1 ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === 1 ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === 1 ? '#9ca3af' : '#10B981',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.4 : 1
+              }}
+            >‹</button>
+            <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === totalPages ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === totalPages ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === totalPages ? '#9ca3af' : '#10B981',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.4 : 1
+              }}
+            >›</button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === totalPages ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === totalPages ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === totalPages ? '#9ca3af' : '#10B981',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.4 : 1
+              }}
+            >»»</button>
+          </div>
+        )}
 
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -109,7 +205,7 @@ const VoiceLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredCalls.slice(0, 100).map(c => (
+              {paginatedCalls.map(c => (
                 <tr key={c.callId} style={{ borderBottom: '1px solid #e5e7eb' }}>
                   <td style={{ padding: '12px 16px', fontSize: '14px' }}>{c.phone}</td>
                   <td style={{ padding: '12px 16px' }}>{getStatusBadge(c.status)}</td>
@@ -123,6 +219,71 @@ const VoiceLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Bottom pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === 1 ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === 1 ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === 1 ? '#9ca3af' : '#10B981',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.4 : 1
+              }}
+            >««</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === 1 ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === 1 ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === 1 ? '#9ca3af' : '#10B981',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.4 : 1
+              }}
+            >‹</button>
+            <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === totalPages ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === totalPages ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === totalPages ? '#9ca3af' : '#10B981',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.4 : 1
+              }}
+            >›</button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '28px', height: '28px',
+                background: currentPage === totalPages ? '#f9fafb' : '#ECFDF5',
+                border: `1px solid ${currentPage === totalPages ? '#e5e7eb' : '#A7F3D0'}`,
+                borderRadius: '6px', fontSize: '12px',
+                color: currentPage === totalPages ? '#9ca3af' : '#10B981',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.4 : 1
+              }}
+            >»»</button>
+          </div>
+        )}
       </div>
     </Layout>
   );
