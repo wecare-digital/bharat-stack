@@ -1,11 +1,11 @@
 /**
  * Layout Component - WECARE.DIGITAL
  */
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import SearchModal from './SearchModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import { navigationConfig, NavItem, NavSubItem } from '../config/navigation';
+import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
 import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon, SearchIcon } from '../lib/icons';
 
 interface LayoutProps {
@@ -19,6 +19,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/dashboard']));
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState('');
 
   useKeyboardShortcuts([
     { key: 'k', ctrl: true, action: () => setSearchOpen(true), description: 'Open search' },
@@ -29,6 +30,19 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
     if (path === '/') return router.pathname === '/';
     return router.pathname === path || router.pathname.startsWith(path + '/');
   };
+
+  // Get all nav items for sidebar search
+  const allNavItems = useMemo(() => getAllNavItems(), []);
+  
+  // Filter nav items based on search
+  const filteredNavItems = useMemo(() => {
+    if (!sidebarSearch.trim()) return [];
+    const query = sidebarSearch.toLowerCase();
+    return allNavItems.filter(item => 
+      item.label.toLowerCase().includes(query) ||
+      item.parent?.toLowerCase().includes(query)
+    ).slice(0, 8);
+  }, [sidebarSearch, allNavItems]);
 
   useEffect(() => {
     const newExpanded = new Set<string>(['/dashboard']); // Always keep Dashboard expanded
@@ -61,6 +75,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
     if (!iconName) return null;
     const Icon = IconMap[iconName];
     return Icon ? <Icon size={size} /> : null;
+  };
+
+  const handleSearchItemClick = (path: string) => {
+    setSidebarSearch('');
+    router.push(path);
   };
 
   const renderNavItems = (items: (NavItem | NavSubItem)[], level: number = 0) => {
@@ -115,6 +134,38 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
             </div>
           </div>
         </div>
+        
+        {/* Sidebar Search */}
+        <div className="sidebar-search">
+          <div className="sidebar-search-input-wrapper">
+            <SearchIcon size={14} />
+            <input
+              type="text"
+              placeholder="Quick search..."
+              value={sidebarSearch}
+              onChange={e => setSidebarSearch(e.target.value)}
+              className="sidebar-search-input"
+            />
+            {sidebarSearch && (
+              <button className="sidebar-search-clear" onClick={() => setSidebarSearch('')}>×</button>
+            )}
+          </div>
+          {filteredNavItems.length > 0 && (
+            <div className="sidebar-search-results">
+              {filteredNavItems.map(item => (
+                <div
+                  key={item.path}
+                  className="sidebar-search-item"
+                  onClick={() => handleSearchItemClick(item.path)}
+                >
+                  <span className="sidebar-search-item-label">{item.label}</span>
+                  {item.parent && <span className="sidebar-search-item-parent">{item.parent}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
         <nav className="sidebar-nav">
           {renderNavItems(navigationConfig)}
         </nav>

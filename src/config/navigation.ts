@@ -1,14 +1,14 @@
 /**
  * Navigation Configuration - WECARE.DIGITAL
  * Centralized sidebar navigation with nested items
- * Updated: 2026-01-29
+ * Updated: 2026-02-03
  */
 
 export interface NavSubItem {
   path: string;
   label: string;
   icon?: string;
-  children?: NavSubItem[];  // Support for nested sub-items
+  children?: NavSubItem[];
 }
 
 export interface NavItem {
@@ -28,26 +28,47 @@ export const navigationConfig: NavItem[] = [
     path: '/pay',
     label: 'Pay',
     icon: 'payment',
+    children: [
+      { path: '/pay/link', label: 'Link' },
+      { path: '/pay/wa', label: 'WhatsApp' },
+      { path: '/pay/logs', label: 'Logs' },
+    ]
   },
   {
     path: '/link',
     label: 'Link',
     icon: 'link',
+    children: [
+      { path: '/link/create', label: 'Create' },
+      { path: '/link/logs', label: 'Logs' },
+    ]
   },
   {
     path: '/forms',
     label: 'Forms',
     icon: 'form',
+    children: [
+      { path: '/forms/create', label: 'Create' },
+      { path: '/forms/logs', label: 'Logs' },
+    ]
   },
   {
     path: '/docs',
     label: 'Docs',
     icon: 'document',
+    children: [
+      { path: '/docs/create', label: 'Create' },
+      { path: '/docs/logs', label: 'Logs' },
+    ]
   },
   {
     path: '/invoice',
     label: 'Invoice',
     icon: 'invoice',
+    children: [
+      { path: '/invoice/create', label: 'Create' },
+      { path: '/invoice/logs', label: 'Logs' },
+    ]
   },
   {
     path: '/dm',
@@ -135,6 +156,23 @@ export const navigationConfig: NavItem[] = [
     icon: 'access',
   },
 ];
+
+// Flatten all navigation items for search
+export function getAllNavItems(): { path: string; label: string; parent?: string }[] {
+  const items: { path: string; label: string; parent?: string }[] = [];
+  
+  const traverse = (navItems: (NavItem | NavSubItem)[], parentLabel?: string) => {
+    for (const item of navItems) {
+      items.push({ path: item.path, label: item.label, parent: parentLabel });
+      if ('children' in item && item.children) {
+        traverse(item.children, item.label);
+      }
+    }
+  };
+  
+  traverse(navigationConfig);
+  return items;
+}
 
 /**
  * Get the parent path for a given route
