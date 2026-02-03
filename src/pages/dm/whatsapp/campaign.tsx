@@ -4,6 +4,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
+import { SkeletonTable } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES, API_BASE } from '../../../config/constants';
 import Button from '../../../components/ui/Button';
@@ -26,7 +28,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [contacts, setContacts] = useState<api.Contact[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignLog[]>([]);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const toast = useToastContext();
   const [campaignName, setCampaignName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedWaba, setSelectedWaba] = useState(WHATSAPP_PHONES.primary.id);
@@ -60,9 +62,13 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
         if (m.status === 'failed') c.failed++;
       });
       setCampaigns(Array.from(campaignMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) { console.error('Load error:', err); }
-    finally { setLoading(false); }
-  }, [selectedWaba]);
+    } catch (err) {
+      console.error('Load error:', err);
+      toast.error('Failed to load campaign data');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedWaba, toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

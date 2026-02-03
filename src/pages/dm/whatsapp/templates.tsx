@@ -17,7 +17,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
-import Toast, { useToast } from '../../../components/Toast';
+import { SkeletonCard } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import Button from '../../../components/ui/Button';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import * as api from '../../../api/client';
@@ -47,7 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const router = useRouter();
-  const toast = useToast();
+  const toast = useToastContext();
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<api.WhatsAppTemplate[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<api.MetaLibraryTemplate[]>([]);
@@ -457,7 +458,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
 
   const content = (
     <>
-      <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className={`page template-management ${embedded ? 'embedded' : ''}`}>
         {!embedded && (
           <PageHeader 
@@ -537,7 +537,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         {activeTab === 'my-templates' && (
           <div className="templates-grid">
             {loading ? (
-              <div className="loading-state">Loading templates...</div>
+              <>{Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}</>
             ) : filteredTemplates.length === 0 ? (
               <div className="empty-state">No templates found</div>
             ) : (

@@ -13,7 +13,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
-import Toast, { useToast } from '../../../components/Toast';
+import { SkeletonCard } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
@@ -44,7 +45,7 @@ const QUALITY_LABELS: Record<string, string> = {
 
 const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const router = useRouter();
-  const toast = useToast();
+  const toast = useToastContext();
   const [loading, setLoading] = useState(true);
   const [wabas, setWabas] = useState<api.WABAAccount[]>([]);
   const [selectedWaba, setSelectedWaba] = useState<api.WABAAccount | null>(null);

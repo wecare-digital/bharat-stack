@@ -7,7 +7,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
-import Toast, { useToast } from '../../../components/Toast';
+import { SkeletonContact } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import SEO, { PAGE_SEO } from '../../../components/SEO';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
@@ -156,7 +157,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const MESSAGES_PER_PAGE = 50;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const toast = useToast();
+  const toast = useToastContext();
 
   // Clear all inbox data handler
   const handleClearAllInbox = async () => {
@@ -709,7 +710,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
           noindex={true}
         />
       )}
-      <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       
       {/* Confirmation Modals */}
       <ConfirmModal
@@ -847,7 +847,13 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
           </div>
           
           <div className="contacts-list">
-            {paginatedContacts.map(contact => {
+            {loading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} style={{ padding: '12px 16px' }}>
+                  <SkeletonContact />
+                </div>
+              ))
+            ) : paginatedContacts.map(contact => {
               const wabaInfo = getWabaInfo(contact.lastWabaId);
               return (
                 <div
@@ -892,7 +898,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               );
             })}
             
-            {filteredContacts.length === 0 && (
+            {!loading && filteredContacts.length === 0 && (
               <div style={{ padding: '20px', textAlign: 'center', color: '#8696a0' }}>
                 {searchQuery ? 'No contacts found' : 'No WhatsApp conversations yet'}
               </div>

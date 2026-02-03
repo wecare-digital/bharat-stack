@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import Button from '../../../components/ui/Button';
+import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
@@ -32,7 +33,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
   const [config, setConfig] = useState<WelcomeConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const toast = useToastContext();
 
   useEffect(() => { loadConfig(); }, []);
 
@@ -43,6 +44,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
       if (data) setConfig({ ...defaultConfig, ...data });
     } catch (err) {
       console.error('Failed to load welcome config:', err);
+      toast.error('Failed to load welcome config');
     } finally {
       setLoading(false);
     }
@@ -50,12 +52,11 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
   const saveConfig = async () => {
     setSaving(true);
-    setMessage(null);
     try {
       await api.updateSystemConfig('welcome_message', config);
-      setMessage({ type: 'success', text: 'Configuration saved!' });
+      toast.success('Configuration saved!');
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to save' });
+      toast.error(err.message || 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -78,22 +79,6 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           <h1 style={{ fontSize: 22, marginBottom: 4 }}>Welcome Message</h1>
           <p style={{ color: '#666', marginBottom: 24 }}>Configure automated welcome messages</p>
         </>
-      )}
-
-      {message && (
-        <div style={{ 
-          padding: '10px 14px', 
-          borderRadius: 8, 
-          marginBottom: 16,
-          background: message.type === 'success' ? '#f5f5f5' : '#f3f4f6',
-          color: message.type === 'success' ? '#1a1a1a' : '#6b7280',
-          border: message.type === 'success' ? '1px solid #000' : '1px solid #d1d5db',
-          display: 'flex',
-          justifyContent: 'space-between'
-        }}>
-          {message.text}
-          <button onClick={() => setMessage(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>x</button>
-        </div>
       )}
 
       <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: embedded ? 'none' : '0 1px 3px rgba(0,0,0,0.08)' }}>

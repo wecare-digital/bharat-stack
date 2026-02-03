@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import Button from '../../../components/ui/Button';
+import { SkeletonTable } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -29,6 +31,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [directionFilter, setDirectionFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const toast = useToastContext();
 
   useEffect(() => {
     loadMessageLogs();
@@ -50,6 +53,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       setLogs(messageLogs);
     } catch (err) {
       console.error('Failed to load message logs:', err);
+      toast.error('Failed to load message logs');
     } finally {
       setLoading(false);
     }
