@@ -1594,12 +1594,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                       { event: 'payment.captured', desc: 'Payment successful', color: '#10b981' },
                       { event: 'payment.failed', desc: 'Payment failed', color: '#ef4444' },
                       { event: 'payment.authorized', desc: 'Payment authorized', color: '#10b981' },
-                      { event: 'refund.created', desc: 'Refund initiated', color: '#f59e0b' },
+                      { event: 'refund.created', desc: 'Refund initiated', color: '#6b7280' },
                       { event: 'refund.processed', desc: 'Refund completed', color: '#10b981' },
                       { event: 'order.paid', desc: 'Order paid', color: '#10b981' },
-                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#8b5cf6' },
+                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#10b981' },
                       { event: 'payment.dispute.*', desc: 'Dispute events', color: '#ef4444' },
-                      { event: 'settlement.*', desc: 'Settlement events', color: '#06b6d4' },
+                      { event: 'settlement.*', desc: 'Settlement events', color: '#10b981' },
                     ].map(({ event, desc, color }) => (
                       <div key={event} style={{ background: '#D1FAE5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
