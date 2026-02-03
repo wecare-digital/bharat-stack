@@ -22,10 +22,10 @@ const Pagination: React.FC<PaginationProps> = ({
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     width: '28px', height: '28px',
-    background: disabled ? '#f9fafb' : '#ECFDF5',
-    border: `1px solid ${disabled ? '#e5e7eb' : '#A7F3D0'}`,
+    background: disabled ? '#f9fafb' : '#f5f5f5',
+    border: `1px solid ${disabled ? '#e5e7eb' : '#e5e5e5'}`,
     borderRadius: '6px', fontSize: '12px',
-    color: disabled ? '#9ca3af' : '#10B981',
+    color: disabled ? '#9ca3af' : '#000',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.4 : 1,
     transition: 'all 0.15s ease',
@@ -35,7 +35,7 @@ const Pagination: React.FC<PaginationProps> = ({
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
       <button onClick={() => onPageChange(1)} disabled={currentPage === 1} style={btnStyle(currentPage === 1)}>««</button>
       <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} style={btnStyle(currentPage === 1)}>‹</button>
-      {showInfo && <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {pages}</span>}
+      {showInfo && <span style={{ fontSize: '12px', color: '#374151', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {pages}</span>}
       <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= pages} style={btnStyle(currentPage >= pages)}>›</button>
       <button onClick={() => onPageChange(pages)} disabled={currentPage >= pages} style={btnStyle(currentPage >= pages)}>»»</button>
     </div>
