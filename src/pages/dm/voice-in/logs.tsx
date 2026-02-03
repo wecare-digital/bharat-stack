@@ -54,37 +54,39 @@ const VoiceInLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO title="Voice IN Logs | WECARE.DIGITAL" description="Inbound voice call logs" />
-      <div style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>Voice IN - Logs</h2>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+      <div className="inner-page-container">
+        <div className="inner-page-header">
+          <div className="inner-page-header-content">
+            <h1 className="inner-page-title">Voice IN - Logs</h1>
+          </div>
+          <div className="inner-page-actions">
+            <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+          </div>
         </div>
 
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="table-container">
+          <table className="inner-table">
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Call ID</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>From</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Duration</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Date</th>
+              <tr>
+                <th>Call ID</th>
+                <th>From</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Date</th>
               </tr>
             </thead>
             <tbody>
               {calls.slice(0, 100).map(c => (
-                <tr key={c.callId} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', fontFamily: 'monospace', color: '#6b7280' }}>{c.callId?.slice(0, 12)}...</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{c.from}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: '#ECFDF5', color: '#065f46' }}>{c.status}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{formatDuration(c.duration)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{new Date(c.timestamp).toLocaleString()}</td>
+                <tr key={c.callId}>
+                  <td className="text-mono text-muted">{c.callId?.slice(0, 12)}...</td>
+                  <td>{c.from}</td>
+                  <td><span className="status-badge success">{c.status}</span></td>
+                  <td>{formatDuration(c.duration)}</td>
+                  <td className="text-muted">{new Date(c.timestamp).toLocaleString()}</td>
                 </tr>
               ))}
               {calls.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>No inbound call logs</td></tr>
+                <tr><td colSpan={5} className="empty-row">No inbound call logs</td></tr>
               )}
             </tbody>
           </table>

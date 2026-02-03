@@ -36,35 +36,37 @@ const SmsInLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO title="SMS IN Logs | WECARE.DIGITAL" description="Inbound SMS logs" />
-      <div style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>SMS IN - Logs</h2>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+      <div className="inner-page-container">
+        <div className="inner-page-header">
+          <div className="inner-page-header-content">
+            <h1 className="inner-page-title">SMS IN - Logs</h1>
+          </div>
+          <div className="inner-page-actions">
+            <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+          </div>
         </div>
 
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="table-container">
+          <table className="inner-table">
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>From</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Message</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Date</th>
+              <tr>
+                <th>From</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Date</th>
               </tr>
             </thead>
             <tbody>
               {messages.slice(0, 100).map(m => (
-                <tr key={m.messageId} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{m.contactId}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: '#ECFDF5', color: '#065f46' }}>received</span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{new Date(m.timestamp).toLocaleString()}</td>
+                <tr key={m.messageId}>
+                  <td>{m.contactId}</td>
+                  <td className="text-truncate">{m.content}</td>
+                  <td><span className="status-badge success">received</span></td>
+                  <td className="text-muted">{new Date(m.timestamp).toLocaleString()}</td>
                 </tr>
               ))}
               {messages.length === 0 && (
-                <tr><td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>No inbound SMS logs</td></tr>
+                <tr><td colSpan={4} className="empty-row">No inbound SMS logs</td></tr>
               )}
             </tbody>
           </table>

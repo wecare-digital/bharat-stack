@@ -7,19 +7,22 @@ import SearchModal from './SearchModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
 import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon } from '../lib/icons';
+import { Breadcrumbs, KeyboardShortcuts, useKeyboardShortcutsModal } from './ui';
 
 interface LayoutProps {
   children: ReactNode;
   user?: any;
   onSignOut?: () => void;
+  showBreadcrumbs?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
+const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcrumbs = true }) => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/dashboard']));
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const shortcutsModal = useKeyboardShortcutsModal();
 
   useKeyboardShortcuts([
     { key: 'k', ctrl: true, action: () => setSearchOpen(true), description: 'Open search' },
@@ -179,8 +182,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         </div>
       </aside>
       {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
-      <main className="main-content">{children}</main>
+      <main className="main-content">
+        {showBreadcrumbs && <Breadcrumbs />}
+        {children}
+      </main>
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <KeyboardShortcuts isOpen={shortcutsModal.isOpen} onClose={shortcutsModal.close} />
     </div>
   );
 };
