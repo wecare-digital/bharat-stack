@@ -143,7 +143,6 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
           <Breadcrumbs />
           <div className="inbox-header-content">
             <div className="inbox-title">
-              <span className="inbox-icon">↙</span>
               <div>
                 <h1>SMS IN Inbox</h1>
                 <span className="inbox-subtitle">Inbound Messages</span>
@@ -247,7 +246,6 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
               </>
             ) : (
               <div className="no-selection">
-                <div className="no-selection-icon">↙</div>
                 <p>Select a contact</p>
                 <small>Choose a contact to view inbound messages</small>
               </div>

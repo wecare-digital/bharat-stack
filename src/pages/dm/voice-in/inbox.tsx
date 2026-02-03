@@ -159,7 +159,6 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
           <Breadcrumbs />
           <div className="inbox-header-content">
             <div className="inbox-title">
-              <span className="inbox-icon">↙</span>
               <div>
                 <h1>Voice IN Inbox</h1>
                 <span className="inbox-subtitle">Inbound Calls</span>
@@ -267,7 +266,6 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
               </>
             ) : (
               <div className="no-selection">
-                <div className="no-selection-icon">↙</div>
                 <p>Select a contact</p>
                 <small>Choose a contact to view inbound call history</small>
               </div>
