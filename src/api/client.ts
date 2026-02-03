@@ -810,6 +810,105 @@ function normalizeVoiceCall(item: any): VoiceCall {
 
 
 // ============================================================================
+// SMS AWS API (Pinpoint/SNS)
+// ============================================================================
+
+export interface SmsAwsMessage {
+  messageId: string;
+  contactId: string;
+  phoneNumber: string;
+  content: string;
+  status: string;
+  direction: string;
+  messageType: string;
+  senderId?: string;
+  providerMessageId?: string;
+  timestamp: number;
+  createdAt: number;
+}
+
+export interface SendSmsAwsRequest {
+  contactId?: string;
+  phoneNumber?: string;
+  content: string;
+  messageType?: 'TRANSACTIONAL' | 'PROMOTIONAL';
+  senderId?: string;
+}
+
+export async function listSmsAwsMessages(contactId?: string, status?: string): Promise<SmsAwsMessage[]> {
+  let url = `${API_BASE}/sms-aws/messages`;
+  const params = new URLSearchParams();
+  if (contactId) params.append('contactId', contactId);
+  if (status) params.append('status', status);
+  if (params.toString()) url += `?${params}`;
+  
+  const data = await apiCall<any>(url);
+  if (data) {
+    return data.messages || [];
+  }
+  return [];
+}
+
+export async function sendSmsAws(request: SendSmsAwsRequest): Promise<{ messageId: string; status: string; providerMessageId?: string } | null> {
+  return apiCall<{ messageId: string; status: string; providerMessageId?: string }>(`${API_BASE}/sms-aws/send`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+
+// ============================================================================
+// VOICE AWS API (Connect/Polly)
+// ============================================================================
+
+export interface VoiceAwsCall {
+  id: string;
+  callId: string;
+  contactId: string;
+  phoneNumber: string;
+  callType: 'tts' | 'audio';
+  status: string;
+  direction: string;
+  duration: number;
+  voiceId?: string;
+  messageText?: string;
+  connectContactId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface MakeVoiceAwsCallRequest {
+  contactId?: string;
+  phoneNumber?: string;
+  callType: 'tts' | 'audio';
+  messageText?: string;
+  voiceId?: string;
+  audioUrl?: string;
+}
+
+export async function listVoiceAwsCalls(contactId?: string, status?: string): Promise<VoiceAwsCall[]> {
+  let url = `${API_BASE}/voice-aws/calls`;
+  const params = new URLSearchParams();
+  if (contactId) params.append('contactId', contactId);
+  if (status) params.append('status', status);
+  if (params.toString()) url += `?${params}`;
+  
+  const data = await apiCall<any>(url);
+  if (data) {
+    return data.calls || [];
+  }
+  return [];
+}
+
+export async function makeVoiceAwsCall(request: MakeVoiceAwsCallRequest): Promise<{ callId: string; status: string; providerCallId?: string } | null> {
+  return apiCall<{ callId: string; status: string; providerCallId?: string }>(`${API_BASE}/voice-aws/call`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+
+// ============================================================================
 // DLQ API
 // ============================================================================
 

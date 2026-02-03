@@ -1799,10 +1799,20 @@
   flex-shrink: 0;
 }
 
+.delete-all-btn svg {
+  color: inherit;
+  stroke: currentColor;
+}
+
 .delete-all-btn:hover {
   background: #fef2f2;
   border-color: #dc2626;
   color: #dc2626;
+}
+
+.delete-all-btn:hover svg {
+  color: #dc2626;
+  stroke: #dc2626;
 }
 
 .delete-all-btn:disabled {

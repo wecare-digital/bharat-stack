@@ -136,16 +136,16 @@ const VoiceInCallsPage: React.FC<PageProps> = ({ signOut, user }) => {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '40px', height: '40px',
-              background: '#ECFDF5',
-              border: '1.5px solid #A7F3D0',
+              background: selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5',
+              border: `1.5px solid ${selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'}`,
               borderRadius: '10px',
               cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer',
               opacity: selectedIds.size === 0 ? 0.5 : 1,
               transition: 'all 0.15s ease',
-              color: '#10B981'
+              color: selectedIds.size === 0 ? '#9ca3af' : '#10B981'
             }}
             onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}}
-            onMouseLeave={e => { e.currentTarget.style.background = '#ECFDF5'; e.currentTarget.style.borderColor = '#A7F3D0'; e.currentTarget.style.color = '#10B981'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#10B981'; }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
