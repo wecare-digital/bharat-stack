@@ -306,10 +306,10 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
         {callResult && (
           <div style={{
             padding: '12px 16px',
-            background: callResult.success ? '#d1fae5' : '#fef2f2',
-            border: `1px solid ${callResult.success ? '#a7f3d0' : '#fecaca'}`,
+            background: callResult.success ? '#d1fae5' : '#f3f4f6',
+            border: `1px solid ${callResult.success ? '#a7f3d0' : '#d1d5db'}`,
             borderRadius: '8px',
-            color: callResult.success ? '#065f46' : '#dc2626',
+            color: callResult.success ? '#065f46' : '#6b7280',
             marginBottom: '16px',
             display: 'flex',
             justifyContent: 'space-between',
@@ -385,10 +385,10 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
             {error && (
               <div style={{
                 padding: '12px 16px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
+                background: '#f3f4f6',
+                border: '1px solid #d1d5db',
                 borderRadius: '8px',
-                color: '#dc2626',
+                color: '#6b7280',
                 marginBottom: '16px'
               }}>
                 {error}
@@ -443,8 +443,8 @@ const AirtelVoiceCDR: React.FC<PageProps> = ({ signOut, user, embedded = false }
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: 500,
-                            background: record.callType === 'INBOUND' ? '#dbeafe' : '#fef3c7',
-                            color: record.callType === 'INBOUND' ? '#1d4ed8' : '#92400e'
+                            background: record.callType === 'INBOUND' ? '#dbeafe' : '#f0fdf4',
+                            color: record.callType === 'INBOUND' ? '#1d4ed8' : '#065f46'
                           }}>
                             {record.callType === 'INBOUND' ? 'Inbound' : 'Outbound'}
                           </span>

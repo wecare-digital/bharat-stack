@@ -2811,17 +2811,72 @@ export async function clearAllInboxData(): Promise<{
   messagesFailed: number;
   contactsDeleted: number;
   contactsFailed: number;
+  smsDeleted: number;
+  voiceDeleted: number;
 }> {
-  // First clear messages
-  const msgResult = await clearAllWhatsAppMessages();
-  
-  // Then clear contacts
+  let totalMessagesDeleted = 0;
+  let totalMessagesFailed = 0;
+  let smsDeleted = 0;
+  let voiceDeleted = 0;
+
+  // 1. Clear WhatsApp messages
+  console.log('Clearing WhatsApp messages...');
+  const whatsappResult = await clearAllWhatsAppMessages();
+  totalMessagesDeleted += whatsappResult.deleted;
+  totalMessagesFailed += whatsappResult.failed;
+
+  // 2. Clear SMS messages (both inbound and outbound)
+  console.log('Clearing SMS messages...');
+  try {
+    const smsMessages = await listMessages(undefined, 'SMS');
+    console.log(`Found ${smsMessages.length} SMS messages to delete`);
+    for (const msg of smsMessages) {
+      const result = await deleteMessage(msg.id, msg.direction);
+      if (result) {
+        smsDeleted++;
+        totalMessagesDeleted++;
+      } else {
+        totalMessagesFailed++;
+      }
+    }
+  } catch (error) {
+    console.error('Error clearing SMS messages:', error);
+  }
+
+  // 3. Clear Voice call records
+  console.log('Clearing Voice call records...');
+  try {
+    const voiceCalls = await listVoiceCalls();
+    console.log(`Found ${voiceCalls.length} voice calls to delete`);
+    for (const call of voiceCalls) {
+      try {
+        // Try to delete voice call record via API
+        const response = await apiCall<any>(`${API_BASE}/voice/calls/${call.id}`, {
+          method: 'DELETE',
+        });
+        if (response) {
+          voiceDeleted++;
+        }
+      } catch (e) {
+        console.warn(`Failed to delete voice call ${call.id}:`, e);
+      }
+    }
+  } catch (error) {
+    console.error('Error clearing voice calls:', error);
+  }
+
+  // 4. Clear all contacts (this also triggers media cleanup on backend)
+  console.log('Clearing contacts...');
   const contactResult = await clearAllContacts();
-  
+
+  console.log(`Clear all complete: ${totalMessagesDeleted} messages, ${smsDeleted} SMS, ${voiceDeleted} voice calls, ${contactResult.deleted} contacts`);
+
   return {
-    messagesDeleted: msgResult.deleted,
-    messagesFailed: msgResult.failed,
+    messagesDeleted: totalMessagesDeleted,
+    messagesFailed: totalMessagesFailed,
     contactsDeleted: contactResult.deleted,
     contactsFailed: contactResult.failed,
+    smsDeleted,
+    voiceDeleted,
   };
 }

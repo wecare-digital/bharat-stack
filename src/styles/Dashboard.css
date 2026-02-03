@@ -635,34 +635,35 @@
 
 .delete-options button {
   padding: 10px 16px;
-  border: 1px solid var(--notion-border);
+  border: 1.5px solid #d1d5db;
   background: var(--notion-bg);
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  color: var(--notion-text);
+  color: #374151;
 }
 
 .delete-options button:hover {
-  background: var(--notion-bg-secondary);
-  border-color: var(--notion-border-dark);
+  background: #f0fdf4;
+  border-color: #10B981;
+  color: #065f46;
 }
 
 .delete-options button.active {
-  background: var(--notion-text);
-  color: var(--notion-bg);
-  border-color: var(--notion-text);
+  background: #10B981;
+  color: #ffffff;
+  border-color: #10B981;
 }
 
 .delete-options button.danger {
-  color: var(--accent-red);
-  border-color: var(--accent-red);
+  color: #065f46;
+  border-color: #10B981;
 }
 
 .delete-options button.danger.active {
-  background: var(--accent-red);
+  background: #10B981;
   color: white;
 }
 
@@ -675,17 +676,18 @@
 }
 
 .delete-panel.danger {
-  border-color: var(--accent-red);
+  border-color: #10B981;
   border-width: 2px;
 }
 
 .delete-panel .warning {
   padding: 10px 12px;
-  background: #fef3c7;
+  background: #f0fdf4;
   border-radius: var(--radius-sm);
-  color: #92400e;
+  color: #065f46;
   font-size: 12px;
   margin-bottom: var(--space-md);
+  border: 1px solid #a7f3d0;
 }
 
 .delete-panel .form-row {
@@ -1031,7 +1033,7 @@
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: #000000;
+  background: #10B981;
   color: white;
   border: none;
   border-radius: var(--radius-sm);
@@ -1043,7 +1045,12 @@
 }
 
 .btn-primary:hover {
-  background: #333333;
+  background: #059669;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* AI Tab */

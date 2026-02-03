@@ -1695,9 +1695,9 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-remove-card {
-          background: #fee2e2;
-          color: #dc2626;
-          border: none;
+          background: #f0fdf4;
+          color: #065f46;
+          border: 1px solid #a7f3d0;
           width: 28px;
           height: 28px;
           border-radius: 6px;
@@ -1706,7 +1706,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-remove-card:hover {
-          background: #fecaca;
+          background: #d1fae5;
+          border-color: #10B981;
         }
 
         .card-media {
@@ -2019,13 +2020,13 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .rate-badge.ok {
-          background: #fef3c7;
-          color: #d97706;
+          background: #e0f2fe;
+          color: #0369a1;
         }
 
         .rate-badge.bad {
-          background: #fee2e2;
-          color: #dc2626;
+          background: #fce7f3;
+          color: #be185d;
         }
 
         /* Scheduled Section Styles */
@@ -2092,8 +2093,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .scheduled-status .status-badge.pending {
-          background: #fef3c7;
-          color: #d97706;
+          background: #e0f2fe;
+          color: #0369a1;
         }
 
         .scheduled-status .status-badge.sent {
@@ -2102,8 +2103,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .scheduled-status .status-badge.failed {
-          background: #fee2e2;
-          color: #dc2626;
+          background: #fce7f3;
+          color: #be185d;
         }
 
         .scheduled-status .status-badge.cancelled {

@@ -352,10 +352,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const lastMessageCount = useRef(0);
 
   // Delete state
-  const [deleteMode, setDeleteMode] = useState<'messages' | 'hard' | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'messages' | 'hard' | 'clearAll' | null>(null);
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
   
   // Billing expanded rows
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
@@ -433,7 +435,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const handleHardDelete = async () => {
-    if (!selectedContact || confirmText !== 'DELETE') return;
+    if (!selectedContact) return;
+    setShowHardDeleteModal(false);
     setDeleting(true);
     try {
       await api.hardDeleteContact(selectedContact);
@@ -443,6 +446,24 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       await loadData();
     } catch (err) {
       console.error('Delete error:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Clear ALL data across all channels - SMS, Voice, WhatsApp, S3, etc.
+  const handleClearAllData = async () => {
+    setShowClearAllModal(false);
+    setDeleting(true);
+    try {
+      // Clear all inbox data (messages + contacts)
+      const result = await api.clearAllInboxData();
+      console.log('Clear all result:', result);
+      setDeleteMode(null);
+      setConfirmText('');
+      await loadData();
+    } catch (err) {
+      console.error('Clear all error:', err);
     } finally {
       setDeleting(false);
     }
@@ -597,6 +618,70 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     ? filteredMessages.filter(m => m.contactId === selectedContact)
     : filteredMessages;
 
+  // Confirmation Modal Component
+  const ConfirmModal = ({ 
+    isOpen, 
+    title, 
+    message, 
+    confirmText = 'Confirm',
+    confirmInput,
+    onConfirm, 
+    onCancel 
+  }: {
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode;
+    confirmText?: string;
+    confirmInput?: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) => {
+    const [inputValue, setInputValue] = React.useState('');
+    
+    React.useEffect(() => {
+      if (!isOpen) setInputValue('');
+    }, [isOpen]);
+    
+    if (!isOpen) return null;
+    
+    const canConfirm = !confirmInput || inputValue === confirmInput;
+    
+    return (
+      <div className="confirm-modal-overlay" onClick={onCancel}>
+        <div className="confirm-modal" onClick={e => e.stopPropagation()}>
+          <div className="confirm-modal-header">
+            <h3>{title}</h3>
+          </div>
+          <div className="confirm-modal-body">
+            {message}
+            {confirmInput && (
+              <div className="confirm-input-wrapper">
+                <label>Type "{confirmInput}" to confirm:</label>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={e => setInputValue(e.target.value)}
+                  placeholder={confirmInput}
+                  autoFocus
+                />
+              </div>
+            )}
+          </div>
+          <div className="confirm-modal-footer">
+            <button className="confirm-modal-cancel" onClick={onCancel}>Cancel</button>
+            <button 
+              className="confirm-modal-confirm"
+              onClick={onConfirm}
+              disabled={!canConfirm}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO 
@@ -606,6 +691,56 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         canonical="/dashboard"
         noindex={true}
       />
+      
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={showHardDeleteModal}
+        title="Hard Delete Contact"
+        message={
+          <div>
+            <p>This will permanently delete:</p>
+            <ul style={{ margin: '8px 0 8px 20px', lineHeight: 1.6 }}>
+              <li>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</li>
+              <li>{contactMessages.length} messages</li>
+              <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
+            </ul>
+            <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+          </div>
+        }
+        confirmInput="DELETE"
+        confirmText="Hard Delete"
+        onConfirm={handleHardDelete}
+        onCancel={() => setShowHardDeleteModal(false)}
+      />
+      
+      <ConfirmModal
+        isOpen={showClearAllModal}
+        title="Clear All Data"
+        message={
+          <div>
+            <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>
+              ⚠️ WARNING: This will permanently delete ALL data:
+            </p>
+            <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
+              <li>All WhatsApp messages (inbound & outbound)</li>
+              <li>All SMS messages (inbound & outbound)</li>
+              <li>All SMS IN messages</li>
+              <li>All Voice call records (inbound & outbound)</li>
+              <li>All Voice IN call records</li>
+              <li>All {contacts.length} contacts</li>
+              <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
+            </ul>
+            <p style={{ color: '#065f46', fontWeight: 500 }}>
+              This action cannot be undone!
+            </p>
+          </div>
+        }
+        confirmInput="DELETE ALL"
+        confirmText="Clear Everything"
+        onConfirm={handleClearAllData}
+        onCancel={() => setShowClearAllModal(false)}
+      />
+      
       <div className="dash">
         {/* Header */}
         <header className="dash-header">
@@ -858,10 +993,16 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   ◫ Delete Messages
                 </button>
                 <button 
-                  className={`danger ${deleteMode === 'hard' ? 'active' : ''}`}
+                  className={deleteMode === 'hard' ? 'active' : ''}
                   onClick={() => setDeleteMode(deleteMode === 'hard' ? null : 'hard')}
                 >
-                  ⊗ Hard Delete
+                  ⊗ Hard Delete Contact
+                </button>
+                <button 
+                  className={deleteMode === 'clearAll' ? 'active' : ''}
+                  onClick={() => setDeleteMode(deleteMode === 'clearAll' ? null : 'clearAll')}
+                >
+                  ⊘ Clear All Data
                 </button>
               </div>
 
@@ -904,7 +1045,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   
                   <div className="delete-actions">
                     <button className="btn-secondary" onClick={() => { setDeleteMode(null); setSelectedMessages([]); }}>Cancel</button>
-                    <button className="btn-danger" onClick={handleDeleteMessages} disabled={deleting || selectedMessages.length === 0}>
+                    <button className="btn-primary" onClick={handleDeleteMessages} disabled={deleting || selectedMessages.length === 0}>
                       {deleting ? '...' : `Delete ${selectedMessages.length}`}
                     </button>
                   </div>
@@ -912,8 +1053,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               )}
 
               {deleteMode === 'hard' && (
-                <div className="delete-panel danger">
-                  <div className="warning">⚠ Permanently deletes contact, messages, and media files!</div>
+                <div className="delete-panel">
+                  <div className="warning">This will permanently delete the contact, all their messages, and media files.</div>
                   
                   <div className="form-row">
                     <label>Select Contact</label>
@@ -926,22 +1067,46 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   
                   {selectedContact && (
-                    <>
-                      <div className="preview">
-                        <p>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</p>
-                        <p>{contactMessages.length} messages, {contactMessages.filter(m => m.s3Key).length} media</p>
-                      </div>
-                      <div className="form-row">
-                        <label>Type DELETE to confirm:</label>
-                        <input type="text" value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DELETE" />
-                      </div>
-                    </>
+                    <div className="preview">
+                      <p>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</p>
+                      <p>{contactMessages.length} messages, {contactMessages.filter(m => m.s3Key).length} media files</p>
+                    </div>
                   )}
                   
                   <div className="delete-actions">
-                    <button className="btn-secondary" onClick={() => { setDeleteMode(null); setSelectedContact(''); setConfirmText(''); }}>Cancel</button>
-                    <button className="btn-danger hard" onClick={handleHardDelete} disabled={deleting || confirmText !== 'DELETE'}>
+                    <button className="btn-secondary" onClick={() => { setDeleteMode(null); setSelectedContact(''); }}>Cancel</button>
+                    <button className="btn-primary" onClick={() => setShowHardDeleteModal(true)} disabled={deleting || !selectedContact}>
                       {deleting ? '...' : 'Hard Delete'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {deleteMode === 'clearAll' && (
+                <div className="delete-panel">
+                  <div className="warning">
+                    This will permanently delete ALL data including:
+                    <ul style={{ margin: '8px 0 0 16px', fontSize: '12px' }}>
+                      <li>All WhatsApp messages (inbound & outbound)</li>
+                      <li>All SMS messages (inbound & outbound)</li>
+                      <li>All SMS IN messages</li>
+                      <li>All Voice call records (inbound & outbound)</li>
+                      <li>All Voice IN call records</li>
+                      <li>All contacts</li>
+                      <li>All media files from S3</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="preview">
+                    <p>Total Contacts: {contacts.length}</p>
+                    <p>Total Messages: {messages.length}</p>
+                    <p>Media Files: {messages.filter(m => m.s3Key).length}</p>
+                  </div>
+                  
+                  <div className="delete-actions">
+                    <button className="btn-secondary" onClick={() => setDeleteMode(null)}>Cancel</button>
+                    <button className="btn-primary" onClick={() => setShowClearAllModal(true)} disabled={deleting}>
+                      {deleting ? '...' : 'Clear All Data'}
                     </button>
                   </div>
                 </div>
@@ -973,9 +1138,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               )}
 
               {!loading && !billingData && (
-                <div style={{ background: '#fef3c7', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #fcd34d' }}>
+                <div style={{ background: '#f0fdf4', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #a7f3d0' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
-                  <h3 style={{ color: '#d97706', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
+                  <h3 style={{ color: '#065f46', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
                   <p style={{ color: '#6b7280', margin: 0 }}>Check API connection or try refreshing.</p>
                 </div>
               )}

@@ -38,6 +38,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formAllowlistSms, setFormAllowlistSms] = useState(false);
   const [formAllowlistEmail, setFormAllowlistEmail] = useState(false);
   
+  // Delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
+  const [deleteContactName, setDeleteContactName] = useState('');
+  
   // Contacts state
   const [contacts, setContacts] = useState<api.Contact[]>([]);
 
@@ -171,7 +175,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const handleDelete = async (contactId: string) => {
-    if (!confirm('Are you sure you want to delete this contact?')) return;
+    setShowDeleteModal(null);
     
     try {
       const result = await api.deleteContact(contactId);
@@ -184,6 +188,11 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       console.error('Delete error:', err);
       setError('Failed to delete contact');
     }
+  };
+
+  const openDeleteModal = (contact: api.Contact) => {
+    setShowDeleteModal(contact.contactId);
+    setDeleteContactName(contact.name || contact.phone || 'this contact');
   };
 
   return (
@@ -282,7 +291,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       <div className="action-buttons">
                         <button className="btn-icon" title="Edit" onClick={() => handleEdit(contact)}>Edit</button>
                         <button className="btn-icon" title="Message" onClick={() => window.location.href = '/messaging'}>Msg</button>
-                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={() => handleDelete(contact.contactId)}>Del</button>
+                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={() => openDeleteModal(contact)}>Del</button>
                       </div>
                     </td>
                   </tr>
@@ -419,6 +428,27 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 <button className="btn-primary" onClick={handleUpdate} disabled={(!formPhone && !formEmail) || saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="confirm-modal-overlay" onClick={() => setShowDeleteModal(null)}>
+            <div className="confirm-modal" onClick={e => e.stopPropagation()}>
+              <div className="confirm-modal-header">
+                <h3>Delete Contact</h3>
+              </div>
+              <div className="confirm-modal-body">
+                <p>Are you sure you want to delete "{deleteContactName}"?</p>
+                <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '8px' }}>
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="confirm-modal-footer">
+                <button className="confirm-modal-cancel" onClick={() => setShowDeleteModal(null)}>Cancel</button>
+                <button className="confirm-modal-confirm" onClick={() => handleDelete(showDeleteModal)}>Delete</button>
               </div>
             </div>
           </div>

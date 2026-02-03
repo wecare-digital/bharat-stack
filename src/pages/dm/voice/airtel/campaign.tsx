@@ -297,13 +297,13 @@ const VoiceInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         .campaign-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .campaign-header h2 { margin: 0; font-size: 20px; }
         .refresh-btn { padding: 8px 12px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; cursor: pointer; }
-        .info-banner { display: flex; gap: 12px; align-items: center; background: #fef3c7; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #92400e; }
+        .info-banner { display: flex; gap: 12px; align-items: center; background: #f0fdf4; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #065f46; border: 1px solid #a7f3d0; }
         .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
         .sub-tab { padding: 8px 16px; border: 1px solid #e5e5e5; border-radius: 6px; background: white; cursor: pointer; font-size: 13px; }
-        .sub-tab.active { background: #f5f5f5; font-weight: 600; }
+        .sub-tab.active { background: #f0fdf4; font-weight: 600; border-color: #10B981; }
         .msg-bar { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; font-size: 13px; }
         .msg-bar.success { background: #d1fae5; color: #065f46; }
-        .msg-bar.error { background: #fef2f2; color: #dc2626; }
+        .msg-bar.error { background: #f3f4f6; color: #6b7280; }
         .msg-bar button { background: none; border: none; font-size: 18px; cursor: pointer; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
         .form-group { margin-bottom: 16px; }
@@ -320,18 +320,19 @@ const VoiceInCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         .select-all-btn { padding: 8px 12px; background: white; border: 1px solid #e5e5e5; border-radius: 6px; cursor: pointer; font-size: 13px; }
         .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; max-height: 250px; overflow-y: auto; }
         .contact-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: white; border: 1px solid #e5e5e5; border-radius: 8px; cursor: pointer; }
-        .contact-item.selected { background: #fef3c7; border-color: #f59e0b; }
+        .contact-item.selected { background: #f0fdf4; border-color: #10B981; }
         .contact-item input { width: 16px; height: 16px; }
         .contact-name { flex: 1; font-size: 13px; font-weight: 500; }
         .contact-phone { font-size: 12px; color: #666; }
         .send-section { text-align: center; }
-        .send-btn { padding: 14px 32px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .send-btn { padding: 14px 32px; background: #10B981; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .send-btn:hover { background: #059669; }
         .send-btn:disabled { background: #9ca3af; cursor: not-allowed; }
         .logs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .logs-table th, .logs-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
         .logs-table th { background: #f5f5f5; font-weight: 600; font-size: 12px; }
         .logs-table .success { color: #10b981; }
-        .logs-table .error { color: #dc2626; }
+        .logs-table .error { color: #6b7280; }
         .empty { text-align: center; padding: 40px; color: #666; }
         @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } .contacts-grid { grid-template-columns: 1fr; } }
       `}</style>

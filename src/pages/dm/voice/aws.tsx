@@ -102,10 +102,10 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
 
   const styles = `
     .voice-page { height: ${embedded ? '100%' : 'calc(100vh - 60px)'}; display: flex; flex-direction: column; background: #fff; }
-    .error-bar { background: #fef2f2; color: #dc2626; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #fecaca; }
+    .error-bar { background: #f0fdf4; color: #065f46; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #a7f3d0; }
     .result-bar { padding: 10px 16px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
     .result-bar.success { background: #d1fae5; color: #065f46; }
-    .result-bar.error { background: #fef2f2; color: #dc2626; }
+    .result-bar.error { background: #f3f4f6; color: #6b7280; }
     .result-bar button { background: none; border: none; font-size: 18px; cursor: pointer; }
     .voice-layout { display: grid; grid-template-columns: 320px 1fr 260px; flex: 1; overflow: hidden; }
     .dialer-section { padding: 20px; border-right: 1px solid #e5e5e5; }
@@ -127,7 +127,7 @@ const AWSVoiceDM: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
     .call-status { padding: 2px 8px; border-radius: 4px; }
     .call-status.initiated { background: #dbeafe; color: #1d4ed8; }
     .call-status.completed { background: #d1fae5; color: #065f46; }
-    .call-status.failed { background: #fef2f2; color: #dc2626; }
+    .call-status.failed { background: #f3f4f6; color: #6b7280; }
     .empty { color: #666; text-align: center; padding: 40px; }
     .info-panel { padding: 20px; border-left: 1px solid #e5e5e5; background: #fafafa; }
     .info-panel h3 { margin: 0 0 16px 0; font-size: 16px; }

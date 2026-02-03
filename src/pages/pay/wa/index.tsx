@@ -244,7 +244,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         .badge-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; }
         .message-bar { padding: 10px 14px; border-radius: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; border: 1px solid #000; }
         .message-bar.success { background: #f5f5f5; color: #000; }
-        .message-bar.error { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
+        .message-bar.error { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
         .message-bar button { background: none; border: none; font-size: 16px; cursor: pointer; }
         .pay-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
         .order-form { background: #fff; border-radius: 13px; padding: 20px; border: 1px solid #e5e5e5; }

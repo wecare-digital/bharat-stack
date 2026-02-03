@@ -84,9 +84,9 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           padding: '10px 14px', 
           borderRadius: 8, 
           marginBottom: 16,
-          background: message.type === 'success' ? '#f5f5f5' : '#fee2e2',
-          color: message.type === 'success' ? '#1a1a1a' : '#dc2626',
-          border: message.type === 'success' ? '1px solid #000' : '1px solid #dc2626',
+          background: message.type === 'success' ? '#f5f5f5' : '#f3f4f6',
+          color: message.type === 'success' ? '#1a1a1a' : '#6b7280',
+          border: message.type === 'success' ? '1px solid #000' : '1px solid #d1d5db',
           display: 'flex',
           justifyContent: 'space-between'
         }}>

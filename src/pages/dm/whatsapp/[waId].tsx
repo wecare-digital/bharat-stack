@@ -1194,7 +1194,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .chat-phone { font-size: 12px; color: #666; }
         .window-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; }
         .window-badge.open { background: #dcfce7; color: #166534; }
-        .window-badge.closed { background: #fee2e2; color: #991b1b; }
+        .window-badge.closed { background: #f3f4f6; color: #6b7280; }
         .messages-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
         .message { display: flex; align-items: flex-end; gap: 4px; max-width: 70%; }
         .message.inbound { align-self: flex-start; }
@@ -1261,11 +1261,11 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .interactive-value { font-size: 14px; color: #333; }
         
         /* Order messages */
-        .order-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #fef3c7; border-radius: 8px; border-left: 3px solid #f59e0b; }
+        .order-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #10B981; }
         .order-icon { font-size: 24px; }
         .order-info { display: flex; flex-direction: column; }
-        .order-label { font-size: 13px; font-weight: 500; color: #92400e; }
-        .order-hint { font-size: 11px; color: #a16207; }
+        .order-label { font-size: 13px; font-weight: 500; color: #065f46; }
+        .order-hint { font-size: 11px; color: #047857; }
         
         /* Payment messages */
         .payment-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #d1fae5; border-radius: 8px; border-left: 3px solid #10b981; }
@@ -1306,19 +1306,19 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .ref-copy:hover { opacity: 1; }
         
         /* Marketing template (promotional) */
-        .marketing-template .template-header { border-color: #fcd34d; }
-        .marketing-template .template-label { color: #b45309; }
-        .marketing-template { background: #fffbeb; margin: -8px -12px; padding: 8px 12px; border-radius: 8px; }
+        .marketing-template .template-header { border-color: #a7f3d0; }
+        .marketing-template .template-label { color: #065f46; }
+        .marketing-template { background: #f0fdf4; margin: -8px -12px; padding: 8px 12px; border-radius: 8px; }
         .template-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto; }
-        .template-badge.urgent { background: #fef2f2; color: #dc2626; }
-        .coupon-code { display: flex; align-items: center; gap: 8px; background: #fef3c7; padding: 8px 12px; border-radius: 6px; margin-top: 8px; cursor: pointer; border: 1px dashed #f59e0b; }
-        .coupon-code:hover { background: #fde68a; }
-        .coupon-label { font-size: 11px; color: #92400e; }
-        .coupon-value { font-size: 16px; font-weight: 700; font-family: monospace; color: #b45309; letter-spacing: 1px; }
+        .template-badge.urgent { background: #fce7f3; color: #be185d; }
+        .coupon-code { display: flex; align-items: center; gap: 8px; background: #d1fae5; padding: 8px 12px; border-radius: 6px; margin-top: 8px; cursor: pointer; border: 1px dashed #10B981; }
+        .coupon-code:hover { background: #a7f3d0; }
+        .coupon-label { font-size: 11px; color: #065f46; }
+        .coupon-value { font-size: 16px; font-weight: 700; font-family: monospace; color: #047857; letter-spacing: 1px; }
         .coupon-copy { font-size: 14px; margin-left: auto; opacity: 0.6; }
         .coupon-code:hover .coupon-copy { opacity: 1; }
-        .template-cta-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; background: #f59e0b; color: #fff; border-radius: 6px; margin-top: 8px; text-decoration: none; font-size: 13px; font-weight: 500; transition: background 0.2s; }
-        .template-cta-btn:hover { background: #d97706; }
+        .template-cta-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; background: #10B981; color: #fff; border-radius: 6px; margin-top: 8px; text-decoration: none; font-size: 13px; font-weight: 500; transition: background 0.2s; }
+        .template-cta-btn:hover { background: #059669; }
         
         /* Button messages (quick reply) */
         .button-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #d1fae5; border-radius: 8px; border-left: 3px solid #10b981; }
@@ -1342,9 +1342,9 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .welcome-text { font-size: 13px; color: #0369a1; }
         
         /* Unsupported messages */
-        .unsupported-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fef2f2; border-radius: 8px; }
+        .unsupported-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; }
         .unsupported-icon { font-size: 16px; }
-        .unsupported-text { font-size: 13px; color: #991b1b; font-style: italic; }
+        .unsupported-text { font-size: 13px; color: #6b7280; font-style: italic; }
         .unsupported-download { font-size: 12px; color: #3b82f6; text-decoration: none; margin-left: auto; }
         .unsupported-download:hover { text-decoration: underline; }
         
@@ -1362,11 +1362,11 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         
         /* Compose area */
         .compose-area { padding: 12px 16px; background: #f0f0f0; }
-        .window-closed-warning { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fef3c7; border-radius: 8px; margin-bottom: 10px; }
+        .window-closed-warning { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f0fdf4; border-radius: 8px; margin-bottom: 10px; border: 1px solid #a7f3d0; }
         .warning-icon { font-size: 16px; }
-        .warning-text { flex: 1; font-size: 13px; color: #92400e; }
-        .template-btn { background: #f59e0b; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
-        .template-btn:hover { background: #d97706; }
+        .warning-text { flex: 1; font-size: 13px; color: #065f46; }
+        .template-btn { background: #10B981; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
+        .template-btn:hover { background: #059669; }
         .compose-row { display: flex; align-items: flex-end; gap: 8px; }
         .compose-input { flex: 1; }
         .voice-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
@@ -1378,10 +1378,10 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .template-send-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
         .template-send-btn:hover { background: #f5f5f5; transform: scale(1.05); }
         .voice-recording { display: flex; align-items: center; gap: 12px; background: #fff; padding: 12px 16px; border-radius: 24px; }
-        .cancel-record-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: #ef4444; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .cancel-record-btn:hover { background: #dc2626; }
+        .cancel-record-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: #6b7280; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .cancel-record-btn:hover { background: #4b5563; }
         .recording-indicator { flex: 1; display: flex; align-items: center; gap: 8px; }
-        .recording-dot { color: #ef4444; font-size: 12px; animation: pulse 1s infinite; }
+        .recording-dot { color: #10B981; font-size: 12px; animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .recording-time { font-size: 16px; font-weight: 500; color: #333; font-family: monospace; }
         .stop-record-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }

@@ -172,7 +172,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               <div className="stat-label">Approval Rate</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: config?.enabled ? '#1a1a1a' : '#dc2626' }}>
+              <div className="stat-value" style={{ color: config?.enabled ? '#10B981' : '#6b7280' }}>
                 {config?.enabled ? 'ON' : 'OFF'}
               </div>
               <div className="stat-label">AI Status</div>
@@ -507,7 +507,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             bottom: '1rem',
             right: '1rem',
             padding: '0.75rem 1.5rem',
-            background: toast.type === 'success' ? '#1a1a1a' : '#dc2626',
+            background: toast.type === 'success' ? '#10B981' : '#6b7280',
             color: 'white',
             borderRadius: '13px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',

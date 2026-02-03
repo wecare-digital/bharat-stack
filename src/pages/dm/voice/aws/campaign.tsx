@@ -385,7 +385,7 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; }
         .status-badge.initiated { background: #dbeafe; color: #1d4ed8; }
         .status-badge.completed, .status-badge.answered { background: #D1FAE5; color: #065f46; }
-        .status-badge.failed { background: #fef2f2; color: #dc2626; }
+        .status-badge.failed { background: #f3f4f6; color: #6b7280; }
         .audio-player audio { border-radius: 4px; }
         .no-recording { color: #9ca3af; }
         .empty { }

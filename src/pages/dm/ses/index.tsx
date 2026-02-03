@@ -294,7 +294,7 @@ const SesDM: React.FC<PageProps> = ({ signOut, user }) => {
         .ses-icon { font-size: 28px; }
         .ses-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
         .ses-provider { font-size: 13px; opacity: 0.9; }
-        .error-bar { background: #fef2f2; color: #dc2626; padding: 8px 16px; font-size: 13px; }
+        .error-bar { background: #f0fdf4; color: #065f46; padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #a7f3d0; }
         .ses-layout { display: grid; grid-template-columns: 280px 1fr 260px; flex: 1; overflow: hidden; }
         .ses-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }

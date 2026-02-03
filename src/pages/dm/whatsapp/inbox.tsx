@@ -59,6 +59,78 @@ const WABA_CONFIG = {
   },
 };
 
+// Confirmation Modal Component
+interface ConfirmModalProps {
+  isOpen: boolean;
+  title: string;
+  message: React.ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  confirmInput?: string; // If set, user must type this to confirm
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen,
+  title,
+  message,
+  confirmText = 'OK',
+  cancelText = 'Cancel',
+  confirmInput,
+  danger = false,
+  onConfirm,
+  onCancel,
+}) => {
+  const [inputValue, setInputValue] = useState('');
+  
+  useEffect(() => {
+    if (!isOpen) setInputValue('');
+  }, [isOpen]);
+  
+  if (!isOpen) return null;
+  
+  const canConfirm = !confirmInput || inputValue === confirmInput;
+  
+  return (
+    <div className="confirm-modal-overlay" onClick={onCancel}>
+      <div className="confirm-modal" onClick={e => e.stopPropagation()}>
+        <div className="confirm-modal-header">
+          <h3>{title}</h3>
+        </div>
+        <div className="confirm-modal-body">
+          {message}
+          {confirmInput && (
+            <div className="confirm-input-wrapper">
+              <label>Type "{confirmInput}" to confirm:</label>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
+                placeholder={confirmInput}
+                autoFocus
+              />
+            </div>
+          )}
+        </div>
+        <div className="confirm-modal-footer">
+          <button className="confirm-modal-cancel" onClick={onCancel}>
+            {cancelText}
+          </button>
+          <button 
+            className={`confirm-modal-confirm ${danger ? 'danger' : ''}`}
+            onClick={onConfirm}
+            disabled={!canConfirm}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -75,6 +147,11 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [contactsPage, setContactsPage] = useState(1);
   const [clearing, setClearing] = useState(false);
   const [messagesPage, setMessagesPage] = useState(1);
+  // Modal states
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [showClearMessagesModal, setShowClearMessagesModal] = useState(false);
+  const [showDeleteContactModal, setShowDeleteContactModal] = useState<Contact | null>(null);
+  const [showDeleteMessageModal, setShowDeleteMessageModal] = useState<Message | null>(null);
   const CONTACTS_PER_PAGE = 20;
   const MESSAGES_PER_PAGE = 50;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -83,14 +160,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
 
   // Clear all inbox data handler
   const handleClearAllInbox = async () => {
-    const confirmMsg = `⚠️ WARNING: This will permanently delete:\n\n• All WhatsApp messages\n• All contacts\n• All media files\n\nThis action cannot be undone!\n\nType "DELETE ALL" to confirm:`;
-    const userInput = prompt(confirmMsg);
-    
-    if (userInput !== 'DELETE ALL') {
-      toast.error('Clear cancelled - confirmation text did not match');
-      return;
-    }
-    
+    setShowClearAllModal(false);
     setClearing(true);
     try {
       const result = await api.clearAllInboxData();
@@ -385,7 +455,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   };
 
   const handleDeleteMessage = async (msg: Message) => {
-    if (!confirm('Delete this message?')) return;
+    setShowDeleteMessageModal(null);
     setDeleting(msg.id);
     try {
       const direction = msg.direction === 'inbound' ? 'INBOUND' : 'OUTBOUND';
@@ -404,7 +474,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   };
 
   const handleDeleteContact = async (contact: Contact) => {
-    if (!confirm(`Delete contact "${contact.name}"?\n\nNote: Messages will remain in the database.`)) return;
+    setShowDeleteContactModal(null);
     setDeleting(contact.id);
     try {
       const success = await api.deleteContact(contact.id);
@@ -424,12 +494,12 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
 
   const handleClearAllMessages = async () => {
     if (!selectedContact) return;
+    setShowClearMessagesModal(false);
     const contactMessages = filteredMessages;
     if (contactMessages.length === 0) {
       toast.error('No messages to clear');
       return;
     }
-    if (!confirm(`Clear all ${contactMessages.length} messages for "${selectedContact.name}"?\n\nThis will delete all messages but keep the contact.`)) return;
     
     setDeleting('clearing');
     try {
@@ -640,6 +710,80 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         />
       )}
       <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
+      
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={showClearAllModal}
+        title="Clear All Inbox Data"
+        message={
+          <div>
+            <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>
+              ⚠️ WARNING: This will permanently delete:
+            </p>
+            <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
+              <li>All WhatsApp messages (inbound & outbound)</li>
+              <li>All SMS messages (inbound & outbound)</li>
+              <li>All SMS IN messages</li>
+              <li>All Voice call records (inbound & outbound)</li>
+              <li>All Voice IN call records</li>
+              <li>All contacts</li>
+              <li>All media files from S3</li>
+            </ul>
+            <p style={{ color: '#065f46', fontWeight: 500 }}>
+              This action cannot be undone!
+            </p>
+          </div>
+        }
+        confirmInput="DELETE ALL"
+        confirmText="Delete Everything"
+        danger={true}
+        onConfirm={handleClearAllInbox}
+        onCancel={() => setShowClearAllModal(false)}
+      />
+      
+      <ConfirmModal
+        isOpen={showClearMessagesModal}
+        title="Clear All Messages"
+        message={
+          <p>
+            Clear all {filteredMessages.length} messages for "{selectedContact?.name}"?
+            <br /><br />
+            This will delete all messages but keep the contact.
+          </p>
+        }
+        confirmText="Clear Messages"
+        danger={true}
+        onConfirm={handleClearAllMessages}
+        onCancel={() => setShowClearMessagesModal(false)}
+      />
+      
+      <ConfirmModal
+        isOpen={!!showDeleteContactModal}
+        title="Delete Contact"
+        message={
+          <p>
+            Delete contact "{showDeleteContactModal?.name}"?
+            <br /><br />
+            <span style={{ color: '#666', fontSize: 13 }}>
+              Note: Messages will remain in the database.
+            </span>
+          </p>
+        }
+        confirmText="Delete Contact"
+        danger={true}
+        onConfirm={() => showDeleteContactModal && handleDeleteContact(showDeleteContactModal)}
+        onCancel={() => setShowDeleteContactModal(null)}
+      />
+      
+      <ConfirmModal
+        isOpen={!!showDeleteMessageModal}
+        title="Delete Message"
+        message={<p>Delete this message?</p>}
+        confirmText="Delete"
+        danger={true}
+        onConfirm={() => showDeleteMessageModal && handleDeleteMessage(showDeleteMessageModal)}
+        onCancel={() => setShowDeleteMessageModal(null)}
+      />
       <div className="whatsapp-inbox">
         {/* Contacts Sidebar */}
         <div className="contacts-sidebar">
@@ -647,13 +791,13 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2>WA Inbox</h2>
               <button
-                onClick={handleClearAllInbox}
+                onClick={() => setShowClearAllModal(true)}
                 disabled={clearing || loading}
                 title="Clear all messages and contacts"
                 style={{
-                  background: '#fee2e2',
-                  color: '#991b1b',
-                  border: '1px solid #fca5a5',
+                  background: '#f0fdf4',
+                  color: '#065f46',
+                  border: '1px solid #a7f3d0',
                   borderRadius: 6,
                   padding: '4px 8px',
                   fontSize: 11,
@@ -709,7 +853,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     )}
                     <button 
                       className="contact-delete-btn"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteContact(contact); }}
+                      onClick={(e) => { e.stopPropagation(); setShowDeleteContactModal(contact); }}
                       disabled={deleting === contact.id}
                       title="Delete contact"
                     >
@@ -777,7 +921,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                   </select>
                   <button 
                     className="clear-chat-btn"
-                    onClick={handleClearAllMessages}
+                    onClick={() => setShowClearMessagesModal(true)}
                     disabled={deleting === 'clearing' || filteredMessages.length === 0}
                     title="Clear all messages for this contact"
                   >
@@ -929,7 +1073,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                             </button>
                             <button 
                               className="delete-msg-btn"
-                              onClick={() => handleDeleteMessage(msg)}
+                              onClick={() => setShowDeleteMessageModal(msg)}
                               disabled={deleting === msg.id}
                               title="Delete message"
                             >
@@ -941,7 +1085,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                           <div className="message-actions">
                             <button 
                               className="delete-msg-btn"
-                              onClick={() => handleDeleteMessage(msg)}
+                              onClick={() => setShowDeleteMessageModal(msg)}
                               disabled={deleting === msg.id}
                               title="Delete message"
                             >
