@@ -1,35 +1,18 @@
 /**
- * RCS DM - Rich Communication Services
+ * RCS Index - Redirects to Messages
  */
 
-import ComingSoon from '../../../components/ComingSoon';
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 
-interface PageProps {
-  signOut?: () => void;
-  user?: any;
-}
+const RcsIndex = () => {
+  const router = useRouter();
+  
+  useEffect(() => {
+    router.replace('/dm/rcs/messages');
+  }, [router]);
 
-export default function RcsDM({ signOut, user }: PageProps) {
-  return (
-    <ComingSoon
-      title="RCS"
-      subtitle="Rich Communication Services"
-      icon="rcs"
-      backLink="/dm"
-      backLabel="← Messages"
-      features={[
-        'Rich Media Messages',
-        'Carousels & Cards',
-        'Quick Reply Buttons',
-        'Suggested Actions',
-        'Branded Messaging',
-        'Read Receipts',
-        'Typing Indicators',
-      ]}
-      docsUrl="https://www.airtel.in/business/b2b/airtel-iq/api-docs/rcs/overview"
-      docsLabel="IN RCS API Docs"
-      user={user}
-      signOut={signOut}
-    />
-  );
-}
+  return null;
+};
+
+export default RcsIndex;
