@@ -7,8 +7,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import Breadcrumbs from '../../../components/ui/Breadcrumbs';
-import RichTextEditor from '../../../components/RichTextEditor';
 import Button from '../../../components/ui/Button';
+import { SkeletonContact } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 
 interface PageProps {
@@ -44,6 +45,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const [contactsPage, setContactsPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const toast = useToastContext();
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -80,7 +82,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         contactId: m.contactId,
       })));
     } catch (err) {
-      console.error('Load error:', err);
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -97,7 +99,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
     setDeleting(true);
-    try { for (const id of selectedIds) { await api.deleteContact(id); } setSelectedIds(new Set()); setSelectedContact(null); await loadData(); } catch (err) { console.error('Delete error:', err); } finally { setDeleting(false); }
+    try { for (const id of selectedIds) { await api.deleteContact(id); } toast.success(`Deleted ${selectedIds.size} contact(s)`); setSelectedIds(new Set()); setSelectedContact(null); await loadData(); } catch (err) { toast.error('Failed to delete contacts'); } finally { setDeleting(false); }
   };
 
   const toggleSelect = (id: string) => { const newSet = new Set(selectedIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedIds(newSet); };
@@ -137,7 +139,13 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto' }}>
-              {paginatedContacts.map(contact => (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} style={{ padding: '12px 16px' }}>
+                    <SkeletonContact />
+                  </div>
+                ))
+              ) : paginatedContacts.map(contact => (
                 <div key={contact.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f5f5f5', background: selectedContact?.id === contact.id ? '#ECFDF5' : selectedIds.has(contact.id) ? '#f0fdf4' : 'transparent' }} onClick={() => setSelectedContact(contact)}>
                   <input type="checkbox" checked={selectedIds.has(contact.id)} onChange={() => toggleSelect(contact.id)} onClick={e => e.stopPropagation()} style={{ accentColor: '#10B981', marginTop: '12px' }} />
                   <div style={{ width: '40px', height: '40px', background: '#D1FAE5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 500, color: '#065f46', flexShrink: 0 }}>{contact.name.charAt(0).toUpperCase()}</div>
@@ -148,7 +156,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                 </div>
               ))}
-              {filteredContacts.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280' }}>No inbound SMS contacts</div>}
+              {!loading && filteredContacts.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280' }}>No inbound SMS contacts</div>}
             </div>
           </div>
 

@@ -3,9 +3,7 @@
  */
 
 import React from 'react';
-import Layout from '../../../components/Layout';
-import SEO from '../../../components/SEO';
-import Breadcrumbs from '../../../components/ui/Breadcrumbs';
+import ComingSoon from '../../../components/ComingSoon';
 
 interface PageProps {
   signOut?: () => void;
@@ -14,24 +12,22 @@ interface PageProps {
 
 const LinkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="Link Analytics | WECARE.DIGITAL" description="Link analytics" />
-      <div style={{ padding: '20px' }}>
-        <Breadcrumbs />
-        <h2 style={{ margin: '12px 0 20px' }}>Link Analytics</h2>
-        
-        <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '12px', padding: '60px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📈</div>
-          <h3 style={{ margin: '0 0 8px', color: '#065f46' }}>Link Analytics Coming Soon</h3>
-          <p style={{ margin: '0 0 16px', color: '#6b7280' }}>Track link clicks, conversions, and engagement</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '20px' }}>
-            {['Click Tracking', 'Geo Analytics', 'Device Stats', 'Conversion Rate', 'UTM Params'].map(f => (
-              <span key={f} style={{ padding: '6px 12px', background: '#D1FAE5', color: '#065f46', borderRadius: '20px', fontSize: '13px' }}>{f}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </Layout>
+    <ComingSoon
+      title="Link Analytics"
+      subtitle="Track link clicks, conversions, and engagement"
+      icon="logs"
+      backLink="/link"
+      backLabel="← Links"
+      features={[
+        'Click Tracking',
+        'Geo Analytics',
+        'Device Stats',
+        'Conversion Rate',
+        'UTM Parameters',
+      ]}
+      user={user}
+      signOut={signOut}
+    />
   );
 };
 

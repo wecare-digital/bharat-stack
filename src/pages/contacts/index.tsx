@@ -9,6 +9,8 @@ import PageHeader from '../../components/PageHeader';
 import ContactImportExport from '../../components/ContactImportExport';
 import SEO, { PAGE_SEO } from '../../components/SEO';
 import Button from '../../components/ui/Button';
+import { SkeletonTable } from '../../components/Skeleton';
+import { useToastContext } from '../../contexts/ToastContext';
 import * as api from '../../api/client';
 
 interface PageProps {
@@ -23,7 +25,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [editingContact, setEditingContact] = useState<api.Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToastContext();
   
   // Form state
   const [formName, setFormName] = useState('');
@@ -47,7 +49,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const data = await api.listContacts();
       setContacts(data);
@@ -55,15 +56,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       // Check connection status
       const connStatus = api.getConnectionStatus();
       if (connStatus.status === 'disconnected' && connStatus.lastError) {
-        setError(`Connection issue: ${connStatus.lastError}`);
+        toast.warning(`Connection issue: ${connStatus.lastError}`);
       }
     } catch (err) {
       console.error('Failed to load contacts:', err);
-      setError('Failed to load contacts. Please try again.');
+      toast.error('Failed to load contacts. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadContacts();
@@ -89,12 +90,11 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleCreate = async () => {
     if (!formPhone && !formEmail) {
-      setError('Phone or email is required');
+      toast.warning('Phone or email is required');
       return;
     }
     
     setSaving(true);
-    setError(null);
     try {
       const result = await api.createContact({
         name: formName,
@@ -109,15 +109,16 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       });
       
       if (result) {
+        toast.success('Contact created successfully');
         setShowModal(false);
         resetForm();
         await loadContacts();
       } else {
-        setError('Failed to create contact');
+        toast.error('Failed to create contact');
       }
     } catch (err) {
       console.error('Create error:', err);
-      setError('Failed to create contact');
+      toast.error('Failed to create contact');
     } finally {
       setSaving(false);
     }
@@ -139,12 +140,11 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleUpdate = async () => {
     if (!editingContact || (!formPhone && !formEmail)) {
-      setError('Phone or email is required');
+      toast.warning('Phone or email is required');
       return;
     }
     
     setSaving(true);
-    setError(null);
     try {
       const result = await api.updateContact(editingContact.contactId, {
         name: formName,
@@ -159,16 +159,17 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       });
       
       if (result) {
+        toast.success('Contact updated successfully');
         setShowEditModal(false);
         setEditingContact(null);
         resetForm();
         await loadContacts();
       } else {
-        setError('Failed to update contact');
+        toast.error('Failed to update contact');
       }
     } catch (err) {
       console.error('Update error:', err);
-      setError('Failed to update contact');
+      toast.error('Failed to update contact');
     } finally {
       setSaving(false);
     }
@@ -180,13 +181,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     try {
       const result = await api.deleteContact(contactId);
       if (result) {
+        toast.success('Contact deleted');
         await loadContacts();
       } else {
-        setError('Failed to delete contact');
+        toast.error('Failed to delete contact');
       }
     } catch (err) {
       console.error('Delete error:', err);
-      setError('Failed to delete contact');
+      toast.error('Failed to delete contact');
     }
   };
 
@@ -216,8 +218,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             </>
           }
         />
-
-        {error && <div className="error-banner">{error} <button onClick={() => setError(null)}>x</button></div>}
 
         <div className="stats-grid">
           <div className="stat-card">
@@ -255,6 +255,11 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         <div className="section">
+          {loading ? (
+            <div style={{ padding: '20px' }}>
+              <SkeletonTable rows={5} cols={6} />
+            </div>
+          ) : (
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -299,13 +304,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 {filteredContacts.length === 0 && (
                   <tr>
                     <td colSpan={6} className="empty-table">
-                      {loading ? 'Loading...' : searchQuery ? 'No contacts match your search' : 'No contacts yet. Add your first contact!'}
+                      {searchQuery ? 'No contacts match your search' : 'No contacts yet. Add your first contact!'}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+          )}
         </div>
 
         {/* Add Contact Modal */}

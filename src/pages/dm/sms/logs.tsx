@@ -7,6 +7,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import Breadcrumbs from '../../../components/ui/Breadcrumbs';
+import { SkeletonTable } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import { API_BASE } from '../../../config/constants';
 import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
@@ -26,6 +28,7 @@ const SmsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const toast = useToastContext();
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -33,11 +36,11 @@ const SmsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       const data = await api.listMessages(undefined, 'SMS');
       setMessages(data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (err) {
-      console.error('Load error:', err);
+      toast.error('Failed to load SMS logs');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { setCurrentPage(1); }, [filter, searchQuery]);
@@ -74,10 +77,11 @@ const SmsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       for (const id of selectedIds) {
         await api.deleteMessage(id, 'OUTBOUND');
       }
+      toast.success(`Deleted ${selectedIds.size} message(s)`);
       setSelectedIds(new Set());
       await loadData();
     } catch (err) {
-      console.error('Delete error:', err);
+      toast.error('Failed to delete messages');
     } finally {
       setDeleting(false);
     }
@@ -135,6 +139,9 @@ const SmsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '20px' }}><SkeletonTable rows={5} cols={6} /></div>
+          ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
@@ -162,6 +169,7 @@ const SmsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
               {filteredMessages.length === 0 && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>No SMS logs found</td></tr>}
             </tbody>
           </table>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>

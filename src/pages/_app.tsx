@@ -19,6 +19,7 @@ import '../styles/inner-ux.css';
 import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { ToastProvider } from '../contexts/ToastContext';
 
 // Configure Amplify
 Amplify.configure({
@@ -487,10 +488,10 @@ export default function App({ Component, pageProps }: AppProps) {
       <ThemeProvider theme={authTheme}>
         <Authenticator hideSignUp={true} components={{ Header: AuthHeader }}>
           {({ signOut, user }) => (
-            <>
+            <ToastProvider>
               <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
               <FloatingAgent />
-            </>
+            </ToastProvider>
           )}
         </Authenticator>
       </ThemeProvider>

@@ -10,6 +10,8 @@ import RichTextEditor from '../../../components/RichTextEditor';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
 import TemplateSender from '../../../components/TemplateSender';
 import Button from '../../../components/ui/Button';
+import { SkeletonContact, SkeletonMessage } from '../../../components/Skeleton';
+import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { useChatShortcuts } from '../../../hooks/useKeyboardShortcuts';
 import { useNotificationSound } from '../../../hooks/useNotificationSound';
@@ -62,7 +64,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToastContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Voice note recording state
@@ -184,7 +186,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         messageType: m.messageType || (m.s3Key ? 'media' : 'text'),
       })));
     } catch (err) {
-      setError('Failed to load data');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -285,7 +287,6 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
   const handleSend = async () => {
     if (!selectedContact || !messageText.trim() || sending) return;
     setSending(true);
-    setError(null);
 
     try {
       const result = await api.sendWhatsAppMessage({
@@ -295,13 +296,14 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       });
 
       if (result) {
+        toast.success('Message sent');
         setMessageText('');
         await loadData();
       } else {
-        setError('Failed to send message');
+        toast.error('Failed to send message');
       }
     } catch (err) {
-      setError('Failed to send message');
+      toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
@@ -352,7 +354,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       }, 1000);
     } catch (err) {
       console.error('Failed to start recording:', err);
-      setError('Microphone access denied');
+      toast.error('Microphone access denied');
     }
   };
 
@@ -384,7 +386,6 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
   const sendVoiceNote = async () => {
     if (!selectedContact || !audioBlob || sending) return;
     setSending(true);
-    setError(null);
 
     try {
       // Convert blob to base64
@@ -405,18 +406,19 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         });
 
         if (result) {
+          toast.success('Voice note sent');
           setAudioBlob(null);
           setAudioUrl(null);
           setRecordingTime(0);
           await loadData();
         } else {
-          setError('Failed to send voice note');
+          toast.error('Failed to send voice note');
         }
         setSending(false);
       };
     } catch (err) {
       console.error('Voice note send error:', err);
-      setError('Failed to send voice note');
+      toast.error('Failed to send voice note');
       setSending(false);
     }
   };
@@ -899,8 +901,6 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
           <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
         </div>
 
-        {error && <div className="error-bar">{error}</div>}
-
         <div className="wa-layout">
           {/* Contacts Sidebar */}
           <div className="wa-sidebar">
@@ -913,7 +913,13 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
               />
             </div>
             <div className="contacts-list">
-              {filteredContacts.map(contact => (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} style={{ padding: '12px 16px' }}>
+                    <SkeletonContact />
+                  </div>
+                ))
+              ) : filteredContacts.map(contact => (
                 <div
                   key={contact.id}
                   className={`contact-row ${selectedContact?.id === contact.id ? 'active' : ''}`}
@@ -934,7 +940,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                   {contact.windowOpen && <span className="window-indicator">●</span>}
                 </div>
               ))}
-              {filteredContacts.length === 0 && (
+              {!loading && filteredContacts.length === 0 && (
                 <div className="no-contacts">
                   {contactSearchQuery ? 'No contacts match search' : 'No conversations yet'}
                 </div>
@@ -1133,7 +1139,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                       phoneNumberId={waId as string}
                       onClose={() => setShowInteractiveComposer(false)}
                       onSent={() => loadData()}
-                      onError={(msg) => setError(msg)}
+                      onError={(msg) => toast.error(msg)}
                     />
                   )}
                   
@@ -1145,7 +1151,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                       phoneNumberId={waId as string}
                       onClose={() => setShowTemplateSender(false)}
                       onSent={() => loadData()}
-                      onError={(msg) => setError(msg)}
+                      onError={(msg) => toast.error(msg)}
                     />
                   )}
                 </div>
