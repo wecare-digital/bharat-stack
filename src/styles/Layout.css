@@ -682,6 +682,17 @@ input, textarea, select {
     padding-left: 8px;
   }
   
+  /* 3rd level nested items - mobile */
+  .nav-nested-items {
+    padding-left: 8px;
+  }
+  
+  .nav-nested-items .nav-subitem {
+    padding: 10px 10px;
+    font-size: 14px;
+    min-height: 40px;
+  }
+  
   /* Sidebar footer */
   .sidebar-footer {
     padding: 12px;

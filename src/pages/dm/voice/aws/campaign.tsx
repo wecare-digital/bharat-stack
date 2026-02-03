@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Layout from '../../../../components/Layout';
+import SEO from '../../../../components/SEO';
 import * as api from '../../../../api/client';
 import { API_BASE } from '../../../../config/constants';
 import Button from '../../../../components/ui/Button';
@@ -192,7 +194,7 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
     { id: 'logs', label: 'Campaign Logs' },
   ];
 
-  return (
+  const content = (
     <div className="campaign-page">
       <div className="campaign-header">
         <h2>Voice Campaign (AWS)</h2>
@@ -389,6 +391,17 @@ const VoiceCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
         @media (max-width: 768px) { }
       `}</style>
     </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="Voice Campaign | WECARE.DIGITAL" description="Send bulk voice campaigns" />
+      {content}
+    </Layout>
   );
 };
 

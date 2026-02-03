@@ -1532,13 +1532,15 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   />
                 </div>
 
-                <button
+                <Button
+                  variant="primary"
                   onClick={handleTestAi}
                   disabled={aiSaving || !testMessage.trim()}
-                  style={{ padding: '0.5rem 1.5rem', background: '#fff', color: '#000', border: '1px solid #000', borderRadius: '13px', cursor: 'pointer', marginBottom: '1rem' }}
+                  loading={aiSaving}
+                  style={{ marginBottom: '1rem' }}
                 >
-                  {aiSaving ? 'Testing...' : 'Test Response'}
-                </button>
+                  Test Response
+                </Button>
 
                 {testResult && (
                   <div style={{ padding: '1rem', background: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
@@ -1553,6 +1555,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <strong>Architecture Note:</strong> This is the Internal AI used by the FloatingAgent for admin tasks.
                 For WhatsApp auto-reply AI (customer-facing), go to Messages → WhatsApp → AI Config.
               </div>
+
             </div>
           )}
 
@@ -1828,18 +1831,20 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleToggleWebhook(wh.id, !wh.enabled)}
-                              style={{ padding: '0.25rem 0.5rem', border: '1px solid #d1d5db', borderRadius: '0.25rem', background: 'white', cursor: 'pointer' }}
                             >
                               {wh.enabled ? 'Disable' : 'Enable'}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
                               onClick={() => handleDeleteWebhook(wh.id)}
-                              style={{ padding: '0.25rem 0.5rem', border: '1px solid #ef4444', borderRadius: '0.25rem', background: 'white', color: '#ef4444', cursor: 'pointer' }}
                             >
                               Delete
-                            </button>
+                            </Button>
                           </div>
                         </td>
                       </tr>

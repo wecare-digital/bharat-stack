@@ -65,10 +65,28 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/templates', label: 'Templates' },
         ]
       },
-      { path: '/dm/sms', label: 'SMS', icon: 'sms' },
+      { 
+        path: '/dm/sms', 
+        label: 'SMS', 
+        icon: 'sms',
+        children: [
+          { path: '/dm/sms/aws', label: 'AWS' },
+          { path: '/dm/sms/aws/campaign', label: 'Campaign' },
+          { path: '/dm/sms/airtel', label: 'Airtel' },
+        ]
+      },
       { path: '/dm/sms-in', label: 'SMS IN', icon: 'sms' },
       { path: '/dm/ses', label: 'Email', icon: 'email' },
-      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
+      { 
+        path: '/dm/voice', 
+        label: 'Voice', 
+        icon: 'voice',
+        children: [
+          { path: '/dm/voice/aws', label: 'AWS' },
+          { path: '/dm/voice/aws/campaign', label: 'Campaign' },
+          { path: '/dm/voice/airtel', label: 'Airtel' },
+        ]
+      },
       { path: '/dm/voice-in', label: 'Voice IN', icon: 'voice' },
       { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
       { path: '/dm/logs', label: 'Logs', icon: 'logs' },
