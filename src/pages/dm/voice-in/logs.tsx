@@ -1,5 +1,6 @@
 /**
  * Voice-IN Logs Page
+ * Uses AWS Voice API (Connect/Polly) for call data
  */
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
@@ -10,7 +11,7 @@ import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 
 interface PageProps { signOut?: () => void; user?: any; }
-interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; }
+interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; duration?: number; }
 
 const LOGS_PER_PAGE = 50;
 
@@ -25,13 +26,14 @@ export default function VoiceInLogsPage({ signOut, user }: PageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'VOICE_IN'), api.listContacts()]);
+      const [callsData, contactsData] = await Promise.all([api.listVoiceAwsCalls(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
       contactsData.forEach(c => contactMap.set(c.contactId, c));
-      setLogs(messagesData.map(m => ({
-        id: m.messageId, direction: m.direction, contactId: m.contactId,
-        contactName: contactMap.get(m.contactId)?.name, phone: contactMap.get(m.contactId)?.phone,
-        content: m.content || '', status: m.status || 'unknown', timestamp: m.timestamp
+      setLogs(callsData.map(c => ({
+        id: c.callId, direction: c.direction, contactId: c.contactId,
+        contactName: contactMap.get(c.contactId)?.name, phone: c.phoneNumber || contactMap.get(c.contactId)?.phone,
+        content: `${c.callType} call (${c.duration}s)`, status: c.status || 'unknown', 
+        timestamp: c.createdAt ? new Date(c.createdAt * 1000).toISOString() : new Date().toISOString(), duration: c.duration
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (err) { toast.error('Failed to load logs'); } finally { setLoading(false); }
   }, [toast]);

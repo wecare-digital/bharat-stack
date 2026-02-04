@@ -1,5 +1,6 @@
 /**
  * Voice Logs Page
+ * Uses Voice Calls API for call data
  */
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
@@ -25,13 +26,13 @@ export default function VoiceLogsPage({ signOut, user }: PageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'VOICE'), api.listContacts()]);
+      const [callsData, contactsData] = await Promise.all([api.listVoiceCalls(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
       contactsData.forEach(c => contactMap.set(c.contactId, c));
-      setLogs(messagesData.map(m => ({
-        id: m.messageId, direction: m.direction, contactId: m.contactId,
-        contactName: contactMap.get(m.contactId)?.name, phone: contactMap.get(m.contactId)?.phone,
-        content: m.content || '', status: m.status || 'unknown', timestamp: m.timestamp
+      setLogs(callsData.map(c => ({
+        id: c.callId, direction: c.direction, contactId: c.contactId,
+        contactName: contactMap.get(c.contactId)?.name, phone: c.phoneNumber || contactMap.get(c.contactId)?.phone,
+        content: `${c.callType} call (${c.duration}s)`, status: c.status || 'unknown', timestamp: c.createdAt, duration: c.duration
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (err) { toast.error('Failed to load logs'); } finally { setLoading(false); }
   }, [toast]);

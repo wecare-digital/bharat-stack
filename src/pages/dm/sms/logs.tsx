@@ -1,5 +1,6 @@
 /**
  * SMS Logs Page
+ * Uses AWS SMS API (Pinpoint/SNS) for message data
  */
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';

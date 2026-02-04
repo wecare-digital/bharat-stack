@@ -1,5 +1,6 @@
 /**
  * SMS-IN Logs Page
+ * Uses AWS SMS API (Pinpoint/SNS) for message data - filters for inbound
  */
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
@@ -25,13 +26,15 @@ export default function SmsInLogsPage({ signOut, user }: PageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'SMS_IN'), api.listContacts()]);
+      const [messagesData, contactsData] = await Promise.all([api.listSmsAwsMessages(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
       contactsData.forEach(c => contactMap.set(c.contactId, c));
-      setLogs(messagesData.map(m => ({
+      // Filter for inbound messages for SMS-IN page
+      const inboundMessages = messagesData.filter(m => m.direction === 'INBOUND');
+      setLogs(inboundMessages.map(m => ({
         id: m.messageId, direction: m.direction, contactId: m.contactId,
-        contactName: contactMap.get(m.contactId)?.name, phone: contactMap.get(m.contactId)?.phone,
-        content: m.content || '', status: m.status || 'unknown', timestamp: m.timestamp
+        contactName: contactMap.get(m.contactId)?.name, phone: m.phoneNumber || contactMap.get(m.contactId)?.phone,
+        content: m.content || '', status: m.status || 'unknown', timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : new Date().toISOString()
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (err) { toast.error('Failed to load logs'); } finally { setLoading(false); }
   }, [toast]);
