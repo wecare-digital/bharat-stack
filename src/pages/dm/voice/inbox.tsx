@@ -8,6 +8,7 @@ import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import { SkeletonContact } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { CloseIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; }
@@ -77,7 +78,7 @@ const VoiceInbox: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="inbox-sidebar">
             <div className="sidebar-controls">
               <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0 || deleting} title="Delete selected" className="delete-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                <CloseIcon size={20} strokeWidth={2} color="#10b981" />
               </button>
               <input type="text" placeholder="Search contacts..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="search-input" />
             </div>
@@ -124,8 +125,8 @@ const VoiceInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .inbox-layout { display: grid; grid-template-columns: 320px 1fr; flex: 1; overflow: hidden; }
         .inbox-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-controls { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid #f0f0f0; }
-        .delete-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 8px; cursor: pointer; color: #6b7280; flex-shrink: 0; transition: all 0.15s; }
-        .delete-btn:hover:not(:disabled) { background: #fef2f2; border-color: #dc2626; color: #dc2626; }
+        .delete-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #fff; border: 1px solid #10b981; border-radius: 13px; cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
+        .delete-btn:hover:not(:disabled) { background: #f0fdf4; }
         .delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .search-input { flex: 1; padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 13px; }
         .search-input:focus { outline: none; border-color: #000; }

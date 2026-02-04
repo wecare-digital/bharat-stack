@@ -1,187 +1,109 @@
 /**
  * SMS Logs Page
- * AWS Pinpoint/SNS SMS logs
  */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
-import Breadcrumbs from '../../../components/ui/Breadcrumbs';
-import { SkeletonTable } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
-import { API_BASE } from '../../../config/constants';
 import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
+import Pagination from '../../../components/ui/Pagination';
 
-interface PageProps {
-  signOut?: () => void;
-  user?: any;
-}
+interface PageProps { signOut?: () => void; user?: any; }
+interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; }
 
-const ITEMS_PER_PAGE = 20;
+const LOGS_PER_PAGE = 50;
 
-const SmsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
+export default function SmsLogsPage({ signOut, user }: PageProps) {
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<api.Message[]>([]);
-  const [filter, setFilter] = useState<'all' | 'sent' | 'delivered' | 'failed'>('all');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleting, setDeleting] = useState(false);
   const toast = useToastContext();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.listMessages(undefined, 'SMS');
-      setMessages(data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-    } catch (err) {
-      toast.error('Failed to load SMS logs');
-    } finally {
-      setLoading(false);
-    }
+      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'SMS'), api.listContacts()]);
+      const contactMap = new Map<string, api.Contact>();
+      contactsData.forEach(c => contactMap.set(c.contactId, c));
+      setLogs(messagesData.map(m => ({
+        id: m.messageId, direction: m.direction, contactId: m.contactId,
+        contactName: contactMap.get(m.contactId)?.name, phone: contactMap.get(m.contactId)?.phone,
+        content: m.content || '', status: m.status || 'unknown', timestamp: m.timestamp
+      })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+    } catch (err) { toast.error('Failed to load logs'); } finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setCurrentPage(1); }, [filter, searchQuery]);
+  useEffect(() => { setPage(1); }, [filter, searchQuery]);
 
-  const filteredMessages = messages.filter(m => {
-    const matchesFilter = filter === 'all' || m.status === filter;
-    const matchesSearch = !searchQuery || 
-      m.contactId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.content?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const totalPages = Math.ceil(filteredMessages.length / ITEMS_PER_PAGE);
-  const paginatedMessages = filteredMessages.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, { bg: string; color: string }> = {
-      sent: { bg: '#ECFDF5', color: '#065f46' },
-      delivered: { bg: '#D1FAE5', color: '#065f46' },
-      failed: { bg: '#fef2f2', color: '#dc2626' },
-      pending: { bg: '#f5f5f5', color: '#6b7280' },
-    };
-    const s = styles[status] || styles.pending;
-    return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: s.bg, color: s.color }}>{status}</span>;
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedIds.size === 0) return;
-    setDeleting(true);
-    try {
-      for (const id of selectedIds) {
-        await api.deleteMessage(id, 'OUTBOUND');
-      }
-      toast.success(`Deleted ${selectedIds.size} message(s)`);
-      setSelectedIds(new Set());
-      await loadData();
-    } catch (err) {
-      toast.error('Failed to delete messages');
-    } finally {
-      setDeleting(false);
+  const filteredLogs = logs.filter(log => {
+    if (filter === 'inbound' && log.direction !== 'INBOUND') return false;
+    if (filter === 'outbound' && log.direction !== 'OUTBOUND') return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return log.contactName?.toLowerCase().includes(q) || log.phone?.includes(q) || log.content.toLowerCase().includes(q);
     }
-  };
-
-  const toggleSelect = (id: string) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedIds(newSet);
-  };
-
-  const getPaginationBtnStyle = (disabled: boolean) => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '28px', height: '28px',
-    background: disabled ? '#f9fafb' : '#ECFDF5',
-    border: `1px solid ${disabled ? '#e5e7eb' : '#A7F3D0'}`,
-    borderRadius: '6px', fontSize: '12px',
-    color: disabled ? '#9ca3af' : '#10B981',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.4 : 1
+    return true;
   });
+
+  const totalPages = Math.ceil(filteredLogs.length / LOGS_PER_PAGE);
+  const paginatedLogs = filteredLogs.slice((page - 1) * LOGS_PER_PAGE, page * LOGS_PER_PAGE);
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SMS Logs | WECARE.DIGITAL" description="View SMS logs" />
-      <div style={{ padding: '20px' }}>
-        <Breadcrumbs />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '12px' }}>
-          <h2 style={{ margin: 0 }}>SMS Logs</h2>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+      <SEO title="SMS Logs | WECARE.DIGITAL" description="SMS message logs" />
+      <div className="inner-page logs-page">
+        <div className="page-header"><h2>SMS Logs</h2><Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} /></div>
+        <div className="filters-row">
+          <div className="filter-tabs">
+            <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All ({logs.length})</button>
+            <button className={filter === 'inbound' ? 'active' : ''} onClick={() => setFilter('inbound')}>Inbound ({logs.filter(l => l.direction === 'INBOUND').length})</button>
+            <button className={filter === 'outbound' ? 'active' : ''} onClick={() => setFilter('outbound')}>Outbound ({logs.filter(l => l.direction === 'OUTBOUND').length})</button>
+          </div>
+          <input type="text" placeholder="Search logs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="search-input" />
         </div>
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
-          <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0 || deleting} title="Delete selected" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', background: selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5', border: `1.5px solid ${selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'}`, borderRadius: '10px', cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', opacity: selectedIds.size === 0 ? 0.5 : 1, color: selectedIds.size === 0 ? '#9ca3af' : '#10B981' }} onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}} onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#10B981'; }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-          </button>
-          <input type="text" placeholder="Search SMS..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px', width: '200px' }} />
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          {(['all', 'sent', 'delivered', 'failed'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{ padding: '8px 16px', border: '1.5px solid #10B981', borderRadius: '13px', background: filter === f ? '#D1FAE5' : '#fff', color: '#111827', fontWeight: filter === f ? 600 : 500, cursor: 'pointer', textTransform: 'capitalize' }}>
-              {f} {f !== 'all' && `(${messages.filter(m => m.status === f).length})`}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '16px' }}>
-          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>««</button>
-          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>‹</button>
-          <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>›</button>
-          <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
-        </div>
-
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-          {loading ? (
-            <div style={{ padding: '20px' }}><SkeletonTable rows={5} cols={6} /></div>
-          ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', width: '40px' }}>
-                  <input type="checkbox" checked={paginatedMessages.length > 0 && paginatedMessages.every(m => selectedIds.has(m.messageId))} onChange={e => { if (e.target.checked) { const newSet = new Set(selectedIds); paginatedMessages.forEach(m => newSet.add(m.messageId)); setSelectedIds(newSet); } else { const newSet = new Set(selectedIds); paginatedMessages.forEach(m => newSet.delete(m.messageId)); setSelectedIds(newSet); }}} style={{ accentColor: '#10B981' }} />
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Contact</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Message</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Direction</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Date</th>
-              </tr>
-            </thead>
+        <div className="pagination-row"><Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>
+        <div className="table-container">
+          <table>
+            <thead><tr><th>Time</th><th>Direction</th><th>Contact</th><th>Phone</th><th>Content</th><th>Status</th></tr></thead>
             <tbody>
-              {paginatedMessages.map(m => (
-                <tr key={m.messageId} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '12px 16px' }}><input type="checkbox" checked={selectedIds.has(m.messageId)} onChange={() => toggleSelect(m.messageId)} style={{ accentColor: '#10B981' }} /></td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{m.contactId}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', color: '#6b7280' }}>{m.direction}</td>
-                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(m.status)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{new Date(m.timestamp).toLocaleString()}</td>
+              {paginatedLogs.map(log => (
+                <tr key={log.id}>
+                  <td>{new Date(log.timestamp).toLocaleString()}</td>
+                  <td><span className={log.direction === 'INBOUND' ? 'badge-inbound' : 'badge-outbound'}>{log.direction === 'INBOUND' ? '↙ In' : '↗ Out'}</span></td>
+                  <td>{log.contactName || '-'}</td>
+                  <td>{log.phone || '-'}</td>
+                  <td className="content-cell">{log.content.substring(0, 50)}{log.content.length > 50 ? '...' : ''}</td>
+                  <td>{log.status}</td>
                 </tr>
               ))}
-              {filteredMessages.length === 0 && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>No SMS logs found</td></tr>}
+              {paginatedLogs.length === 0 && <tr><td colSpan={6} className="empty-state">{loading ? 'Loading...' : 'No logs found'}</td></tr>}
             </tbody>
           </table>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>
-          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>««</button>
-          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>‹</button>
-          <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>›</button>
-          <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
         </div>
       </div>
+      <style jsx>{`
+        .logs-page { padding: 20px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-header h2 { margin: 0; }
+        .filters-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
+        .filter-tabs { display: flex; gap: 8px; }
+        .filter-tabs button { padding: 8px 16px; border: 1px solid #e5e5e5; background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .filter-tabs button.active { background: #000; color: #fff; border-color: #000; }
+        .search-input { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 8px; width: 250px; }
+        .pagination-row { margin-bottom: 16px; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5e5; font-size: 13px; }
+        th { background: #f9f9f9; font-weight: 500; }
+        .badge-inbound { background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-outbound { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .empty-state { text-align: center; color: #6b7280; padding: 40px; }
+      `}</style>
     </Layout>
   );
-};
-
-export default SmsLogsPage;
+}

@@ -1,160 +1,109 @@
 /**
- * Voice IN Logs Page
- * Inbound voice call logs
+ * Voice-IN Logs Page
  */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
-import Breadcrumbs from '../../../components/ui/Breadcrumbs';
-import { API_BASE } from '../../../config/constants';
+import { useToastContext } from '../../../contexts/ToastContext';
+import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
+import Pagination from '../../../components/ui/Pagination';
 
-interface PageProps {
-  signOut?: () => void;
-  user?: any;
-}
+interface PageProps { signOut?: () => void; user?: any; }
+interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; }
 
-interface CallRecord {
-  callId: string;
-  from: string;
-  to: string;
-  status: string;
-  duration: number;
-  timestamp: string;
-}
+const LOGS_PER_PAGE = 50;
 
-const ITEMS_PER_PAGE = 20;
-
-const VoiceInLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
+export default function VoiceInLogsPage({ signOut, user }: PageProps) {
   const [loading, setLoading] = useState(false);
-  const [calls, setCalls] = useState<CallRecord[]>([]);
-  const [filter, setFilter] = useState<'all' | 'answered' | 'missed'>('all');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleting, setDeleting] = useState(false);
+  const toast = useToastContext();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/voice-cdr?direction=inbound&limit=100`);
-      if (response.ok) {
-        const data = await response.json();
-        setCalls((data.records || []).sort((a: CallRecord, b: CallRecord) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        ));
-      }
-    } catch (err) {
-      console.error('Load error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'VOICE_IN'), api.listContacts()]);
+      const contactMap = new Map<string, api.Contact>();
+      contactsData.forEach(c => contactMap.set(c.contactId, c));
+      setLogs(messagesData.map(m => ({
+        id: m.messageId, direction: m.direction, contactId: m.contactId,
+        contactName: contactMap.get(m.contactId)?.name, phone: contactMap.get(m.contactId)?.phone,
+        content: m.content || '', status: m.status || 'unknown', timestamp: m.timestamp
+      })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+    } catch (err) { toast.error('Failed to load logs'); } finally { setLoading(false); }
+  }, [toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setCurrentPage(1); }, [filter, searchQuery]);
+  useEffect(() => { setPage(1); }, [filter, searchQuery]);
 
-  const filteredCalls = calls.filter(c => {
-    const matchesFilter = filter === 'all' || (filter === 'answered' && ['answered', 'completed'].includes(c.status)) || (filter === 'missed' && ['missed', 'failed'].includes(c.status));
-    const matchesSearch = !searchQuery || c.from?.includes(searchQuery) || c.to?.includes(searchQuery);
-    return matchesFilter && matchesSearch;
+  const filteredLogs = logs.filter(log => {
+    if (filter === 'inbound' && log.direction !== 'INBOUND') return false;
+    if (filter === 'outbound' && log.direction !== 'OUTBOUND') return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return log.contactName?.toLowerCase().includes(q) || log.phone?.includes(q) || log.content.toLowerCase().includes(q);
+    }
+    return true;
   });
 
-  const totalPages = Math.ceil(filteredCalls.length / ITEMS_PER_PAGE);
-  const paginatedCalls = filteredCalls.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-  const formatDuration = (seconds: number) => { if (!seconds) return '-'; const mins = Math.floor(seconds / 60); const secs = seconds % 60; return `${mins}:${secs.toString().padStart(2, '0')}`; };
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, { bg: string; color: string }> = { answered: { bg: '#D1FAE5', color: '#065f46' }, completed: { bg: '#ECFDF5', color: '#065f46' }, missed: { bg: '#fef2f2', color: '#dc2626' }, failed: { bg: '#fef2f2', color: '#dc2626' } };
-    const s = styles[status] || { bg: '#f5f5f5', color: '#6b7280' };
-    return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: s.bg, color: s.color }}>{status}</span>;
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedIds.size === 0) return;
-    setDeleting(true);
-    try { setSelectedIds(new Set()); await loadData(); } catch (err) { console.error('Delete error:', err); } finally { setDeleting(false); }
-  };
-
-  const toggleSelect = (id: string) => { const newSet = new Set(selectedIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedIds(newSet); };
-
-  const getPaginationBtnStyle = (disabled: boolean) => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', background: disabled ? '#f9fafb' : '#ECFDF5', border: `1px solid ${disabled ? '#e5e7eb' : '#A7F3D0'}`, borderRadius: '6px', fontSize: '12px', color: disabled ? '#9ca3af' : '#10B981', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 });
+  const totalPages = Math.ceil(filteredLogs.length / LOGS_PER_PAGE);
+  const paginatedLogs = filteredLogs.slice((page - 1) * LOGS_PER_PAGE, page * LOGS_PER_PAGE);
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Voice IN Logs | WECARE.DIGITAL" description="Inbound voice call logs" />
-      <div style={{ padding: '20px' }}>
-        <Breadcrumbs />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '12px' }}>
-          <h2 style={{ margin: 0 }}>Voice IN Logs</h2>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+      <SEO title="Voice-IN Logs | WECARE.DIGITAL" description="Voice-IN call logs" />
+      <div className="inner-page logs-page">
+        <div className="page-header"><h2>Voice-IN Logs</h2><Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} /></div>
+        <div className="filters-row">
+          <div className="filter-tabs">
+            <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All ({logs.length})</button>
+            <button className={filter === 'inbound' ? 'active' : ''} onClick={() => setFilter('inbound')}>Inbound ({logs.filter(l => l.direction === 'INBOUND').length})</button>
+            <button className={filter === 'outbound' ? 'active' : ''} onClick={() => setFilter('outbound')}>Outbound ({logs.filter(l => l.direction === 'OUTBOUND').length})</button>
+          </div>
+          <input type="text" placeholder="Search logs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="search-input" />
         </div>
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
-          <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0 || deleting} title="Delete selected" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', background: selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5', border: `1.5px solid ${selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'}`, borderRadius: '10px', cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', opacity: selectedIds.size === 0 ? 0.5 : 1, color: selectedIds.size === 0 ? '#9ca3af' : '#10B981' }} onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}} onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#10B981'; }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-          </button>
-          <input type="text" placeholder="Search by phone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px', width: '200px' }} />
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          {(['all', 'answered', 'missed'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{ padding: '8px 16px', border: '1.5px solid #10B981', borderRadius: '13px', background: filter === f ? '#D1FAE5' : '#fff', color: '#111827', fontWeight: filter === f ? 600 : 500, cursor: 'pointer', textTransform: 'capitalize' }}>
-              {f} {f !== 'all' && `(${calls.filter(c => f === 'answered' ? ['answered', 'completed'].includes(c.status) : ['missed', 'failed'].includes(c.status)).length})`}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '16px' }}>
-          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>««</button>
-          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>‹</button>
-          <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>›</button>
-          <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
-        </div>
-
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', width: '40px' }}>
-                  <input type="checkbox" checked={paginatedCalls.length > 0 && paginatedCalls.every(c => selectedIds.has(c.callId))} onChange={e => { if (e.target.checked) { const newSet = new Set(selectedIds); paginatedCalls.forEach(c => newSet.add(c.callId)); setSelectedIds(newSet); } else { const newSet = new Set(selectedIds); paginatedCalls.forEach(c => newSet.delete(c.callId)); setSelectedIds(newSet); }}} style={{ accentColor: '#10B981' }} />
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>From</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>To</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Duration</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Date</th>
-              </tr>
-            </thead>
+        <div className="pagination-row"><Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>
+        <div className="table-container">
+          <table>
+            <thead><tr><th>Time</th><th>Direction</th><th>Contact</th><th>Phone</th><th>Content</th><th>Status</th></tr></thead>
             <tbody>
-              {paginatedCalls.map(c => (
-                <tr key={c.callId} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '12px 16px' }}><input type="checkbox" checked={selectedIds.has(c.callId)} onChange={() => toggleSelect(c.callId)} style={{ accentColor: '#10B981' }} /></td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{c.from}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{c.to}</td>
-                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(c.status)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px' }}>{formatDuration(c.duration)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{new Date(c.timestamp).toLocaleString()}</td>
+              {paginatedLogs.map(log => (
+                <tr key={log.id}>
+                  <td>{new Date(log.timestamp).toLocaleString()}</td>
+                  <td><span className={log.direction === 'INBOUND' ? 'badge-inbound' : 'badge-outbound'}>{log.direction === 'INBOUND' ? '↙ In' : '↗ Out'}</span></td>
+                  <td>{log.contactName || '-'}</td>
+                  <td>{log.phone || '-'}</td>
+                  <td className="content-cell">{log.content.substring(0, 50)}{log.content.length > 50 ? '...' : ''}</td>
+                  <td>{log.status}</td>
                 </tr>
               ))}
-              {filteredCalls.length === 0 && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>No inbound call logs found</td></tr>}
+              {paginatedLogs.length === 0 && <tr><td colSpan={6} className="empty-state">{loading ? 'Loading...' : 'No logs found'}</td></tr>}
             </tbody>
           </table>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>
-          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>««</button>
-          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>‹</button>
-          <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
-          <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>›</button>
-          <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
-        </div>
       </div>
+      <style jsx>{`
+        .logs-page { padding: 20px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-header h2 { margin: 0; }
+        .filters-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
+        .filter-tabs { display: flex; gap: 8px; }
+        .filter-tabs button { padding: 8px 16px; border: 1px solid #e5e5e5; background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .filter-tabs button.active { background: #000; color: #fff; border-color: #000; }
+        .search-input { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 8px; width: 250px; }
+        .pagination-row { margin-bottom: 16px; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5e5; font-size: 13px; }
+        th { background: #f9f9f9; font-weight: 500; }
+        .badge-inbound { background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-outbound { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .empty-state { text-align: center; color: #6b7280; padding: 40px; }
+      `}</style>
     </Layout>
   );
-};
-
-export default VoiceInLogsPage;
+}
