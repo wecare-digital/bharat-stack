@@ -409,7 +409,7 @@ input, textarea, select {
   padding: 8px 10px;
   margin-bottom: 1px;
   text-decoration: none;
-  color: var(--text);
+  color: #000000;
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 500;
@@ -441,7 +441,7 @@ input, textarea, select {
   gap: 10px;
   padding: 8px 10px;
   margin-bottom: 1px;
-  color: var(--text);
+  color: #10B981;
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 500;
@@ -482,18 +482,18 @@ input, textarea, select {
   padding: 6px 10px;
   font-size: 13px;
   font-weight: 450;
-  color: var(--text-secondary);
+  color: #000000;
   border-radius: 8px;
 }
 
 .nav-nested-items .nav-subitem:hover {
   background: var(--hover);
-  color: var(--text);
+  color: #000000;
 }
 
 .nav-nested-items .nav-subitem-active {
   background: var(--hover);
-  color: var(--text);
+  color: #000000;
   font-weight: 500;
 }
 

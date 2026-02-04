@@ -80,9 +80,10 @@ export const navigationConfig: NavItem[] = [
         label: 'WhatsApp', 
         icon: 'whatsapp',
         children: [
-          { path: '/dm/whatsapp/inbox', label: 'Inbox' },
           { path: '/dm/whatsapp/board', label: 'Board' },
+          { path: '/dm/whatsapp/inbox', label: 'Inbox' },
           { path: '/dm/whatsapp/campaign', label: 'Campaign' },
+          { path: '/dm/whatsapp/logs', label: 'Logs' },
           { path: '/dm/whatsapp/templates', label: 'Templates' },
         ]
       },
@@ -92,6 +93,7 @@ export const navigationConfig: NavItem[] = [
         icon: 'sms',
         children: [
           { path: '/dm/sms/inbox', label: 'Inbox' },
+          { path: '/dm/sms/campaign', label: 'Campaign' },
           { path: '/dm/sms/logs', label: 'Logs' },
         ]
       },
@@ -101,6 +103,7 @@ export const navigationConfig: NavItem[] = [
         icon: 'sms',
         children: [
           { path: '/dm/sms-in/inbox', label: 'Inbox' },
+          { path: '/dm/sms-in/campaign', label: 'Campaign' },
           { path: '/dm/sms-in/logs', label: 'Logs' },
         ]
       },
@@ -109,7 +112,8 @@ export const navigationConfig: NavItem[] = [
         label: 'Email', 
         icon: 'email',
         children: [
-          { path: '/dm/ses', label: 'Inbox' },
+          { path: '/dm/ses/inbox', label: 'Inbox' },
+          { path: '/dm/ses/campaign', label: 'Campaign' },
           { path: '/dm/ses/logs', label: 'Logs' },
         ]
       },
@@ -119,6 +123,7 @@ export const navigationConfig: NavItem[] = [
         icon: 'voice',
         children: [
           { path: '/dm/voice/inbox', label: 'Inbox' },
+          { path: '/dm/voice/campaign', label: 'Campaign' },
           { path: '/dm/voice/logs', label: 'Logs' },
         ]
       },
@@ -128,6 +133,7 @@ export const navigationConfig: NavItem[] = [
         icon: 'voice',
         children: [
           { path: '/dm/voice-in/inbox', label: 'Inbox' },
+          { path: '/dm/voice-in/campaign', label: 'Campaign' },
           { path: '/dm/voice-in/logs', label: 'Logs' },
         ]
       },
@@ -137,6 +143,7 @@ export const navigationConfig: NavItem[] = [
         icon: 'rcs',
         children: [
           { path: '/dm/rcs/inbox', label: 'Inbox' },
+          { path: '/dm/rcs/campaign', label: 'Campaign' },
           { path: '/dm/rcs/logs', label: 'Logs' },
         ]
       },

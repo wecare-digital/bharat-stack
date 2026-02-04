@@ -127,7 +127,6 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
 
   const dashboardContent = (
     <>
-      <Toast toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className={`page waba-dashboard ${embedded ? 'embedded' : ''}`}>
         {!embedded && (
           <PageHeader 

@@ -1,5 +1,5 @@
 /**
- * RCS Inbox Page - Black/White Theme
+ * Email Inbox Page - Black/White Theme
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
@@ -13,15 +13,16 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; }
-interface Contact { id: string; name: string; phone: string; unread: number; lastMessage?: string; }
-interface RcsMessage { id: string; direction: 'inbound' | 'outbound'; content: string; timestamp: string; status: string; contactId: string; }
+interface Contact { id: string; name: string; email: string; unread: number; lastMessage?: string; }
+interface EmailMessage { id: string; direction: 'inbound' | 'outbound'; subject?: string; content: string; timestamp: string; status: string; contactId: string; }
 
 const CONTACTS_PER_PAGE = 20;
 
-const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
+const EmailInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [messages, setMessages] = useState<RcsMessage[]>([]);
+  const [messages, setMessages] = useState<EmailMessage[]>([]);
+  const [subject, setSubject] = useState('');
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -35,11 +36,11 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [contactsData, messagesData] = await Promise.all([api.listContacts(), api.listMessages(undefined, 'RCS')]);
-      const displayContacts: Contact[] = contactsData.filter(c => c.phone).map(c => {
+      const [contactsData, messagesData] = await Promise.all([api.listContacts(), api.listMessages(undefined, 'EMAIL')]);
+      const displayContacts: Contact[] = contactsData.filter(c => c.email).map(c => {
         const contactMsgs = messagesData.filter(m => m.contactId === c.contactId);
         const lastMsg = contactMsgs[0];
-        return { id: c.contactId, name: c.name || c.phone || 'Unknown', phone: c.phone || '', unread: contactMsgs.filter(m => m.direction === 'INBOUND' && m.status === 'received').length, lastMessage: lastMsg?.content?.substring(0, 40) || '' };
+        return { id: c.contactId, name: c.name || c.email || 'Unknown', email: c.email || '', unread: contactMsgs.filter(m => m.direction === 'INBOUND' && m.status === 'received').length, lastMessage: lastMsg?.content?.substring(0, 40) || '' };
       });
       setContacts(displayContacts);
       setMessages(messagesData.map(m => ({ id: m.messageId, direction: m.direction.toLowerCase() as 'inbound' | 'outbound', content: m.content || '', timestamp: m.timestamp, status: m.status?.toLowerCase() || 'sent', contactId: m.contactId })));
@@ -49,18 +50,19 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
   useEffect(() => { loadData(); const interval = setInterval(loadData, 60000); return () => clearInterval(interval); }, [loadData]);
   useEffect(() => { setContactsPage(1); }, [searchQuery]);
 
-  const filteredContacts = contacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone.includes(searchQuery));
+  const filteredContacts = contacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()));
   const totalContactPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE);
   const paginatedContacts = filteredContacts.slice((contactsPage - 1) * CONTACTS_PER_PAGE, contactsPage * CONTACTS_PER_PAGE);
   const filteredMessages = messages.filter(m => selectedContact && m.contactId === selectedContact.id);
 
   const handleSend = async () => {
-    if (!selectedContact || !messageText.trim() || sending) return;
+    if (!selectedContact || !messageText.trim() || !subject.trim() || sending) return;
     setSending(true);
     try {
-      toast.warning('RCS sending not yet implemented');
-      setMessageText(''); setShowCompose(false);
-    } catch (err) { toast.error('Failed to send RCS message'); } finally { setSending(false); }
+      const result = await api.sendEmailMessage(selectedContact.id, subject, messageText);
+      if (result) { toast.success('Email sent successfully'); setSubject(''); setMessageText(''); setShowCompose(false); await loadData(); } 
+      else { toast.warning('Email sending not yet implemented'); }
+    } catch (err) { toast.error('Failed to send email'); } finally { setSending(false); }
   };
 
   const handleDeleteSelected = async () => {
@@ -73,7 +75,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="RCS Inbox | WECARE.DIGITAL" description="RCS Business Messaging inbox" />
+      <SEO title="Email Inbox | WECARE.DIGITAL" description="Email inbox via AWS SES" />
       <div className="inbox-page">
         <div className="inbox-header">
           <div className="inbox-actions">
@@ -97,36 +99,38 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
                   <div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div>
                   <div className="contact-info">
                     <div className="contact-name">{contact.name}{contact.unread > 0 && <span className="unread-badge">{contact.unread}</span>}</div>
-                    <div className="contact-phone">{contact.phone}</div>
-                    <div className="contact-preview">{contact.lastMessage || 'No messages'}</div>
+                    <div className="contact-email">{contact.email}</div>
+                    <div className="contact-preview">{contact.lastMessage || 'No emails'}</div>
                   </div>
                 </div>
               ))}
-              {!loading && filteredContacts.length === 0 && <div className="empty-contacts">No contacts with phone</div>}
+              {!loading && filteredContacts.length === 0 && <div className="empty-contacts">No contacts with email</div>}
             </div>
           </div>
           <div className="inbox-messages">
             {selectedContact ? (
               <>
-                <div className="messages-header"><div className="contact-avatar large">{selectedContact.name.charAt(0).toUpperCase()}</div><div><div className="contact-name">{selectedContact.name}</div><div className="contact-phone">{selectedContact.phone}</div></div></div>
+                <div className="messages-header"><div className="contact-avatar large">{selectedContact.name.charAt(0).toUpperCase()}</div><div><div className="contact-name">{selectedContact.name}</div><div className="contact-email">{selectedContact.email}</div></div></div>
                 <div className="messages-list">
                   {filteredMessages.map(msg => (
                     <div key={msg.id} className={`message-card ${msg.direction}`}>
                       <div className="message-meta"><span className="message-direction">{msg.direction === 'inbound' ? '↙ Received' : '↗ Sent'}</span><span className="message-time">{new Date(msg.timestamp).toLocaleString()}</span></div>
+                      {msg.subject && <div className="message-subject">{msg.subject}</div>}
                       <div className="message-content">{msg.content}</div>
                       <div className="message-status"><span className={`status-badge ${msg.status}`}>{msg.status}</span></div>
                     </div>
                   ))}
-                  {filteredMessages.length === 0 && <div className="empty-messages">No RCS messages with this contact</div>}
+                  {filteredMessages.length === 0 && <div className="empty-messages">No emails with this contact</div>}
                 </div>
               </>
-            ) : (<div className="no-selection"><p>Select a contact</p><small>Choose a contact from the list to view RCS messages</small></div>)}
+            ) : (<div className="no-selection"><p>Select a contact</p><small>Choose a contact from the list to view emails</small></div>)}
           </div>
         </div>
-        <Modal isOpen={showCompose && !!selectedContact} onClose={() => setShowCompose(false)} title="Send RCS Message" size="md" footer={<><Button variant="secondary" onClick={() => setShowCompose(false)}>Cancel</Button><Button variant="primary" onClick={handleSend} disabled={sending || !messageText.trim()} loading={sending}>{sending ? 'Sending...' : 'Send RCS'}</Button></>}>
+        <Modal isOpen={showCompose && !!selectedContact} onClose={() => setShowCompose(false)} title="Compose Email" size="lg" footer={<><Button variant="secondary" onClick={() => setShowCompose(false)}>Cancel</Button><Button variant="primary" onClick={handleSend} disabled={sending || !subject.trim() || !messageText.trim()} loading={sending}>{sending ? 'Sending...' : 'Send Email'}</Button></>}>
           {selectedContact && (<>
-            <div className="form-group"><label>To</label><input type="text" value={`${selectedContact.name} (${selectedContact.phone})`} disabled className="form-input disabled" /></div>
-            <div className="form-group"><label>Message</label><RichTextEditor value={messageText} onChange={setMessageText} placeholder="Write your RCS message..." channel="sms" showAISuggestions={true} contactContext={selectedContact.name} /></div>
+            <div className="form-group"><label>To</label><input type="text" value={`${selectedContact.name} <${selectedContact.email}>`} disabled className="form-input disabled" /></div>
+            <div className="form-group"><label>Subject</label><input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Enter subject..." className="form-input" /></div>
+            <div className="form-group"><label>Message</label><RichTextEditor value={messageText} onChange={setMessageText} placeholder="Write your email..." channel="email" showAISuggestions={true} contactContext={selectedContact.name} /></div>
           </>)}
         </Modal>
       </div>
@@ -155,7 +159,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .contact-info { flex: 1; min-width: 0; }
         .contact-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
         .unread-badge { background: #000; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
-        .contact-phone { font-size: 12px; color: #6b7280; }
+        .contact-email { font-size: 12px; color: #6b7280; }
         .contact-preview { font-size: 12px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
         .empty-contacts { padding: 40px 20px; text-align: center; color: #6b7280; }
         .inbox-messages { display: flex; flex-direction: column; background: #fafafa; }
@@ -167,6 +171,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .message-meta { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .message-direction { font-size: 12px; color: #6b7280; }
         .message-time { font-size: 12px; color: #9ca3af; }
+        .message-subject { font-weight: 500; margin-bottom: 8px; }
         .message-content { font-size: 14px; line-height: 1.5; color: #374151; }
         .message-status { margin-top: 12px; }
         .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: #f5f5f5; color: #6b7280; }
@@ -185,4 +190,4 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user }) => {
   );
 };
 
-export default RcsInbox;
+export default EmailInbox;

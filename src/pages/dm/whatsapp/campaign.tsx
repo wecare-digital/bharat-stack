@@ -35,6 +35,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
