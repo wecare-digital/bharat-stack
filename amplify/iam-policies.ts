@@ -74,13 +74,13 @@ export const IAM_POLICIES = {
         ],
         Resource: [
           // Phone Number 1: WECARE.DIGITAL (+91 93309 94400)
-          'arn:aws:social-messaging:us-east-1:809904170947:phone-number-id/phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54',
+          'arn:aws:social-messaging:us-east-1:809904170947:phone-number-id/2ff05755631b41f29151c0573b7a4e2a',
           // Phone Number 2: Manish Agarwal (+91 99033 00044)
-          'arn:aws:social-messaging:us-east-1:809904170947:phone-number-id/phone-number-id-1447bc72d1b040f4bf2341c9e04b2e06',
-          // WABA 1: WECARE.DIGITAL
-          'arn:aws:social-messaging:us-east-1:809904170947:waba/waba-0aae9cf04cf24c66960f291c793359b4',
-          // WABA 2: Manish Agarwal
-          'arn:aws:social-messaging:us-east-1:809904170947:waba/waba-9bbe054d8404487397c38a9d197bc44a',
+          'arn:aws:social-messaging:us-east-1:809904170947:phone-number-id/66d2d11e0aea4f14a3a0df30ec5e3bc6',
+          // WABA 1: WECARE.DIGITAL (Meta ID: 1728153881476046)
+          'arn:aws:social-messaging:us-east-1:809904170947:waba/df9aa4e4946a40b59e269a4f41633ca1',
+          // WABA 2: Manish Agarwal (Meta ID: 761651636983279)
+          'arn:aws:social-messaging:us-east-1:809904170947:waba/6cab7a36990c4aeeba314ebe5cd1ec39',
         ],
       },
       {

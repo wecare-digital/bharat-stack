@@ -38,8 +38,8 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'whatsapp-media/whatsapp-media-outgoing/')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-1447bc72d1b040f4bf2341c9e04b2e06')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
 ALLOWLIST = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
 # Constants

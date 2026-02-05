@@ -32,8 +32,14 @@ Single bucket: `auth.wecare.digital`
 ### WhatsApp Phone Numbers
 | Name | Phone | ID |
 |------|-------|-----|
-| WECARE.DIGITAL | +91 93309 94400 | phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54 |
-| Manish Agarwal | +91 99033 00044 | phone-number-id-1447bc72d1b040f4bf2341c9e04b2e06 |
+| WECARE.DIGITAL | +91 93309 94400 | phone-number-id-2ff05755631b41f29151c0573b7a4e2a |
+| Manish Agarwal | +91 99033 00044 | phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6 |
+
+### WhatsApp Business Accounts (WABA)
+| Name | Meta ID | WABA ID |
+|------|---------|---------|
+| WECARE.DIGITAL | 1728153881476046 | waba-df9aa4e4946a40b59e269a4f41633ca1 |
+| Manish Agarwal | 761651636983279 | waba-6cab7a36990c4aeeba314ebe5cd1ec39 |
 
 ## Project Structure
 

@@ -16,6 +16,6 @@ export const inboundWhatsappHandler = defineFunction({
     MEDIA_INBOUND_PREFIX: 'whatsapp-media/whatsapp-media-incoming/',
     SNS_TOPIC_ARN: 'arn:aws:sns:us-east-1:809904170947:base-wecare-digital',
     OUTBOUND_WHATSAPP_FUNCTION: 'wecare-outbound-whatsapp',
-    WHATSAPP_PHONE_NUMBER_ID_1: 'phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54',
+    WHATSAPP_PHONE_NUMBER_ID_1: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
   },
 });

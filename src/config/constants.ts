@@ -15,7 +15,7 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.
 
 // Payment Phone Configuration (Razorpay-enabled WABA)
 export const PAYMENT_CONFIG = {
-  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54',
+  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
   phoneDisplay: process.env.NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY || '+91 93309 94400',
   phoneName: process.env.NEXT_PUBLIC_PAYMENT_PHONE_NAME || 'WECARE.DIGITAL',
 };
@@ -26,15 +26,15 @@ export const DEFAULT_GSTIN = process.env.NEXT_PUBLIC_DEFAULT_GSTIN || '19AADFW74
 // WhatsApp Phone Numbers
 export const WHATSAPP_PHONES = {
   primary: {
-    id: 'phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54',
+    id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
     hasPayment: true,
   },
   secondary: {
-    id: 'phone-number-id-1447bc72d1b040f4bf2341c9e04b2e06',
+    id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6',
     display: '+91 99033 00044',
-    name: 'WECARE.DIGITAL 2',
+    name: 'Manish Agarwal',
     hasPayment: false,
   },
 };

@@ -1216,8 +1216,8 @@ export interface TemplateComponent {
 
 // WABA IDs for template fetching
 const WABA_IDS = {
-  'WECARE.DIGITAL': 'waba-0aae9cf04cf24c66960f291c793359b4',
-  'Manish Agarwal': 'waba-9bbe054d8404487397c38a9d197bc44a',
+  'WECARE.DIGITAL': 'waba-df9aa4e4946a40b59e269a4f41633ca1',
+  'Manish Agarwal': 'waba-6cab7a36990c4aeeba314ebe5cd1ec39',
 };
 
 /**

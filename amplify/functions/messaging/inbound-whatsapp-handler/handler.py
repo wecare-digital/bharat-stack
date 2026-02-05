@@ -50,8 +50,8 @@ OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecar
 
 # WhatsApp Phone Number IDs - Map Meta phone number IDs to AWS phone number IDs
 # Format: Meta phone number ID -> AWS EUM phone-number-id
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-baa217c3f11b4ffd956f6f3afb44ce54')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-1447bc72d1b040f4bf2341c9e04b2e06')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
 
 # Map display phone numbers to AWS phone number IDs for reference
 PHONE_NUMBER_MAP = {

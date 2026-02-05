@@ -12,7 +12,7 @@ social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('A
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
-DEFAULT_WABA_ID = 'waba-0aae9cf04cf24c66960f291c793359b4'
+DEFAULT_WABA_ID = 'waba-df9aa4e4946a40b59e269a4f41633ca1'
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
