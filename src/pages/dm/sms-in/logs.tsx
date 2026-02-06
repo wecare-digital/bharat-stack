@@ -89,23 +89,26 @@ export default function SmsInLogsPage({ signOut, user }: PageProps) {
         </div>
       </div>
       <style jsx>{`
-        .logs-page { padding: 20px; }
+        .logs-page { padding: 20px; background: #f0fdf4; min-height: calc(100vh - 60px); }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .page-header h2 { margin: 0; }
+        .page-header h2 { margin: 0; color: #065f46; }
         .filters-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
         .filter-tabs { display: flex; gap: 8px; }
-        .filter-tabs button { padding: 8px 16px; border: 1px solid #e5e5e5; background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; }
-        .filter-tabs button.active { background: #000; color: #fff; border-color: #000; }
-        .search-input { padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 8px; width: 250px; }
+        .filter-tabs button { padding: 8px 16px; border: 1px solid #a7f3d0; background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; color: #047857; transition: all 0.15s; }
+        .filter-tabs button:hover { background: #ecfdf5; }
+        .filter-tabs button.active { background: #10b981; color: #fff; border-color: #10b981; }
+        .search-input { padding: 8px 12px; border: 1px solid #a7f3d0; border-radius: 8px; width: 250px; background: #fff; }
+        .search-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
         .pagination-row { margin-bottom: 16px; }
-        .table-container { overflow-x: auto; }
+        .table-container { overflow-x: auto; background: #fff; border-radius: 12px; border: 1px solid #d1fae5; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5e5; font-size: 13px; }
-        th { background: #f9f9f9; font-weight: 500; }
-        .badge-inbound { background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-        .badge-outbound { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-        .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .empty-state { text-align: center; color: #6b7280; padding: 40px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ecfdf5; font-size: 13px; }
+        th { background: #ecfdf5; font-weight: 500; color: #065f46; }
+        .badge-inbound { background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-outbound { background: #059669; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #374151; }
+        .empty-state { text-align: center; color: #047857; padding: 40px; }
+        tr:hover { background: #f0fdf4; }
       `}</style>
     </Layout>
   );

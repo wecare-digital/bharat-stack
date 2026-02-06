@@ -36,11 +36,11 @@ dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-MessagesTable')
+AIRTEL_SMS_TABLE = os.environ.get('AIRTEL_SMS_TABLE', 'base-wecare-digital-AirtelSMSTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 AIRTEL_SMS_SECRET_NAME = os.environ.get('AIRTEL_SMS_SECRET_NAME', 'wecare/airtel/sms')
 AIRTEL_SMS_HOST = os.environ.get('AIRTEL_SMS_HOST', 'iqmessaging.airtel.in')
-MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
+MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 # Cached secrets
 _secrets_cache = None
@@ -382,28 +382,30 @@ def _call_airtel_bulk_api(messages: List[Dict], auth_token: str,
 def _list_messages(params: Dict, request_id: str) -> Dict[str, Any]:
     """List Airtel SMS messages with optional filters."""
     try:
-        table = dynamodb.Table(MESSAGES_TABLE)
+        table = dynamodb.Table(AIRTEL_SMS_TABLE)
         from boto3.dynamodb.conditions import Attr
         
         scan_kwargs = {'Limit': int(params.get('limit', 100))}
-        filter_expressions = [
-            Attr('channel').eq('SMS'),
-            Attr('provider').eq('airtel')
-        ]
+        filter_expressions = []
         
         if params.get('contactId'):
             filter_expressions.append(Attr('contactId').eq(params['contactId']))
         if params.get('status'):
             filter_expressions.append(Attr('status').eq(params['status']))
+        if params.get('direction'):
+            filter_expressions.append(Attr('direction').eq(params['direction']))
+        if params.get('phoneNumber'):
+            filter_expressions.append(Attr('phoneNumber').contains(params['phoneNumber']))
         
-        combined = filter_expressions[0]
-        for expr in filter_expressions[1:]:
-            combined = combined & expr
-        scan_kwargs['FilterExpression'] = combined
+        if filter_expressions:
+            combined = filter_expressions[0]
+            for expr in filter_expressions[1:]:
+                combined = combined & expr
+            scan_kwargs['FilterExpression'] = combined
         
         result = table.scan(**scan_kwargs)
         messages = result.get('Items', [])
-        messages.sort(key=lambda x: float(x.get('timestamp', 0)), reverse=True)
+        messages.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
         
         return _response(200, {
             'messages': [_normalize_message(m) for m in messages],
@@ -418,11 +420,11 @@ def _list_messages(params: Dict, request_id: str) -> Dict[str, Any]:
 def _get_message(message_id: str, request_id: str) -> Dict[str, Any]:
     """Get a single SMS message."""
     try:
-        table = dynamodb.Table(MESSAGES_TABLE)
+        table = dynamodb.Table(AIRTEL_SMS_TABLE)
         result = table.get_item(Key={'messageId': message_id})
         message = result.get('Item')
         
-        if message and message.get('provider') == 'airtel':
+        if message:
             return _response(200, {'message': _normalize_message(message)})
         return _response(404, {'error': 'Message not found'})
         
@@ -445,23 +447,20 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
 def _store_message(message_id: str, contact_id: str, phone: str, content: str,
                    status: str, error: str = None, provider_message_id: str = None,
                    extra_data: Dict = None) -> None:
-    """Store message record in DynamoDB."""
+    """Store message record in AirtelSMS DynamoDB table."""
     try:
         now = int(time.time())
-        table = dynamodb.Table(MESSAGES_TABLE)
+        table = dynamodb.Table(AIRTEL_SMS_TABLE)
         
         item = {
             'messageId': message_id,
             'contactId': contact_id,
             'phoneNumber': phone,
-            'channel': 'SMS',
-            'provider': 'airtel',
-            'direction': 'OUTBOUND',
             'content': content,
+            'direction': 'OUTBOUND',
             'status': status,
-            'timestamp': Decimal(str(now)),
             'createdAt': Decimal(str(now)),
-            'ttl': Decimal(str(now + MESSAGE_TTL_SECONDS)),
+            'expiresAt': Decimal(str(now + MESSAGE_TTL_SECONDS)),
         }
         
         if error:

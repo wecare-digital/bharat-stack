@@ -280,44 +280,44 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
       )}
 
       <style jsx>{`
-        .inbox-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #fafafa; }
-        .inbox-header { padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center; }
-        .header-title { display: flex; align-items: center; gap: 12px; }
-        .header-title h2 { margin: 0; font-size: 1.25rem; }
+        .inbox-page { height: calc(100vh - 60px); display: flex; flex-direction: column; background: #f0fdf4; }
+        .inbox-header { padding: 12px 20px; background: #fff; border-bottom: 2px solid #10b981; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { display: flex; align-items: center; gap: 12px; color: #065f46; }
+        .header-title h2 { margin: 0; font-size: 1.25rem; color: #065f46; }
         .badge { background: #10b981; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
         .inbox-actions { display: flex; gap: 8px; }
         .inbox-layout { display: grid; grid-template-columns: 320px 1fr; flex: 1; overflow: hidden; }
-        .inbox-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
-        .sidebar-controls { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid #f0f0f0; }
+        .inbox-sidebar { background: #fff; border-right: 1px solid #d1fae5; display: flex; flex-direction: column; }
+        .sidebar-controls { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid #d1fae5; background: #ecfdf5; }
         .delete-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #fff; border: 1px solid #10b981; border-radius: 13px; cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
-        .delete-btn:hover:not(:disabled) { background: #f0fdf4; }
+        .delete-btn:hover:not(:disabled) { background: #d1fae5; }
         .delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .search-input { flex: 1; padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 13px; }
-        .search-input:focus { outline: none; border-color: #000; }
-        .sidebar-pagination { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+        .search-input { flex: 1; padding: 8px 12px; border: 1px solid #a7f3d0; border-radius: 8px; font-size: 13px; background: #fff; }
+        .search-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+        .sidebar-pagination { padding: 10px 12px; border-bottom: 1px solid #d1fae5; background: #f0fdf4; }
         .contacts-list { flex: 1; overflow-y: auto; }
         .contact-skeleton { padding: 12px 16px; }
-        .contact-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5; transition: background 0.15s; }
-        .contact-item:hover { background: #fafafa; }
-        .contact-item.selected { background: #f5f5f5; }
-        .contact-item.checked { background: #f9fafb; }
-        .contact-item input[type="checkbox"] { margin-top: 12px; accent-color: #000; }
-        .contact-avatar { width: 40px; height: 40px; background: #000; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; flex-shrink: 0; }
+        .contact-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #ecfdf5; transition: background 0.15s; }
+        .contact-item:hover { background: #ecfdf5; }
+        .contact-item.selected { background: #d1fae5; border-left: 3px solid #10b981; }
+        .contact-item.checked { background: #d1fae5; }
+        .contact-item input[type="checkbox"] { margin-top: 12px; accent-color: #10b981; }
+        .contact-avatar { width: 40px; height: 40px; background: #10b981; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; flex-shrink: 0; }
         .contact-avatar.large { width: 44px; height: 44px; }
         .contact-info { flex: 1; min-width: 0; }
-        .contact-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
-        .unread-badge { background: #000; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
-        .contact-phone { font-size: 12px; color: #6b7280; }
-        .contact-preview { font-size: 12px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
-        .empty-contacts { padding: 40px 20px; text-align: center; color: #6b7280; }
-        .inbox-messages { display: flex; flex-direction: column; background: #fafafa; }
-        .messages-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+        .contact-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; color: #065f46; }
+        .unread-badge { background: #10b981; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
+        .contact-phone { font-size: 12px; color: #047857; }
+        .contact-preview { font-size: 12px; color: #6ee7b7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+        .empty-contacts { padding: 40px 20px; text-align: center; color: #047857; }
+        .inbox-messages { display: flex; flex-direction: column; background: #f0fdf4; }
+        .messages-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: #fff; border-bottom: 1px solid #d1fae5; }
         .messages-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-        .message-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px; }
-        .message-card.inbound { border-left: 3px solid #10b981; }
-        .message-card.outbound { border-left: 3px solid #3b82f6; }
+        .message-card { background: #fff; border: 1px solid #d1fae5; border-radius: 12px; padding: 16px; }
+        .message-card.inbound { border-left: 3px solid #10b981; background: #ecfdf5; }
+        .message-card.outbound { border-left: 3px solid #059669; }
         .message-meta { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .message-direction { font-size: 12px; color: #6b7280; }
+        .message-direction { font-size: 12px; color: #047857; }
         .message-time { font-size: 12px; color: #9ca3af; }
         .message-content { font-size: 14px; line-height: 1.5; color: #374151; }
         .message-footer { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }

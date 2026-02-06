@@ -43,20 +43,26 @@ TTL_DAYS = 90  # CDR retention period
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Process Airtel Voice CDR webhook events."""
+    """Process Airtel Voice CDR webhook events and list CDRs."""
     request_id = context.aws_request_id if context else str(uuid.uuid4())
     
     logger.info(json.dumps({
-        'event': 'voice_cdr_webhook_received',
+        'event': 'voice_cdr_handler',
         'requestId': request_id,
         'inboundNumber': INBOUND_NUMBER
     }))
     
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', ''))
+        
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
         
+        # GET - List CDR records
+        if http_method == 'GET':
+            return _list_cdrs(event.get('queryStringParameters', {}), request_id)
+        
+        # POST - Receive CDR webhook
         headers = event.get('headers', {})
         body = event.get('body', '')
         
@@ -92,7 +98,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.error(f"CDR parse error: {str(e)}")
         return _response(400, {'error': 'Invalid JSON payload'})
     except Exception as e:
-        logger.error(f"CDR webhook error: {str(e)}")
+        logger.error(f"CDR handler error: {str(e)}")
         return _response(500, {'error': 'Internal server error'})
 
 
@@ -177,6 +183,72 @@ def _store_cdr_record(record: Dict, request_id: str) -> None:
         raise
 
 
+def _list_cdrs(params: Dict, request_id: str) -> Dict[str, Any]:
+    """List CDR records with optional filters."""
+    try:
+        table = dynamodb.Table(VOICE_CDR_TABLE)
+        from boto3.dynamodb.conditions import Attr
+        
+        scan_kwargs = {'Limit': int(params.get('limit', 100) if params else 100)}
+        filter_expressions = []
+        
+        if params:
+            if params.get('callType'):
+                filter_expressions.append(Attr('callType').eq(params['callType']))
+            if params.get('overallCallStatus'):
+                filter_expressions.append(Attr('overallCallStatus').eq(params['overallCallStatus']))
+            if params.get('callerNumber'):
+                filter_expressions.append(Attr('callerNumber').contains(params['callerNumber']))
+            if params.get('destinationNumber'):
+                filter_expressions.append(Attr('destinationNumber').contains(params['destinationNumber']))
+        
+        if filter_expressions:
+            combined = filter_expressions[0]
+            for expr in filter_expressions[1:]:
+                combined = combined & expr
+            scan_kwargs['FilterExpression'] = combined
+        
+        result = table.scan(**scan_kwargs)
+        cdrs = result.get('Items', [])
+        cdrs.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
+        
+        return _response(200, {
+            'cdrs': [_normalize_cdr(c) for c in cdrs],
+            'count': len(cdrs)
+        })
+    except Exception as e:
+        logger.error(f"List CDRs error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _normalize_cdr(item: Dict) -> Dict:
+    """Normalize CDR record for API response."""
+    return {
+        'id': item.get('id', ''),
+        'vmSessionId': item.get('vmSessionId', ''),
+        'clientCorrelationId': item.get('clientCorrelationId', ''),
+        'callType': item.get('callType', ''),
+        'overallCallStatus': item.get('overallCallStatus', ''),
+        'callerNumber': item.get('callerNumber', ''),
+        'destinationNumber': item.get('destinationNumber', ''),
+        'callerId': item.get('callerId', ''),
+        'durationSec': float(item.get('durationSec', 0)),
+        'conversationDurationSec': float(item.get('conversationDurationSec', 0)),
+        'billableDurationSec': float(item.get('billableDurationSec', 0)),
+        'hangupStatus': item.get('hangupStatus', ''),
+        'hangupCause': item.get('hangupCause', ''),
+        'callerNumberStatus': item.get('callerNumberStatus', ''),
+        'destinationNumberStatus': item.get('destinationNumberStatus', ''),
+        'circleNameCaller': item.get('circleNameCaller', ''),
+        'circleNameDestination': item.get('circleNameDestination', ''),
+        'operatorNameCaller': item.get('operatorNameCaller', ''),
+        'operatorNameDestination': item.get('operatorNameDestination', ''),
+        'recordingURL': item.get('recordingURL', ''),
+        'timestamp': item.get('timestamp', ''),
+        'createdAt': int(float(item.get('createdAt', 0))),
+    }
+
+
 def _response(status_code: int, body: Dict) -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
@@ -185,7 +257,7 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key',
-            'Access-Control-Allow-Methods': 'POST,OPTIONS'
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
         },
-        'body': json.dumps(body)
+        'body': json.dumps(body, default=str)
     }

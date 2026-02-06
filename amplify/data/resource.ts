@@ -211,6 +211,62 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table 14: AirtelSMS - Airtel IQ SMS Messages (TTL: 90 days)
+  // Sender ID: WDBEEP | Entity ID: 1201161991108627443
+  AirtelSMS: a
+    .model({
+      messageId: a.id().required(),
+      contactId: a.string(),
+      phoneNumber: a.string().required(),
+      content: a.string().required(),
+      direction: a.enum(['INBOUND', 'OUTBOUND']),
+      status: a.enum(['PENDING', 'SENT', 'DELIVERED', 'FAILED']),
+      messageType: a.string(), // SERVICE_EXPLICIT, SERVICE_IMPLICIT, TRANSACTIONAL, PROMOTIONAL
+      senderId: a.string().default('WDBEEP'),
+      entityId: a.string().default('1201161991108627443'),
+      dltTemplateId: a.string(),
+      providerMessageId: a.string(),
+      recipientCount: a.integer().default(1),
+      errorDetails: a.string(),
+      createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
+    })
+    .identifier(['messageId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('phoneNumber'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 15: AirtelC2C - Airtel Click-to-Call Records (TTL: 90 days)
+  // Caller ID: 8047311032 | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
+  AirtelC2C: a
+    .model({
+      callId: a.id().required(),
+      contactId: a.string(),
+      fromNumber: a.string().required(),
+      toNumber: a.string().required(),
+      callerId: a.string().default('8047311032'),
+      status: a.enum(['INITIATED', 'RINGING', 'CONNECTED', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY']),
+      duration: a.integer().default(0),
+      recordingEnabled: a.boolean().default(true),
+      recordingUrl: a.string(),
+      correlationId: a.string(), // Airtel call_id
+      errorDetails: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
+    })
+    .identifier(['callId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('fromNumber'),
+      index('toNumber'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table 13: VoiceCDR - Airtel Voice CDR Records (TTL: 90 days)
   // Inbound Number: +91 9319767034 | Email: voice@wecare.digital
   VoiceCDR: a

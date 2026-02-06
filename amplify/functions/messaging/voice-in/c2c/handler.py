@@ -36,7 +36,7 @@ dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
-VOICE_CALLS_TABLE = os.environ.get('VOICE_CALLS_TABLE', 'base-wecare-digital-VoiceCalls')
+AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'base-wecare-digital-AirtelC2CTable')
 AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
 AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
@@ -216,8 +216,28 @@ def _generate_hmac_headers(body: str, app_id: str, api_key: str) -> Dict[str, st
 def _list_calls(params: Dict, request_id: str) -> Dict[str, Any]:
     """List C2C calls."""
     try:
-        table = dynamodb.Table(VOICE_CALLS_TABLE)
-        result = table.scan(Limit=int(params.get('limit', 100)))
+        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        from boto3.dynamodb.conditions import Attr
+        
+        scan_kwargs = {'Limit': int(params.get('limit', 100))}
+        filter_expressions = []
+        
+        if params.get('contactId'):
+            filter_expressions.append(Attr('contactId').eq(params['contactId']))
+        if params.get('status'):
+            filter_expressions.append(Attr('status').eq(params['status']))
+        if params.get('fromNumber'):
+            filter_expressions.append(Attr('fromNumber').contains(params['fromNumber']))
+        if params.get('toNumber'):
+            filter_expressions.append(Attr('toNumber').contains(params['toNumber']))
+        
+        if filter_expressions:
+            combined = filter_expressions[0]
+            for expr in filter_expressions[1:]:
+                combined = combined & expr
+            scan_kwargs['FilterExpression'] = combined
+        
+        result = table.scan(**scan_kwargs)
         calls = result.get('Items', [])
         calls.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
         
@@ -230,30 +250,30 @@ def _list_calls(params: Dict, request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
-def _store_call(call_id: str, contact_id: str, phone: str, provider_call_id: str,
+def _store_call(call_id: str, contact_id: str, to_number: str, provider_call_id: str,
                 status: str, from_number: str, request_id: str) -> None:
-    """Store call record in DynamoDB."""
+    """Store call record in AirtelC2C DynamoDB table."""
     try:
         now = int(time.time())
-        table = dynamodb.Table(VOICE_CALLS_TABLE)
+        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        
+        secrets = _get_secrets()
+        caller_id = secrets.get('caller_id', '8047311032')
         
         item = {
-            'id': call_id,
             'callId': call_id,
             'contactId': contact_id or '',
-            'phoneNumber': phone,
             'fromNumber': from_number,
-            'provider': 'airtel_kong',
-            'callType': 'c2c',
-            'status': status,
-            'direction': 'OUTBOUND',
+            'toNumber': to_number,
+            'callerId': caller_id,
+            'status': status.upper(),
+            'recordingEnabled': True,
             'createdAt': Decimal(str(now)),
             'updatedAt': Decimal(str(now)),
-            'ttl': Decimal(str(now + CALL_TTL_SECONDS)),
+            'expiresAt': Decimal(str(now + CALL_TTL_SECONDS)),
         }
         
         if provider_call_id:
-            item['providerCallId'] = provider_call_id
             item['correlationId'] = provider_call_id
         
         table.put_item(Item=item)
@@ -264,16 +284,19 @@ def _store_call(call_id: str, contact_id: str, phone: str, provider_call_id: str
 def _normalize_call(item: Dict) -> Dict:
     """Normalize call record for API response."""
     return {
-        'id': item.get('id', ''),
         'callId': item.get('callId', ''),
         'contactId': item.get('contactId', ''),
-        'phoneNumber': item.get('phoneNumber', ''),
         'fromNumber': item.get('fromNumber', ''),
-        'provider': item.get('provider', ''),
-        'callType': item.get('callType', ''),
+        'toNumber': item.get('toNumber', ''),
+        'callerId': item.get('callerId', ''),
         'status': item.get('status', ''),
+        'duration': int(float(item.get('duration', 0))),
+        'recordingEnabled': item.get('recordingEnabled', True),
+        'recordingUrl': item.get('recordingUrl', ''),
         'correlationId': item.get('correlationId', ''),
+        'errorDetails': item.get('errorDetails', ''),
         'createdAt': int(float(item.get('createdAt', 0))),
+        'updatedAt': int(float(item.get('updatedAt', 0))),
     }
 
 
