@@ -1642,57 +1642,219 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </div>
 
-              {/* Voice IN CDR Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #10B981' }}>
+              {/* Airtel Voice Webhook Section */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #E53935' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#FFEBEE', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #FFCDD2' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#E53935" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Voice IN CDR Webhook</h3>
-                    <span className="badge" style={{ background: '#D1FAE5', color: '#111827', marginTop: '4px' }}>Active</span>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Airtel Cloud Communication Platform</h3>
+                    <span className="badge" style={{ background: '#FFEBEE', color: '#C62828', marginTop: '4px' }}>Voice CDR + C2C + OBD</span>
                   </div>
                 </div>
                 
-                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
+                {/* Webhook URLs */}
+                <div style={{ background: '#FFEBEE', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFCDD2' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#C62828' }}>📌 Webhook URLs for Airtel Configuration</h4>
+                  
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>CDR Webhook URL (for callBackURLs eventType: "CDR")</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
                   </div>
+                  
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Inbound Number</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>+91 9319767034</code>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Events Webhook URL (for callBackURLs eventType: "ALL")</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
                   </div>
+                  
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>HTTP Method</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>POST</code>
+                  </div>
+                  
                   <div>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Contact Email</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>voice@wecare.digital</code>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Content-Type</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>application/json</code>
                   </div>
                 </div>
 
+                {/* Contact Info */}
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 Contact Information</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Inbound Number</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>+91 9319767034</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Contact Email</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>voice@wecare.digital</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Customer ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WECAREDIG_v6J1SyLLI2auy7Lw9JrW</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>App ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WECAREDIG_fD4BKqUbC8k90jNrPR0n</code>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sample callBackURLs Config */}
+                <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>✅ Sample callBackURLs Configuration</h4>
+                  <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`"callBackURLs": [
+  {
+    "eventType": "CDR",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  },
+  {
+    "eventType": "ALL",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  }
+]`}</pre>
+                </div>
+
+                {/* Supported Event Types */}
                 <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>CDR Data Fields</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Event Types</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { field: 'vmSessionId', desc: 'Session ID' },
-                      { field: 'callType', desc: 'INBOUND/OUTBOUND' },
-                      { field: 'overallCallStatus', desc: 'Answered/Missed/Busy' },
-                      { field: 'callerNumber', desc: 'Caller phone' },
-                      { field: 'destinationNumber', desc: 'Destination phone' },
-                      { field: 'conversationDuration', desc: 'Talk time' },
-                      { field: 'billableDuration', desc: 'Billable time' },
-                      { field: 'recordingURL', desc: 'Call recording' },
-                      { field: 'circleNameCaller', desc: 'Caller state' },
-                      { field: 'operatorNameCaller', desc: 'Caller operator' },
-                    ].map(({ field, desc }) => (
-                      <div key={field} style={{ background: '#D1FAE5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
-                        <span style={{ fontFamily: 'monospace', color: '#111827' }}>{field}</span>
+                      { event: 'CDR', desc: 'Call Detail Records', color: '#E53935' },
+                      { event: 'ALL', desc: 'All real-time events', color: '#E53935' },
+                      { event: 'CALL', desc: 'Call state changes', color: '#FB8C00' },
+                      { event: 'MEDIA', desc: 'Audio playback events', color: '#7B1FA2' },
+                      { event: 'DTMF', desc: 'Keypad input events', color: '#1976D2' },
+                      { event: 'RECORD', desc: 'Recording events', color: '#388E3C' },
+                    ].map(({ event, desc, color }) => (
+                      <div key={event} style={{ background: '#FFEBEE', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #FFCDD2' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                          <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{event}</span>
+                        </div>
                         <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                       </div>
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Message to Share with Airtel */}
+              <div className="section" style={{ background: '#E3F2FD', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #90CAF9' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1565C0' }}>
+                  📋 Message to Share with Airtel Team
+                </h4>
+                <div style={{ background: '#fff', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #BBDEFB' }}>
+                  <pre style={{ fontSize: '0.8rem', color: '#111827', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{`Dear Airtel Team,
+
+Please configure the following webhook URL for our Click-to-Call (C2C) and OBD integration:
+
+WEBHOOK CONFIGURATION:
+━━━━━━━━━━━━━━━━━━━━━━
+Webhook URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+HTTP Method: POST
+Content-Type: application/json
+
+IMPORTANT NOTES:
+━━━━━━━━━━━━━━━━
+1. The URL path is: /prod/voice-cdr-webhook (not just the base domain)
+2. This endpoint accepts both CDR and real-time event webhooks
+3. The endpoint returns HTTP 200 OK on successful receipt
+
+CUSTOMER DETAILS:
+━━━━━━━━━━━━━━━━━
+Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
+Contact Email: voice@wecare.digital
+Inbound Number: +91 9319767034
+
+SAMPLE callBackURLs FOR C2C API:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"callBackURLs": [
+  {
+    "eventType": "CDR",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  },
+  {
+    "eventType": "ALL",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  }
+]
+
+Please whitelist this domain: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
+
+If you're getting a 404 error, please ensure you're hitting the full URL path including /prod/voice-cdr-webhook and not just the base domain.
+
+Thank you,
+WECARE.DIGITAL Team`}</pre>
+                </div>
+                <button 
+                  onClick={() => {
+                    const text = `Dear Airtel Team,
+
+Please configure the following webhook URL for our Click-to-Call (C2C) and OBD integration:
+
+WEBHOOK CONFIGURATION:
+━━━━━━━━━━━━━━━━━━━━━━
+Webhook URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+HTTP Method: POST
+Content-Type: application/json
+
+IMPORTANT NOTES:
+━━━━━━━━━━━━━━━━
+1. The URL path is: /prod/voice-cdr-webhook (not just the base domain)
+2. This endpoint accepts both CDR and real-time event webhooks
+3. The endpoint returns HTTP 200 OK on successful receipt
+
+CUSTOMER DETAILS:
+━━━━━━━━━━━━━━━━━
+Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
+Contact Email: voice@wecare.digital
+Inbound Number: +91 9319767034
+
+SAMPLE callBackURLs FOR C2C API:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"callBackURLs": [
+  {
+    "eventType": "CDR",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  },
+  {
+    "eventType": "ALL",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  }
+]
+
+Please whitelist this domain: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
+
+If you're getting a 404 error, please ensure you're hitting the full URL path including /prod/voice-cdr-webhook and not just the base domain.
+
+Thank you,
+WECARE.DIGITAL Team`;
+                    navigator.clipboard.writeText(text);
+                    alert('Message copied to clipboard!');
+                  }}
+                  style={{ marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#1976D2', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  📋 Copy Message to Clipboard
+                </button>
               </div>
 
               {/* Voice CDR Data Captured */}
@@ -1704,21 +1866,21 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                   {[
                     { field: 'vmSessionId', desc: 'Unique session identifier' },
-                    { field: 'clientCorrelationId', desc: 'Client correlation ID' },
+                    { field: 'clientCorrelationId', desc: 'Xchange ID for tracking' },
                     { field: 'customerId', desc: 'Customer identifier' },
                     { field: 'callType', desc: 'INBOUND or OUTBOUND' },
                     { field: 'overallCallStatus', desc: 'Answered, Missed, Busy' },
                     { field: 'callerNumber', desc: 'Caller phone number' },
                     { field: 'destinationNumber', desc: 'Destination phone' },
-                    { field: 'calledNumber', desc: 'Called number' },
+                    { field: 'calledNumber', desc: 'Called number (VN)' },
                     { field: 'durationSec', desc: 'Total duration (seconds)' },
-                    { field: 'fromWaitingTimeSec', desc: 'Customer wait time' },
+                    { field: 'fromWaitingTimeSec', desc: 'IVR/wait time' },
                     { field: 'conversationDurationSec', desc: 'Talk time (seconds)' },
                     { field: 'billableDurationSec', desc: 'Billable duration' },
                     { field: 'circleNameCaller', desc: 'Caller state/circle' },
                     { field: 'operatorNameCaller', desc: 'Caller telecom operator' },
                     { field: 'recordingURL', desc: 'Call recording URL' },
-                    { field: 'hangupCause', desc: 'Call end reason' },
+                    { field: 'hangupCause', desc: 'USER/SYSTEM_INITIATED' },
                   ].map(({ field, desc }) => (
                     <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #10B981' }}>
                       <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>

@@ -1,17 +1,18 @@
 /**
- * Airtel Voice CDR Webhook Lambda Function Resource
+ * Airtel Voice CDR Webhook Lambda Function
  * Receives Call Detail Records from Airtel Cloud Communication Platform
  */
 
 import { defineFunction } from '@aws-amplify/backend';
 
-export const voiceCdrWebhook = defineFunction({
-  name: 'wecare-voice-cdr-webhook',
+export const voiceCdr = defineFunction({
+  name: 'wecare-voice-in-cdr',
   entry: './handler.py',
-  runtime: 20, // Python 3.12
+  runtime: 20,
   timeoutSeconds: 30,
   memoryMB: 256,
   environment: {
+    AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
     VOICE_CDR_TABLE: 'base-wecare-digital-VoiceCDRTable',
   },
