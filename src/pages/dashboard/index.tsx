@@ -1890,6 +1890,86 @@ WECARE.DIGITAL Team`;
                 </div>
               </div>
 
+              {/* Airtel SMS Webhook Section */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1976D2' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#E3F2FD', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #90CAF9' }}>
+                    <SmsIcon size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Airtel IQ SMS</h3>
+                    <span className="badge" style={{ background: '#E3F2FD', color: '#1565C0', marginTop: '4px' }}>DLT Compliant</span>
+                  </div>
+                </div>
+                
+                <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1565C0' }}>📌 SMS API Endpoints</h4>
+                  
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (Single/Multiple)</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>POST https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel</code>
+                  </div>
+                  
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>List SMS Messages</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel</code>
+                  </div>
+                </div>
+
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 DLT Configuration</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Sender ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WDBEEP</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Entity ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>1201161991108627443</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Default Template ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>1007974344269130859</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>API Host</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>iqmessaging.airtel.in</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>✅ Sample Send SMS Request</h4>
+                  <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`POST /sms-in/airtel
+{
+  "phoneNumber": "9876543210",
+  "content": "Your OTP is 123456",
+  "messageType": "SERVICE_EXPLICIT",
+  "dltTemplateId": "1007974344269130859"
+}`}</pre>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Message Types</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {[
+                      { type: 'SERVICE_EXPLICIT', desc: 'Service messages (opt-in)', color: '#1976D2' },
+                      { type: 'SERVICE_IMPLICIT', desc: 'Service messages (implicit)', color: '#1976D2' },
+                      { type: 'TRANSACTIONAL', desc: 'OTP, alerts, etc.', color: '#388E3C' },
+                      { type: 'PROMOTIONAL', desc: 'Marketing messages', color: '#F57C00' },
+                    ].map(({ type, desc, color }) => (
+                      <div key={type} style={{ background: '#E3F2FD', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #90CAF9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                          <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{type}</span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Custom Webhooks Section */}
               <div className="section-header" style={{ marginTop: '2rem' }}>
                 <h3>Custom Webhooks</h3>
