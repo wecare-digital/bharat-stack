@@ -483,6 +483,21 @@ export default function App({ Component, pageProps }: AppProps) {
           gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
         `}
       </Script>
+      {/* Facebook SDK for JavaScript */}
+      <Script id="facebook-sdk-init" strategy="afterInteractive">
+        {`
+          window.fbAsyncInit = function() {
+            FB.init({
+              appId: '1623342242027107',
+              cookie: true,
+              xfbml: true,
+              version: 'v20.0'
+            });
+            FB.AppEvents.logPageView();
+          };
+        `}
+      </Script>
+      <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk" />
       {/* WhatsApp Chat Widget */}
       <Script src="https://auth.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
