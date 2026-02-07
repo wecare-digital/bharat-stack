@@ -107,6 +107,7 @@ export const IAM_POLICIES = {
         Effect: 'Allow',
         Action: [
           'sms-voice:SendTextMessage',
+          'sms-voice:SendVoiceMessage',
         ],
         Resource: 'arn:aws:sms-voice:us-east-1:809904170947:pool/pool-6fbf5a5f390d4eeeaa7dbae39d78933e',
       },
@@ -285,6 +286,8 @@ export const FUNCTION_POLICIES = {
   'ai-generate-response': ['common', 'bedrock'],
   'billing': ['common', 'billing'],
   'wecare-sms-in-airtel': ['common', 'secrets'],
+  'sms-aws': ['common', 'sms'],
+  'voice-aws': ['common', 'sms'],
   'wecare-voice-in-c2c': ['common', 'secrets'],
   'wecare-voice-in-obd': ['common', 'secrets'],
   'wecare-voice-cdr-webhook': ['common'],

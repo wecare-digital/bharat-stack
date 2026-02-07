@@ -21,7 +21,6 @@ interface SmsMessage {
 }
 interface Campaign { id: string; name: string; recipients: number; sent: number; delivered: number; failed: number; createdAt: string; }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
 const ITEMS_PER_PAGE = 25;
 
 const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
@@ -59,14 +58,14 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [messagesData, contactsData] = await Promise.all([api.listSmsAwsMessages(), api.listContacts()]);
+      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'SMS'), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
       contactsData.forEach(c => contactMap.set(c.contactId, c));
       const formatted: SmsMessage[] = messagesData.map(m => ({
         messageId: m.messageId, contactId: m.contactId, contactName: contactMap.get(m.contactId)?.name,
-        phone: m.phoneNumber || contactMap.get(m.contactId)?.phone || '', content: m.content || '', status: m.status || 'unknown',
-        direction: m.direction || 'OUTBOUND', messageType: m.messageType, campaignId: (m as any).campaignId,
-        campaignName: (m as any).campaignName, timestamp: new Date(m.createdAt * 1000).toISOString()
+        phone: (m as any).phoneNumber || m.senderPhone || m.receivingPhone || contactMap.get(m.contactId)?.phone || '', content: m.content || '', status: m.status || 'unknown',
+        direction: m.direction, messageType: (m as any).messageType, campaignId: (m as any).campaignId,
+        campaignName: (m as any).campaignName, timestamp: m.timestamp
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setMessages(formatted);
       const campaignMap = new Map<string, Campaign>();
@@ -98,10 +97,9 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
     if (!sendContent) { toast.error('Message required'); return; }
     setSending(true);
     try {
-      const response = await fetch(`${API_BASE}/sms-aws/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phoneNumber: sendPhone, content: sendContent, messageType: sendMessageType }) });
-      const result = await response.json();
-      if (result.messageId || result.success) { toast.success('SMS sent!'); setShowSendModal(false); setSendPhone(''); setSendContent(''); await loadData(); }
-      else toast.error(result.error || 'Failed to send SMS');
+      const result = await api.sendSmsAws({ phoneNumber: sendPhone, content: sendContent, messageType: sendMessageType as 'TRANSACTIONAL' | 'PROMOTIONAL' });
+      if (result && (result.messageId || result.status === 'sent')) { toast.success('SMS sent!'); setShowSendModal(false); setSendPhone(''); setSendContent(''); await loadData(); }
+      else toast.error('Failed to send SMS');
     } catch (err) { toast.error('Failed to send SMS'); } finally { setSending(false); }
   };
 
@@ -113,7 +111,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
       for (const contactId of selectedContacts) {
         const contact = contacts.find(c => c.contactId === contactId);
         if (!contact?.phone) { failed++; continue; }
-        try { const response = await fetch(`${API_BASE}/sms-aws/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId, phoneNumber: contact.phone, content: campaignContent, messageType: 'PROMOTIONAL', campaignId, campaignName }) }); if (response.ok) sent++; else failed++; } catch { failed++; }
+        try { const result = await api.sendSmsAws({ contactId, phoneNumber: contact.phone, content: campaignContent, messageType: 'PROMOTIONAL' }); if (result && result.messageId) sent++; else failed++; } catch { failed++; }
         if (sent % 10 === 0) await new Promise(r => setTimeout(r, 200));
       }
       toast.success(`Campaign sent: ${sent} success, ${failed} failed`);
