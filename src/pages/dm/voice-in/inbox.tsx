@@ -148,7 +148,7 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="page-header">
           <div className="header-title">
             <PhoneIcon />
-            <h2>Airtel IQ Voice</h2>
+            <h2>Voice IN</h2>
             <span className="badge">C2C + OBD + CDR</span>
           </div>
           <div className="header-actions">
