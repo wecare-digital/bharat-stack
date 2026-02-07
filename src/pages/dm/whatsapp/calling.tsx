@@ -12,9 +12,29 @@ import { useToastContext } from '../../../contexts/ToastContext';
 interface PageProps { signOut?: () => void; user?: any; }
 
 const PHONE_NUMBERS = [
-  { id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN' },
-  { id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6', display: '+91 99033 00044', name: 'MERA ASHIANA', country: 'IN' },
+  { id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a', metaId: '1065003613352032', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: false },
+  { id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6', metaId: '1065809899939064', display: '+91 99033 00044', name: 'Manish Agarwal', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true },
 ];
+
+// Webhook configuration — LIVE
+const WEBHOOK_CONFIG = {
+  callbackUrl: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling',
+  verifyToken: 'wecare_calling_verify_2026',
+  subscribedFields: ['calls'],
+  lambda: 'wecare-whatsapp-calling',
+  table: 'base-wecare-digital-WhatsAppCallingTable',
+  status: 'deployed',  // deployed, verified, subscribed
+};
+
+// Meta Access Token info
+const META_TOKEN = {
+  appId: '1623342242027107',
+  secretName: 'wecare/meta-system-user-token',
+  scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
+  wabaAccess: ['1728153881476046', '761651636983279'],
+  tokenType: 'System User',
+  status: 'active',
+};
 
 // Signaling & Media configurations from Meta docs
 const SIGNAL_CONFIGS = [
@@ -25,9 +45,9 @@ const SIGNAL_CONFIGS = [
 
 const SETUP_STEPS = [
   {
-    step: 1, done: false,
+    step: 1, done: true,
     title: 'Prerequisites',
-    desc: 'Business number must use Cloud API (not WhatsApp Business app). Subscribe app to "calls" webhook field (unless using SIP). App must have whatsapp_business_messaging permission. Business must have messaging limit of at least 2,000 business-initiated conversations in a rolling 24h period.',
+    desc: 'Cloud API ✓ | whatsapp_business_messaging permission ✓ | System User token created (App 1623342242027107) ✓ | +919903300044 has TIER_10K (meets 2K requirement) ✓ | +919330994400 has TIER_1K (needs upgrade to 2K for calling).',
   },
   {
     step: 2, done: false,
@@ -121,11 +141,13 @@ POST /{phone-number-id}/calls
 ];
 
 const AWS_RESOURCES = [
-  { service: 'API Gateway', resource: 'k4vqzmi07b', purpose: 'Webhook endpoint for Meta call events', status: 'active' },
-  { service: 'Lambda', resource: 'wecare-whatsapp-voice', purpose: 'TTS generation, media upload, call webhook handler', status: 'active' },
+  { service: 'API Gateway', resource: 'k4vqzmi07b', purpose: 'Webhook endpoint for Meta call events + messaging', status: 'active' },
+  { service: 'Lambda', resource: 'wecare-whatsapp-calling', purpose: 'Calling webhook handler (verify + call events)', status: 'active' },
+  { service: 'Lambda', resource: 'wecare-whatsapp-voice', purpose: 'TTS generation, media upload, audio messages', status: 'active' },
+  { service: 'DynamoDB', resource: 'WhatsAppCallingTable', purpose: 'Call event logs (connect, terminate, permission)', status: 'active' },
+  { service: 'DynamoDB', resource: 'WhatsAppVoiceTable', purpose: 'TTS logs, voice note logs', status: 'active' },
   { service: 'Amazon Polly', resource: 'SynthesizeSpeech', purpose: 'Neural TTS for IVR prompts and voice notes (OPUS)', status: 'active' },
   { service: 'S3', resource: 'auth.wecare.digital/whatsapp-media/', purpose: 'TTS audio files, call recordings', status: 'active' },
-  { service: 'DynamoDB', resource: 'WhatsAppVoiceTable', purpose: 'TTS logs, call event logs', status: 'active' },
   { service: 'Secrets Manager', resource: 'wecare/meta-app-secret', purpose: 'Meta App Secret for webhook verification', status: 'active' },
 ];
 
@@ -154,7 +176,7 @@ const CHANGELOG = [
 ];
 
 const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'setup' | 'resources'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'webhook' | 'setup' | 'resources'>('overview');
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const toast = useToastContext();
 
@@ -209,12 +231,13 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
               VoIP calls in WhatsApp threads — Graph API/SIP signaling + WebRTC media (OPUS) + Amazon Polly IVR
             </p>
           </div>
-          <span style={badge('planned')}>Setup Required</span>
+          <span style={badge('active')}>Webhook Deployed</span>
         </div>
 
         {/* Tabs */}
         <div style={s.tabs}>
           <button style={tab(activeTab === 'overview')} onClick={() => setActiveTab('overview')}>Overview</button>
+          <button style={tab(activeTab === 'webhook')} onClick={() => setActiveTab('webhook')}>Webhook Config</button>
           <button style={tab(activeTab === 'setup')} onClick={() => setActiveTab('setup')}>Setup Guide</button>
           <button style={tab(activeTab === 'resources')} onClick={() => setActiveTab('resources')}>AWS Resources</button>
         </div>
@@ -327,11 +350,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div style={{ ...s.card, marginTop: '16px' }}>
               <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WABA Phone Numbers</h4>
               {PHONE_NUMBERS.map((p, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{p.display}</span>
                   <span style={{ fontSize: '12px', color: '#6b7280' }}>{p.name}</span>
                   <span style={badge('available')}>{p.country}</span>
-                  <code style={{ fontSize: '11px', color: '#9ca3af', marginLeft: 'auto', wordBreak: 'break-all' }}>{p.id}</code>
+                  <span style={{ ...badge(p.quality === 'GREEN' ? 'active' : 'planned'), fontSize: '10px' }}>Quality: {p.quality}</span>
+                  <span style={{ ...badge(p.tier === 'TIER_10K' || p.tier === 'TIER_UNLIMITED' ? 'active' : 'planned'), fontSize: '10px' }}>Tier: {p.tier}</span>
+                  <span style={{ ...badge(p.callingReady ? 'active' : 'planned'), fontSize: '10px' }}>{p.callingReady ? 'Calling Ready' : 'Needs 2K Tier'}</span>
+                  <code style={{ fontSize: '10px', color: '#9ca3af', marginLeft: 'auto', wordBreak: 'break-all' }}>Meta: {p.metaId}</code>
                 </div>
               ))}
             </div>
@@ -367,12 +393,158 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 {[
                   { label: 'Meta Calling API', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
+                  { label: 'Getting Started (Access Token)', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/get-started' },
+                  { label: 'Webhooks Overview', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/webhooks/overview' },
                   { label: 'User-Initiated Calls', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/receive-calls' },
                   { label: 'Business-Initiated Calls', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/place-calls' },
                   { label: 'Call Control Settings', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control' },
                   { label: 'SIP Integration', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sip' },
-                  { label: 'Sandbox Testing', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sandbox' },
                   { label: 'Asterisk Guide', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/asterisk' },
+                  { label: 'Sandbox Testing', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sandbox' },
+                ].map((d, i) => (
+                  <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none' }}>
+                    {d.label} ↗
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* WEBHOOK CONFIG TAB */}
+        {activeTab === 'webhook' && (
+          <div>
+            {/* Webhook Status */}
+            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '18px' }}>🔗</span>
+                <h3 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Webhook Endpoint — Deployed & Verified</h3>
+                <span style={badge('active')}>live</span>
+              </div>
+              <p style={{ margin: 0, fontSize: '13px', color: '#047857', lineHeight: 1.6 }}>
+                Lambda <code style={{ background: '#d1fae5', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>wecare-whatsapp-calling</code> handles
+                webhook verification (GET hub.challenge) and call events (POST connect/terminate/permission).
+                Logs stored in DynamoDB <code style={{ background: '#d1fae5', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>WhatsAppCallingTable</code>.
+              </p>
+            </div>
+
+            {/* Callback URL + Verify Token */}
+            <div style={s.card}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Meta Dashboard Configuration</h4>
+              <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6b7280' }}>
+                Enter these values in <a href="https://developers.facebook.com/apps/1623342242027107/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>Meta App Dashboard → WhatsApp → Configuration</a>
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Callback URL</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <code style={{ flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', wordBreak: 'break-all' }}>
+                      {WEBHOOK_CONFIG.callbackUrl}
+                    </code>
+                    <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_CONFIG.callbackUrl); toast.success('Copied'); }}
+                      style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Verify Token</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <code style={{ flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px' }}>
+                      {WEBHOOK_CONFIG.verifyToken}
+                    </code>
+                    <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_CONFIG.verifyToken); toast.success('Copied'); }}
+                      style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Webhook Fields to Subscribe</label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {['calls', 'messages', 'message_template_status_update', 'account_update'].map((field, i) => (
+                      <span key={i} style={{
+                        padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                        background: field === 'calls' ? '#ecfdf5' : '#f3f4f6',
+                        color: field === 'calls' ? '#065f46' : '#6b7280',
+                        border: `1px solid ${field === 'calls' ? '#a7f3d0' : '#e5e7eb'}`,
+                      }}>
+                        {field} {field === 'calls' && '← required for calling'}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Meta Access Token Info */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Meta Access Token</h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <tbody>
+                    {[
+                      { label: 'App ID', value: META_TOKEN.appId },
+                      { label: 'Secrets Manager', value: META_TOKEN.secretName },
+                      { label: 'Token Type', value: META_TOKEN.tokenType },
+                      { label: 'Status', value: META_TOKEN.status },
+                      { label: 'Scopes', value: META_TOKEN.scopes.join(', ') },
+                      { label: 'WABA Access', value: META_TOKEN.wabaAccess.join(', ') },
+                    ].map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap', width: '140px' }}>{row.label}</td>
+                        <td style={{ padding: '8px 12px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px' }}>{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Step-by-step: How to configure in Meta Dashboard */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>How to Configure Webhook in Meta Dashboard</h4>
+              <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 }}>
+                <li>Go to <a href="https://developers.facebook.com/apps/1623342242027107/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
+                <li>Under "Webhook", click "Edit" (or "Configure" if first time)</li>
+                <li>Paste the Callback URL above</li>
+                <li>Paste the Verify Token above</li>
+                <li>Click "Verify and Save" — Meta will send a GET request with hub.challenge, our Lambda responds correctly</li>
+                <li>After verification, click "Manage" next to Webhook fields</li>
+                <li>Subscribe to: <strong>calls</strong> (required), optionally messages, account_update</li>
+                <li>Important: If app is unpublished, only test webhooks from dashboard will work. Publish the app for production data.</li>
+              </ol>
+            </div>
+
+            {/* Phone Number Readiness */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Phone Number Calling Readiness</h4>
+              {PHONE_NUMBERS.map((p, i) => (
+                <div key={i} style={{ padding: '10px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{p.display}</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280' }}>{p.name}</span>
+                    <span style={badge(p.callingReady ? 'active' : 'planned')}>{p.callingReady ? '✓ Ready' : '⚠ Not Ready'}</span>
+                  </div>
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
+                    Tier: <strong>{p.tier}</strong> | Quality: <strong>{p.quality}</strong> | Meta ID: <code style={{ fontSize: '11px' }}>{p.metaId}</code>
+                    {!p.callingReady && <span style={{ color: '#dc2626', marginLeft: '8px' }}>Needs TIER_2K+ (currently {p.tier})</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Documentation Links */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Documentation</h4>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Getting Started (Access Token)', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/get-started' },
+                  { label: 'Webhooks Overview', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/webhooks/overview' },
+                  { label: 'Calling API Docs', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
+                  { label: 'App Dashboard', url: 'https://developers.facebook.com/apps/1623342242027107/whatsapp-business/wa-dev-console/' },
+                  { label: 'Meta Business Settings', url: 'https://business.facebook.com/settings' },
                 ].map((d, i) => (
                   <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none' }}>

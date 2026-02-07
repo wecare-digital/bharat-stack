@@ -1,0 +1,676 @@
+﻿{
+    "Items": [
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "0ddb6a3",
+            "RouteKey": "GET /prod/whatsapp-calling",
+            "Target": "integrations/qj9f49n"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "0opyo7s",
+            "RouteKey": "POST /templates/carousel-media",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "0ovxpad",
+            "RouteKey": "GET /ai/fallbacks",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "1wbd6ni",
+            "RouteKey": "POST /prod/whatsapp-calling",
+            "Target": "integrations/qj9f49n"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "3dxh050",
+            "RouteKey": "GET /templates/analytics/{templateName}",
+            "Target": "integrations/mfmmu86"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "3mneyv0",
+            "RouteKey": "DELETE /waba/media/{mediaId}",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "4vojovj",
+            "RouteKey": "PUT /messages/scheduled/{scheduledId}",
+            "Target": "integrations/xro3yqd"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "57unycc",
+            "RouteKey": "POST /voice-in/c2c",
+            "Target": "integrations/gygr7w6"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "5qacaqq",
+            "RouteKey": "POST /waba/media",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "6jm4j0s",
+            "RouteKey": "GET /whatsapp-voice/logs",
+            "Target": "integrations/eanfwt8"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "79cmvrb",
+            "RouteKey": "POST /whatsapp/send",
+            "Target": "integrations/jmivtio"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "7b1aiy0",
+            "RouteKey": "POST /whatsapp-voice/tts",
+            "Target": "integrations/eanfwt8"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "7ewvyir",
+            "RouteKey": "POST /templates/from-library",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "8baw62o",
+            "RouteKey": "GET /sms-aws/messages/{messageId}",
+            "Target": "integrations/c4ijvqg"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "8ot8tjq",
+            "RouteKey": "POST /dlq/replay",
+            "Target": "integrations/alavtd1"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "8rw12ju",
+            "RouteKey": "PUT /contacts/{contactId}",
+            "Target": "integrations/2808krp"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "95fpxr7",
+            "RouteKey": "POST /waba/tags",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "964rfhf",
+            "RouteKey": "GET /templates/library",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "9lleq4m",
+            "RouteKey": "POST /razorpay-webhook",
+            "Target": "integrations/m0b0h70"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "a0xgbqi",
+            "RouteKey": "GET /ai/interactions",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "bccwpti",
+            "RouteKey": "POST /voice-cdr-webhook",
+            "Target": "integrations/rox5klp"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "bsuz7k3",
+            "RouteKey": "DELETE /messages/{messageId}",
+            "Target": "integrations/h63176v"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "bunfwb6",
+            "RouteKey": "DELETE /messages/scheduled/{scheduledId}",
+            "Target": "integrations/xro3yqd"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "c5hp03c",
+            "RouteKey": "GET /sms-in/airtel",
+            "Target": "integrations/lrqlkrm"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "c5no9j8",
+            "RouteKey": "GET /voice-in/obd",
+            "Target": "integrations/1qwiuaj"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "ck75myu",
+            "RouteKey": "POST /sms/send",
+            "Target": "integrations/dxlsjsa"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "ck7sutj",
+            "RouteKey": "GET /dlq",
+            "Target": "integrations/8qvnqtg"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "d1j6wts",
+            "RouteKey": "GET /waba",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "db6sqie",
+            "RouteKey": "GET /messages/scheduled",
+            "Target": "integrations/xro3yqd"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "e6h64sg",
+            "RouteKey": "POST /contacts",
+            "Target": "integrations/0w1joye"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "e9lackg",
+            "RouteKey": "GET /voice-cdr-read",
+            "Target": "integrations/maevkbf"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "f96uyr1",
+            "RouteKey": "DELETE /templates/{templateName}",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "fc8n5h3",
+            "RouteKey": "POST /whatsapp-voice/send",
+            "Target": "integrations/eanfwt8"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "fqimlst",
+            "RouteKey": "GET /waba/tags",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "fzb685h",
+            "RouteKey": "GET /ai/config",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "gicaz06",
+            "RouteKey": "GET /waba/media/{mediaId}",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "h4h7ebh",
+            "RouteKey": "PUT /templates/{templateId}",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "hfbd3on",
+            "RouteKey": "PUT /waba/{wabaId}/events",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "hp7bi8r",
+            "RouteKey": "POST /sms-aws/send",
+            "Target": "integrations/c4ijvqg"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "i32dzqo",
+            "RouteKey": "GET /ai/prompts",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "i6eorm9",
+            "RouteKey": "DELETE /waba/tags",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "iww6gi8",
+            "RouteKey": "GET /voice/calls/{callId}",
+            "Target": "integrations/gek26y7"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "jn0n203",
+            "RouteKey": "DELETE /sms-aws/clear-logs",
+            "Target": "integrations/c4ijvqg"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "jtxbueu",
+            "RouteKey": "GET /voice-cdr-webhook",
+            "Target": "integrations/rox5klp"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "l23s9xm",
+            "RouteKey": "GET /ai/internal/config",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "l3xchm4",
+            "RouteKey": "DELETE /sms-aws/messages/{messageId}",
+            "Target": "integrations/c4ijvqg"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "lj2a442",
+            "RouteKey": "PUT /ai/internal/config",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "ljc0a74",
+            "RouteKey": "GET /voice-aws/calls/{callId}",
+            "Target": "integrations/urxmmyr"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "lqvxdyb",
+            "RouteKey": "POST /templates/carousel",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "lufvhln",
+            "RouteKey": "GET /templates",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "mc14uwl",
+            "RouteKey": "POST /bulk/jobs",
+            "Target": "integrations/lvexjc7"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "mjdrdcq",
+            "RouteKey": "DELETE /prod/whatsapp-calling",
+            "Target": "integrations/qj9f49n"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "morb71e",
+            "RouteKey": "POST /voice/call",
+            "Target": "integrations/60ddb15"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "nhp4mjk",
+            "RouteKey": "GET /messages",
+            "Target": "integrations/7jj0tc2"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "nsfkjgg",
+            "RouteKey": "DELETE /sms-in/airtel/templates",
+            "Target": "integrations/lrqlkrm"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "nt3rrto",
+            "RouteKey": "POST /sms-in/airtel/templates",
+            "Target": "integrations/lrqlkrm"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "ow6bti0",
+            "RouteKey": "POST /sms-in/airtel",
+            "Target": "integrations/lrqlkrm"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "po7brwt",
+            "RouteKey": "POST /templates",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "q0gijbj",
+            "RouteKey": "GET /waba/phone/{phoneNumberId}",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "q4d0bft",
+            "RouteKey": "DELETE /whatsapp-voice/clear-logs",
+            "Target": "integrations/eanfwt8"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "qdhuqul",
+            "RouteKey": "GET /contacts",
+            "Target": "integrations/d0xd7a6"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "qtojkxs",
+            "RouteKey": "GET /prod/whatsapp-calling/logs",
+            "Target": "integrations/qj9f49n"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "r07v7ms",
+            "RouteKey": "POST /email/send",
+            "Target": "integrations/f9a2i8i"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "r1nzd5f",
+            "RouteKey": "GET /voice-aws/calls",
+            "Target": "integrations/urxmmyr"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "r855otj",
+            "RouteKey": "GET /ai/languages",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "rghkxnq",
+            "RouteKey": "GET /billing",
+            "Target": "integrations/z1ethtb"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "s8c0uec",
+            "RouteKey": "DELETE /voice-cdr-webhook/clear-logs",
+            "Target": "integrations/rox5klp"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "sclzsp1",
+            "RouteKey": "POST /messages/scheduled",
+            "Target": "integrations/xro3yqd"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "sd7hlq2",
+            "RouteKey": "GET /ai/stats",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "smv3vz7",
+            "RouteKey": "DELETE /voice-in/c2c/clear-logs",
+            "Target": "integrations/gygr7w6"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "t5lbzvb",
+            "RouteKey": "GET /voice/calls",
+            "Target": "integrations/0r3qval"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "tbg7e1q",
+            "RouteKey": "GET /waba/events",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "th8uaq2",
+            "RouteKey": "POST /ai/generate",
+            "Target": "integrations/6qscxpj"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "tk5kxj0",
+            "RouteKey": "DELETE /voice-aws/calls/{callId}",
+            "Target": "integrations/urxmmyr"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "toabaem",
+            "RouteKey": "GET /templates/{templateId}",
+            "Target": "integrations/c5hig9r"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "tpwdj1l",
+            "RouteKey": "POST /voice-in/obd",
+            "Target": "integrations/1qwiuaj"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "u25wqdd",
+            "RouteKey": "POST /voice-aws/call",
+            "Target": "integrations/urxmmyr"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "u67qs3m",
+            "RouteKey": "GET /payments/{paymentId}",
+            "Target": "integrations/5u2ryef"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "u851nyn",
+            "RouteKey": "DELETE /contacts/{contactId}",
+            "Target": "integrations/e1x5xvd"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "uiysih4",
+            "RouteKey": "GET /voice-in/c2c",
+            "Target": "integrations/gygr7w6"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "v795ukm",
+            "RouteKey": "PUT /ai/config",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "vxmmg6o",
+            "RouteKey": "DELETE /voice-in/obd/clear-logs",
+            "Target": "integrations/1qwiuaj"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "wgaf1ud",
+            "RouteKey": "GET /bulk/jobs/{jobId}",
+            "Target": "integrations/an71gx6"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "wrw6h54",
+            "RouteKey": "PUT /ai/prompts/{lang}",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "xedincg",
+            "RouteKey": "GET /whatsapp-voice/voices",
+            "Target": "integrations/eanfwt8"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "xp9hk57",
+            "RouteKey": "GET /bulk/jobs",
+            "Target": "integrations/ekuvvl0"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "xqlfe2d",
+            "RouteKey": "GET /payments",
+            "Target": "integrations/a4u7zy5"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "xvg1mo6",
+            "RouteKey": "GET /sms-in/airtel/templates",
+            "Target": "integrations/lrqlkrm"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "y5feno6",
+            "RouteKey": "DELETE /voice-aws/clear-logs",
+            "Target": "integrations/urxmmyr"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "y7r9tjf",
+            "RouteKey": "GET /whatsapp/templates",
+            "Target": "integrations/lb4oepe"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "y7y4yah",
+            "RouteKey": "PUT /ai/fallbacks/{lang}",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "y9abeaa",
+            "RouteKey": "GET /sms-aws/messages",
+            "Target": "integrations/c4ijvqg"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "ykj65t3",
+            "RouteKey": "GET /waba/{wabaId}",
+            "Target": "integrations/6yu1758"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "za7v2e2",
+            "RouteKey": "POST /ai/test",
+            "Target": "integrations/vjdix72"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "zai9u40",
+            "RouteKey": "GET /contacts/{contactId}",
+            "Target": "integrations/2sm4tes"
+        },
+        {
+            "ApiKeyRequired": false,
+            "AuthorizationType": "NONE",
+            "RouteId": "zdvnwl1",
+            "RouteKey": "GET /templates/analytics",
+            "Target": "integrations/mfmmu86"
+        }
+    ]
+}
