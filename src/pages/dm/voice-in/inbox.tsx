@@ -9,8 +9,10 @@ import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import { useToastContext } from '../../../contexts/ToastContext';
+import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; }
+interface Contact { contactId: string; name: string; phone: string; }
 interface C2CCall { callId: string; fromNumber: string; toNumber: string; callerId: string; status: string; duration: number; recordingUrl?: string; correlationId?: string; createdAt: number; }
 interface OBDCampaign { campaignId: string; name: string; status: string; totalRecipients: number; completedCalls: number; successCalls: number; failedCalls: number; createdAt: number; }
 interface CDRRecord { id: string; vmSessionId: string; clientCorrelationId: string; callType: string; overallCallStatus: string; callerNumber: string; destinationNumber: string; durationSec: number; conversationDurationSec: number; hangupStatus: string; recordingURL?: string; circleNameCaller?: string; operatorNameCaller?: string; createdAt: number; }
@@ -45,7 +47,21 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const [obdS3Path, setObdS3Path] = useState('');
   const [obdUploading, setObdUploading] = useState(false);
   
+  // Contacts state
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [showContactPicker, setShowContactPicker] = useState<'c2c-from' | 'c2c-to' | 'obd' | null>(null);
+  const [contactSearch, setContactSearch] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  
   const toast = useToastContext();
+
+  const loadContacts = useCallback(async () => {
+    setLoadingContacts(true);
+    try {
+      const data = await api.listContacts();
+      setContacts(data.filter(c => c.phone).map(c => ({ contactId: c.contactId, name: c.name || c.phone || 'Unknown', phone: c.phone || '' })));
+    } catch (err) { console.error('Load contacts error:', err); } finally { setLoadingContacts(false); }
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -63,6 +79,23 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   useEffect(() => { loadData(); const interval = setInterval(loadData, 60000); return () => clearInterval(interval); }, [loadData]);
   useEffect(() => { setPage(1); }, [activeTab, searchQuery]);
+  useEffect(() => { if (showContactPicker) loadContacts(); }, [showContactPicker, loadContacts]);
+
+  const filteredContacts = contacts.filter(c => 
+    c.name.toLowerCase().includes(contactSearch.toLowerCase()) || 
+    c.phone.includes(contactSearch)
+  );
+
+  const selectContact = (contact: Contact) => {
+    if (showContactPicker === 'c2c-from') setC2cFromNumber(contact.phone);
+    else if (showContactPicker === 'c2c-to') setC2cToNumber(contact.phone);
+    else if (showContactPicker === 'obd') {
+      const current = obdNumbers.trim();
+      setObdNumbers(current ? `${current}\n${contact.phone}` : contact.phone);
+    }
+    setShowContactPicker(null);
+    setContactSearch('');
+  };
 
   const formatDuration = (seconds: number) => { 
     if (!seconds) return '0:00';
@@ -341,8 +374,20 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>Click-to-Call (C2C)</h3>
             <p className="modal-desc">Connect two parties on a call. First participant will be called, then connected to the second.</p>
-            <div className="form-group"><label>From Number (First Participant) *</label><input type="tel" value={c2cFromNumber} onChange={e => setC2cFromNumber(e.target.value)} placeholder="10-digit mobile number" /></div>
-            <div className="form-group"><label>To Number (Second Participant) *</label><input type="tel" value={c2cToNumber} onChange={e => setC2cToNumber(e.target.value)} placeholder="10-digit mobile number" /></div>
+            <div className="form-group">
+              <label>From Number (First Participant) *</label>
+              <div className="input-with-btn">
+                <input type="tel" value={c2cFromNumber} onChange={e => setC2cFromNumber(e.target.value)} placeholder="10-digit mobile number" />
+                <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('c2c-from')}>📇 Contacts</button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>To Number (Second Participant) *</label>
+              <div className="input-with-btn">
+                <input type="tel" value={c2cToNumber} onChange={e => setC2cToNumber(e.target.value)} placeholder="10-digit mobile number" />
+                <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('c2c-to')}>📇 Contacts</button>
+              </div>
+            </div>
             <div className="form-group checkbox-group"><label><input type="checkbox" checked={c2cRecording} onChange={e => setC2cRecording(e.target.checked)} />Enable Call Recording</label></div>
             <div className="info-box"><strong>Airtel C2C Configuration:</strong><ul><li>Caller ID: 8047311032</li><li>API: iqvoice.airtel.in (Kong HMAC Auth)</li><li>App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n</li></ul></div>
             <div className="modal-actions"><Button variant="secondary" onClick={() => setShowC2CModal(false)}>Cancel</Button><Button variant="primary" onClick={handleC2CCall} loading={c2cCalling} disabled={!c2cFromNumber || !c2cToNumber}>Initiate Call</Button></div>
@@ -364,7 +409,10 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
             
             <div className="form-group">
               <label>Phone Numbers * (one per line or comma-separated)</label>
-              <textarea value={obdNumbers} onChange={e => setObdNumbers(e.target.value)} placeholder="9876543210&#10;9876543211&#10;9876543212" rows={4} />
+              <div className="textarea-with-btn">
+                <textarea value={obdNumbers} onChange={e => setObdNumbers(e.target.value)} placeholder="9876543210&#10;9876543211&#10;9876543212" rows={4} />
+                <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('obd')}>📇 Add from Contacts</button>
+              </div>
               <small>{obdNumbers.split(/[\n,]/).filter(n => n.trim().length >= 10).length} valid numbers</small>
             </div>
             
@@ -438,6 +486,36 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
       )}
 
+      {/* Contact Picker Modal */}
+      {showContactPicker && (
+        <div className="modal-overlay" onClick={() => setShowContactPicker(null)}>
+          <div className="modal-content contact-picker" onClick={e => e.stopPropagation()}>
+            <h3>Select Contact</h3>
+            <input type="text" placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} className="contact-search" />
+            <div className="contact-list">
+              {loadingContacts ? (
+                <div className="loading-contacts">Loading contacts...</div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="no-contacts">No contacts found</div>
+              ) : (
+                filteredContacts.slice(0, 50).map(contact => (
+                  <div key={contact.contactId} className="contact-row" onClick={() => selectContact(contact)}>
+                    <div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div>
+                    <div className="contact-details">
+                      <div className="contact-name">{contact.name}</div>
+                      <div className="contact-phone">{contact.phone}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setShowContactPicker(null)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         .voice-page { min-height: calc(100vh - 60px); background: #f0fdf4; padding: 20px; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -497,6 +575,25 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .info-box strong { display: block; margin-bottom: 8px; color: #166534; font-size: 13px; }
         .info-box ul { margin: 0; padding-left: 20px; font-size: 13px; color: #166534; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+        
+        .input-with-btn { display: flex; gap: 8px; }
+        .input-with-btn input { flex: 1; }
+        .textarea-with-btn { display: flex; flex-direction: column; gap: 8px; }
+        .fetch-btn { padding: 8px 12px; background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; color: #065f46; font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+        .fetch-btn:hover { background: #d1fae5; }
+        
+        .contact-picker { max-width: 400px; }
+        .contact-search { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+        .contact-search:focus { outline: none; border-color: #10b981; }
+        .contact-list { max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+        .contact-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+        .contact-row:hover { background: #f0fdf4; }
+        .contact-row:last-child { border-bottom: none; }
+        .contact-avatar { width: 36px; height: 36px; background: #10b981; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px; }
+        .contact-details { flex: 1; }
+        .contact-name { font-size: 14px; font-weight: 500; color: #065f46; }
+        .contact-phone { font-size: 12px; color: #6b7280; font-family: monospace; }
+        .loading-contacts, .no-contacts { padding: 30px; text-align: center; color: #6b7280; }
       `}</style>
     </Layout>
   );

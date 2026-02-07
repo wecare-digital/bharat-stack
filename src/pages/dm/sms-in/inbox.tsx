@@ -9,8 +9,10 @@ import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import { useToastContext } from '../../../contexts/ToastContext';
+import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; }
+interface Contact { contactId: string; name: string; phone: string; }
 interface SmsMessage { 
   messageId: string; 
   phoneNumber: string; 
@@ -48,7 +50,21 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const [bulkDltTemplateId, setBulkDltTemplateId] = useState('1007974344269130859');
   const [bulkSending, setBulkSending] = useState(false);
   
+  // Contacts state
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [showContactPicker, setShowContactPicker] = useState<'single' | 'bulk' | null>(null);
+  const [contactSearch, setContactSearch] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  
   const toast = useToastContext();
+
+  const loadContacts = useCallback(async () => {
+    setLoadingContacts(true);
+    try {
+      const data = await api.listContacts();
+      setContacts(data.filter(c => c.phone).map(c => ({ contactId: c.contactId, name: c.name || c.phone || 'Unknown', phone: c.phone || '' })));
+    } catch (err) { console.error('Load contacts error:', err); } finally { setLoadingContacts(false); }
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +81,22 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   useEffect(() => { loadData(); const interval = setInterval(loadData, 60000); return () => clearInterval(interval); }, [loadData]);
   useEffect(() => { setPage(1); }, [activeTab, searchQuery]);
+  useEffect(() => { if (showContactPicker) loadContacts(); }, [showContactPicker, loadContacts]);
+
+  const filteredContacts = contacts.filter(c => 
+    c.name.toLowerCase().includes(contactSearch.toLowerCase()) || 
+    c.phone.includes(contactSearch)
+  );
+
+  const selectContact = (contact: Contact) => {
+    if (showContactPicker === 'single') setSendPhone(contact.phone);
+    else if (showContactPicker === 'bulk') {
+      const current = bulkNumbers.trim();
+      setBulkNumbers(current ? `${current}\n${contact.phone}` : contact.phone);
+    }
+    setShowContactPicker(null);
+    setContactSearch('');
+  };
 
   const handleSendSms = async () => {
     if (!sendPhone || !sendContent) { toast.error('Phone number and message are required'); return; }
@@ -213,7 +245,13 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="modal-overlay" onClick={() => setShowSendModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>Send SMS via Airtel IQ</h3>
-            <div className="form-group"><label>Phone Number *</label><input type="tel" value={sendPhone} onChange={e => setSendPhone(e.target.value)} placeholder="10-digit mobile number" /></div>
+            <div className="form-group">
+              <label>Phone Number *</label>
+              <div className="input-with-btn">
+                <input type="tel" value={sendPhone} onChange={e => setSendPhone(e.target.value)} placeholder="10-digit mobile number" />
+                <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('single')}>📇 Contacts</button>
+              </div>
+            </div>
             <div className="form-group"><label>Message *</label><textarea value={sendContent} onChange={e => setSendContent(e.target.value)} placeholder="Enter your message..." rows={4} /><small>{sendContent.length} characters</small></div>
             <div className="form-row">
               <div className="form-group">
@@ -239,7 +277,14 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>Send Bulk SMS via Airtel IQ</h3>
             <p className="modal-desc">Send the same message to multiple recipients using Conduit Bulk API.</p>
-            <div className="form-group"><label>Phone Numbers * (one per line or comma-separated)</label><textarea value={bulkNumbers} onChange={e => setBulkNumbers(e.target.value)} placeholder="9876543210&#10;9876543211&#10;9876543212" rows={4} /></div>
+            <div className="form-group">
+              <label>Phone Numbers * (one per line or comma-separated)</label>
+              <div className="textarea-with-btn">
+                <textarea value={bulkNumbers} onChange={e => setBulkNumbers(e.target.value)} placeholder="9876543210&#10;9876543211&#10;9876543212" rows={4} />
+                <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('bulk')}>📇 Add from Contacts</button>
+              </div>
+              <small>{bulkNumbers.split(/[\n,]/).filter(n => n.trim().length >= 10).length} valid numbers</small>
+            </div>
             <div className="form-group"><label>Message *</label><textarea value={bulkContent} onChange={e => setBulkContent(e.target.value)} placeholder="Enter your message..." rows={4} /><small>{bulkContent.length} characters</small></div>
             <div className="form-row">
               <div className="form-group">
@@ -255,6 +300,36 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
             <div className="info-box"><strong>Bulk SMS via Conduit API:</strong><ul><li>API: iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk</li><li>Max recipients per request: 1000</li></ul></div>
             <div className="modal-actions"><Button variant="secondary" onClick={() => setShowBulkModal(false)}>Cancel</Button><Button variant="primary" onClick={handleBulkSms} loading={bulkSending} disabled={!bulkNumbers || !bulkContent}>Send Bulk SMS</Button></div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Picker Modal */}
+      {showContactPicker && (
+        <div className="modal-overlay" onClick={() => setShowContactPicker(null)}>
+          <div className="modal-content contact-picker" onClick={e => e.stopPropagation()}>
+            <h3>Select Contact</h3>
+            <input type="text" placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} className="contact-search" />
+            <div className="contact-list">
+              {loadingContacts ? (
+                <div className="loading-contacts">Loading contacts...</div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="no-contacts">No contacts found</div>
+              ) : (
+                filteredContacts.slice(0, 50).map(contact => (
+                  <div key={contact.contactId} className="contact-row" onClick={() => selectContact(contact)}>
+                    <div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div>
+                    <div className="contact-details">
+                      <div className="contact-name">{contact.name}</div>
+                      <div className="contact-phone">{contact.phone}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setShowContactPicker(null)}>Cancel</Button>
+            </div>
           </div>
         </div>
       )}
@@ -307,6 +382,25 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .info-box strong { display: block; margin-bottom: 8px; color: #166534; font-size: 13px; }
         .info-box ul { margin: 0; padding-left: 20px; font-size: 13px; color: #166534; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+        
+        .input-with-btn { display: flex; gap: 8px; }
+        .input-with-btn input { flex: 1; }
+        .textarea-with-btn { display: flex; flex-direction: column; gap: 8px; }
+        .fetch-btn { padding: 8px 12px; background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; color: #065f46; font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+        .fetch-btn:hover { background: #d1fae5; }
+        
+        .contact-picker { max-width: 400px; }
+        .contact-search { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+        .contact-search:focus { outline: none; border-color: #10b981; }
+        .contact-list { max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+        .contact-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+        .contact-row:hover { background: #f0fdf4; }
+        .contact-row:last-child { border-bottom: none; }
+        .contact-avatar { width: 36px; height: 36px; background: #10b981; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px; }
+        .contact-details { flex: 1; }
+        .contact-name { font-size: 14px; font-weight: 500; color: #065f46; }
+        .contact-phone { font-size: 12px; color: #6b7280; font-family: monospace; }
+        .loading-contacts, .no-contacts { padding: 30px; text-align: center; color: #6b7280; }
       `}</style>
     </Layout>
   );
