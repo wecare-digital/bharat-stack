@@ -39,6 +39,11 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const [obdNumbers, setObdNumbers] = useState('');
   const [obdCampaignName, setObdCampaignName] = useState('');
   const [obdCreating, setObdCreating] = useState(false);
+  const [obdAudioType, setObdAudioType] = useState<'default' | 'tts' | 'upload' | 's3'>('default');
+  const [obdTtsText, setObdTtsText] = useState('');
+  const [obdAudioFile, setObdAudioFile] = useState<File | null>(null);
+  const [obdS3Path, setObdS3Path] = useState('');
+  const [obdUploading, setObdUploading] = useState(false);
   
   const toast = useToastContext();
 
@@ -90,25 +95,74 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleOBDCreate = async () => {
     if (!obdNumbers || !obdCampaignName) { toast.error('Campaign name and numbers are required'); return; }
+    
+    // Validate audio source
+    if (obdAudioType === 'tts' && !obdTtsText) { toast.error('Text-to-Speech content is required'); return; }
+    if (obdAudioType === 'upload' && !obdAudioFile) { toast.error('Please select an audio file'); return; }
+    if (obdAudioType === 's3' && !obdS3Path) { toast.error('S3 path is required'); return; }
+    
     setObdCreating(true);
     try {
       const numbers = obdNumbers.split(/[\n,]/).map(n => n.trim()).filter(n => n.length >= 10);
+      
+      let audioUrl = '';
+      
+      // Handle audio upload if needed
+      if (obdAudioType === 'upload' && obdAudioFile) {
+        setObdUploading(true);
+        const reader = new FileReader();
+        const audioData = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(obdAudioFile);
+        });
+        
+        const uploadResponse = await fetch(`${API_BASE}/voice-in/obd/upload-audio`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audioUrl: audioData, fileName: obdAudioFile.name })
+        });
+        const uploadResult = await uploadResponse.json();
+        if (!uploadResult.success) {
+          toast.error(uploadResult.error || 'Failed to upload audio');
+          setObdUploading(false);
+          setObdCreating(false);
+          return;
+        }
+        audioUrl = uploadResult.audioUrl;
+        setObdUploading(false);
+      } else if (obdAudioType === 's3') {
+        audioUrl = obdS3Path.startsWith('s3://') ? obdS3Path : `s3://auth.wecare.digital/voice/${obdS3Path}`;
+      } else if (obdAudioType === 'tts') {
+        // TTS will be handled by backend
+        audioUrl = `tts:${obdTtsText}`;
+      }
+      
       const response = await fetch(`${API_BASE}/voice-in/obd`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ campaignName: obdCampaignName, numbers }) 
+        body: JSON.stringify({ 
+          campaignName: obdCampaignName, 
+          contacts: numbers,
+          audioUrl: audioUrl || undefined,
+          audioType: obdAudioType,
+          ttsText: obdAudioType === 'tts' ? obdTtsText : undefined
+        }) 
       });
       const result = await response.json();
-      if (result.campaignId) { 
+      if (result.campaignId || result.success) { 
         toast.success('OBD Campaign created!'); 
         setShowOBDModal(false); 
         setObdNumbers(''); 
-        setObdCampaignName(''); 
+        setObdCampaignName('');
+        setObdAudioType('default');
+        setObdTtsText('');
+        setObdAudioFile(null);
+        setObdS3Path('');
         await loadData(); 
       } else { 
         toast.error(result.error || 'Failed to create campaign'); 
       }
-    } catch (err) { toast.error('Failed to create campaign'); } finally { setObdCreating(false); }
+    } catch (err) { toast.error('Failed to create campaign'); } finally { setObdCreating(false); setObdUploading(false); }
   };
 
   // Filter and paginate data
@@ -299,13 +353,87 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
       {/* OBD Modal */}
       {showOBDModal && (
         <div className="modal-overlay" onClick={() => setShowOBDModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content obd-modal" onClick={e => e.stopPropagation()}>
             <h3>Create OBD Campaign</h3>
-            <p className="modal-desc">Outbound Dialer campaign to call multiple numbers with pre-recorded message.</p>
-            <div className="form-group"><label>Campaign Name *</label><input type="text" value={obdCampaignName} onChange={e => setObdCampaignName(e.target.value)} placeholder="e.g. Promo Campaign Jan 2026" /></div>
-            <div className="form-group"><label>Phone Numbers * (one per line or comma-separated)</label><textarea value={obdNumbers} onChange={e => setObdNumbers(e.target.value)} placeholder="9876543210&#10;9876543211&#10;9876543212" rows={5} /></div>
-            <div className="info-box"><strong>Airtel OBD Configuration:</strong><ul><li>Caller ID: 8047311032</li><li>API: iqtelephony.airtel.in</li><li>Call Flow ID: Configured in Secrets Manager</li></ul></div>
-            <div className="modal-actions"><Button variant="secondary" onClick={() => setShowOBDModal(false)}>Cancel</Button><Button variant="primary" onClick={handleOBDCreate} loading={obdCreating} disabled={!obdNumbers || !obdCampaignName}>Create Campaign</Button></div>
+            <p className="modal-desc">Outbound Dialer campaign to call multiple numbers with voice message.</p>
+            
+            <div className="form-group">
+              <label>Campaign Name *</label>
+              <input type="text" value={obdCampaignName} onChange={e => setObdCampaignName(e.target.value)} placeholder="e.g. Promo Campaign Feb 2026" />
+            </div>
+            
+            <div className="form-group">
+              <label>Phone Numbers * (one per line or comma-separated)</label>
+              <textarea value={obdNumbers} onChange={e => setObdNumbers(e.target.value)} placeholder="9876543210&#10;9876543211&#10;9876543212" rows={4} />
+              <small>{obdNumbers.split(/[\n,]/).filter(n => n.trim().length >= 10).length} valid numbers</small>
+            </div>
+            
+            <div className="form-group">
+              <label>Voice Message Source *</label>
+              <div className="audio-options">
+                <label className={`audio-option ${obdAudioType === 'default' ? 'selected' : ''}`}>
+                  <input type="radio" name="audioType" checked={obdAudioType === 'default'} onChange={() => setObdAudioType('default')} />
+                  <span className="option-icon">🔔</span>
+                  <span className="option-text">Default Jingle</span>
+                </label>
+                <label className={`audio-option ${obdAudioType === 'tts' ? 'selected' : ''}`}>
+                  <input type="radio" name="audioType" checked={obdAudioType === 'tts'} onChange={() => setObdAudioType('tts')} />
+                  <span className="option-icon">🗣️</span>
+                  <span className="option-text">Text-to-Speech</span>
+                </label>
+                <label className={`audio-option ${obdAudioType === 'upload' ? 'selected' : ''}`}>
+                  <input type="radio" name="audioType" checked={obdAudioType === 'upload'} onChange={() => setObdAudioType('upload')} />
+                  <span className="option-icon">📤</span>
+                  <span className="option-text">Upload Audio</span>
+                </label>
+                <label className={`audio-option ${obdAudioType === 's3' ? 'selected' : ''}`}>
+                  <input type="radio" name="audioType" checked={obdAudioType === 's3'} onChange={() => setObdAudioType('s3')} />
+                  <span className="option-icon">☁️</span>
+                  <span className="option-text">S3 Audio</span>
+                </label>
+              </div>
+            </div>
+            
+            {obdAudioType === 'tts' && (
+              <div className="form-group">
+                <label>Text-to-Speech Content *</label>
+                <textarea value={obdTtsText} onChange={e => setObdTtsText(e.target.value)} placeholder="Enter the message to be converted to speech..." rows={3} />
+                <small>{obdTtsText.length} characters</small>
+              </div>
+            )}
+            
+            {obdAudioType === 'upload' && (
+              <div className="form-group">
+                <label>Upload Audio File * (WAV/MP3)</label>
+                <input type="file" accept=".wav,.mp3,audio/*" onChange={e => setObdAudioFile(e.target.files?.[0] || null)} className="file-input" />
+                {obdAudioFile && <small>Selected: {obdAudioFile.name} ({(obdAudioFile.size / 1024).toFixed(1)} KB)</small>}
+              </div>
+            )}
+            
+            {obdAudioType === 's3' && (
+              <div className="form-group">
+                <label>S3 Audio Path *</label>
+                <input type="text" value={obdS3Path} onChange={e => setObdS3Path(e.target.value)} placeholder="filename.wav or s3://auth.wecare.digital/voice/filename.wav" />
+                <small>Base path: s3://auth.wecare.digital/voice/</small>
+              </div>
+            )}
+            
+            <div className="info-box">
+              <strong>Airtel OBD Configuration:</strong>
+              <ul>
+                <li>Caller ID: 8040761117</li>
+                <li>API: openapi.airtel.in / iqtelephony.airtel.in</li>
+                <li>Call Flow ID: dfbeda76-f641-420f-95e7-b78d562a941f</li>
+                <li>Retry: 2 attempts (on busy/no-answer)</li>
+              </ul>
+            </div>
+            
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setShowOBDModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleOBDCreate} loading={obdCreating || obdUploading} disabled={!obdNumbers || !obdCampaignName}>
+                {obdUploading ? 'Uploading...' : 'Create Campaign'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -347,12 +475,22 @@ const VoiceInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: #fff; border-radius: 12px; padding: 24px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-content.obd-modal { max-width: 560px; }
         .modal-content h3 { margin: 0 0 8px 0; color: #065f46; }
         .modal-desc { margin: 0 0 20px 0; color: #047857; font-size: 14px; }
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #374151; }
         .form-group input, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; }
         .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+        .form-group small { display: block; margin-top: 4px; font-size: 12px; color: #6b7280; }
+        .file-input { padding: 8px; background: #f9fafb; }
+        .audio-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .audio-option { display: flex; align-items: center; gap: 10px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+        .audio-option:hover { border-color: #a7f3d0; background: #f0fdf4; }
+        .audio-option.selected { border-color: #10b981; background: #ecfdf5; }
+        .audio-option input[type="radio"] { display: none; }
+        .option-icon { font-size: 20px; }
+        .option-text { font-size: 13px; font-weight: 500; color: #374151; }
         .checkbox-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #10b981; }
         .info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 16px; }

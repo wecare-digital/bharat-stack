@@ -234,9 +234,9 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         customer_id = secrets.get('customer_id')
         campaign_auth = secrets.get('campaign_auth')
         app_id = secrets.get('app_id', 'IRONMAN')
-        call_flow_id = secrets.get('call_flow_id', '')
-        caller_id = secrets.get('caller_id', '')
-        template_id = secrets.get('template_id', '')
+        call_flow_id = secrets.get('call_flow_id', 'dfbeda76-f641-420f-95e7-b78d562a941f')
+        caller_id = secrets.get('caller_id', '8040761117')
+        template_id = secrets.get('template_id', '69818654d9e8e260e60b16a7')
         
         if not customer_id or not campaign_auth:
             return _response(500, {'error': 'Airtel OBD credentials not configured'})
@@ -244,10 +244,37 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         campaign_name = body.get('campaignName', f'OBD_Campaign_{int(time.time())}')
         contacts = body.get('contacts', [])
         sheet_file_names = body.get('sheetFileNames', [])
-        audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
+        audio_url = body.get('audioUrl', '')
+        audio_type = body.get('audioType', 'default')
+        tts_text = body.get('ttsText', '')
         caller_id = body.get('callerId', caller_id)
         retry_count = body.get('retryCount', 2)
         message_type = body.get('messageType', 'TRANSACTIONAL')
+        
+        # Handle audio source
+        if audio_type == 'default' or not audio_url:
+            audio_url = AIRTEL_DEFAULT_AUDIO_URL
+        elif audio_type == 'tts' and tts_text:
+            # For TTS, we'd need to convert text to audio first
+            # For now, use default audio (TTS integration would require additional API)
+            logger.info(f"TTS requested with text: {tts_text[:50]}...")
+            audio_url = AIRTEL_DEFAULT_AUDIO_URL  # TODO: Integrate TTS service
+        elif audio_url.startswith('s3://'):
+            # S3 audio - upload to Airtel first
+            try:
+                upload_result = _upload_audio({'audioUrl': audio_url}, request_id)
+                upload_body = json.loads(upload_result.get('body', '{}'))
+                if upload_body.get('success') and upload_body.get('audioUrl'):
+                    audio_url = upload_body['audioUrl']
+                else:
+                    logger.warning(f"S3 audio upload failed, using default: {upload_body}")
+                    audio_url = AIRTEL_DEFAULT_AUDIO_URL
+            except Exception as e:
+                logger.warning(f"S3 audio upload error, using default: {str(e)}")
+                audio_url = AIRTEL_DEFAULT_AUDIO_URL
+        elif audio_url.startswith('tts:'):
+            # TTS prefix from frontend
+            audio_url = AIRTEL_DEFAULT_AUDIO_URL  # TODO: Integrate TTS service
         
         # Upload CSV if contacts provided
         if contacts and not sheet_file_names:
