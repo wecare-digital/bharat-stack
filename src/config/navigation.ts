@@ -101,9 +101,6 @@ export const navigationConfig: NavItem[] = [
         path: '/dm/sms-in', 
         label: 'SMS IN', 
         icon: 'sms',
-        children: [
-          { path: '/dm/sms-in/inbox', label: 'Inbox' },
-        ]
       },
       { 
         path: '/dm/ses', 
@@ -129,9 +126,6 @@ export const navigationConfig: NavItem[] = [
         path: '/dm/voice-in', 
         label: 'Voice IN', 
         icon: 'voice',
-        children: [
-          { path: '/dm/voice-in/inbox', label: 'Inbox' },
-        ]
       },
       { 
         path: '/dm/rcs', 

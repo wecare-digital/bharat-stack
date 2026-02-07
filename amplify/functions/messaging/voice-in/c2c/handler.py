@@ -4,11 +4,12 @@ Airtel Click-to-Call (C2C) Lambda Function
 Purpose: Connect two users on a call via Airtel Kong API
 Features:
 - HMAC-SHA256 authentication
-- Call recording
+- Call recording (stored in S3)
 - Real-time events and CDR
 
 API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
 Secrets: wecare/airtel/c2c
+Recording Storage: s3://auth.wecare.digital/voice/voice-in/c2c/
 """
 
 import os
@@ -33,12 +34,15 @@ logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 # AWS clients
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+s3 = boto3.client('s3', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
 AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'base-wecare-digital-AirtelC2CTable')
 AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
 AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
+S3_BUCKET = 'auth.wecare.digital'
+S3_RECORDING_PREFIX = 'voice/voice-in/c2c/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 
 # Cached secrets
@@ -65,10 +69,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle Click-to-Call requests."""
     request_id = context.aws_request_id if context else str(uuid.uuid4())
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
+    path = event.get('rawPath', event.get('path', ''))
+    query_params = event.get('queryStringParameters') or {}
     
     logger.info(json.dumps({
         'event': 'c2c_handler',
         'method': http_method,
+        'path': path,
         'requestId': request_id
     }))
     
@@ -80,7 +87,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # GET - List calls
         if http_method == 'GET':
-            return _list_calls(event.get('queryStringParameters', {}), request_id)
+            return _list_calls(query_params, request_id)
+        
+        # DELETE - Delete call logs
+        if http_method == 'DELETE' or '/delete' in path or '/clear-logs' in path:
+            call_ids = body.get('callIds', [])
+            call_id = query_params.get('callId')
+            hard_delete = query_params.get('hard') == 'true' or body.get('hardDelete', False)
+            clear_all = body.get('clearAll', False)
+            
+            if clear_all:
+                return _clear_logs(request_id)
+            elif call_id:
+                return _delete_call(call_id, hard_delete, request_id)
+            elif call_ids:
+                return _delete_calls(call_ids, hard_delete, request_id)
+            return _response(400, {'error': 'callId, callIds, or clearAll is required'})
         
         # POST - Make C2C call
         from_number = body.get('fromNumber')
@@ -171,11 +193,21 @@ def _make_c2c_call(from_number: str, to_number: str,
         with urllib.request.urlopen(req, timeout=30) as response:
             result = json.loads(response.read().decode('utf-8'))
             
-            if result.get('status') == 'success' or result.get('call_id'):
+            logger.info(json.dumps({
+                'event': 'c2c_response',
+                'result': result,
+                'requestId': request_id
+            }))
+            
+            # Check various success indicators from Airtel API
+            if (result.get('status') == 'success' or 
+                result.get('call_id') or 
+                result.get('correlationId') or
+                'accepted' in str(result.get('message', '')).lower()):
                 return {
                     'success': True,
                     'status': 'initiated',
-                    'providerCallId': result.get('call_id') or result.get('correlationId')
+                    'providerCallId': result.get('call_id') or result.get('correlationId') or result.get('id', '')
                 }
             
             return {
@@ -310,6 +342,88 @@ def _clean_phone_number(phone: str) -> str:
     if digits.startswith('0') and len(digits) == 11:
         digits = digits[1:]
     return digits if len(digits) == 10 else ''
+
+
+def _delete_call(call_id: str, hard_delete: bool, request_id: str) -> Dict[str, Any]:
+    """Delete a single call record."""
+    try:
+        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        
+        if hard_delete:
+            # Also delete recording from S3 if exists
+            try:
+                result = table.get_item(Key={'callId': call_id})
+                call = result.get('Item')
+                if call and call.get('s3RecordingKey'):
+                    s3.delete_object(Bucket=S3_BUCKET, Key=call['s3RecordingKey'])
+            except Exception as e:
+                logger.warning(f"Failed to delete S3 recording: {str(e)}")
+            
+            table.delete_item(Key={'callId': call_id})
+            return _response(200, {'success': True, 'deleted': call_id, 'type': 'hard'})
+        else:
+            now = int(time.time())
+            table.update_item(
+                Key={'callId': call_id},
+                UpdateExpression='SET #status = :status, deletedAt = :deletedAt, updatedAt = :updatedAt',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={
+                    ':status': 'DELETED',
+                    ':deletedAt': Decimal(str(now)),
+                    ':updatedAt': Decimal(str(now))
+                }
+            )
+            return _response(200, {'success': True, 'deleted': call_id, 'type': 'soft'})
+    except Exception as e:
+        logger.error(f"Delete call error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _delete_calls(call_ids: list, hard_delete: bool, request_id: str) -> Dict[str, Any]:
+    """Delete multiple call records."""
+    deleted_count = 0
+    for call_id in call_ids:
+        try:
+            result = _delete_call(call_id, hard_delete, request_id)
+            if json.loads(result.get('body', '{}')).get('success'):
+                deleted_count += 1
+        except Exception:
+            pass
+    
+    return _response(200, {
+        'success': True,
+        'deletedCount': deleted_count,
+        'type': 'hard' if hard_delete else 'soft'
+    })
+
+
+def _clear_logs(request_id: str) -> Dict[str, Any]:
+    """Clear all C2C call logs."""
+    try:
+        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        deleted_count = 0
+        
+        # Scan and delete all calls
+        result = table.scan(ProjectionExpression='callId,s3RecordingKey')
+        for item in result.get('Items', []):
+            # Delete S3 recording if exists
+            if item.get('s3RecordingKey'):
+                try:
+                    s3.delete_object(Bucket=S3_BUCKET, Key=item['s3RecordingKey'])
+                except Exception:
+                    pass
+            
+            table.delete_item(Key={'callId': item['callId']})
+            deleted_count += 1
+        
+        return _response(200, {
+            'success': True,
+            'deletedCount': deleted_count,
+            'message': f'Cleared {deleted_count} C2C call logs'
+        })
+    except Exception as e:
+        logger.error(f"Clear logs error: {str(e)}")
+        return _response(500, {'error': str(e)})
 
 
 def _response(status_code: int, body: Dict) -> Dict[str, Any]:

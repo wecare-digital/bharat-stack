@@ -54,12 +54,15 @@ try {
 }
 
 # SMS (Airtel IQ Messaging) Secret - Basic Auth
+# Username: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+# Password: sN$~|(I@112
 $smsSecret = @{
     customer_id = "WECAREDIG_v6J1SyLLI2auy7Lw9JrW"
     auth_token = "V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy"
     sender_id = "WDBEEP"
     entity_id = "1201161991108627443"
     dlt_template_id = "1007974344269130859"
+    dlt_template_id_2 = "1007101741507674990"
 } | ConvertTo-Json -Compress
 
 Write-Host "Creating wecare/airtel/sms secret..."

@@ -1,0 +1,7 @@
+## [Start] Set the primary key. **
+$util.qr($ctx.stash.metadata.put("modelObjectKey", {
+  "channel": $util.dynamodb.toDynamoDB($ctx.args.channel),
+  "windowStart": $util.dynamodb.toDynamoDB($ctx.args.windowStart)
+}))
+## [End] Set the primary key. **
+{}

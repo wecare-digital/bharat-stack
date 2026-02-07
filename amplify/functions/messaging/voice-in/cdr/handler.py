@@ -8,6 +8,8 @@ Webhook Configuration:
 - Inbound Number: +91 9319767034
 - Email: voice@wecare.digital
 
+Recording Storage: s3://auth.wecare.digital/voice/voice-in/cdr/
+
 CDR Fields Reference (Airtel Documentation):
 - vmSessionId: Application generated unique session ID
 - clientCorrelationId: Xchange ID for searching CDR logs
@@ -23,6 +25,7 @@ import logging
 import boto3
 import uuid
 import time
+import urllib.request
 from typing import Dict, Any, Optional
 from decimal import Decimal
 
@@ -31,10 +34,14 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 # AWS clients
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+s3 = boto3.client('s3', region_name=AWS_REGION)
 
 # Environment variables
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCDRTable')
+S3_BUCKET = 'auth.wecare.digital'
+S3_RECORDING_PREFIX = 'voice/voice-in/cdr/'
 
 # Configuration
 INBOUND_NUMBER = '+919319767034'
@@ -54,13 +61,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', ''))
+        path = event.get('rawPath', event.get('path', ''))
+        query_params = event.get('queryStringParameters') or {}
         
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
         
         # GET - List CDR records
         if http_method == 'GET':
-            return _list_cdrs(event.get('queryStringParameters', {}), request_id)
+            return _list_cdrs(query_params, request_id)
+        
+        # DELETE - Delete CDR logs
+        if http_method == 'DELETE' or '/delete' in path or '/clear-logs' in path:
+            body = json.loads(event.get('body', '{}')) if event.get('body') else {}
+            cdr_ids = body.get('cdrIds', [])
+            cdr_id = query_params.get('cdrId') or query_params.get('id')
+            hard_delete = query_params.get('hard') == 'true' or body.get('hardDelete', False)
+            clear_all = body.get('clearAll', False)
+            
+            if clear_all:
+                return _clear_logs(request_id)
+            elif cdr_id:
+                return _delete_cdr(cdr_id, hard_delete, request_id)
+            elif cdr_ids:
+                return _delete_cdrs(cdr_ids, hard_delete, request_id)
+            return _response(400, {'error': 'cdrId, cdrIds, or clearAll is required'})
         
         # POST - Receive CDR webhook
         headers = event.get('headers', {})
@@ -85,6 +110,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }))
         
         cdr_record = _process_cdr(payload, request_id)
+        
+        # Download and store recording in S3 if available
+        if payload.get('recordingURL'):
+            s3_key = _store_recording_to_s3(payload['recordingURL'], cdr_record['id'], request_id)
+            if s3_key:
+                cdr_record['s3RecordingKey'] = s3_key
+                cdr_record['s3RecordingUrl'] = f"s3://{S3_BUCKET}/{s3_key}"
+        
         _store_cdr_record(cdr_record, request_id)
         
         return _response(200, {
@@ -244,9 +277,126 @@ def _normalize_cdr(item: Dict) -> Dict:
         'operatorNameCaller': item.get('operatorNameCaller', ''),
         'operatorNameDestination': item.get('operatorNameDestination', ''),
         'recordingURL': item.get('recordingURL', ''),
+        's3RecordingUrl': item.get('s3RecordingUrl', ''),
         'timestamp': item.get('timestamp', ''),
         'createdAt': int(float(item.get('createdAt', 0))),
     }
+
+
+def _store_recording_to_s3(recording_url: str, cdr_id: str, request_id: str) -> Optional[str]:
+    """Download recording from Airtel and store in S3."""
+    try:
+        if not recording_url:
+            return None
+        
+        # Download recording
+        req = urllib.request.Request(recording_url)
+        with urllib.request.urlopen(req, timeout=60) as response:
+            audio_data = response.read()
+        
+        # Store in S3
+        timestamp = int(time.time())
+        s3_key = f"{S3_RECORDING_PREFIX}{timestamp}_{cdr_id}.wav"
+        
+        s3.put_object(
+            Bucket=S3_BUCKET,
+            Key=s3_key,
+            Body=audio_data,
+            ContentType='audio/wav'
+        )
+        
+        logger.info(json.dumps({
+            'event': 'recording_stored_s3',
+            'cdrId': cdr_id,
+            's3Key': s3_key,
+            'requestId': request_id
+        }))
+        
+        return s3_key
+    except Exception as e:
+        logger.error(f"Store recording error: {str(e)}")
+        return None
+
+
+def _delete_cdr(cdr_id: str, hard_delete: bool, request_id: str) -> Dict[str, Any]:
+    """Delete a single CDR record."""
+    try:
+        table = dynamodb.Table(VOICE_CDR_TABLE)
+        
+        if hard_delete:
+            # Also delete recording from S3 if exists
+            try:
+                result = table.get_item(Key={'id': cdr_id})
+                cdr = result.get('Item')
+                if cdr and cdr.get('s3RecordingKey'):
+                    s3.delete_object(Bucket=S3_BUCKET, Key=cdr['s3RecordingKey'])
+            except Exception as e:
+                logger.warning(f"Failed to delete S3 recording: {str(e)}")
+            
+            table.delete_item(Key={'id': cdr_id})
+            return _response(200, {'success': True, 'deleted': cdr_id, 'type': 'hard'})
+        else:
+            now = int(time.time())
+            table.update_item(
+                Key={'id': cdr_id},
+                UpdateExpression='SET #status = :status, deletedAt = :deletedAt',
+                ExpressionAttributeNames={'#status': 'overallCallStatus'},
+                ExpressionAttributeValues={
+                    ':status': 'DELETED',
+                    ':deletedAt': Decimal(str(now))
+                }
+            )
+            return _response(200, {'success': True, 'deleted': cdr_id, 'type': 'soft'})
+    except Exception as e:
+        logger.error(f"Delete CDR error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _delete_cdrs(cdr_ids: list, hard_delete: bool, request_id: str) -> Dict[str, Any]:
+    """Delete multiple CDR records."""
+    deleted_count = 0
+    for cdr_id in cdr_ids:
+        try:
+            result = _delete_cdr(cdr_id, hard_delete, request_id)
+            if json.loads(result.get('body', '{}')).get('success'):
+                deleted_count += 1
+        except Exception:
+            pass
+    
+    return _response(200, {
+        'success': True,
+        'deletedCount': deleted_count,
+        'type': 'hard' if hard_delete else 'soft'
+    })
+
+
+def _clear_logs(request_id: str) -> Dict[str, Any]:
+    """Clear all CDR logs."""
+    try:
+        table = dynamodb.Table(VOICE_CDR_TABLE)
+        deleted_count = 0
+        
+        # Scan and delete all CDRs
+        result = table.scan(ProjectionExpression='id,s3RecordingKey')
+        for item in result.get('Items', []):
+            # Delete S3 recording if exists
+            if item.get('s3RecordingKey'):
+                try:
+                    s3.delete_object(Bucket=S3_BUCKET, Key=item['s3RecordingKey'])
+                except Exception:
+                    pass
+            
+            table.delete_item(Key={'id': item['id']})
+            deleted_count += 1
+        
+        return _response(200, {
+            'success': True,
+            'deletedCount': deleted_count,
+            'message': f'Cleared {deleted_count} CDR logs'
+        })
+    except Exception as e:
+        logger.error(f"Clear logs error: {str(e)}")
+        return _response(500, {'error': str(e)})
 
 
 def _response(status_code: int, body: Dict) -> Dict[str, Any]:

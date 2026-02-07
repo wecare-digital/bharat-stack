@@ -243,6 +243,22 @@ export const IAM_POLICIES = {
       },
     ],
   },
+
+  // Secrets Manager permissions (for Airtel API credentials)
+  secrets: {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: [
+          'secretsmanager:GetSecretValue',
+        ],
+        Resource: [
+          'arn:aws:secretsmanager:us-east-1:809904170947:secret:wecare/airtel/*',
+        ],
+      },
+    ],
+  },
 };
 
 /**
@@ -268,4 +284,8 @@ export const FUNCTION_POLICIES = {
   'ai-query-kb': ['common', 'bedrock'],
   'ai-generate-response': ['common', 'bedrock'],
   'billing': ['common', 'billing'],
+  'wecare-sms-in-airtel': ['common', 'secrets'],
+  'wecare-voice-in-c2c': ['common', 'secrets'],
+  'wecare-voice-in-obd': ['common', 'secrets'],
+  'wecare-voice-cdr-webhook': ['common'],
 };
