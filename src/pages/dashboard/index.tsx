@@ -31,6 +31,122 @@ const PAYMENT_NAME = 'WECARE.DIGITAL';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
 
+const AIRTEL_REFERENCE_TEXT = `WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
+============================================
+
+CUSTOMER DETAILS:
+━━━━━━━━━━━━━━━━━
+Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
+Contact Email: voice@wecare.digital
+Inbound Number: +91 9319767034
+
+CALLER IDs:
+━━━━━━━━━━━
+C2C Caller ID: 8047311032
+OBD Caller ID: 8040761117
+
+SMS CONFIGURATION:
+━━━━━━━━━━━━━━━━━━
+Sender ID: WDBEEP
+Entity ID: 1201161991108627443
+Default DLT Template ID: 1007974344269130859
+API Host: iqmessaging.airtel.in
+
+ALL WEBHOOK URLs:
+━━━━━━━━━━━━━━━━━
+API Base: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod
+
+1. SMS-IN (Send/Receive SMS):
+   POST /sms-in/airtel
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel
+
+2. Voice Click-to-Call (C2C):
+   POST /voice-in/c2c
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/c2c
+
+3. Voice OBD (Outbound Dialer):
+   POST /voice-in/obd
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/obd
+
+4. Voice CDR Webhook (for ALL callbacks - inbound & outbound):
+   POST /voice-cdr-webhook
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+
+IP WHITELIST:
+━━━━━━━━━━━━
+We do NOT need to whitelist IPs for sending SMS traffic.
+However, if encountering 403 errors on API calls, please whitelist
+these Airtel API IPs on your server and retry:
+• 125.19.17.212
+• 125.17.6.54
+• 122.187.47.153
+
+CLICK-TO-CALL (C2C) CALLBACK BODY:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+We accept the DEFAULT Airtel callback body format.
+The callback body is NOT customized from our end.
+No custom callback body configuration needed from Airtel side.
+CDR callbacks are sent to /voice-cdr-webhook endpoint.
+
+OBD CALLBACK BODY:
+━━━━━━━━━━━━━━━━━━
+We accept the DEFAULT Airtel callback body format.
+No custom callback body configuration needed from Airtel side.
+CDR callbacks are sent to /voice-cdr-webhook endpoint.
+
+CDR WEBHOOK (INBOUND + OUTBOUND):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The /voice-cdr-webhook handles CDRs for ALL call types:
+• INBOUND calls (direct calls to +91 9319767034)
+• OUTBOUND calls (C2C initiated calls)
+• OUTBOUND calls (OBD campaign calls)
+
+Expected CDR callback fields:
+{
+  "vmSessionId": "unique-session-id",
+  "clientCorrelationId": "xchange-tracking-id",
+  "callType": "INBOUND" | "OUTBOUND",
+  "overallCallStatus": "Answered" | "Missed" | "Busy" | "Disconnected",
+  "callerNumber": "9876543210",
+  "destinationNumber": "9123456789",
+  "duration": 45000,           // milliseconds
+  "conversationDuration": 40000,
+  "billableDuration": 40000,
+  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
+  "recordingURL": "https://...",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+
+SAMPLE callBackURLs FOR C2C/OBD API:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"callBackURLs": [
+  {
+    "eventType": "CDR",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  },
+  {
+    "eventType": "ALL",
+    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "method": "POST",
+    "headers": {}
+  }
+]
+
+ISSUES / NOTES:
+━━━━━━━━━━━━━━━
+• All endpoints return HTTP 200 OK on successful receipt
+• Content-Type: application/json
+• Domain to whitelist: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
+• Recordings are stored in S3: s3://auth.wecare.digital/voice/
+• If 403 errors persist after IP whitelisting, check API Gateway resource policy
+• SMS does NOT require IP whitelisting for sending traffic
+
+Thank you,
+WECARE.DIGITAL Team`;
+
 interface InternalAIConfig {
   enabled: boolean;
   agentId: string;
@@ -1652,7 +1768,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Airtel Cloud Communication Platform</h3>
-                    <span className="badge" style={{ background: '#FFEBEE', color: '#C62828', marginTop: '4px' }}>Voice CDR + C2C + OBD</span>
+                    <span className="badge" style={{ background: '#FFEBEE', color: '#C62828', marginTop: '4px' }}>Voice CDR (Inbound + Outbound) + C2C + OBD</span>
                   </div>
                 </div>
                 
@@ -1753,198 +1869,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   📋 Complete Airtel Integration Reference
                 </h4>
                 <div style={{ background: '#fff', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #BBDEFB' }}>
-                  <pre style={{ fontSize: '0.8rem', color: '#111827', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{`WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
-============================================
-
-CUSTOMER DETAILS:
-━━━━━━━━━━━━━━━━━
-Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
-Contact Email: voice@wecare.digital
-Inbound Number: +91 9319767034
-
-CALLER IDs:
-━━━━━━━━━━━
-C2C Caller ID: 8047311032
-OBD Caller ID: 8040761117
-
-SMS CONFIGURATION:
-━━━━━━━━━━━━━━━━━━
-Sender ID: WDBEEP
-Entity ID: 1201161991108627443
-
-ALL WEBHOOK URLs:
-━━━━━━━━━━━━━━━━━
-API Base: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod
-
-1. SMS-IN Webhook:
-   POST /sms-in/airtel
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel
-
-2. Voice Click-to-Call (C2C):
-   POST /voice-in/c2c
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/c2c
-
-3. Voice OBD (Outbound Dialer):
-   POST /voice-in/obd
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/obd
-
-4. Voice CDR Webhook (for callbacks):
-   POST /voice-cdr-webhook
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
-
-IP WHITELIST (Airtel API IPs):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-If encountering 403 errors, whitelist these Airtel API IPs:
-• 125.19.17.212
-• 125.17.6.54
-• 122.187.47.153
-
-CLICK-TO-CALL (C2C) CALLBACK BODY FORMAT:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-We accept the DEFAULT Airtel callback body format.
-No custom callback body configuration needed.
-
-Expected CDR callback fields:
-{
-  "vmSessionId": "unique-session-id",
-  "clientCorrelationId": "xchange-tracking-id",
-  "callType": "INBOUND" | "OUTBOUND",
-  "overallCallStatus": "Answered" | "Missed" | "Busy" | "Disconnected",
-  "callerNumber": "9876543210",
-  "destinationNumber": "9123456789",
-  "duration": 45000,           // milliseconds
-  "conversationDuration": 40000,
-  "billableDuration": 40000,
-  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
-  "recordingURL": "https://...",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-
-SAMPLE callBackURLs FOR C2C/OBD API:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"callBackURLs": [
-  {
-    "eventType": "CDR",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  },
-  {
-    "eventType": "ALL",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  }
-]
-
-NOTES:
-━━━━━━
-• All endpoints return HTTP 200 OK on successful receipt
-• Content-Type: application/json
-• Domain to whitelist: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
-• Recordings are stored in S3: s3://auth.wecare.digital/voice/
-
-Thank you,
-WECARE.DIGITAL Team`}</pre>
+                  <pre style={{ fontSize: '0.8rem', color: '#111827', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{AIRTEL_REFERENCE_TEXT}</pre>
                 </div>
                 <button 
                   onClick={() => {
-                    const text = `WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
-============================================
-
-CUSTOMER DETAILS:
-━━━━━━━━━━━━━━━━━
-Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
-Contact Email: voice@wecare.digital
-Inbound Number: +91 9319767034
-
-CALLER IDs:
-━━━━━━━━━━━
-C2C Caller ID: 8047311032
-OBD Caller ID: 8040761117
-
-SMS CONFIGURATION:
-━━━━━━━━━━━━━━━━━━
-Sender ID: WDBEEP
-Entity ID: 1201161991108627443
-
-ALL WEBHOOK URLs:
-━━━━━━━━━━━━━━━━━
-API Base: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod
-
-1. SMS-IN Webhook:
-   POST /sms-in/airtel
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel
-
-2. Voice Click-to-Call (C2C):
-   POST /voice-in/c2c
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/c2c
-
-3. Voice OBD (Outbound Dialer):
-   POST /voice-in/obd
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/obd
-
-4. Voice CDR Webhook (for callbacks):
-   POST /voice-cdr-webhook
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
-
-IP WHITELIST (Airtel API IPs):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-If encountering 403 errors, whitelist these Airtel API IPs:
-• 125.19.17.212
-• 125.17.6.54
-• 122.187.47.153
-
-CLICK-TO-CALL (C2C) CALLBACK BODY FORMAT:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-We accept the DEFAULT Airtel callback body format.
-No custom callback body configuration needed.
-
-Expected CDR callback fields:
-{
-  "vmSessionId": "unique-session-id",
-  "clientCorrelationId": "xchange-tracking-id",
-  "callType": "INBOUND" | "OUTBOUND",
-  "overallCallStatus": "Answered" | "Missed" | "Busy" | "Disconnected",
-  "callerNumber": "9876543210",
-  "destinationNumber": "9123456789",
-  "duration": 45000,
-  "conversationDuration": 40000,
-  "billableDuration": 40000,
-  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
-  "recordingURL": "https://...",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-
-SAMPLE callBackURLs FOR C2C/OBD API:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"callBackURLs": [
-  {
-    "eventType": "CDR",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  },
-  {
-    "eventType": "ALL",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  }
-]
-
-NOTES:
-━━━━━━
-• All endpoints return HTTP 200 OK on successful receipt
-• Content-Type: application/json
-• Domain to whitelist: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
-• Recordings are stored in S3: s3://auth.wecare.digital/voice/
-
-Thank you,
-WECARE.DIGITAL Team`;
-                    navigator.clipboard.writeText(text);
+                    navigator.clipboard.writeText(AIRTEL_REFERENCE_TEXT);
                     alert('Message copied to clipboard!');
                   }}
                   style={{ marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#1976D2', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 500 }}

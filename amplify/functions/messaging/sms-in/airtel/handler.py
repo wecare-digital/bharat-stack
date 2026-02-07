@@ -111,7 +111,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     """Send single SMS via Airtel IQ API v4."""
     phone_number = body.get('phoneNumber')
     content = body.get('content', '')
-    message_type = body.get('messageType', 'SERVICE_EXPLICIT')
+    message_type = body.get('messageType', 'SERVICE_IMPLICIT')
     dlt_template_id = body.get('dltTemplateId')
     
     if not phone_number:
@@ -176,6 +176,19 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
         logger.error(f"Airtel SMS error: {e.code} - {error_body}")
+        
+        # Enhanced 403 diagnostics
+        if e.code == 403:
+            logger.error(json.dumps({
+                'event': 'airtel_403_error',
+                'service': 'sms',
+                'url': url,
+                'customer_id': customer_id,
+                'auth_token_prefix': auth_token[:20] if auth_token else 'NONE',
+                'note': 'Check: 1) Auth credentials valid? 2) Account activated? 3) IP whitelisted on Airtel side?',
+                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153']
+            }))
+        
         return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})
     except Exception as e:
         logger.error(f"SMS send error: {str(e)}")
@@ -186,7 +199,7 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     """Send bulk SMS via Airtel Conduit API."""
     phone_numbers = body.get('phoneNumbers', [])
     content = body.get('content', '')
-    message_type = body.get('messageType', 'SERVICE_EXPLICIT')
+    message_type = body.get('messageType', 'SERVICE_IMPLICIT')
     dlt_template_id = body.get('dltTemplateId')
     
     if not phone_numbers:

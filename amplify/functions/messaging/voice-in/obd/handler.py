@@ -95,14 +95,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _get_campaign_status(campaign_id, request_id)
         elif '/list' in path or http_method == 'GET':
             return _list_campaigns(query_params, request_id)
+        elif '/clear-logs' in path:
+            return _clear_logs(body, request_id)
         elif '/delete' in path or http_method == 'DELETE':
             campaign_id = query_params.get('campaignId') or body.get('campaignId')
             hard_delete = query_params.get('hard') == 'true' or body.get('hardDelete', False)
+            if body.get('clearAll'):
+                return _clear_logs(body, request_id)
             return _delete_campaign(campaign_id, hard_delete, request_id)
-        elif '/clear-logs' in path:
-            return _clear_logs(body, request_id)
         else:
             if http_method == 'POST':
+                # Support clear-logs via POST body action
+                if body.get('clearAll') or body.get('_action') == 'clear-logs':
+                    return _clear_logs(body, request_id)
                 return _create_campaign(body, request_id)
             if http_method == 'DELETE':
                 campaign_id = query_params.get('campaignId')
@@ -339,14 +344,6 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Campaign create error: {str(e)}")
         return _response(500, {'error': str(e)})
-            
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8') if e.fp else ''
-        logger.error(f"Campaign create error: {e.code} - {error_body}")
-        return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})
-    except Exception as e:
-        logger.error(f"Campaign create error: {str(e)}")
-        return _response(500, {'error': str(e)})
 
 
 def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, request_id: str) -> Dict[str, Any]:
@@ -522,8 +519,6 @@ def _clear_logs(body: Dict, request_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Clear logs error: {str(e)}")
         return _response(500, {'error': str(e)})
-    except Exception as e:
-        logger.error(f"Store campaign error: {str(e)}")
 
 
 def _normalize_campaign(item: Dict) -> Dict:
@@ -558,7 +553,7 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
         },
         'body': json.dumps(body, default=str)
     }

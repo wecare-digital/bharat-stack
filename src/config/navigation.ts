@@ -92,15 +92,16 @@ export const navigationConfig: NavItem[] = [
         label: 'SMS', 
         icon: 'sms',
         children: [
-          { path: '/dm/sms/inbox', label: 'Inbox' },
-          { path: '/dm/sms/campaign', label: 'Campaign' },
-          { path: '/dm/sms/logs', label: 'Logs' },
+          { path: '/dm/sms', label: 'Logs & Campaign' },
         ]
       },
       { 
         path: '/dm/sms-in', 
         label: 'SMS IN', 
         icon: 'sms',
+        children: [
+          { path: '/dm/sms-in', label: 'Send & Logs' },
+        ]
       },
       { 
         path: '/dm/ses', 
@@ -117,15 +118,16 @@ export const navigationConfig: NavItem[] = [
         label: 'Voice', 
         icon: 'voice',
         children: [
-          { path: '/dm/voice/inbox', label: 'Inbox' },
-          { path: '/dm/voice/campaign', label: 'Campaign' },
-          { path: '/dm/voice/logs', label: 'Logs' },
+          { path: '/dm/voice', label: 'Logs & Campaign' },
         ]
       },
       { 
         path: '/dm/voice-in', 
         label: 'Voice IN', 
         icon: 'voice',
+        children: [
+          { path: '/dm/voice-in', label: 'C2C / OBD / CDR' },
+        ]
       },
       { 
         path: '/dm/rcs', 

@@ -47,6 +47,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [contactSearch, setContactSearch] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [cdrDirectionFilter, setCdrDirectionFilter] = useState<'all' | 'INBOUND' | 'OUTBOUND'>('all');
   
   const toast = useToastContext();
 
@@ -171,12 +172,15 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
       });
       const result = await response.json();
       if (result.success) {
-        toast.success(`Cleared ${result.deletedCount || 0} ${type.toUpperCase()} logs`);
+        setTimeout(() => toast.success(`Cleared ${result.deletedCount || 0} ${type.toUpperCase()} logs`), 100);
         await loadData();
       } else {
-        toast.error(result.error || 'Failed to clear logs');
+        setTimeout(() => toast.error(result.error || 'Failed to clear logs'), 100);
       }
-    } catch (err) { toast.error('Failed to clear logs'); } finally { setClearing(false); }
+    } catch (err) { 
+      console.error('Clear logs error:', err);
+      setTimeout(() => toast.error('Failed to clear logs'), 100); 
+    } finally { setClearing(false); }
   };
 
   const filterBySearch = (items: any[], fields: string[]) => {
@@ -187,7 +191,8 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const filteredC2C = filterBySearch(c2cCalls, ['fromNumber', 'toNumber', 'status', 'correlationId']);
   const filteredOBD = filterBySearch(obdCampaigns, ['campaignName', 'status', 'airtelCampaignId']);
-  const filteredCDR = filterBySearch(cdrs, ['callerNumber', 'destinationNumber', 'callType', 'overallCallStatus']);
+  const filteredCDR = filterBySearch(cdrs, ['callerNumber', 'destinationNumber', 'callType', 'overallCallStatus'])
+    .filter(cdr => cdrDirectionFilter === 'all' || cdr.callType === cdrDirectionFilter);
 
   const getCurrentData = () => {
     switch (activeTab) {
@@ -302,6 +307,14 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
 
               {activeTab === 'cdr' && (
                 <div className="table-container">
+                  <div style={{ padding: '8px 12px', background: '#ecfdf5', borderBottom: '1px solid #d1fae5', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#065f46', fontWeight: 500 }}>Direction:</span>
+                    {(['all', 'INBOUND', 'OUTBOUND'] as const).map(dir => (
+                      <button key={dir} onClick={() => setCdrDirectionFilter(dir)} style={{ padding: '3px 10px', borderRadius: '4px', border: '1px solid', borderColor: cdrDirectionFilter === dir ? '#10b981' : '#d1fae5', background: cdrDirectionFilter === dir ? '#d1fae5' : '#fff', color: '#065f46', fontSize: '11px', cursor: 'pointer', fontWeight: cdrDirectionFilter === dir ? 600 : 400 }}>
+                        {dir === 'all' ? 'All' : dir}
+                      </button>
+                    ))}
+                  </div>
                   <table>
                     <thead>
                       <tr>
@@ -332,8 +345,9 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
                     </tbody>
                   </table>
                   <div className="webhook-info">
-                    <strong>CDR Webhook:</strong>
+                    <strong>CDR Webhook (Inbound + Outbound):</strong>
                     <code>{API_BASE}/voice-cdr-webhook</code>
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#6b7280' }}>Handles CDRs for all call types: direct inbound, C2C, and OBD campaigns</div>
                   </div>
                 </div>
               )}

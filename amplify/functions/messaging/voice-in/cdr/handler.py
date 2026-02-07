@@ -2,6 +2,7 @@
 Airtel Voice CDR Webhook Handler Lambda Function
 
 Purpose: Receive and store Call Detail Records (CDR) from Airtel Cloud Communication Platform
+         Handles BOTH inbound and outbound call CDRs (C2C, OBD, direct inbound)
 
 Webhook Configuration:
 - URL: POST /voice-cdr-webhook
@@ -16,7 +17,10 @@ Airtel IP Whitelist (if 403 errors):
 - 125.17.6.54
 - 122.187.47.153
 
-CDR Callback Body Format (DEFAULT - no custom config needed):
+NOTE: We do NOT need to whitelist IPs for sending SMS traffic.
+      The above IPs only need whitelisting if receiving 403 errors on API calls.
+
+CDR Callback Body Format (DEFAULT - no custom config needed from Airtel side):
 {
   "vmSessionId": "unique-session-id",
   "clientCorrelationId": "xchange-tracking-id",
@@ -48,6 +52,16 @@ CDR Callback Body Format (DEFAULT - no custom config needed):
   "participants": [...],
   "timestamp": "2024-01-15T10:30:00Z"
 }
+
+Click-to-Call (C2C) Callback:
+- Uses DEFAULT Airtel callback body (no custom config needed)
+- CDR callbacks sent to this same /voice-cdr-webhook endpoint
+- callType will be "OUTBOUND" for C2C initiated calls
+
+OBD (Outbound Dialer) Callback:
+- Uses DEFAULT Airtel callback body (no custom config needed)
+- CDR callbacks sent to this same /voice-cdr-webhook endpoint
+- callType will be "OUTBOUND" for OBD campaign calls
 
 CDR Fields Reference (Airtel Documentation):
 - vmSessionId: Application generated unique session ID
@@ -134,6 +148,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             payload = json.loads(body) if body else {}
         else:
             payload = body or {}
+        
+        # Support clear-logs via POST body action
+        if payload.get('clearAll') or payload.get('_action') == 'clear-logs':
+            return _clear_logs(request_id)
         
         vm_session_id = payload.get('vmSessionId', '')
         if not vm_session_id:
@@ -256,23 +274,28 @@ def _store_cdr_record(record: Dict, request_id: str) -> None:
 
 
 def _list_cdrs(params: Dict, request_id: str) -> Dict[str, Any]:
-    """List CDR records with optional filters."""
+    """List CDR records with optional filters. Supports both inbound and outbound CDRs."""
     try:
         table = dynamodb.Table(VOICE_CDR_TABLE)
         from boto3.dynamodb.conditions import Attr
         
-        scan_kwargs = {'Limit': int(params.get('limit', 100) if params else 100)}
+        scan_kwargs = {'Limit': int(params.get('limit', 200) if params else 200)}
         filter_expressions = []
         
         if params:
             if params.get('callType'):
                 filter_expressions.append(Attr('callType').eq(params['callType']))
+            if params.get('direction'):
+                # direction maps to callType: INBOUND or OUTBOUND
+                filter_expressions.append(Attr('callType').eq(params['direction'].upper()))
             if params.get('overallCallStatus'):
                 filter_expressions.append(Attr('overallCallStatus').eq(params['overallCallStatus']))
             if params.get('callerNumber'):
                 filter_expressions.append(Attr('callerNumber').contains(params['callerNumber']))
             if params.get('destinationNumber'):
                 filter_expressions.append(Attr('destinationNumber').contains(params['destinationNumber']))
+            if params.get('source'):
+                filter_expressions.append(Attr('source').eq(params['source']))
         
         if filter_expressions:
             combined = filter_expressions[0]
@@ -295,18 +318,22 @@ def _list_cdrs(params: Dict, request_id: str) -> Dict[str, Any]:
 
 def _normalize_cdr(item: Dict) -> Dict:
     """Normalize CDR record for API response."""
+    call_type = item.get('callType', '')
     return {
         'id': item.get('id', ''),
         'vmSessionId': item.get('vmSessionId', ''),
         'clientCorrelationId': item.get('clientCorrelationId', ''),
-        'callType': item.get('callType', ''),
+        'callType': call_type,
+        'direction': call_type,  # INBOUND or OUTBOUND - same as callType
         'overallCallStatus': item.get('overallCallStatus', ''),
         'callerNumber': item.get('callerNumber', ''),
         'destinationNumber': item.get('destinationNumber', ''),
+        'calledNumber': item.get('calledNumber', ''),
         'callerId': item.get('callerId', ''),
         'durationSec': float(item.get('durationSec', 0)),
         'conversationDurationSec': float(item.get('conversationDurationSec', 0)),
         'billableDurationSec': float(item.get('billableDurationSec', 0)),
+        'fromWaitingTimeSec': float(item.get('fromWaitingTimeSec', 0)),
         'hangupStatus': item.get('hangupStatus', ''),
         'hangupCause': item.get('hangupCause', ''),
         'callerNumberStatus': item.get('callerNumberStatus', ''),
@@ -317,6 +344,7 @@ def _normalize_cdr(item: Dict) -> Dict:
         'operatorNameDestination': item.get('operatorNameDestination', ''),
         'recordingURL': item.get('recordingURL', ''),
         's3RecordingUrl': item.get('s3RecordingUrl', ''),
+        'source': item.get('source', 'airtel_cdr_webhook'),
         'timestamp': item.get('timestamp', ''),
         'createdAt': int(float(item.get('createdAt', 0))),
     }
@@ -446,7 +474,7 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
         },
         'body': json.dumps(body, default=str)
     }

@@ -37,6 +37,15 @@ C2C Request Body:
 
 C2C Callback Body Format (DEFAULT - no custom config needed):
 We accept the default Airtel callback body. CDR callbacks are sent to /voice-cdr-webhook.
+The callback body is NOT customized from our end - Airtel should use their default CDR callback format.
+
+Airtel IP Whitelist (if 403 errors):
+- 125.19.17.212
+- 125.17.6.54
+- 122.187.47.153
+
+NOTE: We do NOT need to whitelist IPs for sending SMS traffic.
+      The above IPs only need whitelisting if receiving 403 errors on Airtel API calls.
 """
 
 import os
@@ -131,9 +140,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _delete_calls(call_ids, hard_delete, request_id)
             return _response(400, {'error': 'callId, callIds, or clearAll is required'})
         
-        # POST - Make C2C call
+        # POST - Make C2C call (or clear logs via POST)
         from_number = body.get('fromNumber')
         to_number = body.get('toNumber')
+        
+        # Support clear-logs via POST body action
+        if body.get('clearAll') or body.get('_action') == 'clear-logs':
+            return _clear_logs(request_id)
+        
         enable_recording = body.get('enableRecording', True)
         contact_id = body.get('contactId', '')
         
@@ -245,6 +259,18 @@ def _make_c2c_call(from_number: str, to_number: str,
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
         logger.error(f"C2C HTTP error: {e.code} - {error_body}")
+        
+        # Enhanced 403 diagnostics
+        if e.code == 403:
+            logger.error(json.dumps({
+                'event': 'airtel_403_error',
+                'service': 'c2c',
+                'url': f"https://{AIRTEL_KONG_HOST}/gateway/airtel-xchange/v2/click-to-call",
+                'app_id': app_id,
+                'note': 'Check: 1) HMAC auth correct? 2) App ID valid? 3) IP whitelisted on Airtel side?',
+                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153']
+            }))
+        
         return {'success': False, 'error': f'HTTP {e.code}: {error_body[:200]}'}
     except Exception as e:
         logger.error(f"C2C error: {str(e)}")
@@ -461,7 +487,7 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
         },
         'body': json.dumps(body, default=str)
     }
