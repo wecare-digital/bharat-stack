@@ -24,6 +24,8 @@ export const TABLES = {
   RATE_LIMIT: process.env.RATE_LIMIT_TABLE || 'base-wecare-digital-RateLimitTable',
   SYSTEM_CONFIG: process.env.SYSTEM_CONFIG_TABLE || 'base-wecare-digital-SystemConfigTable',
   VOICE_CALLS: process.env.VOICE_CALLS_TABLE || 'base-wecare-digital-VoiceCalls',
+  SMS_AWS: process.env.SMS_AWS_TABLE || 'base-wecare-digital-SmsAwsTable',
+  VOICE_AWS: process.env.VOICE_AWS_TABLE || 'base-wecare-digital-VoiceAwsTable',
 };
 
 // S3 Buckets

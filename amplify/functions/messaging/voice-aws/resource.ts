@@ -10,11 +10,9 @@ export const voiceAws = defineFunction({
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
     CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
-    VOICE_CALLS_TABLE: 'base-wecare-digital-VoiceCalls',
-    // Amazon Connect Configuration (us-east-1)
-    CONNECT_INSTANCE_ID: '',
-    CONNECT_CONTACT_FLOW_ID: '',
-    CONNECT_QUEUE_ID: '',
-    SOURCE_PHONE_NUMBER: '',
+    VOICE_AWS_TABLE: 'base-wecare-digital-VoiceAwsTable',
+    // Amazon Pinpoint Voice v2 (us-east-1)
+    VOICE_ORIGINATION_IDENTITY: '', // Phone number registered for voice in Pinpoint
+    VOICE_ID: 'Aditi', // Polly voice (Aditi = Hindi/English)
   },
 });

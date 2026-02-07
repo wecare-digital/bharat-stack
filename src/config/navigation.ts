@@ -87,22 +87,8 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/templates', label: 'Templates' },
         ]
       },
-      { 
-        path: '/dm/sms', 
-        label: 'SMS', 
-        icon: 'sms',
-        children: [
-          { path: '/dm/sms', label: 'Logs & Campaign' },
-        ]
-      },
-      { 
-        path: '/dm/sms-in', 
-        label: 'SMS IN', 
-        icon: 'sms',
-        children: [
-          { path: '/dm/sms-in', label: 'Send & Logs' },
-        ]
-      },
+      { path: '/dm/sms', label: 'SMS', icon: 'sms' },
+      { path: '/dm/sms-in', label: 'SMS-IN', icon: 'sms' },
       { 
         path: '/dm/ses', 
         label: 'Email', 
@@ -113,22 +99,8 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/ses/logs', label: 'Logs' },
         ]
       },
-      { 
-        path: '/dm/voice', 
-        label: 'Voice', 
-        icon: 'voice',
-        children: [
-          { path: '/dm/voice', label: 'Logs & Campaign' },
-        ]
-      },
-      { 
-        path: '/dm/voice-in', 
-        label: 'Voice IN', 
-        icon: 'voice',
-        children: [
-          { path: '/dm/voice-in', label: 'C2C / OBD / CDR' },
-        ]
-      },
+      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
+      { path: '/dm/voice-in', label: 'Voice-IN', icon: 'voice' },
       { 
         path: '/dm/rcs', 
         label: 'RCS', 

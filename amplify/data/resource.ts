@@ -211,7 +211,59 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
-  // Table 14: AirtelSMS - Airtel IQ SMS Messages (TTL: 90 days)
+  // Table 16: SmsAws - AWS Pinpoint SMS Messages (dedicated, TTL: 90 days)
+  SmsAws: a
+    .model({
+      messageId: a.id().required(),
+      contactId: a.string(),
+      phoneNumber: a.string().required(),
+      content: a.string().required(),
+      direction: a.enum(['INBOUND', 'OUTBOUND']),
+      status: a.string(), // SENT, DELIVERED, FAILED
+      messageType: a.string(), // TRANSACTIONAL, PROMOTIONAL
+      senderId: a.string(),
+      providerMessageId: a.string(),
+      campaignId: a.string(),
+      campaignName: a.string(),
+      errorDetails: a.string(),
+      createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL
+    })
+    .identifier(['messageId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('phoneNumber'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 17: VoiceAws - AWS Pinpoint Voice Calls (dedicated, TTL: 90 days)
+  VoiceAws: a
+    .model({
+      callId: a.id().required(),
+      contactId: a.string(),
+      phoneNumber: a.string().required(),
+      direction: a.enum(['INBOUND', 'OUTBOUND']),
+      callType: a.string(), // tts, audio
+      status: a.string(), // initiated, completed, failed
+      duration: a.integer().default(0),
+      voiceId: a.string(),
+      messageText: a.string(),
+      providerCallId: a.string(),
+      campaignId: a.string(),
+      campaignName: a.string(),
+      recordingUrl: a.string(),
+      errorDetails: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      expiresAt: a.integer(), // TTL
+    })
+    .identifier(['callId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('phoneNumber'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Sender ID: WDBEEP | Entity ID: 1201161991108627443
   AirtelSMS: a
     .model({
