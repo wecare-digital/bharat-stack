@@ -37,6 +37,7 @@ interface RichTextEditorProps {
   selectedContactId?: string;
   phoneNumberId?: string;
   onAttachClick?: () => void;
+  onSendTTS?: (data: { text: string; voiceId: string; languageCode: string; engine: string }) => Promise<boolean>;
 }
 
 // Variable placeholders for templates
@@ -62,6 +63,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   selectedContactId,
   phoneNumberId,
   onAttachClick,
+  onSendTTS,
 }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
@@ -91,6 +93,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     gstin: DEFAULT_GSTIN,
   });
   const [sendingPayment, setSendingPayment] = useState(false);
+  // TTS state
+  const [showTTSPanel, setShowTTSPanel] = useState(false);
+  const [ttsText, setTtsText] = useState('');
+  const [ttsLanguage, setTtsLanguage] = useState('en-IN');
+  const [ttsVoiceId, setTtsVoiceId] = useState('Kajal');
+  const [ttsEngine, setTtsEngine] = useState('neural');
+  const [ttsSending, setTtsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -370,6 +379,43 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   };
 
+  // Polly voices for TTS panel
+  const POLLY_VOICES: Record<string, { label: string; voices: { id: string; name: string; gender: string; engine: string }[] }> = {
+    'en-IN': { label: 'English (Indian)', voices: [{ id: 'Kajal', name: 'Kajal', gender: 'Female', engine: 'neural' }, { id: 'Raveena', name: 'Raveena', gender: 'Female', engine: 'standard' }] },
+    'en-US': { label: 'English (US)', voices: [{ id: 'Joanna', name: 'Joanna', gender: 'Female', engine: 'neural' }, { id: 'Matthew', name: 'Matthew', gender: 'Male', engine: 'neural' }, { id: 'Ruth', name: 'Ruth', gender: 'Female', engine: 'neural' }, { id: 'Stephen', name: 'Stephen', gender: 'Male', engine: 'neural' }] },
+    'en-GB': { label: 'English (British)', voices: [{ id: 'Amy', name: 'Amy', gender: 'Female', engine: 'neural' }, { id: 'Brian', name: 'Brian', gender: 'Male', engine: 'neural' }] },
+    'hi-IN': { label: 'Hindi', voices: [{ id: 'Kajal', name: 'Kajal', gender: 'Female', engine: 'neural' }, { id: 'Aditi', name: 'Aditi', gender: 'Female', engine: 'standard' }] },
+    'arb': { label: 'Arabic', voices: [{ id: 'Hala', name: 'Hala', gender: 'Female', engine: 'neural' }, { id: 'Zeina', name: 'Zeina', gender: 'Female', engine: 'standard' }] },
+    'es-US': { label: 'Spanish', voices: [{ id: 'Lupe', name: 'Lupe', gender: 'Female', engine: 'neural' }, { id: 'Pedro', name: 'Pedro', gender: 'Male', engine: 'neural' }] },
+    'fr-FR': { label: 'French', voices: [{ id: 'Lea', name: 'Léa', gender: 'Female', engine: 'neural' }, { id: 'Remi', name: 'Rémi', gender: 'Male', engine: 'neural' }] },
+    'de-DE': { label: 'German', voices: [{ id: 'Vicki', name: 'Vicki', gender: 'Female', engine: 'neural' }, { id: 'Daniel', name: 'Daniel', gender: 'Male', engine: 'neural' }] },
+    'ja-JP': { label: 'Japanese', voices: [{ id: 'Kazuha', name: 'Kazuha', gender: 'Female', engine: 'neural' }, { id: 'Takumi', name: 'Takumi', gender: 'Male', engine: 'neural' }] },
+    'pt-BR': { label: 'Portuguese', voices: [{ id: 'Camila', name: 'Camila', gender: 'Female', engine: 'neural' }, { id: 'Thiago', name: 'Thiago', gender: 'Male', engine: 'neural' }] },
+  };
+
+  const handleTTSLanguageChange = (lang: string) => {
+    setTtsLanguage(lang);
+    const voices = POLLY_VOICES[lang]?.voices || [];
+    if (voices.length > 0) { setTtsVoiceId(voices[0].id); setTtsEngine(voices[0].engine); }
+  };
+
+  const handleTTSVoiceChange = (vid: string) => {
+    setTtsVoiceId(vid);
+    const voice = (POLLY_VOICES[ttsLanguage]?.voices || []).find(v => v.id === vid);
+    if (voice) setTtsEngine(voice.engine);
+  };
+
+  const handleSendTTS = async () => {
+    if (!onSendTTS || !ttsText.trim()) return;
+    setTtsSending(true);
+    try {
+      const ok = await onSendTTS({ text: ttsText, voiceId: ttsVoiceId, languageCode: ttsLanguage, engine: ttsEngine });
+      if (ok) { setShowTTSPanel(false); setTtsText(''); }
+    } finally {
+      setTtsSending(false);
+    }
+  };
+
   const applySuggestion = (suggestion: string) => {
     onChange(suggestion);
     setShowSuggestions(false);
@@ -628,6 +674,56 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       )}
 
+      {/* TTS Panel (like Payment — inline above editor) */}
+      {showTTSPanel && onSendTTS && (
+        <div className={`${styles['variable-dialog']} ${styles['payment-dialog']}`}>
+          <div className={styles['variable-dialog-header']}>
+            <span>Voice Note (Text-to-Speech)</span>
+            <button onClick={() => setShowTTSPanel(false)}>×</button>
+          </div>
+          <div className={styles['variable-dialog-preview']}>
+            Amazon Polly → MP3 audio → S3 → WhatsApp
+          </div>
+          <div className={styles['variable-dialog-inputs']}>
+            <div className={styles['payment-grid']}>
+              <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
+                <label>Message *</label>
+                <textarea
+                  value={ttsText}
+                  onChange={e => setTtsText(e.target.value)}
+                  placeholder="Type text to convert to speech..."
+                  rows={2}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '13px', border: '1px solid var(--border, #e9e9e7)', borderRadius: '6px', resize: 'vertical', fontFamily: 'inherit' }}
+                  autoFocus
+                />
+              </div>
+              <div className={styles['variable-input-row']}>
+                <label>Language</label>
+                <select value={ttsLanguage} onChange={e => handleTTSLanguageChange(e.target.value)}>
+                  {Object.entries(POLLY_VOICES).map(([code, data]) => (
+                    <option key={code} value={code}>{data.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles['variable-input-row']}>
+                <label>Voice</label>
+                <select value={ttsVoiceId} onChange={e => handleTTSVoiceChange(e.target.value)}>
+                  {(POLLY_VOICES[ttsLanguage]?.voices || []).map(v => (
+                    <option key={v.id} value={v.id}>{v.name} ({v.gender}) — {v.engine}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className={styles['variable-dialog-actions']}>
+            <button className={styles['cancel-btn']} onClick={() => setShowTTSPanel(false)}>Cancel</button>
+            <button className={styles['send-template-btn']} onClick={handleSendTTS} disabled={!ttsText.trim() || ttsSending}>
+              {ttsSending ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Variables Dropdown */}
       {showVariables && (
         <div className={styles['dropdown-panel']}>
@@ -689,7 +785,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             className={`${styles['toolbar-btn']} ${showTemplates ? styles['active'] : ''}`}
-            onClick={() => { setShowTemplates(!showTemplates); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); }}
+            onClick={() => { setShowTemplates(!showTemplates); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); setShowTTSPanel(false); }}
             title="Templates (can send outside 24h window)"
           >
             <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#10B981" viewBox="0 0 16 16"><path d="M3 4.5h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2m0 1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zM1 2a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 2m0 12a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 14"/></svg>
@@ -710,6 +806,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               setShowTemplates(false); 
               setShowVariables(false); 
               setShowFormatting(false); 
+              setShowTTSPanel(false);
             }}
             title="Send Payment Request (UPI)"
           >
@@ -721,7 +818,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <button
           type="button"
           className={`${styles['toolbar-btn']} ${showVariables ? styles['active'] : ''} ${hasVariables ? styles['has-vars'] : ''}`}
-          onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); }}
+          onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); setShowTTSPanel(false); }}
           title="Insert Variable"
         >
           <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M5 4C2.5 9 2.5 14 5 20M19 4c2.5 5 2.5 10 0 16M9 9h1c1 0 1 1 2.016 3.527C13 15 13 16 14 16h1"/><path d="M8 16c1.5 0 3-2 4-3.5S14.5 9 16 9"/></svg>
@@ -732,7 +829,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             className={`${styles['toolbar-btn']} ${showFormatting ? styles['active'] : ''}`}
-            onClick={() => { setShowFormatting(!showFormatting); setShowTemplates(false); setShowVariables(false); setShowPaymentDialog(false); }}
+            onClick={() => { setShowFormatting(!showFormatting); setShowTemplates(false); setShowVariables(false); setShowPaymentDialog(false); setShowTTSPanel(false); }}
             title="Formatting"
           >
             <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7c0-.932 0-1.398.152-1.765a2 2 0 0 1 1.083-1.083C5.602 4 6.068 4 7 4h10c.932 0 1.398 0 1.765.152a2 2 0 0 1 1.083 1.083C20 5.602 20 6.068 20 7M9 20h6M12 4v16"/></svg>
@@ -765,6 +862,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             title="Attach File"
           >
             <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 15v1.2c0 1.68 0 2.52-.327 3.162a3 3 0 0 1-1.311 1.311C18.72 21 17.88 21 16.2 21H7.8c-1.68 0-2.52 0-3.162-.327a3 3 0 0 1-1.311-1.311C3 18.72 3 17.88 3 16.2V15m14-7-5-5m0 0L7 8m5-5v12"/></svg>
+          </button>
+        )}
+
+        {/* TTS Button (WhatsApp only) */}
+        {channel === 'whatsapp' && onSendTTS && (
+          <button
+            type="button"
+            className={`${styles['toolbar-btn']} ${showTTSPanel ? styles['active'] : ''}`}
+            onClick={() => { setShowTTSPanel(!showTTSPanel); setShowTemplates(false); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); }}
+            title="Text-to-Speech (Polly)"
+          >
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 10v2a7 7 0 0 1-7 7m-7-9v2a7 7 0 0 0 7 7m0 0v3m-4 0h8m-4-7a3 3 0 0 1-3-3V5a3 3 0 1 1 6 0v7a3 3 0 0 1-3 3"/></svg>
           </button>
         )}
 

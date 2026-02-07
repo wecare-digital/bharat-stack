@@ -148,18 +148,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [contactsPage, setContactsPage] = useState(1);
   const [clearing, setClearing] = useState(false);
   const [messagesPage, setMessagesPage] = useState(1);
-  // TTS & Audio Recording states
-  const [showTTSModal, setShowTTSModal] = useState(false);
-  const [ttsText, setTtsText] = useState('');
-  const [ttsLanguage, setTtsLanguage] = useState('en-IN');
-  const [ttsVoiceId, setTtsVoiceId] = useState('Kajal');
-  const [ttsEngine, setTtsEngine] = useState('neural');
-  const [ttsSending, setTtsSending] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   // Modal states
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [showClearMessagesModal, setShowClearMessagesModal] = useState(false);
@@ -453,133 +441,30 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Polly voices for TTS
-  const POLLY_VOICES: Record<string, { label: string; voices: { id: string; name: string; gender: string; engine: string }[] }> = {
-    'en-IN': { label: 'English (Indian)', voices: [{ id: 'Kajal', name: 'Kajal', gender: 'Female', engine: 'neural' }, { id: 'Raveena', name: 'Raveena', gender: 'Female', engine: 'standard' }] },
-    'en-US': { label: 'English (US)', voices: [{ id: 'Joanna', name: 'Joanna', gender: 'Female', engine: 'neural' }, { id: 'Matthew', name: 'Matthew', gender: 'Male', engine: 'neural' }, { id: 'Ruth', name: 'Ruth', gender: 'Female', engine: 'neural' }, { id: 'Stephen', name: 'Stephen', gender: 'Male', engine: 'neural' }] },
-    'en-GB': { label: 'English (British)', voices: [{ id: 'Amy', name: 'Amy', gender: 'Female', engine: 'neural' }, { id: 'Brian', name: 'Brian', gender: 'Male', engine: 'neural' }] },
-    'hi-IN': { label: 'Hindi', voices: [{ id: 'Kajal', name: 'Kajal', gender: 'Female', engine: 'neural' }, { id: 'Aditi', name: 'Aditi', gender: 'Female', engine: 'standard' }] },
-    'arb': { label: 'Arabic', voices: [{ id: 'Hala', name: 'Hala', gender: 'Female', engine: 'neural' }, { id: 'Zeina', name: 'Zeina', gender: 'Female', engine: 'standard' }] },
-    'es-US': { label: 'Spanish', voices: [{ id: 'Lupe', name: 'Lupe', gender: 'Female', engine: 'neural' }, { id: 'Pedro', name: 'Pedro', gender: 'Male', engine: 'neural' }] },
-    'fr-FR': { label: 'French', voices: [{ id: 'Lea', name: 'Léa', gender: 'Female', engine: 'neural' }, { id: 'Remi', name: 'Rémi', gender: 'Male', engine: 'neural' }] },
-    'de-DE': { label: 'German', voices: [{ id: 'Vicki', name: 'Vicki', gender: 'Female', engine: 'neural' }, { id: 'Daniel', name: 'Daniel', gender: 'Male', engine: 'neural' }] },
-    'ja-JP': { label: 'Japanese', voices: [{ id: 'Kazuha', name: 'Kazuha', gender: 'Female', engine: 'neural' }, { id: 'Takumi', name: 'Takumi', gender: 'Male', engine: 'neural' }] },
-    'pt-BR': { label: 'Portuguese', voices: [{ id: 'Camila', name: 'Camila', gender: 'Female', engine: 'neural' }, { id: 'Thiago', name: 'Thiago', gender: 'Male', engine: 'neural' }] },
-  };
-
-  const handleTTSLanguageChange = (lang: string) => {
-    setTtsLanguage(lang);
-    const voices = POLLY_VOICES[lang]?.voices || [];
-    if (voices.length > 0) {
-      setTtsVoiceId(voices[0].id);
-      setTtsEngine(voices[0].engine);
-    }
-  };
-
-  const handleTTSVoiceChange = (voiceId: string) => {
-    setTtsVoiceId(voiceId);
-    const voices = POLLY_VOICES[ttsLanguage]?.voices || [];
-    const voice = voices.find(v => v.id === voiceId);
-    if (voice) setTtsEngine(voice.engine);
-  };
-
-  const handleSendTTS = async () => {
-    if (!selectedContact || !ttsText.trim()) return;
-    setTtsSending(true);
+  // TTS callback for RichTextEditor panel
+  const handleSendTTS = async (data: { text: string; voiceId: string; languageCode: string; engine: string }): Promise<boolean> => {
+    if (!selectedContact) return false;
     try {
       const result = await api.sendWhatsAppTTS({
         contactId: selectedContact.id,
-        messageText: ttsText,
-        voiceId: ttsVoiceId,
-        languageCode: ttsLanguage,
-        engine: ttsEngine,
+        messageText: data.text,
+        voiceId: data.voiceId,
+        languageCode: data.languageCode,
+        engine: data.engine,
         phoneNumberId: selectedWaba,
       });
       if (result?.messageId) {
         toast.success('Voice note sent via Polly TTS');
-        setShowTTSModal(false);
-        setTtsText('');
         await loadData();
+        return true;
       } else {
         toast.error('Failed to send voice note');
+        return false;
       }
     } catch (err: any) {
       toast.error(err.message || 'TTS failed');
-    } finally {
-      setTtsSending(false);
+      return false;
     }
-  };
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-      audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        if (audioBlob.size < 1000) { toast.error('Recording too short'); setIsRecording(false); setRecordingTime(0); return; }
-        // Convert to base64 and send
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64 = (reader.result as string).split(',')[1];
-          if (!selectedContact) return;
-          setSending(true);
-          try {
-            const result = await api.sendWhatsAppAudioMessage({
-              contactId: selectedContact.id,
-              audioBase64: base64,
-              contentType: 'audio/webm',
-              phoneNumberId: selectedWaba,
-            });
-            if (result?.messageId) {
-              toast.success('Voice recording sent');
-              await loadData();
-            } else {
-              toast.error('Failed to send recording');
-            }
-          } catch (err: any) {
-            toast.error(err.message || 'Send failed');
-          } finally {
-            setSending(false);
-          }
-        };
-        reader.readAsDataURL(audioBlob);
-        setIsRecording(false);
-        setRecordingTime(0);
-      };
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start(250);
-      setIsRecording(true);
-      setRecordingTime(0);
-      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
-    } catch (err) {
-      toast.error('Microphone access denied');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-  };
-
-  const cancelRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = () => {
-        mediaRecorderRef.current?.stream?.getTracks().forEach(t => t.stop());
-      };
-      mediaRecorderRef.current.stop();
-    }
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    audioChunksRef.current = [];
-    setIsRecording(false);
-    setRecordingTime(0);
   };
 
   const handleReaction = async (whatsappMessageId: string, wabaId?: string | null) => {
@@ -925,45 +810,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         onConfirm={() => showDeleteMessageModal && handleDeleteMessage(showDeleteMessageModal)}
         onCancel={() => setShowDeleteMessageModal(null)}
       />
-
-      {/* TTS Modal */}
-      {showTTSModal && (
-        <div className="tts-modal-overlay" onClick={() => setShowTTSModal(false)}>
-          <div className="tts-modal" onClick={e => e.stopPropagation()}>
-            <h3>Send Voice Note (Text-to-Speech)</h3>
-            <p className="tts-desc">Type a message and send it as a WhatsApp voice note using Amazon Polly.</p>
-            <div className="tts-form-group">
-              <label>Message *</label>
-              <textarea value={ttsText} onChange={e => setTtsText(e.target.value)} placeholder="Enter text to convert to speech..." rows={3} className="tts-textarea" />
-            </div>
-            <div className="tts-row">
-              <div className="tts-form-group tts-half">
-                <label>Language</label>
-                <select value={ttsLanguage} onChange={e => handleTTSLanguageChange(e.target.value)} className="tts-select">
-                  {Object.entries(POLLY_VOICES).map(([code, data]) => (
-                    <option key={code} value={code}>{data.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="tts-form-group tts-half">
-                <label>Voice Artist</label>
-                <select value={ttsVoiceId} onChange={e => handleTTSVoiceChange(e.target.value)} className="tts-select">
-                  {(POLLY_VOICES[ttsLanguage]?.voices || []).map(v => (
-                    <option key={v.id} value={v.id}>{v.name} ({v.gender}) — {v.engine}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="tts-info">Polly generates OGG audio → uploads to S3 → sends via WhatsApp</div>
-            <div className="tts-actions">
-              <button className="tts-cancel" onClick={() => setShowTTSModal(false)}>Cancel</button>
-              <button className="tts-send" onClick={handleSendTTS} disabled={!ttsText.trim() || ttsSending}>
-                {ttsSending ? 'Sending...' : 'Send Voice Note'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="whatsapp-inbox">
         {/* Contacts Sidebar */}
@@ -1323,38 +1169,21 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     style={{ display: 'none' }}
                   />
                   
-                  {/* Recording indicator */}
-                  {isRecording ? (
-                    <div className="recording-bar">
-                      <span className="recording-dot" />
-                      <span className="recording-time">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
-                      <button className="recording-cancel" onClick={cancelRecording} title="Cancel">✕</button>
-                      <button className="recording-stop" onClick={stopRecording} title="Send">▶</button>
-                    </div>
-                  ) : (
-                    <div className="input-box">
-                      <RichTextEditor
-                        value={messageText}
-                        onChange={setMessageText}
-                        placeholder="Type a message..."
-                        channel="whatsapp"
-                        onSend={handleSend}
-                        showAISuggestions={true}
-                        selectedContactId={selectedContact?.id}
-                        phoneNumberId={selectedWaba}
-                        contactContext={selectedContact?.name}
-                        onAttachClick={() => fileInputRef.current?.click()}
-                      />
-                    </div>
-                  )}
-                  
-                  {/* Voice action buttons */}
-                  {!isRecording && (
-                    <div className="voice-actions">
-                      <button className="voice-btn tts-btn" onClick={() => setShowTTSModal(true)} title="Text-to-Speech (Polly)">🗣</button>
-                      <button className="voice-btn mic-btn" onClick={startRecording} title="Record voice note">🎙</button>
-                    </div>
-                  )}
+                  <div className="input-box">
+                    <RichTextEditor
+                      value={messageText}
+                      onChange={setMessageText}
+                      placeholder="Type a message..."
+                      channel="whatsapp"
+                      onSend={handleSend}
+                      showAISuggestions={true}
+                      selectedContactId={selectedContact?.id}
+                      phoneNumberId={selectedWaba}
+                      contactContext={selectedContact?.name}
+                      onAttachClick={() => fileInputRef.current?.click()}
+                      onSendTTS={handleSendTTS}
+                    />
+                  </div>
                 </div>
               </div>
             </>

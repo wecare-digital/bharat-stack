@@ -15,7 +15,7 @@
  * 
  * Environment Variables:
  *   CONTACTS_TABLE: base-wecare-digital-ContactsTable
- *   MESSAGES_TABLE: base-wecare-digital-WhatsAppInboundTable
+ *   MESSAGES_TABLE: base-wecare-digital-WhatsAppOutboundTable
  *   VOICE_LOG_TABLE: base-wecare-digital-WhatsAppVoiceTable
  *   MEDIA_BUCKET: auth.wecare.digital
  *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-2ff05755631b41f29151c0573b7a4e2a

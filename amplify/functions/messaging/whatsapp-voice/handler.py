@@ -33,7 +33,7 @@ social_messaging = boto3.client('socialmessaging', region_name=REGION)
 
 # Environment
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
 VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'base-wecare-digital-WhatsAppVoiceTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'whatsapp-media/whatsapp-voice/')
@@ -202,7 +202,7 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
         polly_response = polly.synthesize_speech(
             Text=ssml_text,
             TextType='ssml',
-            OutputFormat='ogg_vorbis',
+            OutputFormat='mp3',
             VoiceId=voice_id,
             Engine=engine,
             LanguageCode=language_code,
@@ -218,12 +218,12 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
         }))
 
         # Step 2: Upload to S3
-        s3_key = f"{MEDIA_PREFIX}{msg_id}.ogg"
+        s3_key = f"{MEDIA_PREFIX}{msg_id}.mp3"
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=s3_key,
             Body=audio_stream,
-            ContentType='audio/ogg',
+            ContentType='audio/mpeg',
             Metadata={
                 'voiceId': voice_id,
                 'language': language_code,
@@ -296,16 +296,16 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
             polly_response = polly.synthesize_speech(
                 Text=message_text,
                 TextType='text',
-                OutputFormat='ogg_vorbis',
+                OutputFormat='mp3',
                 VoiceId=voice_id,
                 Engine=engine,
                 LanguageCode=language_code,
             )
             audio_stream = polly_response['AudioStream'].read()
-            s3_key = f"{MEDIA_PREFIX}{msg_id}.ogg"
+            s3_key = f"{MEDIA_PREFIX}{msg_id}.mp3"
             s3.put_object(
                 Bucket=MEDIA_BUCKET, Key=s3_key,
-                Body=audio_stream, ContentType='audio/ogg'
+                Body=audio_stream, ContentType='audio/mpeg'
             )
             media_id = _upload_to_whatsapp(s3_key, phone_number_id, request_id)
             wa_message_id = _send_whatsapp_audio(
@@ -523,11 +523,12 @@ def _store_message_record(msg_id: str, contact_id: str, content: str,
         table = dynamodb.Table(MESSAGES_TABLE)
         now = int(time.time())
         table.put_item(Item={
+            'id': msg_id,
             'messageId': msg_id,
             'contactId': contact_id,
             'content': content,
             'direction': 'OUTBOUND',
-            'channel': 'WHATSAPP',
+            'channel': 'whatsapp',
             'status': status,
             'messageType': 'audio',
             'mediaUrl': f"https://{MEDIA_BUCKET}.s3.amazonaws.com/{s3_key}",
@@ -554,6 +555,7 @@ def _normalize_log(item: Dict) -> Dict:
         'languageCode': item.get('languageCode', ''),
         'audioSize': int(item.get('audioSize', 0)),
         's3Key': item.get('s3Key', ''),
+        'whatsappMediaId': item.get('whatsappMediaId', ''),
         'whatsappMessageId': item.get('whatsappMessageId', ''),
         'status': item.get('status', ''),
         'type': item.get('type', 'tts'),
@@ -565,7 +567,8 @@ def _get_contact(contact_id: str) -> Dict:
     """Get contact from DynamoDB."""
     try:
         table = dynamodb.Table(CONTACTS_TABLE)
-        result = table.get_item(Key={'contactId': contact_id})
+        # Table key is 'id', not 'contactId'
+        result = table.get_item(Key={'id': contact_id})
         return result.get('Item', {})
     except Exception as e:
         logger.error(f"Get contact error: {str(e)}")

@@ -54,7 +54,7 @@ $zipPath = "amplify/functions/messaging/whatsapp-voice/lambda.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path $handlerPath -DestinationPath $zipPath -Force
 
-$ENV_VARS = "Variables={CONTACTS_TABLE=base-wecare-digital-ContactsTable,MESSAGES_TABLE=base-wecare-digital-WhatsAppInboundTable,VOICE_LOG_TABLE=$TABLE_NAME,MEDIA_BUCKET=auth.wecare.digital,WHATSAPP_PHONE_NUMBER_ID_1=phone-number-id-2ff05755631b41f29151c0573b7a4e2a,WHATSAPP_PHONE_NUMBER_ID_2=phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6,LOG_LEVEL=INFO}"
+$ENV_VARS = "Variables={CONTACTS_TABLE=base-wecare-digital-ContactsTable,MESSAGES_TABLE=base-wecare-digital-WhatsAppOutboundTable,VOICE_LOG_TABLE=$TABLE_NAME,MEDIA_BUCKET=auth.wecare.digital,WHATSAPP_PHONE_NUMBER_ID_1=phone-number-id-2ff05755631b41f29151c0573b7a4e2a,WHATSAPP_PHONE_NUMBER_ID_2=phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6,LOG_LEVEL=INFO}"
 
 $exists = $false
 try {
