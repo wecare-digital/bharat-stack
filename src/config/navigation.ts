@@ -103,8 +103,6 @@ export const navigationConfig: NavItem[] = [
         icon: 'sms',
         children: [
           { path: '/dm/sms-in/inbox', label: 'Inbox' },
-          { path: '/dm/sms-in/campaign', label: 'Campaign' },
-          { path: '/dm/sms-in/logs', label: 'Logs' },
         ]
       },
       { 
@@ -133,8 +131,6 @@ export const navigationConfig: NavItem[] = [
         icon: 'voice',
         children: [
           { path: '/dm/voice-in/inbox', label: 'Inbox' },
-          { path: '/dm/voice-in/campaign', label: 'Campaign' },
-          { path: '/dm/voice-in/logs', label: 'Logs' },
         ]
       },
       { 
