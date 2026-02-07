@@ -45,6 +45,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [showContactPicker, setShowContactPicker] = useState<'single' | 'campaign' | null>(null);
   const [contactSearch, setContactSearch] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const toast = useToastContext();
 
   const loadContacts = useCallback(async () => {
@@ -61,12 +62,28 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
       const [smsData, contactsData] = await Promise.all([api.listSmsAwsMessages(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
       contactsData.forEach(c => contactMap.set(c.contactId, c));
-      const formatted: SmsMessage[] = smsData.map(m => ({
-        messageId: m.messageId, contactId: m.contactId, contactName: contactMap.get(m.contactId)?.name,
-        phone: m.phoneNumber || contactMap.get(m.contactId)?.phone || '', content: m.content || '', status: m.status || 'unknown',
-        direction: m.direction, messageType: m.messageType, campaignId: (m as any).campaignId,
-        campaignName: (m as any).campaignName, timestamp: m.createdAt ? new Date(m.createdAt * 1000).toISOString() : new Date().toISOString()
-      })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      let formatted: SmsMessage[];
+      if (smsData.length > 0) {
+        // Use dedicated SMS-AWS table data
+        formatted = smsData.map(m => ({
+          messageId: m.messageId, contactId: m.contactId, contactName: contactMap.get(m.contactId)?.name,
+          phone: m.phoneNumber || contactMap.get(m.contactId)?.phone || '', content: m.content || '', status: m.status || 'unknown',
+          direction: m.direction || 'OUTBOUND', messageType: m.messageType, campaignId: (m as any).campaignId,
+          campaignName: (m as any).campaignName, timestamp: m.createdAt ? new Date(m.createdAt * 1000).toISOString() : new Date().toISOString()
+        }));
+      } else {
+        // Fallback: load from shared messages table filtered by SMS channel
+        const messagesData = await api.listMessages(undefined, 'SMS');
+        formatted = messagesData.map(m => ({
+          messageId: m.messageId, contactId: m.contactId, contactName: contactMap.get(m.contactId)?.name,
+          phone: (m as any).phoneNumber || m.senderPhone || m.receivingPhone || contactMap.get(m.contactId)?.phone || '',
+          content: m.content || '', status: m.status || 'unknown', direction: m.direction,
+          messageType: (m as any).messageType, campaignId: (m as any).campaignId,
+          campaignName: (m as any).campaignName, timestamp: m.timestamp
+        }));
+      }
+      formatted.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setMessages(formatted);
       const campaignMap = new Map<string, Campaign>();
       formatted.filter(m => m.campaignId).forEach(m => {
@@ -119,6 +136,19 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
     } catch (err) { toast.error('Campaign failed'); } finally { setCampaignSending(false); }
   };
 
+  const handleClearLogs = async () => {
+    if (!confirm('Clear all SMS logs? This cannot be undone.')) return;
+    setClearing(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod'}/sms-aws/clear-logs`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.success) { toast.success(`Cleared ${result.deletedCount || 0} logs`); await loadData(); }
+      else toast.error(result.error || 'Failed to clear logs');
+    } catch (err) { toast.error('Failed to clear logs'); } finally { setClearing(false); }
+  };
+
   const filteredMessages = messages.filter(msg => {
     if (directionFilter === 'inbound' && msg.direction !== 'INBOUND') return false;
     if (directionFilter === 'outbound' && msg.direction !== 'OUTBOUND') return false;
@@ -140,6 +170,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="header-actions">
             <Button variant="primary" onClick={() => setShowSendModal(true)}>Send SMS</Button>
             <Button variant="secondary" onClick={() => { setShowCampaignModal(true); loadContacts(); }}>Campaign</Button>
+            <Button variant="secondary" onClick={handleClearLogs} disabled={clearing} loading={clearing}>Clear</Button>
             <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
           </div>
         </div>

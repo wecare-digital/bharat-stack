@@ -204,7 +204,19 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'wecare-ai-query-kb',
       'wecare-outbound-sms',
       'wecare-bulk-job-control',
-      'wecare-dlq-replay'
+      'wecare-dlq-replay',
+      'wecare-sms-aws (Pinpoint SMS v2)',
+      'wecare-voice-aws (Pinpoint Voice v2)',
+      'wecare-voice-in-c2c (Airtel C2C)',
+      'wecare-voice-in-obd (Airtel OBD)',
+      'wecare-voice-cdr (Airtel CDR)',
+      'wecare-sms-in-airtel (Airtel SMS)',
+      'wecare-billing',
+      'wecare-scheduled-messages',
+      'wecare-template-analytics',
+      'wecare-waba-management',
+      'wecare-ai-config-management',
+      'wecare-ai-agent-action-group'
     ]
   },
   'Amazon EC2': { 
@@ -231,7 +243,15 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'base-wecare-digital-ContactsTable',
       'base-wecare-digital-WhatsAppOutboundTable',
       'base-wecare-digital-MediaFilesTable',
-      'base-wecare-digital-RateLimitTable'
+      'base-wecare-digital-RateLimitTable',
+      'base-wecare-digital-SmsAwsTable (Pinpoint SMS logs)',
+      'base-wecare-digital-VoiceAwsTable (Pinpoint Voice logs)',
+      'base-wecare-digital-VoiceInC2CTable (Airtel C2C)',
+      'base-wecare-digital-VoiceInOBDTable (Airtel OBD)',
+      'base-wecare-digital-VoiceCDRTable (Airtel CDR)',
+      'base-wecare-digital-SmsInAirtelTable (Airtel SMS)',
+      'base-wecare-digital-ScheduledMessagesTable',
+      'base-wecare-digital-TemplateAnalyticsTable'
     ]
   },
   'Amazon RDS': { 
@@ -293,7 +313,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon API Gateway': { 
     arn: 'arn:aws:apigateway:us-east-1::/restapis/*', 
     accountId: '809904170947',
-    details: ['k4vqzmi07b - REST API (prod stage)']
+    details: ['k4vqzmi07b - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*']
   },
   'AWS AppSync': { 
     arn: 'arn:aws:appsync:us-east-1:809904170947:*', 
@@ -328,9 +348,16 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     details: ['Email sending service']
   },
   'Amazon Pinpoint': { 
-    arn: 'arn:aws:mobiletargeting:us-east-1:809904170947:*', 
+    arn: 'arn:aws:sms-voice:us-east-1:809904170947:*', 
     accountId: '809904170947',
-    details: ['SMS/Voice campaigns']
+    details: [
+      'SMS: Sender ID WECARE (no pool, account default)',
+      'Voice: +18334061352 (Toll-Free, Intl enabled)',
+      'Voice: +18313877455 (Long Code, US only)',
+      'Pool: pool-6fbf5a5f390d4eeeaa7dbae39d78933e (VOICE only)',
+      'Protect Config: protect-321c6e19e2ee427bbb9c0daa9a7080ac (account default)',
+      'Tables: SmsAwsTable, VoiceAwsTable'
+    ]
   },
   'AWS End User Messaging': { 
     arn: 'arn:aws:social-messaging:us-east-1:809904170947:*', 
@@ -378,7 +405,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon Polly': { 
     arn: 'arn:aws:polly:us-east-1:809904170947:*', 
     accountId: '809904170947',
-    details: ['Not currently used']
+    details: ['TTS for Pinpoint Voice calls (Voice ID: RAVEENA)']
   },
   'Amazon Translate': { 
     arn: 'arn:aws:translate:us-east-1:809904170947:*', 
@@ -400,7 +427,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'AWS Secrets Manager': { 
     arn: 'arn:aws:secretsmanager:us-east-1:809904170947:*', 
     accountId: '809904170947',
-    details: ['Not currently used']
+    details: ['wecare/airtel-iq (Airtel IQ API credentials)']
   },
   'AWS KMS': { 
     arn: 'arn:aws:kms:us-east-1:809904170947:*', 
@@ -1987,6 +2014,90 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{type}</span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* AWS Pinpoint SMS & Voice Section */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #10B981' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>AWS Pinpoint SMS & Voice v2</h3>
+                    <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px' }}>us-east-1 | Active</span>
+                  </div>
+                </div>
+                
+                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 API Endpoints</h4>
+                  {[
+                    { label: 'Send SMS', method: 'POST', path: '/sms-aws/send' },
+                    { label: 'List SMS Messages', method: 'GET', path: '/sms-aws/messages' },
+                    { label: 'Delete SMS Message', method: 'DELETE', path: '/sms-aws/messages/{messageId}' },
+                    { label: 'Clear SMS Logs', method: 'DELETE', path: '/sms-aws/clear-logs' },
+                    { label: 'Make Voice Call (TTS)', method: 'POST', path: '/voice-aws/call' },
+                    { label: 'List Voice Calls', method: 'GET', path: '/voice-aws/calls' },
+                    { label: 'Delete Voice Call', method: 'DELETE', path: '/voice-aws/calls/{callId}' },
+                    { label: 'Clear Voice Logs', method: 'DELETE', path: '/voice-aws/clear-logs' },
+                  ].map(({ label, method, path }) => (
+                    <div key={path} style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
+                      <code style={{ fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>
+                        <span style={{ color: method === 'POST' ? '#059669' : method === 'DELETE' ? '#dc2626' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod{path}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 Phone Numbers & Configuration</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Voice (Toll-Free, Intl)</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>+1 (833) 406-1352</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Voice (Long Code, US only)</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>+1 (831) 387-7455</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>SMS Sender ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WECARE</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>TTS Voice</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>RAVEENA (Indian English)</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Pool ID</label>
+                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>pool-6fbf5a5f390d4eeeaa7dbae39d78933e</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Protect Config</label>
+                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>protect-321c6e19e2ee427bbb9c0daa9a7080ac</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Lambda Functions</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {[
+                      { name: 'wecare-sms-aws', desc: 'SMS send + CRUD', color: '#10b981' },
+                      { name: 'wecare-voice-aws', desc: 'Voice call + CRUD', color: '#10b981' },
+                    ].map(({ name, desc, color }) => (
+                      <div key={name} style={{ background: '#ECFDF5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                          <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{name}</span>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                       </div>

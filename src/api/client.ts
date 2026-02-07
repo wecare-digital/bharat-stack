@@ -1066,7 +1066,10 @@ function getEstimatedBilling(): AWSBillingData {
     { service: 'AWS Amplify', cost: 0, usage: 774, unit: 'minutes', freeLimit: '1000 mins/month', status: 'free' },
     { service: 'Amazon SNS', cost: 0, usage: 3387, unit: 'notifications', freeLimit: '1M/month', status: 'free' },
     { service: 'Amazon SQS', cost: 0, usage: 429, unit: 'requests', freeLimit: '1M/month', status: 'free' },
-    { service: 'AWS End User Messaging', cost: 0, usage: 381, unit: 'messages', freeLimit: 'Pay per msg', status: 'free' },
+    { service: 'AWS End User Messaging (WhatsApp)', cost: 0, usage: 381, unit: 'messages', freeLimit: 'Pay per msg', status: 'free' },
+    { service: 'AWS End User Messaging (SMS/Voice)', cost: 2, usage: 47, unit: 'messages/calls', freeLimit: '$2/mo toll-free', status: 'paid' },
+    { service: 'Amazon Polly', cost: 0, usage: 12, unit: 'TTS requests', freeLimit: '5M chars/month', status: 'free' },
+    { service: 'AWS Secrets Manager', cost: 0.40, usage: 1, unit: 'secrets', freeLimit: '$0.40/secret/mo', status: 'paid' },
     { service: 'Amazon OpenSearch', cost: 0, usage: 182, unit: 'operations', freeLimit: 'Serverless', status: 'free' },
     { service: 'Amazon Route 53', cost: 0, usage: 94671, unit: 'queries', freeLimit: '$0.50/zone', status: 'free' },
     { service: 'Amazon Cognito', cost: 0, usage: 1, unit: 'users', freeLimit: '50K MAU', status: 'free' },
@@ -1074,7 +1077,7 @@ function getEstimatedBilling(): AWSBillingData {
   ];
   
   return {
-    totalCost: 0,
+    totalCost: 2.40,
     period: `${startOfMonth.toISOString().slice(0, 10)} to ${now.toISOString().slice(0, 10)}`,
     services,
     lastUpdated: now.toISOString(),
