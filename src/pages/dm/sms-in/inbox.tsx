@@ -13,7 +13,6 @@ import { useToastContext } from '../../../contexts/ToastContext';
 interface PageProps { signOut?: () => void; user?: any; }
 interface SmsMessage { 
   messageId: string; 
-  direction: 'INBOUND' | 'OUTBOUND'; 
   phoneNumber: string; 
   content: string; 
   status: string; 
@@ -27,7 +26,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute
 const ITEMS_PER_PAGE = 20;
 
 const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
-  const [activeTab, setActiveTab] = useState<'all' | 'sent' | 'received'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'single' | 'bulk'>('all');
   const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -114,8 +113,8 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   // Filter messages
   const filteredMessages = messages.filter(msg => {
-    if (activeTab === 'sent' && msg.direction !== 'OUTBOUND') return false;
-    if (activeTab === 'received' && msg.direction !== 'INBOUND') return false;
+    if (activeTab === 'single' && msg.messageType === 'BULK') return false;
+    if (activeTab === 'bulk' && msg.messageType !== 'BULK') return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return msg.phoneNumber?.toLowerCase().includes(q) || msg.content?.toLowerCase().includes(q) || msg.status?.toLowerCase().includes(q);
@@ -126,24 +125,25 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
   const totalPages = Math.ceil(filteredMessages.length / ITEMS_PER_PAGE);
   const paginatedMessages = filteredMessages.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const sentCount = messages.filter(m => m.direction === 'OUTBOUND').length;
-  const receivedCount = messages.filter(m => m.direction === 'INBOUND').length;
+  const singleCount = messages.filter(m => m.messageType !== 'BULK').length;
+  const bulkCount = messages.filter(m => m.messageType === 'BULK').length;
 
   const tabItems: TabItem[] = [
-    { id: 'all', label: `All (${messages.length})` },
-    { id: 'sent', label: `Sent (${sentCount})` },
-    { id: 'received', label: `Received (${receivedCount})` }
+    { id: 'all', label: `All SMS (${messages.length})` },
+    { id: 'single', label: `Single (${singleCount})` },
+    { id: 'bulk', label: `Bulk (${bulkCount})` }
   ];
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SMS-IN | Airtel IQ | WECARE.DIGITAL" description="SMS via Airtel IQ Messaging API" />
+      <SEO title="SMS-IN | Airtel IQ | WECARE.DIGITAL" description="Outbound SMS via Airtel IQ Messaging API" />
       <div className="sms-page">
         <div className="page-header">
           <div className="header-title">
             <SmsIcon />
             <h2>Airtel IQ SMS</h2>
-            <span className="badge">DLT Compliant</span>
+            <span className="badge">Outbound Only</span>
+            <span className="badge dlt">DLT Compliant</span>
           </div>
           <div className="header-actions">
             <Button variant="primary" onClick={() => setShowSendModal(true)}>+ Send SMS</Button>
@@ -153,7 +153,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
 
         <div className="tabs-row">
-          <Tabs items={tabItems} activeTab={activeTab} onChange={(id) => setActiveTab(id as 'all' | 'sent' | 'received')} />
+          <Tabs items={tabItems} activeTab={activeTab} onChange={(id) => setActiveTab(id as 'all' | 'single' | 'bulk')} />
         </div>
 
         <div className="controls-row">
@@ -170,28 +170,24 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
                 <thead>
                   <tr>
                     <th>Time</th>
-                    <th>Direction</th>
                     <th>Phone Number</th>
                     <th>Message</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>Sender ID</th>
+                    <th>DLT Template</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedMessages.map(msg => (
                     <tr key={msg.messageId}>
                       <td>{new Date(msg.createdAt * 1000).toLocaleString()}</td>
-                      <td>
-                        <span className={`direction-badge ${msg.direction?.toLowerCase()}`}>
-                          {msg.direction === 'INBOUND' ? '↙ In' : '↗ Out'}
-                        </span>
-                      </td>
                       <td className="phone-cell">{msg.phoneNumber}</td>
                       <td className="content-cell" title={msg.content}>{msg.content?.substring(0, 50)}{msg.content?.length > 50 ? '...' : ''}</td>
-                      <td><span className="type-badge">{msg.messageType || 'SMS'}</span></td>
+                      <td><span className="type-badge">{msg.messageType || 'SERVICE'}</span></td>
                       <td><span className={`status-badge ${msg.status?.toLowerCase()}`}>{msg.status}</span></td>
                       <td>{msg.senderId || 'WDBEEP'}</td>
+                      <td className="id-cell">{msg.dltTemplateId?.slice(0, 10)}...</td>
                     </tr>
                   ))}
                   {paginatedMessages.length === 0 && (
@@ -269,6 +265,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .header-title { display: flex; align-items: center; gap: 12px; color: #065f46; }
         .header-title h2 { margin: 0; font-size: 1.25rem; }
         .badge { background: #10b981; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .badge.dlt { background: #059669; }
         .header-actions { display: flex; gap: 8px; }
         .tabs-row { background: #fff; border-radius: 8px; padding: 0 16px; margin-bottom: 16px; border: 1px solid #d1fae5; }
         .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
@@ -283,9 +280,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         tr:hover { background: #f0fdf4; }
         .phone-cell { font-family: monospace; color: #047857; }
         .content-cell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #374151; }
-        .direction-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
-        .direction-badge.inbound { background: #d1fae5; color: #059669; }
-        .direction-badge.outbound { background: #dbeafe; color: #1d4ed8; }
+        .id-cell { font-family: monospace; font-size: 11px; color: #6b7280; }
         .type-badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; background: #fef3c7; color: #92400e; }
         .status-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: #f5f5f5; color: #6b7280; }
         .status-badge.sent, .status-badge.delivered { background: #d1fae5; color: #059669; }
