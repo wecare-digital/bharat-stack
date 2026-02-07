@@ -141,7 +141,7 @@ const SmsInInbox: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="page-header">
           <div className="header-title">
             <SmsIcon />
-            <h2>Airtel IQ SMS</h2>
+            <h2>SMS IN</h2>
             <span className="badge">Outbound Only</span>
             <span className="badge dlt">DLT Compliant</span>
           </div>
