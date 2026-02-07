@@ -1,7 +1,7 @@
 /**
  * WhatsApp Calling Page
  * WhatsApp Business Calling API — VoIP calls within WhatsApp threads
- * Signaling: HTTPS webhooks or SIP | Media: WebRTC
+ * Signaling: Graph API + Webhooks (HTTPS) or SIP (TLS) | Media: WebRTC (OPUS)
  * Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/calling
  */
 import React, { useState } from 'react';
@@ -12,26 +12,27 @@ import { useToastContext } from '../../../contexts/ToastContext';
 interface PageProps { signOut?: () => void; user?: any; }
 
 const PHONE_NUMBERS = [
-  { id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a', display: '+91 93309 94400', name: 'WECARE.DIGITAL' },
-  { id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6', display: '+91 99033 00044', name: 'MERA ASHIANA' },
+  { id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN' },
+  { id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6', display: '+91 99033 00044', name: 'MERA ASHIANA', country: 'IN' },
+];
+
+// Signaling & Media configurations from Meta docs
+const SIGNAL_CONFIGS = [
+  { config: 'Default (after enabling)', signaling: 'Graph APIs + Webhooks', transport: 'HTTPS', media: 'WebRTC (ICE + DTLS + SRTP)', codec: 'OPUS' },
+  { config: 'SIP with WebRTC', signaling: 'SIP (explicit enablement)', transport: 'TLS', media: 'WebRTC (ICE + DTLS + SRTP)', codec: 'OPUS' },
+  { config: 'SIP with SDES media', signaling: 'SIP (explicit enablement)', transport: 'TLS', media: 'SDES SRTP (explicit enablement)', codec: 'OPUS' },
 ];
 
 const SETUP_STEPS = [
   {
     step: 1, done: false,
     title: 'Prerequisites',
-    desc: 'Existing Cloud API integration, access token with whatsapp_business_messaging + whatsapp_business_management permissions, messaging limit of 1,000+ business-initiated conversations per 24h rolling window.',
+    desc: 'Business number must use Cloud API (not WhatsApp Business app). Subscribe app to "calls" webhook field (unless using SIP). App must have whatsapp_business_messaging permission. Business must have messaging limit of at least 2,000 business-initiated conversations in a rolling 24h period.',
   },
   {
     step: 2, done: false,
-    title: 'Subscribe to "calls" webhook field',
-    desc: 'In Meta App Dashboard → WhatsApp → Configuration → subscribe to the "calls" webhook field. This delivers call connection and termination events to your webhook URL.',
-    code: 'Webhook field: calls (under WhatsApp Business Account)',
-  },
-  {
-    step: 3, done: false,
-    title: 'Enable Calling via API',
-    desc: 'POST to /{phone-number-id}/settings with the calling object to enable the feature and configure call icon visibility and call hours.',
+    title: 'Enable Calling on Phone Number',
+    desc: 'POST to /{phone-number-id}/settings with the calling object. Configure call icon visibility, business call hours, and callback request settings.',
     code: `POST /{phone-number-id}/settings
 {
   "calling": {
@@ -50,9 +51,21 @@ const SETUP_STEPS = [
 }`,
   },
   {
+    step: 3, done: false,
+    title: 'Configure Call Control (Optional)',
+    desc: 'Inbound call control: prevent users from placing calls. Business call hours: avoid missed calls, direct users to message when closed. Callback requests: offer users the option to request a callback when you don\'t pick up.',
+    code: `// Disable inbound calls (outbound only)
+POST /{phone-number-id}/settings
+{ "calling": { "call_icon_visibility": "disable_all" } }
+
+// Restrict call icon to specific countries
+POST /{phone-number-id}/settings
+{ "calling": { "restrict_to_user_countries": ["IN", "AE"] } }`,
+  },
+  {
     step: 4, done: false,
     title: 'Handle User-Initiated Calls (Inbound)',
-    desc: 'When a user calls, you receive a "connect" webhook. Respond with pre-accept → accept (with SDP answer) to establish WebRTC media. Store the call_id for subsequent actions. If you don\'t respond, the call times out and you get a "terminate" webhook.',
+    desc: 'When a user calls, you receive a "connect" webhook with SDP offer. Respond with pre-accept → accept (with SDP answer) to establish WebRTC media. If you don\'t respond, the call times out and you get a "terminate" webhook.',
     code: `// Webhook: call connection event
 {
   "entry": [{
@@ -60,7 +73,7 @@ const SETUP_STEPS = [
       "value": {
         "event": "connect",
         "call_id": "wamid.xxx",
-        "from": "919667664137",
+        "from": "919330994400",
         "sdp_offer": "v=0\\r\\no=..."
       }
     }]
@@ -77,11 +90,11 @@ POST /{phone-number-id}/calls
   {
     step: 5, done: false,
     title: 'Request Call Permission (for Outbound)',
-    desc: 'Send an interactive message with type "call_permission_request" or use a template. User grants temporary permission. Limits: max 1 request per 24h, 2 per 7 days. Once granted: max 5 connected calls/day, 35 per 7 days.',
+    desc: 'Send an interactive message with type "call_permission_request" or use a template. Limits: 1 request per 24h, 2 per 7 days per user. Once granted: up to 100 connected calls/day per user (updated Dec 2025).',
     code: `POST /{phone-number-id}/messages
 {
   "messaging_product": "whatsapp",
-  "to": "919667664137",
+  "to": "919330994400",
   "type": "interactive",
   "interactive": {
     "type": "call_permission_request",
@@ -92,11 +105,11 @@ POST /{phone-number-id}/calls
   {
     step: 6, done: false,
     title: 'Make Business-Initiated Calls (Outbound)',
-    desc: 'After permission is granted, initiate a call with an SDP offer. The user receives a ringing notification in WhatsApp. You get a "connect" webhook with their SDP answer when they pick up.',
+    desc: 'After permission is granted, initiate a call with an SDP offer. The user receives a ringing notification in WhatsApp. You get a "connect" webhook with their SDP answer when they pick up. Note: Business-initiated calling is NOT available in USA, Canada, Turkey, Egypt, Vietnam, Nigeria.',
     code: `POST /{phone-number-id}/calls
 {
   "action": "create",
-  "to": "919667664137",
+  "to": "919330994400",
   "sdp_offer": "v=0\\r\\no=..."
 }`,
   },
@@ -110,19 +123,34 @@ POST /{phone-number-id}/calls
 const AWS_RESOURCES = [
   { service: 'API Gateway', resource: 'k4vqzmi07b', purpose: 'Webhook endpoint for Meta call events', status: 'active' },
   { service: 'Lambda', resource: 'wecare-whatsapp-voice', purpose: 'TTS generation, media upload, call webhook handler', status: 'active' },
-  { service: 'Amazon Polly', resource: 'SynthesizeSpeech', purpose: 'Neural TTS for IVR prompts and voice notes', status: 'active' },
+  { service: 'Amazon Polly', resource: 'SynthesizeSpeech', purpose: 'Neural TTS for IVR prompts and voice notes (OPUS)', status: 'active' },
   { service: 'S3', resource: 'auth.wecare.digital/whatsapp-media/', purpose: 'TTS audio files, call recordings', status: 'active' },
   { service: 'DynamoDB', resource: 'WhatsAppVoiceTable', purpose: 'TTS logs, call event logs', status: 'active' },
   { service: 'Secrets Manager', resource: 'wecare/meta-app-secret', purpose: 'Meta App Secret for webhook verification', status: 'active' },
 ];
 
 const CALL_LIMITS = [
+  { limit: 'Messaging limit required', value: '2,000+ business-initiated conversations / 24h rolling window' },
   { limit: 'Permission requests', value: '1 per 24h, 2 per 7 days per user' },
-  { limit: 'Connected calls (after permission)', value: '5 per day, 35 per 7 days per user' },
-  { limit: 'Messaging limit required', value: '1,000+ business-initiated conversations / 24h' },
-  { limit: 'Call icon visibility', value: '"default" (show) or "disable_all" (hide, use CTA buttons)' },
-  { limit: 'Signaling protocol', value: 'HTTPS (webhooks) or SIP' },
-  { limit: 'Media protocol', value: 'WebRTC (audio)' },
+  { limit: 'Connected calls (after permission)', value: '100 per day per user (updated Dec 2025)' },
+  { limit: 'Unanswered call threshold', value: '2 consecutive → warning, 4 consecutive → permission revoked' },
+  { limit: 'Audio codec', value: 'OPUS (G.711 coming soon — Alpha for select partners)' },
+  { limit: 'Call icon visibility', value: '"default" (show), "disable_all" (hide), or restrict_to_user_countries' },
+  { limit: 'Signaling protocol', value: 'Graph API + Webhooks (HTTPS) or SIP (TLS)' },
+  { limit: 'Media protocol', value: 'WebRTC (ICE + DTLS + SRTP) or SDES SRTP' },
+];
+
+const BLOCKED_COUNTRIES = ['USA', 'Canada', 'Turkey', 'Egypt', 'Vietnam', 'Nigeria'];
+
+const CHANGELOG = [
+  { date: 'Dec 19, 2025', title: 'Business-initiated call limit increased', desc: 'Up to 100 calls/day per user (from 10/day)' },
+  { date: 'Dec 10, 2025', title: 'restrict_to_user_countries', desc: 'Control which countries see the call icon' },
+  { date: 'Oct 13, 2025', title: 'Limit increase + Sandbox docs', desc: 'Calls increased to 10/day. Testing & Sandbox section added' },
+  { date: 'Sep 29, 2025', title: 'Asterisk integration guide', desc: 'New guide to integrate with Asterisk PBX' },
+  { date: 'Sep 24, 2025', title: 'Context propagation', desc: 'Opaque string in call buttons/deep links for tracking call origin' },
+  { date: 'Sep 8, 2025', title: 'Health Status API update', desc: 'New can_receive_call_sip field for SIP setup diagnostics' },
+  { date: 'Sep 5, 2025', title: 'Low call pickup restrictions', desc: 'Restrictions for low call pickup rates now in effect' },
+  { date: 'Jul 21, 2025', title: 'Account settings webhooks', desc: 'Get webhooks when calling settings are updated' },
 ];
 
 const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
@@ -166,6 +194,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
     border: `1px solid ${status === 'active' || status === 'available' ? '#a7f3d0' : status === 'planned' ? '#fde68a' : '#e5e7eb'}`,
   });
 
+  const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' };
+  const tdStyle: React.CSSProperties = { padding: '8px 12px', fontSize: '12px', color: '#6b7280' };
+
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO title="WhatsApp Calling | WECARE.DIGITAL" description="WhatsApp Business Calling API" />
@@ -175,7 +206,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div>
             <h2 style={{ margin: 0, fontSize: '20px', color: '#065f46' }}>📞 WhatsApp Business Calling</h2>
             <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#047857' }}>
-              VoIP calls in WhatsApp threads — HTTPS/SIP signaling + WebRTC media + Amazon Polly IVR
+              VoIP calls in WhatsApp threads — Graph API/SIP signaling + WebRTC media (OPUS) + Amazon Polly IVR
             </p>
           </div>
           <span style={badge('planned')}>Setup Required</span>
@@ -195,21 +226,53 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
               <h3 style={{ margin: '0 0 8px', fontSize: '15px', color: '#065f46' }}>How it works</h3>
               <p style={{ margin: 0, fontSize: '13px', color: '#047857', lineHeight: 1.6 }}>
                 The WhatsApp Business Calling API (launched July 2025) enables bidirectional VoIP calls
-                within WhatsApp conversation threads. Signaling uses HTTPS webhooks or SIP protocol.
-                Media is exchanged via WebRTC. Calls appear in the same chat thread as messages,
-                maintaining full conversation context.
+                within WhatsApp conversation threads. Default signaling uses Graph APIs + HTTPS webhooks.
+                SIP signaling is available with explicit enablement. Media uses WebRTC with OPUS codec
+                (G.711 coming soon). Calls appear in the same chat thread as messages.
+              </p>
+            </div>
+
+            {/* Signaling Configurations Table */}
+            <div style={{ ...s.card, marginTop: '16px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Signaling & Media Configurations</h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                      <th style={thStyle}>Configuration</th>
+                      <th style={thStyle}>Signaling</th>
+                      <th style={thStyle}>Transport</th>
+                      <th style={thStyle}>Media</th>
+                      <th style={thStyle}>Codec</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SIGNAL_CONFIGS.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ ...tdStyle, fontWeight: 500, color: '#111827' }}>{c.config}</td>
+                        <td style={tdStyle}>{c.signaling}</td>
+                        <td style={tdStyle}>{c.transport}</td>
+                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>{c.media}</td>
+                        <td style={tdStyle}>{c.codec}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#9ca3af' }}>
+                Note: You can use SDES instead of ICE+DTLS with Graph API + Webhook signaling too.
               </p>
             </div>
 
             {/* Call Flow Diagram */}
             <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Call Flow</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Call Flow (User-Initiated)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                 {[
                   { icon: '📱', label: 'User calls', desc: 'User taps call icon in WhatsApp' },
                   { icon: '🔔', label: 'Webhook: connect', desc: 'Meta sends call event + SDP offer' },
                   { icon: '✅', label: 'Pre-accept → Accept', desc: 'Business responds with SDP answer' },
-                  { icon: '🎙', label: 'WebRTC call', desc: 'Audio streams via WebRTC' },
+                  { icon: '🎙', label: 'WebRTC call', desc: 'Audio via OPUS codec' },
                   { icon: '📴', label: 'Webhook: terminate', desc: 'Call ends, log to DynamoDB' },
                 ].map((f, i) => (
                   <div key={i} style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
@@ -238,6 +301,28 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             </div>
 
+            {/* Availability */}
+            <div style={{ ...s.card, marginTop: '16px' }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#111827' }}>Availability</h4>
+              <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6 }}>
+                <p style={{ margin: '0 0 8px' }}>
+                  <span style={{ fontWeight: 500, color: '#065f46' }}>User-initiated calling:</span> Available everywhere Cloud API is available.
+                </p>
+                <p style={{ margin: '0 0 8px' }}>
+                  <span style={{ fontWeight: 500, color: '#065f46' }}>Business-initiated calling:</span> Available everywhere Cloud API is available, except:
+                </p>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {BLOCKED_COUNTRIES.map((c, i) => (
+                    <span key={i} style={{ padding: '2px 10px', background: '#fef2f2', color: '#991b1b', borderRadius: '12px', fontSize: '11px', fontWeight: 500, border: '1px solid #fecaca' }}>{c}</span>
+                  ))}
+                </div>
+                <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9ca3af' }}>
+                  The business phone number's country code must be in the supported list. Consumer phone can be from any Cloud API country.
+                  Our numbers (+91) are eligible for both user-initiated and business-initiated calling.
+                </p>
+              </div>
+            </div>
+
             {/* Phone Numbers */}
             <div style={{ ...s.card, marginTop: '16px' }}>
               <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WABA Phone Numbers</h4>
@@ -245,9 +330,35 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
                   <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{p.display}</span>
                   <span style={{ fontSize: '12px', color: '#6b7280' }}>{p.name}</span>
+                  <span style={badge('available')}>{p.country}</span>
                   <code style={{ fontSize: '11px', color: '#9ca3af', marginLeft: 'auto', wordBreak: 'break-all' }}>{p.id}</code>
                 </div>
               ))}
+            </div>
+
+            {/* Changelog */}
+            <div style={{ ...s.card, marginTop: '16px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Changelog (Meta)</h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                      <th style={{ ...thStyle, width: '110px' }}>Date</th>
+                      <th style={thStyle}>Update</th>
+                      <th style={thStyle}>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CHANGELOG.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ ...tdStyle, whiteSpace: 'nowrap', fontWeight: 500, color: '#374151' }}>{c.date}</td>
+                        <td style={{ ...tdStyle, fontWeight: 500, color: '#111827' }}>{c.title}</td>
+                        <td style={tdStyle}>{c.desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Docs */}
@@ -256,10 +367,12 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 {[
                   { label: 'Meta Calling API', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
-                  { label: 'Calling Prerequisites', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling#step-1--prerequisites' },
+                  { label: 'User-Initiated Calls', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/receive-calls' },
+                  { label: 'Business-Initiated Calls', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/place-calls' },
+                  { label: 'Call Control Settings', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control' },
                   { label: 'SIP Integration', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sip' },
-                  { label: 'Amazon Polly', url: 'https://docs.aws.amazon.com/polly/latest/dg/what-is.html' },
-                  { label: 'AWS Social Messaging', url: 'https://docs.aws.amazon.com/social-messaging/latest/APIReference/Welcome.html' },
+                  { label: 'Sandbox Testing', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sandbox' },
+                  { label: 'Asterisk Guide', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/asterisk' },
                 ].map((d, i) => (
                   <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none' }}>
@@ -276,7 +389,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div>
             <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '20px' }}>
               <p style={{ margin: 0, fontSize: '13px', color: '#065f46' }}>
-                Follow these steps to enable WhatsApp Business Calling. You need webhooks (HTTPS) or SIP for signaling, and WebRTC for media.
+                Follow these steps to enable WhatsApp Business Calling. Default: Graph API + Webhooks (HTTPS) signaling with WebRTC media. SIP available with explicit enablement.
               </p>
             </div>
             {SETUP_STEPS.map((step) => (
@@ -328,6 +441,33 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                 )}
               </div>
             ))}
+
+            {/* Sandbox Testing Info */}
+            <div style={{ ...s.card, marginTop: '8px', background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#92400e' }}>Sandbox Testing</h4>
+              <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#78350f', lineHeight: 1.5 }}>
+                Sandbox accounts (Tech Partners only) and public test numbers have relaxed limits for integration testing.
+                No 2,000 messaging limit requirement for test numbers.
+              </p>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid #fde68a' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#78350f' }}>Permission requests</td>
+                      <td style={{ padding: '6px 10px', color: '#92400e', fontFamily: 'monospace' }}>25/day, 100/week (vs 1/day, 2/week prod)</td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #fde68a' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#78350f' }}>Unanswered → warning</td>
+                      <td style={{ padding: '6px 10px', color: '#92400e', fontFamily: 'monospace' }}>5 consecutive (vs 2 prod)</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#78350f' }}>Unanswered → revoke</td>
+                      <td style={{ padding: '6px 10px', color: '#92400e', fontFamily: 'monospace' }}>10 consecutive (vs 4 prod)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
