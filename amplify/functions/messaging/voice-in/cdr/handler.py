@@ -5,10 +5,49 @@ Purpose: Receive and store Call Detail Records (CDR) from Airtel Cloud Communica
 
 Webhook Configuration:
 - URL: POST /voice-cdr-webhook
+- Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
 - Inbound Number: +91 9319767034
 - Email: voice@wecare.digital
 
 Recording Storage: s3://auth.wecare.digital/voice/voice-in/cdr/
+
+Airtel IP Whitelist (if 403 errors):
+- 125.19.17.212
+- 125.17.6.54
+- 122.187.47.153
+
+CDR Callback Body Format (DEFAULT - no custom config needed):
+{
+  "vmSessionId": "unique-session-id",
+  "clientCorrelationId": "xchange-tracking-id",
+  "customerId": "WECAREDIG_v6J1SyLLI2auy7Lw9JrW",
+  "callType": "INBOUND" | "OUTBOUND",
+  "overallCallStatus": "Answered" | "Missed" | "Disconnected" | "Busy",
+  "callerNumber": "9876543210",
+  "destinationNumber": "9123456789",
+  "calledNumber": "9319767034",
+  "callerId": "8047311032",
+  "startTime": 1705312200000,
+  "endTime": 1705312245000,
+  "callAnswerTime": 1705312205000,
+  "duration": 45000,              // Total duration in milliseconds
+  "fromWaitingTime": 5000,        // IVR/wait time in milliseconds
+  "conversationDuration": 40000,  // Talk time in milliseconds
+  "billableDuration": 40000,      // Billable duration in milliseconds
+  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
+  "hangupCause": "NORMAL_CLEARING",
+  "callerNumberStatus": "ANSWERED",
+  "destinationNumberStatus": "ANSWERED",
+  "circleNameCaller": "Maharashtra",
+  "circleNameDestination": "Delhi",
+  "operatorNameCaller": "Jio",
+  "operatorNameDestination": "Airtel",
+  "recordingURL": "https://...",
+  "retryCountCaller": 0,
+  "retryCountDestination": 0,
+  "participants": [...],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
 
 CDR Fields Reference (Airtel Documentation):
 - vmSessionId: Application generated unique session ID

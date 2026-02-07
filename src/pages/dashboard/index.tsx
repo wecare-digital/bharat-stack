@@ -1750,24 +1750,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {/* Message to Share with Airtel */}
               <div className="section" style={{ background: '#E3F2FD', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #90CAF9' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1565C0' }}>
-                  📋 Message to Share with Airtel Team
+                  📋 Complete Airtel Integration Reference
                 </h4>
                 <div style={{ background: '#fff', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #BBDEFB' }}>
-                  <pre style={{ fontSize: '0.8rem', color: '#111827', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{`Dear Airtel Team,
-
-Please configure the following webhook URL for our Click-to-Call (C2C) and OBD integration:
-
-WEBHOOK CONFIGURATION:
-━━━━━━━━━━━━━━━━━━━━━━
-Webhook URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
-HTTP Method: POST
-Content-Type: application/json
-
-IMPORTANT NOTES:
-━━━━━━━━━━━━━━━━
-1. The URL path is: /prod/voice-cdr-webhook (not just the base domain)
-2. This endpoint accepts both CDR and real-time event webhooks
-3. The endpoint returns HTTP 200 OK on successful receipt
+                  <pre style={{ fontSize: '0.8rem', color: '#111827', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{`WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
+============================================
 
 CUSTOMER DETAILS:
 ━━━━━━━━━━━━━━━━━
@@ -1776,8 +1763,66 @@ App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
 Contact Email: voice@wecare.digital
 Inbound Number: +91 9319767034
 
-SAMPLE callBackURLs FOR C2C API:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CALLER IDs:
+━━━━━━━━━━━
+C2C Caller ID: 8047311032
+OBD Caller ID: 8040761117
+
+SMS CONFIGURATION:
+━━━━━━━━━━━━━━━━━━
+Sender ID: WDBEEP
+Entity ID: 1201161991108627443
+
+ALL WEBHOOK URLs:
+━━━━━━━━━━━━━━━━━
+API Base: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod
+
+1. SMS-IN Webhook:
+   POST /sms-in/airtel
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel
+
+2. Voice Click-to-Call (C2C):
+   POST /voice-in/c2c
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/c2c
+
+3. Voice OBD (Outbound Dialer):
+   POST /voice-in/obd
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/obd
+
+4. Voice CDR Webhook (for callbacks):
+   POST /voice-cdr-webhook
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+
+IP WHITELIST (Airtel API IPs):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+If encountering 403 errors, whitelist these Airtel API IPs:
+• 125.19.17.212
+• 125.17.6.54
+• 122.187.47.153
+
+CLICK-TO-CALL (C2C) CALLBACK BODY FORMAT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+We accept the DEFAULT Airtel callback body format.
+No custom callback body configuration needed.
+
+Expected CDR callback fields:
+{
+  "vmSessionId": "unique-session-id",
+  "clientCorrelationId": "xchange-tracking-id",
+  "callType": "INBOUND" | "OUTBOUND",
+  "overallCallStatus": "Answered" | "Missed" | "Busy" | "Disconnected",
+  "callerNumber": "9876543210",
+  "destinationNumber": "9123456789",
+  "duration": 45000,           // milliseconds
+  "conversationDuration": 40000,
+  "billableDuration": 40000,
+  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
+  "recordingURL": "https://...",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+
+SAMPLE callBackURLs FOR C2C/OBD API:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 "callBackURLs": [
   {
     "eventType": "CDR",
@@ -1793,30 +1838,20 @@ SAMPLE callBackURLs FOR C2C API:
   }
 ]
 
-Please whitelist this domain: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
-
-If you're getting a 404 error, please ensure you're hitting the full URL path including /prod/voice-cdr-webhook and not just the base domain.
+NOTES:
+━━━━━━
+• All endpoints return HTTP 200 OK on successful receipt
+• Content-Type: application/json
+• Domain to whitelist: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
+• Recordings are stored in S3: s3://auth.wecare.digital/voice/
 
 Thank you,
 WECARE.DIGITAL Team`}</pre>
                 </div>
                 <button 
                   onClick={() => {
-                    const text = `Dear Airtel Team,
-
-Please configure the following webhook URL for our Click-to-Call (C2C) and OBD integration:
-
-WEBHOOK CONFIGURATION:
-━━━━━━━━━━━━━━━━━━━━━━
-Webhook URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
-HTTP Method: POST
-Content-Type: application/json
-
-IMPORTANT NOTES:
-━━━━━━━━━━━━━━━━
-1. The URL path is: /prod/voice-cdr-webhook (not just the base domain)
-2. This endpoint accepts both CDR and real-time event webhooks
-3. The endpoint returns HTTP 200 OK on successful receipt
+                    const text = `WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
+============================================
 
 CUSTOMER DETAILS:
 ━━━━━━━━━━━━━━━━━
@@ -1825,8 +1860,66 @@ App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
 Contact Email: voice@wecare.digital
 Inbound Number: +91 9319767034
 
-SAMPLE callBackURLs FOR C2C API:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CALLER IDs:
+━━━━━━━━━━━
+C2C Caller ID: 8047311032
+OBD Caller ID: 8040761117
+
+SMS CONFIGURATION:
+━━━━━━━━━━━━━━━━━━
+Sender ID: WDBEEP
+Entity ID: 1201161991108627443
+
+ALL WEBHOOK URLs:
+━━━━━━━━━━━━━━━━━
+API Base: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod
+
+1. SMS-IN Webhook:
+   POST /sms-in/airtel
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel
+
+2. Voice Click-to-Call (C2C):
+   POST /voice-in/c2c
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/c2c
+
+3. Voice OBD (Outbound Dialer):
+   POST /voice-in/obd
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/obd
+
+4. Voice CDR Webhook (for callbacks):
+   POST /voice-cdr-webhook
+   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+
+IP WHITELIST (Airtel API IPs):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+If encountering 403 errors, whitelist these Airtel API IPs:
+• 125.19.17.212
+• 125.17.6.54
+• 122.187.47.153
+
+CLICK-TO-CALL (C2C) CALLBACK BODY FORMAT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+We accept the DEFAULT Airtel callback body format.
+No custom callback body configuration needed.
+
+Expected CDR callback fields:
+{
+  "vmSessionId": "unique-session-id",
+  "clientCorrelationId": "xchange-tracking-id",
+  "callType": "INBOUND" | "OUTBOUND",
+  "overallCallStatus": "Answered" | "Missed" | "Busy" | "Disconnected",
+  "callerNumber": "9876543210",
+  "destinationNumber": "9123456789",
+  "duration": 45000,
+  "conversationDuration": 40000,
+  "billableDuration": 40000,
+  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
+  "recordingURL": "https://...",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+
+SAMPLE callBackURLs FOR C2C/OBD API:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 "callBackURLs": [
   {
     "eventType": "CDR",
@@ -1842,9 +1935,12 @@ SAMPLE callBackURLs FOR C2C API:
   }
 ]
 
-Please whitelist this domain: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
-
-If you're getting a 404 error, please ensure you're hitting the full URL path including /prod/voice-cdr-webhook and not just the base domain.
+NOTES:
+━━━━━━
+• All endpoints return HTTP 200 OK on successful receipt
+• Content-Type: application/json
+• Domain to whitelist: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
+• Recordings are stored in S3: s3://auth.wecare.digital/voice/
 
 Thank you,
 WECARE.DIGITAL Team`;
@@ -1853,7 +1949,7 @@ WECARE.DIGITAL Team`;
                   }}
                   style={{ marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#1976D2', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 500 }}
                 >
-                  📋 Copy Message to Clipboard
+                  📋 Copy Full Reference to Clipboard
                 </button>
               </div>
 

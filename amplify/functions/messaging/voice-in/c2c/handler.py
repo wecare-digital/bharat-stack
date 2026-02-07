@@ -7,9 +7,36 @@ Features:
 - Call recording (stored in S3)
 - Real-time events and CDR
 
-API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
+API Endpoints:
+- POST /voice-in/c2c - Initiate C2C call
+- GET /voice-in/c2c - List C2C calls
+- DELETE /voice-in/c2c - Delete call logs
+
+Airtel API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
 Secrets: wecare/airtel/c2c
 Recording Storage: s3://auth.wecare.digital/voice/voice-in/c2c/
+
+Configuration:
+- Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+- App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
+- C2C Caller ID: 8047311032
+- CDR Webhook: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+
+Airtel IP Whitelist (if 403 errors):
+- 125.19.17.212
+- 125.17.6.54
+- 122.187.47.153
+
+C2C Request Body:
+{
+  "fromNumber": "9876543210",    // First party to call
+  "toNumber": "9123456789",      // Second party to connect
+  "enableRecording": true,       // Enable call recording
+  "contactId": "optional-id"     // Optional contact reference
+}
+
+C2C Callback Body Format (DEFAULT - no custom config needed):
+We accept the default Airtel callback body. CDR callbacks are sent to /voice-cdr-webhook.
 """
 
 import os
