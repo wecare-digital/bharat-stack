@@ -58,14 +58,14 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [messagesData, contactsData] = await Promise.all([api.listMessages(undefined, 'SMS'), api.listContacts()]);
+      const [smsData, contactsData] = await Promise.all([api.listSmsAwsMessages(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
       contactsData.forEach(c => contactMap.set(c.contactId, c));
-      const formatted: SmsMessage[] = messagesData.map(m => ({
+      const formatted: SmsMessage[] = smsData.map(m => ({
         messageId: m.messageId, contactId: m.contactId, contactName: contactMap.get(m.contactId)?.name,
-        phone: (m as any).phoneNumber || m.senderPhone || m.receivingPhone || contactMap.get(m.contactId)?.phone || '', content: m.content || '', status: m.status || 'unknown',
-        direction: m.direction, messageType: (m as any).messageType, campaignId: (m as any).campaignId,
-        campaignName: (m as any).campaignName, timestamp: m.timestamp
+        phone: m.phoneNumber || contactMap.get(m.contactId)?.phone || '', content: m.content || '', status: m.status || 'unknown',
+        direction: m.direction, messageType: m.messageType, campaignId: (m as any).campaignId,
+        campaignName: (m as any).campaignName, timestamp: m.createdAt ? new Date(m.createdAt * 1000).toISOString() : new Date().toISOString()
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setMessages(formatted);
       const campaignMap = new Map<string, Campaign>();

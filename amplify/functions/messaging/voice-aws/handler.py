@@ -32,7 +32,7 @@ pinpoint_voice = boto3.client('pinpoint-sms-voice-v2', region_name=REGION)
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 VOICE_TABLE = os.environ.get('VOICE_AWS_TABLE', 'base-wecare-digital-VoiceAwsTable')
 ORIGINATION_IDENTITY = os.environ.get('VOICE_ORIGINATION_IDENTITY', '')
-VOICE_ID = os.environ.get('VOICE_ID', 'Aditi')  # Polly voice (Aditi = Hindi/English)
+VOICE_ID = os.environ.get('VOICE_ID', 'RAVEENA')  # Polly voice (RAVEENA = Indian English)
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 

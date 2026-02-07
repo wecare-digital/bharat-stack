@@ -220,7 +220,13 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
 def _send_pinpoint_sms(phone: str, content: str, message_type: str,
                        request_id: str) -> Dict[str, Any]:
-    """Send SMS via Pinpoint SMS Voice v2 API."""
+    """Send SMS via Pinpoint SMS Voice v2 API.
+    
+    Note: ORIGINATION_IDENTITY is only set if an SMS-capable pool/number exists.
+    If not set, Pinpoint uses the default configuration for the account.
+    The pool pool-6fbf5a5f390d4eeeaa7dbae39d78933e only has VOICE capability,
+    so SMS must be sent without specifying it as origination identity.
+    """
     try:
         params: Dict[str, Any] = {
             'DestinationPhoneNumber': phone,
@@ -228,7 +234,9 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
             'MessageType': message_type,
         }
 
-        if ORIGINATION_IDENTITY:
+        # Only set origination identity if it's an SMS-capable resource
+        # (not the voice-only pool)
+        if ORIGINATION_IDENTITY and ORIGINATION_IDENTITY != 'pool-6fbf5a5f390d4eeeaa7dbae39d78933e':
             params['OriginationIdentity'] = ORIGINATION_IDENTITY
 
         response = pinpoint_sms.send_text_message(**params)
