@@ -909,6 +909,72 @@ export async function makeVoiceAwsCall(request: MakeVoiceAwsCallRequest): Promis
 
 
 // ============================================================================
+// WHATSAPP VOICE (TTS via Polly + Audio Messages)
+// ============================================================================
+
+export interface WhatsAppVoiceLog {
+  messageId: string;
+  contactId: string;
+  phoneNumber: string;
+  messageText: string;
+  voiceId: string;
+  languageCode: string;
+  audioSize: number;
+  s3Key: string;
+  whatsappMessageId: string;
+  status: string;
+  type: 'tts' | 'recording';
+  createdAt: number;
+}
+
+export interface SendWhatsAppTTSRequest {
+  contactId?: string;
+  phoneNumber?: string;
+  messageText: string;
+  voiceId?: string;
+  languageCode?: string;
+  engine?: string;
+  phoneNumberId?: string;
+}
+
+export interface SendWhatsAppAudioRequest {
+  contactId?: string;
+  phoneNumber?: string;
+  phoneNumberId?: string;
+  s3Key?: string;
+  audioBase64?: string;
+  contentType?: string;
+}
+
+export async function sendWhatsAppTTS(request: SendWhatsAppTTSRequest): Promise<{
+  messageId: string; whatsappMessageId?: string; s3Key: string; audioSize: number; status: string;
+} | null> {
+  return apiCall<any>(`${API_BASE}/whatsapp-voice/tts`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function sendWhatsAppAudioMessage(request: SendWhatsAppAudioRequest): Promise<{
+  messageId: string; whatsappMessageId?: string; s3Key: string; status: string;
+} | null> {
+  return apiCall<any>(`${API_BASE}/whatsapp-voice/send`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function listWhatsAppVoiceLogs(): Promise<WhatsAppVoiceLog[]> {
+  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/logs`);
+  return data?.logs || [];
+}
+
+export async function getPollyVoices(): Promise<Record<string, { id: string; gender: string; engine: string }[]>> {
+  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/voices`);
+  return data?.voices || {};
+}
+
+// ============================================================================
 // DLQ API
 // ============================================================================
 
