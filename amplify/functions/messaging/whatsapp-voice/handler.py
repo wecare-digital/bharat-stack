@@ -419,7 +419,6 @@ def _upload_to_whatsapp(s3_key: str, phone_number_id: str,
                 'bucketName': MEDIA_BUCKET,
                 'key': s3_key,
             },
-            mediaType='audio/ogg',
         )
         media_id = response.get('mediaId', '')
         logger.info(json.dumps({
