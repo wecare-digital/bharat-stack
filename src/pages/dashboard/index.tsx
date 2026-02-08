@@ -364,7 +364,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     accountId: '809904170947',
     details: [
       '+91 93309 94400 (WECARE.DIGITAL) - Razorpay + UPI enabled',
-      '+91 99033 00044 (Manish Agarwal) - Razorpay + UPI enabled',
+      '+91 99033 00044 (Manish Agarwal)',
       'WABA ID: 1347766229904230',
       'Service-Linked Role: AWSServiceRoleForSocialMessaging',
       'Policy: AWSSocialMessagingServiceRolePolicy (cloudwatch:PutMetricData)'
@@ -2298,7 +2298,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div className="phone-card">
                     <div className="phone-name">Manish Agarwal</div>
                     <div className="phone-num">+91 99033 00044</div>
-                    <span className="badge">Razorpay + UPI</span>
+                    <span className="badge">Active</span>
                   </div>
                 </div>
               </div>

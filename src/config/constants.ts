@@ -38,8 +38,8 @@ export const WHATSAPP_PHONES = {
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
     wabaId: '761651636983279',
-    hasPayment: true,
-    paymentConfigs: ['WECARE_PAY', 'WECARE_UPI'],
+    hasPayment: false,
+    paymentConfigs: [],
   },
 };
 

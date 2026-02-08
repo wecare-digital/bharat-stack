@@ -158,7 +158,6 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
             <select value={selectedPhone} onChange={e => setSelectedPhone(e.target.value)}
               style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', marginBottom: '4px' }}>
               <option value={WHATSAPP_PHONES.primary.id}>{WHATSAPP_PHONES.primary.display} ({WHATSAPP_PHONES.primary.name})</option>
-              <option value={WHATSAPP_PHONES.secondary.id}>{WHATSAPP_PHONES.secondary.display} ({WHATSAPP_PHONES.secondary.name})</option>
             </select>
             <div style={{ marginTop: '6px' }}>
               <div className="sender-label">Payment Method</div>
