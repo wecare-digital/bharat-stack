@@ -48,7 +48,7 @@ const SETUP_STEPS = [
   {
     step: 1, done: true,
     title: 'Prerequisites',
-    desc: 'Cloud API ✓ | whatsapp_business_messaging permission ✓ | System User token created (App 1623342242027107) ✓ | +919903300044 has TIER_10K (meets 2K requirement) ✓ | +919330994400 has TIER_1K (needs upgrade to 2K for calling).',
+    desc: 'Cloud API ✓ | whatsapp_business_messaging permission ✓ | System User token created (App 891766673609917) ✓ | +919903300044 has TIER_10K (meets 2K requirement) ✓ | +919330994400 has TIER_1K (needs upgrade to 2K for calling).',
   },
   {
     step: 2, done: false,
@@ -808,7 +808,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div style={s.card}>
               <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Meta Dashboard Configuration</h4>
               <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6b7280' }}>
-                Enter these values in <a href="https://developers.facebook.com/apps/1623342242027107/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>Meta App Dashboard → WhatsApp → Configuration</a>
+                Enter these values in <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>Meta App Dashboard → WhatsApp → Configuration</a>
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
@@ -881,7 +881,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div style={{ ...s.card, marginTop: '12px' }}>
               <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>How to Configure Webhook in Meta Dashboard</h4>
               <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 }}>
-                <li>Go to <a href="https://developers.facebook.com/apps/1623342242027107/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
+                <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
                 <li>Under "Webhook", click "Edit" (or "Configure" if first time)</li>
                 <li>Paste the Callback URL above</li>
                 <li>Paste the Verify Token above</li>
@@ -918,7 +918,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                   { label: 'Getting Started (Access Token)', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/get-started' },
                   { label: 'Webhooks Overview', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/webhooks/overview' },
                   { label: 'Calling API Docs', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
-                  { label: 'App Dashboard', url: 'https://developers.facebook.com/apps/1623342242027107/whatsapp-business/wa-dev-console/' },
+                  { label: 'App Dashboard', url: 'https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/' },
                   { label: 'Meta Business Settings', url: 'https://business.facebook.com/settings' },
                 ].map((d, i) => (
                   <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"

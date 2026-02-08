@@ -50,35 +50,43 @@ CORS_HEADERS = {
 
 _token_cache = {}
 
-def _get_meta_token() -> str:
-    if 'token' in _token_cache:
-        return _token_cache['token']
-    resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
-    raw = resp['SecretString']
-    # Handle non-standard JSON format {key:value} without quotes
-    try:
-        secret = json.loads(raw)
-        token = secret.get('access_token') or secret.get('token') or raw
-    except json.JSONDecodeError:
-        # Parse {access_token:xxx,app_id:yyy,...} format
-        token = raw
-        if 'access_token:' in raw or 'access_token :' in raw:
-            # Extract token value between "access_token:" and next comma or "}"
+WABA1_ID = '1728153881476046'
+WABA2_ID = '761651636983279'
+PHONE1_META_ID = '1065003613352032'
+PHONE2_META_ID = '1065809899939064'
+
+# All IDs that belong to WABA2
+WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
+
+def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
+    """Get the correct token based on WABA or phone ID."""
+    use_waba2 = (waba_id in WABA2_IDS) or (phone_id in WABA2_IDS)
+    
+    cache_key = 'token2' if use_waba2 else 'token1'
+    if cache_key in _token_cache:
+        return _token_cache[cache_key]
+    
+    # Load both tokens from secret
+    if 'loaded' not in _token_cache:
+        resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
+        raw = resp['SecretString']
+        try:
+            secret = json.loads(raw)
+            _token_cache['token1'] = (secret.get('access_token') or '').strip()
+            _token_cache['token2'] = (secret.get('access_token_waba2') or secret.get('access_token') or '').strip()
+        except json.JSONDecodeError:
             import re
             m = re.search(r'access_token\s*:\s*([^,}]+)', raw)
-            if m:
-                token = m.group(1).strip()
-    if isinstance(token, str) and token.startswith('{'):
-        try:
-            token = json.loads(token).get('access_token', token)
-        except:
-            pass
-    _token_cache['token'] = token.strip()
-    return _token_cache['token']
+            token = m.group(1).strip() if m else raw.strip()
+            _token_cache['token1'] = token
+            _token_cache['token2'] = token
+        _token_cache['loaded'] = True
+    
+    return _token_cache.get(cache_key, _token_cache.get('token1', ''))
 
 
-def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params: Dict = None) -> Dict:
-    token = _get_meta_token()
+def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params: Dict = None, waba_id: str = None, phone_id: str = None) -> Dict:
+    token = _get_meta_token(waba_id=waba_id, phone_id=phone_id)
     url = f'{GRAPH_BASE}/{endpoint}'
     if params:
         qs = {k: v for k, v in params.items() if v is not None}
@@ -111,7 +119,7 @@ def _resp(code: int, body: Dict) -> Dict:
 # ============================================================================
 def _get_business_profile(phone_id: str) -> Dict:
     fields = 'about,address,description,email,profile_picture_url,websites,vertical'
-    result = _graph_api(f'{phone_id}/whatsapp_business_profile', params={'fields': fields})
+    result = _graph_api(f'{phone_id}/whatsapp_business_profile', params={'fields': fields}, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     data = result.get('data', [{}])
@@ -124,7 +132,7 @@ def _update_business_profile(phone_id: str, body: Dict) -> Dict:
     if not payload:
         return _resp(400, {'error': 'No valid fields to update'})
     payload['messaging_product'] = 'whatsapp'
-    result = _graph_api(f'{phone_id}/whatsapp_business_profile', method='POST', payload=payload)
+    result = _graph_api(f'{phone_id}/whatsapp_business_profile', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True, 'updated': list(payload.keys())})
@@ -133,7 +141,7 @@ def _update_business_profile(phone_id: str, body: Dict) -> Dict:
 # FLOWS
 # ============================================================================
 def _list_flows(waba_id: str) -> Dict:
-    result = _graph_api(f'{waba_id}/flows')
+    result = _graph_api(f'{waba_id}/flows', waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'flows': result.get('data', [])})
@@ -155,7 +163,7 @@ def _create_flow(waba_id: str, body: Dict) -> Dict:
         payload['categories'] = body['categories']
     if body.get('clone_flow_id'):
         payload['clone_flow_id'] = body['clone_flow_id']
-    result = _graph_api(f'{waba_id}/flows', method='POST', payload=payload)
+    result = _graph_api(f'{waba_id}/flows', method='POST', payload=payload, waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'flow': result})
@@ -214,19 +222,19 @@ def _get_flow_preview(flow_id: str) -> Dict:
 # WEBHOOKS
 # ============================================================================
 def _get_webhook_subscriptions(waba_id: str) -> Dict:
-    result = _graph_api(f'{waba_id}/subscribed_apps')
+    result = _graph_api(f'{waba_id}/subscribed_apps', waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'subscriptions': result.get('data', [])})
 
 def _subscribe_webhook(waba_id: str, body: Dict) -> Dict:
-    result = _graph_api(f'{waba_id}/subscribed_apps', method='POST')
+    result = _graph_api(f'{waba_id}/subscribed_apps', method='POST', waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True, 'result': result})
 
 def _unsubscribe_webhook(waba_id: str, body: Dict) -> Dict:
-    result = _graph_api(f'{waba_id}/subscribed_apps', method='DELETE')
+    result = _graph_api(f'{waba_id}/subscribed_apps', method='DELETE', waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True})
@@ -235,7 +243,7 @@ def _unsubscribe_webhook(waba_id: str, body: Dict) -> Dict:
 # GROUPS
 # ============================================================================
 def _list_groups(waba_id: str) -> Dict:
-    result = _graph_api(f'{waba_id}/groups')
+    result = _graph_api(f'{waba_id}/groups', waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'groups': result.get('data', [])})
@@ -259,7 +267,7 @@ def _create_group(phone_id: str, body: Dict) -> Dict:
         payload['description'] = body['description']
     if body.get('participants'):
         payload['participants'] = body['participants']
-    result = _graph_api(f'{phone_id}/groups', method='POST', payload=payload)
+    result = _graph_api(f'{phone_id}/groups', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'group': result})
@@ -313,7 +321,7 @@ def _send_group_message(phone_id: str, group_id: str, body: Dict) -> Dict:
         'type': 'text',
         'text': {'body': content}
     }
-    result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload)
+    result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True, 'messageId': result.get('messages', [{}])[0].get('id')})
@@ -322,7 +330,7 @@ def _send_group_message(phone_id: str, group_id: str, body: Dict) -> Dict:
 # PHONE SETTINGS
 # ============================================================================
 def _get_phone_settings(phone_id: str) -> Dict:
-    result = _graph_api(phone_id, params={'fields': 'display_phone_number,verified_name,quality_rating,messaging_limit_tier,is_official_business_account,name_status'})
+    result = _graph_api(phone_id, params={'fields': 'display_phone_number,verified_name,quality_rating,messaging_limit_tier,is_official_business_account,name_status'}, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'settings': result})
@@ -333,7 +341,7 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
         payload['calling'] = body['calling']
     if not payload:
         return _resp(400, {'error': 'No settings to update'})
-    result = _graph_api(f'{phone_id}/settings', method='POST', payload=payload)
+    result = _graph_api(f'{phone_id}/settings', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True})

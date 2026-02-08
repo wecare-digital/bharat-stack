@@ -40,8 +40,15 @@ META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
-# Cache Meta token
-_meta_token_cache = {'token': None, 'expires': 0}
+# Dual WABA token support
+WABA1_ID = '1728153881476046'
+WABA2_ID = '761651636983279'
+PHONE1_META_ID = '1065003613352032'
+PHONE2_META_ID = '1065809899939064'
+WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
+
+# Cache Meta tokens (dual)
+_token_cache = {}
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',
@@ -51,32 +58,41 @@ CORS_HEADERS = {
 }
 
 
-def _get_meta_token() -> str:
-    """Get Meta System User token from Secrets Manager (cached)."""
-    now = time.time()
-    if _meta_token_cache['token'] and now < _meta_token_cache['expires']:
-        return _meta_token_cache['token']
-    try:
-        resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
-        secret = resp.get('SecretString', '')
-        # Handle JSON or plain string
+def _get_meta_token(phone_number_id: str = None) -> str:
+    """Get the correct Meta token based on phone number ID (dual WABA support)."""
+    use_waba2 = phone_number_id in WABA2_IDS if phone_number_id else False
+    cache_key = 'token2' if use_waba2 else 'token1'
+
+    if cache_key in _token_cache:
+        return _token_cache[cache_key]
+
+    # Load both tokens from secret
+    if 'loaded' not in _token_cache:
         try:
-            data = json.loads(secret)
-            token = data.get('access_token', data.get('token', secret))
-        except (json.JSONDecodeError, TypeError):
-            token = secret
-        _meta_token_cache['token'] = token.strip()
-        _meta_token_cache['expires'] = now + 3600  # Cache 1 hour
-        return _meta_token_cache['token']
-    except Exception as e:
-        logger.error(f"Failed to get Meta token: {e}")
-        raise
+            resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
+            secret = resp.get('SecretString', '')
+            try:
+                data = json.loads(secret)
+                _token_cache['token1'] = (data.get('access_token') or '').strip()
+                _token_cache['token2'] = (data.get('access_token_waba2') or data.get('access_token') or '').strip()
+            except (json.JSONDecodeError, TypeError):
+                _token_cache['token1'] = secret.strip()
+                _token_cache['token2'] = secret.strip()
+            _token_cache['loaded'] = True
+            logger.info(f"Loaded dual tokens: token1={len(_token_cache.get('token1',''))}chars, token2={len(_token_cache.get('token2',''))}chars")
+        except Exception as e:
+            logger.error(f"Failed to get Meta token: {e}")
+            raise
+
+    token = _token_cache.get(cache_key, _token_cache.get('token1', ''))
+    logger.info(f"Using {cache_key} for phone_number_id={phone_number_id} (use_waba2={use_waba2})")
+    return token
 
 
-def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None) -> Dict:
-    """Make a call to Meta Graph API."""
+def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None, phone_number_id: str = None) -> Dict:
+    """Make a call to Meta Graph API with dual-token support."""
     url = f"https://graph.facebook.com/{META_API_VERSION}/{endpoint}"
-    token = _get_meta_token()
+    token = _get_meta_token(phone_number_id=phone_number_id)
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
@@ -334,7 +350,7 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'pre_accept',
-    })
+    }, phone_number_id=phone_number_id)
     logger.info(f"Pre-accept result: {json.dumps(pre_accept_result)}")
 
     if pre_accept_result.get('error'):
@@ -353,7 +369,7 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
     if sdp_answer:
         accept_payload['sdp_answer'] = sdp_answer
 
-    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', accept_payload)
+    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', accept_payload, phone_number_id=phone_number_id)
     logger.info(f"Accept result: {json.dumps(accept_result)}")
 
     if accept_result.get('error'):
@@ -389,7 +405,7 @@ def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'terminate',
-    })
+    }, phone_number_id=phone_number_id)
 
     _update_call_status(call_id, 'terminated')
 
@@ -424,7 +440,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
                 'type': 'call_permission_request',
                 'body': {'text': body_text},
             },
-        })
+        }, phone_number_id=phone_number_id)
         return _response(200, {'success': not result.get('error'), 'action': 'permission_request', 'result': result})
 
     elif action == 'create':
@@ -437,7 +453,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
             'action': 'create',
             'to': to_number,
             'sdp_offer': sdp_offer,
-        })
+        }, phone_number_id=phone_number_id)
         return _response(200, {'success': not result.get('error'), 'action': 'create', 'result': result})
 
     return _response(400, {'error': f'Unknown action: {action}'})
@@ -508,7 +524,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'pre_accept',
-    })
+    }, phone_number_id=phone_number_id)
     logger.info(f"AUTO-PICKUP pre_accept: {json.dumps(pre_result)}")
 
     if pre_result.get('error'):
@@ -521,7 +537,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'accept',
-    })
+    }, phone_number_id=phone_number_id)
     logger.info(f"AUTO-PICKUP accept: {json.dumps(accept_result)}")
 
     if accept_result.get('error'):
@@ -551,7 +567,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
             'messaging_product': 'whatsapp',
             'call_id': call_id,
             'action': 'terminate',
-        })
+        }, phone_number_id=phone_number_id)
         _update_call_status(call_id, 'auto_completed')
 
     t = threading.Thread(target=_delayed_hangup, daemon=True)
@@ -577,7 +593,7 @@ def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, 
             'audio': {
                 'link': audio_url,
             },
-        })
+        }, phone_number_id=phone_number_id)
         logger.info(f"AUTO-PICKUP audio sent to {to_number}: {json.dumps(result)}")
     except Exception as e:
         logger.error(f"Failed to send auto-pickup audio: {e}")
