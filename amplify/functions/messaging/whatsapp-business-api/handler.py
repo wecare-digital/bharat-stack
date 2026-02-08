@@ -2,6 +2,27 @@
 WhatsApp Business API Lambda
 Handles: Business Profile, Flows, Webhooks, Groups
 Uses Meta Graph API directly (not AWS EUM)
+
+Routes:
+  GET/POST  /wa-business/profile       → Business profile (read/update)
+  GET       /wa-business/flows         → List flows
+  POST      /wa-business/flows         → Create flow
+  GET       /wa-business/flows?flowId= → Get flow details
+  PUT       /wa-business/flows         → Update flow
+  DELETE    /wa-business/flows         → Delete flow
+  POST      /wa-business/flows/publish → Publish flow
+  POST      /wa-business/flows/deprecate → Deprecate flow
+  POST      /wa-business/flows/preview → Get flow preview URL
+  GET       /wa-business/webhooks      → Get webhook subscriptions
+  POST      /wa-business/webhooks      → Subscribe to webhook fields
+  DELETE    /wa-business/webhooks      → Unsubscribe webhook fields
+  GET       /wa-business/groups        → List groups
+  POST      /wa-business/groups        → Create group
+  GET       /wa-business/groups?groupId= → Get group details
+  PUT       /wa-business/groups        → Update group
+  DELETE    /wa-business/groups        → Delete group
+  POST      /wa-business/groups/participants → Add/remove participants
+  POST      /wa-business/groups/send   → Send group message
 """
 import os
 import json
@@ -9,7 +30,7 @@ import logging
 import boto3
 import urllib.request
 import urllib.parse
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
@@ -33,31 +54,44 @@ def _get_meta_token() -> str:
     if 'token' in _token_cache:
         return _token_cache['token']
     resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
-    secret = json.loads(resp['SecretString'])
-    token = secret.get('access_token') or secret.get('token') or resp['SecretString']
+    raw = resp['SecretString']
+    # Handle non-standard JSON format {key:value} without quotes
+    try:
+        secret = json.loads(raw)
+        token = secret.get('access_token') or secret.get('token') or raw
+    except json.JSONDecodeError:
+        # Parse {access_token:xxx,app_id:yyy,...} format
+        token = raw
+        if 'access_token:' in raw or 'access_token :' in raw:
+            # Extract token value between "access_token:" and next comma or "}"
+            import re
+            m = re.search(r'access_token\s*:\s*([^,}]+)', raw)
+            if m:
+                token = m.group(1).strip()
     if isinstance(token, str) and token.startswith('{'):
-        token = json.loads(token).get('access_token', token)
+        try:
+            token = json.loads(token).get('access_token', token)
+        except:
+            pass
     _token_cache['token'] = token.strip()
     return _token_cache['token']
 
+
 def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params: Dict = None) -> Dict:
-    """Make a Meta Graph API call."""
     token = _get_meta_token()
     url = f'{GRAPH_BASE}/{endpoint}'
     if params:
-        url += '?' + urllib.parse.urlencode(params)
-    
+        qs = {k: v for k, v in params.items() if v is not None}
+        if qs:
+            url += '?' + urllib.parse.urlencode(qs)
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     data = json.dumps(payload).encode('utf-8') if payload else None
-    
-    if method == 'GET' and data is None:
-        # GET requests shouldn't have body
-        req = urllib.request.Request(url, headers=headers, method=method)
+    if method == 'GET':
+        req = urllib.request.Request(url, headers=headers, method='GET')
     elif method == 'DELETE':
         req = urllib.request.Request(url, headers=headers, method='DELETE')
     else:
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return json.loads(resp.read().decode('utf-8'))
@@ -69,9 +103,244 @@ def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params:
         except:
             return {'error': {'message': error_body, 'code': e.code}}
 
-def _response(status_code: int, body: Dict) -> Dict:
-    return {'statusCode': status_code, 'headers': CORS_HEADERS, 'body': json.dumps(body, default=str)}
+def _resp(code: int, body: Dict) -> Dict:
+    return {'statusCode': code, 'headers': CORS_HEADERS, 'body': json.dumps(body, default=str)}
 
+# ============================================================================
+# BUSINESS PROFILE
+# ============================================================================
+def _get_business_profile(phone_id: str) -> Dict:
+    fields = 'about,address,description,email,profile_picture_url,websites,vertical'
+    result = _graph_api(f'{phone_id}/whatsapp_business_profile', params={'fields': fields})
+    if 'error' in result:
+        return _resp(400, result)
+    data = result.get('data', [{}])
+    profile = data[0] if data else {}
+    return _resp(200, {'profile': profile})
+
+def _update_business_profile(phone_id: str, body: Dict) -> Dict:
+    allowed = ['about', 'address', 'description', 'email', 'websites', 'vertical', 'profile_picture_url']
+    payload = {k: v for k, v in body.items() if k in allowed and v is not None}
+    if not payload:
+        return _resp(400, {'error': 'No valid fields to update'})
+    payload['messaging_product'] = 'whatsapp'
+    result = _graph_api(f'{phone_id}/whatsapp_business_profile', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'updated': list(payload.keys())})
+
+# ============================================================================
+# FLOWS
+# ============================================================================
+def _list_flows(waba_id: str) -> Dict:
+    result = _graph_api(f'{waba_id}/flows')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'flows': result.get('data', [])})
+
+def _get_flow(flow_id: str) -> Dict:
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    result = _graph_api(flow_id, params={'fields': 'id,name,status,categories,validation_errors,json_version,data_api_version,endpoint_uri,preview'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'flow': result})
+
+def _create_flow(waba_id: str, body: Dict) -> Dict:
+    name = body.get('name')
+    if not name:
+        return _resp(400, {'error': 'name required'})
+    payload = {'name': name}
+    if body.get('categories'):
+        payload['categories'] = body['categories']
+    if body.get('clone_flow_id'):
+        payload['clone_flow_id'] = body['clone_flow_id']
+    result = _graph_api(f'{waba_id}/flows', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'flow': result})
+
+def _update_flow(flow_id: str, body: Dict) -> Dict:
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    payload = {}
+    if body.get('name'):
+        payload['name'] = body['name']
+    if body.get('categories'):
+        payload['categories'] = body['categories']
+    if body.get('endpoint_uri'):
+        payload['endpoint_uri'] = body['endpoint_uri']
+    if body.get('json'):
+        payload['json'] = body['json']
+    result = _graph_api(flow_id, method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _delete_flow(flow_id: str) -> Dict:
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    result = _graph_api(flow_id, method='DELETE')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _publish_flow(flow_id: str) -> Dict:
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    result = _graph_api(f'{flow_id}/publish', method='POST')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _deprecate_flow(flow_id: str) -> Dict:
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    result = _graph_api(flow_id, method='POST', payload={'status': 'DEPRECATED'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _get_flow_preview(flow_id: str) -> Dict:
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    result = _graph_api(flow_id, params={'fields': 'preview.invalidate(false)'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'preview': result.get('preview', {})})
+
+
+# ============================================================================
+# WEBHOOKS
+# ============================================================================
+def _get_webhook_subscriptions(waba_id: str) -> Dict:
+    result = _graph_api(f'{waba_id}/subscribed_apps')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'subscriptions': result.get('data', [])})
+
+def _subscribe_webhook(waba_id: str, body: Dict) -> Dict:
+    result = _graph_api(f'{waba_id}/subscribed_apps', method='POST')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'result': result})
+
+def _unsubscribe_webhook(waba_id: str, body: Dict) -> Dict:
+    result = _graph_api(f'{waba_id}/subscribed_apps', method='DELETE')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+# ============================================================================
+# GROUPS
+# ============================================================================
+def _list_groups(waba_id: str) -> Dict:
+    result = _graph_api(f'{waba_id}/groups')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'groups': result.get('data', [])})
+
+def _get_group(group_id: str) -> Dict:
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    result = _graph_api(group_id, params={'fields': 'id,subject,description,owner,creation_timestamp,participants'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'group': result})
+
+def _create_group(phone_id: str, body: Dict) -> Dict:
+    if not phone_id:
+        return _resp(400, {'error': 'phoneId required'})
+    subject = body.get('subject')
+    if not subject:
+        return _resp(400, {'error': 'subject required'})
+    payload = {'subject': subject, 'messaging_product': 'whatsapp'}
+    if body.get('description'):
+        payload['description'] = body['description']
+    if body.get('participants'):
+        payload['participants'] = body['participants']
+    result = _graph_api(f'{phone_id}/groups', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'group': result})
+
+def _update_group(group_id: str, body: Dict) -> Dict:
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    payload = {}
+    if body.get('subject'):
+        payload['subject'] = body['subject']
+    if body.get('description'):
+        payload['description'] = body['description']
+    result = _graph_api(group_id, method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _delete_group(group_id: str) -> Dict:
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    result = _graph_api(group_id, method='DELETE')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _manage_group_participants(group_id: str, body: Dict) -> Dict:
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    action = body.get('action', 'add')  # add or remove
+    participants = body.get('participants', [])
+    if not participants:
+        return _resp(400, {'error': 'participants required'})
+    payload = {'messaging_product': 'whatsapp', 'participants': participants}
+    endpoint = f'{group_id}/participants'
+    method = 'POST' if action == 'add' else 'DELETE'
+    result = _graph_api(endpoint, method=method, payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'action': action, 'count': len(participants)})
+
+def _send_group_message(phone_id: str, group_id: str, body: Dict) -> Dict:
+    if not phone_id or not group_id:
+        return _resp(400, {'error': 'phoneId and groupId required'})
+    content = body.get('content', '')
+    if not content:
+        return _resp(400, {'error': 'content required'})
+    payload = {
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'group',
+        'to': group_id,
+        'type': 'text',
+        'text': {'body': content}
+    }
+    result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'messageId': result.get('messages', [{}])[0].get('id')})
+
+# ============================================================================
+# PHONE SETTINGS
+# ============================================================================
+def _get_phone_settings(phone_id: str) -> Dict:
+    result = _graph_api(phone_id, params={'fields': 'display_phone_number,verified_name,quality_rating,messaging_limit_tier,is_official_business_account,name_status'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'settings': result})
+
+def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
+    payload = {}
+    if 'calling' in body:
+        payload['calling'] = body['calling']
+    if not payload:
+        return _resp(400, {'error': 'No settings to update'})
+    result = _graph_api(f'{phone_id}/settings', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+# ============================================================================
+# HANDLER
+# ============================================================================
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     rc = event.get('requestContext', {})
@@ -79,97 +348,83 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method = http.get('method', event.get('httpMethod', 'GET'))
     path = http.get('path', '') or event.get('rawPath', '') or event.get('path', '')
     params = event.get('queryStringParameters') or {}
-    
+
     if method == 'OPTIONS':
-        return _response(200, {})
-    
+        return _resp(200, {})
+
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
     except:
         body = {}
-    
+
     logger.info(f'[{request_id}] {method} {path}')
-    
+
     try:
-        # Business Profile endpoints
-        if '/business-profile' in path:
+        if '/profile' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
             if not phone_id:
-                return _response(400, {'error': 'phoneId required'})
+                return _resp(400, {'error': 'phoneId required'})
             if method == 'GET':
                 return _get_business_profile(phone_id)
-            elif method in ('POST', 'PUT'):
-                return _update_business_profile(phone_id, body)
-        
-        # Flows endpoints
+            return _update_business_profile(phone_id, body)
+
+        elif '/flows/publish' in path:
+            return _publish_flow(params.get('flowId') or body.get('flowId'))
+        elif '/flows/deprecate' in path:
+            return _deprecate_flow(params.get('flowId') or body.get('flowId'))
+        elif '/flows/preview' in path:
+            return _get_flow_preview(params.get('flowId') or body.get('flowId'))
         elif '/flows' in path:
             waba_id = params.get('wabaId') or body.get('wabaId')
-            if not waba_id:
-                return _response(400, {'error': 'wabaId required'})
-            
             flow_id = params.get('flowId') or body.get('flowId')
-            
             if method == 'GET':
-                if flow_id:
-                    return _get_flow(flow_id)
-                return _list_flows(waba_id)
+                return _get_flow(flow_id) if flow_id else _list_flows(waba_id or '')
             elif method == 'POST':
-                if '/flows/publish' in path:
-                    return _publish_flow(flow_id)
-                elif '/flows/deprecate' in path:
-                    return _deprecate_flow(flow_id)
-                elif '/flows/preview' in path:
-                    return _get_flow_preview(flow_id)
-                return _create_flow(waba_id, body)
+                return _create_flow(waba_id or '', body)
             elif method == 'PUT':
-                return _update_flow(flow_id, body)
+                return _update_flow(flow_id or '', body)
             elif method == 'DELETE':
-                return _delete_flow(flow_id)
-        
-        # Webhook endpoints
+                return _delete_flow(flow_id or '')
+
         elif '/webhooks' in path:
             waba_id = params.get('wabaId') or body.get('wabaId')
             if not waba_id:
-                return _response(400, {'error': 'wabaId required'})
+                return _resp(400, {'error': 'wabaId required'})
             if method == 'GET':
                 return _get_webhook_subscriptions(waba_id)
             elif method == 'POST':
                 return _subscribe_webhook(waba_id, body)
             elif method == 'DELETE':
                 return _unsubscribe_webhook(waba_id, body)
-        
-        # Groups endpoints
+
+        elif '/groups/participants' in path:
+            return _manage_group_participants(params.get('groupId') or body.get('groupId') or '', body)
+        elif '/groups/send' in path:
+            return _send_group_message(
+                params.get('phoneId') or body.get('phoneId') or '',
+                params.get('groupId') or body.get('groupId') or '', body)
         elif '/groups' in path:
-            waba_id = params.get('wabaId') or body.get('wabaId')
-            phone_id = params.get('phoneId') or body.get('phoneId')
+            waba_id = params.get('wabaId') or body.get('wabaId') or ''
             group_id = params.get('groupId') or body.get('groupId')
-            
+            phone_id = params.get('phoneId') or body.get('phoneId')
             if method == 'GET':
-                if group_id:
-                    return _get_group(group_id)
-                return _list_groups(waba_id)
+                return _get_group(group_id) if group_id else _list_groups(waba_id)
             elif method == 'POST':
-                if '/groups/participants' in path:
-                    return _manage_group_participants(group_id, body)
-                elif '/groups/send' in path:
-                    return _send_group_message(phone_id, group_id, body)
-                return _create_group(phone_id, body)
+                return _create_group(phone_id or '', body)
             elif method == 'PUT':
-                return _update_group(group_id, body)
+                return _update_group(group_id or '', body)
             elif method == 'DELETE':
-                return _delete_group(group_id)
-        
-        # Phone settings (calling config)
+                return _delete_group(group_id or '')
+
         elif '/phone-settings' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
             if not phone_id:
-                return _response(400, {'error': 'phoneId required'})
+                return _resp(400, {'error': 'phoneId required'})
             if method == 'GET':
                 return _get_phone_settings(phone_id)
-            elif method == 'POST':
-                return _update_phone_settings(phone_id, body)
-        
-        return _response(404, {'error': f'Unknown path: {path}'})
+            return _update_phone_settings(phone_id, body)
+
+        return _resp(404, {'error': f'Unknown path: {path}'})
     except Exception as e:
         logger.exception(f'[{request_id}] Error')
-        return _response(500, {'error': str(e)})
+        return _resp(500, {'error': str(e)})

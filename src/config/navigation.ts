@@ -86,6 +86,10 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/logs', label: 'Logs' },
           { path: '/dm/whatsapp/templates', label: 'Templates' },
           { path: '/dm/whatsapp/calling', label: 'Calling' },
+          { path: '/dm/whatsapp/flows', label: 'Flows' },
+          { path: '/dm/whatsapp/groups', label: 'Groups' },
+          { path: '/dm/whatsapp/business-profile', label: 'Profile' },
+          { path: '/dm/whatsapp/webhooks', label: 'Webhooks' },
         ]
       },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },

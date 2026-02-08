@@ -1,0 +1,158 @@
+/**
+ * WhatsApp Webhooks Management
+ * View and manage webhook subscriptions per WABA
+ * Ref: https://developers.facebook.com/docs/whatsapp/webhooks/overview
+ */
+import React, { useState, useEffect } from 'react';
+import Layout from '../../../components/Layout';
+import SEO from '../../../components/SEO';
+import { useToastContext } from '../../../contexts/ToastContext';
+import * as api from '../../../api/client';
+import { WHATSAPP_PHONES } from '../../../config/constants';
+
+interface PageProps { signOut?: () => void; user?: any; }
+
+const WABAS = [
+  { id: WHATSAPP_PHONES.primary.wabaId, name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
+  { id: WHATSAPP_PHONES.secondary.wabaId, name: WHATSAPP_PHONES.secondary.name, display: WHATSAPP_PHONES.secondary.display },
+];
+
+const WEBHOOK_FIELDS = [
+  { field: 'messages', desc: 'Incoming messages, message status updates, message errors' },
+  { field: 'account_update', desc: 'Phone number name, quality rating, messaging limit changes' },
+  { field: 'account_review_update', desc: 'Business verification status changes' },
+  { field: 'business_capability_update', desc: 'Changes to business capabilities' },
+  { field: 'message_template_status_update', desc: 'Template approval/rejection notifications' },
+  { field: 'phone_number_name_update', desc: 'Display name change status' },
+  { field: 'phone_number_quality_update', desc: 'Phone number quality rating changes' },
+  { field: 'security', desc: 'Security-related events (two-step verification)' },
+  { field: 'template_category_update', desc: 'Template category change notifications' },
+  { field: 'flows', desc: 'Flow status changes and data exchange events' },
+  { field: 'calls', desc: 'WhatsApp Business Calling events (connect, terminate, permission)' },
+];
+
+const EXISTING_WEBHOOKS = [
+  { name: 'Inbound Messages', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active' },
+  { name: 'WhatsApp Calling', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active' },
+];
+
+const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
+  const toast = useToastContext();
+  const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+
+  const loadSubs = async (waba: typeof WABAS[0]) => {
+    setLoading(true);
+    try {
+      const data = await api.getWebhookSubscriptions(waba.id);
+      setSubscriptions(data);
+    } catch (e) { toast.error('Failed to load subscriptions'); }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadSubs(selectedWaba); }, [selectedWaba]);
+
+  const handleSubscribe = async () => {
+    setSubscribing(true);
+    const ok = await api.subscribeWebhook(selectedWaba.id);
+    if (ok) { toast.success('Subscribed'); loadSubs(selectedWaba); }
+    else toast.error('Subscribe failed');
+    setSubscribing(false);
+  };
+
+  const handleUnsubscribe = async () => {
+    if (!confirm('Unsubscribe this app from webhooks?')) return;
+    setSubscribing(true);
+    const ok = await api.unsubscribeWebhook(selectedWaba.id);
+    if (ok) { toast.success('Unsubscribed'); loadSubs(selectedWaba); }
+    else toast.error('Unsubscribe failed');
+    setSubscribing(false);
+  };
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="Webhooks" description="WhatsApp Webhook Management" noindex />
+      <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
+        <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>WhatsApp Webhooks</h2>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {WABAS.map(w => (
+            <button key={w.id} onClick={() => setSelectedWaba(w)}
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #16a34a' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              {w.name} ({w.display})
+            </button>
+          ))}
+        </div>
+
+        {/* Active Webhook Endpoints */}
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontSize: 16, marginBottom: 12 }}>Active Webhook Endpoints</h3>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {EXISTING_WEBHOOKS.map(wh => (
+              <div key={wh.name} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{wh.name}</span>
+                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: '#16a34a' }}>{wh.status}</span>
+                </div>
+                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>URL: {wh.url}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>Lambda: {wh.lambda}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>Fields: {wh.fields.join(', ')}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* App Subscriptions */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 16, margin: 0 }}>App Subscriptions (WABA: {selectedWaba.id})</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleSubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+                {subscribing ? '...' : 'Subscribe App'}
+              </button>
+              <button onClick={handleUnsubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#fff', color: '#dc2626', border: '1px solid #dc2626', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+                Unsubscribe
+              </button>
+            </div>
+          </div>
+          {loading ? <p>Loading...</p> : subscriptions.length === 0 ? (
+            <p style={{ color: '#666', fontSize: 13 }}>No subscriptions found. Click "Subscribe App" to subscribe.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {subscriptions.map((sub: any, i: number) => (
+                <div key={i} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 12, fontSize: 13 }}>
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 12 }}>{JSON.stringify(sub, null, 2)}</pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Available Webhook Fields Reference */}
+        <div>
+          <h3 style={{ fontSize: 16, marginBottom: 12 }}>Available Webhook Fields</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#f9fafb' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Field</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {WEBHOOK_FIELDS.map(f => (
+                <tr key={f.field}>
+                  <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace', fontWeight: 500 }}>{f.field}</td>
+                  <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', color: '#666' }}>{f.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default WebhooksPage;

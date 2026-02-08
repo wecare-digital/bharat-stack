@@ -3049,3 +3049,160 @@ export async function clearAllInboxData(): Promise<{
     voiceDeleted,
   };
 }
+
+// ============================================================================
+// WHATSAPP BUSINESS API (Profile, Flows, Webhooks, Groups)
+// ============================================================================
+
+const WA_BIZ_BASE = `${API_BASE}/wa-business`;
+
+// Business Profile
+export async function getBusinessProfile(phoneId: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/profile?phoneId=${phoneId}`);
+  return data?.profile || null;
+}
+
+export async function updateBusinessProfile(phoneId: string, updates: Record<string, any>): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/profile`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, ...updates }),
+  });
+  return data?.success === true;
+}
+
+// Flows
+export async function listFlows(wabaId: string): Promise<any[]> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?wabaId=${wabaId}`);
+  return data?.flows || [];
+}
+
+export async function getFlow(flowId: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?flowId=${flowId}`);
+  return data?.flow || null;
+}
+
+export async function createFlow(wabaId: string, name: string, categories?: string[]): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows`, {
+    method: 'POST',
+    body: JSON.stringify({ wabaId, name, categories }),
+  });
+  return data?.flow || null;
+}
+
+export async function updateFlow(flowId: string, updates: Record<string, any>): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows`, {
+    method: 'PUT',
+    body: JSON.stringify({ flowId, ...updates }),
+  });
+  return data?.success === true;
+}
+
+export async function deleteFlow(flowId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?flowId=${flowId}`, { method: 'DELETE' });
+  return data?.success === true;
+}
+
+export async function publishFlow(flowId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ flowId }),
+  });
+  return data?.success === true;
+}
+
+export async function deprecateFlow(flowId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows/deprecate`, {
+    method: 'POST',
+    body: JSON.stringify({ flowId }),
+  });
+  return data?.success === true;
+}
+
+export async function getFlowPreview(flowId: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ flowId }),
+  });
+  return data?.preview || null;
+}
+
+// Webhooks
+export async function getWebhookSubscriptions(wabaId: string): Promise<any[]> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/webhooks?wabaId=${wabaId}`);
+  return data?.subscriptions || [];
+}
+
+export async function subscribeWebhook(wabaId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/webhooks`, {
+    method: 'POST',
+    body: JSON.stringify({ wabaId }),
+  });
+  return data?.success === true;
+}
+
+export async function unsubscribeWebhook(wabaId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/webhooks?wabaId=${wabaId}`, { method: 'DELETE' });
+  return data?.success === true;
+}
+
+// Groups
+export async function listGroups(wabaId: string): Promise<any[]> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?wabaId=${wabaId}`);
+  return data?.groups || [];
+}
+
+export async function getGroup(groupId: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?groupId=${groupId}`);
+  return data?.group || null;
+}
+
+export async function createGroup(phoneId: string, subject: string, description?: string, participants?: string[]): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, subject, description, participants }),
+  });
+  return data?.group || null;
+}
+
+export async function updateGroup(groupId: string, updates: Record<string, any>): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
+    method: 'PUT',
+    body: JSON.stringify({ groupId, ...updates }),
+  });
+  return data?.success === true;
+}
+
+export async function deleteGroup(groupId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?groupId=${groupId}`, { method: 'DELETE' });
+  return data?.success === true;
+}
+
+export async function manageGroupParticipants(groupId: string, participants: string[], action: 'add' | 'remove'): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/participants`, {
+    method: 'POST',
+    body: JSON.stringify({ groupId, participants, action }),
+  });
+  return data?.success === true;
+}
+
+export async function sendGroupMessage(phoneId: string, groupId: string, content: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/send`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, groupId, content }),
+  });
+  return data;
+}
+
+// Phone Settings
+export async function getPhoneSettings(phoneId: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/phone-settings?phoneId=${phoneId}`);
+  return data?.settings || null;
+}
+
+export async function updatePhoneSettings(phoneId: string, settings: Record<string, any>): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/phone-settings`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, ...settings }),
+  });
+  return data?.success === true;
+}
