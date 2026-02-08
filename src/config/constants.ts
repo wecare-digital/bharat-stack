@@ -29,13 +29,17 @@ export const WHATSAPP_PHONES = {
     id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
+    wabaId: '1728153881476046',
     hasPayment: true,
+    paymentConfigs: ['WECARE_PAY', 'WECARE_UPI'],
   },
   secondary: {
     id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6',
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
-    hasPayment: false,
+    wabaId: '761651636983279',
+    hasPayment: true,
+    paymentConfigs: ['WECARE_PAY', 'WECARE_UPI'],
   },
 };
 

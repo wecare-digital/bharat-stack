@@ -32,7 +32,7 @@ import PageHeader from '../../../components/PageHeader';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { formatReferenceNumber, generateReferenceId } from '../../../lib/formatters';
-import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN } from '../../../config/constants';
+import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN, WHATSAPP_PHONES } from '../../../config/constants';
 
 interface PageProps {
   signOut?: () => void;
@@ -62,6 +62,8 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [shipping, setShipping] = useState<number>(0);
   const [gstRate, setGstRate] = useState<number>(0);
   const [gstin, setGstin] = useState<string>(DEFAULT_GSTIN);
+  const [selectedPhone, setSelectedPhone] = useState<string>(PAYMENT_CONFIG.phoneNumberId);
+  const [paymentMethod, setPaymentMethod] = useState<'WECARE_PAY' | 'WECARE_UPI'>('WECARE_PAY');
 
   useEffect(() => {
     loadContacts();
@@ -107,7 +109,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
     try {
       const result = await api.sendWhatsAppPaymentMessage({
         contactId: selectedContact,
-        phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
+        phoneNumberId: selectedPhone,
         referenceId: referenceId,
         items: [{ name: itemName, amount: Math.round(itemAmount * 100), quantity: itemQuantity, productId: 'ITEM_MAIN' }],
         discount: Math.round(discount * 100),
@@ -116,6 +118,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         gstRate: gstRate,
         gstin: gstin,
         useInteractive: true,
+        paymentConfiguration: paymentMethod,
       });
 
       if (result) {
@@ -152,10 +155,21 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="sender-icon">Phone</div>
           <div className="sender-info">
             <div className="sender-label">Sending From</div>
-            <div className="sender-number">{PAYMENT_CONFIG.phoneDisplay}</div>
-            <div className="sender-name">{PAYMENT_CONFIG.phoneName}</div>
+            <select value={selectedPhone} onChange={e => setSelectedPhone(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', marginBottom: '4px' }}>
+              <option value={WHATSAPP_PHONES.primary.id}>{WHATSAPP_PHONES.primary.display} ({WHATSAPP_PHONES.primary.name})</option>
+              <option value={WHATSAPP_PHONES.secondary.id}>{WHATSAPP_PHONES.secondary.display} ({WHATSAPP_PHONES.secondary.name})</option>
+            </select>
+            <div style={{ marginTop: '6px' }}>
+              <div className="sender-label">Payment Method</div>
+              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)}
+                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px' }}>
+                <option value="WECARE_PAY">WECARE_PAY (Razorpay Gateway)</option>
+                <option value="WECARE_UPI">WECARE_UPI (UPI Direct)</option>
+              </select>
+            </div>
           </div>
-          <div className="sender-badge"><span className="badge-dot"></span>Razorpay</div>
+          <div className="sender-badge"><span className="badge-dot"></span>{paymentMethod === 'WECARE_PAY' ? 'Razorpay' : 'UPI'}</div>
         </div>
 
         {message && (

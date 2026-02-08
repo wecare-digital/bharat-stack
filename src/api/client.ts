@@ -1528,6 +1528,7 @@ export interface SendPaymentMessageRequest {
   headerImageUrl?: string;
   bodyText?: string;
   useInteractive?: boolean;
+  paymentConfiguration?: string;
 }
 
 /**
@@ -1555,7 +1556,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   const orderDetails: any = {
     reference_id: request.referenceId,
     type: 'digital-goods',
-    payment_configuration: 'WECARE-DIGITAL',
+    payment_configuration: request.paymentConfiguration || 'WECARE_PAY',
     currency: request.currency || 'INR',
     // New fields for backend calculation
     itemName: firstItem.name || 'Service Fee',

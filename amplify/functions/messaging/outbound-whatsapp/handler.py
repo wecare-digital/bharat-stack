@@ -1467,7 +1467,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                             'type': 'payment_gateway',
                             'payment_gateway': {
                                 'type': 'razorpay',
-                                'configuration_name': order_details.get('payment_configuration', 'WECARE-DIGITAL')
+                                'configuration_name': order_details.get('payment_configuration', 'WECARE_PAY')
                             }
                         }
                     ],
@@ -1495,7 +1495,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'whatsappSubtotal': whatsapp_subtotal / 100,
             'total': total_paise / 100,
             'gstin': gstin,
-            'paymentConfig': order_details.get('payment_configuration', 'WECARE-DIGITAL')
+            'paymentConfig': order_details.get('payment_configuration', 'WECARE_PAY')
         }))
         
         return payload
