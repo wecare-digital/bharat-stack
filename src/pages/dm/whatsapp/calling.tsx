@@ -28,7 +28,8 @@ const WEBHOOK_CONFIG = {
 
 // Meta Access Token info
 const META_TOKEN = {
-  appId: '1623342242027107',
+  appId: '891766673609917',
+  appName: 'wecare_token',
   secretName: 'wecare/meta-system-user-token',
   scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
   wabaAccess: ['1728153881476046', '761651636983279'],
