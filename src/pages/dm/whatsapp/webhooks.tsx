@@ -32,9 +32,17 @@ const WEBHOOK_FIELDS = [
 ];
 
 const EXISTING_WEBHOOKS = [
-  { name: 'Inbound Messages', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active' },
-  { name: 'WhatsApp Calling', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active' },
+  { name: 'Inbound Messages', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (AWS EUM managed)' },
+  { name: 'WhatsApp Calling', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active', verifyToken: 'wecare_calling_verify_2026' },
 ];
+
+const META_WEBHOOK_CONFIG = {
+  callbackUrl: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling',
+  verifyToken: 'wecare_calling_verify_2026',
+  appId: '1623342242027107',
+  tokenUser: 'Manish Agarwal (868317602748966)',
+  tokenType: 'User Token (Never Expires)',
+};
 
 const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
   const toast = useToastContext();
@@ -86,6 +94,20 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
           ))}
         </div>
 
+        {/* Meta Webhook Configuration */}
+        <div style={{ marginBottom: 24, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 16 }}>
+          <h3 style={{ fontSize: 16, marginBottom: 12, color: '#0369a1' }}>Meta App Webhook Configuration</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
+            <div><span style={{ color: '#666', fontWeight: 500 }}>Callback URL:</span><br /><code style={{ fontSize: 12, background: '#e0f2fe', padding: '2px 6px', borderRadius: 4 }}>{META_WEBHOOK_CONFIG.callbackUrl}</code></div>
+            <div><span style={{ color: '#666', fontWeight: 500 }}>Verify Token:</span><br /><code style={{ fontSize: 12, background: '#e0f2fe', padding: '2px 6px', borderRadius: 4 }}>{META_WEBHOOK_CONFIG.verifyToken}</code></div>
+            <div><span style={{ color: '#666', fontWeight: 500 }}>App ID:</span> {META_WEBHOOK_CONFIG.appId}</div>
+            <div><span style={{ color: '#666', fontWeight: 500 }}>Token User:</span> {META_WEBHOOK_CONFIG.tokenUser}</div>
+          </div>
+          <p style={{ fontSize: 12, color: '#666', marginTop: 8, marginBottom: 0 }}>
+            Configure in Meta App Dashboard → WhatsApp → Configuration → Callback URL
+          </p>
+        </div>
+
         {/* Active Webhook Endpoints */}
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ fontSize: 16, marginBottom: 12 }}>Active Webhook Endpoints</h3>
@@ -97,7 +119,7 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
                   <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: '#16a34a' }}>{wh.status}</span>
                 </div>
                 <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>URL: {wh.url}</div>
-                <div style={{ fontSize: 12, color: '#666' }}>Lambda: {wh.lambda}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>Lambda: {wh.lambda} | Verify Token: {wh.verifyToken}</div>
                 <div style={{ fontSize: 12, color: '#666' }}>Fields: {wh.fields.join(', ')}</div>
               </div>
             ))}
