@@ -1,9 +1,16 @@
 """
-WhatsApp Calling Webhook Handler
+WhatsApp Calling Webhook + Call Control Handler
 
-Purpose: Handle WhatsApp Business Calling API webhooks
-- GET  /whatsapp-calling  → Webhook verification (hub.challenge)
-- POST /whatsapp-calling  → Call events (connect, terminate, permission responses)
+Purpose: Handle WhatsApp Business Calling API webhooks + call signaling
+- GET  /whatsapp-calling           → Webhook verification (hub.challenge)
+- POST /whatsapp-calling           → Call events (connect, terminate, permission)
+- GET  /whatsapp-calling/logs      → List call event logs
+- GET  /whatsapp-calling/active    → Get active/pending calls (for frontend polling)
+- POST /whatsapp-calling/accept    → Pre-accept + accept a call (send SDP answer to Meta)
+- POST /whatsapp-calling/reject    → Reject/terminate a call
+- POST /whatsapp-calling/hangup    → Hang up an active call
+- POST /whatsapp-calling/outbound  → Request call permission or initiate outbound call
+- DELETE /whatsapp-calling         → Clear call logs
 
 Meta Webhook Fields: calls
 Verify Token: wecare_calling_verify_2026
@@ -15,6 +22,8 @@ import time
 import logging
 import uuid
 import boto3
+import urllib.request
+import urllib.error
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
@@ -23,58 +32,127 @@ logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
+secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'wecare_calling_verify_2026')
 CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'base-wecare-digital-WhatsAppCallingTable')
+META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
+
+# Cache Meta token
+_meta_token_cache = {'token': None, 'expires': 0}
+
+CORS_HEADERS = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+}
+
+
+def _get_meta_token() -> str:
+    """Get Meta System User token from Secrets Manager (cached)."""
+    now = time.time()
+    if _meta_token_cache['token'] and now < _meta_token_cache['expires']:
+        return _meta_token_cache['token']
+    try:
+        resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
+        secret = resp.get('SecretString', '')
+        # Handle JSON or plain string
+        try:
+            data = json.loads(secret)
+            token = data.get('access_token', data.get('token', secret))
+        except (json.JSONDecodeError, TypeError):
+            token = secret
+        _meta_token_cache['token'] = token.strip()
+        _meta_token_cache['expires'] = now + 3600  # Cache 1 hour
+        return _meta_token_cache['token']
+    except Exception as e:
+        logger.error(f"Failed to get Meta token: {e}")
+        raise
+
+
+def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None) -> Dict:
+    """Make a call to Meta Graph API."""
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{endpoint}"
+    token = _get_meta_token()
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+    data = json.dumps(payload).encode('utf-8') if payload else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode('utf-8')
+            return json.loads(body) if body else {'success': True}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(f"Meta API error {e.code}: {error_body}")
+        return {'error': True, 'status': e.code, 'detail': error_body}
+    except Exception as e:
+        logger.error(f"Meta API call failed: {e}")
+        return {'error': True, 'detail': str(e)}
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Handle WhatsApp Calling webhook events."""
+    """Main handler — routes to appropriate function."""
     request_id = context.aws_request_id if context else 'local'
-    http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
-    path = event.get('rawPath', event.get('path', ''))
+    rc = event.get('requestContext', {})
+    http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET'))
+    path = rc.get('http', {}).get('path', '') or event.get('rawPath', '') or event.get('path', '')
     query_params = event.get('queryStringParameters') or {}
 
     logger.info(json.dumps({
-        'event': 'whatsapp_calling_webhook',
-        'method': http_method,
-        'path': path,
-        'requestId': request_id,
-        'queryParams': query_params,
+        'event': 'whatsapp_calling_request',
+        'method': http_method, 'path': path, 'requestId': request_id,
     }))
 
+    if http_method == 'OPTIONS':
+        return _response(200, {'ok': True})
+
     try:
-        # GET — Webhook verification
+        # GET routes
         if http_method == 'GET':
+            if 'config' in path:
+                return _get_config(request_id)
+            if 'active' in path:
+                return _get_active_calls(query_params, request_id)
+            if 'logs' in path:
+                return _list_logs(query_params, request_id)
+            # Default GET = webhook verification
             return _verify_webhook(query_params, request_id)
 
-        # POST — Incoming webhook event
+        # POST routes
         if http_method == 'POST':
+            if '/config' in path:
+                return _update_config(event, request_id)
+            if '/accept' in path:
+                return _accept_call(event, request_id)
+            if '/reject' in path or '/hangup' in path:
+                return _terminate_call(event, request_id)
+            if '/outbound' in path:
+                return _outbound_call(event, request_id)
+            # Default POST = webhook event from Meta
             body_str = event.get('body', '{}')
-            # Handle base64 encoded body
             if event.get('isBase64Encoded'):
                 import base64
                 body_str = base64.b64decode(body_str).decode('utf-8')
-            body = json.loads(body_str)
-            return _handle_webhook_event(body, request_id)
+            return _handle_webhook_event(json.loads(body_str), request_id)
 
-        # DELETE — Clear call logs
+        # DELETE
         if http_method == 'DELETE':
             return _clear_logs(request_id)
-
-        # GET logs endpoint
-        if http_method == 'GET' and 'logs' in path:
-            return _list_logs(query_params, request_id)
 
         return _response(200, {'message': 'OK'})
 
     except Exception as e:
-        logger.error(f"Webhook handler error: {str(e)}", exc_info=True)
-        # Always return 200 to Meta — otherwise they'll retry and eventually
-        # disable the webhook
+        logger.error(f"Handler error: {str(e)}", exc_info=True)
         return _response(200, {'error': str(e)})
 
+
+# ─── Webhook Verification ───────────────────────────────────────────
 
 def _verify_webhook(params: Dict, request_id: str) -> Dict[str, Any]:
     """Handle Meta webhook verification (GET with hub.challenge)."""
@@ -82,150 +160,119 @@ def _verify_webhook(params: Dict, request_id: str) -> Dict[str, Any]:
     token = params.get('hub.verify_token', '')
     challenge = params.get('hub.challenge', '')
 
-    logger.info(json.dumps({
-        'event': 'webhook_verify',
-        'mode': mode,
-        'token_match': token == VERIFY_TOKEN,
-        'has_challenge': bool(challenge),
-        'requestId': request_id,
-    }))
-
     if mode == 'subscribe' and token == VERIFY_TOKEN:
-        logger.info(f"Webhook verified successfully. Challenge: {challenge}")
-        # Must return the challenge as plain text, not JSON
+        logger.info(f"Webhook verified. Challenge: {challenge}")
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'text/plain',
-                'Access-Control-Allow-Origin': '*',
-            },
+            'headers': {'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*'},
             'body': challenge,
         }
-
-    logger.warning(f"Webhook verification failed. Mode: {mode}, Token match: {token == VERIFY_TOKEN}")
+    logger.warning(f"Webhook verification failed. Mode={mode}")
     return _response(403, {'error': 'Verification failed'})
 
+
+# ─── Webhook Event Processing ───────────────────────────────────────
 
 def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
     """Process incoming WhatsApp webhook events."""
     logger.info(json.dumps({
-        'event': 'webhook_received',
-        'requestId': request_id,
-        'body_keys': list(body.keys()),
-        'full_body': json.dumps(body)[:2000],
+        'event': 'webhook_received', 'requestId': request_id,
+        'body_preview': json.dumps(body)[:2000],
     }))
 
-    # Meta webhook structure:
-    # { "object": "whatsapp_business_account", "entry": [...] }
     obj = body.get('object', '')
     entries = body.get('entry', [])
 
     if obj != 'whatsapp_business_account':
-        logger.info(f"Ignoring non-WABA webhook: {obj}")
         return _response(200, {'status': 'ignored', 'object': obj})
 
     for entry in entries:
-        entry_id = entry.get('id', '')  # WABA ID
+        waba_id = entry.get('id', '')
         changes = entry.get('changes', [])
-
         for change in changes:
             field = change.get('field', '')
             value = change.get('value', {})
 
-            logger.info(json.dumps({
-                'event': 'webhook_change',
-                'waba_id': entry_id,
-                'field': field,
-                'value_keys': list(value.keys()) if isinstance(value, dict) else str(type(value)),
-            }))
-
             if field == 'calls':
-                _handle_call_event(entry_id, value, request_id)
-            elif field == 'messages':
-                # Message events — log but don't process (EUM handles these)
-                logger.info(f"Message event received (EUM handles): {json.dumps(value)[:500]}")
-            elif field == 'account_update':
-                logger.info(f"Account update: {json.dumps(value)[:500]}")
+                # New Meta webhook format: calls is an array inside value
+                calls = value.get('calls', [value])
+                metadata = value.get('metadata', {})
+                contacts = value.get('contacts', [])
+                for call in calls:
+                    _handle_call_event(waba_id, call, metadata, contacts, request_id)
             else:
-                logger.info(f"Unhandled field: {field}")
+                logger.info(f"Non-call field: {field}")
 
     return _response(200, {'status': 'processed', 'entries': len(entries)})
 
 
-def _handle_call_event(waba_id: str, value: Dict, request_id: str) -> None:
-    """Handle a call-related webhook event."""
-    event_type = value.get('event', '')
-    call_id = value.get('call_id', '')
-    from_number = value.get('from', '')
-    to_number = value.get('to', '')
-    phone_number_id = value.get('metadata', {}).get('phone_number_id', '')
-    timestamp = value.get('timestamp', str(int(time.time())))
+def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list, request_id: str) -> None:
+    """Handle a single call event from webhook."""
+    event_type = call.get('event', '')
+    call_id = call.get('id', call.get('call_id', ''))
+    from_number = call.get('from', '')
+    to_number = call.get('to', '')
+    direction = call.get('direction', 'USER_INITIATED')
+    phone_number_id = metadata.get('phone_number_id', '')
+    display_phone = metadata.get('display_phone_number', '')
+    timestamp = call.get('timestamp', str(int(time.time())))
 
-    logger.info(json.dumps({
-        'event': 'call_event',
-        'call_event_type': event_type,
-        'call_id': call_id,
-        'from': from_number,
-        'to': to_number,
-        'phone_number_id': phone_number_id,
-        'waba_id': waba_id,
-        'requestId': request_id,
-        'full_value': json.dumps(value)[:2000],
-    }))
+    # Extract caller name from contacts
+    caller_name = ''
+    if contacts:
+        caller_name = contacts[0].get('profile', {}).get('name', '')
 
     now = int(time.time())
 
-    if event_type == 'connect':
-        # Inbound call — user is calling us
-        sdp_offer = value.get('sdp_offer', '')
-        logger.info(json.dumps({
-            'event': 'inbound_call_connect',
-            'call_id': call_id,
-            'from': from_number,
-            'has_sdp': bool(sdp_offer),
-            'sdp_length': len(sdp_offer),
-        }))
+    logger.info(json.dumps({
+        'event': 'call_event', 'type': event_type, 'call_id': call_id,
+        'from': from_number, 'to': to_number, 'direction': direction,
+        'phone_number_id': phone_number_id, 'caller_name': caller_name,
+    }))
 
-        # Store call record
+    if event_type == 'connect':
+        # Inbound call — extract SDP offer
+        session = call.get('session', {})
+        sdp_offer = session.get('sdp', call.get('sdp_offer', ''))
+        sdp_type = session.get('sdp_type', 'offer')
+
         _store_call_log({
             'callId': call_id,
             'wabaId': waba_id,
             'phoneNumberId': phone_number_id,
+            'displayPhone': display_phone,
             'fromNumber': from_number,
             'toNumber': to_number,
-            'direction': 'INBOUND',
+            'callerName': caller_name,
+            'direction': direction,
             'eventType': 'connect',
             'status': 'ringing',
-            'hasSdpOffer': bool(sdp_offer),
-            'sdpOffer': sdp_offer[:500] if sdp_offer else '',
+            'sdpOffer': sdp_offer,
+            'sdpType': sdp_type,
             'timestamp': timestamp,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
+        logger.info(f"INBOUND CALL from {caller_name or from_number} — call_id: {call_id}, has_sdp: {bool(sdp_offer)}")
 
-        # TODO: In production, you'd respond with pre_accept + accept here
-        # For now, just log the event so we can confirm webhooks work
-        logger.info(f"CALL RECEIVED from {from_number} — call_id: {call_id}")
+        # Auto-pickup: if enabled, answer immediately and play greeting
+        if _is_auto_pickup_enabled() and phone_number_id:
+            logger.info(f"AUTO-PICKUP enabled — answering call {call_id}")
+            try:
+                _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
+            except Exception as e:
+                logger.error(f"Auto-pickup failed: {e}", exc_info=True)
 
     elif event_type == 'terminate':
-        # Call ended
-        reason = value.get('reason', 'unknown')
-        duration = value.get('duration', 0)
-
-        logger.info(json.dumps({
-            'event': 'call_terminated',
-            'call_id': call_id,
-            'reason': reason,
-            'duration': duration,
-        }))
-
+        reason = call.get('reason', 'unknown')
+        duration = call.get('duration', 0)
         _store_call_log({
             'callId': call_id,
             'wabaId': waba_id,
             'phoneNumberId': phone_number_id,
             'fromNumber': from_number,
             'toNumber': to_number,
-            'direction': 'INBOUND',
+            'direction': direction,
             'eventType': 'terminate',
             'status': 'ended',
             'terminateReason': reason,
@@ -236,21 +283,13 @@ def _handle_call_event(waba_id: str, value: Dict, request_id: str) -> None:
         })
 
     elif event_type == 'call_permission_response':
-        # User responded to call permission request
-        permission = value.get('permission', '')
-        logger.info(json.dumps({
-            'event': 'call_permission_response',
-            'call_id': call_id,
-            'from': from_number,
-            'permission': permission,
-        }))
-
+        permission = call.get('permission', '')
         _store_call_log({
             'callId': call_id or str(uuid.uuid4()),
             'wabaId': waba_id,
             'phoneNumberId': phone_number_id,
             'fromNumber': from_number,
-            'direction': 'INBOUND',
+            'direction': direction,
             'eventType': 'permission_response',
             'status': f'permission_{permission}',
             'timestamp': timestamp,
@@ -259,39 +298,399 @@ def _handle_call_event(waba_id: str, value: Dict, request_id: str) -> None:
         })
 
     else:
-        # Unknown call event — log everything
-        logger.info(json.dumps({
-            'event': 'unknown_call_event',
-            'event_type': event_type,
-            'full_value': json.dumps(value),
-        }))
-
         _store_call_log({
             'callId': call_id or str(uuid.uuid4()),
             'wabaId': waba_id,
             'phoneNumberId': phone_number_id,
             'fromNumber': from_number,
-            'toNumber': to_number,
             'eventType': event_type or 'unknown',
             'status': 'logged',
-            'rawEvent': json.dumps(value)[:1000],
+            'rawEvent': json.dumps(call)[:1000],
             'timestamp': timestamp,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
 
 
+# ─── Call Control (Accept / Reject / Hangup) ────────────────────────
+
+def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Accept an incoming call: pre_accept → accept with SDP answer.
+    Frontend sends: { callId, phoneNumberId, sdpAnswer }
+    """
+    body = json.loads(event.get('body', '{}'))
+    call_id = body.get('callId', '')
+    phone_number_id = body.get('phoneNumberId', '')
+    sdp_answer = body.get('sdpAnswer', '')
+
+    if not call_id or not phone_number_id:
+        return _response(400, {'error': 'callId and phoneNumberId required'})
+
+    logger.info(f"Accepting call {call_id} on {phone_number_id}, has_sdp_answer: {bool(sdp_answer)}")
+
+    # Step 1: Pre-accept — tells Meta we're preparing to answer
+    pre_accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'pre_accept',
+    })
+    logger.info(f"Pre-accept result: {json.dumps(pre_accept_result)}")
+
+    if pre_accept_result.get('error'):
+        _update_call_status(call_id, 'pre_accept_failed', pre_accept_result)
+        return _response(200, {
+            'success': False, 'step': 'pre_accept',
+            'error': pre_accept_result,
+        })
+
+    # Step 2: Accept with SDP answer — establishes WebRTC media
+    accept_payload = {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'accept',
+    }
+    if sdp_answer:
+        accept_payload['sdp_answer'] = sdp_answer
+
+    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', accept_payload)
+    logger.info(f"Accept result: {json.dumps(accept_result)}")
+
+    if accept_result.get('error'):
+        _update_call_status(call_id, 'accept_failed', accept_result)
+        return _response(200, {
+            'success': False, 'step': 'accept',
+            'pre_accept': pre_accept_result,
+            'error': accept_result,
+        })
+
+    _update_call_status(call_id, 'connected')
+
+    return _response(200, {
+        'success': True,
+        'callId': call_id,
+        'pre_accept': pre_accept_result,
+        'accept': accept_result,
+    })
+
+
+def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
+    """Reject or hang up a call."""
+    body = json.loads(event.get('body', '{}'))
+    call_id = body.get('callId', '')
+    phone_number_id = body.get('phoneNumberId', '')
+
+    if not call_id or not phone_number_id:
+        return _response(400, {'error': 'callId and phoneNumberId required'})
+
+    logger.info(f"Terminating call {call_id} on {phone_number_id}")
+
+    result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'terminate',
+    })
+
+    _update_call_status(call_id, 'terminated')
+
+    return _response(200, {
+        'success': not result.get('error'),
+        'callId': call_id,
+        'result': result,
+    })
+
+
+def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Initiate outbound call or send call permission request.
+    Body: { phoneNumberId, to, action: 'permission_request' | 'create', sdpOffer?, bodyText? }
+    """
+    body = json.loads(event.get('body', '{}'))
+    phone_number_id = body.get('phoneNumberId', '')
+    to_number = body.get('to', '')
+    action = body.get('action', 'permission_request')
+
+    if not phone_number_id or not to_number:
+        return _response(400, {'error': 'phoneNumberId and to required'})
+
+    if action == 'permission_request':
+        # Send interactive call permission request message
+        body_text = body.get('bodyText', 'Can we call you to discuss your query?')
+        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
+            'messaging_product': 'whatsapp',
+            'to': to_number,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'call_permission_request',
+                'body': {'text': body_text},
+            },
+        })
+        return _response(200, {'success': not result.get('error'), 'action': 'permission_request', 'result': result})
+
+    elif action == 'create':
+        # Initiate outbound call with SDP offer
+        sdp_offer = body.get('sdpOffer', '')
+        if not sdp_offer:
+            return _response(400, {'error': 'sdpOffer required for outbound call'})
+        result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+            'messaging_product': 'whatsapp',
+            'action': 'create',
+            'to': to_number,
+            'sdp_offer': sdp_offer,
+        })
+        return _response(200, {'success': not result.get('error'), 'action': 'create', 'result': result})
+
+    return _response(400, {'error': f'Unknown action: {action}'})
+
+
+# ─── Auto-Pickup Configuration ──────────────────────────────────────
+# When enabled, incoming calls are automatically answered and a pre-recorded
+# audio greeting is sent as a WhatsApp audio message to the caller.
+# The greeting audio file is stored in S3.
+# Toggle via SystemConfig table or environment variable.
+
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
+AUTO_PICKUP_AUDIO_KEY = os.environ.get('AUTO_PICKUP_AUDIO_KEY', 'whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg')
+AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'false').lower() == 'true'
+
+s3 = boto3.client('s3', region_name=REGION)
+social_messaging = boto3.client('socialmessaging', region_name=REGION)
+
+# Phone number ID mapping for outbound audio via EUM
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
+
+
+def _is_auto_pickup_enabled() -> bool:
+    """Check if auto-pickup is enabled via SystemConfig table."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'configKey': 'whatsapp_calling_auto_pickup'})
+        item = result.get('Item')
+        if item:
+            return str(item.get('configValue', 'false')).lower() == 'true'
+    except Exception as e:
+        logger.warning(f"Failed to read auto-pickup config: {e}")
+    return AUTO_PICKUP_DEFAULT
+
+
+def _get_auto_pickup_audio_url() -> Optional[str]:
+    """Get the S3 pre-signed URL for the auto-pickup greeting audio."""
+    try:
+        # Check if the audio file exists
+        s3.head_object(Bucket=MEDIA_BUCKET, Key=AUTO_PICKUP_AUDIO_KEY)
+        # Generate pre-signed URL (valid 1 hour)
+        url = s3.generate_presigned_url('get_object', Params={
+            'Bucket': MEDIA_BUCKET, 'Key': AUTO_PICKUP_AUDIO_KEY,
+        }, ExpiresIn=3600)
+        return url
+    except Exception as e:
+        logger.warning(f"Auto-pickup audio not found: {e}")
+        return None
+
+
+def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:
+    """
+    Auto-pickup: pre_accept → accept the call, then send the greeting audio
+    as a WhatsApp audio message to the caller.
+
+    Flow:
+    1. pre_accept → accept (no SDP answer needed for server-side auto-pickup,
+       Meta will handle media if we just accept)
+    2. Send audio message to caller via WhatsApp messaging API
+    3. After audio plays, terminate the call (or let caller hang up)
+    """
+    logger.info(f"AUTO-PICKUP: Answering call {call_id} from {from_number}")
+
+    # Step 1: Pre-accept
+    pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'pre_accept',
+    })
+    logger.info(f"AUTO-PICKUP pre_accept: {json.dumps(pre_result)}")
+
+    if pre_result.get('error'):
+        logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
+        _update_call_status(call_id, 'auto_pickup_failed')
+        return
+
+    # Step 2: Accept (server-side, no browser SDP answer)
+    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'accept',
+    })
+    logger.info(f"AUTO-PICKUP accept: {json.dumps(accept_result)}")
+
+    if accept_result.get('error'):
+        logger.error(f"AUTO-PICKUP accept failed: {json.dumps(accept_result)}")
+        _update_call_status(call_id, 'auto_pickup_failed')
+        return
+
+    _update_call_status(call_id, 'auto_answered')
+
+    # Step 3: Send greeting audio message to the caller
+    audio_url = _get_auto_pickup_audio_url()
+    if audio_url:
+        _send_audio_to_caller(phone_number_id, from_number, audio_url, call_id)
+    else:
+        logger.warning("AUTO-PICKUP: No greeting audio configured, call answered silently")
+
+    # Step 4: Terminate after a delay (let audio play ~15s)
+    # Note: In production you might use Step Functions or a delayed SQS message.
+    # For now, we terminate after sending the audio — the caller hears the
+    # audio message in their chat and the call ends.
+    import threading
+
+    def _delayed_hangup():
+        time.sleep(15)
+        logger.info(f"AUTO-PICKUP: Hanging up call {call_id}")
+        _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+            'messaging_product': 'whatsapp',
+            'call_id': call_id,
+            'action': 'terminate',
+        })
+        _update_call_status(call_id, 'auto_completed')
+
+    t = threading.Thread(target=_delayed_hangup, daemon=True)
+    t.start()
+
+
+def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, call_id: str) -> None:
+    """Send the greeting audio as a WhatsApp audio message to the caller."""
+    try:
+        # Map Meta phone_number_id to AWS EUM phone-number-id
+        # Use the phone_number_id from the webhook metadata
+        aws_phone_id = phone_number_id
+        # If it's a Meta numeric ID, map to AWS format
+        if not aws_phone_id.startswith('phone-number-id-'):
+            # Try to determine which AWS phone ID to use
+            aws_phone_id = PHONE_NUMBER_ID_2  # Default to the calling-ready number
+
+        # Send via Meta Graph API (direct, since we have the token)
+        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
+            'messaging_product': 'whatsapp',
+            'to': to_number,
+            'type': 'audio',
+            'audio': {
+                'link': audio_url,
+            },
+        })
+        logger.info(f"AUTO-PICKUP audio sent to {to_number}: {json.dumps(result)}")
+    except Exception as e:
+        logger.error(f"Failed to send auto-pickup audio: {e}")
+
+
+# ─── Active Calls (for frontend polling) ────────────────────────────
+
+def _get_active_calls(params: Dict, request_id: str) -> Dict[str, Any]:
+    """Get calls with status 'ringing' or 'connected' for the frontend."""
+    try:
+        table = dynamodb.Table(CALL_LOG_TABLE)
+        result = table.scan(
+            FilterExpression='#s IN (:r, :c, :a)',
+            ExpressionAttributeNames={'#s': 'status'},
+            ExpressionAttributeValues={
+                ':r': 'ringing',
+                ':c': 'connected',
+                ':a': 'auto_answered',
+            },
+        )
+        items = result.get('Items', [])
+        # Convert Decimal for JSON
+        for item in items:
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    item[k] = float(v)
+        items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+        return _response(200, {'calls': items, 'count': len(items)})
+    except Exception as e:
+        logger.error(f"Get active calls error: {e}")
+        return _response(200, {'calls': [], 'count': 0, 'error': str(e)})
+
+
+# ─── Auto-Pickup Config API ─────────────────────────────────────────
+# GET  /whatsapp-calling/config  → Get auto-pickup config
+# POST /whatsapp-calling/config  → Update auto-pickup config
+
+def _get_config(request_id: str) -> Dict[str, Any]:
+    """Get auto-pickup configuration."""
+    enabled = _is_auto_pickup_enabled()
+    audio_url = _get_auto_pickup_audio_url()
+    return _response(200, {
+        'autoPickup': enabled,
+        'audioKey': AUTO_PICKUP_AUDIO_KEY,
+        'audioUrl': audio_url,
+        'audioBucket': MEDIA_BUCKET,
+    })
+
+
+def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
+    """Update auto-pickup configuration."""
+    body = json.loads(event.get('body', '{}'))
+    enabled = body.get('autoPickup')
+
+    if enabled is not None:
+        try:
+            table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+            table.put_item(Item={
+                'configKey': 'whatsapp_calling_auto_pickup',
+                'configValue': str(enabled).lower(),
+                'updatedAt': Decimal(str(int(time.time()))),
+            })
+            logger.info(f"Auto-pickup set to: {enabled}")
+        except Exception as e:
+            logger.error(f"Failed to update auto-pickup config: {e}")
+            return _response(500, {'error': str(e)})
+
+    return _response(200, {'success': True, 'autoPickup': enabled})
+
+
+# ─── Storage Helpers ─────────────────────────────────────────────────
+
 def _store_call_log(item: Dict) -> None:
     """Store call event in DynamoDB."""
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        # Use callId + eventType as composite to avoid overwriting
         item['id'] = f"{item.get('callId', 'unknown')}_{item.get('eventType', 'unknown')}_{int(time.time())}"
         clean = {k: v for k, v in item.items() if v is not None and v != ''}
         table.put_item(Item=clean)
         logger.info(f"Stored call log: {item.get('id')}")
     except Exception as e:
-        logger.error(f"Store call log error: {str(e)}")
+        logger.error(f"Store call log error: {e}")
+
+
+def _update_call_status(call_id: str, new_status: str, extra: Dict = None) -> None:
+    """Update the status of the most recent log entry for a call."""
+    try:
+        table = dynamodb.Table(CALL_LOG_TABLE)
+        # Find the connect record for this call
+        result = table.scan(
+            FilterExpression='#cid = :cid AND #et = :et',
+            ExpressionAttributeNames={'#cid': 'callId', '#et': 'eventType'},
+            ExpressionAttributeValues={':cid': call_id, ':et': 'connect'},
+        )
+        items = result.get('Items', [])
+        if items:
+            item = items[0]
+            update_expr = 'SET #s = :s, #ua = :ua'
+            expr_names = {'#s': 'status', '#ua': 'updatedAt'}
+            expr_values = {':s': new_status, ':ua': Decimal(str(int(time.time())))}
+            if extra:
+                update_expr += ', #ex = :ex'
+                expr_names['#ex'] = 'apiResponse'
+                expr_values[':ex'] = json.dumps(extra, default=str)[:500]
+            table.update_item(
+                Key={'id': item['id']},
+                UpdateExpression=update_expr,
+                ExpressionAttributeNames=expr_names,
+                ExpressionAttributeValues=expr_values,
+            )
+            logger.info(f"Updated call {call_id} status to {new_status}")
+    except Exception as e:
+        logger.error(f"Update call status error: {e}")
 
 
 def _list_logs(params: Dict, request_id: str) -> Dict[str, Any]:
@@ -300,10 +699,14 @@ def _list_logs(params: Dict, request_id: str) -> Dict[str, Any]:
         table = dynamodb.Table(CALL_LOG_TABLE)
         result = table.scan(Limit=int(params.get('limit', 100)))
         items = result.get('Items', [])
-        items.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
+        for item in items:
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    item[k] = float(v)
+        items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
         return _response(200, {'logs': items, 'count': len(items)})
     except Exception as e:
-        logger.error(f"List logs error: {str(e)}")
+        logger.error(f"List logs error: {e}")
         return _response(200, {'logs': [], 'count': 0, 'error': str(e)})
 
 
@@ -327,11 +730,6 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
     """HTTP response with CORS."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-        },
+        'headers': CORS_HEADERS,
         'body': json.dumps(body, default=str),
     }

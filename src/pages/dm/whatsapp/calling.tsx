@@ -176,9 +176,236 @@ const CHANGELOG = [
 ];
 
 const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'webhook' | 'setup' | 'resources'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'live' | 'webhook' | 'setup' | 'resources'>('overview');
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [autoPickup, setAutoPickup] = useState(false);
+  const [autoPickupLoading, setAutoPickupLoading] = useState(false);
+  const [activeCalls, setActiveCalls] = useState<any[]>([]);
+  const [callLogs, setCallLogs] = useState<any[]>([]);
+  const [loadingCalls, setLoadingCalls] = useState(false);
   const toast = useToastContext();
+
+  const API_BASE = 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+
+  // Load auto-pickup config
+  const loadConfig = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/whatsapp-calling/config`);
+      if (res.ok) {
+        const data = await res.json();
+        setAutoPickup(data.autoPickup || false);
+      }
+    } catch (e) { console.error('Config load error:', e); }
+  };
+
+  // Toggle auto-pickup
+  const toggleAutoPickup = async () => {
+    setAutoPickupLoading(true);
+    try {
+      const newVal = !autoPickup;
+      const res = await fetch(`${API_BASE}/whatsapp-calling/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoPickup: newVal }),
+      });
+      if (res.ok) {
+        setAutoPickup(newVal);
+        toast.success(`Auto-pickup ${newVal ? 'enabled' : 'disabled'}`);
+      }
+    } catch (e) { toast.error('Failed to update config'); }
+    setAutoPickupLoading(false);
+  };
+
+  // Load active calls
+  const loadActiveCalls = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/whatsapp-calling/active`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveCalls(data.calls || []);
+      }
+    } catch (e) { console.error('Active calls error:', e); }
+  };
+
+  // Load call logs
+  const loadCallLogs = async () => {
+    setLoadingCalls(true);
+    try {
+      const res = await fetch(`${API_BASE}/whatsapp-calling/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        setCallLogs(data.logs || []);
+      }
+    } catch (e) { console.error('Logs error:', e); }
+    setLoadingCalls(false);
+  };
+
+  // Reject a ringing call
+  const rejectCall = async (callId: string, phoneNumberId: string) => {
+    try {
+      await fetch(`${API_BASE}/whatsapp-calling/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, phoneNumberId }),
+      });
+      toast.success('Call rejected');
+      loadActiveCalls();
+    } catch (e) { toast.error('Failed to reject call'); }
+  };
+
+  // Hangup an active call
+  const hangupCall = async (callId: string, phoneNumberId: string) => {
+    try {
+      await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, phoneNumberId }),
+      });
+      toast.success('Call ended');
+      loadActiveCalls();
+    } catch (e) { toast.error('Failed to hang up'); }
+  };
+
+  // WebRTC state
+  const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = React.useRef<MediaStream | null>(null);
+
+  // Answer a call using WebRTC — sets up peer connection, generates SDP answer, sends to backend
+  const answerCallWebRTC = async (call: any) => {
+    const { callId, phoneNumberId, sdpOffer } = call;
+
+    if (!sdpOffer) {
+      // No SDP in the call record — just do server-side accept (auto-pickup style)
+      toast.info('No SDP offer available — sending server-side accept');
+      try {
+        const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callId, phoneNumberId, sdpAnswer: '' }),
+        });
+        const data = await res.json();
+        if (data.success) toast.success('Call accepted (server-side)');
+        else toast.error(`Accept failed: ${JSON.stringify(data.error || data)}`);
+      } catch (e) { toast.error('Failed to accept call'); }
+      loadActiveCalls();
+      return;
+    }
+
+    try {
+      // 1. Get microphone access
+      toast.info('Requesting microphone access...');
+      const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = localStream;
+
+      // 2. Create RTCPeerConnection
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      });
+      peerConnectionRef.current = pc;
+
+      // 3. Add local audio tracks
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      // 4. Handle remote audio stream
+      pc.ontrack = (event) => {
+        const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
+        if (audioEl && event.streams[0]) {
+          audioEl.srcObject = event.streams[0];
+        }
+      };
+
+      // 5. Log ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('ICE candidate:', event.candidate.candidate);
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('WebRTC connection state:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          toast.success('WebRTC audio connected');
+        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+          toast.error(`WebRTC ${pc.connectionState}`);
+        }
+      };
+
+      // 6. Set remote description (SDP offer from Meta)
+      await pc.setRemoteDescription({ type: 'offer', sdp: sdpOffer });
+
+      // 7. Create SDP answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // 8. Wait for ICE gathering to complete (or timeout after 3s)
+      const sdpAnswer = await new Promise<string>((resolve) => {
+        if (pc.iceGatheringState === 'complete') {
+          resolve(pc.localDescription?.sdp || answer.sdp || '');
+          return;
+        }
+        const timeout = setTimeout(() => resolve(pc.localDescription?.sdp || answer.sdp || ''), 3000);
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            clearTimeout(timeout);
+            resolve(pc.localDescription?.sdp || answer.sdp || '');
+          }
+        };
+      });
+
+      // 9. Send pre_accept + accept with SDP answer to backend → Meta
+      toast.info('Sending SDP answer to Meta...');
+      const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, phoneNumberId, sdpAnswer }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success('Call connected — audio active');
+      } else {
+        toast.error(`Accept failed: ${data.step || 'unknown'} — ${JSON.stringify(data.error || {})}`);
+        cleanupWebRTC();
+      }
+      loadActiveCalls();
+
+    } catch (err: any) {
+      console.error('WebRTC answer error:', err);
+      toast.error(`WebRTC error: ${err.message || err}`);
+      cleanupWebRTC();
+    }
+  };
+
+  // Cleanup WebRTC resources
+  const cleanupWebRTC = () => {
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+    const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
+    if (audioEl) audioEl.srcObject = null;
+  };
+
+  // Load on mount + poll active calls every 5s when on Live tab
+  React.useEffect(() => {
+    loadConfig();
+    loadCallLogs();
+  }, []);
+
+  React.useEffect(() => {
+    if (activeTab === 'live') {
+      loadActiveCalls();
+      const interval = setInterval(loadActiveCalls, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -237,10 +464,157 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Tabs */}
         <div style={s.tabs}>
           <button style={tab(activeTab === 'overview')} onClick={() => setActiveTab('overview')}>Overview</button>
+          <button style={tab(activeTab === 'live')} onClick={() => setActiveTab('live')}>🔴 Live Calls</button>
           <button style={tab(activeTab === 'webhook')} onClick={() => setActiveTab('webhook')}>Webhook Config</button>
           <button style={tab(activeTab === 'setup')} onClick={() => setActiveTab('setup')}>Setup Guide</button>
           <button style={tab(activeTab === 'resources')} onClick={() => setActiveTab('resources')}>AWS Resources</button>
         </div>
+
+        {/* LIVE CALLS TAB — WebRTC Call Handling */}
+        {activeTab === 'live' && (
+          <div>
+            {/* Auto-pickup toggle */}
+            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Live Call Dashboard</h3>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#047857' }}>
+                  Incoming calls appear here in real-time. Answer calls to establish WebRTC audio in your browser.
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button onClick={loadActiveCalls} style={{ padding: '6px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                  Refresh
+                </button>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#065f46', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={autoPickup} onChange={toggleAutoPickup} disabled={autoPickupLoading}
+                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }} />
+                  Auto-pickup
+                </label>
+              </div>
+            </div>
+
+            {/* Active / Ringing Calls */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>
+                Active Calls {activeCalls.length > 0 && <span style={{ ...badge('active'), marginLeft: '8px' }}>{activeCalls.length}</span>}
+              </h4>
+              {activeCalls.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>📞</div>
+                  <p style={{ margin: 0, fontSize: '14px' }}>No active calls</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px' }}>Incoming calls will appear here when a user calls your WhatsApp number</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {activeCalls.map((call: any, i: number) => (
+                    <div key={call.callId || i} style={{
+                      padding: '14px 16px', borderRadius: '10px',
+                      background: call.status === 'ringing' ? '#fef3c7' : call.status === 'connected' ? '#ecfdf5' : '#f3f4f6',
+                      border: `1px solid ${call.status === 'ringing' ? '#fde68a' : call.status === 'connected' ? '#a7f3d0' : '#e5e7eb'}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>
+                            {call.callerName || call.fromNumber || 'Unknown'}
+                          </span>
+                          {call.callerName && <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>{call.fromNumber}</span>}
+                          <span style={{ ...badge(call.status === 'ringing' ? 'planned' : call.status === 'connected' ? 'active' : 'default'), marginLeft: '8px' }}>
+                            {call.status === 'ringing' ? '🔔 Ringing' : call.status === 'connected' ? '🟢 Connected' : call.status}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {call.status === 'ringing' && (
+                            <>
+                              <button onClick={() => answerCallWebRTC(call)}
+                                style={{ padding: '6px 16px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                                ✅ Answer
+                              </button>
+                              <button onClick={() => rejectCall(call.callId, call.phoneNumberId)}
+                                style={{ padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                                ❌ Reject
+                              </button>
+                            </>
+                          )}
+                          {call.status === 'connected' && (
+                            <button onClick={() => { hangupCall(call.callId, call.phoneNumberId); cleanupWebRTC(); }}
+                              style={{ padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                              📴 Hang Up
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#6b7280' }}>
+                        Call ID: <code style={{ fontSize: '10px' }}>{call.callId}</code>
+                        {call.displayPhone && <> | To: {call.displayPhone}</>}
+                        {call.direction && <> | {call.direction}</>}
+                        {call.timestamp && <> | {new Date(parseInt(call.timestamp) * 1000).toLocaleTimeString()}</>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* WebRTC Status */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WebRTC Status</h4>
+              <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.8 }}>
+                <div>Browser WebRTC: <span style={{ color: typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                  {typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '✓ Supported' : '✗ Not supported'}
+                </span></div>
+                <div>Microphone: <span style={{ fontWeight: 500 }}>Will request permission when answering a call</span></div>
+                <div>Audio codec: <span style={{ fontWeight: 500 }}>OPUS (required by Meta)</span></div>
+                <div>ICE servers: <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>stun:stun.l.google.com:19302</span></div>
+              </div>
+              {/* Hidden audio element for remote stream */}
+              <audio id="remoteAudio" autoPlay style={{ display: 'none' }} />
+            </div>
+
+            {/* Recent Call Logs */}
+            <div style={{ ...s.card, marginTop: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', color: '#111827' }}>Recent Call Logs</h4>
+                <button onClick={loadCallLogs} style={{ padding: '4px 12px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>
+                  {loadingCalls ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+              {callLogs.length === 0 ? (
+                <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '16px' }}>No call logs yet</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                        <th style={thStyle}>Time</th>
+                        <th style={thStyle}>From</th>
+                        <th style={thStyle}>Event</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {callLogs.slice(0, 20).map((log: any, i: number) => (
+                        <tr key={log.id || i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                            {log.createdAt ? new Date(parseFloat(log.createdAt) * 1000).toLocaleString() : '-'}
+                          </td>
+                          <td style={tdStyle}>{log.callerName || log.fromNumber || '-'}</td>
+                          <td style={tdStyle}>{log.eventType || '-'}</td>
+                          <td style={tdStyle}>
+                            <span style={badge(log.status === 'connected' ? 'active' : log.status === 'ringing' ? 'planned' : 'default')}>
+                              {log.status || '-'}
+                            </span>
+                          </td>
+                          <td style={tdStyle}>{log.duration ? `${log.duration}s` : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
