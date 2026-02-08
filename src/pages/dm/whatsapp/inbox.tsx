@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
+import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
 import { SkeletonContact } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
 import SEO, { PAGE_SEO } from '../../../components/SEO';
@@ -153,6 +154,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [showClearMessagesModal, setShowClearMessagesModal] = useState(false);
   const [showDeleteContactModal, setShowDeleteContactModal] = useState<Contact | null>(null);
   const [showDeleteMessageModal, setShowDeleteMessageModal] = useState<Message | null>(null);
+  const [showInteractiveComposer, setShowInteractiveComposer] = useState(false);
   const CONTACTS_PER_PAGE = 20;
   const MESSAGES_PER_PAGE = 50;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1169,6 +1171,15 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     style={{ display: 'none' }}
                   />
                   
+                  <button 
+                    className="interactive-btn" 
+                    onClick={() => setShowInteractiveComposer(true)}
+                    title="Send Interactive Message (List/Buttons)"
+                    style={{ padding: '6px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}
+                  >
+                    List
+                  </button>
+                  
                   <div className="input-box">
                     <RichTextEditor
                       value={messageText}
@@ -1185,6 +1196,17 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     />
                   </div>
                 </div>
+                
+                {/* Interactive Message Composer */}
+                {showInteractiveComposer && selectedContact && (
+                  <InteractiveMessageComposer
+                    contactId={selectedContact.id}
+                    phoneNumberId={selectedWaba}
+                    onClose={() => setShowInteractiveComposer(false)}
+                    onSent={() => loadData()}
+                    onError={(msg) => toast.error(msg)}
+                  />
+                )}
               </div>
             </>
           ) : (
