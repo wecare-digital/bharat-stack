@@ -66,7 +66,7 @@ if ($lambdaExists) {
     
     aws lambda update-function-configuration `
         --function-name $LAMBDA_NAME `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,LOG_LEVEL=INFO}" `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO}" `
         --timeout 30 `
         --memory-size 256 `
         --region $REGION `
@@ -81,7 +81,7 @@ if ($lambdaExists) {
         --zip-file "fileb://$zipPath" `
         --timeout 30 `
         --memory-size 256 `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,LOG_LEVEL=INFO}" `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO}" `
         --region $REGION `
         --no-cli-pager
     Write-Host "  Lambda created" -ForegroundColor Green
@@ -110,7 +110,14 @@ $routes = @(
     @{ method = "GET";    path = "/whatsapp-calling" },
     @{ method = "POST";   path = "/whatsapp-calling" },
     @{ method = "DELETE"; path = "/whatsapp-calling" },
-    @{ method = "GET";    path = "/whatsapp-calling/logs" }
+    @{ method = "GET";    path = "/whatsapp-calling/logs" },
+    @{ method = "GET";    path = "/whatsapp-calling/active" },
+    @{ method = "POST";   path = "/whatsapp-calling/accept" },
+    @{ method = "POST";   path = "/whatsapp-calling/reject" },
+    @{ method = "POST";   path = "/whatsapp-calling/hangup" },
+    @{ method = "POST";   path = "/whatsapp-calling/outbound" },
+    @{ method = "GET";    path = "/whatsapp-calling/config" },
+    @{ method = "POST";   path = "/whatsapp-calling/config" }
 )
 
 foreach ($route in $routes) {
