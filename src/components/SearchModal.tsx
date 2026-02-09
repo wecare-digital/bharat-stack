@@ -29,6 +29,7 @@ const NAVIGATION_ITEMS: SearchResult[] = [
   { id: 'nav-contacts', type: 'page', title: 'Contacts', subtitle: 'Manage contacts', icon: '⊕', path: '/contacts' },
   { id: 'nav-templates', type: 'page', title: 'Templates', subtitle: 'WhatsApp templates', icon: '⎙', path: '/dm/whatsapp/templates' },
   { id: 'nav-campaign', type: 'page', title: 'WhatsApp Campaign', subtitle: 'Send bulk messages', icon: '⫶', path: '/dm/whatsapp/campaign' },
+  { id: 'nav-interactive-lists', type: 'page', title: 'Interactive Lists', subtitle: 'WhatsApp list messages', icon: '☰', path: '/dm/whatsapp/interactive-lists' },
   { id: 'nav-pay', type: 'page', title: 'Payments', subtitle: 'WhatsApp Pay', icon: '◈', path: '/pay' },
   { id: 'nav-store', type: 'page', title: 'Store', subtitle: 'Catalog & products', icon: '⧉', path: '/store' },
   { id: 'nav-ai', type: 'page', title: 'AI Config', subtitle: 'Bedrock settings', icon: '◇', path: '/dm/whatsapp/ai-config' },

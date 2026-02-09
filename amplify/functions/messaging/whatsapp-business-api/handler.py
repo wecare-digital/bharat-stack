@@ -327,6 +327,104 @@ def _send_group_message(phone_id: str, group_id: str, body: Dict) -> Dict:
     return _resp(200, {'success': True, 'messageId': result.get('messages', [{}])[0].get('id')})
 
 # ============================================================================
+# INTERACTIVE LIST MESSAGES
+# ============================================================================
+def _send_interactive_list(phone_id: str, body: Dict) -> Dict:
+    """Send an interactive list message to a WhatsApp user."""
+    to = body.get('to')
+    if not to:
+        return _resp(400, {'error': 'to (recipient phone number) required'})
+
+    header_text = body.get('headerText', '')
+    body_text = body.get('bodyText', '')
+    footer_text = body.get('footerText', '')
+    button_text = body.get('buttonText', 'Options')
+    sections = body.get('sections', [])
+
+    if not body_text:
+        return _resp(400, {'error': 'bodyText required'})
+    if not sections:
+        return _resp(400, {'error': 'sections required (array of {title, rows})'})
+
+    interactive = {
+        'type': 'list',
+        'body': {'text': body_text},
+        'action': {
+            'button': button_text,
+            'sections': sections,
+        },
+    }
+    if header_text:
+        interactive['header'] = {'type': 'text', 'text': header_text}
+    if footer_text:
+        interactive['footer'] = {'text': footer_text}
+
+    payload = {
+        'messaging_product': 'whatsapp',
+        'to': to,
+        'type': 'interactive',
+        'interactive': interactive,
+    }
+
+    result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    msg_id = ''
+    msgs = result.get('messages', [])
+    if msgs:
+        msg_id = msgs[0].get('id', '')
+    return _resp(200, {'success': True, 'messageId': msg_id})
+
+
+# ============================================================================
+# CALLING SETTINGS (Enable/Disable calling on a phone number)
+# ============================================================================
+def _get_calling_settings(phone_id: str) -> Dict:
+    """Get current calling settings for a phone number."""
+    result = _graph_api(f'{phone_id}/settings', params={
+        'fields': 'calling'
+    }, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'settings': result})
+
+
+def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
+    """
+    Enable or update calling settings on a phone number.
+    Body: {
+      callIconVisibility: 'default' | 'disable_all',
+      restrictToCountries: ['IN', 'AE'],  // optional
+      callHours: { timezone, sun, mon, ... },  // optional
+      callbackRequest: { enabled: bool, bodyText: str }  // optional
+    }
+    """
+    calling: Dict = {}
+
+    visibility = body.get('callIconVisibility', 'default')
+    calling['call_icon_visibility'] = visibility
+
+    countries = body.get('restrictToCountries')
+    if countries:
+        calling['restrict_to_user_countries'] = countries
+
+    call_hours = body.get('callHours')
+    if call_hours:
+        calling['call_hours'] = call_hours
+
+    callback = body.get('callbackRequest')
+    if callback:
+        calling['callback_request'] = callback
+
+    result = _graph_api(f'{phone_id}/settings', method='POST', payload={
+        'calling': calling
+    }, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'calling': calling})
+
+
+# ============================================================================
 # PHONE SETTINGS
 # ============================================================================
 def _get_phone_settings(phone_id: str) -> Dict:
@@ -423,6 +521,26 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _update_group(group_id or '', body)
             elif method == 'DELETE':
                 return _delete_group(group_id or '')
+
+        elif '/interactive-list' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            return _send_interactive_list(phone_id, body)
+
+        elif '/interactive-list' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            return _send_interactive_list(phone_id, body)
+
+        elif '/calling-settings' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'GET':
+                return _get_calling_settings(phone_id)
+            return _update_calling_settings(phone_id, body)
 
         elif '/phone-settings' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')

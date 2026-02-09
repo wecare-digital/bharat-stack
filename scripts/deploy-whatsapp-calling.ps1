@@ -66,7 +66,7 @@ if ($lambdaExists) {
     
     aws lambda update-function-configuration `
         --function-name $LAMBDA_NAME `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO}" `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
         --timeout 30 `
         --memory-size 256 `
         --region $REGION `
@@ -81,7 +81,7 @@ if ($lambdaExists) {
         --zip-file "fileb://$zipPath" `
         --timeout 30 `
         --memory-size 256 `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO}" `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
         --region $REGION `
         --no-cli-pager
     Write-Host "  Lambda created" -ForegroundColor Green

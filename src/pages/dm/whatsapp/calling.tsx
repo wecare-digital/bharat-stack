@@ -8,6 +8,8 @@ import React, { useState } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
+import * as api from '../../../api/client';
+import { WHATSAPP_PHONES } from '../../../config/constants';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
@@ -177,10 +179,11 @@ const CHANGELOG = [
 ];
 
 const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'live' | 'webhook' | 'setup' | 'resources'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'live' | 'webhook' | 'setup' | 'resources' | 'settings'>('overview');
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
-  const [autoPickup, setAutoPickup] = useState(false);
+  const [autoPickup, setAutoPickup] = useState(true);
   const [autoPickupLoading, setAutoPickupLoading] = useState(false);
+  const [ivrUrl, setIvrUrl] = useState('https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3');
   const [activeCalls, setActiveCalls] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<any[]>([]);
   const [loadingCalls, setLoadingCalls] = useState(false);
@@ -188,13 +191,64 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const API_BASE = 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
 
+  // Calling settings state
+  const [settingsPhone, setSettingsPhone] = useState(PHONE_NUMBERS[1]); // default to calling-ready number
+  const [callingVisibility, setCallingVisibility] = useState<'default' | 'disable_all'>('default');
+  const [restrictCountries, setRestrictCountries] = useState('IN');
+  const [callHoursEnabled, setCallHoursEnabled] = useState(true);
+  const [callHoursTimezone, setCallHoursTimezone] = useState('Asia/Kolkata');
+  const [callHoursFrom, setCallHoursFrom] = useState('09:00');
+  const [callHoursTo, setCallHoursTo] = useState('21:00');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [callingSettingsResult, setCallingSettingsResult] = useState<any>(null);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+
+  // Load calling settings for selected phone
+  const loadCallingSettings = async () => {
+    setLoadingSettings(true);
+    try {
+      const data = await api.getCallingSettings(settingsPhone.metaId);
+      if (data?.calling) {
+        const c = data.calling;
+        if (c.call_icon_visibility) setCallingVisibility(c.call_icon_visibility);
+        if (c.restrict_to_user_countries) setRestrictCountries(c.restrict_to_user_countries.join(', '));
+      }
+      setCallingSettingsResult(data);
+    } catch (e) { console.error('Load calling settings error:', e); }
+    setLoadingSettings(false);
+  };
+
+  // Save calling settings
+  const saveCallingSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const settings: any = { callIconVisibility: callingVisibility };
+      if (restrictCountries.trim()) {
+        settings.restrictToCountries = restrictCountries.split(',').map((c: string) => c.trim()).filter(Boolean);
+      }
+      if (callHoursEnabled) {
+        const daySchedule = [{ from: callHoursFrom, to: callHoursTo }];
+        settings.callHours = {
+          timezone: callHoursTimezone,
+          sun: daySchedule, mon: daySchedule, tue: daySchedule,
+          wed: daySchedule, thu: daySchedule, fri: daySchedule, sat: daySchedule,
+        };
+      }
+      const ok = await api.updateCallingSettings(settingsPhone.metaId, settings);
+      if (ok) { toast.success('Calling settings updated'); loadCallingSettings(); }
+      else toast.error('Failed to update calling settings');
+    } catch (e) { toast.error('Failed to update calling settings'); }
+    setSavingSettings(false);
+  };
+
   // Load auto-pickup config
   const loadConfig = async () => {
     try {
       const res = await fetch(`${API_BASE}/whatsapp-calling/config`);
       if (res.ok) {
         const data = await res.json();
-        setAutoPickup(data.autoPickup || false);
+        setAutoPickup(data.autoPickup !== false); // default true
+        if (data.ivrUrl) setIvrUrl(data.ivrUrl);
       }
     } catch (e) { console.error('Config load error:', e); }
   };
@@ -469,6 +523,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
           <button style={tab(activeTab === 'webhook')} onClick={() => setActiveTab('webhook')}>Webhook Config</button>
           <button style={tab(activeTab === 'setup')} onClick={() => setActiveTab('setup')}>Setup Guide</button>
           <button style={tab(activeTab === 'resources')} onClick={() => setActiveTab('resources')}>AWS Resources</button>
+          <button style={tab(activeTab === 'settings')} onClick={() => { setActiveTab('settings'); loadCallingSettings(); }}>⚙️ Calling Settings</button>
         </div>
 
         {/* LIVE CALLS TAB — WebRTC Call Handling */}
@@ -479,7 +534,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div>
                 <h3 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Live Call Dashboard</h3>
                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#047857' }}>
-                  Incoming calls appear here in real-time. Answer calls to establish WebRTC audio in your browser.
+                  Auto-pickup is ON by default. Incoming calls are answered, IVR plays, then disconnects.
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -491,6 +546,33 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                     style={{ width: '16px', height: '16px', accentColor: '#10b981' }} />
                   Auto-pickup
                 </label>
+              </div>
+            </div>
+
+            {/* IVR Audio Config */}
+            <div style={{ ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>IVR Audio URL</label>
+                <input value={ivrUrl} onChange={e => setIvrUrl(e.target.value)} placeholder="https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3"
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' }}>
+                <button onClick={async () => {
+                  try {
+                    const res = await fetch(`${API_BASE}/whatsapp-calling/config`, {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ ivrUrl }),
+                    });
+                    if (res.ok) toast.success('IVR URL saved');
+                    else toast.error('Failed to save IVR URL');
+                  } catch (e) { toast.error('Failed to save IVR URL'); }
+                }} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                  Save URL
+                </button>
+                <a href={ivrUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', color: '#374151' }}>
+                  ▶ Test Play
+                </a>
               </div>
             </div>
 
@@ -1047,6 +1129,135 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* CALLING SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div>
+            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: '#065f46' }}>⚙️ Enable & Configure Calling</h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#047857' }}>
+                Use this to enable the call icon on your WhatsApp number, set business hours, and restrict calling to specific countries.
+                This sends a POST to <code style={{ background: '#d1fae5', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>/{'{phone-number-id}'}/settings</code> with the calling configuration.
+              </p>
+            </div>
+
+            {/* Phone selector */}
+            <div style={{ ...s.card }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Select Phone Number</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PHONE_NUMBERS.map((p, i) => (
+                  <button key={i} onClick={() => { setSettingsPhone(p); }}
+                    style={{ padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #10b981' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+                    {p.name} ({p.display})
+                    {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#10b981' }}>✓ Ready</span>}
+                    {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#f59e0b' }}>⚠ Needs 2K</span>}
+                  </button>
+                ))}
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+                Meta Phone ID: <code style={{ fontSize: 11 }}>{settingsPhone.metaId}</code> | Tier: {settingsPhone.tier} | Quality: {settingsPhone.quality}
+              </div>
+            </div>
+
+            {/* Settings Form */}
+            <div style={{ ...s.card, marginTop: 12 }}>
+              <h4 style={{ margin: '0 0 14px', fontSize: 14 }}>Calling Configuration</h4>
+              <div style={{ display: 'grid', gap: 16 }}>
+                {/* Call Icon Visibility */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Call Icon Visibility</label>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                      <input type="radio" name="visibility" checked={callingVisibility === 'default'} onChange={() => setCallingVisibility('default')} style={{ accentColor: '#10b981' }} />
+                      <span>Default (show call icon)</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                      <input type="radio" name="visibility" checked={callingVisibility === 'disable_all'} onChange={() => setCallingVisibility('disable_all')} style={{ accentColor: '#10b981' }} />
+                      <span>Disable All (hide call icon)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Country Restriction */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Restrict to Countries (comma-separated ISO codes)</label>
+                  <input value={restrictCountries} onChange={e => setRestrictCountries(e.target.value)} placeholder="IN, AE, GB"
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }} />
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Only users in these countries will see the call icon. Leave empty for all countries.</div>
+                </div>
+
+                {/* Business Call Hours */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, marginBottom: 8, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={callHoursEnabled} onChange={e => setCallHoursEnabled(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#10b981' }} />
+                    Enable Business Call Hours
+                  </label>
+                  {callHoursEnabled && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginLeft: 24 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Timezone</label>
+                        <select value={callHoursTimezone} onChange={e => setCallHoursTimezone(e.target.value)}
+                          style={{ width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+                          <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                          <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                          <option value="Europe/London">Europe/London (GMT)</option>
+                          <option value="America/New_York">America/New_York (EST)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>From</label>
+                        <input type="time" value={callHoursFrom} onChange={e => setCallHoursFrom(e.target.value)}
+                          style={{ width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>To</label>
+                        <input type="time" value={callHoursTo} onChange={e => setCallHoursTo(e.target.value)}
+                          style={{ width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, marginLeft: callHoursEnabled ? 24 : 0 }}>
+                    Same hours applied to all days (Sun-Sat). Outside these hours, users see a "message instead" prompt.
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 }}>
+                <button onClick={saveCallingSettings} disabled={savingSettings}
+                  style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                  {savingSettings ? 'Saving...' : 'Enable Calling / Save Settings'}
+                </button>
+                <button onClick={loadCallingSettings} disabled={loadingSettings}
+                  style={{ padding: '10px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                  {loadingSettings ? 'Loading...' : 'Refresh Current Settings'}
+                </button>
+              </div>
+            </div>
+
+            {/* Current Settings Response */}
+            {callingSettingsResult && (
+              <div style={{ ...s.card, marginTop: 12 }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Current Settings (from Meta API)</h4>
+                <pre style={{ background: '#1e293b', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 250 }}>
+                  {JSON.stringify(callingSettingsResult, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* API Reference */}
+            <div style={{ ...s.card, marginTop: 12 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>API Reference</h4>
+              <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
+                <div>Enable calling: <code style={{ fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>POST /{'{phone-number-id}'}/settings</code> with <code>calling</code> object</div>
+                <div>call_icon_visibility: <code style={{ fontSize: 12 }}>"default"</code> (show) or <code style={{ fontSize: 12 }}>"disable_all"</code> (hide)</div>
+                <div>restrict_to_user_countries: Array of ISO country codes (e.g. ["IN", "AE"])</div>
+                <div>call_hours: Timezone + per-day schedule with from/to times</div>
+                <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>Call Control Settings ↗</a></div>
+              </div>
             </div>
           </div>
         )}

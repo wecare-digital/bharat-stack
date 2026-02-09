@@ -27,15 +27,16 @@
  *   SYSTEM_CONFIG_TABLE: base-wecare-digital-SystemConfigTable
  *   MEDIA_BUCKET: auth.wecare.digital
  *   AUTO_PICKUP_AUDIO_KEY: whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg
- *   AUTO_PICKUP_ENABLED: false (default, overridden by SystemConfig)
+ *   AUTO_PICKUP_ENABLED: true (default ON, overridden by SystemConfig)
+ *   AUTO_PICKUP_IVR_URL: https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3
  *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-2ff05755631b41f29151c0573b7a4e2a
  *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6
  * 
  * Auto-Pickup Feature:
- *   When enabled (via SystemConfig or env), incoming calls are automatically
- *   answered and a pre-recorded audio greeting (OGG/OPUS from S3) is sent
- *   to the caller as a WhatsApp audio message. Call auto-terminates after 15s.
- *   Upload greeting: s3://auth.wecare.digital/whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg
+ *   Default ON. Incoming calls are automatically answered, IVR greeting
+ *   (https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3) is sent as
+ *   WhatsApp audio message to the caller, then call auto-terminates after 15s.
+ *   IVR URL configurable via SystemConfig (key: whatsapp_calling_ivr_url).
  * 
  * DynamoDB Tables:
  *   base-wecare-digital-WhatsAppCallingTable (partition key: id)

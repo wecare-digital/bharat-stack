@@ -461,14 +461,14 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 # ─── Auto-Pickup Configuration ──────────────────────────────────────
 # When enabled, incoming calls are automatically answered and a pre-recorded
-# audio greeting is sent as a WhatsApp audio message to the caller.
-# The greeting audio file is stored in S3.
+# IVR greeting is sent as a WhatsApp audio message to the caller, then call disconnects.
+# Default: ON — auto-pickup is enabled by default.
 # Toggle via SystemConfig table or environment variable.
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
-AUTO_PICKUP_AUDIO_KEY = os.environ.get('AUTO_PICKUP_AUDIO_KEY', 'whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg')
-AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'false').lower() == 'true'
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3')
+AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 s3 = boto3.client('s3', region_name=REGION)
 social_messaging = boto3.client('socialmessaging', region_name=REGION)
@@ -492,18 +492,19 @@ def _is_auto_pickup_enabled() -> bool:
 
 
 def _get_auto_pickup_audio_url() -> Optional[str]:
-    """Get the S3 pre-signed URL for the auto-pickup greeting audio."""
+    """Get the IVR audio URL for auto-pickup greeting.
+    Uses direct URL by default: https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3
+    Can be overridden via SystemConfig table (key: whatsapp_calling_ivr_url).
+    """
     try:
-        # Check if the audio file exists
-        s3.head_object(Bucket=MEDIA_BUCKET, Key=AUTO_PICKUP_AUDIO_KEY)
-        # Generate pre-signed URL (valid 1 hour)
-        url = s3.generate_presigned_url('get_object', Params={
-            'Bucket': MEDIA_BUCKET, 'Key': AUTO_PICKUP_AUDIO_KEY,
-        }, ExpiresIn=3600)
-        return url
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'configKey': 'whatsapp_calling_ivr_url'})
+        item = result.get('Item')
+        if item and item.get('configValue'):
+            return str(item['configValue']).strip()
     except Exception as e:
-        logger.warning(f"Auto-pickup audio not found: {e}")
-        return None
+        logger.warning(f"Failed to read IVR URL config: {e}")
+    return DEFAULT_IVR_URL
 
 
 def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:
@@ -574,26 +575,43 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     t.start()
 
 
-def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, call_id: str) -> None:
-    """Send the greeting audio as a WhatsApp audio message to the caller."""
-    try:
-        # Map Meta phone_number_id to AWS EUM phone-number-id
-        # Use the phone_number_id from the webhook metadata
-        aws_phone_id = phone_number_id
-        # If it's a Meta numeric ID, map to AWS format
-        if not aws_phone_id.startswith('phone-number-id-'):
-            # Try to determine which AWS phone ID to use
-            aws_phone_id = PHONE_NUMBER_ID_2  # Default to the calling-ready number
+def _get_aws_phone_id(meta_phone_number_id: str) -> str:
+    """Map Meta phone_number_id to AWS EUM phone-number-id."""
+    META_TO_AWS = {
+        PHONE1_META_ID: PHONE_NUMBER_ID_1,
+        PHONE2_META_ID: PHONE_NUMBER_ID_2,
+    }
+    return META_TO_AWS.get(meta_phone_number_id, PHONE_NUMBER_ID_1)
 
-        # Send via Meta Graph API (direct, since we have the token)
-        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
-            'messaging_product': 'whatsapp',
-            'to': to_number,
+
+def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> Dict:
+    """Send a WhatsApp message via AWS Social Messaging SDK."""
+    # AWS requires '+' prefix on phone numbers
+    if not to_number.startswith('+'):
+        to_number = f'+{to_number}'
+    message_payload['to'] = to_number
+    message_payload['messaging_product'] = 'whatsapp'
+    try:
+        result = social_messaging.send_whatsapp_message(
+            originationPhoneNumberId=aws_phone_id,
+            message=json.dumps(message_payload).encode('utf-8'),
+            metaApiVersion=META_API_VERSION,
+        )
+        logger.info(f"AWS send success: messageId={result.get('messageId')}")
+        return {'success': True, 'messageId': result.get('messageId')}
+    except Exception as e:
+        logger.error(f"AWS send failed: {e}")
+        return {'error': True, 'detail': str(e)}
+
+
+def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, call_id: str) -> None:
+    """Send the greeting audio as a WhatsApp audio message via AWS Social Messaging."""
+    try:
+        aws_phone_id = _get_aws_phone_id(phone_number_id)
+        result = _send_via_aws(aws_phone_id, to_number, {
             'type': 'audio',
-            'audio': {
-                'link': audio_url,
-            },
-        }, phone_number_id=phone_number_id)
+            'audio': {'link': audio_url},
+        })
         logger.info(f"AUTO-PICKUP audio sent to {to_number}: {json.dumps(result)}")
     except Exception as e:
         logger.error(f"Failed to send auto-pickup audio: {e}")
@@ -637,20 +655,21 @@ def _get_config(request_id: str) -> Dict[str, Any]:
     audio_url = _get_auto_pickup_audio_url()
     return _response(200, {
         'autoPickup': enabled,
-        'audioKey': AUTO_PICKUP_AUDIO_KEY,
-        'audioUrl': audio_url,
-        'audioBucket': MEDIA_BUCKET,
+        'ivrUrl': audio_url,
+        'defaultIvrUrl': DEFAULT_IVR_URL,
     })
 
 
 def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
-    """Update auto-pickup configuration."""
+    """Update auto-pickup configuration (toggle + IVR URL)."""
     body = json.loads(event.get('body', '{}'))
     enabled = body.get('autoPickup')
+    ivr_url = body.get('ivrUrl')
+
+    table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
 
     if enabled is not None:
         try:
-            table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
             table.put_item(Item={
                 'configKey': 'whatsapp_calling_auto_pickup',
                 'configValue': str(enabled).lower(),
@@ -661,7 +680,19 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update auto-pickup config: {e}")
             return _response(500, {'error': str(e)})
 
-    return _response(200, {'success': True, 'autoPickup': enabled})
+    if ivr_url is not None:
+        try:
+            table.put_item(Item={
+                'configKey': 'whatsapp_calling_ivr_url',
+                'configValue': ivr_url.strip(),
+                'updatedAt': Decimal(str(int(time.time()))),
+            })
+            logger.info(f"IVR URL set to: {ivr_url}")
+        except Exception as e:
+            logger.error(f"Failed to update IVR URL config: {e}")
+            return _response(500, {'error': str(e)})
+
+    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url})
 
 
 # ─── Storage Helpers ─────────────────────────────────────────────────

@@ -3206,3 +3206,31 @@ export async function updatePhoneSettings(phoneId: string, settings: Record<stri
   });
   return data?.success === true;
 }
+
+// Interactive List Messages
+export async function sendInteractiveList(phoneId: string, to: string, bodyText: string, buttonText: string, sections: any[], headerText?: string, footerText?: string): Promise<{ messageId: string } | null> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/interactive-list`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, to, bodyText, buttonText, sections, headerText, footerText }),
+  });
+  return data?.success ? { messageId: data.messageId } : null;
+}
+
+// Calling Settings (Enable/Disable calling on phone number)
+export async function getCallingSettings(phoneId: string): Promise<any> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/calling-settings?phoneId=${phoneId}`);
+  return data?.settings || null;
+}
+
+export async function updateCallingSettings(phoneId: string, settings: {
+  callIconVisibility?: 'default' | 'disable_all';
+  restrictToCountries?: string[];
+  callHours?: Record<string, any>;
+  callbackRequest?: { enabled: boolean; bodyText?: string };
+}): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/calling-settings`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, ...settings }),
+  });
+  return data?.success === true;
+}
