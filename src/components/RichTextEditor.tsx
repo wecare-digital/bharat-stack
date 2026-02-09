@@ -8,7 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/RichTextEditor.module.css';
 import * as api from '../api/client';
 import { generateReferenceId } from '../lib/formatters';
-import { PAYMENT_CONFIG, DEFAULT_GSTIN } from '../config/constants';
+import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_DETAILS } from '../config/constants';
 
 // Payment dialog state
 interface PaymentDialogState {
@@ -20,6 +20,8 @@ interface PaymentDialogState {
   express: string;    // Delivery/Express
   gstRate: string;    // GST rate (0, 3, 5, 12, 18, 28)
   gstin: string;      // GSTIN number
+  paymentMethod: 'WECARE_PAY' | 'WECARE_UPI';  // Payment configuration
+  phoneNumberId: string;  // Which phone to send from
 }
 
 interface RichTextEditorProps {
@@ -91,6 +93,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     express: '0',
     gstRate: '0',
     gstin: DEFAULT_GSTIN,
+    paymentMethod: 'WECARE_PAY',
+    phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
   });
   const [sendingPayment, setSendingPayment] = useState(false);
   // TTS state
@@ -313,7 +317,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   // Send payment message - ALWAYS use interactive mode from inbox
-  // Interactive payments MUST go from WECARE.DIGITAL number (configured in constants)
+  // Both phones now have WECARE_PAY and WECARE_UPI payment configs active
   
   const sendPaymentMessage = async () => {
     if (!selectedContactId) return;
@@ -344,8 +348,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       const result = await api.sendWhatsAppPaymentMessage({
         contactId: selectedContactId,
-        // Interactive payments MUST go from WECARE.DIGITAL (has Razorpay)
-        phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
+        // Use selected phone from payment dialog (both phones now have payment enabled)
+        phoneNumberId: paymentForm.phoneNumberId,
         referenceId: paymentForm.referenceId,
         items: [{
           name: paymentForm.itemName,
@@ -358,6 +362,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         gstRate: gstRate,
         gstin: paymentForm.gstin || DEFAULT_GSTIN,
         useInteractive: true, // ALWAYS use interactive mode from inbox
+        paymentConfiguration: paymentForm.paymentMethod,
       });
 
       console.log('Payment result:', result);
@@ -365,7 +370,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (result) {
         setTemplateMessage(`✓ Payment request sent! Ref: ${paymentForm.referenceId}`);
         setShowPaymentDialog(false);
-        setPaymentForm({ itemName: '', amount: '', quantity: '1', referenceId: '', promo: '0', express: '0', gstRate: '0', gstin: DEFAULT_GSTIN });
+        setPaymentForm({ itemName: '', amount: '', quantity: '1', referenceId: '', promo: '0', express: '0', gstRate: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE_PAY', phoneNumberId: PAYMENT_CONFIG.phoneNumberId });
       } else {
         const connStatus = api.getConnectionStatus();
         setTemplateMessage(`× Failed: ${connStatus.lastError || 'Unknown error'}`);
@@ -567,10 +572,31 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <button onClick={() => setShowPaymentDialog(false)}>×</button>
           </div>
           <div className={styles['variable-dialog-preview']}>
-            Razorpay UPI | +91 93309 94400
+            {paymentForm.paymentMethod === 'WECARE_PAY' ? 'Razorpay Gateway' : 'UPI Direct'} | {PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.display || '+91 93309 94400'}
           </div>
           <div className={styles['variable-dialog-inputs']}>
             <div className={styles['payment-grid']}>
+              <div className={styles['variable-input-row']}>
+                <label>Send From</label>
+                <select
+                  value={paymentForm.phoneNumberId}
+                  onChange={(e) => setPaymentForm({...paymentForm, phoneNumberId: e.target.value})}
+                >
+                  {PAYMENT_PHONES.map(p => (
+                    <option key={p.id} value={p.id}>{p.display} ({p.name})</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles['variable-input-row']}>
+                <label>Pay Method</label>
+                <select
+                  value={paymentForm.paymentMethod}
+                  onChange={(e) => setPaymentForm({...paymentForm, paymentMethod: e.target.value as any})}
+                >
+                  <option value="WECARE_PAY">{PAYMENT_DETAILS.configs.WECARE_PAY.label}</option>
+                  <option value="WECARE_UPI">{PAYMENT_DETAILS.configs.WECARE_UPI.label}</option>
+                </select>
+              </div>
               <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
                 <label>Ref ID</label>
                 <input

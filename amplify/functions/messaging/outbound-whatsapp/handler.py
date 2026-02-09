@@ -48,6 +48,13 @@ MAX_TEXT_LENGTH = 4096  # Requirement 5.4
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
+
+# WhatsApp Payment Configurations (active on BOTH WABAs)
+# +91 9330994400 (WABA 1728153881476046): WECARE_PAY + WECARE_UPI
+# +91 9903300044 (WABA 761651636983279):  WECARE_PAY + WECARE_UPI
+# MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
+# Razorpay MID: acc_HDfub6wOfQybuH | UPI ID: wecaredigital83.rzp@icici
+VALID_PAYMENT_CONFIGS = {'WECARE_PAY', 'WECARE_UPI'}
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
 
@@ -1468,6 +1475,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                             'payment_gateway': {
                                 'type': 'razorpay',
                                 'configuration_name': order_details.get('payment_configuration', 'WECARE_PAY')
+                                    if order_details.get('payment_configuration', 'WECARE_PAY') in VALID_PAYMENT_CONFIGS
+                                    else 'WECARE_PAY'
                             }
                         }
                     ],

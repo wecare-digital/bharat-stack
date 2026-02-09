@@ -32,7 +32,7 @@ import PageHeader from '../../../components/PageHeader';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { formatReferenceNumber, generateReferenceId } from '../../../lib/formatters';
-import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN, WHATSAPP_PHONES } from '../../../config/constants';
+import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN, WHATSAPP_PHONES, PAYMENT_PHONES, PAYMENT_DETAILS } from '../../../config/constants';
 
 interface PageProps {
   signOut?: () => void;
@@ -157,14 +157,16 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="sender-label">Sending From</div>
             <select value={selectedPhone} onChange={e => setSelectedPhone(e.target.value)}
               style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', marginBottom: '4px' }}>
-              <option value={WHATSAPP_PHONES.primary.id}>{WHATSAPP_PHONES.primary.display} ({WHATSAPP_PHONES.primary.name})</option>
+              {PAYMENT_PHONES.map(p => (
+                <option key={p.id} value={p.id}>{p.display} ({p.name})</option>
+              ))}
             </select>
             <div style={{ marginTop: '6px' }}>
               <div className="sender-label">Payment Method</div>
               <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)}
                 style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px' }}>
-                <option value="WECARE_PAY">WECARE_PAY (Razorpay Gateway)</option>
-                <option value="WECARE_UPI">WECARE_UPI (UPI Direct)</option>
+                <option value="WECARE_PAY">{PAYMENT_DETAILS.configs.WECARE_PAY.label}</option>
+                <option value="WECARE_UPI">{PAYMENT_DETAILS.configs.WECARE_UPI.label}</option>
               </select>
             </div>
           </div>

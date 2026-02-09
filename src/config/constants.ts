@@ -38,8 +38,8 @@ export const WHATSAPP_PHONES = {
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
     wabaId: '761651636983279',
-    hasPayment: false,
-    paymentConfigs: [],
+    hasPayment: true,
+    paymentConfigs: ['WECARE_PAY', 'WECARE_UPI'],
   },
 };
 
@@ -58,6 +58,24 @@ export const CONVENIENCE_FEE = {
   percent: 2.0,
   gstPercent: 18.0,
 };
+
+// WhatsApp Payment Configuration Details
+// Both WABAs have WECARE_PAY (Razorpay Gateway) and WECARE_UPI (UPI Direct) active
+// MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
+// Razorpay MID: acc_HDfub6wOfQybuH | UPI ID: wecaredigital83.rzp@icici
+export const PAYMENT_DETAILS = {
+  razorpayMID: 'acc_HDfub6wOfQybuH',
+  upiId: 'wecaredigital83.rzp@icici',
+  mcc: '4722',
+  purposeCode: '03',
+  configs: {
+    WECARE_PAY: { label: 'WECARE_PAY (Razorpay Gateway)', type: 'payment_gateway', gateway: 'razorpay' },
+    WECARE_UPI: { label: 'WECARE_UPI (UPI Direct)', type: 'payment_gateway', gateway: 'razorpay' },
+  },
+};
+
+// All payment-enabled phones (convenience helper)
+export const PAYMENT_PHONES = Object.values(WHATSAPP_PHONES).filter(p => p.hasPayment);
 
 // Message TTL (30 days in seconds)
 export const MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60;

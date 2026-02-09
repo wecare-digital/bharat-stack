@@ -1,6 +1,6 @@
 """
 WhatsApp Business API Lambda
-Handles: Business Profile, Flows, Webhooks, Groups
+Handles: Business Profile, Flows, Webhooks, Groups, Payment Config
 Uses Meta Graph API directly (not AWS EUM)
 
 Routes:
@@ -23,6 +23,7 @@ Routes:
   DELETE    /wa-business/groups        → Delete group
   POST      /wa-business/groups/participants → Add/remove participants
   POST      /wa-business/groups/send   → Send group message
+  GET       /wa-business/payment-config → Get payment configuration for phone
 """
 import os
 import json
@@ -445,6 +446,48 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
     return _resp(200, {'success': True})
 
 # ============================================================================
+# PAYMENT CONFIGURATION
+# Both WABAs have active payment configs:
+# +91 9330994400 (WABA 1728153881476046): WECARE_PAY + WECARE_UPI
+# +91 9903300044 (WABA 761651636983279):  WECARE_PAY + WECARE_UPI
+# MCC: 4722 | Purpose Code: 03 | Razorpay MID: acc_HDfub6wOfQybuH
+# UPI ID: wecaredigital83.rzp@icici
+# ============================================================================
+PAYMENT_CONFIGS = {
+    PHONE1_META_ID: {
+        'phone': '+91 9330994400',
+        'wabaId': WABA1_ID,
+        'configs': [
+            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH'},
+            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi_direct', 'upiId': 'wecaredigital83.rzp@icici'},
+        ],
+        'mcc': '4722',
+        'purposeCode': '03',
+    },
+    PHONE2_META_ID: {
+        'phone': '+91 9903300044',
+        'wabaId': WABA2_ID,
+        'configs': [
+            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH'},
+            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi_direct', 'upiId': 'wecaredigital83.rzp@icici'},
+        ],
+        'mcc': '4722',
+        'purposeCode': '03',
+    },
+}
+
+def _get_payment_config(phone_id: str) -> Dict:
+    """Get payment configuration for a phone number."""
+    config = PAYMENT_CONFIGS.get(phone_id)
+    if config:
+        return _resp(200, {'paymentConfig': config})
+    # Try commerce settings from Meta Graph API
+    result = _graph_api(f'{phone_id}/whatsapp_commerce_settings', phone_id=phone_id)
+    if 'error' in result:
+        return _resp(200, {'paymentConfig': None, 'note': 'No payment config found for this phone'})
+    return _resp(200, {'paymentConfig': result})
+
+# ============================================================================
 # HANDLER
 # ============================================================================
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -541,6 +584,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'GET':
                 return _get_calling_settings(phone_id)
             return _update_calling_settings(phone_id, body)
+
+        elif '/payment-config' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'GET':
+                return _get_payment_config(phone_id)
 
         elif '/phone-settings' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
