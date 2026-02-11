@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
 $ACCOUNT = "775261844268"
-$API_ID = "api.wecare.digital"
+$API_ID = "zllr9lrg7j"
 $LAMBDA_NAME = "wecare-whatsapp-calling"
 $TABLE_NAME = "base-wecare-digital-WhatsAppCallingTable"
 $ROLE_ARN = "arn:aws:iam::${ACCOUNT}:role/wecare-digital-lambda-role"

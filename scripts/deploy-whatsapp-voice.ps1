@@ -11,7 +11,7 @@
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
 $ACCOUNT_ID = "775261844268"
-$API_ID = "api.wecare.digital"
+$API_ID = "zllr9lrg7j"
 $STAGE = "prod"
 $LAMBDA_ROLE = "arn:aws:iam::${ACCOUNT_ID}:role/wecare-digital-lambda-role"
 

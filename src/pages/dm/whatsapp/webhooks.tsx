@@ -34,6 +34,10 @@ const WEBHOOK_FIELDS = [
 const EXISTING_WEBHOOKS = [
   { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (AWS EUM managed)' },
   { name: 'WhatsApp Calling', url: 'https://api.wecare.digital/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active', verifyToken: 'wecare_calling_verify_2026' },
+  { name: 'Voice CDR Webhook', url: 'https://api.wecare.digital/voice-cdr-webhook', fields: ['CDR', 'ALL'], lambda: 'wecare-voice-cdr-webhook', status: 'active', verifyToken: 'N/A' },
+  { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: ['CDR'], lambda: 'wecare-voice-in-c2c', status: 'active', verifyToken: 'N/A (HMAC-SHA256)' },
+  { name: 'Voice OBD', url: 'https://api.wecare.digital/voice-in/obd', fields: ['CDR'], lambda: 'wecare-voice-in-obd', status: 'active', verifyToken: 'N/A' },
+  { name: 'SMS Airtel', url: 'https://api.wecare.digital/sms-in/airtel', fields: ['SMS'], lambda: 'wecare-sms-in-airtel', status: 'active', verifyToken: 'N/A (Basic Auth)' },
 ];
 
 const META_WEBHOOK_CONFIG = {

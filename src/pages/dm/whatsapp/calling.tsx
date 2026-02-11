@@ -25,7 +25,7 @@ const WEBHOOK_CONFIG = {
   subscribedFields: ['calls'],
   lambda: 'wecare-whatsapp-calling',
   table: 'base-wecare-digital-WhatsAppCallingTable',
-  status: 'deployed',  // deployed, verified, subscribed
+  status: 'verified',  // deployed, verified, subscribed
 };
 
 // Meta Access Token info
@@ -202,6 +202,191 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [callingSettingsResult, setCallingSettingsResult] = useState<any>(null);
   const [loadingSettings, setLoadingSettings] = useState(false);
+
+  // Outbound call state
+  const [outboundPhone, setOutboundPhone] = useState('');
+  const [outboundPhoneNumberId, setOutboundPhoneNumberId] = useState(PHONE_NUMBERS[1].metaId);
+  const [outboundPermissionText, setOutboundPermissionText] = useState('Can we call you to discuss your query?');
+  const [outboundStep, setOutboundStep] = useState<'idle' | 'requesting_permission' | 'permission_sent' | 'calling' | 'connected' | 'ended' | 'failed'>('idle');
+  const [outboundLoading, setOutboundLoading] = useState(false);
+  const [outboundError, setOutboundError] = useState('');
+  const [outboundCallDuration, setOutboundCallDuration] = useState(0);
+  const outboundDurationRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const outboundPcRef = React.useRef<RTCPeerConnection | null>(null);
+  const outboundStreamRef = React.useRef<MediaStream | null>(null);
+  const [outboundMuted, setOutboundMuted] = useState(false);
+
+  // Outbound: Request call permission
+  const requestOutboundPermission = async () => {
+    if (!outboundPhone.trim()) { toast.error('Enter a phone number'); return; }
+    setOutboundLoading(true);
+    setOutboundError('');
+    try {
+      const res = await fetch(`${API_BASE}/whatsapp-calling/outbound`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumberId: outboundPhoneNumberId,
+          to: outboundPhone.trim(),
+          action: 'permission_request',
+          bodyText: outboundPermissionText,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOutboundStep('permission_sent');
+        toast.success('Permission request sent — waiting for user to accept');
+      } else {
+        setOutboundError(JSON.stringify(data.error || data.result || 'Failed'));
+        toast.error('Permission request failed');
+      }
+    } catch (e: any) {
+      setOutboundError(e.message);
+      toast.error('Permission request failed');
+    }
+    setOutboundLoading(false);
+  };
+
+  // Outbound: Initiate call with WebRTC SDP offer
+  const initiateOutboundCall = async () => {
+    setOutboundLoading(true);
+    setOutboundError('');
+    setOutboundStep('calling');
+    try {
+      // 1. Get microphone
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      outboundStreamRef.current = stream;
+
+      // 2. Create RTCPeerConnection
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      });
+      outboundPcRef.current = pc;
+
+      // Add audio tracks
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      // Handle remote audio
+      pc.ontrack = (event) => {
+        const audioEl = document.getElementById('remoteAudioOutbound') as HTMLAudioElement;
+        if (audioEl && event.streams[0]) {
+          audioEl.srcObject = event.streams[0];
+          audioEl.play().catch(() => {});
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setOutboundStep('connected');
+          toast.success('Outbound call connected');
+          setOutboundCallDuration(0);
+          outboundDurationRef.current = setInterval(() => setOutboundCallDuration(prev => prev + 1), 1000);
+        } else if (pc.connectionState === 'failed') {
+          setOutboundStep('failed');
+          setOutboundError('WebRTC connection failed');
+          cleanupOutbound();
+        }
+      };
+
+      // 3. Create SDP offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // 4. Wait for ICE gathering
+      const sdpOffer = await new Promise<string>((resolve) => {
+        if (pc.iceGatheringState === 'complete') {
+          resolve(pc.localDescription?.sdp || offer.sdp || '');
+          return;
+        }
+        const timeout = setTimeout(() => resolve(pc.localDescription?.sdp || offer.sdp || ''), 3000);
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            clearTimeout(timeout);
+            resolve(pc.localDescription?.sdp || offer.sdp || '');
+          }
+        };
+      });
+
+      // 5. Send to backend → Meta
+      const res = await fetch(`${API_BASE}/whatsapp-calling/outbound`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumberId: outboundPhoneNumberId,
+          to: outboundPhone.trim(),
+          action: 'create',
+          sdpOffer,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(JSON.stringify(data.error || data.result || 'Call initiation failed'));
+      }
+
+      toast.info('Calling... waiting for user to pick up');
+    } catch (e: any) {
+      setOutboundError(e.message);
+      setOutboundStep('failed');
+      toast.error(`Outbound call failed: ${e.message}`);
+      cleanupOutbound();
+    }
+    setOutboundLoading(false);
+  };
+
+  // Outbound: Hang up
+  const hangupOutbound = async () => {
+    try {
+      // We don't have the call_id from Meta for outbound yet, so terminate via cleanup
+      // If we had it, we'd POST to /hangup
+      cleanupOutbound();
+      setOutboundStep('ended');
+      toast.success('Outbound call ended');
+    } catch (e: any) {
+      toast.error('Failed to hang up');
+    }
+  };
+
+  // Outbound: Toggle mute
+  const toggleOutboundMute = () => {
+    if (outboundStreamRef.current) {
+      const track = outboundStreamRef.current.getAudioTracks()[0];
+      if (track) {
+        track.enabled = !track.enabled;
+        setOutboundMuted(!track.enabled);
+      }
+    }
+  };
+
+  // Outbound: Cleanup
+  const cleanupOutbound = () => {
+    if (outboundPcRef.current) { outboundPcRef.current.close(); outboundPcRef.current = null; }
+    if (outboundStreamRef.current) { outboundStreamRef.current.getTracks().forEach(t => t.stop()); outboundStreamRef.current = null; }
+    if (outboundDurationRef.current) { clearInterval(outboundDurationRef.current); outboundDurationRef.current = null; }
+    const audioEl = document.getElementById('remoteAudioOutbound') as HTMLAudioElement;
+    if (audioEl) audioEl.srcObject = null;
+    setOutboundMuted(false);
+  };
+
+  // Outbound: Reset to idle
+  const resetOutbound = () => {
+    cleanupOutbound();
+    setOutboundStep('idle');
+    setOutboundError('');
+    setOutboundCallDuration(0);
+  };
+
+  // Format seconds to mm:ss
+  const fmtDuration = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   // Load calling settings for selected phone
   const loadCallingSettings = async () => {
@@ -452,6 +637,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
   React.useEffect(() => {
     loadConfig();
     loadCallLogs();
+    return () => { cleanupWebRTC(); cleanupOutbound(); };
   }, []);
 
   React.useEffect(() => {
@@ -636,6 +822,131 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Outbound Call — Business-Initiated */}
+            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #c7d2fe', background: outboundStep === 'connected' ? '#ecfdf5' : outboundStep === 'calling' ? '#fef3c7' : '#eef2ff' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#312e81' }}>📤 Outbound Call (Business-Initiated)</h4>
+
+              {outboundStep === 'idle' && (
+                <div>
+                  <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6b7280' }}>
+                    Step 1: Send a call permission request. Step 2: After user accepts, initiate the call with WebRTC.
+                    Limits: 1 permission request per 24h, 2 per 7 days per user. Not available in USA, Canada, Turkey, Egypt, Vietnam, Nigeria.
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    <div style={{ flex: '0 0 180px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>From (WABA Number)</label>
+                      <select value={outboundPhoneNumberId} onChange={e => setOutboundPhoneNumberId(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', background: '#fff' }}>
+                        {PHONE_NUMBERS.map(p => (
+                          <option key={p.metaId} value={p.metaId}>{p.display} ({p.name})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1 1 200px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>To (WhatsApp Number with country code)</label>
+                      <input value={outboundPhone} onChange={e => setOutboundPhone(e.target.value)} placeholder="919876543210"
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace' }} />
+                    </div>
+                    <div style={{ flex: '1 1 250px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Permission Message</label>
+                      <input value={outboundPermissionText} onChange={e => setOutboundPermissionText(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px' }} />
+                    </div>
+                    <button onClick={requestOutboundPermission} disabled={outboundLoading || !outboundPhone.trim()}
+                      style={{ padding: '8px 18px', background: outboundPhone.trim() ? '#6366f1' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {outboundLoading ? 'Sending...' : '📩 Request Permission'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {outboundStep === 'permission_sent' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '20px' }}>⏳</span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#312e81' }}>Permission request sent to {outboundPhone}</div>
+                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                        Waiting for user to tap "Allow" in WhatsApp. Once granted, click "Call Now" to initiate.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={initiateOutboundCall} disabled={outboundLoading}
+                      style={{ padding: '8px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                      {outboundLoading ? 'Connecting...' : '📞 Call Now'}
+                    </button>
+                    <button onClick={resetOutbound}
+                      style={{ padding: '8px 16px', background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {outboundStep === 'calling' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>📞</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#92400e' }}>Calling {outboundPhone}...</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Ringing — waiting for user to pick up</div>
+                  </div>
+                  <button onClick={hangupOutbound}
+                    style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                    📴 Cancel
+                  </button>
+                </div>
+              )}
+
+              {outboundStep === 'connected' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '24px' }}>🟢</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#065f46' }}>Connected to {outboundPhone}</div>
+                      <div style={{ fontSize: '20px', fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>{fmtDuration(outboundCallDuration)}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={toggleOutboundMute}
+                        style={{ padding: '8px 14px', background: outboundMuted ? '#fef3c7' : '#f3f4f6', color: outboundMuted ? '#92400e' : '#374151', border: `1px solid ${outboundMuted ? '#fde68a' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        {outboundMuted ? '🔇 Unmute' : '🎙 Mute'}
+                      </button>
+                      <button onClick={hangupOutbound}
+                        style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        📴 Hang Up
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(outboundStep === 'ended' || outboundStep === 'failed') && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '20px' }}>{outboundStep === 'ended' ? '✅' : '❌'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: outboundStep === 'ended' ? '#065f46' : '#991b1b' }}>
+                      {outboundStep === 'ended' ? 'Call ended' : 'Call failed'}
+                    </div>
+                    {outboundError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px', wordBreak: 'break-all' }}>{outboundError}</div>}
+                    {outboundCallDuration > 0 && <div style={{ fontSize: '12px', color: '#6b7280' }}>Duration: {fmtDuration(outboundCallDuration)}</div>}
+                  </div>
+                  <button onClick={resetOutbound}
+                    style={{ padding: '8px 16px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                    New Call
+                  </button>
+                </div>
+              )}
+
+              {outboundError && outboundStep !== 'ended' && outboundStep !== 'failed' && (
+                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', color: '#991b1b', wordBreak: 'break-all' }}>
+                  {outboundError}
+                </div>
+              )}
+
+              {/* Hidden audio element for outbound remote stream */}
+              <audio id="remoteAudioOutbound" autoPlay style={{ display: 'none' }} />
             </div>
 
             {/* WebRTC Status */}

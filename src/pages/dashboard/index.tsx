@@ -108,6 +108,14 @@ API Base: https://api.wecare.digital
    Full URL: https://api.wecare.digital/voice-cdr-read
    Params: ?callType=INBOUND&status=Answered&dashboard=true&limit=50
 
+6. WhatsApp Calling Webhook (Meta → Us, for call events):
+   GET  /whatsapp-calling  (webhook verification)
+   POST /whatsapp-calling  (call events: connect, terminate, permission)
+   Full URL: https://api.wecare.digital/whatsapp-calling
+   Verify Token: wecare_calling_verify_2026
+   Subscribed Fields: calls
+   Lambda: wecare-whatsapp-calling
+
 IP WHITELIST:
 ━━━━━━━━━━━━
 We do NOT need to whitelist IPs for sending SMS traffic.
@@ -2232,6 +2240,114 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              {/* WhatsApp Inbound Messages Webhook */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #25D366' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WhatsApp Inbound Messages</h3>
+                    <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px' }}>AWS EUM Managed | Active</span>
+                  </div>
+                </div>
+
+                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 Webhook Configuration</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Webhook URL</span><code style={{ color: '#111827' }}>https://api.wecare.digital/whatsapp/inbound</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Method</span><code style={{ color: '#111827' }}>POST</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-inbound-whatsapp-handler</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827' }}>N/A (AWS EUM managed)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>messages</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA 1</span><code style={{ color: '#111827' }}>1912405516040025 (WECARE.DIGITAL)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA 2</span><code style={{ color: '#111827' }}>1633959101297902 (Manish Agarwal)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#065f46', marginTop: '0.75rem', fontStyle: 'italic' }}>
+                    Managed by AWS End User Messaging (EUM) — webhook verification handled automatically by AWS.
+                  </div>
+                </div>
+              </div>
+
+              {/* WhatsApp Calling Webhook */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #25D366' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WhatsApp Business Calling</h3>
+                    <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px' }}>Meta Graph API + WebRTC | Active</span>
+                  </div>
+                </div>
+
+                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 Webhook Configuration (Meta App Dashboard)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Callback URL</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>https://api.wecare.digital/whatsapp-calling</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>wecare_calling_verify_2026</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>calls</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-whatsapp-calling</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App ID</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>DynamoDB Table</span><code style={{ color: '#111827' }}>WhatsAppCallingTable</code></div>
+                  </div>
+
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>API Routes (all on api.wecare.digital)</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' }}>
+                      {[
+                        { m: 'GET', p: '/whatsapp-calling', d: 'Webhook verify' },
+                        { m: 'POST', p: '/whatsapp-calling', d: 'Call events from Meta' },
+                        { m: 'GET', p: '/whatsapp-calling/active', d: 'Active/ringing calls' },
+                        { m: 'GET', p: '/whatsapp-calling/logs', d: 'Call event logs' },
+                        { m: 'POST', p: '/whatsapp-calling/accept', d: 'Accept call (SDP answer)' },
+                        { m: 'POST', p: '/whatsapp-calling/reject', d: 'Reject ringing call' },
+                        { m: 'POST', p: '/whatsapp-calling/hangup', d: 'Hang up active call' },
+                        { m: 'POST', p: '/whatsapp-calling/outbound', d: 'Outbound call / permission' },
+                        { m: 'GET', p: '/whatsapp-calling/config', d: 'Auto-pickup config' },
+                        { m: 'POST', p: '/whatsapp-calling/config', d: 'Update config' },
+                        { m: 'DELETE', p: '/whatsapp-calling', d: 'Clear logs' },
+                      ].map(({ m, p, d }) => (
+                        <div key={`${m}${p}`} style={{ background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                          <code><span style={{ color: m === 'POST' ? '#059669' : m === 'DELETE' ? '#dc2626' : '#1d4ed8', fontWeight: 600, fontSize: '0.7rem' }}>{m}</span> <span style={{ fontSize: '0.75rem' }}>{p}</span></code>
+                          <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: '4px' }}>{d}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 Phone Numbers (Calling-Ready)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>+91 93309 94400 (WECARE.DIGITAL)</label>
+                      <code style={{ fontSize: '0.8rem', color: '#111827' }}>Meta ID: 960395407161423 · TIER_1K</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>+91 99033 00044 (Manish Agarwal)</label>
+                      <code style={{ fontSize: '0.8rem', color: '#111827' }}>Meta ID: 997428863451102 · TIER_10K</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button onClick={() => { navigator.clipboard.writeText('https://api.wecare.digital/whatsapp-calling'); alert('Callback URL copied!'); }}
+                    style={{ padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
+                    📋 Copy Callback URL
+                  </button>
+                  <button onClick={() => { navigator.clipboard.writeText('wecare_calling_verify_2026'); alert('Verify token copied!'); }}
+                    style={{ padding: '0.5rem 1rem', background: '#065f46', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
+                    📋 Copy Verify Token
+                  </button>
+                  <a href="https://developers.facebook.com/apps/891766673609917/webhooks/" target="_blank" rel="noopener noreferrer"
+                    style={{ padding: '0.5rem 1rem', background: '#1877F2', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none', display: 'inline-block' }}>
+                    🔗 Open Meta App Dashboard
+                  </a>
                 </div>
               </div>
 
