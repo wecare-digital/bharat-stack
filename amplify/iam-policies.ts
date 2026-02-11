@@ -255,8 +255,57 @@ export const IAM_POLICIES = {
           'secretsmanager:GetSecretValue',
         ],
         Resource: [
-          'arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/*',
+          'arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/*',
         ],
+      },
+    ],
+  },
+
+  // S3 permissions (for non-WhatsApp S3 access — voice recordings, OBD uploads, etc.)
+  s3: {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: [
+          's3:GetObject',
+          's3:PutObject',
+          's3:DeleteObject',
+          's3:ListBucket',
+        ],
+        Resource: [
+          'arn:aws:s3:::app.wecare.digital',
+          'arn:aws:s3:::app.wecare.digital/*',
+        ],
+      },
+    ],
+  },
+
+  // Amazon Polly permissions (for TTS)
+  polly: {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: [
+          'polly:SynthesizeSpeech',
+          'polly:DescribeVoices',
+        ],
+        Resource: '*',
+      },
+    ],
+  },
+
+  // Lambda invoke permissions (for scheduled-messages invoking outbound lambdas)
+  lambdaInvoke: {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: [
+          'lambda:InvokeFunction',
+        ],
+        Resource: 'arn:aws:lambda:us-east-1:775261844268:function:wecare-*',
       },
     ],
   },
@@ -266,30 +315,64 @@ export const IAM_POLICIES = {
  * Function-specific policy mappings
  * 
  * Maps each Lambda function to the policies it requires.
+ * Naming: use full Lambda function name (wecare-* prefix) for deployed functions,
+ * short names for Amplify-managed functions.
  */
-export const FUNCTION_POLICIES = {
+export const FUNCTION_POLICIES: Record<string, string[]> = {
+  // === Core (Amplify-managed) ===
   'auth-middleware': ['common', 'cognito'],
   'contacts-create': ['common'],
   'contacts-read': ['common'],
   'contacts-update': ['common'],
   'contacts-delete': ['common'],
   'contacts-search': ['common'],
-  'inbound-whatsapp-handler': ['common', 'whatsapp', 'sqs', 'sns'],
-  'outbound-whatsapp': ['common', 'whatsapp', 'sqs'],
-  'outbound-sms': ['common', 'sms', 'sqs'],
-  'outbound-email': ['common', 'email', 'sqs'],
-  'bulk-job-create': ['common', 'sqs'],
-  'bulk-worker': ['common', 'sqs', 'whatsapp', 'sms', 'email'],
-  'bulk-job-control': ['common', 'sqs'],
-  'dlq-replay': ['common', 'sqs', 'sns'],
-  'ai-query-kb': ['common', 'bedrock'],
-  'ai-generate-response': ['common', 'bedrock'],
-  'billing': ['common', 'billing'],
+  'messages-read': ['common'],
+  'messages-delete': ['common'],
+
+  // === WhatsApp ===
+  'wecare-inbound-whatsapp-handler': ['common', 'whatsapp', 'sqs', 'sns'],
+  'wecare-outbound-whatsapp': ['common', 'whatsapp', 'sqs'],
+  'wecare-whatsapp-calling': ['common', 'whatsapp', 'secrets'],
+  'wecare-whatsapp-voice': ['common', 'whatsapp', 'polly'],
+  'wecare-whatsapp-template-management': ['common', 'whatsapp', 'secrets'],
+  'wecare-whatsapp-business-api': ['common', 'secrets'],
+  'wecare-waba-management': ['common', 'whatsapp'],
+  'wecare-media-cleanup': ['common', 'whatsapp'],
+  'wecare-template-analytics': ['common'],
+
+  // === SMS ===
+  'wecare-outbound-sms': ['common', 'sms', 'sqs'],
+  'wecare-outbound-email': ['common', 'email', 'sqs'],
+  'wecare-sms-aws': ['common', 'sms'],
   'wecare-sms-in-airtel': ['common', 'secrets'],
-  'sms-aws': ['common', 'sms'],
-  'voice-aws': ['common', 'sms'],
+
+  // === Voice (AWS Pinpoint) ===
+  'wecare-voice-aws': ['common', 'sms'],
+
+  // === Voice (Airtel IQ — voice-in) ===
   'wecare-voice-in-c2c': ['common', 'secrets'],
-  'wecare-voice-in-obd': ['common', 'secrets'],
-  'wecare-voice-cdr-webhook': ['common'],
+  'wecare-voice-in-obd': ['common', 'secrets', 's3'],
+  'wecare-voice-cdr-webhook': ['common', 's3'],
   'wecare-voice-cdr-read': ['common'],
+  'wecare-outbound-voice': ['common', 'secrets'],
+
+  // === Scheduled & Bulk ===
+  'wecare-scheduled-messages': ['common', 'lambdaInvoke'],
+  'wecare-bulk-job-create': ['common', 'sqs'],
+  'wecare-bulk-worker': ['common', 'sqs', 'whatsapp', 'sms', 'email'],
+  'wecare-bulk-job-control': ['common', 'sqs'],
+
+  // === AI ===
+  'wecare-ai-query-kb': ['common', 'bedrock'],
+  'wecare-ai-generate-response': ['common', 'bedrock'],
+  'wecare-ai-config-management': ['common'],
+  'wecare-agent-action-group': ['common', 'bedrock'],
+
+  // === Operations ===
+  'wecare-dlq-replay': ['common', 'sqs', 'sns'],
+  'wecare-billing': ['common', 'billing'],
+
+  // === Payments ===
+  'wecare-razorpay-webhook': ['common'],
+  'wecare-payments-read': ['common'],
 };

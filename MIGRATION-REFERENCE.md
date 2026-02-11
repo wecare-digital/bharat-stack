@@ -27,7 +27,7 @@
 |----------|---------|--------|
 | IAM Lambda Role | `wecare-digital-lambda-role` (`AROA3JAJU6MWMHI4VOYL7`) | ✅ |
 | Lambda Functions | 35 functions deployed (Python 3.12, 256MB, 30s timeout) | ✅ |
-| DynamoDB Tables | 22 tables (PAY_PER_REQUEST billing) | ✅ |
+| DynamoDB Tables | 24 tables (PAY_PER_REQUEST billing) | ✅ |
 | API Gateway HTTP API | `zllr9lrg7j` — 52 routes, prod stage (auto-deploy) | ✅ |
 | API Gateway Custom Domain | `api.wecare.digital` → `d-3ogtrxenof.execute-api.us-east-1.amazonaws.com` | ✅ |
 | ACM Certificate (wildcard) | `*.wecare.digital` — `f75d0db0-d476-443a-b787-96c4931862d2` (ISSUED) | ✅ |
