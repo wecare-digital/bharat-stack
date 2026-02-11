@@ -3,8 +3,8 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 /**
  * WECARE.DIGITAL DynamoDB Schema
  * 
- * 13 Tables with PAY_PER_REQUEST billing mode
- * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d)
+ * 24 Tables with PAY_PER_REQUEST billing mode
+ * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), AirtelSMS (90d), AirtelC2C (90d), OBDCampaign (90d)
  */
 const schema = a.schema({
   // Table 1: Contacts - Contact records with opt-in preferences
