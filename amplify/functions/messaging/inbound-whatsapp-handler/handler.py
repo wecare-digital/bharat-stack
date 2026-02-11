@@ -515,19 +515,30 @@ def _extract_unsupported_content(message: Dict) -> str:
 
 
 def _message_exists(whatsapp_message_id: str) -> bool:
-    """Check if message already exists (deduplication)."""
+    """Check if message already exists (deduplication) using GSI query."""
     if not whatsapp_message_id:
         return False
     try:
         messages_table = dynamodb.Table(MESSAGES_TABLE)
-        response = messages_table.scan(
-            FilterExpression='whatsappMessageId = :wmid',
+        response = messages_table.query(
+            IndexName='whatsappMessageId-index',
+            KeyConditionExpression='whatsappMessageId = :wmid',
             ExpressionAttributeValues={':wmid': whatsapp_message_id},
             Limit=1
         )
         return len(response.get('Items', [])) > 0
-    except Exception:
-        return False
+    except Exception as e:
+        # Fallback to scan if GSI not ready yet
+        logger.warning(f"GSI query failed, falling back to scan: {str(e)}")
+        try:
+            response = messages_table.scan(
+                FilterExpression='whatsappMessageId = :wmid',
+                ExpressionAttributeValues={':wmid': whatsapp_message_id},
+                Limit=1
+            )
+            return len(response.get('Items', [])) > 0
+        except Exception:
+            return False
 
 
 def _get_or_create_contact(phone: str, sender_name: str = '') -> Dict[str, Any]:
@@ -538,20 +549,50 @@ def _get_or_create_contact(phone: str, sender_name: str = '') -> Dict[str, Any]:
     clean_phone = phone.lstrip('+')
     phone_with_plus = f'+{clean_phone}'
     
-    # Search for contact with either format (with or without +)
-    # Use a more robust scan - scan more items to ensure we find existing contact
-    response = contacts_table.scan(
-        FilterExpression='(phone = :phone1 OR phone = :phone2) AND (attribute_not_exists(deletedAt) OR deletedAt = :null)',
-        ExpressionAttributeValues={
-            ':phone1': clean_phone,
-            ':phone2': phone_with_plus,
-            ':null': None
-        },
-        Limit=100  # Scan up to 100 items to find matching phone
-    )
+    # Use GSI query on phone-index for O(1) lookup (try both formats)
+    items = []
+    for phone_variant in [phone_with_plus, clean_phone]:
+        try:
+            response = contacts_table.query(
+                IndexName='phone-index',
+                KeyConditionExpression='phone = :phone',
+                ExpressionAttributeValues={':phone': phone_variant},
+                Limit=10
+            )
+            variant_items = response.get('Items', [])
+            # Filter out deleted contacts
+            variant_items = [i for i in variant_items if not i.get('deletedAt')]
+            items.extend(variant_items)
+        except Exception as e:
+            logger.warning(f"GSI phone-index query failed for {phone_variant}: {str(e)}")
     
-    items = response.get('Items', [])
+    # Fallback to scan if GSI not ready
+    if not items:
+        try:
+            response = contacts_table.scan(
+                FilterExpression='(phone = :phone1 OR phone = :phone2) AND (attribute_not_exists(deletedAt) OR deletedAt = :null)',
+                ExpressionAttributeValues={
+                    ':phone1': clean_phone,
+                    ':phone2': phone_with_plus,
+                    ':null': None
+                },
+                Limit=100
+            )
+            items = response.get('Items', [])
+        except Exception:
+            items = []
+    
     if items:
+        # Deduplicate by id in case both phone formats matched the same contact
+        seen_ids = set()
+        unique_items = []
+        for item in items:
+            item_id = item.get('id', '')
+            if item_id not in seen_ids:
+                seen_ids.add(item_id)
+                unique_items.append(item)
+        items = unique_items
+        
         # Return the first (oldest) contact to avoid duplicates
         contact = sorted(items, key=lambda x: x.get('createdAt', 0))[0]
         # Update name if sender provided a name and contact doesn't have one or has placeholder
@@ -839,7 +880,7 @@ def _store_media_record(message_id: str, s3_key: str, media_data: Dict, whatsapp
 def _process_status(status: Dict, request_id: str) -> None:
     """
     Process message status update (sent|delivered|read|failed|payment).
-    Per AWS docs: Can also send status updates back to WhatsApp to mark as read.
+    Checks BOTH InboundTable and OutboundTable using GSI for O(1) lookup.
     
     Payment status webhooks have type='payment' with payment object containing:
     - reference_id: Order/invoice reference
@@ -873,41 +914,72 @@ def _process_status(status: Dict, request_id: str) -> None:
     if not whatsapp_message_id or not status_value:
         return
     
-    try:
-        messages_table = dynamodb.Table(MESSAGES_TABLE)
-        
-        response = messages_table.scan(
-            FilterExpression='whatsappMessageId = :wmid',
-            ExpressionAttributeValues={':wmid': whatsapp_message_id},
-            Limit=1
-        )
-        
-        items = response.get('Items', [])
-        if items:
-            message_id = items[0].get('id') or items[0].get('messageId')
-            messages_table.update_item(
-                Key={'id': message_id},
-                UpdateExpression='SET #status = :status, statusUpdatedAt = :ts',
-                ExpressionAttributeNames={'#status': 'status'},
-                ExpressionAttributeValues={
-                    ':status': status_value,
-                    ':ts': Decimal(str(timestamp))
-                }
-            )
+    # Search BOTH tables for the message using GSI
+    OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+    tables_to_check = [
+        ('inbound', MESSAGES_TABLE),
+        ('outbound', OUTBOUND_TABLE),
+    ]
+    
+    updated = False
+    for direction, table_name in tables_to_check:
+        try:
+            table = dynamodb.Table(table_name)
             
-            logger.info(json.dumps({
-                'event': 'status_updated',
-                'messageId': message_id,
+            # Use GSI query for O(1) lookup
+            try:
+                response = table.query(
+                    IndexName='whatsappMessageId-index',
+                    KeyConditionExpression='whatsappMessageId = :wmid',
+                    ExpressionAttributeValues={':wmid': whatsapp_message_id},
+                    Limit=1
+                )
+            except Exception:
+                # Fallback to scan if GSI not ready
+                response = table.scan(
+                    FilterExpression='whatsappMessageId = :wmid',
+                    ExpressionAttributeValues={':wmid': whatsapp_message_id},
+                    Limit=1
+                )
+            
+            items = response.get('Items', [])
+            if items:
+                message_id = items[0].get('id') or items[0].get('messageId')
+                table.update_item(
+                    Key={'id': message_id},
+                    UpdateExpression='SET #status = :status, statusUpdatedAt = :ts',
+                    ExpressionAttributeNames={'#status': 'status'},
+                    ExpressionAttributeValues={
+                        ':status': status_value,
+                        ':ts': Decimal(str(timestamp))
+                    }
+                )
+                
+                logger.info(json.dumps({
+                    'event': 'status_updated',
+                    'messageId': message_id,
+                    'whatsappMessageId': whatsapp_message_id,
+                    'status': status_value,
+                    'table': direction,
+                    'requestId': request_id
+                }))
+                updated = True
+                break  # Found and updated, no need to check other table
+                
+        except Exception as e:
+            logger.error(json.dumps({
+                'event': 'status_update_error',
                 'whatsappMessageId': whatsapp_message_id,
-                'status': status_value,
+                'table': direction,
+                'error': str(e),
                 'requestId': request_id
             }))
-            
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'status_update_error',
+    
+    if not updated:
+        logger.warning(json.dumps({
+            'event': 'status_update_message_not_found',
             'whatsappMessageId': whatsapp_message_id,
-            'error': str(e),
+            'status': status_value,
             'requestId': request_id
         }))
 
@@ -1133,13 +1205,11 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
 
 
 def _get_contact_by_phone(phone: str) -> Optional[Dict]:
-    """Get contact by phone number."""
+    """Get contact by phone number using GSI for O(1) lookup."""
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
         
         # Clean phone number - handle various formats
-        # Webhook sends: 918100330063
-        # DB stores: +918100330063
         clean_phone = phone.lstrip('+')
         phone_with_plus = f'+{clean_phone}'
         
@@ -1150,16 +1220,40 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
             'phoneWithPlus': phone_with_plus
         }))
         
-        # Try multiple phone formats
+        # Use GSI query on phone-index for O(1) lookup
+        for phone_variant in [phone_with_plus, clean_phone, phone]:
+            try:
+                response = contacts_table.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :phone',
+                    ExpressionAttributeValues={':phone': phone_variant},
+                    Limit=5
+                )
+                items = response.get('Items', [])
+                # Filter out deleted contacts
+                items = [i for i in items if not i.get('deletedAt')]
+                if items:
+                    logger.info(json.dumps({
+                        'event': 'contact_lookup_result',
+                        'phone': phone,
+                        'foundCount': len(items),
+                        'contactId': items[0].get('id', ''),
+                        'method': 'gsi'
+                    }))
+                    return items[0]
+            except Exception:
+                pass  # GSI not ready, will fallback below
+        
+        # Fallback to scan if GSI not ready
         response = contacts_table.scan(
             FilterExpression='(phone = :phone1 OR phone = :phone2 OR phone = :phone3) AND (attribute_not_exists(deletedAt) OR deletedAt = :null)',
             ExpressionAttributeValues={
                 ':phone1': clean_phone,
                 ':phone2': phone_with_plus,
-                ':phone3': phone,  # Original format
+                ':phone3': phone,
                 ':null': None
             },
-            Limit=10  # Increase limit to ensure we find the contact
+            Limit=10
         )
         
         items = response.get('Items', [])
@@ -1168,7 +1262,8 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
             'event': 'contact_lookup_result',
             'phone': phone,
             'foundCount': len(items),
-            'contactId': items[0].get('id', '') if items else None
+            'contactId': items[0].get('id', '') if items else None,
+            'method': 'scan_fallback'
         }))
         
         return items[0] if items else None
@@ -1554,7 +1649,8 @@ def _get_ai_config() -> Dict[str, Any]:
     """
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'configKey': 'ai_config'})
+        # SystemConfigTable PK is 'id', we use id=configKey for compatibility
+        response = config_table.get_item(Key={'id': 'ai_config'})
         
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
@@ -1955,15 +2051,17 @@ def _store_system_event(event_type: str, event_data: Dict, request_id: str) -> N
     Store system event in SystemConfig table for dashboard display.
     Uses a composite key: whatsapp_events_{event_type}
     Stores last 10 events of each type.
+    
+    Note: SystemConfigTable PK is 'id', we use id=configKey for compatibility.
     """
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         config_key = f'whatsapp_events_{event_type}'
         now = int(time.time())
         
-        # Get existing events
+        # Get existing events (PK is 'id')
         try:
-            response = config_table.get_item(Key={'configKey': config_key})
+            response = config_table.get_item(Key={'id': config_key})
             existing = response.get('Item', {})
             events_list = json.loads(existing.get('configValue', '[]'))
         except Exception:
@@ -1979,8 +2077,9 @@ def _store_system_event(event_type: str, event_data: Dict, request_id: str) -> N
         # Keep only last 10 events
         events_list = events_list[:10]
         
-        # Store updated events
+        # Store updated events (PK is 'id')
         config_table.put_item(Item={
+            'id': config_key,
             'configKey': config_key,
             'configValue': json.dumps(events_list),
             'updatedAt': Decimal(str(now))

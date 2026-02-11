@@ -1,0 +1,11 @@
+[
+  {
+    "Create": {
+      "IndexName": "phone-index",
+      "KeySchema": [
+        { "AttributeName": "phone", "KeyType": "HASH" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    }
+  }
+]

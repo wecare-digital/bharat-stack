@@ -1,0 +1,11 @@
+[
+  {
+    "Create": {
+      "IndexName": "whatsappMessageId-index",
+      "KeySchema": [
+        { "AttributeName": "whatsappMessageId", "KeyType": "HASH" }
+      ],
+      "Projection": { "ProjectionType": "ALL" }
+    }
+  }
+]
