@@ -1,0 +1,46 @@
+=== wecare-bulk-job-create === 
+{
+    "S3_BUCKET": "app.wecare.digital",
+    "AWS_ACCOUNT_ID": "775261844268",
+    "REGION": "us-east-1"
+}
+=== wecare-bulk-job-control === 
+{
+    "S3_BUCKET": "app.wecare.digital",
+    "AWS_ACCOUNT_ID": "775261844268",
+    "REGION": "us-east-1"
+}
+=== wecare-bulk-worker === 
+{
+    "CONTACTS_TABLE": "base-wecare-digital-ContactsTable",
+    "SEND_MODE": "LIVE",
+    "BULK_JOBS_TABLE": "base-wecare-digital-BulkJobsTable",
+    "BULK_RECIPIENTS_TABLE": "base-wecare-digital-BulkRecipientsTable",
+    "DEFAULT_PHONE_NUMBER_ID": "phone-number-id-5e020cecd221429996f6ae721cc42206",
+    "OUTBOUND_TABLE": "base-wecare-digital-WhatsAppOutboundTable",
+    "LOG_LEVEL": "INFO"
+}
+=== wecare-scheduled-messages === 
+{
+    "S3_BUCKET": "app.wecare.digital",
+    "AWS_ACCOUNT_ID": "775261844268",
+    "REGION": "us-east-1"
+}
+=== wecare-inbound-whatsapp === 
+{
+    "S3_BUCKET": "app.wecare.digital",
+    "AWS_ACCOUNT_ID": "775261844268",
+    "REGION": "us-east-1"
+}
+=== wecare-outbound-whatsapp === 
+{
+    "S3_BUCKET": "app.wecare.digital",
+    "AWS_ACCOUNT_ID": "775261844268",
+    "REGION": "us-east-1"
+}
+=== wecare-auth-middleware === 
+{
+    "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
+    "LOG_LEVEL": "INFO"
+}
+=== DONE === 

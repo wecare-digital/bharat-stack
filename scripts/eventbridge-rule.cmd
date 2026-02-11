@@ -1,0 +1,1 @@
+aws events put-rule --name wecare-scheduled-messages-trigger --schedule-expression "rate(5 minutes)" --state ENABLED --description "Trigger wecare-scheduled-messages every 5 minutes" --region us-east-1 --no-cli-pager
