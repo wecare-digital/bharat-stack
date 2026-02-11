@@ -735,7 +735,17 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
 
 
 def _get_extension_from_type(media_type: str) -> str:
-    """Get file extension based on WhatsApp message type (image, video, audio, document, sticker)."""
+    """
+    Get file extension based on WhatsApp message type.
+    Used as fallback when mime_type is not available.
+    
+    Supported types per WhatsApp Business Platform Cloud API:
+    - image: JPEG (5MB), PNG (5MB)
+    - video: MP4 (16MB), 3GPP (16MB)
+    - audio: AAC (16MB), AMR (16MB), MP3 (16MB), M4A (16MB), OGG (16MB)
+    - document: PDF, TXT, DOC/DOCX, XLS/XLSX, PPT/PPTX (100MB)
+    - sticker: WEBP (500KB animated, 100KB static)
+    """
     type_extensions = {
         'image': '.jpeg',
         'video': '.mp4',
@@ -747,17 +757,21 @@ def _get_extension_from_type(media_type: str) -> str:
 
 
 def _get_extension_from_mime(mime_type: str) -> str:
-    """Get file extension based on MIME type per AWS Social Messaging supported formats."""
+    """
+    Get file extension based on MIME type.
+    Complete mapping per WhatsApp Business Platform supported media types.
+    """
     mime_extensions = {
         # Image formats (max 5MB)
         'image/jpeg': '.jpeg',
         'image/png': '.png',
+        
+        # Sticker formats (max 500KB animated, 100KB static)
         'image/webp': '.webp',
         
         # Video formats (max 16MB)
         'video/mp4': '.mp4',
         'video/3gpp': '.3gp',
-        'video/3gp': '.3gp',
         
         # Audio formats (max 16MB)
         'audio/aac': '.aac',

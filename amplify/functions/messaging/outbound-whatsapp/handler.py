@@ -1756,19 +1756,32 @@ def _log_validation_failure(contact_id: str, channel: str, reason: str, request_
 
 
 def _get_media_extension(media_type: str) -> str:
-    """Get file extension based on media type per AWS Social Messaging docs."""
+    """
+    Get file extension based on media type.
+    Complete mapping per WhatsApp Business Platform supported media types.
+    
+    Supported types:
+    - Audio: AAC, AMR, MP3, M4A, OGG (max 16MB)
+    - Document: PDF, TXT, DOC/DOCX, XLS/XLSX, PPT/PPTX (max 100MB)
+    - Image: JPEG, PNG (max 5MB)
+    - Sticker: WEBP (max 500KB animated, 100KB static)
+    - Video: MP4, 3GPP (max 16MB)
+    """
     extensions = {
         # Image formats (max 5MB)
         'image/jpeg': '.jpeg',
         'image/png': '.png',
         'image': '.jpeg',  # Default image
-        
+
+        # Sticker formats (max 500KB animated, 100KB static)
+        'image/webp': '.webp',
+        'sticker': '.webp',
+
         # Video formats (max 16MB)
         'video/mp4': '.mp4',
         'video/3gpp': '.3gp',
-        'video/3gp': '.3gp',
         'video': '.mp4',  # Default video
-        
+
         # Audio formats (max 16MB)
         'audio/aac': '.aac',
         'audio/amr': '.amr',
@@ -1776,7 +1789,7 @@ def _get_media_extension(media_type: str) -> str:
         'audio/mp4': '.m4a',
         'audio/ogg': '.ogg',
         'audio': '.ogg',  # Default audio
-        
+
         # Document formats (max 100MB)
         'application/pdf': '.pdf',
         'text/plain': '.txt',
@@ -1787,10 +1800,6 @@ def _get_media_extension(media_type: str) -> str:
         'application/vnd.ms-powerpoint': '.ppt',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
         'document': '.pdf',  # Default document
-        
-        # Sticker formats (max 500KB animated, 100KB static)
-        'image/webp': '.webp',
-        'sticker': '.webp'
     }
     
     # Try exact match first
@@ -1803,29 +1812,34 @@ def _get_media_extension(media_type: str) -> str:
 
 
 def _get_content_type(media_type: str) -> str:
-    """Get MIME content type based on media type per AWS Social Messaging docs."""
+    """
+    Get MIME content type based on media type.
+    Complete mapping per WhatsApp Business Platform supported media types.
+    """
     content_types = {
-        # Image formats
+        # Image formats (max 5MB)
         'image/jpeg': 'image/jpeg',
         'image/png': 'image/png',
-        'image/webp': 'image/webp',
         'image': 'image/jpeg',
-        
-        # Video formats
+
+        # Sticker formats (max 500KB animated, 100KB static)
+        'image/webp': 'image/webp',
+        'sticker': 'image/webp',
+
+        # Video formats (max 16MB)
         'video/mp4': 'video/mp4',
         'video/3gpp': 'video/3gpp',
-        'video/3gp': 'video/3gpp',
         'video': 'video/mp4',
-        
-        # Audio formats
+
+        # Audio formats (max 16MB)
         'audio/aac': 'audio/aac',
         'audio/amr': 'audio/amr',
         'audio/mpeg': 'audio/mpeg',
         'audio/mp4': 'audio/mp4',
         'audio/ogg': 'audio/ogg',
         'audio': 'audio/ogg',
-        
-        # Document formats
+
+        # Document formats (max 100MB)
         'application/pdf': 'application/pdf',
         'text/plain': 'text/plain',
         'application/msword': 'application/msword',
@@ -1835,9 +1849,6 @@ def _get_content_type(media_type: str) -> str:
         'application/vnd.ms-powerpoint': 'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'document': 'application/pdf',
-        
-        # Sticker formats
-        'sticker': 'image/webp'
     }
     
     # Try exact match first
@@ -1854,28 +1865,38 @@ def _get_content_type(media_type: str) -> str:
 
 def _validate_media_size(file_size: int, media_type: str) -> Tuple[bool, str]:
     """
-    Validate media file size per AWS Social Messaging docs.
+    Validate media file size per WhatsApp Business Platform supported media types.
+    
+    Limits:
+    - Audio (AAC, AMR, MP3, M4A, OGG): 16 MB
+    - Document (PDF, TXT, DOC/DOCX, XLS/XLSX, PPT/PPTX): 100 MB
+    - Image (JPEG, PNG): 5 MB
+    - Sticker animated (WEBP): 500 KB
+    - Sticker static (WEBP): 100 KB
+    - Video (MP4, 3GPP): 16 MB
+    
     Returns (is_valid, error_message)
     """
-    # Get media category
-    if media_type.startswith('image/') or media_type == 'image':
-        max_size = 5 * 1024 * 1024  # 5MB
-        category = 'Image'
-    elif media_type.startswith('video/') or media_type == 'video':
-        max_size = 16 * 1024 * 1024  # 16MB
-        category = 'Video'
-    elif media_type.startswith('audio/') or media_type == 'audio':
-        max_size = 16 * 1024 * 1024  # 16MB
+    if media_type.startswith('audio/') or media_type == 'audio':
+        max_size = 16 * 1024 * 1024  # 16 MB
         category = 'Audio'
+    elif media_type.startswith('video/') or media_type == 'video':
+        max_size = 16 * 1024 * 1024  # 16 MB
+        category = 'Video'
     elif media_type == 'sticker' or media_type == 'image/webp':
-        max_size = 500 * 1024  # 500KB for animated, but we'll use this as max
+        max_size = 500 * 1024  # 500 KB (animated max; static is 100KB but we allow up to 500KB)
         category = 'Sticker'
+    elif media_type.startswith('image/') or media_type == 'image':
+        max_size = 5 * 1024 * 1024  # 5 MB
+        category = 'Image'
     else:
-        max_size = 100 * 1024 * 1024  # 100MB for documents
+        # Documents: PDF, TXT, DOC/DOCX, XLS/XLSX, PPT/PPTX
+        max_size = 100 * 1024 * 1024  # 100 MB
         category = 'Document'
     
     if file_size > max_size:
-        return False, f'{category} file exceeds maximum size of {max_size / (1024*1024):.0f}MB'
+        max_display = f'{max_size / 1024:.0f}KB' if max_size < 1024 * 1024 else f'{max_size / (1024*1024):.0f}MB'
+        return False, f'{category} file exceeds maximum size of {max_display}'
     
     return True, ''
 
