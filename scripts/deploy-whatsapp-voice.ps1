@@ -10,8 +10,8 @@
 
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
-$ACCOUNT_ID = "809904170947"
-$API_ID = "k4vqzmi07b"
+$ACCOUNT_ID = "775261844268"
+$API_ID = "api.wecare.digital"
 $STAGE = "prod"
 $LAMBDA_ROLE = "arn:aws:iam::${ACCOUNT_ID}:role/wecare-digital-lambda-role"
 
@@ -54,7 +54,7 @@ $zipPath = "amplify/functions/messaging/whatsapp-voice/lambda.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path $handlerPath -DestinationPath $zipPath -Force
 
-$ENV_VARS = "Variables={CONTACTS_TABLE=base-wecare-digital-ContactsTable,MESSAGES_TABLE=base-wecare-digital-WhatsAppOutboundTable,VOICE_LOG_TABLE=$TABLE_NAME,MEDIA_BUCKET=auth.wecare.digital,WHATSAPP_PHONE_NUMBER_ID_1=phone-number-id-2ff05755631b41f29151c0573b7a4e2a,WHATSAPP_PHONE_NUMBER_ID_2=phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6,LOG_LEVEL=INFO}"
+$ENV_VARS = "Variables={CONTACTS_TABLE=base-wecare-digital-ContactsTable,MESSAGES_TABLE=base-wecare-digital-WhatsAppOutboundTable,VOICE_LOG_TABLE=$TABLE_NAME,MEDIA_BUCKET=app.wecare.digital,WHATSAPP_PHONE_NUMBER_ID_1=phone-number-id-5e020cecd221429996f6ae721cc42206,WHATSAPP_PHONE_NUMBER_ID_2=phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c,LOG_LEVEL=INFO}"
 
 $exists = $false
 try {
@@ -146,8 +146,8 @@ Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "  Deployment Complete!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "`nEndpoints:" -ForegroundColor White
-Write-Host "  POST   https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-voice/tts"
-Write-Host "  POST   https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-voice/send"
-Write-Host "  GET    https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-voice/voices"
-Write-Host "  GET    https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-voice/logs"
+Write-Host "  POST   https://api.wecare.digital/whatsapp-voice/tts"
+Write-Host "  POST   https://api.wecare.digital/whatsapp-voice/send"
+Write-Host "  GET    https://api.wecare.digital/whatsapp-voice/voices"
+Write-Host "  GET    https://api.wecare.digital/whatsapp-voice/logs"
 Write-Host ""

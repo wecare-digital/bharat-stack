@@ -130,7 +130,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <img src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="sidebar-logo" />
+            <img src="https://app.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="sidebar-logo" />
             <div className="sidebar-brand-text">
               <span className="sidebar-brand-main">Base CRM</span>
               <span className="sidebar-brand-sub">by WECARE.DIGITAL</span>

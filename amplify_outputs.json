@@ -6,8 +6,8 @@
     "oauth": {
       "domain": "sso.wecare.digital",
       "scopes": ["openid", "email", "profile"],
-      "redirect_sign_in_uri": ["https://base.wecare.digital/", "https://base.dtiq7il2x5c5g.amplifyapp.com/", "http://localhost:3000/"],
-      "redirect_sign_out_uri": ["https://base.wecare.digital/", "https://base.dtiq7il2x5c5g.amplifyapp.com/", "http://localhost:3000/"],
+      "redirect_sign_in_uri": ["https://base.wecare.digital/", "https://base.d3nadrc9t6n3f8.amplifyapp.com/", "http://localhost:3000/"],
+      "redirect_sign_out_uri": ["https://base.wecare.digital/", "https://base.d3nadrc9t6n3f8.amplifyapp.com/", "http://localhost:3000/"],
       "response_type": "code"
     },
     "identity_pool_id": "us-east-1:ef6b783a-f0c5-4d2f-925d-9460e6a733ce",

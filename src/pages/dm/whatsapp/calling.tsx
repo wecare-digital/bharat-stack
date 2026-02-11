@@ -14,13 +14,13 @@ import { WHATSAPP_PHONES } from '../../../config/constants';
 interface PageProps { signOut?: () => void; user?: any; }
 
 const PHONE_NUMBERS = [
-  { id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a', metaId: '1065003613352032', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: false },
-  { id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6', metaId: '1065809899939064', display: '+91 99033 00044', name: 'Manish Agarwal', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true },
+  { id: 'phone-number-id-5e020cecd221429996f6ae721cc42206', metaId: '960395407161423', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: false },
+  { id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c', metaId: '997428863451102', display: '+91 99033 00044', name: 'Manish Agarwal', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true },
 ];
 
 // Webhook configuration — LIVE
 const WEBHOOK_CONFIG = {
-  callbackUrl: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling',
+  callbackUrl: 'https://api.wecare.digital/whatsapp-calling',
   verifyToken: 'wecare_calling_verify_2026',
   subscribedFields: ['calls'],
   lambda: 'wecare-whatsapp-calling',
@@ -34,7 +34,7 @@ const META_TOKEN = {
   appName: 'wecare_token',
   secretName: 'wecare/meta-system-user-token',
   scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
-  wabaAccess: ['1728153881476046', '761651636983279'],
+  wabaAccess: ['1912405516040025', '1633959101297902'],
   tokenType: 'System User',
   status: 'active',
 };
@@ -144,13 +144,13 @@ POST /{phone-number-id}/calls
 ];
 
 const AWS_RESOURCES = [
-  { service: 'API Gateway', resource: 'k4vqzmi07b', purpose: 'Webhook endpoint for Meta call events + messaging', status: 'active' },
+  { service: 'API Gateway', resource: 'api.wecare.digital', purpose: 'Webhook endpoint for Meta call events + messaging', status: 'active' },
   { service: 'Lambda', resource: 'wecare-whatsapp-calling', purpose: 'Calling webhook handler (verify + call events)', status: 'active' },
   { service: 'Lambda', resource: 'wecare-whatsapp-voice', purpose: 'TTS generation, media upload, audio messages', status: 'active' },
   { service: 'DynamoDB', resource: 'WhatsAppCallingTable', purpose: 'Call event logs (connect, terminate, permission)', status: 'active' },
   { service: 'DynamoDB', resource: 'WhatsAppVoiceTable', purpose: 'TTS logs, voice note logs', status: 'active' },
   { service: 'Amazon Polly', resource: 'SynthesizeSpeech', purpose: 'Neural TTS for IVR prompts and voice notes (OPUS)', status: 'active' },
-  { service: 'S3', resource: 'auth.wecare.digital/whatsapp-media/', purpose: 'TTS audio files, call recordings', status: 'active' },
+  { service: 'S3', resource: 'app.wecare.digital/whatsapp-media/', purpose: 'TTS audio files, call recordings', status: 'active' },
   { service: 'Secrets Manager', resource: 'wecare/meta-app-secret', purpose: 'Meta App Secret for webhook verification', status: 'active' },
 ];
 
@@ -183,13 +183,13 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [autoPickup, setAutoPickup] = useState(true);
   const [autoPickupLoading, setAutoPickupLoading] = useState(false);
-  const [ivrUrl, setIvrUrl] = useState('https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3');
+  const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/IVR+1.mp3');
   const [activeCalls, setActiveCalls] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<any[]>([]);
   const [loadingCalls, setLoadingCalls] = useState(false);
   const toast = useToastContext();
 
-  const API_BASE = 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+  const API_BASE = 'https://api.wecare.digital';
 
   // Calling settings state
   const [settingsPhone, setSettingsPhone] = useState(PHONE_NUMBERS[1]); // default to calling-ready number
@@ -553,7 +553,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
             <div style={{ ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '200px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>IVR Audio URL</label>
-                <input value={ivrUrl} onChange={e => setIvrUrl(e.target.value)} placeholder="https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3"
+                <input value={ivrUrl} onChange={e => setIvrUrl(e.target.value)} placeholder="https://app.wecare.digital/stream/media/ivr/IVR+1.mp3"
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }} />
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' }}>

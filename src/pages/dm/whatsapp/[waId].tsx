@@ -181,7 +181,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         contactId: m.contactId,
         whatsappMessageId: m.whatsappMessageId,
         // Use pre-signed URL from API, fallback to direct S3 URL
-        mediaUrl: m.mediaUrl || (m.s3Key ? `https://auth.wecare.digital.s3.amazonaws.com/${m.s3Key}` : undefined),
+        mediaUrl: m.mediaUrl || (m.s3Key ? `https://app.wecare.digital.s3.amazonaws.com/${m.s3Key}` : undefined),
         s3Key: m.s3Key,
         messageType: m.messageType || (m.s3Key ? 'media' : 'text'),
       })));

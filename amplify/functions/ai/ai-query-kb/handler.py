@@ -5,8 +5,8 @@ Purpose: Query Bedrock Knowledge Base for context
 Uses External KB for WhatsApp auto-reply
 
 KB IDs:
-- Internal KB: 7IWHVB0ZXQ
-- External KB: CTH8DH3RXY
+- Internal KB: D0JU8Q7IQS
+- External KB: LYMQLKZNY7
 """
 
 import os
@@ -24,8 +24,8 @@ bedrock_agent_runtime = boto3.client('bedrock-agent-runtime', region_name=os.env
 
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', '7IWHVB0ZXQ')
-EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'CTH8DH3RXY')
+INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'D0JU8Q7IQS')
+EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'LYMQLKZNY7')
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

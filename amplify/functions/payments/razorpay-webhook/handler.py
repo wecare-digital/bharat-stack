@@ -2,7 +2,7 @@
 Razorpay Webhook Handler Lambda Function
 
 Purpose: Process Razorpay payment webhooks
-Webhook URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/razorpay-webhook
+Webhook URL: https://api.wecare.digital/razorpay-webhook
 Webhook Secret: b@c4mk9t9Z8qLq3
 """
 

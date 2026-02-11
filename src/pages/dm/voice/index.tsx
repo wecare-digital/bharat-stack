@@ -157,7 +157,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user }) => {
     if (!confirm('Clear all voice logs? This cannot be undone.')) return;
     setClearing(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod'}/voice-aws/clear-logs`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/voice-aws/clear-logs`, {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' }
       });
       const result = await response.json();

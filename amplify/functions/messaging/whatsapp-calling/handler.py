@@ -41,10 +41,10 @@ META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 # Dual WABA token support
-WABA1_ID = '1728153881476046'
-WABA2_ID = '761651636983279'
-PHONE1_META_ID = '1065003613352032'
-PHONE2_META_ID = '1065809899939064'
+WABA1_ID = '1912405516040025'
+WABA2_ID = '1633959101297902'
+PHONE1_META_ID = '960395407161423'
+PHONE2_META_ID = '997428863451102'
 WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
 
 # Cache Meta tokens (dual)
@@ -466,16 +466,16 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 # Toggle via SystemConfig table or environment variable.
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/IVR+1.mp3')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 s3 = boto3.client('s3', region_name=REGION)
 social_messaging = boto3.client('socialmessaging', region_name=REGION)
 
 # Phone number ID mapping for outbound audio via EUM
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
 
 
 def _is_auto_pickup_enabled() -> bool:
@@ -493,7 +493,7 @@ def _is_auto_pickup_enabled() -> bool:
 
 def _get_auto_pickup_audio_url() -> Optional[str]:
     """Get the IVR audio URL for auto-pickup greeting.
-    Uses direct URL by default: https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3
+    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/IVR+1.mp3
     Can be overridden via SystemConfig table (key: whatsapp_calling_ivr_url).
     """
     try:

@@ -3,8 +3,8 @@
 
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
-$ACCOUNT = "809904170947"
-$API_ID = "k4vqzmi07b"
+$ACCOUNT = "775261844268"
+$API_ID = "api.wecare.digital"
 $LAMBDA_NAME = "wecare-whatsapp-calling"
 $TABLE_NAME = "base-wecare-digital-WhatsAppCallingTable"
 $ROLE_ARN = "arn:aws:iam::${ACCOUNT}:role/wecare-digital-lambda-role"
@@ -66,7 +66,7 @@ if ($lambdaExists) {
     
     aws lambda update-function-configuration `
         --function-name $LAMBDA_NAME `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://app.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
         --timeout 30 `
         --memory-size 256 `
         --region $REGION `
@@ -81,7 +81,7 @@ if ($lambdaExists) {
         --zip-file "fileb://$zipPath" `
         --timeout 30 `
         --memory-size 256 `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://auth.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://app.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
         --region $REGION `
         --no-cli-pager
     Write-Host "  Lambda created" -ForegroundColor Green
@@ -154,7 +154,7 @@ try {
 Write-Host "`n=== Deployment Complete ===" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Webhook URL for Meta Dashboard:" -ForegroundColor White
-Write-Host "  https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling" -ForegroundColor Green
+Write-Host "  https://api.wecare.digital/whatsapp-calling" -ForegroundColor Green
 Write-Host ""
 Write-Host "Verify Token:" -ForegroundColor White
 Write-Host "  wecare_calling_verify_2026" -ForegroundColor Green

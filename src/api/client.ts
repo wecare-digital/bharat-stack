@@ -548,14 +548,14 @@ export interface AIConfig {
 }
 
 // Bedrock AI Configuration
-// INTERNAL: For admin tasks (FloatingAgent) - Agent: TJAZR473IJ, KB: 7IWHVB0ZXQ
-// EXTERNAL: For WhatsApp auto-reply (customer-facing) - Agent: JDXIOU2UR9, KB: CTH8DH3RXY
+// INTERNAL: For admin tasks (FloatingAgent) - Agent: QIEEHEBTZO, KB: D0JU8Q7IQS
+// EXTERNAL: For WhatsApp auto-reply (customer-facing) - Agent: Z4YAK0ZLBO, KB: LYMQLKZNY7
 const AI_CONFIG: AIConfig = {
   enabled: true,
   autoReplyEnabled: true,
-  knowledgeBaseId: 'CTH8DH3RXY',  // External KB ID (for WhatsApp auto-reply)
-  agentId: 'JDXIOU2UR9',  // External Agent ID (for WhatsApp auto-reply)
-  agentAliasId: 'AQVQPGYXRR',  // External Agent Alias
+  knowledgeBaseId: 'LYMQLKZNY7',  // External KB ID (for WhatsApp auto-reply)
+  agentId: 'Z4YAK0ZLBO',  // External Agent ID (for WhatsApp auto-reply)
+  agentAliasId: 'WANPKHQGIB',  // External Agent Alias
   maxTokens: 1024,
   temperature: 0.7,
   systemPrompt: 'You are a helpful customer service assistant for WECARE.DIGITAL.',
@@ -716,16 +716,16 @@ export async function getSystemHealth(): Promise<SystemHealth> {
   // Real AWS Resource IDs
   return {
     whatsapp: { status: 'active', phoneNumbers: 2, qualityRating: 'GREEN' },
-    sms: { status: 'active', poolId: 'pool-6fbf5a5f390d4eeeaa7dbae39d78933e' },
+    sms: { status: 'active', poolId: 'TBD' },
     email: { status: 'active', verified: true },
     ai: { 
       status: 'active', 
-      internalKbId: '7IWHVB0ZXQ', 
-      internalAgentId: 'TJAZR473IJ',
-      internalAgentAlias: 'O4U1HF2MSX',
-      externalKbId: 'CTH8DH3RXY',
-      externalAgentId: 'JDXIOU2UR9',
-      externalAgentAlias: 'AQVQPGYXRR'
+      internalKbId: 'D0JU8Q7IQS', 
+      internalAgentId: 'QIEEHEBTZO',
+      internalAgentAlias: 'ASCBD7YPUT',
+      externalKbId: 'LYMQLKZNY7',
+      externalAgentId: 'Z4YAK0ZLBO',
+      externalAgentAlias: 'WANPKHQGIB'
     },
     dlq: { depth: 0 },
   };
@@ -1285,8 +1285,8 @@ export interface TemplateComponent {
 
 // WABA IDs for template fetching
 const WABA_IDS = {
-  'WECARE.DIGITAL': 'waba-df9aa4e4946a40b59e269a4f41633ca1',
-  'Manish Agarwal': 'waba-6cab7a36990c4aeeba314ebe5cd1ec39',
+  'WECARE.DIGITAL': 'waba-e47d916f3c7a47e1a34a19653893dd4b',
+  'Manish Agarwal': 'waba-dbe343f210204752b74c80a0a59631a6',
 };
 
 /**
@@ -1964,9 +1964,9 @@ export async function getBedrockAIConfig(): Promise<BedrockAIConfig> {
     responseDelay: 0,
     supportedLanguages: ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     defaultLanguage: 'en',
-    agentId: 'JDXIOU2UR9',
-    agentAlias: 'AQVQPGYXRR',
-    knowledgeBaseId: 'CTH8DH3RXY',
+    agentId: 'Z4YAK0ZLBO',
+    agentAlias: 'WANPKHQGIB',
+    knowledgeBaseId: 'LYMQLKZNY7',
     modelId: 'amazon.nova-lite-v1:0',
   };
 }

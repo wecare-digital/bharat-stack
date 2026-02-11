@@ -37,7 +37,7 @@ MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'base-wecare-digital-Med
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'base-wecare-digital-AIInteractionsTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'whatsapp-media/whatsapp-media-incoming/')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 
@@ -50,8 +50,8 @@ OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecar
 
 # WhatsApp Phone Number IDs - Map Meta phone number IDs to AWS phone number IDs
 # Format: Meta phone number ID -> AWS EUM phone-number-id
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
 
 # Map display phone numbers to AWS phone number IDs for reference
 PHONE_NUMBER_MAP = {
@@ -71,7 +71,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     {
         "context": { "MetaWabaIds": [...], "MetaPhoneNumberIds": [...] },
         "whatsAppWebhookEntry": "{...JSON STRING...}",
-        "aws_account_id": "809904170947",
+        "aws_account_id": "775261844268",
         "message_timestamp": "2026-01-17T12:00:00.000Z",
         "messageId": "uuid"
     }
@@ -1502,9 +1502,9 @@ DEFAULT_AI_CONFIG = {
     'responseDelay': 0,
     'supportedLanguages': ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     'defaultLanguage': 'en',
-    'agentId': 'JDXIOU2UR9',
-    'agentAlias': 'AQVQPGYXRR',
-    'knowledgeBaseId': 'CTH8DH3RXY',
+    'agentId': 'Z4YAK0ZLBO',
+    'agentAlias': 'WANPKHQGIB',
+    'knowledgeBaseId': 'LYMQLKZNY7',
     'modelId': 'amazon.nova-lite-v1:0',
 }
 

@@ -44,7 +44,7 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
 OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'base-wecare-digital-OBDCampaigns')
-S3_BUCKET = os.environ.get('S3_BUCKET', 'auth.wecare.digital')
+S3_BUCKET = os.environ.get('S3_BUCKET', 'app.wecare.digital')
 S3_RECORDING_PREFIX = 'voice/voice-in/'
 AIRTEL_OBD_SECRET_NAME = os.environ.get('AIRTEL_OBD_SECRET_NAME', 'wecare/airtel/obd')
 TTL_DAYS = 90

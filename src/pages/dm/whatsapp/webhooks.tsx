@@ -32,12 +32,12 @@ const WEBHOOK_FIELDS = [
 ];
 
 const EXISTING_WEBHOOKS = [
-  { name: 'Inbound Messages', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (AWS EUM managed)' },
-  { name: 'WhatsApp Calling', url: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active', verifyToken: 'wecare_calling_verify_2026' },
+  { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (AWS EUM managed)' },
+  { name: 'WhatsApp Calling', url: 'https://api.wecare.digital/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active', verifyToken: 'wecare_calling_verify_2026' },
 ];
 
 const META_WEBHOOK_CONFIG = {
-  callbackUrl: 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/whatsapp-calling',
+  callbackUrl: 'https://api.wecare.digital/whatsapp-calling',
   verifyToken: 'wecare_calling_verify_2026',
   appId: '891766673609917',
   appName: 'wecare_token',

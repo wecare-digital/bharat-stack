@@ -16,7 +16,7 @@
 
 export const ALARM_CONFIG = {
   namespace: 'WECARE.DIGITAL',
-  snsTopicArn: 'arn:aws:sns:us-east-1:809904170947:base-wecare-digital',
+  snsTopicArn: 'arn:aws:sns:us-east-1:775261844268:base-wecare-digital',
   
   alarms: {
     // Lambda Error Rate Alarm
@@ -98,8 +98,8 @@ export const ALARM_CONFIG = {
  * All alarms publish to the SNS topic for notification.
  */
 export const ALARM_ACTIONS = {
-  ok: [`arn:aws:sns:us-east-1:809904170947:base-wecare-digital`],
-  alarm: [`arn:aws:sns:us-east-1:809904170947:base-wecare-digital`],
+  ok: [`arn:aws:sns:us-east-1:775261844268:base-wecare-digital`],
+  alarm: [`arn:aws:sns:us-east-1:775261844268:base-wecare-digital`],
   insufficientData: [],
 };
 

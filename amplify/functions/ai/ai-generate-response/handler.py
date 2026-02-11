@@ -8,13 +8,13 @@ Model: Amazon Nova Lite (~$0.06/1M input tokens)
 
 Architecture:
 - INTERNAL Agent/KB: For FloatingAgent (admin tasks)
-  - Agent ID: TJAZR473IJ
-  - Agent Alias: O4U1HF2MSX
-  - KB ID: 7IWHVB0ZXQ
+  - Agent ID: QIEEHEBTZO
+  - Agent Alias: ASCBD7YPUT
+  - KB ID: D0JU8Q7IQS
 - EXTERNAL Agent/KB: For WhatsApp auto-reply (customer-facing)
-  - Agent ID: JDXIOU2UR9
-  - Agent Alias: AQVQPGYXRR
-  - KB ID: CTH8DH3RXY
+  - Agent ID: Z4YAK0ZLBO
+  - Agent Alias: WANPKHQGIB
+  - KB ID: LYMQLKZNY7
 """
 
 import os
@@ -36,14 +36,14 @@ bedrock_agent_runtime = boto3.client('bedrock-agent-runtime', region_name=os.env
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 
 # Internal Agent (FloatingAgent - admin tasks)
-INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'TJAZR473IJ')
-INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'O4U1HF2MSX')
-INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', '7IWHVB0ZXQ')
+INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'QIEEHEBTZO')
+INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'ASCBD7YPUT')
+INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'D0JU8Q7IQS')
 
 # External Agent (WhatsApp auto-reply - customer facing)
-EXTERNAL_AGENT_ID = os.environ.get('EXTERNAL_AGENT_ID', 'JDXIOU2UR9')
-EXTERNAL_AGENT_ALIAS = os.environ.get('EXTERNAL_AGENT_ALIAS', 'AQVQPGYXRR')
-EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'CTH8DH3RXY')
+EXTERNAL_AGENT_ID = os.environ.get('EXTERNAL_AGENT_ID', 'Z4YAK0ZLBO')
+EXTERNAL_AGENT_ALIAS = os.environ.get('EXTERNAL_AGENT_ALIAS', 'WANPKHQGIB')
+EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'LYMQLKZNY7')
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

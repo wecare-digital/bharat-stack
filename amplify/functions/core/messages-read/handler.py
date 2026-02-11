@@ -29,8 +29,8 @@ s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east
 # DynamoDB table names - actual tables used by the system
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
-MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'auth.wecare.digital')  # CloudFront domain
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
 
 # Pagination defaults
 DEFAULT_LIMIT = 50

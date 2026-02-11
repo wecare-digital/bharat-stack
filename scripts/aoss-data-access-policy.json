@@ -1,0 +1,30 @@
+[
+  {
+    "Rules": [
+      {
+        "ResourceType": "index",
+        "Resource": ["index/wecare-digital-vectors/*"],
+        "Permission": [
+          "aoss:CreateIndex",
+          "aoss:UpdateIndex",
+          "aoss:DescribeIndex",
+          "aoss:ReadDocument",
+          "aoss:WriteDocument"
+        ]
+      },
+      {
+        "ResourceType": "collection",
+        "Resource": ["collection/wecare-digital-vectors"],
+        "Permission": [
+          "aoss:CreateCollectionItems",
+          "aoss:UpdateCollectionItems",
+          "aoss:DescribeCollectionItems"
+        ]
+      }
+    ],
+    "Principal": [
+      "arn:aws:iam::775261844268:role/AmazonBedrockExecutionRoleForKB_wecare",
+      "arn:aws:iam::775261844268:root"
+    ]
+  }
+]

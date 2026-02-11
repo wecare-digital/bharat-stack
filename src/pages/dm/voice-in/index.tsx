@@ -17,7 +17,7 @@ interface C2CCall { callId: string; fromNumber: string; toNumber: string; caller
 interface OBDCampaign { id: string; airtelCampaignId: string; campaignName: string; status: string; audioUrl: string; contactCount?: number; createdAt: number; }
 interface CDRRecord { id: string; vmSessionId: string; clientCorrelationId: string; callType: string; overallCallStatus: string; callerNumber: string; destinationNumber: string; durationSec: number; conversationDurationSec: number; hangupStatus: string; recordingURL?: string; circleNameCaller?: string; operatorNameCaller?: string; createdAt: number; }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 const ITEMS_PER_PAGE = 20;
 
 const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {

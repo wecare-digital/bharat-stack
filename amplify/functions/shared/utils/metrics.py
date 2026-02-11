@@ -482,7 +482,7 @@ class AlertPublisher:
     
     SNS_TOPIC_ARN = os.environ.get(
         'SNS_ALERT_TOPIC',
-        'arn:aws:sns:us-east-1:809904170947:base-wecare-digital'
+        'arn:aws:sns:us-east-1:775261844268:base-wecare-digital'
     )
     
     def __init__(self, sns_client=None):

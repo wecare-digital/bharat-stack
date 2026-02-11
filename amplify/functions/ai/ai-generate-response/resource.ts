@@ -17,12 +17,12 @@ export const aiGenerateResponse = defineFunction({
     LOG_LEVEL: 'INFO',
     SEND_MODE: 'LIVE',
     // Internal Agent (FloatingAgent - admin tasks)
-    INTERNAL_AGENT_ID: 'TJAZR473IJ',
-    INTERNAL_AGENT_ALIAS: 'O4U1HF2MSX',
-    INTERNAL_KB_ID: '7IWHVB0ZXQ',
+    INTERNAL_AGENT_ID: 'QIEEHEBTZO',
+    INTERNAL_AGENT_ALIAS: 'ASCBD7YPUT',
+    INTERNAL_KB_ID: 'D0JU8Q7IQS',
     // External Agent (WhatsApp auto-reply - customer facing)
-    EXTERNAL_AGENT_ID: 'JDXIOU2UR9',
-    EXTERNAL_AGENT_ALIAS: 'AQVQPGYXRR',
-    EXTERNAL_KB_ID: 'CTH8DH3RXY',
+    EXTERNAL_AGENT_ID: 'Z4YAK0ZLBO',
+    EXTERNAL_AGENT_ALIAS: 'WANPKHQGIB',
+    EXTERNAL_KB_ID: 'LYMQLKZNY7',
   },
 });

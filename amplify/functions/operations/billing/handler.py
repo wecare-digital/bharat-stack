@@ -2,7 +2,7 @@
 AWS Billing Lambda Function
 
 Purpose: Fetch real AWS Cost Explorer, Health, and Trusted Advisor data
-Account: 809904170947
+Account: 775261844268
 Region: us-east-1
 
 Uses AWS Cost Explorer, Health, and Support APIs.
@@ -26,7 +26,7 @@ health_client = boto3.client('health', region_name='us-east-1')
 support_client = boto3.client('support', region_name='us-east-1')
 
 # Account info
-AWS_ACCOUNT_ID = '809904170947'
+AWS_ACCOUNT_ID = '775261844268'
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:

@@ -11,8 +11,8 @@ logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
-DEFAULT_WABA_ID = 'waba-df9aa4e4946a40b59e269a4f41633ca1'
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',

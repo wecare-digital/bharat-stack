@@ -8,9 +8,9 @@
  * - View AI interaction logs and statistics
  * 
  * External Agent/KB (Customer-Facing):
- * - Agent ID: JDXIOU2UR9
- * - Agent Alias: AQVQPGYXRR
- * - KB ID: CTH8DH3RXY
+ * - Agent ID: Z4YAK0ZLBO
+ * - Agent Alias: WANPKHQGIB
+ * - KB ID: LYMQLKZNY7
  * 
  * Note: For Internal AI (FloatingAgent admin tasks), go to Dashboard → AI
  */
@@ -154,7 +154,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             </span>
           </div>
           <p style={{ color: '#6b6b6b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-            Agent: JDXIOU2UR9 | KB: CTH8DH3RXY | For internal admin AI, go to Dashboard → AI
+            Agent: Z4YAK0ZLBO | KB: LYMQLKZNY7 | For internal admin AI, go to Dashboard → AI
           </p>
         </div>
 

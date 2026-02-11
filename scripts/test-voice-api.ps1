@@ -1,7 +1,7 @@
 # Test Voice API Endpoints
 # Run: .\scripts\test-voice-api.ps1
 
-$baseUrl = "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod"
+$baseUrl = "https://api.wecare.digital"
 
 Write-Host "Voice API Tests" -ForegroundColor Cyan
 Write-Host "===============" -ForegroundColor Cyan

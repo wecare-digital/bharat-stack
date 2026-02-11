@@ -34,12 +34,12 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'Contact')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'Message')
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'MediaFile')
 RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'RateLimitTracker')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'whatsapp-media/whatsapp-media-outgoing/')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
 ALLOWLIST = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
 # Constants
@@ -50,8 +50,8 @@ CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations (active on BOTH WABAs)
-# +91 9330994400 (WABA 1728153881476046): WECARE_PAY + WECARE_UPI
-# +91 9903300044 (WABA 761651636983279):  WECARE_PAY + WECARE_UPI
+# +91 9330994400 (WABA 1912405516040025): WECARE_PAY + WECARE_UPI
+# +91 9903300044 (WABA 1633959101297902):  WECARE_PAY + WECARE_UPI
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
 # Razorpay MID: acc_HDfub6wOfQybuH | UPI ID: wecaredigital83.rzp@icici
 VALID_PAYMENT_CONFIGS = {'WECARE_PAY', 'WECARE_UPI'}
@@ -1338,7 +1338,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
     }
     
     # Default header image for interactive payments
-    DEFAULT_PAYMENT_HEADER_IMAGE = 'https://auth.wecare.digital/stream/media/m/wecare-digital.png'
+    DEFAULT_PAYMENT_HEADER_IMAGE = 'https://app.wecare.digital/stream/media/m/wecare-digital.png'
     
     # Handle INTERACTIVE order_details message (for within 24h window)
     # Structure:

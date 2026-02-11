@@ -35,14 +35,14 @@ social_messaging = boto3.client('socialmessaging', region_name=REGION)
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
 VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'base-wecare-digital-WhatsAppVoiceTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'whatsapp-media/whatsapp-voice/')
 
 # WhatsApp Phone Number IDs
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1',
-    'phone-number-id-2ff05755631b41f29151c0573b7a4e2a')
+    'phone-number-id-5e020cecd221429996f6ae721cc42206')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2',
-    'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6')
+    'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
 
 META_API_VERSION = 'v20.0'
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days

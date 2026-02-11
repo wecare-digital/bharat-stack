@@ -1,0 +1,23 @@
+{
+  "name": "wecare-digital-internal-kb",
+  "roleArn": "arn:aws:iam::775261844268:role/AmazonBedrockExecutionRoleForKB_wecare",
+  "knowledgeBaseConfiguration": {
+    "type": "VECTOR",
+    "vectorKnowledgeBaseConfiguration": {
+      "embeddingModelArn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+    }
+  },
+  "storageConfiguration": {
+    "type": "OPENSEARCH_SERVERLESS",
+    "opensearchServerlessConfiguration": {
+      "collectionArn": "arn:aws:aoss:us-east-1:775261844268:collection/v3gg4phewwr94mshuda8",
+      "vectorIndexName": "bedrock-kb-internal",
+      "fieldMapping": {
+        "vectorField": "bedrock-knowledge-base-default-vector",
+        "textField": "AMAZON_BEDROCK_TEXT_CHUNK",
+        "metadataField": "AMAZON_BEDROCK_METADATA"
+      }
+    }
+  },
+  "description": "Internal KB for admin tasks (FloatingAgent)"
+}

@@ -54,9 +54,9 @@ DEFAULT_AI_CONFIG = {
     'responseDelay': 0,  # Seconds to wait before responding
     'supportedLanguages': ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     'defaultLanguage': 'en',
-    'agentId': 'JDXIOU2UR9',
-    'agentAlias': 'AQVQPGYXRR',
-    'knowledgeBaseId': 'CTH8DH3RXY',
+    'agentId': 'Z4YAK0ZLBO',
+    'agentAlias': 'WANPKHQGIB',
+    'knowledgeBaseId': 'LYMQLKZNY7',
     'modelId': 'amazon.nova-lite-v1:0',
 }
 
@@ -533,9 +533,9 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
 # Default Internal AI configuration
 DEFAULT_INTERNAL_AI_CONFIG = {
     'enabled': True,
-    'agentId': 'TJAZR473IJ',
-    'agentAlias': 'O4U1HF2MSX',
-    'knowledgeBaseId': '7IWHVB0ZXQ',
+    'agentId': 'QIEEHEBTZO',
+    'agentAlias': 'ASCBD7YPUT',
+    'knowledgeBaseId': 'D0JU8Q7IQS',
     'modelId': 'amazon.nova-lite-v1:0',
     'maxTokens': 1024,
     'temperature': 0.7,

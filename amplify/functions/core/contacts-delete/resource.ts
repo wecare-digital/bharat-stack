@@ -11,7 +11,7 @@ export const contactsDelete = defineFunction({
     CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
     INBOUND_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
     OUTBOUND_TABLE: 'base-wecare-digital-WhatsAppOutboundTable',
-    MEDIA_BUCKET: 'auth.wecare.digital',
+    MEDIA_BUCKET: 'app.wecare.digital',
     LOG_LEVEL: 'INFO' 
   },
 });

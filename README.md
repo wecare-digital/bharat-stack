@@ -12,12 +12,12 @@ npm run dev
 ## AWS Resources
 
 - **Region**: us-east-1
-- **Account**: 809904170947
+- **Account**: 775261844268
 - **Cognito User Pool**: us-east-1_CC9u1fYh6
 - **App Client**: 5na5ba2pbpanm36138jdcd9gck
 
 ### S3 Bucket
-Single bucket: `auth.wecare.digital`
+Single bucket: `app.wecare.digital`
 - `whatsapp-media/whatsapp-media-incoming/` - Inbound media
 - `whatsapp-media/whatsapp-media-outgoing/` - Outbound media
 - `stream/` - Reports and exports
@@ -32,14 +32,14 @@ Single bucket: `auth.wecare.digital`
 ### WhatsApp Phone Numbers
 | Name | Phone | ID |
 |------|-------|-----|
-| WECARE.DIGITAL | +91 93309 94400 | phone-number-id-2ff05755631b41f29151c0573b7a4e2a |
-| Manish Agarwal | +91 99033 00044 | phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6 |
+| WECARE.DIGITAL | +91 93309 94400 | phone-number-id-5e020cecd221429996f6ae721cc42206 |
+| Manish Agarwal | +91 99033 00044 | phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c |
 
 ### WhatsApp Business Accounts (WABA)
 | Name | Meta ID | WABA ID |
 |------|---------|---------|
-| WECARE.DIGITAL | 1728153881476046 | waba-df9aa4e4946a40b59e269a4f41633ca1 |
-| Manish Agarwal | 761651636983279 | waba-6cab7a36990c4aeeba314ebe5cd1ec39 |
+| WECARE.DIGITAL | 1912405516040025 | waba-e47d916f3c7a47e1a34a19653893dd4b |
+| Manish Agarwal | 1633959101297902 | waba-dbe343f210204752b74c80a0a59631a6 |
 
 ## Project Structure
 

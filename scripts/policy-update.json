@@ -4,12 +4,12 @@
         {
             "Effect": "Allow",
             "Resource": [
-                "arn:aws:dynamodb:us-east-1:809904170947:table/base-wecare-digital-*",
-                "arn:aws:dynamodb:us-east-1:809904170947:table/MediaFile",
-                "arn:aws:dynamodb:us-east-1:809904170947:table/MediaFiles",
-                "arn:aws:dynamodb:us-east-1:809904170947:table/SystemConfig",
-                "arn:aws:dynamodb:us-east-1:809904170947:table/AIInteractions",
-                "arn:aws:dynamodb:us-east-1:809904170947:table/RateLimitTrackers"
+                "arn:aws:dynamodb:us-east-1:775261844268:table/base-wecare-digital-*",
+                "arn:aws:dynamodb:us-east-1:775261844268:table/MediaFile",
+                "arn:aws:dynamodb:us-east-1:775261844268:table/MediaFiles",
+                "arn:aws:dynamodb:us-east-1:775261844268:table/SystemConfig",
+                "arn:aws:dynamodb:us-east-1:775261844268:table/AIInteractions",
+                "arn:aws:dynamodb:us-east-1:775261844268:table/RateLimitTrackers"
             ],
             "Action": [
                 "dynamodb:GetItem",
@@ -24,8 +24,8 @@
         {
             "Effect": "Allow",
             "Resource": [
-                "arn:aws:s3:::auth.wecare.digital",
-                "arn:aws:s3:::auth.wecare.digital/*",
+                "arn:aws:s3:::app.wecare.digital",
+                "arn:aws:s3:::app.wecare.digital/*",
                 "arn:aws:s3:::stream.wecare.digital/*"
             ],
             "Action": [
@@ -37,12 +37,12 @@
         },
         {
             "Effect": "Allow",
-            "Resource": ["arn:aws:sns:us-east-1:809904170947:base-wecare-digital"],
+            "Resource": ["arn:aws:sns:us-east-1:775261844268:base-wecare-digital"],
             "Action": ["sns:Publish"]
         },
         {
             "Effect": "Allow",
-            "Resource": ["arn:aws:sqs:us-east-1:809904170947:*"],
+            "Resource": ["arn:aws:sqs:us-east-1:775261844268:*"],
             "Action": ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
         },
         {
@@ -83,7 +83,7 @@
         },
         {
             "Effect": "Allow",
-            "Resource": ["arn:aws:lambda:us-east-1:809904170947:function:wecare-*"],
+            "Resource": ["arn:aws:lambda:us-east-1:775261844268:function:wecare-*"],
             "Action": ["lambda:InvokeFunction"]
         }
     ]

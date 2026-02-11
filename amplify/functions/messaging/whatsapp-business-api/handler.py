@@ -51,10 +51,10 @@ CORS_HEADERS = {
 
 _token_cache = {}
 
-WABA1_ID = '1728153881476046'
-WABA2_ID = '761651636983279'
-PHONE1_META_ID = '1065003613352032'
-PHONE2_META_ID = '1065809899939064'
+WABA1_ID = '1912405516040025'
+WABA2_ID = '1633959101297902'
+PHONE1_META_ID = '960395407161423'
+PHONE2_META_ID = '997428863451102'
 
 # All IDs that belong to WABA2
 WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
@@ -448,8 +448,8 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 # ============================================================================
 # PAYMENT CONFIGURATION
 # Both WABAs have active payment configs:
-# +91 9330994400 (WABA 1728153881476046): WECARE_PAY + WECARE_UPI
-# +91 9903300044 (WABA 761651636983279):  WECARE_PAY + WECARE_UPI
+# +91 9330994400 (WABA 1912405516040025): WECARE_PAY + WECARE_UPI
+# +91 9903300044 (WABA 1633959101297902):  WECARE_PAY + WECARE_UPI
 # MCC: 4722 | Purpose Code: 03 | Razorpay MID: acc_HDfub6wOfQybuH
 # UPI ID: wecaredigital83.rzp@icici
 # ============================================================================

@@ -6,7 +6,7 @@
  * Runtime: Python 3.12
  * Region: us-east-1
  * 
- * API Gateway Routes (k4vqzmi07b):
+ * API Gateway Routes (api.wecare.digital):
  *   POST   /whatsapp-voice/tts        - Generate TTS and send as WhatsApp audio
  *   POST   /whatsapp-voice/send       - Send existing audio as WhatsApp message
  *   GET    /whatsapp-voice/voices     - List available Polly voices
@@ -17,13 +17,13 @@
  *   CONTACTS_TABLE: base-wecare-digital-ContactsTable
  *   MESSAGES_TABLE: base-wecare-digital-WhatsAppOutboundTable
  *   VOICE_LOG_TABLE: base-wecare-digital-WhatsAppVoiceTable
- *   MEDIA_BUCKET: auth.wecare.digital
- *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-2ff05755631b41f29151c0573b7a4e2a
- *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6
+ *   MEDIA_BUCKET: app.wecare.digital
+ *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-5e020cecd221429996f6ae721cc42206
+ *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c
  * 
  * IAM Permissions needed:
  *   - polly:SynthesizeSpeech
- *   - s3:PutObject, s3:GetObject on auth.wecare.digital/whatsapp-media/*
+ *   - s3:PutObject, s3:GetObject on app.wecare.digital/whatsapp-media/*
  *   - socialmessaging:SendWhatsAppMessage
  *   - socialmessaging:PostWhatsAppMessageMedia
  *   - dynamodb:PutItem, Scan, DeleteItem, GetItem, BatchWriteItem

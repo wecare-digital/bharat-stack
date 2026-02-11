@@ -224,8 +224,7 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
     
     Note: ORIGINATION_IDENTITY is only set if an SMS-capable pool/number exists.
     If not set, Pinpoint uses the default configuration for the account.
-    The pool pool-6fbf5a5f390d4eeeaa7dbae39d78933e only has VOICE capability,
-    so SMS must be sent without specifying it as origination identity.
+    The toll-free +18444891209 is PENDING registration, so SMS uses account default.
     """
     try:
         params: Dict[str, Any] = {
@@ -235,8 +234,7 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
         }
 
         # Only set origination identity if it's an SMS-capable resource
-        # (not the voice-only pool)
-        if ORIGINATION_IDENTITY and ORIGINATION_IDENTITY != 'pool-6fbf5a5f390d4eeeaa7dbae39d78933e':
+        if ORIGINATION_IDENTITY:
             params['OriginationIdentity'] = ORIGINATION_IDENTITY
 
         response = pinpoint_sms.send_text_message(**params)

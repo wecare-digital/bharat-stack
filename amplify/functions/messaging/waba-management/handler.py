@@ -37,7 +37,7 @@ s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'auth.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 
 # CORS headers
 CORS_HEADERS = {

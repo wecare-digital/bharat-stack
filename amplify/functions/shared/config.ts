@@ -7,7 +7,7 @@
 
 // AWS Region
 export const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-export const AWS_ACCOUNT_ID = '809904170947';
+export const AWS_ACCOUNT_ID = '775261844268';
 
 // DynamoDB Tables (actual deployed names)
 export const TABLES = {
@@ -30,7 +30,7 @@ export const TABLES = {
 
 // S3 Buckets
 export const S3_BUCKETS = {
-  MEDIA: 'auth.wecare.digital',
+  MEDIA: 'app.wecare.digital',
   REPORTS: 'stream.wecare.digital',
 };
 
@@ -46,8 +46,8 @@ export const S3_PREFIXES = {
 // WhatsApp Configuration
 export const WHATSAPP_CONFIG = {
   META_API_VERSION: 'v20.0',
-  PHONE_NUMBER_ID_1: process.env.WHATSAPP_PHONE_NUMBER_ID_1 || 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
-  PHONE_NUMBER_ID_2: process.env.WHATSAPP_PHONE_NUMBER_ID_2 || 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6',
+  PHONE_NUMBER_ID_1: process.env.WHATSAPP_PHONE_NUMBER_ID_1 || 'phone-number-id-5e020cecd221429996f6ae721cc42206',
+  PHONE_NUMBER_ID_2: process.env.WHATSAPP_PHONE_NUMBER_ID_2 || 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c',
   DISPLAY_PHONE_1: '+91 93309 94400',
   DISPLAY_PHONE_2: '+91 99033 00044',
   RATE_LIMIT_PER_SECOND: 80,
@@ -68,14 +68,14 @@ export const COGNITO_CONFIG = {
 // Bedrock AI Configuration
 export const BEDROCK_CONFIG = {
   // Internal Agent (FloatingAgent - admin tasks)
-  INTERNAL_AGENT_ID: process.env.INTERNAL_AGENT_ID || 'TJAZR473IJ',
-  INTERNAL_AGENT_ALIAS: process.env.INTERNAL_AGENT_ALIAS || 'O4U1HF2MSX',
-  INTERNAL_KB_ID: process.env.INTERNAL_KB_ID || '7IWHVB0ZXQ',
+  INTERNAL_AGENT_ID: process.env.INTERNAL_AGENT_ID || 'QIEEHEBTZO',
+  INTERNAL_AGENT_ALIAS: process.env.INTERNAL_AGENT_ALIAS || 'ASCBD7YPUT',
+  INTERNAL_KB_ID: process.env.INTERNAL_KB_ID || 'D0JU8Q7IQS',
   
   // External Agent (WhatsApp auto-reply - customer facing)
-  EXTERNAL_AGENT_ID: process.env.EXTERNAL_AGENT_ID || 'JDXIOU2UR9',
-  EXTERNAL_AGENT_ALIAS: process.env.EXTERNAL_AGENT_ALIAS || 'AQVQPGYXRR',
-  EXTERNAL_KB_ID: process.env.EXTERNAL_KB_ID || 'CTH8DH3RXY',
+  EXTERNAL_AGENT_ID: process.env.EXTERNAL_AGENT_ID || 'Z4YAK0ZLBO',
+  EXTERNAL_AGENT_ALIAS: process.env.EXTERNAL_AGENT_ALIAS || 'WANPKHQGIB',
+  EXTERNAL_KB_ID: process.env.EXTERNAL_KB_ID || 'LYMQLKZNY7',
   
   // Model
   FOUNDATION_MODEL: 'amazon.nova-lite-v1:0',

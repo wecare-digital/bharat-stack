@@ -3,8 +3,8 @@
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
 $FUNCTION_NAME = "wecare-whatsapp-business-api"
-$API_ID = "k4vqzmi07b"
-$ACCOUNT_ID = "809904170947"
+$API_ID = "api.wecare.digital"
+$ACCOUNT_ID = "775261844268"
 $HANDLER_PATH = "amplify/functions/messaging/whatsapp-business-api"
 $ROLE_ARN = "arn:aws:iam::${ACCOUNT_ID}:role/wecare-digital-lambda-role"
 
@@ -125,5 +125,5 @@ aws apigatewayv2 create-deployment --api-id $API_ID --region $REGION --output te
 Write-Host ""
 Write-Host "=== Deployment Complete ===" -ForegroundColor Green
 Write-Host "Lambda: $FUNCTION_NAME"
-Write-Host "API: https://$API_ID.execute-api.$REGION.amazonaws.com/prod/wa-business/"
+Write-Host "API: https://api.wecare.digital/wa-business/"
 Write-Host "Routes: $($ROUTES.Count) configured"

@@ -20,7 +20,7 @@ export const whatsappTemplateManagement = defineFunction({
   memoryMB: 512,
   environment: {
     LOG_LEVEL: 'INFO',
-    MEDIA_BUCKET: 'auth.wecare.digital',
+    MEDIA_BUCKET: 'app.wecare.digital',
     TEMPLATE_MEDIA_PREFIX: 'whatsapp-media/template-headers/',
   },
 });

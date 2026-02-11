@@ -46,7 +46,7 @@ export function addBackendResources(stack: Stack) {
   const alarmTopic = sns.Topic.fromTopicArn(
     stack,
     'AlarmTopic',
-    'arn:aws:sns:us-east-1:809904170947:base-wecare-digital'
+    'arn:aws:sns:us-east-1:775261844268:base-wecare-digital'
   );
 
   // CloudWatch Alarms

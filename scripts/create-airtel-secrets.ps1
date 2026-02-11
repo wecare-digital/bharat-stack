@@ -93,5 +93,5 @@ Write-Host "Required IAM Policy for Lambda:"
 Write-Host '  {
     "Effect": "Allow",
     "Action": ["secretsmanager:GetSecretValue"],
-    "Resource": ["arn:aws:secretsmanager:us-east-1:809904170947:secret:wecare/airtel/*"]
+    "Resource": ["arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/*"]
   }'

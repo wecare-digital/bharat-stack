@@ -66,8 +66,8 @@ class MessageValidator:
 
     # WhatsApp Phone Number Allowlist
     WHATSAPP_ALLOWLIST: List[str] = [
-        'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
-        'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6',
+        'phone-number-id-5e020cecd221429996f6ae721cc42206',
+        'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c',
     ]
 
     # Customer service window duration

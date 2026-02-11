@@ -14,13 +14,13 @@ API Endpoints:
 
 Airtel API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
 Secrets: wecare/airtel/c2c
-Recording Storage: s3://auth.wecare.digital/voice/voice-in/c2c/
+Recording Storage: s3://app.wecare.digital/voice/voice-in/c2c/
 
 Configuration:
 - Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
 - App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
 - C2C Caller ID: 8047311032
-- CDR Webhook: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+- CDR Webhook: https://api.wecare.digital/voice-cdr-webhook
 
 Airtel IP Whitelist (if 403 errors):
 - 125.19.17.212
@@ -77,7 +77,7 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'base-wecare-digital-AirtelC2CTable')
 AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
 AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
-S3_BUCKET = 'auth.wecare.digital'
+S3_BUCKET = 'app.wecare.digital'
 S3_RECORDING_PREFIX = 'voice/voice-in/c2c/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 

@@ -1,0 +1,5 @@
+{
+  "VisibilityTimeout": "300",
+  "MessageRetentionPeriod": "86400",
+  "RedrivePolicy": "{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:775261844268:base-wecare-digital-bulk-dlq\",\"maxReceiveCount\":\"3\"}"
+}

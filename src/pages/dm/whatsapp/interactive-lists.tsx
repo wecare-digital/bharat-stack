@@ -16,8 +16,8 @@ interface ListRow { id: string; title: string; description?: string; }
 interface ListSection { title: string; rows: ListRow[]; }
 
 const PHONES = [
-  { metaId: '1065003613352032', display: WHATSAPP_PHONES.primary.display, name: WHATSAPP_PHONES.primary.name },
-  { metaId: '1065809899939064', display: WHATSAPP_PHONES.secondary.display, name: WHATSAPP_PHONES.secondary.name },
+  { metaId: '960395407161423', display: WHATSAPP_PHONES.primary.display, name: WHATSAPP_PHONES.primary.name },
+  { metaId: '997428863451102', display: WHATSAPP_PHONES.secondary.display, name: WHATSAPP_PHONES.secondary.name },
 ];
 
 const PRESETS: { name: string; headerText: string; bodyText: string; footerText: string; buttonText: string; sections: ListSection[] }[] = [

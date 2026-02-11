@@ -11,11 +11,11 @@
  */
 
 // API Configuration
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 
 // Payment Phone Configuration (Razorpay-enabled WABA)
 export const PAYMENT_CONFIG = {
-  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
+  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-5e020cecd221429996f6ae721cc42206',
   phoneDisplay: process.env.NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY || '+91 93309 94400',
   phoneName: process.env.NEXT_PUBLIC_PAYMENT_PHONE_NAME || 'WECARE.DIGITAL',
 };
@@ -26,18 +26,18 @@ export const DEFAULT_GSTIN = process.env.NEXT_PUBLIC_DEFAULT_GSTIN || '19AADFW74
 // WhatsApp Phone Numbers
 export const WHATSAPP_PHONES = {
   primary: {
-    id: 'phone-number-id-2ff05755631b41f29151c0573b7a4e2a',
+    id: 'phone-number-id-5e020cecd221429996f6ae721cc42206',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
-    wabaId: '1728153881476046',
+    wabaId: '1912405516040025',
     hasPayment: true,
     paymentConfigs: ['WECARE_PAY', 'WECARE_UPI'],
   },
   secondary: {
-    id: 'phone-number-id-66d2d11e0aea4f14a3a0df30ec5e3bc6',
+    id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c',
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
-    wabaId: '761651636983279',
+    wabaId: '1633959101297902',
     hasPayment: true,
     paymentConfigs: ['WECARE_PAY', 'WECARE_UPI'],
   },

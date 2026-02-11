@@ -29,7 +29,7 @@ type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' |
 const PAYMENT_PHONE = '+91 93309 94400';
 const PAYMENT_NAME = 'WECARE.DIGITAL';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 
 const AIRTEL_REFERENCE_TEXT = `WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
 ============================================
@@ -55,23 +55,23 @@ API Host: iqmessaging.airtel.in
 
 ALL WEBHOOK URLs:
 ━━━━━━━━━━━━━━━━━
-API Base: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod
+API Base: https://api.wecare.digital
 
 1. SMS-IN (Send/Receive SMS):
    POST /sms-in/airtel
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel
+   Full URL: https://api.wecare.digital/sms-in/airtel
 
 2. Voice Click-to-Call (C2C):
    POST /voice-in/c2c
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/c2c
+   Full URL: https://api.wecare.digital/voice-in/c2c
 
 3. Voice OBD (Outbound Dialer):
    POST /voice-in/obd
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-in/obd
+   Full URL: https://api.wecare.digital/voice-in/obd
 
 4. Voice CDR Webhook (for ALL callbacks - inbound & outbound):
    POST /voice-cdr-webhook
-   Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+   Full URL: https://api.wecare.digital/voice-cdr-webhook
 
 IP WHITELIST:
 ━━━━━━━━━━━━
@@ -123,13 +123,13 @@ SAMPLE callBackURLs FOR C2C/OBD API:
 "callBackURLs": [
   {
     "eventType": "CDR",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
     "method": "POST",
     "headers": {}
   },
   {
     "eventType": "ALL",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
     "method": "POST",
     "headers": {}
   }
@@ -139,8 +139,8 @@ ISSUES / NOTES:
 ━━━━━━━━━━━━━━━
 • All endpoints return HTTP 200 OK on successful receipt
 • Content-Type: application/json
-• Domain to whitelist: k4vqzmi07b.execute-api.us-east-1.amazonaws.com
-• Recordings are stored in S3: s3://auth.wecare.digital/voice/
+• Domain to whitelist: api.wecare.digital
+• Recordings are stored in S3: s3://app.wecare.digital/voice/
 • If 403 errors persist after IP whitelisting, check API Gateway resource policy
 • SMS does NOT require IP whitelisting for sending traffic
 
@@ -160,9 +160,9 @@ interface InternalAIConfig {
 
 const DEFAULT_AI_CONFIG: InternalAIConfig = {
   enabled: true,
-  agentId: 'TJAZR473IJ',
-  agentAlias: 'O4U1HF2MSX',
-  knowledgeBaseId: '7IWHVB0ZXQ',
+  agentId: 'QIEEHEBTZO',
+  agentAlias: 'ASCBD7YPUT',
+  knowledgeBaseId: 'D0JU8Q7IQS',
   modelId: 'amazon.nova-lite-v1:0',
   maxTokens: 1024,
   temperature: 0.7,
@@ -184,13 +184,13 @@ interface WebhookConfig {
   createdAt: string;
 }
 
-// AWS Resource ARNs for billing display - All resources in account 809904170947
+// AWS Resource ARNs for billing display - All resources in account 775261844268
 // Comprehensive list including used and available services for future updates
 const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: string[] }> = {
   // COMPUTE
   'AWS Lambda': { 
-    arn: 'arn:aws:lambda:us-east-1:809904170947:function:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:lambda:us-east-1:775261844268:function:*', 
+    accountId: '775261844268',
     details: [
       'wecare-outbound-whatsapp',
       'wecare-inbound-whatsapp', 
@@ -220,25 +220,25 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'Amazon EC2': { 
-    arn: 'arn:aws:ec2:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:ec2:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon ECS': { 
-    arn: 'arn:aws:ecs:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:ecs:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'AWS Fargate': { 
-    arn: 'arn:aws:ecs:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:ecs:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // DATABASE
   'Amazon DynamoDB': { 
-    arn: 'arn:aws:dynamodb:us-east-1:809904170947:table/*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:dynamodb:us-east-1:775261844268:table/*', 
+    accountId: '775261844268',
     details: [
       'base-wecare-digital-ContactsTable',
       'base-wecare-digital-WhatsAppOutboundTable',
@@ -255,117 +255,118 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'Amazon RDS': { 
-    arn: 'arn:aws:rds:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:rds:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon Aurora': { 
-    arn: 'arn:aws:rds:us-east-1:809904170947:cluster:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:rds:us-east-1:775261844268:cluster:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon ElastiCache': { 
-    arn: 'arn:aws:elasticache:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:elasticache:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // STORAGE
   'Amazon S3': { 
-    arn: 'arn:aws:s3:::auth.wecare.digital', 
-    accountId: '809904170947',
-    details: ['auth.wecare.digital - Media storage for WhatsApp']
+    arn: 'arn:aws:s3:::app.wecare.digital', 
+    accountId: '775261844268',
+    details: ['app.wecare.digital - Media storage for WhatsApp']
   },
   'Amazon EBS': { 
-    arn: 'arn:aws:ec2:us-east-1:809904170947:volume/*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:ec2:us-east-1:775261844268:volume/*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon EFS': { 
-    arn: 'arn:aws:elasticfilesystem:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:elasticfilesystem:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // NETWORKING & CDN
   'Amazon CloudFront': { 
-    arn: 'arn:aws:cloudfront::809904170947:distribution/*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:cloudfront::775261844268:distribution/*', 
+    accountId: '775261844268',
     details: ['CDN for static assets']
   },
   'Amazon Route 53': { 
     arn: 'arn:aws:route53:::hostedzone/*', 
-    accountId: '809904170947',
-    details: ['wecare.digital', 'base.wecare.digital', 'auth.wecare.digital']
+    accountId: '775261844268',
+    details: ['wecare.digital', 'base.wecare.digital', 'app.wecare.digital']
   },
   'Amazon VPC': { 
-    arn: 'arn:aws:ec2:us-east-1:809904170947:vpc/*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:ec2:us-east-1:775261844268:vpc/*', 
+    accountId: '775261844268',
     details: ['Default VPC']
   },
   'Elastic Load Balancing': { 
-    arn: 'arn:aws:elasticloadbalancing:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:elasticloadbalancing:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // API & INTEGRATION
   'Amazon API Gateway': { 
     arn: 'arn:aws:apigateway:us-east-1::/restapis/*', 
-    accountId: '809904170947',
-    details: ['k4vqzmi07b - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*']
+    accountId: '775261844268',
+    details: ['api.wecare.digital - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*']
   },
   'AWS AppSync': { 
-    arn: 'arn:aws:appsync:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:appsync:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon EventBridge': { 
-    arn: 'arn:aws:events:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:events:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'AWS Step Functions': { 
-    arn: 'arn:aws:states:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:states:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // MESSAGING
   'Amazon SNS': { 
-    arn: 'arn:aws:sns:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:sns:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['wecare-whatsapp-inbound-topic']
   },
   'Amazon SQS': { 
-    arn: 'arn:aws:sqs:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:sqs:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['wecare-whatsapp-dlq']
   },
   'Amazon SES': { 
-    arn: 'arn:aws:ses:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:ses:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Email sending service']
   },
   'Amazon Pinpoint': { 
-    arn: 'arn:aws:sms-voice:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:sms-voice:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: [
       'SMS: Sender ID WECARE (no pool, account default)',
-      'Voice: +18334061352 (Toll-Free, Intl enabled)',
-      'Voice: +18313877455 (Long Code, US only)',
-      'Pool: pool-6fbf5a5f390d4eeeaa7dbae39d78933e (VOICE only)',
-      'Protect Config: protect-321c6e19e2ee427bbb9c0daa9a7080ac (account default)',
+      'Voice: +18444891209 (Toll-Free, Intl enabled)',
+      'Voice: +18444891209 (Toll-Free, Intl enabled, PENDING)',
+      'Pool: TBD (pending toll-free approval)',
+      'Protect Config: protect-b137924dfb934c32b1d10c28b737d08c (account default)',
       'Tables: SmsAwsTable, VoiceAwsTable'
     ]
   },
   'AWS End User Messaging': { 
-    arn: 'arn:aws:social-messaging:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:social-messaging:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: [
       '+91 93309 94400 (WECARE.DIGITAL) - Razorpay + UPI enabled',
       '+91 99033 00044 (Manish Agarwal)',
-      'WABA ID: 1347766229904230',
+      'WABA 1: 1912405516040025 (WECARE.DIGITAL)',
+      'WABA 2: 1633959101297902 (Manish Agarwal)',
       'Service-Linked Role: AWSServiceRoleForSocialMessaging',
       'Policy: AWSSocialMessagingServiceRolePolicy (cloudwatch:PutMetricData)'
     ]
@@ -373,77 +374,77 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   
   // AI/ML
   'Amazon Bedrock': { 
-    arn: 'arn:aws:bedrock:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:bedrock:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Knowledge Base: wecare-digital-kb', 'Agent: wecare-digital-agent', 'Model: Claude']
   },
   'Amazon OpenSearch': { 
-    arn: 'arn:aws:aoss:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:aoss:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Serverless collection for Bedrock KB vector store']
   },
   'Amazon SageMaker': { 
-    arn: 'arn:aws:sagemaker:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:sagemaker:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon Comprehend': { 
-    arn: 'arn:aws:comprehend:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:comprehend:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon Rekognition': { 
-    arn: 'arn:aws:rekognition:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:rekognition:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon Transcribe': { 
-    arn: 'arn:aws:transcribe:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:transcribe:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'Amazon Polly': { 
-    arn: 'arn:aws:polly:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:polly:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['TTS for Pinpoint Voice calls (Voice ID: RAVEENA)']
   },
   'Amazon Translate': { 
-    arn: 'arn:aws:translate:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:translate:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // SECURITY & IDENTITY
   'Amazon Cognito': { 
-    arn: 'arn:aws:cognito-idp:us-east-1:809904170947:userpool/*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:cognito-idp:us-east-1:775261844268:userpool/*', 
+    accountId: '775261844268',
     details: ['User Pool for authentication']
   },
   'AWS IAM': { 
-    arn: 'arn:aws:iam::809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:iam::775261844268:*', 
+    accountId: '775261844268',
     details: ['wecare-digital-lambda-role', 'amplify-service-role']
   },
   'AWS Secrets Manager': { 
-    arn: 'arn:aws:secretsmanager:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:secretsmanager:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['wecare/airtel-iq (Airtel IQ API credentials)']
   },
   'AWS KMS': { 
-    arn: 'arn:aws:kms:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:kms:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Default encryption keys']
   },
   'AWS WAF': { 
-    arn: 'arn:aws:wafv2:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:wafv2:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   
   // MONITORING & MANAGEMENT
   'CloudWatch': { 
-    arn: 'arn:aws:logs:us-east-1:809904170947:log-group:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:logs:us-east-1:775261844268:log-group:*', 
+    accountId: '775261844268',
     details: [
       '/aws/lambda/wecare-outbound-whatsapp',
       '/aws/lambda/wecare-inbound-whatsapp',
@@ -451,30 +452,30 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'AWS X-Ray': { 
-    arn: 'arn:aws:xray:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:xray:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
   'AWS CloudTrail': { 
-    arn: 'arn:aws:cloudtrail:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:cloudtrail:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['API activity logging']
   },
   
   // DEVELOPER TOOLS
   'AWS Amplify': { 
-    arn: 'arn:aws:amplify:us-east-1:809904170947:apps/dtiq7il2x5c5g', 
-    accountId: '809904170947',
-    details: ['App: dtiq7il2x5c5g', 'Branch: base', 'Domain: base.wecare.digital']
+    arn: 'arn:aws:amplify:us-east-1:775261844268:apps/d3nadrc9t6n3f8', 
+    accountId: '775261844268',
+    details: ['App: d3nadrc9t6n3f8', 'Branch: base', 'Domain: base.wecare.digital']
   },
   'AWS CodeBuild': { 
-    arn: 'arn:aws:codebuild:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:codebuild:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Amplify build process']
   },
   'AWS CodePipeline': { 
-    arn: 'arn:aws:codepipeline:us-east-1:809904170947:*', 
-    accountId: '809904170947',
+    arn: 'arn:aws:codepipeline:us-east-1:775261844268:*', 
+    accountId: '775261844268',
     details: ['Not currently used']
   },
 };
@@ -1298,7 +1299,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </div>
                     <div className="billing-meta">
                       <div className="period">{billingData.period}</div>
-                      <div className="account">Account: 809904170947</div>
+                      <div className="account">Account: 775261844268</div>
                     </div>
                   </div>
 
@@ -1316,8 +1317,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <tbody>
                       {billingData.services.map((svc, idx) => {
                         const resource = AWS_RESOURCES[svc.service] || { 
-                          arn: `arn:aws:*:us-east-1:809904170947:${svc.service.toLowerCase().replace(/\s+/g, '-')}/*`, 
-                          accountId: '809904170947' 
+                          arn: `arn:aws:*:us-east-1:775261844268:${svc.service.toLowerCase().replace(/\s+/g, '-')}/*`, 
+                          accountId: '775261844268' 
                         };
                         const isExpanded = expandedServices.has(svc.service);
                         return (
@@ -1722,7 +1723,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/razorpay-webhook</code>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://api.wecare.digital/razorpay-webhook</code>
                   </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook Secret</label>
@@ -1805,12 +1806,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>CDR Webhook URL (for callBackURLs eventType: "CDR")</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-cdr-webhook</code>
                   </div>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Events Webhook URL (for callBackURLs eventType: "ALL")</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-cdr-webhook</code>
                   </div>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
@@ -1853,13 +1854,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`"callBackURLs": [
   {
     "eventType": "CDR",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
     "method": "POST",
     "headers": {}
   },
   {
     "eventType": "ALL",
-    "notifyURL": "https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook",
+    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
     "method": "POST",
     "headers": {}
   }
@@ -1959,12 +1960,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (Single/Multiple)</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>POST https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel</code>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>POST https://api.wecare.digital/sms-in/airtel</code>
                   </div>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>List SMS Messages</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/sms-in/airtel</code>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET https://api.wecare.digital/sms-in/airtel</code>
                   </div>
                 </div>
 
@@ -2051,7 +2052,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <div key={path} style={{ marginBottom: '0.5rem' }}>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
                       <code style={{ fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>
-                        <span style={{ color: method === 'POST' ? '#059669' : method === 'DELETE' ? '#dc2626' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod{path}
+                        <span style={{ color: method === 'POST' ? '#059669' : method === 'DELETE' ? '#dc2626' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
                       </code>
                     </div>
                   ))}
@@ -2062,11 +2063,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Voice (Toll-Free, Intl)</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>+1 (833) 406-1352</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>+1 (844) 489-1209</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Voice (Long Code, US only)</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>+1 (831) 387-7455</code>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Toll-Free Status</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>PENDING Registration</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>SMS Sender ID</label>
@@ -2078,11 +2079,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Pool ID</label>
-                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>pool-6fbf5a5f390d4eeeaa7dbae39d78933e</code>
+                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>TBD (pending toll-free approval)</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Protect Config</label>
-                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>protect-321c6e19e2ee427bbb9c0daa9a7080ac</code>
+                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>protect-b137924dfb934c32b1d10c28b737d08c</code>
                     </div>
                   </div>
                 </div>

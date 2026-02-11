@@ -43,9 +43,9 @@ Amplify.configure({
   }
 });
 
-const LOGO_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.png';
-const LOGO_SVG_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.svg';
-const FAVICON_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.ico';
+const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.svg';
+const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
 const GA_MEASUREMENT_ID = 'G-S3G6REP6Q7';
 
 // Custom Amplify UI Theme - Black buttons with 13px border radius
@@ -362,7 +362,7 @@ const AuthHeader = () => {
     <div style={{ textAlign: 'center', padding: '24px 20px' }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap }}>
         <img 
-          src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" 
+          src="https://app.wecare.digital/stream/media/m/wecare-digital.png" 
           alt="Base CRM" 
           style={{ width: logoSize, height: logoSize, borderRadius: '10px' }}
           onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
@@ -514,7 +514,7 @@ export default function App({ Component, pageProps }: AppProps) {
       </Script>
       <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk" />
       {/* WhatsApp Chat Widget */}
-      <Script src="https://auth.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
+      <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
         <Authenticator hideSignUp={true} components={{ Header: AuthHeader }}>
           {({ signOut, user }) => {

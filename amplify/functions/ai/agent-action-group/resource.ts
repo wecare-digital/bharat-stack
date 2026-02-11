@@ -4,9 +4,9 @@ import { defineFunction } from '@aws-amplify/backend';
  * Bedrock Agent Action Group Handler
  * 
  * Purpose: Handle action requests from internal Bedrock Agent
- * Agent ID: TJAZR473IJ
- * Agent Alias: O4U1HF2MSX
- * KB ID: 7IWHVB0ZXQ
+ * Agent ID: QIEEHEBTZO
+ * Agent Alias: ASCBD7YPUT
+ * KB ID: D0JU8Q7IQS
  * 
  * Actions: send-whatsapp, send-sms, send-email, create-contact,
  *          update-contact, delete-contact, search-contacts, get-contact,

@@ -77,14 +77,14 @@ response = requests.post(
         <meta property="og:url" content="https://base.wecare.digital/" />
         <meta property="og:title" content="Base CRM - WhatsApp Business API Platform | WECARE.DIGITAL" />
         <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
-        <meta property="og:image" content="https://auth.wecare.digital/stream/media/m/wecare-digital.png" />
+        <meta property="og:image" content="https://app.wecare.digital/stream/media/m/wecare-digital.png" />
         <meta property="og:site_name" content="Base CRM by WECARE.DIGITAL" />
         <meta property="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://base.wecare.digital/" />
         <meta name="twitter:title" content="Base CRM - WhatsApp Business API Platform" />
         <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
-        <meta name="twitter:image" content="https://auth.wecare.digital/stream/media/m/wecare-digital.png" />
+        <meta name="twitter:image" content="https://app.wecare.digital/stream/media/m/wecare-digital.png" />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta name="googlebot" content="index, follow" />
         <meta name="author" content="WECARE.DIGITAL" />
@@ -104,7 +104,7 @@ response = requests.post(
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
         {/* Preload critical images for faster loading */}
-        <link rel="preload" href="https://auth.wecare.digital/stream/media/m/wecare-digital.png" as="image" />
+        <link rel="preload" href="https://app.wecare.digital/stream/media/m/wecare-digital.png" as="image" />
         <link rel="preconnect" href="https://img.icons8.com" />
         <link rel="dns-prefetch" href="https://img.icons8.com" />
         
@@ -115,7 +115,7 @@ response = requests.post(
           "name": "WECARE.DIGITAL",
           "alternateName": "Base CRM",
           "url": "https://wecare.digital",
-          "logo": "https://auth.wecare.digital/stream/media/m/wecare-digital.png",
+          "logo": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
           "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
           "foundingDate": "2020",
           "sameAs": ["https://www.linkedin.com/company/wecare-digital"],
@@ -163,12 +163,12 @@ response = requests.post(
       </Head>
       
       {/* WhatsApp Chat Widget */}
-      <Script src="https://auth.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
+      <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <div className="page">
         <header className="hdr">
           <div className="hdr-in">
             <div className="logo">
-              <img src="https://auth.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="logo-img" />
+              <img src="https://app.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="logo-img" />
               <div className="logo-text"><span className="logo-main">Base CRM</span><span className="logo-sub">by WECARE.DIGITAL</span></div>
             </div>
           </div>

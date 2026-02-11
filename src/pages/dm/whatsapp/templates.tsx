@@ -30,8 +30,8 @@ interface PageProps {
 }
 
 const WABA_OPTIONS = [
-  { id: 'waba-df9aa4e4946a40b59e269a4f41633ca1', name: 'WECARE.DIGITAL' },
-  { id: 'waba-6cab7a36990c4aeeba314ebe5cd1ec39', name: 'Manish Agarwal' },
+  { id: 'waba-e47d916f3c7a47e1a34a19653893dd4b', name: 'WECARE.DIGITAL' },
+  { id: 'waba-dbe343f210204752b74c80a0a59631a6', name: 'Manish Agarwal' },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {

@@ -6,11 +6,11 @@ Purpose: Receive and store Call Detail Records (CDR) from Airtel Cloud Communica
 
 Webhook Configuration:
 - URL: POST /voice-cdr-webhook
-- Full URL: https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+- Full URL: https://api.wecare.digital/voice-cdr-webhook
 - Inbound Number: +91 9319767034
 - Email: voice@wecare.digital
 
-Recording Storage: s3://auth.wecare.digital/voice/voice-in/cdr/
+Recording Storage: s3://app.wecare.digital/voice/voice-in/cdr/
 
 Airtel IP Whitelist (if 403 errors):
 - 125.19.17.212
@@ -93,7 +93,7 @@ s3 = boto3.client('s3', region_name=AWS_REGION)
 
 # Environment variables
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCDRTable')
-S3_BUCKET = 'auth.wecare.digital'
+S3_BUCKET = 'app.wecare.digital'
 S3_RECORDING_PREFIX = 'voice/voice-in/cdr/'
 
 # Configuration

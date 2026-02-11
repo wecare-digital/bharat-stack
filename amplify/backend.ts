@@ -6,7 +6,7 @@ import { storage } from './storage/resource';
 /**
  * WECARE.DIGITAL Admin Platform Backend
  * 
- * AWS Account: 809904170947
+ * AWS Account: 775261844268
  * Region: us-east-1
  * 
  * This backend defines:

@@ -8,9 +8,9 @@
  * Model: Amazon Nova Lite (~$0.06/1M input tokens)
  * 
  * Bedrock Resources (INTERNAL - Admin Tasks):
- * - Agent ID: TJAZR473IJ
- * - Agent Alias: O4U1HF2MSX
- * - KB ID: 7IWHVB0ZXQ
+ * - Agent ID: QIEEHEBTZO
+ * - Agent Alias: ASCBD7YPUT
+ * - KB ID: D0JU8Q7IQS
  * 
  * Note: External (WhatsApp auto-reply) uses separate Agent/KB
  */
@@ -25,12 +25,12 @@ interface ChatMessage {
   status?: 'sending' | 'sent' | 'error';
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 
 // Internal Agent Configuration (for admin tasks)
-const INTERNAL_AGENT_ID = 'TJAZR473IJ';
-const INTERNAL_AGENT_ALIAS = 'O4U1HF2MSX';
-const INTERNAL_KB_ID = '7IWHVB0ZXQ';
+const INTERNAL_AGENT_ID = 'QIEEHEBTZO';
+const INTERNAL_AGENT_ALIAS = 'ASCBD7YPUT';
+const INTERNAL_KB_ID = 'D0JU8Q7IQS';
 
 const FloatingAgent: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -262,7 +262,7 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
-  const LOGO_URL = 'https://auth.wecare.digital/stream/media/m/wecare-digital.png';
+  const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
 
   if (!isOpen) {
     return (

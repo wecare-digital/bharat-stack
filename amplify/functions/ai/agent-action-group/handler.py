@@ -2,9 +2,9 @@
 Bedrock Agent Action Group Handler
 
 Purpose: Handle action group requests from Bedrock Agent (internal admin tasks)
-Agent ID: TJAZR473IJ
-Agent Alias: O4U1HF2MSX
-KB ID: 7IWHVB0ZXQ
+Agent ID: QIEEHEBTZO
+Agent Alias: ASCBD7YPUT
+KB ID: D0JU8Q7IQS
 
 Actions:
 - send_whatsapp_message: Send WhatsApp message to contact

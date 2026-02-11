@@ -15,7 +15,7 @@ interface SEOProps {
 }
 
 const BASE_URL = 'https://base.wecare.digital';
-const DEFAULT_IMAGE = 'https://auth.wecare.digital/stream/media/m/wecare-digital.png';
+const DEFAULT_IMAGE = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
 const SITE_NAME = 'Base CRM by WECARE.DIGITAL';
 
 // Default keywords for all pages

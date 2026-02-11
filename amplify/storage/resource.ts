@@ -3,7 +3,7 @@ import { defineStorage } from '@aws-amplify/backend';
 /**
  * Storage Configuration
  * 
- * Single bucket: auth.wecare.digital
+ * Single bucket: app.wecare.digital
  * 
  * Structure:
  * - whatsapp-media/whatsapp-media-incoming/: Inbound WhatsApp media
@@ -12,7 +12,7 @@ import { defineStorage } from '@aws-amplify/backend';
  */
 export const storage = defineStorage({
   name: 'wecare-media',
-  // Reference consolidated bucket: auth.wecare.digital
+  // Reference consolidated bucket: app.wecare.digital
   access: (allow) => ({
     // WhatsApp media paths
     'whatsapp-media/whatsapp-media-incoming/*': [

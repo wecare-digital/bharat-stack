@@ -140,7 +140,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
     if (!confirm('Clear all SMS logs? This cannot be undone.')) return;
     setClearing(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod'}/sms-aws/clear-logs`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/sms-aws/clear-logs`, {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' }
       });
       const result = await response.json();
