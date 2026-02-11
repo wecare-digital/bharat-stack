@@ -46,7 +46,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _list_all_contacts(table, request_id)
         
         # Get single contact by contactId
-        response = table.get_item(Key={'contactId': contact_id})
+        response = table.get_item(Key={'id': contact_id})
         
         item = response.get('Item')
         
