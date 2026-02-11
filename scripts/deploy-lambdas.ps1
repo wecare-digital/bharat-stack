@@ -7,12 +7,15 @@ $RUNTIME = "python3.12"
 $TIMEOUT = 30
 $MEMORY = 256
 
-# Function name -> handler.py path mapping
+# Function name -> handler.py path mapping (43 functions)
 $functions = @{
+    # AI
     "wecare-agent-action-group"       = "amplify/functions/ai/agent-action-group"
     "wecare-ai-config-management"     = "amplify/functions/ai/ai-config-management"
     "wecare-ai-generate-response"     = "amplify/functions/ai/ai-generate-response"
     "wecare-ai-query-kb"              = "amplify/functions/ai/ai-query-kb"
+    # Core
+    "wecare-auth-middleware"           = "amplify/functions/core/auth-middleware"
     "wecare-contacts-create"          = "amplify/functions/core/contacts-create"
     "wecare-contacts-delete"          = "amplify/functions/core/contacts-delete"
     "wecare-contacts-read"            = "amplify/functions/core/contacts-read"
@@ -20,9 +23,12 @@ $functions = @{
     "wecare-contacts-update"          = "amplify/functions/core/contacts-update"
     "wecare-messages-delete"          = "amplify/functions/core/messages-delete"
     "wecare-messages-read"            = "amplify/functions/core/messages-read"
+    # Messaging
     "wecare-inbound-whatsapp"         = "amplify/functions/messaging/inbound-whatsapp-handler"
+    "wecare-media-cleanup"            = "amplify/functions/messaging/media-cleanup"
     "wecare-outbound-email"           = "amplify/functions/messaging/outbound-email"
     "wecare-outbound-sms"             = "amplify/functions/messaging/outbound-sms"
+    "wecare-outbound-voice"           = "amplify/functions/messaging/outbound-voice"
     "wecare-outbound-whatsapp"        = "amplify/functions/messaging/outbound-whatsapp"
     "wecare-scheduled-messages"       = "amplify/functions/messaging/scheduled-messages"
     "wecare-sms-aws"                  = "amplify/functions/messaging/sms-aws"
@@ -36,14 +42,22 @@ $functions = @{
     "wecare-waba-management"          = "amplify/functions/messaging/waba-management"
     "wecare-whatsapp-business-api"    = "amplify/functions/messaging/whatsapp-business-api"
     "wecare-whatsapp-calling"         = "amplify/functions/messaging/whatsapp-calling"
-    "wecare-whatsapp-templates"       = "amplify/functions/messaging/whatsapp-template-management"
+    "wecare-whatsapp-template-management" = "amplify/functions/messaging/whatsapp-template-management"
     "wecare-whatsapp-voice"           = "amplify/functions/messaging/whatsapp-voice"
+    # Operations
     "wecare-billing"                  = "amplify/functions/operations/billing"
     "wecare-bulk-job-control"         = "amplify/functions/operations/bulk-job-control"
     "wecare-bulk-job-create"          = "amplify/functions/operations/bulk-job-create"
+    "wecare-bulk-worker"              = "amplify/functions/operations/bulk-worker"
     "wecare-dlq-replay"               = "amplify/functions/operations/dlq-replay"
+    # Payments
     "wecare-payments-read"            = "amplify/functions/payments/payments-read"
     "wecare-razorpay-webhook"         = "amplify/functions/payments/razorpay-webhook"
+    # Aliases (same handler, different Lambda name for different API routes)
+    "wecare-whatsapp-templates"       = "amplify/functions/messaging/whatsapp-template-management"
+    "wecare-voice-cdr-webhook"        = "amplify/functions/messaging/voice-in/cdr"
+    "wecare-voice-calls"              = "amplify/functions/messaging/outbound-voice"
+    "wecare-voice-calls-read"         = "amplify/functions/messaging/voice-cdr-read"
 }
 
 $successCount = 0
@@ -93,7 +107,7 @@ foreach ($entry in $functions.GetEnumerator()) {
             --function-name $funcName `
             --runtime $RUNTIME `
             --role $ROLE_ARN `
-            --handler "handler.lambda_handler" `
+            --handler "handler.handler" `
             --zip-file "fileb://$zipPath" `
             --timeout $TIMEOUT `
             --memory-size $MEMORY `
