@@ -467,7 +467,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/IVR+1.mp3')
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr-greeting.mp3')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 s3 = boto3.client('s3', region_name=REGION)
@@ -482,7 +482,7 @@ def _is_auto_pickup_enabled() -> bool:
     """Check if auto-pickup is enabled via SystemConfig table."""
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        result = table.get_item(Key={'configKey': 'whatsapp_calling_auto_pickup'})
+        result = table.get_item(Key={'id': 'whatsapp_calling_auto_pickup'})
         item = result.get('Item')
         if item:
             return str(item.get('configValue', 'false')).lower() == 'true'
@@ -498,7 +498,7 @@ def _get_auto_pickup_audio_url() -> Optional[str]:
     """
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        result = table.get_item(Key={'configKey': 'whatsapp_calling_ivr_url'})
+        result = table.get_item(Key={'id': 'whatsapp_calling_ivr_url'})
         item = result.get('Item')
         if item and item.get('configValue'):
             return str(item['configValue']).strip()
@@ -671,7 +671,7 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
     if enabled is not None:
         try:
             table.put_item(Item={
-                'configKey': 'whatsapp_calling_auto_pickup',
+                'id': 'whatsapp_calling_auto_pickup',
                 'configValue': str(enabled).lower(),
                 'updatedAt': Decimal(str(int(time.time()))),
             })
@@ -683,7 +683,7 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
     if ivr_url is not None:
         try:
             table.put_item(Item={
-                'configKey': 'whatsapp_calling_ivr_url',
+                'id': 'whatsapp_calling_ivr_url',
                 'configValue': ivr_url.strip(),
                 'updatedAt': Decimal(str(int(time.time()))),
             })

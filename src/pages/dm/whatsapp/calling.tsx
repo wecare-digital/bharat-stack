@@ -30,8 +30,10 @@ const WEBHOOK_CONFIG = {
 
 // Meta Access Token info
 const META_TOKEN = {
-  appId: '891766673609917',
-  appName: 'wecare_token',
+  appId_waba1: '2238810740192680',
+  appName_waba1: 'WECARE.DIGITAL',
+  appId_waba2: '1224334845952721',
+  appName_waba2: 'Manish Agarwal',
   secretName: 'wecare/meta-system-user-token',
   scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
   wabaAccess: ['1912405516040025', '1633959101297902'],
@@ -1253,7 +1255,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <tbody>
                     {[
-                      { label: 'App ID', value: META_TOKEN.appId },
+                      { label: 'WABA1 App', value: `${META_TOKEN.appId_waba1} (${META_TOKEN.appName_waba1})` },
+                      { label: 'WABA2 App', value: `${META_TOKEN.appId_waba2} (${META_TOKEN.appName_waba2})` },
                       { label: 'Secrets Manager', value: META_TOKEN.secretName },
                       { label: 'Token Type', value: META_TOKEN.tokenType },
                       { label: 'Status', value: META_TOKEN.status },

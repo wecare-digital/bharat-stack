@@ -43,10 +43,9 @@ const EXISTING_WEBHOOKS = [
 const META_WEBHOOK_CONFIG = {
   callbackUrl: 'https://api.wecare.digital/whatsapp-calling',
   verifyToken: 'wecare_calling_verify_2026',
-  appId: '891766673609917',
-  appName: 'wecare_token',
-  tokenUser: 'Manish Agarwal (868317602748966)',
-  tokenType: 'User Token (Never Expires)',
+  waba1: { appId: '2238810740192680', appName: 'WECARE.DIGITAL', business: 'Wecare.Digital' },
+  waba2: { appId: '1224334845952721', appName: 'Manish Agarwal', business: 'Manish Agarwal' },
+  tokenType: 'System User Token',
 };
 
 const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
@@ -105,8 +104,8 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
             <div><span style={{ color: '#666', fontWeight: 500 }}>Callback URL:</span><br /><code style={{ fontSize: 12, background: '#e0f2fe', padding: '2px 6px', borderRadius: 4 }}>{META_WEBHOOK_CONFIG.callbackUrl}</code></div>
             <div><span style={{ color: '#666', fontWeight: 500 }}>Verify Token:</span><br /><code style={{ fontSize: 12, background: '#e0f2fe', padding: '2px 6px', borderRadius: 4 }}>{META_WEBHOOK_CONFIG.verifyToken}</code></div>
-            <div><span style={{ color: '#666', fontWeight: 500 }}>App ID:</span> {META_WEBHOOK_CONFIG.appId} ({META_WEBHOOK_CONFIG.appName})</div>
-            <div><span style={{ color: '#666', fontWeight: 500 }}>Token User:</span> {META_WEBHOOK_CONFIG.tokenUser}</div>
+            <div><span style={{ color: '#666', fontWeight: 500 }}>WABA1 App:</span> {META_WEBHOOK_CONFIG.waba1.appId} ({META_WEBHOOK_CONFIG.waba1.appName})</div>
+            <div><span style={{ color: '#666', fontWeight: 500 }}>WABA2 App:</span> {META_WEBHOOK_CONFIG.waba2.appId} ({META_WEBHOOK_CONFIG.waba2.appName})</div>
           </div>
           <p style={{ fontSize: 12, color: '#666', marginTop: 8, marginBottom: 0 }}>
             Configure in Meta App Dashboard → WhatsApp → Configuration → Callback URL

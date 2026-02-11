@@ -40,7 +40,7 @@
  * 
  * DynamoDB Tables:
  *   base-wecare-digital-WhatsAppCallingTable (partition key: id)
- *   base-wecare-digital-SystemConfigTable (partition key: configKey)
+ *   base-wecare-digital-SystemConfigTable (partition key: id)
  * 
  * Meta Webhook Config:
  *   Callback URL: https://api.wecare.digital/whatsapp-calling
