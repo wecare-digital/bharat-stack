@@ -14,7 +14,7 @@ import { WHATSAPP_PHONES } from '../../../config/constants';
 interface PageProps { signOut?: () => void; user?: any; }
 
 const PHONE_NUMBERS = [
-  { id: 'phone-number-id-5e020cecd221429996f6ae721cc42206', metaId: '960395407161423', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: false },
+  { id: 'phone-number-id-5e020cecd221429996f6ae721cc42206', metaId: '960395407161423', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_2K', quality: 'GREEN', callingReady: true },
   { id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c', metaId: '997428863451102', display: '+91 99033 00044', name: 'Manish Agarwal', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true },
 ];
 
@@ -52,10 +52,10 @@ const SETUP_STEPS = [
   {
     step: 1, done: true,
     title: 'Prerequisites',
-    desc: 'Cloud API ✓ | whatsapp_business_messaging permission ✓ | System User token created (App 891766673609917) ✓ | +919903300044 has TIER_10K (meets 2K requirement) ✓ | +919330994400 has TIER_1K (needs upgrade to 2K for calling).',
+    desc: 'Cloud API ✓ | whatsapp_business_messaging permission ✓ | System User token created ✓ | +919330994400 TIER_2K+ ✓ calling enabled ✓ | +919903300044 TIER_10K ✓ calling enabled ✓',
   },
   {
-    step: 2, done: false,
+    step: 2, done: true,
     title: 'Enable Calling on Phone Number',
     desc: 'POST to /{phone-number-id}/settings with the calling object. Configure call icon visibility, business call hours, and callback request settings.',
     code: `POST /{phone-number-id}/settings
@@ -185,6 +185,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [autoPickup, setAutoPickup] = useState(true);
   const [autoPickupLoading, setAutoPickupLoading] = useState(false);
+  const [autoPickupMode, setAutoPickupMode] = useState<'manual' | 'ivr' | 'ai'>('ivr');
   const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/IVR+1.mp3');
   const [activeCalls, setActiveCalls] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<any[]>([]);
@@ -436,6 +437,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
         const data = await res.json();
         setAutoPickup(data.autoPickup !== false); // default true
         if (data.ivrUrl) setIvrUrl(data.ivrUrl);
+        if (data.autoPickupMode && ['manual', 'ivr', 'ai'].includes(data.autoPickupMode)) {
+          setAutoPickupMode(data.autoPickupMode);
+        }
       }
     } catch (e) { console.error('Config load error:', e); }
   };
@@ -635,7 +639,240 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
     if (audioEl) audioEl.srcObject = null;
   };
 
+  // Track which calls we've already auto-answered to avoid duplicates
+  const autoAnsweredRef = React.useRef<Set<string>>(new Set());
+
+  // Helper: play audio URL into a WebRTC peer connection's audio track
+  const playAudioIntoPeer = (pc: RTCPeerConnection, audioUrl: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.src = audioUrl;
+      const ctx = new AudioContext();
+      audio.oncanplaythrough = () => {
+        try {
+          const source = ctx.createMediaElementSource(audio);
+          const dest = ctx.createMediaStreamDestination();
+          source.connect(dest);
+          // Replace the silent/mic track with the audio track
+          const audioTrack = dest.stream.getAudioTracks()[0];
+          const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+          if (sender && audioTrack) sender.replaceTrack(audioTrack);
+          audio.play();
+          audio.onended = () => { ctx.close(); resolve(); };
+        } catch (e) { reject(e); }
+      };
+      audio.onerror = () => reject(new Error('Failed to load audio'));
+      // Timeout after 30s
+      setTimeout(() => { audio.pause(); ctx.close(); resolve(); }, 30000);
+    });
+  };
+
+  // Helper: record remote audio from peer connection for a few seconds
+  const recordRemoteAudio = (pc: RTCPeerConnection, durationMs: number): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const receivers = pc.getReceivers().filter(r => r.track?.kind === 'audio');
+      if (receivers.length === 0) { resolve(new Blob()); return; }
+      const stream = new MediaStream(receivers.map(r => r.track!));
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => resolve(new Blob(chunks, { type: 'audio/webm' }));
+      recorder.start();
+      setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, durationMs);
+    });
+  };
+
+  // AI Bot: send recorded audio to backend for transcription → Bedrock → Polly TTS → get audio URL back
+  const getAiBotResponse = async (audioBlob: Blob, callerPhone: string): Promise<string | null> => {
+    try {
+      // Convert blob to base64
+      const buffer = await audioBlob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+      const res = await fetch(`${API_BASE}/whatsapp-calling/ai-respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioBase64: base64, callerPhone, mimeType: 'audio/webm' }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.audioUrl || null; // URL of Polly-generated response audio
+    } catch (e) {
+      console.error('[AI-BOT] Response error:', e);
+      return null;
+    }
+  };
+
+  // Auto-answer: when autoPickup is ON and a ringing call with SDP arrives, answer it automatically
+  const autoAnswerCall = React.useCallback(async (call: any) => {
+    const { callId, phoneNumberId, sdpOffer } = call;
+    if (!callId || !phoneNumberId || !sdpOffer) return;
+    if (autoAnsweredRef.current.has(callId)) return;
+    autoAnsweredRef.current.add(callId);
+
+    const mode = autoPickupMode;
+    console.log(`[AUTO-ANSWER] mode=${mode} call=${callId} from=${call.fromNumber || 'unknown'}`);
+    toast.info(`Auto-answering (${mode}) call from ${call.callerName || call.fromNumber || 'unknown'}...`);
+
+    try {
+      // 1. Get microphone or create silent stream
+      let localStream: MediaStream;
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        const ctx = new AudioContext();
+        const oscillator = ctx.createOscillator();
+        oscillator.frequency.value = 0; // silent
+        const dest = ctx.createMediaStreamDestination();
+        oscillator.connect(dest);
+        oscillator.start();
+        localStream = dest.stream;
+      }
+      localStreamRef.current = localStream;
+
+      // 2. Create RTCPeerConnection
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      });
+      peerConnectionRef.current = pc;
+
+      // 3. Add local audio tracks
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      // 4. Handle remote audio
+      pc.ontrack = (event) => {
+        const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
+        if (audioEl && event.streams[0]) audioEl.srcObject = event.streams[0];
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log(`[AUTO-ANSWER] WebRTC state: ${pc.connectionState}`);
+      };
+
+      // 5. Set remote SDP offer
+      await pc.setRemoteDescription({ type: 'offer', sdp: sdpOffer });
+
+      // 6. Create SDP answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // 7. Wait for ICE gathering (max 3s)
+      const sdpAnswer = await new Promise<string>((resolve) => {
+        if (pc.iceGatheringState === 'complete') {
+          resolve(pc.localDescription?.sdp || answer.sdp || '');
+          return;
+        }
+        const timeout = setTimeout(() => resolve(pc.localDescription?.sdp || answer.sdp || ''), 3000);
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            clearTimeout(timeout);
+            resolve(pc.localDescription?.sdp || answer.sdp || '');
+          }
+        };
+      });
+
+      // 8. Send accept with SDP answer
+      const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, phoneNumberId, sdpAnswer }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        toast.error(`Auto-answer failed: ${data.step || 'unknown'}`);
+        cleanupWebRTC();
+        autoAnsweredRef.current.delete(callId);
+        return;
+      }
+
+      toast.success(`Call connected (${mode} mode)`);
+
+      // 9. Mode-specific behavior after call is connected
+      if (mode === 'ivr') {
+        // IVR mode: play greeting audio → hang up
+        try {
+          await playAudioIntoPeer(pc, ivrUrl);
+          toast.info('IVR audio finished — disconnecting');
+        } catch (e) {
+          console.error('[IVR] Audio play error:', e);
+        }
+        // Hang up after audio
+        await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callId, phoneNumberId }),
+        });
+        cleanupWebRTC();
+        toast.info('IVR call completed');
+
+      } else if (mode === 'ai') {
+        // AI Bot mode: listen → transcribe → Bedrock → Polly → play response → loop
+        // Play initial greeting first
+        try {
+          await playAudioIntoPeer(pc, ivrUrl);
+        } catch { /* greeting optional */ }
+
+        // Conversation loop (max 5 turns)
+        for (let turn = 0; turn < 5; turn++) {
+          if (pc.connectionState !== 'connected') break;
+
+          // Record caller's speech for 8 seconds
+          toast.info(`AI Bot: listening (turn ${turn + 1})...`);
+          const audioBlob = await recordRemoteAudio(pc, 8000);
+
+          if (audioBlob.size < 1000) {
+            // Silence or very short — caller may have hung up
+            toast.info('No speech detected — ending call');
+            break;
+          }
+
+          // Send to backend for AI processing
+          toast.info('AI Bot: thinking...');
+          const responseAudioUrl = await getAiBotResponse(audioBlob, call.fromNumber || '');
+
+          if (!responseAudioUrl) {
+            toast.error('AI Bot: no response generated');
+            break;
+          }
+
+          // Play AI response into the call
+          if (pc.connectionState !== 'connected') break;
+          toast.info('AI Bot: speaking...');
+          try {
+            await playAudioIntoPeer(pc, responseAudioUrl);
+          } catch (e) {
+            console.error('[AI-BOT] Play response error:', e);
+            break;
+          }
+        }
+
+        // End call after conversation
+        await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callId, phoneNumberId }),
+        });
+        cleanupWebRTC();
+        toast.info('AI Bot call completed');
+
+      }
+      // mode === 'manual': just connect, don't play anything — human takes over
+
+    } catch (err: any) {
+      console.error('[AUTO-ANSWER] Error:', err);
+      toast.error(`Auto-answer error: ${err.message || err}`);
+      cleanupWebRTC();
+      autoAnsweredRef.current.delete(callId);
+    }
+  }, [autoPickupMode, ivrUrl]);
+
   // Load on mount + poll active calls every 5s when on Live tab
+  // When autoPickup is ON, auto-answer ringing calls with SDP offers
   React.useEffect(() => {
     loadConfig();
     loadCallLogs();
@@ -645,10 +882,29 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
   React.useEffect(() => {
     if (activeTab === 'live') {
       loadActiveCalls();
-      const interval = setInterval(loadActiveCalls, 5000);
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/whatsapp-calling/active`);
+          if (res.ok) {
+            const data = await res.json();
+            const calls = data.calls || [];
+            setActiveCalls(calls);
+
+            // Auto-answer: if enabled, pick up ringing calls with SDP offers
+            if (autoPickup) {
+              const ringing = calls.filter(
+                (c: any) => (c.status === 'ringing' || c.status === 'pre_accepted') && c.sdpOffer && !autoAnsweredRef.current.has(c.callId)
+              );
+              if (ringing.length > 0) {
+                autoAnswerCall(ringing[0]); // answer one at a time
+              }
+            }
+          }
+        } catch (e) { console.error('Active calls poll error:', e); }
+      }, 3000); // poll every 3s for faster pickup
       return () => clearInterval(interval);
     }
-  }, [activeTab]);
+  }, [activeTab, autoPickup, autoAnswerCall]);
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -736,6 +992,41 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
                 </label>
               </div>
             </div>
+
+            {/* Auto-pickup Mode Selector */}
+            {autoPickup && (
+              <div style={{ ...s.card, marginTop: '12px', border: '1px solid #c7d2fe', background: '#eef2ff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#312e81' }}>Auto-pickup Mode:</label>
+                  {([
+                    { value: 'manual' as const, label: '👤 Manual', desc: 'Connect call, human answers' },
+                    { value: 'ivr' as const, label: '🔊 IVR', desc: 'Play audio greeting, then hang up' },
+                    { value: 'ai' as const, label: '🤖 AI Bot', desc: 'Bedrock AI answers the call' },
+                  ]).map((m) => (
+                    <button key={m.value} onClick={async () => {
+                      setAutoPickupMode(m.value);
+                      try {
+                        await fetch(`${API_BASE}/whatsapp-calling/config`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ autoPickupMode: m.value }),
+                        });
+                        toast.success(`Mode: ${m.label}`);
+                      } catch { toast.error('Failed to save mode'); }
+                    }} style={{
+                      padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                      border: autoPickupMode === m.value ? '2px solid #6366f1' : '1px solid #d1d5db',
+                      background: autoPickupMode === m.value ? '#c7d2fe' : '#fff',
+                      color: autoPickupMode === m.value ? '#312e81' : '#374151',
+                    }} title={m.desc}>
+                      {m.label}
+                    </button>
+                  ))}
+                  <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '4px' }}>
+                    {autoPickupMode === 'manual' ? 'Call connects, you talk' : autoPickupMode === 'ivr' ? 'Plays IVR audio → disconnects' : 'AI listens → Bedrock → Polly → speaks back'}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* IVR Audio Config */}
             <div style={{ ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>

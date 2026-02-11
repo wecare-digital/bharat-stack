@@ -11,12 +11,13 @@
  *   POST   /whatsapp-calling          - Call events from Meta (connect, terminate, permission)
  *   GET    /whatsapp-calling/logs     - List call event logs
  *   GET    /whatsapp-calling/active   - Get active/ringing calls (frontend polling)
- *   GET    /whatsapp-calling/config   - Get auto-pickup config
- *   POST   /whatsapp-calling/config   - Update auto-pickup config
+ *   GET    /whatsapp-calling/config   - Get auto-pickup config (enabled, mode, ivrUrl)
+ *   POST   /whatsapp-calling/config   - Update auto-pickup config (toggle, mode, ivrUrl)
  *   POST   /whatsapp-calling/accept   - Pre-accept + accept call (send SDP answer)
  *   POST   /whatsapp-calling/reject   - Reject a ringing call
  *   POST   /whatsapp-calling/hangup   - Hang up an active call
  *   POST   /whatsapp-calling/outbound - Request call permission or initiate outbound call
+ *   POST   /whatsapp-calling/ai-respond - AI Bot: audio/text → Transcribe → Bedrock → Polly TTS → audio URL
  *   DELETE /whatsapp-calling          - Clear call logs
  * 
  * Environment Variables:
@@ -31,12 +32,17 @@
  *   AUTO_PICKUP_IVR_URL: https://app.wecare.digital/stream/media/ivr/IVR+1.mp3
  *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-5e020cecd221429996f6ae721cc42206
  *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c
+ *   AI_AGENT_ID: Z4YAK0ZLBO (external Bedrock agent)
+ *   AI_AGENT_ALIAS: WANPKHQGIB
+ *   AI_KB_ID: LYMQLKZNY7 (external knowledge base)
+ *   AI_VOICE_ID: Kajal (Polly neural voice, en-IN)
+ *   AI_LANGUAGE: en-IN
+ *   TRANSCRIBE_LANGUAGE: en-IN
  * 
- * Auto-Pickup Feature:
- *   Default ON. Incoming calls are automatically answered, IVR greeting
- *   (https://app.wecare.digital/stream/media/ivr/IVR+1.mp3) is sent as
- *   WhatsApp audio message to the caller, then call auto-terminates after 15s.
- *   IVR URL configurable via SystemConfig (key: whatsapp_calling_ivr_url).
+ * Auto-Pickup Modes (configurable via SystemConfig):
+ *   manual - Connect call, human answers via browser WebRTC
+ *   ivr    - Auto-answer, play IVR audio greeting, then hang up (default)
+ *   ai     - Auto-answer, AI bot conversation loop (Transcribe → Bedrock → Polly)
  * 
  * DynamoDB Tables:
  *   base-wecare-digital-WhatsAppCallingTable (partition key: id)

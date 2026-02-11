@@ -66,8 +66,8 @@ if ($lambdaExists) {
     
     aws lambda update-function-configuration `
         --function-name $LAMBDA_NAME `
-        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://app.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable}" `
-        --timeout 30 `
+        --environment "Variables={VERIFY_TOKEN=wecare_calling_verify_2026,CALL_LOG_TABLE=$TABLE_NAME,META_TOKEN_SECRET=wecare/meta-system-user-token,META_API_VERSION=v20.0,LOG_LEVEL=INFO,AUTO_PICKUP_ENABLED=true,AUTO_PICKUP_IVR_URL=https://app.wecare.digital/stream/media/ivr/IVR+1.mp3,SYSTEM_CONFIG_TABLE=base-wecare-digital-SystemConfigTable,AI_AGENT_ID=Z4YAK0ZLBO,AI_AGENT_ALIAS=WANPKHQGIB,AI_KB_ID=LYMQLKZNY7,AI_VOICE_ID=Kajal,AI_LANGUAGE=en-IN,TRANSCRIBE_LANGUAGE=en-IN,MEDIA_BUCKET=app.wecare.digital,WHATSAPP_PHONE_NUMBER_ID_1=phone-number-id-5e020cecd221429996f6ae721cc42206,WHATSAPP_PHONE_NUMBER_ID_2=phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c}" `
+        --timeout 60 `
         --memory-size 256 `
         --region $REGION `
         --no-cli-pager
@@ -117,7 +117,8 @@ $routes = @(
     @{ method = "POST";   path = "/whatsapp-calling/hangup" },
     @{ method = "POST";   path = "/whatsapp-calling/outbound" },
     @{ method = "GET";    path = "/whatsapp-calling/config" },
-    @{ method = "POST";   path = "/whatsapp-calling/config" }
+    @{ method = "POST";   path = "/whatsapp-calling/config" },
+    @{ method = "POST";   path = "/whatsapp-calling/ai-respond" }
 )
 
 foreach ($route in $routes) {

@@ -100,7 +100,7 @@ def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None, ph
     data = json.dumps(payload).encode('utf-8') if payload else None
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             body = resp.read().decode('utf-8')
             return json.loads(body) if body else {'success': True}
     except urllib.error.HTTPError as e:
@@ -150,6 +150,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _terminate_call(event, request_id)
             if '/outbound' in path:
                 return _outbound_call(event, request_id)
+            if '/ai-respond' in path:
+                return _ai_respond(event, request_id)
             # Default POST = webhook event from Meta
             body_str = event.get('body', '{}')
             if event.get('isBase64Encoded'):
@@ -269,15 +271,28 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
-        logger.info(f"INBOUND CALL from {caller_name or from_number} — call_id: {call_id}, has_sdp: {bool(sdp_offer)}")
+        logger.info(f"INBOUND CALL from {caller_name or from_number} — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
 
-        # Auto-pickup: if enabled, answer immediately and play greeting
+        # Auto-pickup: if enabled, send pre_accept to hold the call open
+        # The actual accept with SDP answer is handled by the frontend (browser WebRTC).
+        # Lambda sends pre_accept to tell Meta we intend to answer — this extends
+        # the timeout window so the frontend has time to poll and generate SDP.
         if _is_auto_pickup_enabled() and phone_number_id:
-            logger.info(f"AUTO-PICKUP enabled — answering call {call_id}")
+            logger.info(f"AUTO-PICKUP pre_accept — holding call {call_id} for frontend pickup")
             try:
-                _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
+                pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+                    'messaging_product': 'whatsapp',
+                    'call_id': call_id,
+                    'action': 'pre_accept',
+                }, phone_number_id=phone_number_id)
+                logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
+                if pre_result.get('error'):
+                    logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
+                    _update_call_status(call_id, 'pre_accept_failed', pre_result)
+                else:
+                    _update_call_status(call_id, 'pre_accepted')
             except Exception as e:
-                logger.error(f"Auto-pickup failed: {e}", exc_info=True)
+                logger.error(f"Auto pre_accept failed: {e}", exc_info=True)
 
     elif event_type == 'terminate':
         reason = call.get('reason', 'unknown')
@@ -470,8 +485,19 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr-greeting.mp3')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
+# AI Bot config
+AI_AGENT_ID = os.environ.get('AI_AGENT_ID', '')
+AI_AGENT_ALIAS = os.environ.get('AI_AGENT_ALIAS', '')
+AI_KB_ID = os.environ.get('AI_KB_ID', '')
+AI_VOICE_ID = os.environ.get('AI_VOICE_ID', 'Kajal')
+AI_LANGUAGE = os.environ.get('AI_LANGUAGE', 'en-IN')
+TRANSCRIBE_LANGUAGE = os.environ.get('TRANSCRIBE_LANGUAGE', 'en-IN')
+
 s3 = boto3.client('s3', region_name=REGION)
 social_messaging = boto3.client('socialmessaging', region_name=REGION)
+polly_client = boto3.client('polly', region_name=REGION)
+transcribe_client = boto3.client('transcribe', region_name=REGION)
+bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
 
 # Phone number ID mapping for outbound audio via EUM
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
@@ -512,15 +538,31 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     Auto-pickup: pre_accept → accept the call, then send the greeting audio
     as a WhatsApp audio message to the caller.
 
-    Flow:
-    1. pre_accept → accept (no SDP answer needed for server-side auto-pickup,
-       Meta will handle media if we just accept)
-    2. Send audio message to caller via WhatsApp messaging API
-    3. After audio plays, terminate the call (or let caller hang up)
-    """
-    logger.info(f"AUTO-PICKUP: Answering call {call_id} from {from_number}")
+    IMPORTANT: Meta's Calling API requires an SDP answer for the accept action
+    to establish WebRTC media. Without a valid SDP answer, the call will NOT
+    connect and will timeout with a "terminate" webhook.
 
-    # Step 1: Pre-accept
+    Current limitation: Server-side Lambda cannot generate a WebRTC SDP answer
+    without a WebRTC stack (e.g., GStreamer, Opal, Opal, or a headless browser).
+    As a workaround, we send pre_accept (to stop ringing) and then send an
+    audio message to the caller via WhatsApp messaging API. The actual voice
+    call will NOT connect — the caller hears ringing then disconnect.
+
+    For true auto-pickup, you need either:
+    1. A browser-based WebRTC client (frontend) to generate SDP answer
+    2. A server-side WebRTC stack (e.g., Opal/GStreamer/Opal) to generate SDP
+    3. SIP integration (if enabled on the WABA) with a SIP server like Opal/FreeSWITCH
+    """
+    logger.info(json.dumps({
+        'event': 'auto_pickup_start',
+        'call_id': call_id,
+        'from': from_number,
+        'phone_number_id': phone_number_id,
+        'has_sdp_offer': bool(sdp_offer),
+        'sdp_offer_length': len(sdp_offer) if sdp_offer else 0,
+    }))
+
+    # Step 1: Pre-accept — tells Meta we intend to answer (stops ringing on user's end)
     pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
         'messaging_product': 'whatsapp',
         'call_id': call_id,
@@ -529,50 +571,69 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     logger.info(f"AUTO-PICKUP pre_accept: {json.dumps(pre_result)}")
 
     if pre_result.get('error'):
-        logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
-        _update_call_status(call_id, 'auto_pickup_failed')
+        logger.error(json.dumps({
+            'event': 'auto_pickup_pre_accept_failed',
+            'call_id': call_id,
+            'error': pre_result,
+            'phone_number_id': phone_number_id,
+        }))
+        _update_call_status(call_id, 'auto_pickup_failed', {
+            'failStep': 'pre_accept',
+            'error': json.dumps(pre_result)[:500],
+        })
         return
 
-    # Step 2: Accept (server-side, no browser SDP answer)
-    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+    # Step 2: Accept — requires SDP answer for WebRTC media establishment
+    # Without SDP answer, Meta will NOT connect the call audio.
+    # We still send accept to complete the signaling, but the call won't have audio.
+    accept_payload = {
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'accept',
-    }, phone_number_id=phone_number_id)
+    }
+    # NOTE: sdp_answer is NOT included because Lambda cannot generate one.
+    # This means the call will likely terminate with "no_answer" or "timeout".
+
+    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST',
+                                    accept_payload, phone_number_id=phone_number_id)
     logger.info(f"AUTO-PICKUP accept: {json.dumps(accept_result)}")
 
     if accept_result.get('error'):
-        logger.error(f"AUTO-PICKUP accept failed: {json.dumps(accept_result)}")
-        _update_call_status(call_id, 'auto_pickup_failed')
+        logger.error(json.dumps({
+            'event': 'auto_pickup_accept_failed',
+            'call_id': call_id,
+            'error': accept_result,
+            'phone_number_id': phone_number_id,
+            'note': 'Accept without SDP answer — call audio will NOT connect',
+        }))
+        _update_call_status(call_id, 'auto_pickup_failed', {
+            'failStep': 'accept',
+            'error': json.dumps(accept_result)[:500],
+        })
         return
 
     _update_call_status(call_id, 'auto_answered')
 
-    # Step 3: Send greeting audio message to the caller
+    # Step 3: Send greeting audio message to the caller via WhatsApp messaging API
+    # This is a regular WhatsApp audio message, NOT in-call audio.
     audio_url = _get_auto_pickup_audio_url()
     if audio_url:
         _send_audio_to_caller(phone_number_id, from_number, audio_url, call_id)
     else:
         logger.warning("AUTO-PICKUP: No greeting audio configured, call answered silently")
 
-    # Step 4: Terminate after a delay (let audio play ~15s)
-    # Note: In production you might use Step Functions or a delayed SQS message.
-    # For now, we terminate after sending the audio — the caller hears the
-    # audio message in their chat and the call ends.
-    import threading
-
-    def _delayed_hangup():
-        time.sleep(15)
-        logger.info(f"AUTO-PICKUP: Hanging up call {call_id}")
-        _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-            'messaging_product': 'whatsapp',
-            'call_id': call_id,
-            'action': 'terminate',
-        }, phone_number_id=phone_number_id)
-        _update_call_status(call_id, 'auto_completed')
-
-    t = threading.Thread(target=_delayed_hangup, daemon=True)
-    t.start()
+    # Step 4: Terminate after a delay (let audio message send)
+    # Use synchronous sleep — daemon threads get killed when Lambda freezes
+    # the execution context after handler returns.
+    time.sleep(15)
+    logger.info(f"AUTO-PICKUP: Hanging up call {call_id}")
+    hangup_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'terminate',
+    }, phone_number_id=phone_number_id)
+    logger.info(f"AUTO-PICKUP hangup result: {json.dumps(hangup_result)}")
+    _update_call_status(call_id, 'auto_completed')
 
 
 def _get_aws_phone_id(meta_phone_number_id: str) -> str:
@@ -620,16 +681,17 @@ def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, 
 # ─── Active Calls (for frontend polling) ────────────────────────────
 
 def _get_active_calls(params: Dict, request_id: str) -> Dict[str, Any]:
-    """Get calls with status 'ringing' or 'connected' for the frontend."""
+    """Get calls with status 'ringing', 'pre_accepted', or 'connected' for the frontend."""
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
         result = table.scan(
-            FilterExpression='#s IN (:r, :c, :a)',
+            FilterExpression='#s IN (:r, :c, :a, :p)',
             ExpressionAttributeNames={'#s': 'status'},
             ExpressionAttributeValues={
                 ':r': 'ringing',
                 ':c': 'connected',
                 ':a': 'auto_answered',
+                ':p': 'pre_accepted',
             },
         )
         items = result.get('Items', [])
@@ -650,21 +712,37 @@ def _get_active_calls(params: Dict, request_id: str) -> Dict[str, Any]:
 # POST /whatsapp-calling/config  → Update auto-pickup config
 
 def _get_config(request_id: str) -> Dict[str, Any]:
-    """Get auto-pickup configuration."""
+    """Get auto-pickup configuration including mode."""
     enabled = _is_auto_pickup_enabled()
     audio_url = _get_auto_pickup_audio_url()
+    mode = _get_auto_pickup_mode()
     return _response(200, {
         'autoPickup': enabled,
         'ivrUrl': audio_url,
         'defaultIvrUrl': DEFAULT_IVR_URL,
+        'autoPickupMode': mode,
     })
 
 
+def _get_auto_pickup_mode() -> str:
+    """Get auto-pickup mode from SystemConfig: 'manual' | 'ivr' | 'ai'."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': 'whatsapp_calling_auto_pickup_mode'})
+        item = result.get('Item')
+        if item and item.get('configValue') in ('manual', 'ivr', 'ai'):
+            return str(item['configValue'])
+    except Exception as e:
+        logger.warning(f"Failed to read auto-pickup mode: {e}")
+    return 'ivr'  # default
+
+
 def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
-    """Update auto-pickup configuration (toggle + IVR URL)."""
+    """Update auto-pickup configuration (toggle + IVR URL + mode)."""
     body = json.loads(event.get('body', '{}'))
     enabled = body.get('autoPickup')
     ivr_url = body.get('ivrUrl')
+    mode = body.get('autoPickupMode')  # 'manual' | 'ivr' | 'ai'
 
     table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
 
@@ -692,7 +770,220 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update IVR URL config: {e}")
             return _response(500, {'error': str(e)})
 
-    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url})
+    if mode is not None and mode in ('manual', 'ivr', 'ai'):
+        try:
+            table.put_item(Item={
+                'id': 'whatsapp_calling_auto_pickup_mode',
+                'configValue': mode,
+                'updatedAt': Decimal(str(int(time.time()))),
+            })
+            logger.info(f"Auto-pickup mode set to: {mode}")
+        except Exception as e:
+            logger.error(f"Failed to update auto-pickup mode: {e}")
+            return _response(500, {'error': str(e)})
+
+    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': mode})
+
+
+# ─── AI Bot Endpoint ─────────────────────────────────────────────────
+
+def _ai_respond(event: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    AI Bot endpoint: caller audio → transcribe → Bedrock → Polly TTS → audio URL.
+
+    Frontend sends: { audioBase64, callerPhone, mimeType, text?, sessionId? }
+    - audioBase64: base64-encoded webm/opus from browser MediaRecorder
+    - text: direct text input (skip transcription if browser did speech-to-text)
+    - callerPhone: caller's phone number
+    - mimeType: 'audio/webm' (default)
+
+    Returns: { audioUrl, transcribedText, aiResponse, sessionId }
+    """
+    import base64 as b64
+
+    body = json.loads(event.get('body', '{}'))
+    audio_base64 = body.get('audioBase64', '')
+    caller_phone = body.get('callerPhone', 'unknown')
+    mime_type = body.get('mimeType', 'audio/webm')
+    text_input = body.get('text', '')
+    session_id = body.get('sessionId', str(uuid.uuid4()))
+
+    logger.info(json.dumps({
+        'event': 'ai_respond_start', 'callerPhone': caller_phone,
+        'hasAudio': bool(audio_base64), 'hasText': bool(text_input),
+        'sessionId': session_id, 'requestId': request_id,
+    }))
+
+    try:
+        transcribed_text = text_input
+
+        # Step 1-2: Transcribe audio if no direct text
+        if not transcribed_text and audio_base64:
+            transcribed_text = _transcribe_audio(audio_base64, mime_type, session_id, request_id)
+
+        if not transcribed_text:
+            return _response(200, {'error': 'No speech detected', 'audioUrl': None})
+
+        logger.info(f"[AI-RESPOND] Transcribed: {transcribed_text[:200]}")
+
+        # Step 3: Bedrock Agent response
+        ai_response = _get_bedrock_response(transcribed_text, session_id, request_id)
+        if not ai_response:
+            ai_response = "Sorry, I couldn't process your request. Please call us at +91 9330994400 for assistance."
+
+        logger.info(f"[AI-RESPOND] Bedrock: {ai_response[:200]}")
+
+        # Step 4-5: Polly TTS → S3 presigned URL
+        audio_url = _generate_tts_url(ai_response, session_id, request_id)
+
+        return _response(200, {
+            'audioUrl': audio_url,
+            'transcribedText': transcribed_text,
+            'aiResponse': ai_response,
+            'sessionId': session_id,
+        })
+
+    except Exception as e:
+        logger.error(f"[AI-RESPOND] Error: {e}", exc_info=True)
+        return _response(200, {'error': str(e), 'audioUrl': None})
+
+
+def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, request_id: str) -> str:
+    """Decode base64 audio, upload to S3, run Transcribe batch job, return text."""
+    import base64 as b64
+
+    ext = 'webm' if 'webm' in mime_type else 'ogg' if 'ogg' in mime_type else 'mp3'
+    media_format = 'webm' if ext == 'webm' else 'ogg' if ext == 'ogg' else 'mp3'
+
+    audio_bytes = b64.b64decode(audio_base64)
+    s3_key = f"whatsapp-media/calling-ai/input/{session_id}_{int(time.time())}.{ext}"
+
+    s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_bytes, ContentType=mime_type)
+    logger.info(f"[TRANSCRIBE] Uploaded {len(audio_bytes)} bytes to s3://{MEDIA_BUCKET}/{s3_key}")
+
+    job_name = f"wa-call-{session_id[:8]}-{int(time.time())}"
+    transcribe_client.start_transcription_job(
+        TranscriptionJobName=job_name,
+        Media={'MediaFileUri': f"s3://{MEDIA_BUCKET}/{s3_key}"},
+        MediaFormat=media_format,
+        LanguageCode=TRANSCRIBE_LANGUAGE,
+        OutputBucketName=MEDIA_BUCKET,
+        OutputKey=f"whatsapp-media/calling-ai/transcripts/{job_name}.json",
+    )
+
+    # Poll for completion (max 30s)
+    for _ in range(30):
+        time.sleep(1)
+        status = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
+        job_status = status['TranscriptionJob']['TranscriptionJobStatus']
+        if job_status == 'COMPLETED':
+            transcript_key = f"whatsapp-media/calling-ai/transcripts/{job_name}.json"
+            obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
+            transcript_data = json.loads(obj['Body'].read().decode('utf-8'))
+            text = transcript_data.get('results', {}).get('transcripts', [{}])[0].get('transcript', '')
+            logger.info(f"[TRANSCRIBE] Done: {text[:200]}")
+            try:
+                s3.delete_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+                s3.delete_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
+            except Exception:
+                pass
+            return text.strip()
+        elif job_status == 'FAILED':
+            reason = status['TranscriptionJob'].get('FailureReason', 'unknown')
+            logger.error(f"[TRANSCRIBE] Failed: {reason}")
+            return ''
+
+    logger.warning(f"[TRANSCRIBE] Timed out after 30s")
+    return ''
+
+
+def _get_bedrock_response(user_text: str, session_id: str, request_id: str) -> str:
+    """Send text to Bedrock Agent (external/customer-facing) and get response."""
+    agent_id = AI_AGENT_ID or 'Z4YAK0ZLBO'
+    agent_alias = AI_AGENT_ALIAS or 'WANPKHQGIB'
+
+    try:
+        response = bedrock_runtime.invoke_agent(
+            agentId=agent_id,
+            agentAliasId=agent_alias,
+            sessionId=session_id,
+            inputText=user_text,
+            enableTrace=False,
+        )
+
+        completion = ""
+        for evt in response.get('completion', []):
+            if 'chunk' in evt:
+                chunk_data = evt['chunk']
+                if 'bytes' in chunk_data:
+                    completion += chunk_data['bytes'].decode('utf-8')
+
+        if completion:
+            return completion.strip()
+
+        # Fallback to KB
+        kb_id = AI_KB_ID or 'LYMQLKZNY7'
+        if kb_id:
+            return _query_kb_direct(user_text, kb_id, request_id)
+        return ''
+
+    except Exception as e:
+        logger.error(f"[BEDROCK] Error: {e}", exc_info=True)
+        kb_id = AI_KB_ID or 'LYMQLKZNY7'
+        if kb_id:
+            return _query_kb_direct(user_text, kb_id, request_id)
+        return ''
+
+
+def _query_kb_direct(user_text: str, kb_id: str, request_id: str) -> str:
+    """Direct Knowledge Base query as fallback."""
+    try:
+        response = bedrock_runtime.retrieve_and_generate(
+            input={'text': user_text},
+            retrieveAndGenerateConfiguration={
+                'type': 'KNOWLEDGE_BASE',
+                'knowledgeBaseConfiguration': {
+                    'knowledgeBaseId': kb_id,
+                    'modelArn': 'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0',
+                },
+            },
+        )
+        return (response.get('output', {}).get('text', '') or '').strip()
+    except Exception as e:
+        logger.error(f"[KB] Error: {e}")
+        return ''
+
+
+def _generate_tts_url(text: str, session_id: str, request_id: str) -> Optional[str]:
+    """Generate Polly TTS audio, upload to S3, return presigned URL."""
+    try:
+        ssml_text = f'<speak><prosody rate="medium">{text[:2900]}</prosody></speak>'
+        polly_response = polly_client.synthesize_speech(
+            Text=ssml_text, TextType='ssml', OutputFormat='mp3',
+            VoiceId=AI_VOICE_ID or 'Kajal', Engine='neural',
+            LanguageCode=AI_LANGUAGE or 'en-IN',
+        )
+        audio_stream = polly_response['AudioStream'].read()
+        s3_key = f"whatsapp-media/calling-ai/tts/{session_id}_{int(time.time())}.mp3"
+        s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
+        url = s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
+        logger.info(f"[TTS] Generated {len(audio_stream)} bytes → {s3_key}")
+        return url
+    except Exception as e:
+        logger.error(f"[TTS] SSML failed, retrying plain: {e}")
+        try:
+            polly_response = polly_client.synthesize_speech(
+                Text=text[:2900], TextType='text', OutputFormat='mp3',
+                VoiceId=AI_VOICE_ID or 'Kajal', Engine='neural',
+                LanguageCode=AI_LANGUAGE or 'en-IN',
+            )
+            audio_stream = polly_response['AudioStream'].read()
+            s3_key = f"whatsapp-media/calling-ai/tts/{session_id}_{int(time.time())}.mp3"
+            s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
+            return s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
+        except Exception as e2:
+            logger.error(f"[TTS] Plain text also failed: {e2}")
+            return None
 
 
 # ─── Storage Helpers ─────────────────────────────────────────────────
