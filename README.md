@@ -13,8 +13,8 @@ npm run dev
 
 - **Region**: us-east-1
 - **Account**: 775261844268
-- **Cognito User Pool**: us-east-1_CC9u1fYh6
-- **App Client**: 5na5ba2pbpanm36138jdcd9gck
+- **Cognito User Pool**: us-east-1_cSx0RHCIR
+- **App Client**: 1j8kbi48m4v2rped3n224rlevb
 
 ### S3 Bucket
 Single bucket: `app.wecare.digital`

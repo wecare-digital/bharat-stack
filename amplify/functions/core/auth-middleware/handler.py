@@ -14,7 +14,7 @@ logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 cognito = boto3.client('cognito-idp', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-USER_POOL_ID = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_CC9u1fYh6')
+USER_POOL_ID = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_cSx0RHCIR')
 
 CORS_HEADERS = {
     'Content-Type': 'application/json',

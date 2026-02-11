@@ -3,7 +3,7 @@ import { defineAuth } from '@aws-amplify/backend';
 /**
  * Authentication Configuration
  * 
- * Uses existing Cognito User Pool: us-east-1_CC9u1fYh6
+ * Uses existing Cognito User Pool: us-east-1_cSx0RHCIR
  * 
  * Roles:
  * - Viewer: Read-only access to contacts and message history
@@ -15,7 +15,7 @@ export const auth = defineAuth({
     email: true,
   },
   // Reference existing Cognito User Pool
-  // User Pool ID: us-east-1_CC9u1fYh6
+  // User Pool ID: us-east-1_cSx0RHCIR
   userAttributes: {
     'custom:role': {
       dataType: 'String',

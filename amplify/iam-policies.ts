@@ -240,7 +240,7 @@ export const IAM_POLICIES = {
           'cognito-idp:AdminListGroupsForUser',
           'cognito-idp:GetUser',
         ],
-        Resource: 'arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_CC9u1fYh6',
+        Resource: 'arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_cSx0RHCIR',
       },
     ],
   },

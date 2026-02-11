@@ -25,12 +25,12 @@ import { ToastProvider } from '../contexts/ToastContext';
 Amplify.configure({
   Auth: {
     Cognito: {
-      userPoolId: 'us-east-1_CC9u1fYh6',
-      userPoolClientId: '5na5ba2pbpanm36138jdcd9gck',
-      identityPoolId: 'us-east-1:ef6b783a-f0c5-4d2f-925d-9460e6a733ce',
+      userPoolId: 'us-east-1_cSx0RHCIR',
+      userPoolClientId: '1j8kbi48m4v2rped3n224rlevb',
+      identityPoolId: 'us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5',
       loginWith: {
         oauth: {
-          domain: 'sso.wecare.digital',
+          domain: 'wecare-digital-auth.auth.us-east-1.amazoncognito.com',
           scopes: ['openid', 'email', 'profile'],
           redirectSignIn: ['https://base.wecare.digital/', 'http://localhost:3000/'],
           redirectSignOut: ['https://base.wecare.digital/', 'http://localhost:3000/'],

@@ -1,0 +1,31 @@
+{
+  "UserPoolId": "us-east-1_cSx0RHCIR",
+  "ClientName": "base-wecare-digital-web",
+  "GenerateSecret": false,
+  "ExplicitAuthFlows": [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH"
+  ],
+  "SupportedIdentityProviders": ["COGNITO"],
+  "CallbackURLs": [
+    "https://base.wecare.digital/",
+    "http://localhost:3000/"
+  ],
+  "LogoutURLs": [
+    "https://base.wecare.digital/",
+    "http://localhost:3000/"
+  ],
+  "AllowedOAuthFlows": ["code"],
+  "AllowedOAuthScopes": ["openid", "email", "profile"],
+  "AllowedOAuthFlowsUserPoolClient": true,
+  "PreventUserExistenceErrors": "ENABLED",
+  "AccessTokenValidity": 1,
+  "IdTokenValidity": 1,
+  "RefreshTokenValidity": 30,
+  "TokenValidityUnits": {
+    "AccessToken": "hours",
+    "IdToken": "hours",
+    "RefreshToken": "days"
+  }
+}
