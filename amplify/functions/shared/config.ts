@@ -31,7 +31,7 @@ export const TABLES = {
 // S3 Buckets
 export const S3_BUCKETS = {
   MEDIA: 'app.wecare.digital',
-  REPORTS: 'stream.wecare.digital',
+  REPORTS: 'app.wecare.digital',
 };
 
 // S3 Prefixes

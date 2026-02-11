@@ -364,13 +364,13 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   'wecare-scheduled-messages': ['common', 'lambdaInvoke'],
   'wecare-bulk-job-create': ['common', 'sqs'],
   'wecare-bulk-worker': ['common', 'sqs', 'whatsapp', 'sms', 'email'],
-  'wecare-bulk-job-control': ['common', 'sqs'],
+  'wecare-bulk-job-control': ['common', 'sqs', 's3'],
 
   // === AI ===
   'wecare-ai-query-kb': ['common', 'bedrock'],
   'wecare-ai-generate-response': ['common', 'bedrock'],
   'wecare-ai-config-management': ['common'],
-  'wecare-agent-action-group': ['common', 'bedrock'],
+  'wecare-agent-action-group': ['common', 'bedrock', 'lambdaInvoke'],
 
   // === Operations ===
   'wecare-dlq-replay': ['common', 'sqs', 'sns'],

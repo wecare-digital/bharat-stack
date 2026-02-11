@@ -1,7 +1,7 @@
 import { defineFunction } from '@aws-amplify/backend';
 
 export const aiConfigManagement = defineFunction({
-  name: 'ai-config-management',
+  name: 'wecare-ai-config-management',
   entry: './handler.py',
   runtime: 20,
   timeoutSeconds: 30,
