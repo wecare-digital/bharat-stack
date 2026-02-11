@@ -802,6 +802,49 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       );
     }
     
+    // Referral messages (click-to-WhatsApp ads, social posts)
+    if (messageType === 'referral' || content?.startsWith('[Referral:')) {
+      const detail = content?.replace(/^\[Referral: ?\w*\]\s*/, '').trim();
+      return (
+        <div className="referral-message">
+          <span className="referral-icon">📢</span>
+          <span className="referral-text">{detail || 'Came from an ad or referral'}</span>
+        </div>
+      );
+    }
+    
+    // Ad click messages
+    if (messageType === 'ad_click' || content?.startsWith('[Ad Click')) {
+      return (
+        <div className="referral-message">
+          <span className="referral-icon">📢</span>
+          <span className="referral-text">Clicked a WhatsApp ad</span>
+        </div>
+      );
+    }
+    
+    // Product / catalog messages
+    if (messageType === 'product' || messageType === 'product_inquiry' || content?.startsWith('[Product')) {
+      const detail = content?.replace(/[\[\]]/g, '') || 'Product inquiry';
+      return (
+        <div className="product-message">
+          <span className="product-icon">🛍️</span>
+          <span className="product-text">{detail}</span>
+        </div>
+      );
+    }
+    
+    // Poll messages
+    if (messageType === 'poll' || content?.startsWith('[Poll')) {
+      const question = content?.match(/\[Poll: (.+?)\]/)?.[1] || 'Poll';
+      return (
+        <div className="poll-message">
+          <span className="poll-icon">📊</span>
+          <span className="poll-text">{question}</span>
+        </div>
+      );
+    }
+    
     // Unsupported messages
     if (messageType === 'unsupported' || content?.includes('[Unsupported') || content?.includes('[Message type not supported')) {
       return (

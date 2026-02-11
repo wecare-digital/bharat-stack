@@ -711,3 +711,126 @@ Your outbound client is `wecare-outbound-whatsapp` Lambda. Key implementation de
 **Key rule**: Within the 24h customer service window, you can send any message type (text, media, interactive) without a template. Outside the window, only approved templates can be sent.
 
 Your implementation tracks `lastInboundMessageAt` on every inbound message and has `CUSTOMER_SERVICE_WINDOW_HOURS = 24` in the outbound handler, though the window check is currently always returning `True` (all contacts allowed).
+
+---
+
+## Appendix D: Completeness Checklist — Required Endpoints, Permissions, Tokens & Webhook Events
+
+### D.1 Required Meta Permissions / Scopes
+
+| # | Permission / Scope | Purpose | Status | Where Used |
+|---|-------------------|---------|--------|-----------|
+| 1 | `whatsapp_business_messaging` | Send/receive messages, media, read receipts | ✅ Granted | System User Token |
+| 2 | `whatsapp_business_management` | Template CRUD, WABA management, phone number management | ✅ Granted | System User Token |
+| 3 | `business_management` | Business verification, account management | ✅ Granted | System User Token |
+
+### D.2 Required Tokens & Secrets
+
+| # | Token / Secret | Storage | Rotation | Status |
+|---|---------------|---------|----------|--------|
+| 1 | System User Access Token (permanent) | Secrets Manager `wecare/meta-system-user-token` | Manual (never expires for system users) | ✅ Stored |
+| 2 | Meta App Secret | Secrets Manager `wecare/meta-app-secret` | Manual (rotate in Meta Dashboard) | ✅ Stored |
+| 3 | Webhook Verify Token | N/A — AWS EUM Social handles verification | N/A | ✅ Handled by AWS |
+| 4 | Phone Number ID (WABA 1) | Lambda env var `WHATSAPP_PHONE_NUMBER_ID_1` | Static (changes only on re-registration) | ✅ Configured |
+| 5 | Phone Number ID (WABA 2) | Lambda env var `WHATSAPP_PHONE_NUMBER_ID_2` | Static | ✅ Configured |
+| 6 | WABA ID 1 | Lambda env var / code constant | Static | ✅ Configured |
+| 7 | WABA ID 2 | Lambda env var / code constant | Static | ✅ Configured |
+
+### D.3 Required Graph API Endpoints (via AWS EUM Social)
+
+| # | Meta Endpoint | AWS EUM Social Method | Lambda | Status |
+|---|-------------|----------------------|--------|--------|
+| 1 | `POST /{PHONE}/messages` (text) | `send_whatsapp_message` | `wecare-outbound-whatsapp` | ✅ |
+| 2 | `POST /{PHONE}/messages` (media) | `send_whatsapp_message` | `wecare-outbound-whatsapp` | ✅ |
+| 3 | `POST /{PHONE}/messages` (template) | `send_whatsapp_message` | `wecare-outbound-whatsapp` | ✅ |
+| 4 | `POST /{PHONE}/messages` (interactive) | `send_whatsapp_message` | `wecare-outbound-whatsapp` | ✅ |
+| 5 | `POST /{PHONE}/messages` (reaction) | `send_whatsapp_message` | `wecare-outbound-whatsapp` | ✅ |
+| 6 | `POST /{PHONE}/messages` (read receipt) | `send_whatsapp_message` | `wecare-inbound-whatsapp` | ✅ |
+| 7 | `POST /{PHONE}/media` (upload) | `post_whatsapp_message_media` | `wecare-outbound-whatsapp` + `wecare-waba-management` | ✅ |
+| 8 | `GET /{MEDIA_ID}` (download) | `get_whatsapp_message_media` | `wecare-inbound-whatsapp` + `wecare-waba-management` | ✅ |
+| 9 | `DELETE /{MEDIA_ID}` | `delete_whatsapp_message_media` | `wecare-media-cleanup` + `wecare-waba-management` | ✅ |
+| 10 | `POST /{WABA}/message_templates` (create) | IAM `CreateMessageTemplate` | `wecare-whatsapp-template-management` | ✅ |
+| 11 | `GET /{WABA}/message_templates` (list) | IAM `GetMessageTemplate` | `wecare-whatsapp-template-management` | ✅ |
+| 12 | `DELETE /{WABA}/message_templates` | IAM `DeleteMessageTemplate` | `wecare-whatsapp-template-management` | ✅ |
+| 13 | `GET /{PHONE_NUMBER_ID}` (phone details) | `get_linked_whatsapp_business_account_phone_number` | `wecare-waba-management` | ✅ |
+| 14 | `GET /whatsapp_business_profile` | Not available via AWS EUM Social | N/A | ⚠️ Use Meta Business Suite UI |
+| 15 | `POST /whatsapp_business_profile` | Not available via AWS EUM Social | N/A | ⚠️ Use Meta Business Suite UI |
+
+### D.4 Required Webhook Events (Subscribed)
+
+| # | Webhook Field | Event Type | Handler Function | Persisted To | Status |
+|---|-------------|-----------|-----------------|-------------|--------|
+| 1 | `messages` | `text` | `_extract_content` → `text.body` | WhatsAppInboundTable | ✅ |
+| 2 | `messages` | `image` | `_extract_content` + `_download_media` | WhatsAppInboundTable + MediaFilesTable + S3 | ✅ |
+| 3 | `messages` | `video` | `_extract_content` + `_download_media` | WhatsAppInboundTable + MediaFilesTable + S3 | ✅ |
+| 4 | `messages` | `audio` | `_extract_content` + `_download_media` | WhatsAppInboundTable + MediaFilesTable + S3 | ✅ |
+| 5 | `messages` | `document` | `_extract_content` + `_download_media` | WhatsAppInboundTable + MediaFilesTable + S3 | ✅ |
+| 6 | `messages` | `sticker` | `_extract_content` + `_download_media` | WhatsAppInboundTable + MediaFilesTable + S3 | ✅ |
+| 7 | `messages` | `location` | `_extract_content` → lat/lng | WhatsAppInboundTable | ✅ |
+| 8 | `messages` | `contacts` | `_extract_content` → `[Contact Card]` | WhatsAppInboundTable | ✅ |
+| 9 | `messages` | `reaction` | `_extract_content` → emoji | WhatsAppInboundTable | ✅ |
+| 10 | `messages` | `interactive` (button_reply) | `_extract_content` → button title | WhatsAppInboundTable | ✅ |
+| 11 | `messages` | `interactive` (list_reply) | `_extract_content` → list item title | WhatsAppInboundTable | ✅ |
+| 12 | `messages` | `interactive` (nfm_reply) | `_extract_content` → Flow JSON | WhatsAppInboundTable | ✅ |
+| 13 | `messages` | `button` (quick reply) | `_extract_content` → button text | WhatsAppInboundTable | ✅ |
+| 14 | `messages` | `order` | `_extract_content` → `[Order]` | WhatsAppInboundTable | ✅ |
+| 15 | `messages` | `system` | `_extract_content` → `[System Message]` | WhatsAppInboundTable | ✅ |
+| 16 | `messages` | `unsupported` | `_extract_unsupported_content` | WhatsAppInboundTable | ✅ |
+| 17 | `messages` | `request_welcome` | `_extract_content` → `[User requested...]` | WhatsAppInboundTable | ✅ |
+| 18 | `messages` | `ephemeral` | `_extract_content` → `[Disappearing Message]` | WhatsAppInboundTable | ✅ |
+| 19 | `statuses` | `sent` | `_process_status` → update status | WhatsAppInbound/OutboundTable | ✅ |
+| 20 | `statuses` | `delivered` | `_process_status` → update status | WhatsAppInbound/OutboundTable | ✅ |
+| 21 | `statuses` | `read` | `_process_status` → update status | WhatsAppInbound/OutboundTable | ✅ |
+| 22 | `statuses` | `failed` | `_process_status` → update status | WhatsAppInbound/OutboundTable | ✅ |
+| 23 | `statuses` | `payment` (pending/captured/failed) | `_process_payment_status` | WhatsAppInboundTable + order_status reply | ✅ |
+| 24 | `message_template_status_update` | APPROVED/REJECTED/PAUSED | `_process_template_status` | SystemConfigTable | ✅ |
+| 25 | `phone_number_quality_update` | GREEN/YELLOW/RED | `_process_phone_quality_update` | SystemConfigTable | ✅ |
+| 26 | `account_update` | Messaging limits changed | `_process_account_update` | SystemConfigTable | ✅ |
+
+### D.5 Opt-In & Policy Compliance
+
+| # | Requirement | Implementation | Status |
+|---|-----------|---------------|--------|
+| 1 | User opt-in before sending templates | `optInWhatsApp` field on ContactsTable | ✅ Field exists (check bypassed — `within_window = True`) |
+| 2 | Opt-out mechanism | Contact update via `wecare-contacts-update` Lambda | ✅ API exists |
+| 3 | 24-hour customer service window | `lastInboundMessageAt` tracked, `CUSTOMER_SERVICE_WINDOW_HOURS = 24` | ✅ Tracked (enforcement soft) |
+| 4 | Template approval before use | Templates submitted via `wecare-whatsapp-template-management` | ✅ |
+| 5 | No prohibited content (SHAFT) | Business policy — not enforced in code | ✅ Policy-level |
+| 6 | Business verification | Done in Meta Business Manager | ✅ Verified |
+| 7 | Display name approval | Done during WABA setup | ✅ Approved |
+
+---
+
+## Appendix E: Mapping Table — Doc Section → Module → AWS Resource → Data Shape
+
+| Doc Section | Implemented Module | AWS Resource(s) | Stored Data Shape |
+|------------|-------------------|-----------------|-------------------|
+| **Send Text Message** | `wecare-outbound-whatsapp` `_handle_live_send()` | Lambda → `social_messaging.send_whatsapp_message` → DynamoDB WhatsAppOutboundTable | `{id, contactId, content, status, whatsappMessageId, messageType:'text', phoneNumberId, isTemplate:false, timestamp, expiresAt}` |
+| **Send Media Message** | `wecare-outbound-whatsapp` `_handle_live_send()` + `_upload_media()` | Lambda → S3 (upload) → `post_whatsapp_message_media` → `send_whatsapp_message` → DynamoDB | `{...base, messageType:'image|video|audio|document', mediaId, s3Key, mediaType, mediaFileName}` |
+| **Send Template Message** | `wecare-outbound-whatsapp` `_handle_live_send()` | Lambda → `send_whatsapp_message` → DynamoDB | `{...base, isTemplate:true, templateName, templateParams[], templateCategory}` |
+| **Send Interactive Message** | `wecare-outbound-whatsapp` `_handle_interactive_send()` | Lambda → `send_whatsapp_message` → DynamoDB | `{...base, messageType:'interactive', interactiveType:'list|button|cta_url|flow|location_request'}` |
+| **Send Reaction** | `wecare-outbound-whatsapp` `_handle_reaction_send()` | Lambda → `send_whatsapp_message` | Not persisted (fire-and-forget) |
+| **Send Read Receipt** | `wecare-inbound-whatsapp` `_send_read_receipt()` | Lambda → `send_whatsapp_message` | Not persisted |
+| **Send Payment Request** | `wecare-outbound-whatsapp` `_handle_live_send()` (payment template) | Lambda → `send_whatsapp_message` → DynamoDB | `{...base, isPaymentTemplate:true, orderDetails:{reference_id, items[], amounts}}` |
+| **Send Order Status** | `wecare-outbound-whatsapp` `_handle_order_status_send()` | Lambda → `send_whatsapp_message` → DynamoDB | `{...base, messageType:'order_status', referenceId, orderStatus:'completed|failed'}` |
+| **Receive Inbound Message** | `wecare-inbound-whatsapp` `_process_message()` | SNS → Lambda → DynamoDB WhatsAppInboundTable | `{id, contactId, content, messageType, senderPhone, senderName, receivingPhone, awsPhoneNumberId, metaWabaIds[], whatsappMessageId, mediaId?, s3Key?, status:'received', timestamp, expiresAt}` |
+| **Receive Media** | `wecare-inbound-whatsapp` `_download_media()` + `_store_media_record()` | Lambda → `get_whatsapp_message_media` → S3 → DynamoDB MediaFilesTable | `{fileId, messageId, s3Key, contentType, whatsappMediaId, fileSize, uploadedAt}` |
+| **Receive Status Update** | `wecare-inbound-whatsapp` `_process_status()` | SNS → Lambda → DynamoDB (update) | Updates existing record: `{status:'sent|delivered|read|failed', statusTimestamp, errorCode?, errorMessage?}` |
+| **Receive Payment Status** | `wecare-inbound-whatsapp` `_process_payment_status()` | SNS → Lambda → DynamoDB + outbound Lambda invoke | `{...inbound, messageType:'payment', paymentStatus, paymentAmount, referenceId}` |
+| **Template CRUD** | `wecare-whatsapp-template-management` | Lambda → AWS EUM Social IAM (8 template actions) | Managed by Meta — cached in SystemConfigTable on webhook |
+| **Template Analytics** | `wecare-template-analytics` | Lambda → DynamoDB WhatsAppOutboundTable (scan) | Aggregated: `{templateName, totalSent, delivered, read, failed, deliveryRate, readRate}` |
+| **Template Status Webhook** | `wecare-inbound-whatsapp` `_process_template_status()` | SNS → Lambda → DynamoDB SystemConfigTable | `{id:'template_status_{name}_{ts}', eventType, templateName, newStatus, reason, timestamp}` |
+| **Phone Quality Webhook** | `wecare-inbound-whatsapp` `_process_phone_quality_update()` | SNS → Lambda → DynamoDB SystemConfigTable | `{id:'phone_quality_{ts}', eventType, phoneNumber, currentLimit, qualityRating}` |
+| **Account Update Webhook** | `wecare-inbound-whatsapp` `_process_account_update()` | SNS → Lambda → DynamoDB SystemConfigTable | `{id:'account_update_{ts}', eventType, banInfo?, restrictInfo?}` |
+| **Media Upload (outbound)** | `wecare-outbound-whatsapp` `_upload_media()` | Lambda → S3 → `post_whatsapp_message_media` | S3: `whatsapp-media/whatsapp-media-outgoing/{prefix}.{ext}` |
+| **Media Download (inbound)** | `wecare-inbound-whatsapp` `_download_media()` | Lambda → `get_whatsapp_message_media` → S3 | S3: `whatsapp-media/whatsapp-media-incoming/wecare-digital-{8chars}/{mediaId}.{ext}` |
+| **Media Delete** | `wecare-media-cleanup` + `wecare-waba-management` `_delete_media()` | Lambda → `delete_whatsapp_message_media` | MediaFilesTable: `{cleanedUp:true, cleanedUpAt}` |
+| **Contact Management** | `wecare-inbound-whatsapp` `_get_or_create_contact()` + CRUD Lambdas | Lambda → DynamoDB ContactsTable | `{id, name, phone, optInWhatsApp, optInSms, optInEmail, allowlistWhatsApp, lastInboundMessageAt, createdAt, updatedAt}` |
+| **WABA Management** | `wecare-waba-management` | Lambda → AWS EUM Social (7 WABA actions) | API responses (not persisted) |
+| **Rate Limiting** | `wecare-outbound-whatsapp` `_check_rate_limit()` | Lambda → DynamoDB RateLimitTracker | `{phoneNumberId, windowStart, messageCount, ttl}` |
+| **DLQ / Replay** | `wecare-dlq-replay` | Lambda → SQS DLQ → SNS re-publish | SQS message: `{originalRecord, error, timestamp}` |
+| **AI Auto-Reply** | `wecare-inbound-whatsapp` `_process_ai_automation()` | Lambda → Bedrock KB → Bedrock Agent → outbound Lambda | AIInteractionsTable: `{interactionId, contactId, query, response, source, confidence}` |
+| **Bulk Messaging** | `wecare-bulk-job-create` + `wecare-bulk-worker` | Lambda → SQS bulk-queue → worker Lambda → `send_whatsapp_message` | BulkJobsTable: `{jobId, status, totalRecipients, processed, failed, templateName}` |
+| **Webhook Verification** | Handled by AWS EUM Social | AWS EUM Social service (not your code) | N/A |
+| **Signature Validation** | Handled by AWS EUM Social | AWS EUM Social validates X-Hub-Signature-256 before forwarding to SNS | N/A |
+| **Conversation Pricing** | `lastInboundMessageAt` tracking | DynamoDB ContactsTable | `{lastInboundMessageAt}` — determines service vs marketing/utility window |

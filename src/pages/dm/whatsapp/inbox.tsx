@@ -718,6 +718,29 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       return <span className="special-msg">Order</span>;
     }
     
+    // Referral messages (click-to-WhatsApp ads)
+    if (content.startsWith('[Referral:')) {
+      const detail = content.replace(/^\[Referral: ?\w*\]\s*/, '').trim();
+      return <span className="special-msg">📢 {detail || 'Ad Referral'}</span>;
+    }
+    
+    // Ad click messages
+    if (content.startsWith('[Ad Click')) {
+      return <span className="special-msg">📢 Ad Click</span>;
+    }
+    
+    // Product / catalog messages
+    if (content.startsWith('[Product')) {
+      const detail = content.replace(/[\[\]]/g, '');
+      return <span className="special-msg">🛍️ {detail}</span>;
+    }
+    
+    // Poll messages
+    if (content.startsWith('[Poll')) {
+      const question = content.match(/\[Poll: (.+?)\]/)?.[1] || 'Poll';
+      return <span className="special-msg">📊 {question}</span>;
+    }
+    
     // System messages
     if (content === '[System Message]') {
       return <span className="system-msg">System Message</span>;

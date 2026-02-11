@@ -90,6 +90,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         order_details = body.get('orderDetails')
         header_image_url = body.get('headerImageUrl')
         
+        # OTP / Authentication template support
+        is_otp_template = body.get('isOtpTemplate', False) or body.get('isAuthenticationTemplate', False)
+        otp_code = body.get('otpCode', '')
+        otp_button_type = body.get('otpButtonType', 'copy_code')  # 'url' or 'copy_code'
+        
         # Interactive payment support (for within 24h window - uses payment_settings)
         is_interactive_payment = body.get('isInteractivePayment', False)
         
@@ -176,7 +181,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             message_id, contact_id, recipient_phone, phone_number_id,
             content, media_file, media_type, media_filename, is_template, template_name,
             template_params, within_window, request_id, is_payment_template, order_details, 
-            header_image_url, is_interactive_payment
+            header_image_url, is_interactive_payment, is_otp_template, otp_code, otp_button_type
         )
         
     except json.JSONDecodeError:
@@ -824,7 +829,9 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       media_type: Optional[str], media_filename: Optional[str], is_template: bool, template_name: Optional[str],
                       template_params: list, within_window: bool, request_id: str,
                       is_payment_template: bool = False, order_details: Optional[Dict] = None,
-                      header_image_url: Optional[str] = None, is_interactive_payment: bool = False) -> Dict[str, Any]:
+                      header_image_url: Optional[str] = None, is_interactive_payment: bool = False,
+                      is_otp_template: bool = False, otp_code: Optional[str] = None,
+                      otp_button_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Handle LIVE mode - call AWS EUM Social API.
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
@@ -849,7 +856,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         message_payload = _build_message_payload(
             recipient_phone, content, media_type, whatsapp_media_id,
             is_template, template_name, template_params, stored_filename,
-            is_payment_template, order_details, header_image_url, is_interactive_payment
+            is_payment_template, order_details, header_image_url, is_interactive_payment,
+            is_otp_template, otp_code, otp_button_type
         )
         
         logger.info(json.dumps({
@@ -1319,7 +1327,9 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            template_params: list, filename: Optional[str] = None,
                            is_payment_template: bool = False, order_details: Optional[Dict] = None,
                            header_image_url: Optional[str] = None,
-                           is_interactive_payment: bool = False) -> Dict[str, Any]:
+                           is_interactive_payment: bool = False,
+                           is_otp_template: bool = False, otp_code: Optional[str] = None,
+                           otp_button_type: Optional[str] = None) -> Dict[str, Any]:
     """Build WhatsApp Cloud API message payload."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
     formatted_phone = _normalize_phone_number(recipient_phone)
@@ -1568,6 +1578,43 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'totalAmount': order_details.get('total_amount', {}).get('value'),
                 'currency': order_details.get('currency'),
                 'hasHeaderImage': bool(header_image_url),
+                'bodyParamCount': len(actual_params)
+            }))
+        # OTP / Authentication template support
+        # WhatsApp authentication templates use a button component with:
+        # - sub_type 'url' with {{1}} OTP code parameter (URL button with OTP appended)
+        # - sub_type 'copy_code' with coupon_code parameter (one-tap copy button)
+        elif is_otp_template and otp_code:
+            # Body params (e.g. {{1}} = OTP code for display in message body)
+            if actual_params:
+                payload['template']['components'].append({
+                    'type': 'body',
+                    'parameters': [{'type': 'text', 'text': str(p)} for p in actual_params]
+                })
+            
+            btn_type = (otp_button_type or 'copy_code').lower()
+            if btn_type == 'url':
+                # URL button: OTP code appended to the template URL as {{1}}
+                payload['template']['components'].append({
+                    'type': 'button',
+                    'sub_type': 'url',
+                    'index': 0,
+                    'parameters': [{'type': 'text', 'text': str(otp_code)}]
+                })
+            else:
+                # One-tap / copy_code button: user taps to auto-fill OTP
+                payload['template']['components'].append({
+                    'type': 'button',
+                    'sub_type': 'copy_code',
+                    'index': 0,
+                    'parameters': [{'type': 'coupon_code', 'coupon_code': str(otp_code)}]
+                })
+            
+            logger.info(json.dumps({
+                'event': 'otp_template_payload_built',
+                'templateName': template_name,
+                'language': template_language,
+                'otpButtonType': btn_type,
                 'bodyParamCount': len(actual_params)
             }))
         # Add body parameters if provided (for templates with variables like {{1}}, {{2}})

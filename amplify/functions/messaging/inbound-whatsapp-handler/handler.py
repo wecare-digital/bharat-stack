@@ -261,13 +261,19 @@ def _process_message(
     msg_type = message.get('type', 'text')
     timestamp = int(message.get('timestamp', time.time()))
     
-    # Log full message for unsupported types to help debug
-    if msg_type == 'unsupported':
+    # Log full message for unsupported or unrecognized types to help debug
+    if msg_type in ('unsupported', 'unknown') or msg_type not in (
+        'text', 'image', 'video', 'audio', 'document', 'sticker',
+        'location', 'contacts', 'reaction', 'interactive', 'button',
+        'order', 'system', 'request_welcome', 'ephemeral',
+        'referral', 'ad_click', 'product', 'product_inquiry', 'poll'
+    ):
         logger.warning(json.dumps({
-            'event': 'unsupported_message_raw',
+            'event': 'unsupported_or_new_message_type',
             'senderPhone': sender_phone,
             'whatsappMessageId': whatsapp_message_id,
             'messageType': msg_type,
+            'messageKeys': list(message.keys()),
             'fullMessage': message,
             'requestId': request_id
         }))
@@ -334,6 +340,34 @@ def _process_message(
         'createdAt': Decimal(str(now)),
         'expiresAt': Decimal(str(expires_at)),
     }
+    
+    # Capture referral context (click-to-WhatsApp ads, product catalogs, social posts)
+    # Referral can be attached to ANY message type, not just 'referral' type
+    referral = message.get('referral')
+    if referral:
+        message_record['referralSource'] = referral.get('source_type', '')
+        message_record['referralSourceId'] = referral.get('source_id', '')
+        message_record['referralSourceUrl'] = referral.get('source_url', '')
+        message_record['referralHeadline'] = referral.get('headline', '')
+        message_record['referralBody'] = referral.get('body', '')
+        logger.info(json.dumps({
+            'event': 'referral_context',
+            'senderPhone': sender_phone,
+            'sourceType': referral.get('source_type', ''),
+            'sourceUrl': referral.get('source_url', ''),
+            'requestId': request_id
+        }))
+    
+    # Capture message context (reply-to, forwarded)
+    msg_context = message.get('context')
+    if msg_context:
+        message_record['replyToMessageId'] = msg_context.get('id', '')
+        if msg_context.get('forwarded'):
+            message_record['isForwarded'] = True
+        if msg_context.get('frequently_forwarded'):
+            message_record['isFrequentlyForwarded'] = True
+        if msg_context.get('referred_product'):
+            message_record['referredProduct'] = msg_context['referred_product']
     
     messages_table = dynamodb.Table(MESSAGES_TABLE)
     messages_table.put_item(Item={k: v for k, v in message_record.items() if v is not None})
@@ -429,7 +463,7 @@ def _extract_content(message: Dict, msg_type: str) -> str:
         return '[Order]'
     elif msg_type == 'system':
         # System messages (group changes, etc.)
-        return '[System Message]'
+        return message.get('system', {}).get('body', '[System Message]')
     elif msg_type == 'unsupported':
         # WhatsApp marks some messages as unsupported - try to extract info
         return _extract_unsupported_content(message)
@@ -439,7 +473,34 @@ def _extract_content(message: Dict, msg_type: str) -> str:
     elif msg_type == 'ephemeral':
         # Disappearing message
         return '[Disappearing Message]'
+    elif msg_type == 'referral':
+        # Click-to-WhatsApp ads, social posts, product catalog referrals
+        ref = message.get('referral', {})
+        source = ref.get('source_type', 'unknown')
+        headline = ref.get('headline', '')
+        return f'[Referral: {source}] {headline}'.strip() if headline else f'[Referral: {source}]'
+    elif msg_type == 'ad_click':
+        # Click-to-WhatsApp ad click events
+        ref = message.get('referral', {})
+        return f'[Ad Click: {ref.get("source_url", "")}]' if ref.get('source_url') else '[Ad Click]'
+    elif msg_type in ('product', 'product_inquiry'):
+        # Catalog product messages
+        prod = message.get(msg_type, message.get('product', {}))
+        catalog_id = prod.get('catalog_id', '')
+        product_id = prod.get('product_retailer_id', '')
+        return f'[Product: {catalog_id}/{product_id}]' if catalog_id else f'[{msg_type.replace("_", " ").title()}]'
+    elif msg_type == 'poll':
+        # WhatsApp poll messages
+        poll = message.get('poll', {})
+        question = poll.get('question', '')
+        return f'[Poll: {question[:60]}]' if question else '[Poll]'
     else:
+        logger.warning(json.dumps({
+            'event': 'unknown_message_type',
+            'messageType': msg_type,
+            'messageKeys': list(message.keys()),
+            'fullMessage': message
+        }))
         return f'[{msg_type}]'
 
 
@@ -1121,6 +1182,35 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
         request_id=request_id
     )
     
+    # Look up the phone_number_id from the original outbound payment request
+    # so the confirmation goes back from the same business number
+    originating_phone_id = None
+    if reference_id:
+        try:
+            OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+            outbound_table = dynamodb.Table(OUTBOUND_TABLE)
+            resp = outbound_table.scan(
+                FilterExpression='paymentReferenceId = :ref',
+                ExpressionAttributeValues={':ref': reference_id},
+                Limit=1
+            )
+            items = resp.get('Items', [])
+            if items:
+                originating_phone_id = items[0].get('phoneNumberId')
+                logger.info(json.dumps({
+                    'event': 'payment_phone_id_resolved',
+                    'referenceId': reference_id,
+                    'phoneNumberId': originating_phone_id,
+                    'requestId': request_id
+                }))
+        except Exception as e:
+            logger.warning(json.dumps({
+                'event': 'payment_phone_id_lookup_failed',
+                'referenceId': reference_id,
+                'error': str(e),
+                'requestId': request_id
+            }))
+
     # Send order_status message based on payment status
     if payment_status == 'captured':
         _send_order_status_message(
@@ -1129,7 +1219,8 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             order_status='completed',
             amount=actual_amount,  # Pass amount in rupees
             description=f'Payment of ₹{actual_amount:.2f} received successfully! Thank you ✅',
-            request_id=request_id
+            request_id=request_id,
+            phone_number_id=originating_phone_id
         )
     elif payment_status == 'failed':
         _send_order_status_message(
@@ -1138,7 +1229,8 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             order_status='canceled',
             amount=0,
             description='Payment failed. Please try again ❌',
-            request_id=request_id
+            request_id=request_id,
+            phone_number_id=originating_phone_id
         )
 
 
@@ -1368,28 +1460,11 @@ def _lookup_payment_amount(reference_id: str, request_id: str) -> float:
 
 def _send_order_status_message(recipient_id: str, reference_id: str, 
                                 order_status: str, amount: float, description: str,
-                                request_id: str) -> None:
+                                request_id: str, phone_number_id: str = None) -> None:
     """
     Send order_status interactive message to confirm payment status.
-    
-    Order status message format:
-    {
-        "type": "interactive",
-        "interactive": {
-            "type": "order_status",
-            "body": {"text": "Your payment was successful!"},
-            "action": {
-                "name": "review_order",
-                "parameters": {
-                    "reference_id": "ORDER_12345",
-                    "order": {
-                        "status": "completed",  // pending, processing, shipped, completed, canceled
-                        "description": "Payment received. Thank you!"
-                    }
-                }
-            }
-        }
-    }
+    Uses the phone_number_id that received the original payment if available,
+    otherwise falls back to PHONE_NUMBER_ID_1.
     """
     try:
         # Find contact by phone number
@@ -1412,11 +1487,13 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
         contact_phone = contact.get('phone', f'+{recipient_id}')
         
         # Build order_status payload - send directly to outbound Lambda
+        # Use the phone number that received the original message, or fall back to default
+        sending_phone_id = phone_number_id or PHONE_NUMBER_ID_1
         order_status_payload = {
             'body': json.dumps({
                 'contactId': contact_id if contact_id else None,
                 'recipientPhone': contact_phone,  # Fallback to phone if no contactId
-                'phoneNumberId': PHONE_NUMBER_ID_1,
+                'phoneNumberId': sending_phone_id,
                 'isOrderStatus': True,
                 'orderStatusDetails': {
                     'reference_id': reference_id,

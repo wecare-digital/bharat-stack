@@ -1,0 +1,11 @@
+{
+  "Records": [
+    {
+      "EventSource": "aws:sns",
+      "Sns": {
+        "MessageId": "test-template-001",
+        "Message": "{\"context\":{\"MetaWabaIds\":[\"1912405516040025\"],\"MetaPhoneNumberIds\":[\"960395407161423\"]},\"whatsAppWebhookEntry\":\"{\\\"id\\\":\\\"1912405516040025\\\",\\\"changes\\\":[{\\\"value\\\":{\\\"event\\\":\\\"APPROVED\\\",\\\"message_template_id\\\":12345,\\\"message_template_name\\\":\\\"hello_world\\\",\\\"message_template_language\\\":\\\"en\\\"},\\\"field\\\":\\\"message_template_status_update\\\"}]}\",\"aws_account_id\":\"775261844268\",\"message_timestamp\":\"2026-02-11T12:03:00.000Z\",\"messageId\":\"test-uuid-template-001\"}"
+      }
+    }
+  ]
+}
