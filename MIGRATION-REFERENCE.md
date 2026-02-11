@@ -124,6 +124,7 @@ app.wecare.digital/
 | Razorpay Webhook | `.../prod/razorpay-webhook` | `https://api.wecare.digital/razorpay-webhook` |
 | Airtel SMS In | `.../prod/sms-in/airtel` | `https://api.wecare.digital/sms-in/airtel` |
 | Voice CDR Webhook | `.../prod/voice-cdr-webhook` | `https://api.wecare.digital/voice-cdr-webhook` |
+| Voice CDR Read | `.../prod/voice-cdr-read` | `https://api.wecare.digital/voice-cdr-read` |
 | Voice C2C | `.../prod/voice-in/c2c` | `https://api.wecare.digital/voice-in/c2c` |
 | Voice OBD | `.../prod/voice-in/obd` | `https://api.wecare.digital/voice-in/obd` |
 | SMS AWS | `.../prod/sms-aws/*` | `https://api.wecare.digital/sms-aws/*` |

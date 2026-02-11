@@ -16,7 +16,8 @@ export const voiceObd = defineFunction({
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
     OBD_CAMPAIGNS_TABLE: 'base-wecare-digital-OBDCampaigns',
-    S3_BUCKET: 'wecare-digital-assets',
+    VOICE_CDR_TABLE: 'base-wecare-digital-VoiceCDRTable',
+    S3_BUCKET: 'app.wecare.digital',
     AIRTEL_OBD_SECRET_NAME: 'wecare/airtel/obd',
   },
 });

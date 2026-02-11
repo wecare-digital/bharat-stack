@@ -279,6 +279,7 @@ const schema = a.schema({
       dltTemplateId: a.string(),
       providerMessageId: a.string(),
       recipientCount: a.integer().default(1),
+      apiVersion: a.string(), // v4, v5, v6
       errorDetails: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
@@ -291,6 +292,23 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table 15b: DLTTemplates - DLT Template Registry for Airtel SMS
+  DLTTemplates: a
+    .model({
+      templateId: a.id().required(),
+      name: a.string().required(),
+      content: a.string().required(),
+      messageType: a.string(), // SERVICE_EXPLICIT, SERVICE_IMPLICIT, TRANSACTIONAL, PROMOTIONAL
+      senderId: a.string().default('WDBEEP'),
+      entityId: a.string().default('1201161991108627443'),
+      variables: a.string().array(), // extracted {#var#} placeholders
+      status: a.enum(['active', 'inactive']),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['templateId'])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table 15: AirtelC2C - Airtel Click-to-Call Records (TTL: 90 days)
   // Caller ID: 8047311032 | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
   AirtelC2C: a
@@ -300,11 +318,13 @@ const schema = a.schema({
       fromNumber: a.string().required(),
       toNumber: a.string().required(),
       callerId: a.string().default('8047311032'),
+      callFlowId: a.string(), // Airtel call flow ID
       status: a.enum(['INITIATED', 'RINGING', 'CONNECTED', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY']),
       duration: a.integer().default(0),
       recordingEnabled: a.boolean().default(true),
       recordingUrl: a.string(),
-      correlationId: a.string(), // Airtel call_id
+      s3RecordingKey: a.string(),
+      correlationId: a.string(), // Airtel correlationId (Xchange ID)
       errorDetails: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
@@ -371,10 +391,28 @@ const schema = a.schema({
       
       // Recording
       recordingURL: a.string(),
+      s3RecordingKey: a.string(),
+      s3RecordingUrl: a.string(),
       
       // Retry info
       retryCountCaller: a.integer(),
       retryCountDestination: a.integer(),
+      
+      // Caller/Destination names (from participants)
+      callerName: a.string(),
+      destinationName: a.string(),
+      
+      // Caller duration & setup time
+      callerDuration: a.integer(), // Total caller duration in ms
+      callerDurationSec: a.float(),
+      callSetupTimeCaller: a.integer(), // Call setup time in ms
+      
+      // Participants & Events (stored as JSON strings)
+      participantsJson: a.string(), // Full participants array
+      eventsJson: a.string(), // Full events array
+      
+      // Derived overall call status (per Airtel spec matrix)
+      derivedOverallStatus: a.string(), // Computed from caller + destination status
       
       // Metadata
       participantsCount: a.integer(),
@@ -390,6 +428,24 @@ const schema = a.schema({
       index('callerNumber'),
       index('callType'),
     ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 16: OBDCampaigns - Airtel OBD Campaign Records (TTL: 90 days)
+  OBDCampaign: a
+    .model({
+      id: a.id().required(),
+      campaignId: a.string(),
+      airtelCampaignId: a.string(), // Airtel-assigned campaign ID
+      campaignName: a.string().required(),
+      status: a.string().default('created'), // created, running, completed, failed, DELETED
+      audioUrl: a.string(),
+      sheetFileNames: a.string(), // JSON array of uploaded CSV filenames
+      contactCount: a.integer().default(0),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      ttl: a.integer(), // TTL: Unix epoch seconds (90 days)
+    })
+    .identifier(['id'])
     .authorization((allow) => [allow.authenticated()]),
 });
 

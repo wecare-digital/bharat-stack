@@ -49,17 +49,47 @@ OBD Caller ID: 8040761117
 SMS CONFIGURATION:
 ━━━━━━━━━━━━━━━━━━
 Sender ID: WDBEEP
-Entity ID: 1201161991108627443
+Entity ID (PE ID): 1201161991108627443
 Default DLT Template ID: 1007974344269130859
 API Host: iqmessaging.airtel.in
+Auth: Basic (base64 of username:password)
+  Kong Username: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+  Kong Password: sN$~|(I@112
+  Base64 Token: V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy
+
+SMS API Versions:
+• v4 Single/Multiple SMS:  POST https://iqmessaging.airtel.in/api/v4/send-sms
+• v5 Content Moderation:   POST https://iqmessaging.airtel.in/api/v5/send-sms-cm
+• v6 Enhanced Response:    POST https://iqmessaging.airtel.in/api/v6/send-sms
+• Bulk SMS (Conduit):      POST https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk
+
+v4/v5/v6 Headers: Authorization: Basic <token>, Content-Type: application/json, customerId
+Bulk/Conduit Headers: Authorization: Basic <token>, Content-Type: application/json (NO customerId)
+
+NOTE: v4 destinationAddress is an array — supports single AND multiple recipients in one call.
+      Bulk (Conduit) is a different format: array of objects with msisdn, content, header, etc.
+
+DLT Requirements (TRAI TCCCPR 2019):
+• PE ID (entityId): 1201161991108627443
+• Sender ID (header): WDBEEP — registered on DLT portal
+• Content Template ID (dltTemplateId): must be registered on DLT portal
+• MSISDN: 10 or 12 digits (India)
+• v5 does NOT require DLT fields (content moderation auto-handles)
+• Promotional messages: No DLR sent back (except NACK from DLT)
+
+Message Types: PROMOTIONAL, TRANSACTIONAL, SERVICE_IMPLICIT, SERVICE_EXPLICIT
+OTP: Set otp=true with SERVICE_IMPLICIT for OTP traffic
+metaData: Optional key-value map, flows end-to-end to IQ reporting and callbacks
 
 ALL WEBHOOK URLs:
 ━━━━━━━━━━━━━━━━━
 API Base: https://api.wecare.digital
 
-1. SMS-IN (Send/Receive SMS):
+1. SMS-IN (Send SMS via our API — supports v4/v5/v6 + bulk):
    POST /sms-in/airtel
    Full URL: https://api.wecare.digital/sms-in/airtel
+   Also: GET (list), DELETE (delete msg), DELETE /clear-logs
+   Templates: GET/POST/DELETE /sms-in/airtel/templates
 
 2. Voice Click-to-Call (C2C):
    POST /voice-in/c2c
@@ -69,9 +99,14 @@ API Base: https://api.wecare.digital
    POST /voice-in/obd
    Full URL: https://api.wecare.digital/voice-in/obd
 
-4. Voice CDR Webhook (for ALL callbacks - inbound & outbound):
+4. Voice CDR Webhook (Airtel → Us, for ALL callbacks - inbound & outbound):
    POST /voice-cdr-webhook
    Full URL: https://api.wecare.digital/voice-cdr-webhook
+
+5. Voice CDR Read (Dashboard / UI - read CDRs with stats):
+   GET /voice-cdr-read
+   Full URL: https://api.wecare.digital/voice-cdr-read
+   Params: ?callType=INBOUND&status=Answered&dashboard=true&limit=50
 
 IP WHITELIST:
 ━━━━━━━━━━━━
@@ -87,13 +122,19 @@ CLICK-TO-CALL (C2C) CALLBACK BODY:
 We accept the DEFAULT Airtel callback body format.
 The callback body is NOT customized from our end.
 No custom callback body configuration needed from Airtel side.
-CDR callbacks are sent to /voice-cdr-webhook endpoint.
+
+C2C CDR callbacks can be sent to ANY of these URLs (all accept CDR):
+• https://api.wecare.digital/voice-cdr-webhook  (preferred)
+• https://api.wecare.digital/voice-in/c2c       (also accepts CDR callbacks)
 
 OBD CALLBACK BODY:
 ━━━━━━━━━━━━━━━━━━
-We accept the DEFAULT Airtel callback body format.
+We accept the DEFAULT Airtel callback body format (both camelCase and Display_Format).
 No custom callback body configuration needed from Airtel side.
-CDR callbacks are sent to /voice-cdr-webhook endpoint.
+
+OBD CDR callbacks can be sent to ANY of these URLs (all accept CDR):
+• https://api.wecare.digital/voice-cdr-webhook  (preferred)
+• https://api.wecare.digital/voice-in/obd       (also accepts CDR callbacks)
 
 CDR WEBHOOK (INBOUND + OUTBOUND):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -101,6 +142,15 @@ The /voice-cdr-webhook handles CDRs for ALL call types:
 • INBOUND calls (direct calls to +91 9319767034)
 • OUTBOUND calls (C2C initiated calls)
 • OUTBOUND calls (OBD campaign calls)
+
+We accept BOTH Airtel CDR formats:
+• Format A (camelCase): vmSessionId, callerNumber, overallCallStatus, etc.
+• Format B (Display): Session_ID, Caller_Number, Overall_Call_Status, etc.
+
+OLD WEBHOOK URL (DEPRECATED - DO NOT USE):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
+→ REPLACE WITH: https://api.wecare.digital/voice-cdr-webhook
 
 Expected CDR callback fields:
 {
@@ -143,6 +193,9 @@ ISSUES / NOTES:
 • Recordings are stored in S3: s3://app.wecare.digital/voice/
 • If 403 errors persist after IP whitelisting, check API Gateway resource policy
 • SMS does NOT require IP whitelisting for sending traffic
+• OLD URL DEPRECATED: k4vqzmi07b.execute-api.us-east-1.amazonaws.com → use api.wecare.digital
+• CDR callbacks accepted on ALL voice endpoints (/voice-cdr-webhook, /voice-in/c2c, /voice-in/obd)
+• Both Airtel CDR formats accepted (camelCase and Display_Format with underscores)
 
 Thank you,
 WECARE.DIGITAL Team`;
@@ -1804,14 +1857,30 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ background: '#FFEBEE', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFCDD2' }}>
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#C62828' }}>📌 Webhook URLs for Airtel Configuration</h4>
                   
+                  <div style={{ marginBottom: '0.75rem', background: '#FFF9C4', padding: '0.75rem', borderRadius: '4px', border: '1px solid #FFF176' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#F57F17', display: 'block', fontWeight: 600 }}>⚠️ OLD URL (DEPRECATED - ask Airtel to replace)</label>
+                    <code style={{ fontSize: '0.8rem', color: '#E65100', textDecoration: 'line-through' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
+                  </div>
+
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>CDR Webhook URL (for callBackURLs eventType: "CDR")</label>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>CDR Webhook URL (Airtel → Us, for callBackURLs eventType: "CDR" and "ALL")</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-cdr-webhook</code>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>Accepts both Airtel CDR formats (camelCase and Display_Format)</div>
                   </div>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Events Webhook URL (for callBackURLs eventType: "ALL")</label>
-                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-cdr-webhook</code>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>C2C API (Click-to-Call) — also accepts CDR callbacks</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-in/c2c</code>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>OBD API (Outbound Dialer) — also accepts CDR callbacks</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-in/obd</code>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>CDR Read API (Internal dashboard — not for Airtel)</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-cdr-read</code>
                   </div>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
@@ -1959,7 +2028,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1565C0' }}>📌 SMS API Endpoints</h4>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (Single/Multiple)</label>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (via our API — supports v4/v5/v6)</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>POST https://api.wecare.digital/sms-in/airtel</code>
                   </div>
                   
@@ -1967,17 +2036,48 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>List SMS Messages</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET https://api.wecare.digital/sms-in/airtel</code>
                   </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Delete SMS Message</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>DELETE https://api.wecare.digital/sms-in/airtel?messageId=xxx</code>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Clear All SMS Logs</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>DELETE https://api.wecare.digital/sms-in/airtel/clear-logs</code>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DLT Templates (CRUD)</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET/POST/DELETE https://api.wecare.digital/sms-in/airtel/templates</code>
+                  </div>
+
+                  <h4 style={{ margin: '0.75rem 0 0.5rem 0', fontSize: '0.85rem', color: '#1565C0' }}>Airtel IQ Direct Endpoints (3 versions)</h4>
+                  {[
+                    { label: 'v4 — Single / Multiple SMS', url: 'POST https://iqmessaging.airtel.in/api/v4/send-sms' },
+                    { label: 'v5 — Content Moderation (no DLT fields needed)', url: 'POST https://iqmessaging.airtel.in/api/v5/send-sms-cm' },
+                    { label: 'v6 — Enhanced Response (echo-back fields)', url: 'POST https://iqmessaging.airtel.in/api/v6/send-sms' },
+                    { label: 'Bulk SMS (Conduit API — per-recipient payload)', url: 'POST https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk' },
+                  ].map(({ label, url }) => (
+                    <div key={label} style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ fontSize: '0.7rem', color: '#6b7280', display: 'block' }}>{label}</label>
+                      <code style={{ fontSize: '0.8rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>{url}</code>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: '0.75rem', color: '#1565C0', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                    v4/v5/v6: Basic auth + customerId header · Bulk/Conduit: Basic auth only (no customerId)
+                  </div>
                 </div>
 
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 DLT Configuration</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 DLT Configuration (TRAI TCCCPR 2019)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Sender ID</label>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Sender ID (Header)</label>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>WDBEEP</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Entity ID</label>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>PE ID (Entity ID)</label>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>1201161991108627443</code>
                     </div>
                     <div>
@@ -1989,17 +2089,45 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>iqmessaging.airtel.in</code>
                     </div>
                   </div>
+                  <div style={{ fontSize: '0.75rem', color: '#E65100', marginTop: '0.75rem', lineHeight: '1.5' }}>
+                    ⚠ v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br/>
+                    ⚠ Promotional messages: No DLR sent back (except NACK from DLT).<br/>
+                    ⚠ MSISDN must be 10 or 12 digits (India format).
+                  </div>
                 </div>
 
                 <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>✅ Sample Send SMS Request</h4>
-                  <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`POST /sms-in/airtel
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>✅ Sample Send SMS Requests</h4>
+                  <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`# Single SMS (v4)
+POST /sms-in/airtel
 {
   "phoneNumber": "9876543210",
   "content": "Your OTP is 123456",
   "messageType": "SERVICE_EXPLICIT",
   "dltTemplateId": "1007974344269130859"
-}`}</pre>
+}
+
+# Multiple Recipients (same v4 endpoint)
+POST /sms-in/airtel
+{
+  "phoneNumbers": ["8130078559", "7089012345"],
+  "content": "Hello from WECARE.DIGITAL",
+  "messageType": "SERVICE_EXPLICIT",
+  "dltTemplateId": "1007974344269130859"
+}
+
+# Bulk via Conduit API (different format per recipient)
+POST /sms-in/airtel
+{
+  "bulk": true,
+  "phoneNumbers": ["8130078559", "7089012345"],
+  "content": "Hello from WECARE.DIGITAL",
+  "messageType": "SERVICE_EXPLICIT",
+  "dltTemplateId": "1007101741507674990"
+}
+
+apiVersion: "v4" (default) | "v5" (content mod) | "v6" (enhanced)
+metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div>

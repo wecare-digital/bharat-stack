@@ -3,16 +3,48 @@ Airtel IQ SMS Lambda Function
 
 Purpose: Send SMS messages via Airtel IQ Messaging API
 Features:
-- Basic Authentication
-- DLT compliance (entityId, dltTemplateId)
+- Basic Authentication (base64 encoded username:password)
+- DLT compliance (entityId, dltTemplateId) per TRAI TCCCPR 2019
 - Message types: PROMOTIONAL, TRANSACTIONAL, SERVICE_IMPLICIT, SERVICE_EXPLICIT
 - DLT Template management
+- metaData support (flows end-to-end to IQ reporting and callbacks)
+- OTP flag for SERVICE_IMPLICIT (otp: true → OTP traffic type)
 
-API Endpoints:
-- Single/Multiple: https://iqmessaging.airtel.in/api/v4/send-sms
-- Bulk: https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk
+API Endpoints (Airtel IQ):
+- v4 Single/Multiple SMS: POST https://iqmessaging.airtel.in/api/v4/send-sms
+- v5 Content Moderation:  POST https://iqmessaging.airtel.in/api/v5/send-sms-cm
+- v6 Enhanced Response:   POST https://iqmessaging.airtel.in/api/v6/send-sms
+- Bulk (Conduit):         POST https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk
+
+Auth: Basic (base64 of username:password)
+  Kong Username: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+  Kong Password: sN$~|(I@112
+  Base64 Token:  V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy
+
+Headers (v4/v5/v6): Authorization, Content-Type: application/json, customerId
+Headers (Bulk/Conduit): Authorization, Content-Type: application/json (NO customerId)
+
+DLT Requirements:
+- PE ID (entityId): 1201161991108627443
+- Sender ID (sourceAddress/header): WDBEEP
+- Content Template ID (dltTemplateId): registered on DLT portal
+- MSISDN: 10 or 12 digits
 
 Secrets: wecare/airtel/sms
+Expected secret keys:
+- customer_id: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+- auth_token: V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy
+- sender_id: WDBEEP (DLT registered header)
+- entity_id: 1201161991108627443 (PE ID from DLT)
+- dlt_template_id: 1007974344269130859 (default)
+
+Notes (from Airtel spec):
+- v4 destinationAddress is an array — supports single AND multiple recipients in one call
+- Bulk (Conduit) is a different format: array of objects with msisdn, content, header, etc.
+- Promotional messages: No DLR sent back (except NACK from DLT)
+- If content is wrong per DLT, CP still gets success
+- If DND scrubbing fails at DLT, CP still gets submit success
+- Optional parameters are mandatory else packet rejected
 """
 
 import os
@@ -94,9 +126,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # POST - Send SMS
         if http_method == 'POST':
             body = json.loads(event.get('body', '{}'))
-            if body.get('bulk') or body.get('phoneNumbers'):
+            # bulk=true → Conduit bulk API (different payload format per recipient)
+            if body.get('bulk'):
                 return _send_bulk_sms(body, request_id)
+            # phoneNumbers array OR single phoneNumber → v4/v5/v6 (destinationAddress supports multiple)
             return _send_sms(body, request_id)
+        
+        # DELETE - Delete message or clear logs
+        if http_method == 'DELETE':
+            if '/clear-logs' in path:
+                return _clear_logs(request_id)
+            message_id = path_params.get('messageId') or query_params.get('messageId')
+            if message_id:
+                return _delete_message(message_id, request_id)
+            return _response(400, {'error': 'messageId is required'})
         
         return _response(405, {'error': 'Method not allowed'})
         
@@ -108,20 +151,49 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Send single SMS via Airtel IQ API v4."""
-    phone_number = body.get('phoneNumber')
-    content = body.get('content', '')
-    message_type = body.get('messageType', 'SERVICE_IMPLICIT')
-    dlt_template_id = body.get('dltTemplateId')
+    """
+    Send SMS via Airtel IQ API (single or multiple recipients).
+
+    Airtel v4/v5/v6 natively support multiple destinationAddress in one call.
+    - v4 (default): POST /api/v4/send-sms
+    - v5: POST /api/v5/send-sms-cm — content moderation (auto DLT)
+    - v6: POST /api/v6/send-sms — enhanced response with echo-back
+
+    Body params:
+    - phoneNumber (string): single destination (10-digit mobile)
+    - phoneNumbers (array): multiple destinations — same v4/v5/v6 endpoint
+    - content (required): message text
+    - messageType: PROMOTIONAL | TRANSACTIONAL | SERVICE_IMPLICIT | SERVICE_EXPLICIT
+    - dltTemplateId: DLT content template ID
+    - otp: true/false (for SERVICE_IMPLICIT, sets traffic type to OTP)
+    - metaData: optional key-value map (flows to IQ reporting and callbacks)
+    - apiVersion: "v4" | "v5" | "v6" (default: v4)
+    """
+    # Accept both single phoneNumber and phoneNumbers array
+    phone_numbers = body.get('phoneNumbers', [])
+    if body.get('phoneNumber'):
+        phone_numbers = [body['phoneNumber']] + phone_numbers
     
-    if not phone_number:
-        return _response(400, {'error': 'phoneNumber is required'})
+    content = body.get('content', '')
+    message_type = body.get('messageType', 'SERVICE_EXPLICIT')
+    dlt_template_id = body.get('dltTemplateId')
+    api_version = body.get('apiVersion', 'v4')
+    meta_data = body.get('metaData')
+    
+    if not phone_numbers:
+        return _response(400, {'error': 'phoneNumber or phoneNumbers is required'})
     if not content:
         return _response(400, {'error': 'content is required'})
     
-    clean_phone = _clean_phone_number(phone_number)
-    if not clean_phone:
-        return _response(400, {'error': 'Invalid phone number'})
+    # Clean and validate all phone numbers
+    clean_phones = []
+    for p in phone_numbers:
+        cleaned = _clean_phone_number(p)
+        if cleaned:
+            clean_phones.append(cleaned)
+    
+    if not clean_phones:
+        return _response(400, {'error': 'No valid phone numbers'})
     
     secrets = _get_secrets()
     customer_id = secrets.get('customer_id')
@@ -135,21 +207,45 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     
     dlt_template_id = dlt_template_id or default_template_id
     
-    payload = {
-        "customerId": customer_id,
-        "destinationAddress": [clean_phone],
-        "message": content,
-        "sourceAddress": sender_id,
-        "messageType": message_type,
-        "dltTemplateId": dlt_template_id,
-        "entityId": entity_id
-    }
+    # Build payload based on API version
+    # destinationAddress is always an array (works for single and multiple)
+    if api_version == 'v5':
+        # v5 Content Moderation — no DLT fields needed
+        payload = {
+            "customerId": customer_id,
+            "destinationAddress": clean_phones,
+            "message": content,
+            "sourceAddress": sender_id,
+            "messageType": message_type
+        }
+        if meta_data and isinstance(meta_data, dict):
+            payload["metaData"] = meta_data
+        url = f"https://{AIRTEL_SMS_HOST}/api/v5/send-sms-cm"
+    else:
+        # v4 and v6 — full DLT payload
+        payload = {
+            "customerId": customer_id,
+            "destinationAddress": clean_phones,
+            "message": content,
+            "sourceAddress": sender_id,
+            "messageType": message_type,
+            "dltTemplateId": dlt_template_id,
+            "entityId": entity_id
+        }
+        
+        # OTP flag for SERVICE_IMPLICIT
+        if message_type == 'SERVICE_IMPLICIT' and body.get('otp'):
+            payload["otp"] = True
+        
+        # metaData (optional, flows end-to-end per Airtel spec)
+        if meta_data and isinstance(meta_data, dict):
+            payload["metaData"] = meta_data
+        
+        if api_version == 'v6':
+            url = f"https://{AIRTEL_SMS_HOST}/api/v6/send-sms"
+        else:
+            url = f"https://{AIRTEL_SMS_HOST}/api/v4/send-sms"
     
-    # Add OTP flag for SERVICE_IMPLICIT if needed
-    if message_type == 'SERVICE_IMPLICIT' and body.get('otp'):
-        payload["otp"] = True
-    
-    url = f"https://{AIRTEL_SMS_HOST}/api/v4/send-sms"
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Basic {auth_token}',
@@ -164,20 +260,27 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
             message_id = str(uuid.uuid4())
             provider_msg_id = result.get('messageRequestId') or result.get('messageId')
             
-            _store_message(message_id, clean_phone, content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, provider_msg_id)
+            _store_message(message_id, ','.join(clean_phones), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, provider_msg_id, len(clean_phones), api_version)
             
-            return _response(200, {
+            resp = {
                 'success': True,
                 'messageId': message_id,
                 'providerMessageId': provider_msg_id,
-                'status': 'sent'
-            })
+                'recipientCount': len(clean_phones),
+                'status': 'sent',
+                'apiVersion': api_version
+            }
+            
+            # v6 echoes back additional fields
+            if api_version == 'v6':
+                resp['incorrectNum'] = result.get('incorrectNum', [])
+            
+            return _response(200, resp)
             
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
         logger.error(f"Airtel SMS error: {e.code} - {error_body}")
         
-        # Enhanced 403 diagnostics
         if e.code == 403:
             logger.error(json.dumps({
                 'event': 'airtel_403_error',
@@ -196,14 +299,23 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Send bulk SMS via Airtel Conduit API."""
+    """
+    Send bulk SMS via Airtel Conduit API.
+    
+    Uses a different endpoint and payload format than v4/v5/v6.
+    Each recipient is a separate object with its own content, header, templateId.
+    Triggered only when body has bulk=true.
+    
+    Endpoint: POST https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk
+    Auth: Basic only (no customerId header per Airtel curl)
+    """
     phone_numbers = body.get('phoneNumbers', [])
     content = body.get('content', '')
-    message_type = body.get('messageType', 'SERVICE_IMPLICIT')
+    message_type = body.get('messageType', 'SERVICE_EXPLICIT')
     dlt_template_id = body.get('dltTemplateId')
     
     if not phone_numbers:
-        return _response(400, {'error': 'phoneNumbers array is required'})
+        return _response(400, {'error': 'phoneNumbers array is required for bulk'})
     if not content:
         return _response(400, {'error': 'content is required'})
     
@@ -219,6 +331,7 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     dlt_template_id = dlt_template_id or default_template_id
     
     # Build bulk payload per Airtel Conduit API spec
+    # Each recipient is a separate object (can have different content/template)
     bulk_payload = []
     for phone in phone_numbers:
         clean_phone = _clean_phone_number(phone)
@@ -238,6 +351,7 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
         return _response(400, {'error': 'No valid phone numbers'})
     
     url = f"https://{AIRTEL_SMS_HOST}/conduit/api/v1/send-sms-bulk"
+    # Conduit bulk API: Authorization only, no customerId header
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Basic {auth_token}'
@@ -251,7 +365,7 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
             
             # Store bulk message record
             message_id = str(uuid.uuid4())
-            _store_message(message_id, ','.join([p['msisdn'] for p in bulk_payload]), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, None, len(bulk_payload))
+            _store_message(message_id, ','.join([p['msisdn'] for p in bulk_payload]), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, None, len(bulk_payload), 'bulk')
             
             return _response(200, {
                 'success': True,
@@ -371,17 +485,50 @@ def _normalize_template(item: Dict) -> Dict:
 
 # Message storage and retrieval
 def _list_messages(params: Dict, request_id: str) -> Dict[str, Any]:
-    """List SMS messages."""
+    """List SMS messages with pagination."""
     try:
         table = dynamodb.Table(AIRTEL_SMS_TABLE)
-        result = table.scan(Limit=int(params.get('limit', 100)))
+        limit = int(params.get('limit', 100))
+        scan_kwargs = {'Limit': limit}
+        
+        # Support cursor-based pagination
+        if params.get('nextToken'):
+            try:
+                import base64
+                decoded = json.loads(base64.b64decode(params['nextToken']).decode('utf-8'))
+                scan_kwargs['ExclusiveStartKey'] = decoded
+            except Exception:
+                pass
+        
+        # Filter by status if provided
+        if params.get('status'):
+            scan_kwargs['FilterExpression'] = 'status = :s'
+            scan_kwargs['ExpressionAttributeValues'] = {':s': params['status']}
+        
+        # Filter by direction if provided
+        if params.get('direction'):
+            if 'FilterExpression' in scan_kwargs:
+                scan_kwargs['FilterExpression'] += ' AND direction = :d'
+                scan_kwargs['ExpressionAttributeValues'][':d'] = params['direction']
+            else:
+                scan_kwargs['FilterExpression'] = 'direction = :d'
+                scan_kwargs['ExpressionAttributeValues'] = {':d': params['direction']}
+        
+        result = table.scan(**scan_kwargs)
         messages = result.get('Items', [])
         messages.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
         
-        return _response(200, {
+        resp = {
             'messages': [_normalize_message(m) for m in messages],
             'count': len(messages)
-        })
+        }
+        
+        # Include pagination token if more results
+        if result.get('LastEvaluatedKey'):
+            import base64
+            resp['nextToken'] = base64.b64encode(json.dumps(result['LastEvaluatedKey'], default=str).encode('utf-8')).decode('utf-8')
+        
+        return _response(200, resp)
     except Exception as e:
         logger.error(f"List messages error: {str(e)}")
         return _response(500, {'error': str(e)})
@@ -402,10 +549,56 @@ def _get_message(message_id: str, request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
+def _delete_message(message_id: str, request_id: str) -> Dict[str, Any]:
+    """Delete a single SMS message."""
+    if not message_id:
+        return _response(400, {'error': 'messageId is required'})
+    try:
+        table = dynamodb.Table(AIRTEL_SMS_TABLE)
+        table.delete_item(Key={'messageId': message_id})
+        return _response(200, {'success': True, 'deleted': message_id})
+    except Exception as e:
+        logger.error(f"Delete message error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _clear_logs(request_id: str) -> Dict[str, Any]:
+    """Delete all SMS message logs (paginated scan + batch delete)."""
+    try:
+        table = dynamodb.Table(AIRTEL_SMS_TABLE)
+        deleted = 0
+        last_key = None
+        
+        while True:
+            scan_kwargs = {'ProjectionExpression': 'messageId'}
+            if last_key:
+                scan_kwargs['ExclusiveStartKey'] = last_key
+            
+            result = table.scan(**scan_kwargs)
+            items = result.get('Items', [])
+            
+            if not items:
+                break
+            
+            with table.batch_writer() as batch:
+                for item in items:
+                    batch.delete_item(Key={'messageId': item['messageId']})
+                    deleted += 1
+            
+            last_key = result.get('LastEvaluatedKey')
+            if not last_key:
+                break
+        
+        return _response(200, {'success': True, 'deleted': deleted})
+    except Exception as e:
+        logger.error(f"Clear logs error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
 def _store_message(message_id: str, phone: str, content: str, status: str, 
                    message_type: str, sender_id: str, entity_id: str, 
                    dlt_template_id: str, provider_msg_id: str = None, 
-                   recipient_count: int = 1) -> None:
+                   recipient_count: int = 1, api_version: str = 'v4') -> None:
     """Store message record."""
     try:
         now = int(time.time())
@@ -415,12 +608,14 @@ def _store_message(message_id: str, phone: str, content: str, status: str,
             'messageId': message_id,
             'phoneNumber': phone,
             'content': content,
+            'direction': 'OUTBOUND',
             'status': status,
             'messageType': message_type,
             'senderId': sender_id,
             'entityId': entity_id,
             'dltTemplateId': dlt_template_id,
             'recipientCount': recipient_count,
+            'apiVersion': api_version,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + MESSAGE_TTL_SECONDS))
         }
@@ -439,12 +634,14 @@ def _normalize_message(item: Dict) -> Dict:
         'messageId': item.get('messageId', ''),
         'phoneNumber': item.get('phoneNumber', ''),
         'content': item.get('content', ''),
+        'direction': item.get('direction', 'OUTBOUND'),
         'status': item.get('status', ''),
         'messageType': item.get('messageType', ''),
         'senderId': item.get('senderId', ''),
         'dltTemplateId': item.get('dltTemplateId', ''),
         'recipientCount': int(item.get('recipientCount', 1)),
         'providerMessageId': item.get('providerMessageId', ''),
+        'apiVersion': item.get('apiVersion', 'v4'),
         'createdAt': int(float(item.get('createdAt', 0)))
     }
 

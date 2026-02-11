@@ -1,6 +1,7 @@
 /**
  * Airtel Click-to-Call (C2C) Lambda Function
  * Connects two users on a call via Airtel Kong API
+ * Auth: HMAC-SHA256 via Kong gateway
  * Credentials from Secrets Manager: wecare/airtel/c2c
  */
 
@@ -15,7 +16,8 @@ export const voiceC2c = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    VOICE_CALLS_TABLE: 'base-wecare-digital-VoiceCalls',
+    AIRTEL_C2C_TABLE: 'base-wecare-digital-AirtelC2CTable',
+    VOICE_CDR_TABLE: 'base-wecare-digital-VoiceCDRTable',
     AIRTEL_KONG_HOST: 'iqvoice.airtel.in',
     AIRTEL_C2C_SECRET_NAME: 'wecare/airtel/c2c',
   },

@@ -3,21 +3,41 @@ Airtel OBD (Outbound Dialer) Campaign Lambda Function
 
 Purpose: Manage bulk voice campaigns via Airtel IQ Telephony API
 Features:
-- Create OBD campaigns with default audio (Info-Only)
+- Upload audio prompts (16bits 8000Hz Mono WAV only)
 - Upload CSV contact lists with variables
+- Create OBD campaigns with default or custom audio (Info-Only)
 - Store recordings in S3
 
-API Endpoints:
-- Upload CSV: POST https://openapi.airtel.in/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload
+API Endpoints (Airtel):
+- Upload Audio: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
+  Headers: requester-id: ironman, Authorization: Basic {auth}
+  Body: multipart/form-data with files=@"/path/to/file.wav"
+
+- Upload CSV: POST https://openapi.airtel.in/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload?customerId={customerId}&campaignType=OBD_CALL
+  Headers: app-id: IRONMAN, Authorization: Basic {auth}
+  Body: multipart/form-data with file=@"contacts.csv"
+  CSV Column: Number (mapped via inputCsvMappings to participantAddress)
+
 - Create Campaign: POST https://iqtelephony.airtel.in/gateway/airtel-xchange/campaign-manager/v2/createCampaign
+  Headers: app-id: IRONMAN, Authorization: Basic {campaign_auth}
+  Body: JSON with callFlowConfigV2, inputCsvMappings: {"participantAddress": "Number"}
 
 Airtel OBD Requirements:
 - Call Flow: Voice (Info-Only)
 - Audio: 16bits 8000Hz Mono WAV only
 - Campaign Type: TRANSACTIONAL always
-- CSV Column: participantNumber (not Number)
+- CSV Column: Number (not participantNumber)
+- inputCsvMappings: {"participantAddress": "Number"}
 
 Secrets: wecare/airtel/obd
+Expected secret keys:
+- customer_id: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
+- auth: Basic auth token for upload APIs
+- campaign_auth: Basic auth token for createCampaign API
+- app_id: IRONMAN
+- call_flow_id: dfbeda76-f641-420f-95e7-b78d562a941f
+- caller_id: 8040761117
+- template_id: 69818654d9e8e260e60b16a7
 """
 
 import os
@@ -44,6 +64,7 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
 OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'base-wecare-digital-OBDCampaigns')
+VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCDRTable')
 S3_BUCKET = os.environ.get('S3_BUCKET', 'app.wecare.digital')
 S3_RECORDING_PREFIX = 'voice/voice-in/'
 AIRTEL_OBD_SECRET_NAME = os.environ.get('AIRTEL_OBD_SECRET_NAME', 'wecare/airtel/obd')
@@ -86,7 +107,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if event.get('body'):
             body = json.loads(event['body']) if isinstance(event['body'], str) else event['body']
         
-        if '/upload-csv' in path:
+        if http_method == 'OPTIONS':
+            return _response(200, {'message': 'OK'})
+        
+        # Detect Airtel CDR callback (Airtel sends OBD CDR callbacks to this endpoint)
+        if http_method == 'POST' and _is_airtel_cdr_callback(body):
+            return _handle_cdr_callback(body, request_id)
+        
+        if '/upload-audio' in path:
+            return _upload_audio(body, event, request_id)
+        elif '/upload-csv' in path:
             return _upload_csv(body, request_id)
         elif '/create' in path:
             return _create_campaign(body, request_id)
@@ -121,8 +151,105 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _response(500, {'error': 'Internal server error'})
 
 
+def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Upload audio prompt to Airtel for OBD campaigns.
+    
+    Airtel API: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
+    Headers: requester-id: ironman, Authorization: Basic {auth}
+    Body: multipart/form-data with files=@"/path/to/file.wav"
+    
+    Audio Requirements: 16bits 8000Hz Mono WAV only
+    
+    Request body options:
+    - audioData: base64-encoded WAV file content
+    - audioS3Key: S3 key to fetch audio from (bucket: app.wecare.digital)
+    - fileName: optional custom filename (default: obd_audio_{timestamp}.wav)
+    """
+    try:
+        secrets = _get_secrets()
+        customer_id = secrets.get('customer_id')
+        auth_token = secrets.get('auth')
+        
+        if not customer_id or not auth_token:
+            return _response(500, {'error': 'Airtel OBD credentials not configured'})
+        
+        audio_data = body.get('audioData')  # base64 encoded
+        audio_s3_key = body.get('audioS3Key')
+        file_name = body.get('fileName', f'obd_audio_{int(time.time())}.wav')
+        
+        if audio_data:
+            audio_bytes = base64.b64decode(audio_data)
+        elif audio_s3_key:
+            response = s3.get_object(Bucket=S3_BUCKET, Key=audio_s3_key)
+            audio_bytes = response['Body'].read()
+        else:
+            return _response(400, {'error': 'audioData (base64) or audioS3Key is required'})
+        
+        # Upload to Airtel uploadPrompts API
+        url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
+        boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
+        
+        body_parts = [
+            f'--{boundary}'.encode(),
+            f'Content-Disposition: form-data; name="files"; filename="{file_name}"'.encode(),
+            b'Content-Type: audio/wav',
+            b'',
+            audio_bytes,
+            f'--{boundary}--'.encode()
+        ]
+        
+        headers = {
+            'Content-Type': f'multipart/form-data; boundary={boundary}',
+            'Authorization': f'Basic {auth_token}',
+            'requester-id': 'ironman'
+        }
+        
+        req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
+        
+        logger.info(json.dumps({
+            'event': 'obd_upload_audio',
+            'fileName': file_name,
+            'sizeBytes': len(audio_bytes),
+            'requestId': request_id
+        }))
+        
+        with urllib.request.urlopen(req, timeout=120) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            
+            # Extract the audio URL from Airtel response
+            audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
+            
+            logger.info(json.dumps({
+                'event': 'obd_audio_uploaded',
+                'audioUrl': audio_url,
+                'result': result,
+                'requestId': request_id
+            }))
+            
+            return _response(200, {
+                'success': True,
+                'fileName': file_name,
+                'audioUrl': audio_url,
+                'sizeBytes': len(audio_bytes),
+                'result': result
+            })
+            
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(f"Audio upload error: {e.code} - {error_body}")
+        return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})
+    except Exception as e:
+        logger.error(f"Audio upload error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
 def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Upload CSV contact list to Airtel with variable support."""
+    """Upload CSV contact list to Airtel with variable support.
+    
+    CSV column must be 'Number' (not 'participantNumber').
+    The inputCsvMappings in createCampaign maps: {"participantAddress": "Number"}
+    """
     try:
         secrets = _get_secrets()
         customer_id = secrets.get('customer_id')
@@ -138,17 +265,15 @@ def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
         csv_data = body.get('csvData')
         
         if contacts:
-            # Build CSV with participantNumber column (Airtel requirement)
-            # If variables provided, add variable columns
+            # Build CSV with 'Number' column (Airtel requirement per actual API)
             var_names = []
             if variables:
-                # Get all unique variable names
                 for phone, vars_dict in variables.items():
                     var_names.extend(vars_dict.keys())
                 var_names = list(set(var_names))
             
             if var_names:
-                header = "participantNumber," + ",".join(var_names)
+                header = "Number," + ",".join(var_names)
                 rows = []
                 for contact in contacts:
                     clean_phone = _clean_phone(contact)
@@ -159,7 +284,7 @@ def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
                     rows.append(f"{clean_phone},{','.join(var_values)}")
                 csv_content = header + "\n" + "\n".join(rows)
             else:
-                csv_content = "participantNumber\n" + "\n".join([_clean_phone(c) for c in contacts if _clean_phone(c)])
+                csv_content = "Number\n" + "\n".join([_clean_phone(c) for c in contacts if _clean_phone(c)])
             csv_bytes = csv_content.encode('utf-8')
         elif csv_url and csv_url.startswith('s3://'):
             parts = csv_url.replace('s3://', '').split('/', 1)
@@ -214,7 +339,8 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
     - Call Flow: Voice (Info-Only) - plays audio and disconnects
     - Audio: 16bits 8000Hz Mono WAV only
     - Campaign Type: TRANSACTIONAL always
-    - CSV Column: participantNumber (not Number)
+    - CSV Column: Number (mapped to participantAddress via inputCsvMappings)
+    - inputCsvMappings: {"participantAddress": "Number"}
     """
     try:
         secrets = _get_secrets()
@@ -235,10 +361,10 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         caller_id = body.get('callerId', caller_id)
         retry_count = body.get('retryCount', 2)
         
-        # Always use default audio (Airtel only supports 16bits 8000Hz Mono WAV)
-        audio_url = AIRTEL_DEFAULT_AUDIO_URL
+        # Use custom audio URL if provided, otherwise default Airtel jingle
+        audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
         
-        # Upload CSV if contacts provided (with participantNumber column)
+        # Upload CSV if contacts provided (with 'Number' column)
         if contacts and not sheet_file_names:
             csv_result = _upload_csv_internal(contacts, variables, secrets, request_id)
             if not csv_result.get('success'):
@@ -251,8 +377,9 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         campaign_id = str(uuid.uuid4())
         
         # Build input variables for call flow
+        # Per Airtel API: participantAddress value is a sample number (CSV mapping handles substitution)
         input_variables = [
-            {"name": "participantAddress", "value": "${participantNumber}", "type": "phoneNumber"},
+            {"name": "participantAddress", "value": caller_id, "type": "phoneNumber"},
             {"name": "callerId", "value": caller_id, "type": "phoneNumber"},
             {"name": "audioURL", "value": audio_url, "type": "string"}
         ]
@@ -296,7 +423,7 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
                     }
                 }
             },
-            "inputCsvMappings": {"participantAddress": "participantNumber"},
+            "inputCsvMappings": {"participantAddress": "Number"},
             "campaignType": "OBD_CALL",
             "retryDetail": {
                 "maxRetryCount": retry_count,
@@ -347,7 +474,7 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, request_id: str) -> Dict[str, Any]:
-    """Internal CSV upload helper with variable support."""
+    """Internal CSV upload helper with variable support. CSV column: Number."""
     try:
         customer_id = secrets.get('customer_id')
         auth_token = secrets.get('auth')
@@ -360,9 +487,9 @@ def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, re
                 var_names.extend(phone_vars.keys())
             var_names = list(set(var_names))
         
-        # Build CSV with participantNumber column (Airtel requirement)
+        # Build CSV with 'Number' column (Airtel requirement per actual API)
         if var_names:
-            header = "participantNumber," + ",".join(var_names)
+            header = "Number," + ",".join(var_names)
             rows = []
             for contact in contacts:
                 clean_phone = _clean_phone(contact)
@@ -373,7 +500,7 @@ def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, re
                 rows.append(f"{clean_phone},{','.join(var_values)}")
             csv_content = header + "\n" + "\n".join(rows)
         else:
-            csv_content = "participantNumber\n" + "\n".join([_clean_phone(c) for c in contacts if _clean_phone(c)])
+            csv_content = "Number\n" + "\n".join([_clean_phone(c) for c in contacts if _clean_phone(c)])
         
         csv_bytes = csv_content.encode('utf-8')
         file_name = f'obd_contacts_{int(time.time())}.csv'
@@ -495,11 +622,16 @@ def _clear_logs(body: Dict, request_id: str) -> Dict[str, Any]:
         deleted_count = 0
         
         if clear_all:
-            # Scan and delete all campaigns
-            result = table.scan(ProjectionExpression='id')
-            for item in result.get('Items', []):
-                table.delete_item(Key={'id': item['id']})
-                deleted_count += 1
+            # Scan and delete all campaigns with pagination
+            scan_kwargs = {'ProjectionExpression': 'id'}
+            while True:
+                result = table.scan(**scan_kwargs)
+                for item in result.get('Items', []):
+                    table.delete_item(Key={'id': item['id']})
+                    deleted_count += 1
+                if 'LastEvaluatedKey' not in result:
+                    break
+                scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         elif campaign_ids:
             # Delete specific campaigns
             for cid in campaign_ids:
@@ -525,12 +657,230 @@ def _normalize_campaign(item: Dict) -> Dict:
     """Normalize campaign for response."""
     return {
         'id': item.get('id', ''),
+        'campaignId': item.get('campaignId', ''),
         'airtelCampaignId': item.get('airtelCampaignId', ''),
         'campaignName': item.get('campaignName', ''),
         'status': item.get('status', ''),
         'audioUrl': item.get('audioUrl', ''),
+        'sheetFileNames': item.get('sheetFileNames', []),
+        'contactCount': int(float(item.get('contactCount', 0))),
         'createdAt': int(float(item.get('createdAt', 0))),
+        'updatedAt': int(float(item.get('updatedAt', 0))),
     }
+
+
+def _is_airtel_cdr_callback(body: Dict) -> bool:
+    """
+    Detect if a POST payload is an Airtel CDR callback (vs a user OBD API request).
+
+    Airtel OBD CDR callbacks contain fields like Session_ID, Overall_Call_Status,
+    participants array, etc. that user campaign creation requests never have.
+    """
+    # Format B (OBD display format)
+    if body.get('Session_ID') or body.get('Client_Correlation_Id'):
+        return True
+    # Format A (standard camelCase)
+    if body.get('vmSessionId') or body.get('clientCorrelationId'):
+        return True
+    # Either format
+    if body.get('overallCallStatus') or body.get('Overall_Call_Status'):
+        return True
+    if body.get('participants') and isinstance(body.get('participants'), list):
+        for p in body['participants']:
+            if isinstance(p, dict) and p.get('participantType'):
+                return True
+    return False
+
+
+def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Handle Airtel CDR callback that was sent to the OBD endpoint.
+
+    Normalizes the payload from Format B (Display_Format) to camelCase,
+    then stores it in the VoiceCDR table (same table as /voice-cdr-webhook).
+    """
+    try:
+        # Normalize Format B → Format A
+        normalized = _normalize_cdr_payload(body)
+
+        vm_session_id = normalized.get('vmSessionId', '')
+        client_correlation_id = normalized.get('clientCorrelationId', '')
+
+        logger.info(json.dumps({
+            'event': 'obd_cdr_callback_received',
+            'vmSessionId': vm_session_id,
+            'clientCorrelationId': client_correlation_id,
+            'callType': normalized.get('callType', ''),
+            'overallCallStatus': normalized.get('overallCallStatus', ''),
+            'campaignId': normalized.get('campaignId', body.get('Campaign_Id', '')),
+            'requestId': request_id
+        }))
+
+        current_time = int(time.time())
+        ttl_expiry = current_time + (90 * 24 * 60 * 60)
+
+        duration = _safe_ms(normalized.get('duration', 0))
+        from_waiting_time = _safe_ms(normalized.get('fromWaitingTime', 0))
+        conversation_duration = _safe_ms(normalized.get('conversationDuration', 0))
+
+        # Parse participants
+        participants = normalized.get('participants', [])
+        caller_name = ''
+        destination_name = ''
+        caller_status = normalized.get('callerNumberStatus', '')
+        dest_status = normalized.get('destinationNumberStatus', '')
+        participants_json = ''
+
+        for p in participants:
+            p_type = p.get('participantType', '')
+            if p_type == 'From':
+                caller_name = p.get('participantName', '') or normalized.get('callerName', '')
+                if not caller_status:
+                    caller_status = p.get('status', '')
+            elif p_type == 'To':
+                destination_name = p.get('participantName', '') or normalized.get('destinationName', '')
+                if not dest_status:
+                    dest_status = p.get('status', '')
+
+        try:
+            if participants:
+                participants_json = json.dumps(participants)
+        except (TypeError, ValueError):
+            pass
+
+        # Clean up quoted empty strings
+        for key in ['callerName', 'destinationName', 'hangupCause']:
+            val = normalized.get(key, '')
+            if isinstance(val, str) and val.strip() in ('""', "''"):
+                normalized[key] = ''
+
+        cdr_record = {
+            'id': str(uuid.uuid4()),
+            'vmSessionId': vm_session_id,
+            'clientCorrelationId': client_correlation_id,
+            'customerId': normalized.get('customerId', ''),
+            'startTime': normalized.get('startTime', 0),
+            'endTime': normalized.get('endTime', 0),
+            'callAnswerTime': normalized.get('callAnswerTime', 0),
+            'timestamp': normalized.get('timestamp', ''),
+            'createdAt': current_time,
+            'expiresAt': ttl_expiry,
+            'durationMs': duration,
+            'durationSec': round(duration / 1000, 2) if duration else 0,
+            'fromWaitingTimeMs': from_waiting_time,
+            'fromWaitingTimeSec': round(from_waiting_time / 1000, 2) if from_waiting_time else 0,
+            'conversationDurationMs': conversation_duration,
+            'conversationDurationSec': round(conversation_duration / 1000, 2) if conversation_duration else 0,
+            'callType': normalized.get('callType', 'OUTBOUND'),
+            'overallCallStatus': normalized.get('overallCallStatus', ''),
+            'hangupStatus': normalized.get('hangUpStatus', ''),
+            'hangupCause': normalized.get('hangupCause', ''),
+            'callerId': normalized.get('callerId', ''),
+            'callerNumber': normalized.get('callerNumber', ''),
+            'destinationNumber': normalized.get('destinationNumber', ''),
+            'callerName': caller_name or normalized.get('callerName', ''),
+            'destinationName': destination_name or normalized.get('destinationName', ''),
+            'callerNumberStatus': caller_status,
+            'destinationNumberStatus': dest_status,
+            'circleNameCaller': normalized.get('circleNameCaller', ''),
+            'circleNameDestination': normalized.get('circleNameDestination', ''),
+            'operatorNameCaller': normalized.get('operatorNameCaller', ''),
+            'operatorNameDestination': normalized.get('operatorNameDestination', ''),
+            'recordingURL': normalized.get('recordingURL', ''),
+            'retryCountCaller': _safe_ms(normalized.get('retryCountCaller', 0)),
+            'retryCountDestination': _safe_ms(normalized.get('retryCountDestination', 0)),
+            'participantsJson': participants_json,
+            'participantsCount': len(participants),
+            'campaignId': normalized.get('campaignId', body.get('Campaign_Id', '')),
+            'campaignName': normalized.get('campaignName', body.get('Campaign_Name', '')),
+            'source': 'airtel_obd_cdr_callback',
+        }
+
+        # Store in VoiceCDR table
+        item = {}
+        for key, value in cdr_record.items():
+            if value is None or value == '':
+                continue
+            if isinstance(value, (float, int)):
+                item[key] = Decimal(str(value))
+            else:
+                item[key] = value
+
+        table = dynamodb.Table(VOICE_CDR_TABLE)
+        table.put_item(Item=item)
+
+        logger.info(json.dumps({
+            'event': 'obd_cdr_stored',
+            'id': cdr_record['id'],
+            'vmSessionId': vm_session_id,
+            'requestId': request_id
+        }))
+
+        return _response(200, {
+            'status': 'ok',
+            'vmSessionId': vm_session_id,
+            'clientCorrelationId': client_correlation_id,
+            'message': 'OBD CDR callback received and stored'
+        })
+
+    except Exception as e:
+        logger.error(f"OBD CDR callback error: {str(e)}")
+        return _response(500, {'error': f'CDR processing error: {str(e)}'})
+
+
+def _normalize_cdr_payload(payload: Dict) -> Dict:
+    """Normalize Airtel CDR from Format B (Display_Format) to camelCase."""
+    normalized = dict(payload)
+    field_map = {
+        'Session_ID': 'vmSessionId',
+        'Client_Correlation_Id': 'clientCorrelationId',
+        'Overall_Call_Status': 'overallCallStatus',
+        'Caller_Number': 'callerNumber',
+        'Destination_Number': 'destinationNumber',
+        'Caller_ID': 'callerId',
+        'Call_Type': 'callType',
+        'Caller_Status': 'callerNumberStatus',
+        'Destination_Status': 'destinationNumberStatus',
+        'Caller_Circle_Name': 'circleNameCaller',
+        'Destination_Circle_Name': 'circleNameDestination',
+        'Caller_Operator_Name': 'operatorNameCaller',
+        'Destination_Operator_Name': 'operatorNameDestination',
+        'Hangup_Cause': 'hangupCause',
+        'Caller_Retry_Count': 'retryCountCaller',
+        'Destination_Retry_Count': 'retryCountDestination',
+        'Caller_Name': 'callerName',
+        'Destination_Name': 'destinationName',
+        'Campaign_Id': 'campaignId',
+        'Campaign_Name': 'campaignName',
+        'Recording': 'recordingURL',
+        'Customer_Name': 'customerId',
+        'Destination_CLI': 'displayCliDestination',
+    }
+    for display_key, camel_key in field_map.items():
+        if payload.get(display_key) is not None and not normalized.get(camel_key):
+            val = payload[display_key]
+            if isinstance(val, str) and val.strip() in ('""', "''", ''):
+                val = ''
+            normalized[camel_key] = val
+    if not normalized.get('callType'):
+        normalized['callType'] = payload.get('Call_Type', 'OUTBOUND')
+    if not normalized.get('customerId'):
+        normalized['customerId'] = payload.get('Customer_Name', payload.get('customerId', ''))
+    return normalized
+
+
+def _safe_ms(val) -> int:
+    """Safely convert a value to int. Handles None, strings, and numeric types."""
+    if val is None:
+        return 0
+    if isinstance(val, (int, float)):
+        return int(val)
+    if isinstance(val, str):
+        try:
+            return int(float(val))
+        except (ValueError, TypeError):
+            return 0
+    return 0
 
 
 def _clean_phone(phone: str) -> str:

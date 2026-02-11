@@ -1,6 +1,8 @@
 /**
  * Airtel IQ SMS Lambda Function
- * Send SMS via Airtel IQ Messaging API with HMAC auth
+ * Send SMS via Airtel IQ Messaging API with Basic auth
+ * Supports v4, v5 (content moderation), v6 API versions
+ * DLT compliant (entityId, dltTemplateId per TRAI TCCCPR 2019)
  * Credentials from Secrets Manager: wecare/airtel/sms
  */
 

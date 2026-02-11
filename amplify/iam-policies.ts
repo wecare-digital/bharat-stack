@@ -291,4 +291,5 @@ export const FUNCTION_POLICIES = {
   'wecare-voice-in-c2c': ['common', 'secrets'],
   'wecare-voice-in-obd': ['common', 'secrets'],
   'wecare-voice-cdr-webhook': ['common'],
+  'wecare-voice-cdr-read': ['common'],
 };

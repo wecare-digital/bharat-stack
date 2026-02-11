@@ -65,11 +65,11 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
       const [c2cResponse, obdResponse, cdrResponse] = await Promise.all([
         fetch(`${API_BASE}/voice-in/c2c`).then(r => r.json()).catch(() => ({ calls: [] })),
         fetch(`${API_BASE}/voice-in/obd`).then(r => r.json()).catch(() => ({ campaigns: [] })),
-        fetch(`${API_BASE}/voice-cdr-webhook`).then(r => r.json()).catch(() => ({ cdrs: [] }))
+        fetch(`${API_BASE}/voice-cdr-read`).then(r => r.json()).catch(() => ({ records: [] }))
       ]);
       setC2cCalls(c2cResponse.calls || []);
       setObdCampaigns(obdResponse.campaigns || []);
-      setCdrs(cdrResponse.cdrs || []);
+      setCdrs(cdrResponse.records || []);
     } catch (err) { console.error('Load error:', err); toast.error('Failed to load data'); } finally { setLoading(false); }
   }, [toast]);
 
@@ -164,7 +164,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
     if (!confirm(`Clear all ${type.toUpperCase()} logs? This cannot be undone.`)) return;
     setClearing(true);
     try {
-      const endpoint = type === 'cdr' ? 'voice-cdr-webhook' : `voice-in/${type}`;
+      const endpoint = type === 'cdr' ? 'voice-cdr-webhook' : `voice-in/${type}`; // CDR clear goes to webhook handler which owns the data
       const response = await fetch(`${API_BASE}/${endpoint}/clear-logs`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -345,9 +345,12 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
                     </tbody>
                   </table>
                   <div className="webhook-info">
-                    <strong>CDR Webhook (Inbound + Outbound):</strong>
+                    <strong>CDR Webhook (Airtel → Us):</strong>
                     <code>{API_BASE}/voice-cdr-webhook</code>
-                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#6b7280' }}>Handles CDRs for all call types: direct inbound, C2C, and OBD campaigns</div>
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#6b7280' }}>Receives CDRs from Airtel for all call types: direct inbound, C2C, and OBD campaigns</div>
+                    <strong style={{ marginTop: '8px', display: 'block' }}>CDR Read API (Dashboard):</strong>
+                    <code>{API_BASE}/voice-cdr-read</code>
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#6b7280' }}>Read CDRs with filters, stats, and dashboard aggregations (?dashboard=true)</div>
                   </div>
                 </div>
               )}
