@@ -1,28 +1,41 @@
 $REGION = "us-east-1"
 
 $tables = @(
+    # Core
     @{Name="base-wecare-digital-ContactsTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-UsersTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-SystemConfigTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-MessagesTable"; PK="id"; PKType="S"},
+    # WhatsApp
     @{Name="base-wecare-digital-WhatsAppInboundTable"; PK="id"; PKType="S"},
     @{Name="base-wecare-digital-WhatsAppOutboundTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-WhatsAppVoiceTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-WhatsAppCallingTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-MediaFilesTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-TemplateAnalyticsTable"; PK="id"; PKType="S"},
+    # Bulk
     @{Name="base-wecare-digital-BulkJobsTable"; PK="id"; PKType="S"},
     @{Name="base-wecare-digital-BulkRecipientsTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-UsersTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-MediaFilesTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-DLQMessagesTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-AuditLogsTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-AIInteractionsTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-RateLimitTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-SystemConfigTable"; PK="id"; PKType="S"},
+    # SMS
     @{Name="base-wecare-digital-SmsAwsTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-AirtelSMSTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-DLTTemplates"; PK="id"; PKType="S"},
+    # Voice
     @{Name="base-wecare-digital-VoiceAwsTable"; PK="id"; PKType="S"},
     @{Name="base-wecare-digital-VoiceCalls"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-VoiceInC2CTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-VoiceInOBDTable"; PK="id"; PKType="S"},
     @{Name="base-wecare-digital-VoiceCDRTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-SmsInAirtelTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-AirtelC2CTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-OBDCampaigns"; PK="id"; PKType="S"},
+    # Payments
+    @{Name="base-wecare-digital-PaymentsTable"; PK="id"; PKType="S"},
+    # Scheduled
     @{Name="base-wecare-digital-ScheduledMessagesTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-TemplateAnalyticsTable"; PK="id"; PKType="S"},
-    @{Name="base-wecare-digital-PaymentsTable"; PK="id"; PKType="S"}
+    # AI
+    @{Name="base-wecare-digital-AIInteractionsTable"; PK="id"; PKType="S"},
+    # Operations
+    @{Name="base-wecare-digital-DLQMessagesTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-AuditLogsTable"; PK="id"; PKType="S"},
+    @{Name="base-wecare-digital-RateLimitTable"; PK="id"; PKType="S"}
 )
 
 $success = 0; $fail = 0
@@ -48,4 +61,4 @@ foreach ($t in $tables) {
     }
 }
 
-Write-Host "`nDone: $success OK, $fail failed"
+Write-Host "`nDone: $success OK, $fail failed (Total: $($tables.Count) tables)"

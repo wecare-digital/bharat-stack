@@ -319,22 +319,23 @@ export const IAM_POLICIES = {
  * short names for Amplify-managed functions.
  */
 export const FUNCTION_POLICIES: Record<string, string[]> = {
-  // === Core (Amplify-managed) ===
-  'auth-middleware': ['common', 'cognito'],
-  'contacts-create': ['common'],
-  'contacts-read': ['common'],
-  'contacts-update': ['common'],
-  'contacts-delete': ['common'],
-  'contacts-search': ['common'],
-  'messages-read': ['common'],
-  'messages-delete': ['common'],
+  // === Core ===
+  'wecare-auth-middleware': ['common', 'cognito'],
+  'wecare-contacts-create': ['common'],
+  'wecare-contacts-read': ['common'],
+  'wecare-contacts-update': ['common'],
+  'wecare-contacts-delete': ['common'],
+  'wecare-contacts-search': ['common'],
+  'wecare-messages-read': ['common'],
+  'wecare-messages-delete': ['common'],
 
   // === WhatsApp ===
-  'wecare-inbound-whatsapp-handler': ['common', 'whatsapp', 'sqs', 'sns'],
+  'wecare-inbound-whatsapp': ['common', 'whatsapp', 'sqs', 'sns', 'lambdaInvoke'],
   'wecare-outbound-whatsapp': ['common', 'whatsapp', 'sqs'],
   'wecare-whatsapp-calling': ['common', 'whatsapp', 'secrets'],
   'wecare-whatsapp-voice': ['common', 'whatsapp', 'polly'],
   'wecare-whatsapp-template-management': ['common', 'whatsapp', 'secrets'],
+  'wecare-whatsapp-templates': ['common', 'whatsapp', 'secrets'], // alias
   'wecare-whatsapp-business-api': ['common', 'secrets'],
   'wecare-waba-management': ['common', 'whatsapp'],
   'wecare-media-cleanup': ['common', 'whatsapp'],
@@ -350,11 +351,14 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   'wecare-voice-aws': ['common', 'sms'],
 
   // === Voice (Airtel IQ — voice-in) ===
-  'wecare-voice-in-c2c': ['common', 'secrets'],
+  'wecare-voice-in-c2c': ['common', 'secrets', 's3'],
   'wecare-voice-in-obd': ['common', 'secrets', 's3'],
-  'wecare-voice-cdr-webhook': ['common', 's3'],
+  'wecare-voice-in-cdr': ['common', 's3'],              // CDR webhook (alias route)
+  'wecare-voice-cdr-webhook': ['common', 's3'],          // CDR webhook (primary route)
   'wecare-voice-cdr-read': ['common'],
+  'wecare-voice-calls-read': ['common'],                  // alias of voice-cdr-read
   'wecare-outbound-voice': ['common', 'secrets'],
+  'wecare-voice-calls': ['common', 'secrets'],            // alias of outbound-voice
 
   // === Scheduled & Bulk ===
   'wecare-scheduled-messages': ['common', 'lambdaInvoke'],
