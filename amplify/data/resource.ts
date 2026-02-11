@@ -447,6 +447,180 @@ const schema = a.schema({
     })
     .identifier(['id'])
     .authorization((allow) => [allow.authenticated()]),
+
+  // Table 18: ScheduledMessages - Scheduled WhatsApp messages
+  ScheduledMessage: a
+    .model({
+      scheduledId: a.id().required(),
+      contactId: a.string().required(),
+      contactName: a.string(),
+      contactPhone: a.string(),
+      templateName: a.string().required(),
+      templateParams: a.string().array(), // template variable values
+      phoneNumberId: a.string(),
+      scheduledAt: a.datetime().required(),
+      status: a.enum(['PENDING', 'SENT', 'FAILED', 'CANCELLED']),
+      sentAt: a.datetime(),
+      errorDetails: a.string(),
+      createdAt: a.datetime(),
+      updatedAt: a.datetime(),
+    })
+    .identifier(['scheduledId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 19: WhatsAppVoice - WhatsApp TTS/Audio voice message logs (TTL: 90 days)
+  WhatsAppVoice: a
+    .model({
+      messageId: a.id().required(),
+      contactId: a.string(),
+      phoneNumber: a.string(),
+      messageText: a.string(),
+      voiceId: a.string(), // Polly voice ID
+      languageCode: a.string(),
+      audioSize: a.integer(),
+      s3Key: a.string(),
+      whatsappMediaId: a.string(),
+      whatsappMessageId: a.string(),
+      status: a.string(), // sent, failed
+      type: a.string().default('tts'), // tts, audio
+      createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL
+    })
+    .identifier(['messageId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 20: Payments - Razorpay payment records
+  Payment: a
+    .model({
+      id: a.id().required(),
+      paymentId: a.string(), // Razorpay payment ID
+      orderId: a.string(), // Razorpay order ID
+      referenceId: a.string(),
+      status: a.string(), // captured, failed, refunded
+      amount: a.integer(), // Amount in paise
+      amountInRupees: a.float(),
+      currency: a.string().default('INR'),
+      method: a.string(), // upi, card, netbanking, wallet
+      contact: a.string(),
+      email: a.string(),
+      notes: a.string(), // JSON string
+      source: a.string().default('razorpay_webhook'),
+      createdAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('paymentId'),
+      index('orderId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 21: WhatsAppCalling - WhatsApp voice/video call logs
+  WhatsAppCalling: a
+    .model({
+      id: a.id().required(),
+      callId: a.string(),
+      wabaId: a.string(),
+      phoneNumberId: a.string(),
+      fromNumber: a.string(),
+      toNumber: a.string(),
+      direction: a.string(), // inbound, outbound
+      eventType: a.string(), // connect, terminate, permission_response
+      status: a.string(), // ringing, ended, logged
+      terminateReason: a.string(),
+      duration: a.integer(),
+      sdpOffer: a.string(),
+      sdpType: a.string(),
+      rawEvent: a.string(),
+      timestamp: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('callId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 22: WhatsAppInbound - Inbound WhatsApp messages
+  WhatsAppInbound: a
+    .model({
+      id: a.id().required(),
+      contactId: a.string(),
+      phone: a.string(),
+      senderName: a.string(),
+      messageType: a.string(), // text, image, video, audio, document, location, sticker, reaction
+      content: a.string(),
+      mediaId: a.string(),
+      s3Key: a.string(),
+      mediaUrl: a.string(),
+      mimeType: a.string(),
+      whatsappMessageId: a.string(),
+      status: a.string(), // received, read, processed
+      templateName: a.string(),
+      timestamp: a.string(),
+      createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('whatsappMessageId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 23: WhatsAppOutbound - Outbound WhatsApp messages
+  WhatsAppOutbound: a
+    .model({
+      id: a.id().required(),
+      contactId: a.string(),
+      phone: a.string(),
+      templateName: a.string(),
+      templateCategory: a.string(), // UTILITY, MARKETING, AUTHENTICATION
+      templateParams: a.string(), // JSON array
+      content: a.string(),
+      mediaId: a.string(),
+      s3Key: a.string(),
+      mediaUrl: a.string(),
+      whatsappMessageId: a.string(),
+      status: a.string(), // sent, delivered, read, failed
+      errorDetails: a.string(),
+      phoneNumberId: a.string(),
+      timestamp: a.string(),
+      createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('whatsappMessageId'),
+      index('templateName'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 24: TemplateAnalytics - WhatsApp template send/delivery tracking
+  TemplateAnalytics: a
+    .model({
+      id: a.id().required(),
+      templateName: a.string().required(),
+      templateCategory: a.string(), // UTILITY, MARKETING, AUTHENTICATION
+      phone: a.string(),
+      status: a.string(), // sent, delivered, read, failed
+      whatsappMessageId: a.string(),
+      timestamp: a.string(),
+      createdAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('templateName'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
