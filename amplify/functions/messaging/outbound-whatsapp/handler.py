@@ -995,7 +995,7 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         # Generate S3 key with proper extension
         extension = _get_media_extension(media_type)
         
-        # S3 key: short format wecare-digital-{8char_uuid}.ext
+        # S3 key: short format wecare-digital-{8char_uuid}{ext}
         short_id = message_id[:8]
         s3_key = f"{MEDIA_PREFIX}wecare-digital-{short_id}{extension}"
         
@@ -1759,12 +1759,13 @@ def _get_media_extension(media_type: str) -> str:
     """Get file extension based on media type per AWS Social Messaging docs."""
     extensions = {
         # Image formats (max 5MB)
-        'image/jpeg': '.jpg',
+        'image/jpeg': '.jpeg',
         'image/png': '.png',
-        'image': '.jpg',  # Default image
+        'image': '.jpeg',  # Default image
         
         # Video formats (max 16MB)
         'video/mp4': '.mp4',
+        'video/3gpp': '.3gp',
         'video/3gp': '.3gp',
         'video': '.mp4',  # Default video
         
@@ -1802,16 +1803,18 @@ def _get_media_extension(media_type: str) -> str:
 
 
 def _get_content_type(media_type: str) -> str:
-    """Get content type based on media type per AWS Social Messaging docs."""
+    """Get MIME content type based on media type per AWS Social Messaging docs."""
     content_types = {
         # Image formats
         'image/jpeg': 'image/jpeg',
         'image/png': 'image/png',
+        'image/webp': 'image/webp',
         'image': 'image/jpeg',
         
         # Video formats
         'video/mp4': 'video/mp4',
-        'video/3gp': 'video/3gp',
+        'video/3gpp': 'video/3gpp',
+        'video/3gp': 'video/3gpp',
         'video': 'video/mp4',
         
         # Audio formats
@@ -1834,7 +1837,6 @@ def _get_content_type(media_type: str) -> str:
         'document': 'application/pdf',
         
         # Sticker formats
-        'image/webp': 'image/webp',
         'sticker': 'image/webp'
     }
     

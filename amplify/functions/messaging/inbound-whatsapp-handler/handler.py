@@ -305,8 +305,9 @@ def _process_message(
     if msg_type in ['image', 'video', 'audio', 'document', 'sticker']:
         media_data = message.get(msg_type, {})
         whatsapp_media_id = media_data.get('id')
+        mime_type_hint = media_data.get('mime_type', '')
         if whatsapp_media_id:
-            s3_key = _download_media(whatsapp_media_id, message_id, msg_type, aws_phone_number_id, request_id)
+            s3_key = _download_media(whatsapp_media_id, message_id, msg_type, aws_phone_number_id, request_id, mime_type_hint)
             if s3_key:
                 media_id = _store_media_record(message_id, s3_key, media_data, whatsapp_media_id)
     
@@ -618,22 +619,34 @@ def _update_contact_timestamp(contact_id: str, timestamp: int) -> None:
 
 
 def _download_media(whatsapp_media_id: str, message_id: str, media_type: str, 
-                    phone_number_id: str, request_id: str) -> Optional[str]:
+                    phone_number_id: str, request_id: str,
+                    mime_type_hint: str = '') -> Optional[str]:
     """
     Download media file from WhatsApp using AWS EUM Social API.
-    Per AWS docs: get_whatsapp_message_media downloads to S3 and returns mimeType + fileSize.
-    Uses short filename format: wecare-digital-{8chars}.ext
+    
+    Per AWS docs (S3File.key): The key is a PREFIX — AWS appends the WhatsApp
+    mediaId to create the final file path. For example:
+      key = "audio/example.ogg"  → final = "audio/example.ogg123.ogg"
+      key = "audio/"             → final = "audio/123.ogg"
+    
+    Strategy: Use key ending with "/" so the WhatsApp mediaId (which already
+    contains the correct extension) becomes the clean filename.
+    Final path: {MEDIA_PREFIX}wecare-digital-{8chars}/{whatsappMediaId}.{ext}
+    
+    Returns the actual S3 key of the downloaded file.
     """
     try:
-        # Build S3 key with short format: wecare-digital-{8chars}.ext
+        # Build S3 key as a FOLDER prefix — AWS will append the mediaId as filename
+        # Per AWS docs: key ending with "/" means mediaId becomes the filename
         short_id = message_id[:8]
-        extension = _get_extension_from_type(media_type)
-        s3_key = f"{MEDIA_PREFIX}wecare-digital-{short_id}{extension}"
+        s3_key_prefix = f"{MEDIA_PREFIX}wecare-digital-{short_id}/"
         
         logger.info(json.dumps({
             'event': 'media_download_start',
             'mediaId': whatsapp_media_id,
-            'requestedS3Key': s3_key,
+            's3KeyPrefix': s3_key_prefix,
+            'mediaType': media_type,
+            'mimeTypeHint': mime_type_hint,
             'phoneNumberId': phone_number_id,
             'requestId': request_id
         }))
@@ -644,7 +657,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
             originationPhoneNumberId=phone_number_id,
             destinationS3File={
                 'bucketName': MEDIA_BUCKET,
-                'key': s3_key
+                'key': s3_key_prefix
             }
         )
         
@@ -660,22 +673,24 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
             'requestId': request_id
         }))
         
-        # AWS EUM Social API appends WhatsApp media ID to the S3 key
-        # Find the actual file that was created
-        actual_s3_key = s3_key
-        s3_key_prefix = f"{MEDIA_PREFIX}wecare-digital-{short_id}"
+        # Find the actual file that AWS created in S3
+        actual_s3_key = None
         try:
             s3_response = s3.list_objects_v2(
                 Bucket=MEDIA_BUCKET,
                 Prefix=s3_key_prefix,
                 MaxKeys=5
             )
-            if s3_response.get('Contents'):
-                actual_s3_key = s3_response['Contents'][0]['Key']
+            contents = s3_response.get('Contents', [])
+            # Filter out zero-byte folder markers
+            real_files = [c for c in contents if c.get('Size', 0) > 0]
+            if real_files:
+                actual_s3_key = real_files[0]['Key']
                 logger.info(json.dumps({
                     'event': 'media_s3_key_found',
-                    'requestedPrefix': s3_key_prefix,
+                    'prefix': s3_key_prefix,
                     'actualS3Key': actual_s3_key,
+                    'fileSize': real_files[0].get('Size', 0),
                     'requestId': request_id
                 }))
         except Exception as list_err:
@@ -683,14 +698,23 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
                 'event': 'media_s3_list_failed',
                 'prefix': s3_key_prefix,
                 'error': str(list_err),
-                'usingFallback': s3_key,
+                'requestId': request_id
+            }))
+        
+        # Fallback: construct expected key from mimeType if list failed
+        if not actual_s3_key:
+            ext = _get_extension_from_mime(mime_type) if mime_type else _get_extension_from_type(media_type)
+            actual_s3_key = f"{s3_key_prefix}{whatsapp_media_id}{ext}"
+            logger.warning(json.dumps({
+                'event': 'media_using_constructed_key',
+                'constructedKey': actual_s3_key,
                 'requestId': request_id
             }))
         
         logger.info(json.dumps({
             'event': 'media_downloaded',
             'mediaId': whatsapp_media_id,
-            'requestedS3Key': s3_key,
+            's3KeyPrefix': s3_key_prefix,
             'actualS3Key': actual_s3_key,
             'mimeType': mime_type,
             'fileSize': file_size,

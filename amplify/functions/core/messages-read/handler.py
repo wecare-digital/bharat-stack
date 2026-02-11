@@ -266,6 +266,8 @@ def _get_display_filename(s3_key: str, message_id: str, message_type: str) -> st
     """
     Generate clean display filename: wecare-digital-{8chars}.ext
     Extracts extension from actual S3 key.
+    Handles both old pattern (wecare-digital-{8chars}.jpeg{mediaId}.jpeg)
+    and new pattern (wecare-digital-{8chars}/{mediaId}.jpeg).
     """
     # Get extension from actual S3 key
     ext = '.bin'
@@ -282,8 +284,13 @@ def _get_display_filename(s3_key: str, message_id: str, message_type: str) -> st
 def _find_actual_s3_key(stored_key: str, message_id: str) -> Optional[str]:
     """
     Find the actual S3 key by searching with prefix.
-    AWS EUM Social API appends WhatsApp media ID to the filename.
-    Example: stored as '...uuid.jpg' but actual file is '...uuid.jpg1234567890.jpeg'
+    
+    AWS EUM Social API uses the key as a PREFIX and appends the WhatsApp mediaId.
+    
+    Old pattern: key="...wecare-digital-{8chars}.jpeg" → file="...wecare-digital-{8chars}.jpeg{mediaId}.jpeg"
+    New pattern: key="...wecare-digital-{8chars}/"     → file="...wecare-digital-{8chars}/{mediaId}.jpeg"
+    
+    Both patterns are handled by prefix search.
     """
     try:
         # First try the exact key
@@ -295,12 +302,12 @@ def _find_actual_s3_key(stored_key: str, message_id: str) -> Optional[str]:
                 raise
             # Key doesn't exist, search with prefix
         
-        # Extract prefix (path without extension or with partial filename)
-        # stored_key: whatsapp-media/whatsapp-media-incoming/uuid.jpg
-        # We need to search for: whatsapp-media/whatsapp-media-incoming/uuid
-        
-        # Remove extension to get base prefix
-        if '.' in stored_key:
+        # Extract base prefix for search
+        # For old pattern: remove extension to get "...wecare-digital-{8chars}"
+        # For new pattern (ends with /): use as-is since it's already a prefix
+        if stored_key.endswith('/'):
+            base_prefix = stored_key
+        elif '.' in stored_key:
             base_prefix = stored_key.rsplit('.', 1)[0]
         else:
             base_prefix = stored_key
@@ -320,14 +327,16 @@ def _find_actual_s3_key(stored_key: str, message_id: str) -> Optional[str]:
         )
         
         contents = response.get('Contents', [])
-        if contents:
+        # Filter out zero-byte folder markers
+        real_files = [c for c in contents if c.get('Size', 0) > 0]
+        if real_files:
             # Return the first matching file (should be only one)
-            actual_key = contents[0]['Key']
+            actual_key = real_files[0]['Key']
             logger.info(json.dumps({
                 'event': 's3_key_found',
                 'storedKey': stored_key,
                 'actualKey': actual_key,
-                'matchCount': len(contents)
+                'matchCount': len(real_files)
             }))
             return actual_key
         
@@ -340,8 +349,9 @@ def _find_actual_s3_key(stored_key: str, message_id: str) -> Optional[str]:
         )
         
         contents = response.get('Contents', [])
-        if contents:
-            actual_key = contents[0]['Key']
+        real_files = [c for c in contents if c.get('Size', 0) > 0]
+        if real_files:
+            actual_key = real_files[0]['Key']
             logger.info(json.dumps({
                 'event': 's3_key_found_with_full_prefix',
                 'storedKey': stored_key,
