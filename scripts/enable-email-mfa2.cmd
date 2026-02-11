@@ -1,0 +1,1 @@
+aws cognito-idp set-user-pool-mfa-config --user-pool-id us-east-1_cSx0RHCIR --mfa-configuration ON --email-mfa-configuration file://scripts/email-mfa-config.json --software-token-mfa-configuration file://scripts/totp-mfa-config.json --region us-east-1 --no-cli-pager

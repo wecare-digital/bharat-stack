@@ -1,0 +1,1 @@
+aws cognito-idp set-user-pool-mfa-config --user-pool-id us-east-1_cSx0RHCIR --mfa-configuration ON --email-mfa-configuration "Message=Your WECARE.DIGITAL verification code is {####},Subject=WECARE.DIGITAL MFA Code" --software-token-mfa-configuration Enabled=true --region us-east-1 --no-cli-pager

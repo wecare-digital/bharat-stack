@@ -4,7 +4,7 @@
     "aws_region": "us-east-1",
     "user_pool_client_id": "1j8kbi48m4v2rped3n224rlevb",
     "oauth": {
-      "domain": "wecare-digital-auth.auth.us-east-1.amazoncognito.com",
+      "domain": "signin.wecare.digital",
       "scopes": ["openid", "email", "profile"],
       "redirect_sign_in_uri": ["https://base.wecare.digital/", "https://base.d3nadrc9t6n3f8.amplifyapp.com/", "http://localhost:3000/"],
       "redirect_sign_out_uri": ["https://base.wecare.digital/", "https://base.d3nadrc9t6n3f8.amplifyapp.com/", "http://localhost:3000/"],

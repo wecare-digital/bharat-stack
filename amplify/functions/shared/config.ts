@@ -62,7 +62,7 @@ export const SNS_TOPICS = {
 export const COGNITO_CONFIG = {
   USER_POOL_ID: 'us-east-1_cSx0RHCIR',
   APP_CLIENT_ID: '1j8kbi48m4v2rped3n224rlevb',
-  SSO_DOMAIN: 'https://wecare-digital-auth.auth.us-east-1.amazoncognito.com',
+  SSO_DOMAIN: 'https://signin.wecare.digital',
 };
 
 // Bedrock AI Configuration

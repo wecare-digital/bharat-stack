@@ -30,7 +30,7 @@ Amplify.configure({
       identityPoolId: 'us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5',
       loginWith: {
         oauth: {
-          domain: 'wecare-digital-auth.auth.us-east-1.amazoncognito.com',
+          domain: 'signin.wecare.digital',
           scopes: ['openid', 'email', 'profile'],
           redirectSignIn: ['https://base.wecare.digital/', 'http://localhost:3000/'],
           redirectSignOut: ['https://base.wecare.digital/', 'http://localhost:3000/'],
