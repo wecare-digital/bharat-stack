@@ -1,0 +1,50 @@
+{
+  "CallerReference": "app-wecare-digital-2026-02-11",
+  "Aliases": {
+    "Quantity": 1,
+    "Items": ["app.wecare.digital"]
+  },
+  "DefaultRootObject": "index.html",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-app-wecare-digital",
+        "DomainName": "app.wecare.digital.s3.us-east-1.amazonaws.com",
+        "OriginAccessControlId": "E2KQRW7XL6ST3O",
+        "S3OriginConfig": {
+          "OriginAccessIdentity": ""
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-app-wecare-digital",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": { "Forward": "none" }
+    },
+    "MinTTL": 0,
+    "DefaultTTL": 86400,
+    "MaxTTL": 31536000,
+    "Compress": true
+  },
+  "ViewerCertificate": {
+    "ACMCertificateArn": "arn:aws:acm:us-east-1:775261844268:certificate/f75d0db0-d476-443a-b787-96c4931862d2",
+    "SSLSupportMethod": "sni-only",
+    "MinimumProtocolVersion": "TLSv1.2_2021"
+  },
+  "Comment": "app.wecare.digital - static assets CDN",
+  "Enabled": true,
+  "PriceClass": "PriceClass_All",
+  "HttpVersion": "http2"
+}
