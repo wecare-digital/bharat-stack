@@ -32,7 +32,7 @@ import PageHeader from '../../../components/PageHeader';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { formatReferenceNumber, generateReferenceId } from '../../../lib/formatters';
-import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN, WHATSAPP_PHONES, PAYMENT_PHONES, PAYMENT_DETAILS } from '../../../config/constants';
+import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN, WHATSAPP_PHONES, PAYMENT_PHONES, PAYMENT_DETAILS, PAYMENT_UNLOCK_PASSWORD } from '../../../config/constants';
 
 interface PageProps {
   signOut?: () => void;
@@ -63,10 +63,31 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [gstRate, setGstRate] = useState<number>(0);
   const [gstin, setGstin] = useState<string>(DEFAULT_GSTIN);
   const [selectedPhone, setSelectedPhone] = useState<string>(PAYMENT_CONFIG.phoneNumberId);
+  const [phone2Unlocked, setPhone2Unlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   // Get payment config name for the selected phone (each WABA has its own config name)
   const getPaymentConfigName = () => {
     const phone = PAYMENT_PHONES.find(p => p.id === selectedPhone);
     return phone?.paymentConfigName || 'WECARE-DIGITAL';
+  };
+  const selectedPhoneConfig = PAYMENT_PHONES.find(p => p.id === selectedPhone);
+  const isPhoneLocked = selectedPhoneConfig?.paymentProtected && !phone2Unlocked;
+
+  const handlePhoneChange = (phoneId: string) => {
+    setSelectedPhone(phoneId);
+    setPasswordError('');
+    setPasswordInput('');
+  };
+
+  const handleUnlockPhone = () => {
+    if (passwordInput === PAYMENT_UNLOCK_PASSWORD) {
+      setPhone2Unlocked(true);
+      setPasswordError('');
+      setPasswordInput('');
+    } else {
+      setPasswordError('Incorrect password');
+    }
   };
 
   useEffect(() => {
@@ -162,12 +183,31 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="sender-icon">Phone</div>
           <div className="sender-info">
             <div className="sender-label">Sending From</div>
-            <select value={selectedPhone} onChange={e => setSelectedPhone(e.target.value)}
+            <select value={selectedPhone} onChange={e => handlePhoneChange(e.target.value)}
               style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', marginBottom: '4px' }}>
               {PAYMENT_PHONES.map(p => (
-                <option key={p.id} value={p.id}>{p.display} ({p.name})</option>
+                <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' 🔒' : ''}</option>
               ))}
             </select>
+            {isPhoneLocked && (
+              <div style={{ marginTop: '6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={e => { setPasswordInput(e.target.value); setPasswordError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && handleUnlockPhone()}
+                  placeholder="Enter password to unlock"
+                  style={{ padding: '5px 10px', borderRadius: '8px', border: passwordError ? '1.5px solid #dc2626' : '1.5px solid #e5e7eb', fontSize: '12px', flex: 1 }}
+                />
+                <button onClick={handleUnlockPhone} style={{ padding: '5px 12px', borderRadius: '8px', background: '#10B981', color: '#fff', border: 'none', fontSize: '12px', cursor: 'pointer' }}>Unlock</button>
+              </div>
+            )}
+            {isPhoneLocked && passwordError && (
+              <div style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px' }}>{passwordError}</div>
+            )}
+            {selectedPhoneConfig?.paymentProtected && phone2Unlocked && (
+              <div style={{ color: '#10B981', fontSize: '11px', marginTop: '4px' }}>🔓 Unlocked for this session</div>
+            )}
             <div style={{ marginTop: '6px', fontSize: '12px', color: '#4a4a4a' }}>
               Razorpay Gateway (UPI + Cards + Netbanking)
             </div>
@@ -248,8 +288,8 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="preview-total"><span>TOTAL</span><span>₹{calculateTotal().toFixed(2)}</span></div>
               <div className="preview-config"><small>To: {selectedContactInfo?.name || '—'}</small><small>Ref: {formatReferenceNumber(referenceId)}</small></div>
             </div>
-            <Button variant="primary" className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0} loading={sending}>
-              {sending ? 'Sending...' : 'Send Payment'}
+            <Button variant="primary" className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0 || isPhoneLocked} loading={sending}>
+              {isPhoneLocked ? '🔒 Unlock phone to send' : sending ? 'Sending...' : 'Send Payment'}
             </Button>
           </div>
         </div>

@@ -33,6 +33,7 @@ export const WHATSAPP_PHONES = {
     wabaId: '1912405516040025',
     hasPayment: true,
     paymentConfigName: 'WECARE-DIGITAL',
+    paymentProtected: false,
   },
   secondary: {
     id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c',
@@ -41,8 +42,12 @@ export const WHATSAPP_PHONES = {
     wabaId: '1633959101297902',
     hasPayment: true,
     paymentConfigName: 'ManishAgarwal_Pay',
+    paymentProtected: true,
   },
 };
+
+// Password required to send payments from protected phone numbers
+export const PAYMENT_UNLOCK_PASSWORD = 'WeCare@Pay2026';
 
 // GST Rate Options
 export const GST_RATES = [

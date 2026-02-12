@@ -8,7 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/RichTextEditor.module.css';
 import * as api from '../api/client';
 import { generateReferenceId } from '../lib/formatters';
-import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_DETAILS } from '../config/constants';
+import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_DETAILS, PAYMENT_UNLOCK_PASSWORD } from '../config/constants';
 
 // Payment dialog state
 interface PaymentDialogState {
@@ -97,6 +97,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
   });
   const [sendingPayment, setSendingPayment] = useState(false);
+  const [payPhone2Unlocked, setPayPhone2Unlocked] = useState(false);
+  const [payPasswordInput, setPayPasswordInput] = useState('');
+  const [payPasswordError, setPayPasswordError] = useState('');
   // TTS state
   const [showTTSPanel, setShowTTSPanel] = useState(false);
   const [ttsText, setTtsText] = useState('');
@@ -322,6 +325,21 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const getPayConfigForPhone = (phoneId: string) => {
     const phone = PAYMENT_PHONES.find(p => p.id === phoneId);
     return phone?.paymentConfigName || 'WECARE-DIGITAL';
+  };
+
+  const isPayPhoneLocked = () => {
+    const phone = PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId);
+    return phone?.paymentProtected && !payPhone2Unlocked;
+  };
+
+  const handlePayPhoneUnlock = () => {
+    if (payPasswordInput === PAYMENT_UNLOCK_PASSWORD) {
+      setPayPhone2Unlocked(true);
+      setPayPasswordError('');
+      setPayPasswordInput('');
+    } else {
+      setPayPasswordError('Incorrect password');
+    }
   };
   
   const sendPaymentMessage = async () => {
@@ -587,13 +605,35 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <label>Send From</label>
                 <select
                   value={paymentForm.phoneNumberId}
-                  onChange={(e) => setPaymentForm({...paymentForm, phoneNumberId: e.target.value})}
+                  onChange={(e) => { setPaymentForm({...paymentForm, phoneNumberId: e.target.value}); setPayPasswordError(''); setPayPasswordInput(''); }}
                 >
                   {PAYMENT_PHONES.map(p => (
-                    <option key={p.id} value={p.id}>{p.display} ({p.name})</option>
+                    <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' 🔒' : ''}</option>
                   ))}
                 </select>
               </div>
+              {isPayPhoneLocked() && (
+                <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
+                  <label>🔒 Password required for this number</label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="password"
+                      value={payPasswordInput}
+                      onChange={e => { setPayPasswordInput(e.target.value); setPayPasswordError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handlePayPhoneUnlock()}
+                      placeholder="Enter password"
+                      style={{ flex: 1, borderColor: payPasswordError ? '#dc2626' : undefined }}
+                    />
+                    <button onClick={handlePayPhoneUnlock} style={{ padding: '4px 12px', borderRadius: '6px', background: '#10B981', color: '#fff', border: 'none', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Unlock</button>
+                  </div>
+                  {payPasswordError && <span style={{ color: '#dc2626', fontSize: '11px' }}>{payPasswordError}</span>}
+                </div>
+              )}
+              {!isPayPhoneLocked() && PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.paymentProtected && (
+                <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
+                  <span style={{ color: '#10B981', fontSize: '11px' }}>🔓 Unlocked for this session</span>
+                </div>
+              )}
               <div className={styles['variable-input-row']}>
                 <label>Pay Config</label>
                 <input type="text" value={getPayConfigForPhone(paymentForm.phoneNumberId)} readOnly style={{ background: '#f5f5f5' }} />
@@ -693,9 +733,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <button
               className={styles['send-template-btn']}
               onClick={sendPaymentMessage}
-              disabled={sendingPayment || !paymentForm.itemName || !paymentForm.amount || !paymentForm.referenceId}
+              disabled={sendingPayment || !paymentForm.itemName || !paymentForm.amount || !paymentForm.referenceId || isPayPhoneLocked()}
             >
-              {sendingPayment ? 'Sending...' : 'Send'}
+              {isPayPhoneLocked() ? '🔒 Unlock to send' : sendingPayment ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>
