@@ -235,6 +235,9 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
                 calls = value.get('calls', [value])
                 metadata = value.get('metadata', {})
                 contacts = value.get('contacts', [])
+                logger.info(f"Processing {len(calls)} call event(s) for waba_id={waba_id}, "
+                            f"phone_number_id={metadata.get('phone_number_id', 'N/A')}, "
+                            f"display_phone={metadata.get('display_phone_number', 'N/A')}")
                 for call in calls:
                     _handle_call_event(waba_id, call, metadata, contacts, request_id)
             else:
@@ -307,6 +310,13 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
                 logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
                 if pre_result.get('error'):
                     logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
+                    if pre_result.get('status') == 403:
+                        logger.error(
+                            f"403 on pre_accept for phone_number_id={phone_number_id}. "
+                            f"Check: 1) System User token has whatsapp_business_messaging permission, "
+                            f"2) Calling is enabled on this phone number, "
+                            f"3) Token belongs to the correct WABA for this phone number."
+                        )
                     _update_call_status(call_id, 'pre_accept_failed', pre_result)
                 else:
                     _update_call_status(call_id, 'pre_accepted')
@@ -332,20 +342,36 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
 
-    elif event_type == 'call_permission_response':
-        permission = call.get('permission', '')
+        # Send post-call reaction to the caller via WhatsApp message
+        # ✅ for completed calls (duration > 0), ❌ for missed/rejected
+        _send_post_call_reaction(
+            phone_number_id=phone_number_id,
+            from_number=from_number,
+            call_id=call_id,
+            reason=reason,
+            duration=duration,
+            direction=direction,
+        )
+
+    elif event_type in ('call_permission_response', 'call_permission_status'):
+        # Meta sends call_permission_status with status: GRANTED/REJECTED/REVOKED
+        permission = call.get('status', call.get('permission', ''))
+        recipient = call.get('recipient', call.get('to', to_number))
         _store_call_log({
             'callId': call_id or str(uuid.uuid4()),
             'wabaId': waba_id,
             'phoneNumberId': phone_number_id,
-            'fromNumber': from_number,
+            'fromNumber': from_number or recipient,
+            'toNumber': to_number,
             'direction': direction,
             'eventType': 'permission_response',
-            'status': f'permission_{permission}',
+            'status': f'permission_{permission.lower() if permission else "unknown"}',
+            'permission': permission,
             'timestamp': timestamp,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
+        logger.info(f"Call permission {permission} from {from_number or recipient} on {phone_number_id}")
 
     else:
         _store_call_log({
@@ -362,12 +388,75 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         })
 
 
+def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: str,
+                              reason: str, duration: int, direction: str) -> None:
+    """
+    Send a post-call summary message to the caller/callee after a call ends.
+    Uses AWS EUM Social Messaging to send a text message with call details.
+    - Completed calls (duration > 0): ✅ with duration
+    - Missed/rejected/no-answer: ❌ with reason
+    
+    Note: Requires an open 24-hour messaging window. If the window is closed
+    (e.g. caller never messaged this business number), the send will fail silently.
+    """
+    try:
+        aws_phone_id = _get_aws_phone_id(phone_number_id)
+        # Determine the recipient — for inbound calls, reply to the caller (from_number)
+        to_number = from_number
+
+        if not to_number:
+            logger.warning(f"Post-call reaction skipped: no from_number for call {call_id}")
+            return
+
+        logger.info(f"Post-call reaction: phone_number_id={phone_number_id}, "
+                     f"aws_phone_id={aws_phone_id}, to={to_number}, "
+                     f"direction={direction}, reason={reason}, duration={duration}")
+
+        if duration and int(duration) > 0:
+            mins = int(duration) // 60
+            secs = int(duration) % 60
+            duration_str = f"{mins}m {secs}s" if mins else f"{secs}s"
+            text = f"📞 ✅ Call completed — {duration_str}"
+        else:
+            reason_map = {
+                'no_answer': 'No answer',
+                'busy': 'Busy',
+                'rejected': 'Rejected',
+                'timeout': 'Timed out',
+                'caller_hangup': 'Caller hung up',
+                'callee_hangup': 'Call ended',
+            }
+            reason_text = reason_map.get(reason, reason.replace('_', ' ').title() if reason else 'Unknown')
+            text = f"📞 ❌ Call ended — {reason_text}"
+
+        result = _send_via_aws(aws_phone_id, to_number, {
+            'type': 'text',
+            'text': {'body': text},
+        })
+
+        if result.get('error'):
+            error_detail = result.get('detail', '')
+            # Check if it's a 24-hour window issue
+            if 'outside' in error_detail.lower() or 'window' in error_detail.lower() or '131047' in error_detail:
+                logger.warning(f"Post-call reaction skipped (no 24h window): "
+                               f"to={to_number}, via={aws_phone_id}, call={call_id}")
+            else:
+                logger.error(f"Post-call reaction FAILED for {to_number} via {aws_phone_id}: "
+                             f"{json.dumps(result)}")
+        else:
+            logger.info(f"Post-call reaction sent to {to_number}: {text} — "
+                        f"messageId={result.get('messageId')}")
+    except Exception as e:
+        logger.error(f"Failed to send post-call reaction: {e}", exc_info=True)
+
+
 # ─── Call Control (Accept / Reject / Hangup) ────────────────────────
 
 def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Accept an incoming call: pre_accept → accept with SDP answer.
     Frontend sends: { callId, phoneNumberId, sdpAnswer }
+    Skips pre_accept if the call was already pre_accepted by auto-pickup.
     """
     body = json.loads(event.get('body', '{}'))
     call_id = body.get('callId', '')
@@ -379,20 +468,49 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
     logger.info(f"Accepting call {call_id} on {phone_number_id}, has_sdp_answer: {bool(sdp_answer)}")
 
-    # Step 1: Pre-accept — tells Meta we're preparing to answer
-    pre_accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-        'messaging_product': 'whatsapp',
-        'call_id': call_id,
-        'action': 'pre_accept',
-    }, phone_number_id=phone_number_id)
-    logger.info(f"Pre-accept result: {json.dumps(pre_accept_result)}")
+    # Check if call was already pre_accepted by auto-pickup webhook handler
+    already_pre_accepted = False
+    try:
+        table = dynamodb.Table(CALL_LOG_TABLE)
+        result = table.scan(
+            FilterExpression='#cid = :cid AND #et = :et',
+            ExpressionAttributeNames={'#cid': 'callId', '#et': 'eventType'},
+            ExpressionAttributeValues={':cid': call_id, ':et': 'connect'},
+        )
+        items = result.get('Items', [])
+        if items and items[0].get('status') == 'pre_accepted':
+            already_pre_accepted = True
+            logger.info(f"Call {call_id} already pre_accepted by auto-pickup, skipping pre_accept")
+    except Exception as e:
+        logger.warning(f"Could not check pre_accept status: {e}")
 
-    if pre_accept_result.get('error'):
-        _update_call_status(call_id, 'pre_accept_failed', pre_accept_result)
-        return _response(200, {
-            'success': False, 'step': 'pre_accept',
-            'error': pre_accept_result,
-        })
+    pre_accept_result = None
+    if not already_pre_accepted:
+        # Step 1: Pre-accept — tells Meta we're preparing to answer
+        pre_accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+            'messaging_product': 'whatsapp',
+            'call_id': call_id,
+            'action': 'pre_accept',
+        }, phone_number_id=phone_number_id)
+        logger.info(f"Pre-accept result: {json.dumps(pre_accept_result)}")
+
+        if pre_accept_result.get('error'):
+            _update_call_status(call_id, 'pre_accept_failed', pre_accept_result)
+            hint = ''
+            if pre_accept_result.get('status') == 403:
+                hint = ('Token lacks calling permission. Ensure the System User token '
+                        'has whatsapp_business_messaging permission AND calling is '
+                        'enabled on this phone number via POST /{phone_number_id}/settings '
+                        'with the calling object. Also verify the token belongs to the '
+                        'correct WABA for this phone number.')
+            return _response(200, {
+                'success': False, 'step': 'pre_accept',
+                'error': pre_accept_result,
+                'hint': hint,
+                'phone_number_id_used': phone_number_id,
+            })
+    else:
+        pre_accept_result = {'skipped': True, 'reason': 'already_pre_accepted'}
 
     # Step 2: Accept with SDP answer — establishes WebRTC media
     accept_payload = {
@@ -422,6 +540,7 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
         'pre_accept': pre_accept_result,
         'accept': accept_result,
     })
+
 
 
 def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:

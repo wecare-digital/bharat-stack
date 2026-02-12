@@ -372,6 +372,19 @@ def _process_message(
     messages_table = dynamodb.Table(MESSAGES_TABLE)
     messages_table.put_item(Item={k: v for k, v in message_record.items() if v is not None})
     
+    # Forward call_permission_reply to the WhatsApp Calling table
+    # so the frontend knows permission was granted/denied for outbound calls
+    if msg_type == 'interactive':
+        interactive = message.get('interactive', {})
+        interactive_type = interactive.get('type', '')
+        if interactive_type == 'call_permission_reply':
+            _forward_call_permission_to_calling_table(
+                sender_phone=sender_phone,
+                receiving_phone=receiving_phone,
+                aws_phone_number_id=aws_phone_number_id,
+                interactive=interactive,
+            )
+    
     # Update Contact.lastInboundMessageAt for 24-hour window
     _update_contact_timestamp(contact_id, now)
     
@@ -455,6 +468,14 @@ def _extract_content(message: Dict, msg_type: str) -> str:
             nfm_reply = interactive.get('nfm_reply', {})
             response_json = nfm_reply.get('response_json', '')
             return f'[Flow Response: {response_json[:50]}...]' if len(response_json) > 50 else f'[Flow Response: {response_json}]'
+        elif interactive_type == 'call_permission_reply':
+            # Call permission response — user granted or denied calling permission
+            cpr = interactive.get('call_permission_reply', {})
+            permission = cpr.get('permission', cpr.get('status', ''))
+            if not permission:
+                # Fallback: check top-level fields
+                permission = interactive.get('permission', 'unknown')
+            return f'[Call Permission: {permission}]'
         return f'[Interactive: {interactive_type}]'
     elif msg_type == 'button':
         # Quick reply button
@@ -1577,6 +1598,47 @@ def _send_to_dlq(record: Dict, error: str, request_id: str) -> None:
             'error': str(e),
             'requestId': request_id
         }))
+
+
+CALLING_TABLE = os.environ.get('CALL_LOG_TABLE', 'base-wecare-digital-WhatsAppCallingTable')
+
+
+def _forward_call_permission_to_calling_table(sender_phone: str, receiving_phone: str,
+                                               aws_phone_number_id: str,
+                                               interactive: Dict) -> None:
+    """
+    Forward a call_permission_reply interactive message to the WhatsApp Calling table.
+    This lets the frontend/calling handler know that the user granted or denied
+    permission for outbound calls.
+    """
+    try:
+        cpr = interactive.get('call_permission_reply', {})
+        permission = cpr.get('permission', cpr.get('status', ''))
+        if not permission:
+            permission = interactive.get('permission', 'unknown')
+
+        now = int(time.time())
+        table = dynamodb.Table(CALLING_TABLE)
+        table.put_item(Item={
+            'id': f"perm_{sender_phone}_{now}",
+            'callId': f"perm_{sender_phone}_{now}",
+            'phoneNumberId': aws_phone_number_id,
+            'fromNumber': sender_phone,
+            'toNumber': receiving_phone,
+            'direction': 'USER_INITIATED',
+            'eventType': 'permission_response',
+            'status': f'permission_{permission}',
+            'permission': permission,
+            'createdAt': Decimal(str(now)),
+            'ttl': Decimal(str(now + 90 * 24 * 60 * 60)),
+        })
+        logger.info(json.dumps({
+            'event': 'call_permission_forwarded',
+            'senderPhone': sender_phone,
+            'permission': permission,
+        }))
+    except Exception as e:
+        logger.error(f"Failed to forward call permission: {e}")
 
 
 def _send_auto_reaction(contact_id: str, whatsapp_message_id: str, 
