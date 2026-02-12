@@ -1189,20 +1189,34 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
         try:
             OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
             outbound_table = dynamodb.Table(OUTBOUND_TABLE)
-            resp = outbound_table.scan(
-                FilterExpression='paymentReferenceId = :ref',
-                ExpressionAttributeValues={':ref': reference_id},
-                Limit=1
-            )
-            items = resp.get('Items', [])
-            if items:
-                originating_phone_id = items[0].get('phoneNumberId')
-                logger.info(json.dumps({
-                    'event': 'payment_phone_id_resolved',
-                    'referenceId': reference_id,
-                    'phoneNumberId': originating_phone_id,
-                    'requestId': request_id
-                }))
+            # NOTE: Do NOT use Limit on scan with FilterExpression!
+            # DynamoDB Limit caps items *evaluated* (not matched), so Limit=1
+            # checks only 1 random item and almost always misses the target.
+            # Use a full scan (table is small) or paginate until found.
+            found = False
+            scan_kwargs = {
+                'FilterExpression': 'paymentReferenceId = :ref',
+                'ExpressionAttributeValues': {':ref': reference_id},
+                'ProjectionExpression': 'awsPhoneNumberId, phoneNumberId',
+            }
+            while not found:
+                resp = outbound_table.scan(**scan_kwargs)
+                items = resp.get('Items', [])
+                if items:
+                    originating_phone_id = items[0].get('awsPhoneNumberId') or items[0].get('phoneNumberId')
+                    found = True
+                elif 'LastEvaluatedKey' in resp:
+                    scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                else:
+                    break  # No more pages
+            
+            logger.info(json.dumps({
+                'event': 'payment_phone_id_resolved',
+                'referenceId': reference_id,
+                'phoneNumberId': originating_phone_id,
+                'found': found,
+                'requestId': request_id
+            }))
         except Exception as e:
             logger.warning(json.dumps({
                 'event': 'payment_phone_id_lookup_failed',
@@ -1511,6 +1525,7 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
             'referenceId': reference_id,
             'orderStatus': order_status,
             'amount': amount,
+            'sendingPhoneId': sending_phone_id,
             'requestId': request_id
         }))
         

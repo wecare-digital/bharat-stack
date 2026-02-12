@@ -20,7 +20,7 @@ interface PaymentDialogState {
   express: string;    // Delivery/Express
   gstRate: string;    // GST rate (0, 3, 5, 12, 18, 28)
   gstin: string;      // GSTIN number
-  paymentMethod: 'WECARE_PAY' | 'WECARE_UPI';  // Payment configuration
+  paymentMethod: string;  // Payment configuration name on WABA
   phoneNumberId: string;  // Which phone to send from
 }
 
@@ -93,7 +93,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     express: '0',
     gstRate: '0',
     gstin: DEFAULT_GSTIN,
-    paymentMethod: 'WECARE_PAY',
+    paymentMethod: 'WECARE-DIGITAL',
     phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
   });
   const [sendingPayment, setSendingPayment] = useState(false);
@@ -317,7 +317,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   // Send payment message - ALWAYS use interactive mode from inbox
-  // Both phones now have WECARE_PAY and WECARE_UPI payment configs active
+  // Config name per phone: WECARE-DIGITAL (9330) / ManishAgarwal_Pay (9903)
+  
+  const getPayConfigForPhone = (phoneId: string) => {
+    const phone = PAYMENT_PHONES.find(p => p.id === phoneId);
+    return phone?.paymentConfigName || 'WECARE-DIGITAL';
+  };
   
   const sendPaymentMessage = async () => {
     if (!selectedContactId) return;
@@ -328,11 +333,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     try {
       const amountInPaise = Math.round(parseFloat(paymentForm.amount) * 100);
+      const quantity = parseInt(paymentForm.quantity) || 1;
       const promoInPaise = Math.round(parseFloat(paymentForm.promo || '0') * 100);
       const expressInPaise = Math.round(parseFloat(paymentForm.express || '0') * 100);
       const gstRate = parseInt(paymentForm.gstRate) || 0;
-      // Calculate tax based on GST rate
-      const taxInPaise = Math.round(amountInPaise * gstRate / 100);
+      // Calculate tax based on GST rate on full item total (amount × quantity)
+      const itemTotalPaise = amountInPaise * quantity;
+      const taxInPaise = Math.round(itemTotalPaise * gstRate / 100);
 
       console.log('Sending payment from RichTextEditor:', {
         contactId: selectedContactId,
@@ -354,7 +361,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         items: [{
           name: paymentForm.itemName,
           amount: amountInPaise,
-          quantity: parseInt(paymentForm.quantity) || 1,
+          quantity: quantity,
         }],
         discount: promoInPaise,
         delivery: expressInPaise,
@@ -362,7 +369,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         gstRate: gstRate,
         gstin: paymentForm.gstin || DEFAULT_GSTIN,
         useInteractive: true, // ALWAYS use interactive mode from inbox
-        paymentConfiguration: paymentForm.paymentMethod,
+        paymentConfiguration: getPayConfigForPhone(paymentForm.phoneNumberId),
       });
 
       console.log('Payment result:', result);
@@ -370,7 +377,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (result) {
         setTemplateMessage(`✓ Payment request sent! Ref: ${paymentForm.referenceId}`);
         setShowPaymentDialog(false);
-        setPaymentForm({ itemName: '', amount: '', quantity: '1', referenceId: '', promo: '0', express: '0', gstRate: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE_PAY', phoneNumberId: PAYMENT_CONFIG.phoneNumberId });
+        setPaymentForm({ itemName: '', amount: '', quantity: '1', referenceId: '', promo: '0', express: '0', gstRate: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE-DIGITAL', phoneNumberId: PAYMENT_CONFIG.phoneNumberId });
       } else {
         const connStatus = api.getConnectionStatus();
         setTemplateMessage(`× Failed: ${connStatus.lastError || 'Unknown error'}`);
@@ -572,7 +579,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <button onClick={() => setShowPaymentDialog(false)}>×</button>
           </div>
           <div className={styles['variable-dialog-preview']}>
-            {paymentForm.paymentMethod === 'WECARE_PAY' ? 'Razorpay Gateway' : 'UPI Direct'} | {PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.display || '+91 93309 94400'}
+            Razorpay Gateway (UPI + Cards + Netbanking) | {PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.display || '+91 93309 94400'}
           </div>
           <div className={styles['variable-dialog-inputs']}>
             <div className={styles['payment-grid']}>
@@ -588,14 +595,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 </select>
               </div>
               <div className={styles['variable-input-row']}>
-                <label>Pay Method</label>
-                <select
-                  value={paymentForm.paymentMethod}
-                  onChange={(e) => setPaymentForm({...paymentForm, paymentMethod: e.target.value as any})}
-                >
-                  <option value="WECARE_PAY">{PAYMENT_DETAILS.configs.WECARE_PAY.label}</option>
-                  <option value="WECARE_UPI">{PAYMENT_DETAILS.configs.WECARE_UPI.label}</option>
-                </select>
+                <label>Pay Config</label>
+                <input type="text" value={getPayConfigForPhone(paymentForm.phoneNumberId)} readOnly style={{ background: '#f5f5f5' }} />
               </div>
               <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
                 <label>Ref ID</label>
@@ -825,8 +826,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             className={`${styles['toolbar-btn']} ${showPaymentDialog ? styles['active'] : ''}`}
             onClick={() => { 
               if (!showPaymentDialog) {
-                // Auto-generate reference ID when opening (using formatter)
-                setPaymentForm(prev => ({...prev, referenceId: generateReferenceId()}));
+                // Auto-generate reference ID and use currently selected WABA phone
+                setPaymentForm(prev => ({
+                  ...prev, 
+                  referenceId: generateReferenceId(),
+                  phoneNumberId: phoneNumberId || PAYMENT_CONFIG.phoneNumberId,
+                }));
               }
               setShowPaymentDialog(!showPaymentDialog); 
               setShowTemplates(false); 

@@ -1529,6 +1529,7 @@ export interface SendPaymentMessageRequest {
   bodyText?: string;
   useInteractive?: boolean;
   paymentConfiguration?: string;
+  convenienceFee?: number; // In paise (2% + 18% GST)
 }
 
 /**
@@ -1556,7 +1557,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   const orderDetails: any = {
     reference_id: request.referenceId,
     type: 'digital-goods',
-    payment_configuration: request.paymentConfiguration || 'WECARE_PAY',
+    payment_configuration: request.paymentConfiguration || 'WECARE-DIGITAL',
     currency: request.currency || 'INR',
     // New fields for backend calculation
     itemName: firstItem.name || 'Service Fee',

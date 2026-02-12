@@ -49,12 +49,18 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
-# WhatsApp Payment Configurations (active on BOTH WABAs)
-# +91 9330994400 (WABA 1912405516040025): WECARE_PAY + WECARE_UPI
-# +91 9903300044 (WABA 1633959101297902):  WECARE_PAY + WECARE_UPI
+# WhatsApp Payment Configurations
+# +91 9330994400 (WABA 1912405516040025): WECARE-DIGITAL (Razorpay Gateway + UPI)
+# +91 9903300044 (WABA 1633959101297902): ManishAgarwal_Pay (Razorpay Gateway + UPI)
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
 # Razorpay MID: acc_HDfub6wOfQybuH | UPI ID: wecaredigital83.rzp@icici
-VALID_PAYMENT_CONFIGS = {'WECARE_PAY', 'WECARE_UPI'}
+VALID_PAYMENT_CONFIGS = {'WECARE-DIGITAL', 'ManishAgarwal_Pay'}
+DEFAULT_PAYMENT_CONFIG = 'WECARE-DIGITAL'
+# Map phone number ID to its payment config name
+PHONE_PAYMENT_CONFIG = {
+    PHONE_NUMBER_ID_1: 'WECARE-DIGITAL',       # +919330994400
+    PHONE_NUMBER_ID_2: 'ManishAgarwal_Pay',     # +919903300044
+}
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
 
@@ -857,7 +863,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             recipient_phone, content, media_type, whatsapp_media_id,
             is_template, template_name, template_params, stored_filename,
             is_payment_template, order_details, header_image_url, is_interactive_payment,
-            is_otp_template, otp_code, otp_button_type
+            is_otp_template, otp_code, otp_button_type,
+            phone_number_id=phone_number_id
         )
         
         logger.info(json.dumps({
@@ -896,18 +903,31 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         # Extract payment info for storage (for amount lookup on confirmation)
         payment_ref_id = None
         payment_amount = None
+        stored_content = content
         if is_interactive_payment and order_details:
             payment_ref_id = _sanitize_reference_id(order_details.get('reference_id', ''))
             # Calculate total amount in rupees from order_details
-            total_amount = order_details.get('order', {}).get('total_amount', {})
-            if total_amount:
-                payment_amount = total_amount.get('value', 0) / total_amount.get('offset', 100)
+            order_data = order_details.get('order', {})
+            total_amt = order_data.get('total_amount', {})
+            if not total_amt:
+                # total_amount may be at parameters level in built payload
+                subtotal_val = order_data.get('subtotal', {}).get('value', 0)
+                discount_val = order_data.get('discount', {}).get('value', 0)
+                shipping_val = order_data.get('shipping', {}).get('value', 0)
+                tax_val = order_data.get('tax', {}).get('value', 0)
+                total_paise = subtotal_val - discount_val + shipping_val + tax_val
+                payment_amount = total_paise / 100
+            else:
+                payment_amount = total_amt.get('value', 0) / total_amt.get('offset', 100)
+            # Build rich content for inbox display
+            item_name = order_details.get('itemName', 'Payment')
+            stored_content = f'[Payment: ₹{payment_amount:.2f} | {item_name} | Ref: {payment_ref_id}]'
         
         # Requirement 5.11: Store message record
         _store_message_record(
             message_id=message_id,
             contact_id=contact_id,
-            content=content,
+            content=stored_content,
             status='sent',
             is_template=is_template,
             whatsapp_message_id=whatsapp_message_id,
@@ -1329,7 +1349,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            header_image_url: Optional[str] = None,
                            is_interactive_payment: bool = False,
                            is_otp_template: bool = False, otp_code: Optional[str] = None,
-                           otp_button_type: Optional[str] = None) -> Dict[str, Any]:
+                           otp_button_type: Optional[str] = None,
+                           phone_number_id: Optional[str] = None) -> Dict[str, Any]:
     """Build WhatsApp Cloud API message payload."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
     formatted_phone = _normalize_phone_number(recipient_phone)
@@ -1484,9 +1505,11 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                             'type': 'payment_gateway',
                             'payment_gateway': {
                                 'type': 'razorpay',
-                                'configuration_name': order_details.get('payment_configuration', 'WECARE_PAY')
-                                    if order_details.get('payment_configuration', 'WECARE_PAY') in VALID_PAYMENT_CONFIGS
-                                    else 'WECARE_PAY'
+                                'configuration_name': (
+                                    order_details.get('payment_configuration')
+                                    if order_details.get('payment_configuration') in VALID_PAYMENT_CONFIGS
+                                    else PHONE_PAYMENT_CONFIG.get(phone_number_id, DEFAULT_PAYMENT_CONFIG)
+                                )
                             }
                         }
                     ],
@@ -1514,7 +1537,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'whatsappSubtotal': whatsapp_subtotal / 100,
             'total': total_paise / 100,
             'gstin': gstin,
-            'paymentConfig': order_details.get('payment_configuration', 'WECARE_PAY')
+            'paymentConfig': order_details.get('payment_configuration', PHONE_PAYMENT_CONFIG.get(phone_number_id, DEFAULT_PAYMENT_CONFIG))
         }))
         
         return payload

@@ -715,7 +715,22 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     
     // Order messages
     if (content === '[Order]') {
-      return <span className="special-msg">Order</span>;
+      return <span className="special-msg">🛒 Order</span>;
+    }
+    
+    // Payment messages (from Pay page / RichTextEditor)
+    if (content.startsWith('[Payment:')) {
+      const match = content.match(/\[Payment: (.+?)\]/);
+      if (match) {
+        return <span className="special-msg">💳 {match[1]}</span>;
+      }
+      return <span className="special-msg">💳 Payment Request</span>;
+    }
+    
+    // Order Status messages (payment confirmation/failure)
+    if (content.startsWith('Order Status:')) {
+      const isSuccess = content.includes('completed') || content.includes('captured');
+      return <span className="special-msg">{isSuccess ? '✅' : '❌'} {content.replace('Order Status: ', '')}</span>;
     }
     
     // Referral messages (click-to-WhatsApp ads)

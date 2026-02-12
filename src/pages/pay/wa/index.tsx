@@ -63,7 +63,11 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [gstRate, setGstRate] = useState<number>(0);
   const [gstin, setGstin] = useState<string>(DEFAULT_GSTIN);
   const [selectedPhone, setSelectedPhone] = useState<string>(PAYMENT_CONFIG.phoneNumberId);
-  const [paymentMethod, setPaymentMethod] = useState<'WECARE_PAY' | 'WECARE_UPI'>('WECARE_PAY');
+  // Get payment config name for the selected phone (each WABA has its own config name)
+  const getPaymentConfigName = () => {
+    const phone = PAYMENT_PHONES.find(p => p.id === selectedPhone);
+    return phone?.paymentConfigName || 'WECARE-DIGITAL';
+  };
 
   useEffect(() => {
     loadContacts();
@@ -84,14 +88,16 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const calculateConvenienceFee = () => {
-    const feeBase = itemAmount * (CONVENIENCE_FEE.percent / 100);
+    const itemTotal = itemAmount * itemQuantity;
+    const feeBase = itemTotal * (CONVENIENCE_FEE.percent / 100);
     const feeGst = feeBase * (CONVENIENCE_FEE.gstPercent / 100);
     return feeBase + feeGst;
   };
 
-  const calculateTax = () => itemAmount * (gstRate / 100);
-  const calculateSubtotal = () => itemAmount + calculateConvenienceFee();
-  const calculateTotal = () => calculateSubtotal() - discount + shipping + calculateTax();
+  const calculateItemTotal = () => itemAmount * itemQuantity;
+  const calculateTax = () => calculateItemTotal() * (gstRate / 100);
+  const calculateSubtotal = () => calculateItemTotal();
+  const calculateTotal = () => calculateSubtotal() + calculateConvenienceFee() - discount + shipping + calculateTax();
 
   const handleGenerateReferenceId = () => {
     setReferenceId(generateReferenceId());
@@ -118,7 +124,8 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         gstRate: gstRate,
         gstin: gstin,
         useInteractive: true,
-        paymentConfiguration: paymentMethod,
+        paymentConfiguration: getPaymentConfigName(),
+        convenienceFee: Math.round(calculateConvenienceFee() * 100),
       });
 
       if (result) {
@@ -161,16 +168,19 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
                 <option key={p.id} value={p.id}>{p.display} ({p.name})</option>
               ))}
             </select>
-            <div style={{ marginTop: '6px' }}>
-              <div className="sender-label">Payment Method</div>
-              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)}
-                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px' }}>
-                <option value="WECARE_PAY">{PAYMENT_DETAILS.configs.WECARE_PAY.label}</option>
-                <option value="WECARE_UPI">{PAYMENT_DETAILS.configs.WECARE_UPI.label}</option>
-              </select>
+            <div style={{ marginTop: '6px', fontSize: '12px', color: '#4a4a4a' }}>
+              Razorpay Gateway (UPI + Cards + Netbanking)
             </div>
           </div>
-          <div className="sender-badge"><span className="badge-dot"></span>{paymentMethod === 'WECARE_PAY' ? 'Razorpay' : 'UPI'}</div>
+          <div className="sender-badge"><span className="badge-dot"></span>Razorpay</div>
+        </div>
+
+        {/* Payment Config Info */}
+        <div style={{ background: '#f9fafb', padding: 12, borderRadius: 10, marginBottom: 16, fontSize: 12, color: '#4a4a4a', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+          <div>MID: <span style={{ color: '#111', fontFamily: 'monospace' }}>{PAYMENT_DETAILS.razorpayMID}</span></div>
+          <div>UPI: <span style={{ color: '#111', fontFamily: 'monospace' }}>{PAYMENT_DETAILS.upiId}</span></div>
+          <div>MCC: {PAYMENT_DETAILS.mcc} | Purpose: {PAYMENT_DETAILS.purposeCode}</div>
+          <div>Config: <span style={{ fontFamily: 'monospace' }}>{getPaymentConfigName()}</span></div>
         </div>
 
         {message && (
@@ -225,7 +235,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="preview-body">Your payment is overdue - please tap below to complete it</div>
               <div className="preview-section">
                 <div className="section-title">CART ITEMS</div>
-                <div className="cart-item"><span>{itemName || '—'}</span><span>₹{itemAmount.toFixed(2)} × {itemQuantity}</span></div>
+                <div className="cart-item"><span>{itemName || '—'}</span><span>₹{itemAmount.toFixed(2)} × {itemQuantity} = ₹{calculateItemTotal().toFixed(2)}</span></div>
                 <div className="cart-item conv-fee"><span>Conv. Fee (Bank)</span><span>₹{calculateConvenienceFee().toFixed(2)}</span></div>
               </div>
               <div className="preview-section">

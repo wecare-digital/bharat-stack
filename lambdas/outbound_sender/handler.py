@@ -605,7 +605,7 @@ def _build_order_details(data: Dict, body: Dict) -> Dict:
     reference_id = order.get('reference_id', str(uuid.uuid4()))
     currency = order.get('currency', 'INR')
     total_amount = order.get('total_amount', {'value': 100, 'offset': 100})
-    payment_config = order.get('payment_configuration', 'WECARE_PAY')
+    payment_config = order.get('payment_configuration', 'WECARE-DIGITAL')
 
     result = {
         'type': 'order_details',

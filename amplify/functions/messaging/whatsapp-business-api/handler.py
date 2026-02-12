@@ -447,9 +447,8 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 
 # ============================================================================
 # PAYMENT CONFIGURATION
-# Both WABAs have active payment configs:
-# +91 9330994400 (WABA 1912405516040025): WECARE_PAY + WECARE_UPI
-# +91 9903300044 (WABA 1633959101297902):  WECARE_PAY + WECARE_UPI
+# +91 9330994400 (WABA 1912405516040025): WECARE-DIGITAL (Razorpay Gateway + UPI)
+# +91 9903300044 (WABA 1633959101297902): ManishAgarwal_Pay (Razorpay Gateway + UPI)
 # MCC: 4722 | Purpose Code: 03 | Razorpay MID: acc_HDfub6wOfQybuH
 # UPI ID: wecaredigital83.rzp@icici
 # ============================================================================
@@ -458,8 +457,7 @@ PAYMENT_CONFIGS = {
         'phone': '+91 9330994400',
         'wabaId': WABA1_ID,
         'configs': [
-            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH'},
-            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi_direct', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE-DIGITAL', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
         ],
         'mcc': '4722',
         'purposeCode': '03',
@@ -468,8 +466,7 @@ PAYMENT_CONFIGS = {
         'phone': '+91 9903300044',
         'wabaId': WABA2_ID,
         'configs': [
-            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH'},
-            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi_direct', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'ManishAgarwal_Pay', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
         ],
         'mcc': '4722',
         'purposeCode': '03',
