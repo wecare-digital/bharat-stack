@@ -1,7 +1,8 @@
-# Deploy all Lambda functions to AWS account 775261844268
+# Deploy all Lambda functions to AWS account
 # Each function: zip handler.py -> create-function with wecare-digital-lambda-role
 
-$ROLE_ARN = "arn:aws:iam::775261844268:role/wecare-digital-lambda-role"
+$ACCT = if ($env:AWS_ACCOUNT_ID) { $env:AWS_ACCOUNT_ID } else { "775261844268" }
+$ROLE_ARN = "arn:aws:iam::${ACCT}:role/wecare-digital-lambda-role"
 $REGION = "us-east-1"
 $RUNTIME = "python3.12"
 $TIMEOUT = 30
@@ -112,7 +113,7 @@ foreach ($entry in $functions.GetEnumerator()) {
             --timeout $TIMEOUT `
             --memory-size $MEMORY `
             --region $REGION `
-            --environment "Variables={AWS_ACCOUNT_ID=775261844268,S3_BUCKET=app.wecare.digital,REGION=us-east-1}" 2>&1
+            --environment "Variables={AWS_ACCOUNT_ID=${ACCT},S3_BUCKET=app.wecare.digital,REGION=us-east-1}" 2>&1
 
         if ($LASTEXITCODE -eq 0) {
             Write-Host " CREATED" -ForegroundColor Green

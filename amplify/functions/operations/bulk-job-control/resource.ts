@@ -11,7 +11,7 @@ export const bulkJobControl = defineFunction({
     LOG_LEVEL: 'INFO',
     BULK_JOBS_TABLE: 'base-wecare-digital-BulkJobsTable',
     BULK_RECIPIENTS_TABLE: 'base-wecare-digital-BulkRecipientsTable',
-    BULK_QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/775261844268/base-wecare-digital-bulk-queue',
+    BULK_QUEUE_URL: `https://sqs.us-east-1.amazonaws.com/${process.env.AWS_ACCOUNT_ID || '775261844268'}/base-wecare-digital-bulk-queue`,
     REPORT_BUCKET: 'app.wecare.digital',
     REPORT_PREFIX: 'reports/',
   },

@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
-$ACCOUNT = "775261844268"
+$ACCOUNT = if ($env:AWS_ACCOUNT_ID) { $env:AWS_ACCOUNT_ID } else { "775261844268" }
 $API_ID = "zllr9lrg7j"
 $LAMBDA_NAME = "wecare-whatsapp-calling"
 $TABLE_NAME = "base-wecare-digital-WhatsAppCallingTable"

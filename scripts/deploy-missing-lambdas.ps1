@@ -1,7 +1,7 @@
 # Deploy 6 missing Lambda functions to match old account's 41 wecare-* functions
 $ErrorActionPreference = "Continue"
 $region = "us-east-1"
-$role = "arn:aws:iam::775261844268:role/wecare-digital-lambda-role"
+$role = if ($env:AWS_ACCOUNT_ID) { "arn:aws:iam::$($env:AWS_ACCOUNT_ID):role/wecare-digital-lambda-role" } else { "arn:aws:iam::775261844268:role/wecare-digital-lambda-role" }
 
 # Functions to create (missing from new account)
 $missing = @{

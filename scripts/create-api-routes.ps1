@@ -1,6 +1,6 @@
 $API_ID = "zllr9lrg7j"
 $REGION = "us-east-1"
-$ACCOUNT = "775261844268"
+$ACCOUNT = if ($env:AWS_ACCOUNT_ID) { $env:AWS_ACCOUNT_ID } else { "775261844268" }
 
 # Route -> Lambda function mapping
 $routes = @(

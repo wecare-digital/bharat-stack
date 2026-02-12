@@ -18,6 +18,7 @@ import {
   ContactsIcon, BulkIcon, SmsIcon, EmailIcon, RefreshIcon,
   DocumentIcon, HealthIcon, AdvisorIcon
 } from '../../lib/icons';
+import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE } from '../../config/constants';
 
 interface PageProps {
   signOut?: () => void;
@@ -26,10 +27,8 @@ interface PageProps {
 
 type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'webhook' | 'guide';
 
-const PAYMENT_PHONE = '+91 93309 94400';
-const PAYMENT_NAME = 'WECARE.DIGITAL';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
+const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
 
 const AIRTEL_REFERENCE_TEXT = `WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
 ============================================
@@ -245,13 +244,13 @@ interface WebhookConfig {
   createdAt: string;
 }
 
-// AWS Resource ARNs for billing display - All resources in account 775261844268
+// AWS Resource ARNs for billing display - uses centralized AWS_ACCOUNT_ID and AWS_REGION
 // Comprehensive list including used and available services for future updates
 const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: string[] }> = {
   // COMPUTE
   'AWS Lambda': { 
-    arn: 'arn:aws:lambda:us-east-1:775261844268:function:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: [
       'wecare-outbound-whatsapp',
       'wecare-inbound-whatsapp', 
@@ -281,25 +280,25 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'Amazon EC2': { 
-    arn: 'arn:aws:ec2:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon ECS': { 
-    arn: 'arn:aws:ecs:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:ecs:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'AWS Fargate': { 
-    arn: 'arn:aws:ecs:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:ecs:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // DATABASE
   'Amazon DynamoDB': { 
-    arn: 'arn:aws:dynamodb:us-east-1:775261844268:table/*', 
-    accountId: '775261844268',
+    arn: `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: [
       'base-wecare-digital-ContactsTable',
       'base-wecare-digital-WhatsAppOutboundTable',
@@ -316,101 +315,101 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'Amazon RDS': { 
-    arn: 'arn:aws:rds:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:rds:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon Aurora': { 
-    arn: 'arn:aws:rds:us-east-1:775261844268:cluster:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:rds:${AWS_REGION}:${AWS_ACCOUNT_ID}:cluster:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon ElastiCache': { 
-    arn: 'arn:aws:elasticache:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:elasticache:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // STORAGE
   'Amazon S3': { 
     arn: 'arn:aws:s3:::app.wecare.digital', 
-    accountId: '775261844268',
+    accountId: AWS_ACCOUNT_ID,
     details: ['app.wecare.digital - Media storage for WhatsApp']
   },
   'Amazon EBS': { 
-    arn: 'arn:aws:ec2:us-east-1:775261844268:volume/*', 
-    accountId: '775261844268',
+    arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:volume/*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon EFS': { 
-    arn: 'arn:aws:elasticfilesystem:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:elasticfilesystem:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // NETWORKING & CDN
   'Amazon CloudFront': { 
-    arn: 'arn:aws:cloudfront::775261844268:distribution/*', 
-    accountId: '775261844268',
+    arn: `arn:aws:cloudfront::${AWS_ACCOUNT_ID}:distribution/*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['CDN for static assets']
   },
   'Amazon Route 53': { 
     arn: 'arn:aws:route53:::hostedzone/*', 
-    accountId: '775261844268',
+    accountId: AWS_ACCOUNT_ID,
     details: ['wecare.digital', 'base.wecare.digital', 'app.wecare.digital']
   },
   'Amazon VPC': { 
-    arn: 'arn:aws:ec2:us-east-1:775261844268:vpc/*', 
-    accountId: '775261844268',
+    arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Default VPC']
   },
   'Elastic Load Balancing': { 
-    arn: 'arn:aws:elasticloadbalancing:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:elasticloadbalancing:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // API & INTEGRATION
   'Amazon API Gateway': { 
-    arn: 'arn:aws:apigateway:us-east-1::/restapis/*', 
-    accountId: '775261844268',
+    arn: `arn:aws:apigateway:${AWS_REGION}::/restapis/*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['api.wecare.digital - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*']
   },
   'AWS AppSync': { 
-    arn: 'arn:aws:appsync:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:appsync:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon EventBridge': { 
-    arn: 'arn:aws:events:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:events:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'AWS Step Functions': { 
-    arn: 'arn:aws:states:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:states:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // MESSAGING
   'Amazon SNS': { 
-    arn: 'arn:aws:sns:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['wecare-whatsapp-inbound-topic']
   },
   'Amazon SQS': { 
-    arn: 'arn:aws:sqs:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['wecare-whatsapp-dlq']
   },
   'Amazon SES': { 
-    arn: 'arn:aws:ses:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:ses:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Email sending service']
   },
   'Amazon Pinpoint': { 
-    arn: 'arn:aws:sms-voice:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:sms-voice:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: [
       'SMS: Sender ID WECARE (no pool, account default)',
       'Voice: +18444891209 (Toll-Free, Intl enabled)',
@@ -421,8 +420,8 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'AWS End User Messaging': { 
-    arn: 'arn:aws:social-messaging:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: [
       '+91 93309 94400 (WECARE.DIGITAL) - Razorpay + UPI enabled',
       '+91 99033 00044 (Manish Agarwal)',
@@ -435,77 +434,77 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   
   // AI/ML
   'Amazon Bedrock': { 
-    arn: 'arn:aws:bedrock:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Knowledge Base: wecare-digital-kb', 'Agent: wecare-digital-agent', 'Model: Claude']
   },
   'Amazon OpenSearch': { 
-    arn: 'arn:aws:aoss:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:aoss:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Serverless collection for Bedrock KB vector store']
   },
   'Amazon SageMaker': { 
-    arn: 'arn:aws:sagemaker:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:sagemaker:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon Comprehend': { 
-    arn: 'arn:aws:comprehend:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:comprehend:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon Rekognition': { 
-    arn: 'arn:aws:rekognition:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:rekognition:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon Transcribe': { 
-    arn: 'arn:aws:transcribe:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:transcribe:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'Amazon Polly': { 
-    arn: 'arn:aws:polly:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:polly:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['TTS for Pinpoint Voice calls (Voice ID: RAVEENA)']
   },
   'Amazon Translate': { 
-    arn: 'arn:aws:translate:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:translate:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // SECURITY & IDENTITY
   'Amazon Cognito': { 
-    arn: 'arn:aws:cognito-idp:us-east-1:775261844268:userpool/*', 
-    accountId: '775261844268',
+    arn: `arn:aws:cognito-idp:${AWS_REGION}:${AWS_ACCOUNT_ID}:userpool/*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['User Pool for authentication']
   },
   'AWS IAM': { 
-    arn: 'arn:aws:iam::775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:iam::${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['wecare-digital-lambda-role', 'amplify-service-role']
   },
   'AWS Secrets Manager': { 
-    arn: 'arn:aws:secretsmanager:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['wecare/airtel-iq (Airtel IQ API credentials)']
   },
   'AWS KMS': { 
-    arn: 'arn:aws:kms:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:kms:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Default encryption keys']
   },
   'AWS WAF': { 
-    arn: 'arn:aws:wafv2:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:wafv2:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   
   // MONITORING & MANAGEMENT
   'CloudWatch': { 
-    arn: 'arn:aws:logs:us-east-1:775261844268:log-group:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: [
       '/aws/lambda/wecare-outbound-whatsapp',
       '/aws/lambda/wecare-inbound-whatsapp',
@@ -513,30 +512,30 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     ]
   },
   'AWS X-Ray': { 
-    arn: 'arn:aws:xray:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:xray:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
   'AWS CloudTrail': { 
-    arn: 'arn:aws:cloudtrail:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:cloudtrail:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['API activity logging']
   },
   
   // DEVELOPER TOOLS
   'AWS Amplify': { 
-    arn: 'arn:aws:amplify:us-east-1:775261844268:apps/d3nadrc9t6n3f8', 
-    accountId: '775261844268',
+    arn: `arn:aws:amplify:${AWS_REGION}:${AWS_ACCOUNT_ID}:apps/d3nadrc9t6n3f8`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['App: d3nadrc9t6n3f8', 'Branch: base', 'Domain: base.wecare.digital']
   },
   'AWS CodeBuild': { 
-    arn: 'arn:aws:codebuild:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:codebuild:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Amplify build process']
   },
   'AWS CodePipeline': { 
-    arn: 'arn:aws:codepipeline:us-east-1:775261844268:*', 
-    accountId: '775261844268',
+    arn: `arn:aws:codepipeline:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+    accountId: AWS_ACCOUNT_ID,
     details: ['Not currently used']
   },
 };
@@ -1360,7 +1359,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </div>
                     <div className="billing-meta">
                       <div className="period">{billingData.period}</div>
-                      <div className="account">Account: 775261844268</div>
+                      <div className="account">Account: {AWS_ACCOUNT_ID}</div>
                     </div>
                   </div>
 
@@ -1378,8 +1377,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <tbody>
                       {billingData.services.map((svc, idx) => {
                         const resource = AWS_RESOURCES[svc.service] || { 
-                          arn: `arn:aws:*:us-east-1:775261844268:${svc.service.toLowerCase().replace(/\s+/g, '-')}/*`, 
-                          accountId: '775261844268' 
+                          arn: `arn:aws:*:${AWS_REGION}:${AWS_ACCOUNT_ID}:${svc.service.toLowerCase().replace(/\s+/g, '-')}/*`, 
+                          accountId: AWS_ACCOUNT_ID 
                         };
                         const isExpanded = expandedServices.has(svc.service);
                         return (

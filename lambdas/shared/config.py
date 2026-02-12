@@ -5,7 +5,7 @@ No hardcoded secrets. Secrets Manager for tokens.
 import os
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
-ACCOUNT_ID = '775261844268'
+ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '775261844268')
 
 # DynamoDB Tables
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')

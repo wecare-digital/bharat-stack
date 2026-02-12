@@ -14,9 +14,12 @@
  * and should be deployed as part of the Amplify backend.
  */
 
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+
 export const ALARM_CONFIG = {
   namespace: 'WECARE.DIGITAL',
-  snsTopicArn: 'arn:aws:sns:us-east-1:775261844268:base-wecare-digital',
+  snsTopicArn: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`,
   
   alarms: {
     // Lambda Error Rate Alarm
@@ -98,8 +101,8 @@ export const ALARM_CONFIG = {
  * All alarms publish to the SNS topic for notification.
  */
 export const ALARM_ACTIONS = {
-  ok: [`arn:aws:sns:us-east-1:775261844268:base-wecare-digital`],
-  alarm: [`arn:aws:sns:us-east-1:775261844268:base-wecare-digital`],
+  ok: [`arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`],
+  alarm: [`arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`],
   insufficientData: [],
 };
 

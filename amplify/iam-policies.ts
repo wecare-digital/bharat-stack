@@ -4,6 +4,9 @@
  * Defines the permissions required for each Lambda function to access AWS services.
  */
 
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+
 export const IAM_POLICIES = {
   // Common permissions for all Lambda functions
   common: {
@@ -16,7 +19,7 @@ export const IAM_POLICIES = {
           'logs:CreateLogStream',
           'logs:PutLogEvents',
         ],
-        Resource: 'arn:aws:logs:us-east-1:775261844268:log-group:/base-wecare-digital/*',
+        Resource: `arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/base-wecare-digital/*`,
       },
       {
         Effect: 'Allow',
@@ -30,19 +33,19 @@ export const IAM_POLICIES = {
         ],
         Resource: [
           // Actual tables used by the system (base-wecare-digital-* prefix)
-          'arn:aws:dynamodb:us-east-1:775261844268:table/base-wecare-digital-*',
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/base-wecare-digital-*`,
           // Legacy table patterns (for backwards compatibility)
-          'arn:aws:dynamodb:us-east-1:775261844268:table/Contact-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/Message-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/BulkJob-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/BulkRecipient-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/User-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/MediaFile-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/DLQMessage-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/AuditLog-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/AIInteraction-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/RateLimitTracker-*',
-          'arn:aws:dynamodb:us-east-1:775261844268:table/SystemConfig-*',
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/Contact-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/Message-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/BulkJob-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/BulkRecipient-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/User-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/MediaFile-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/DLQMessage-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/AuditLog-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/AIInteraction-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/RateLimitTracker-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/SystemConfig-*`,
         ],
       },
       {
@@ -74,13 +77,13 @@ export const IAM_POLICIES = {
         ],
         Resource: [
           // Phone Number 1: WECARE.DIGITAL (+91 93309 94400)
-          'arn:aws:social-messaging:us-east-1:775261844268:phone-number-id/5e020cecd221429996f6ae721cc42206',
+          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:phone-number-id/5e020cecd221429996f6ae721cc42206`,
           // Phone Number 2: Manish Agarwal (+91 99033 00044)
-          'arn:aws:social-messaging:us-east-1:775261844268:phone-number-id/abdd81f7bec24ec085a25ab9df6a6f7c',
+          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:phone-number-id/abdd81f7bec24ec085a25ab9df6a6f7c`,
           // WABA 1: WECARE.DIGITAL (Meta ID: 1912405516040025)
-          'arn:aws:social-messaging:us-east-1:775261844268:waba/e47d916f3c7a47e1a34a19653893dd4b',
+          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:waba/e47d916f3c7a47e1a34a19653893dd4b`,
           // WABA 2: Manish Agarwal (Meta ID: 1633959101297902)
-          'arn:aws:social-messaging:us-east-1:775261844268:waba/dbe343f210204752b74c80a0a59631a6',
+          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:waba/dbe343f210204752b74c80a0a59631a6`,
         ],
       },
       {
@@ -109,7 +112,7 @@ export const IAM_POLICIES = {
           'sms-voice:SendTextMessage',
           'sms-voice:SendVoiceMessage',
         ],
-        Resource: 'arn:aws:sms-voice:us-east-1:775261844268:*',
+        Resource: `arn:aws:sms-voice:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,
       },
     ],
   },
@@ -124,7 +127,7 @@ export const IAM_POLICIES = {
           'ses:SendEmail',
           'ses:SendRawEmail',
         ],
-        Resource: 'arn:aws:ses:us-east-1:775261844268:identity/one@wecare.digital',
+        Resource: `arn:aws:ses:${AWS_REGION}:${AWS_ACCOUNT_ID}:identity/one@wecare.digital`,
       },
     ],
   },
@@ -142,10 +145,10 @@ export const IAM_POLICIES = {
           'sqs:GetQueueAttributes',
         ],
         Resource: [
-          'arn:aws:sqs:us-east-1:775261844268:base-wecare-digital-inbound-dlq',
-          'arn:aws:sqs:us-east-1:775261844268:base-wecare-digital-bulk-queue',
-          'arn:aws:sqs:us-east-1:775261844268:base-wecare-digital-bulk-dlq',
-          'arn:aws:sqs:us-east-1:775261844268:base-wecare-digital-outbound-dlq',
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-inbound-dlq`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-bulk-queue`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-bulk-dlq`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-outbound-dlq`,
         ],
       },
     ],
@@ -160,7 +163,7 @@ export const IAM_POLICIES = {
         Action: [
           'sns:Publish',
         ],
-        Resource: 'arn:aws:sns:us-east-1:775261844268:base-wecare-digital',
+        Resource: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`,
       },
     ],
   },
@@ -177,8 +180,8 @@ export const IAM_POLICIES = {
           'bedrock:Retrieve',
         ],
         Resource: [
-          'arn:aws:bedrock:us-east-1:775261844268:knowledge-base/*',
-          'arn:aws:bedrock:us-east-1:775261844268:agent/*',
+          `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:knowledge-base/*`,
+          `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:agent/*`,
           'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0',
         ],
       },
@@ -240,7 +243,7 @@ export const IAM_POLICIES = {
           'cognito-idp:AdminListGroupsForUser',
           'cognito-idp:GetUser',
         ],
-        Resource: 'arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_cSx0RHCIR',
+        Resource: `arn:aws:cognito-idp:${AWS_REGION}:${AWS_ACCOUNT_ID}:userpool/us-east-1_cSx0RHCIR`,
       },
     ],
   },
@@ -255,7 +258,7 @@ export const IAM_POLICIES = {
           'secretsmanager:GetSecretValue',
         ],
         Resource: [
-          'arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/*',
+          `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:wecare/*`,
         ],
       },
     ],
@@ -305,7 +308,7 @@ export const IAM_POLICIES = {
         Action: [
           'lambda:InvokeFunction',
         ],
-        Resource: 'arn:aws:lambda:us-east-1:775261844268:function:wecare-*',
+        Resource: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:wecare-*`,
       },
     ],
   },

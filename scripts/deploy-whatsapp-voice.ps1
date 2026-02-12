@@ -10,7 +10,7 @@
 
 $ErrorActionPreference = "Stop"
 $REGION = "us-east-1"
-$ACCOUNT_ID = "775261844268"
+$ACCOUNT_ID = if ($env:AWS_ACCOUNT_ID) { $env:AWS_ACCOUNT_ID } else { "775261844268" }
 $API_ID = "zllr9lrg7j"
 $STAGE = "prod"
 $LAMBDA_ROLE = "arn:aws:iam::${ACCOUNT_ID}:role/wecare-digital-lambda-role"

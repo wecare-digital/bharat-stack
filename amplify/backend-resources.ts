@@ -12,6 +12,9 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import { Duration } from 'aws-cdk-lib';
 
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+
 export function addBackendResources(stack: Stack) {
   // SQS Queues
   const inboundDlq = new sqs.Queue(stack, 'InboundDLQ', {
@@ -46,7 +49,7 @@ export function addBackendResources(stack: Stack) {
   const alarmTopic = sns.Topic.fromTopicArn(
     stack,
     'AlarmTopic',
-    'arn:aws:sns:us-east-1:775261844268:base-wecare-digital'
+    `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`
   );
 
   // CloudWatch Alarms

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REGION="us-east-1"
-ACCOUNT_ID="775261844268"
+ACCOUNT_ID="${AWS_ACCOUNT_ID:-775261844268}"
 ALARM_TOPIC="arn:aws:sns:${REGION}:${ACCOUNT_ID}:base-wecare-digital"
 
 # Create inbound DLQ

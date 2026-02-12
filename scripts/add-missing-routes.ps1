@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Continue"
 $region = "us-east-1"
 $apiId = "zllr9lrg7j"
-$accountId = "775261844268"
+$accountId = if ($env:AWS_ACCOUNT_ID) { $env:AWS_ACCOUNT_ID } else { "775261844268" }
 
 $routes = @(
     @("GET /voice/calls", "wecare-voice-calls"),

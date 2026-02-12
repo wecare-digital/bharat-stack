@@ -10,6 +10,10 @@
  * - NEXT_PUBLIC_DEFAULT_GSTIN
  */
 
+// AWS Account Configuration
+export const AWS_ACCOUNT_ID = process.env.NEXT_PUBLIC_AWS_ACCOUNT_ID || '775261844268';
+export const AWS_REGION = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
+
 // API Configuration
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 

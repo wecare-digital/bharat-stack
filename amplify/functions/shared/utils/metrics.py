@@ -482,7 +482,7 @@ class AlertPublisher:
     
     SNS_TOPIC_ARN = os.environ.get(
         'SNS_ALERT_TOPIC',
-        'arn:aws:sns:us-east-1:775261844268:base-wecare-digital'
+        f"arn:aws:sns:{os.environ.get('AWS_REGION', 'us-east-1')}:{os.environ.get('AWS_ACCOUNT_ID', '775261844268')}:base-wecare-digital"
     )
     
     def __init__(self, sns_client=None):

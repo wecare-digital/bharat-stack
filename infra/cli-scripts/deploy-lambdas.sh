@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REGION="us-east-1"
-ACCOUNT_ID="775261844268"
+ACCOUNT_ID="${AWS_ACCOUNT_ID:-775261844268}"
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/wecare-digital-lambda-role"
 RUNTIME="python3.12"
 SNS_TOPIC_ARN="arn:aws:sns:${REGION}:${ACCOUNT_ID}:base-wecare-digital"

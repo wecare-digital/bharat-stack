@@ -1,6 +1,7 @@
-$ROLE_ARN = "arn:aws:iam::775261844268:role/wecare-digital-lambda-role"
+$ACCT = if ($env:AWS_ACCOUNT_ID) { $env:AWS_ACCOUNT_ID } else { "775261844268" }
+$ROLE_ARN = "arn:aws:iam::${ACCT}:role/wecare-digital-lambda-role"
 $REGION = "us-east-1"
-$ENV_VARS = "Variables={AWS_ACCOUNT_ID=775261844268,S3_BUCKET=app.wecare.digital,REGION=us-east-1}"
+$ENV_VARS = "Variables={AWS_ACCOUNT_ID=${ACCT},S3_BUCKET=app.wecare.digital,REGION=us-east-1}"
 
 # Already deployed: wecare-contacts-create, wecare-razorpay-webhook, wecare-contacts-search,
 # wecare-outbound-sms, wecare-dlq-replay, wecare-messages-read, wecare-contacts-update, wecare-whatsapp-calling

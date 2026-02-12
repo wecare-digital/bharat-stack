@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REGION="us-east-1"
-ACCOUNT_ID="775261844268"
+ACCOUNT_ID="${AWS_ACCOUNT_ID:-775261844268}"
 ROLE_NAME="wecare-digital-lambda-role"
 
 # Create Lambda execution role

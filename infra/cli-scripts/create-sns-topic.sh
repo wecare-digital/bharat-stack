@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REGION="us-east-1"
-ACCOUNT_ID="775261844268"
+ACCOUNT_ID="${AWS_ACCOUNT_ID:-775261844268}"
 TOPIC_NAME="base-wecare-digital"
 TOPIC_ARN="arn:aws:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
 
