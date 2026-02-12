@@ -1,8 +1,0 @@
-{
-  "id": "waba-dbe343f210204752b74c80a0a59631a6",
-  "eventDestinations": [
-    {
-      "eventDestinationArn": "arn:aws:sns:us-east-1:775261844268:base-wecare-digital"
-    }
-  ]
-}

@@ -1,1 +1,0 @@
-[{"Create":{"IndexName":"status-scheduledAt-index","KeySchema":[{"AttributeName":"status","KeyType":"HASH"},{"AttributeName":"scheduledAt","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}}]

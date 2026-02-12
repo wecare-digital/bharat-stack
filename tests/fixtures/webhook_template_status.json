@@ -1,9 +1,0 @@
-{
-  "Records": [
-    {
-      "Sns": {
-        "Message": "{\"context\":{\"MetaWabaIds\":[\"1912405516040025\"],\"MetaPhoneNumberIds\":[\"960395407161423\"]},\"whatsAppWebhookEntry\":\"{\\\"changes\\\":[{\\\"value\\\":{\\\"event\\\":\\\"APPROVED\\\",\\\"message_template_id\\\":12345678,\\\"message_template_name\\\":\\\"order_confirmation\\\",\\\"message_template_language\\\":\\\"en_US\\\",\\\"reason\\\":null},\\\"field\\\":\\\"message_template_status_update\\\"}]}\",\"aws_account_id\":\"775261844268\",\"message_timestamp\":\"2026-02-11T12:05:00.000Z\",\"messageId\":\"test-msg-004\"}"
-      }
-    }
-  ]
-}
