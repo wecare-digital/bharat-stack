@@ -21,6 +21,8 @@ import json
 import time
 import logging
 import uuid
+import hmac
+import hashlib
 import boto3
 import urllib.request
 import urllib.error
@@ -60,39 +62,56 @@ CORS_HEADERS = {
 
 def _get_meta_token(phone_number_id: str = None) -> str:
     """Get the correct Meta token based on phone number ID (dual WABA support)."""
+    _load_meta_secrets()
     use_waba2 = phone_number_id in WABA2_IDS if phone_number_id else False
     cache_key = 'token2' if use_waba2 else 'token1'
-
-    if cache_key in _token_cache:
-        return _token_cache[cache_key]
-
-    # Load both tokens from secret
-    if 'loaded' not in _token_cache:
-        try:
-            resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
-            secret = resp.get('SecretString', '')
-            try:
-                data = json.loads(secret)
-                _token_cache['token1'] = (data.get('access_token') or '').strip()
-                _token_cache['token2'] = (data.get('access_token_waba2') or data.get('access_token') or '').strip()
-            except (json.JSONDecodeError, TypeError):
-                _token_cache['token1'] = secret.strip()
-                _token_cache['token2'] = secret.strip()
-            _token_cache['loaded'] = True
-            logger.info(f"Loaded dual tokens: token1={len(_token_cache.get('token1',''))}chars, token2={len(_token_cache.get('token2',''))}chars")
-        except Exception as e:
-            logger.error(f"Failed to get Meta token: {e}")
-            raise
-
     token = _token_cache.get(cache_key, _token_cache.get('token1', ''))
     logger.info(f"Using {cache_key} for phone_number_id={phone_number_id} (use_waba2={use_waba2})")
     return token
 
 
+def _get_app_secret(phone_number_id: str = None) -> str:
+    """Get the correct app secret for appsecret_proof."""
+    _load_meta_secrets()
+    use_waba2 = phone_number_id in WABA2_IDS if phone_number_id else False
+    return _token_cache.get('app_secret2' if use_waba2 else 'app_secret1', '')
+
+
+def _load_meta_secrets():
+    """Load tokens + app secrets from Secrets Manager (cached)."""
+    if 'loaded' in _token_cache:
+        return
+    try:
+        resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
+        secret = resp.get('SecretString', '')
+        try:
+            data = json.loads(secret)
+            _token_cache['token1'] = (data.get('access_token') or '').strip()
+            _token_cache['token2'] = (data.get('access_token_waba2') or data.get('access_token') or '').strip()
+            _token_cache['app_secret1'] = (data.get('app_secret') or '').strip()
+            _token_cache['app_secret2'] = (data.get('app_secret_waba2') or '').strip()
+        except (json.JSONDecodeError, TypeError):
+            _token_cache['token1'] = secret.strip()
+            _token_cache['token2'] = secret.strip()
+        _token_cache['loaded'] = True
+        logger.info(f"Loaded dual tokens: token1={len(_token_cache.get('token1',''))}chars, token2={len(_token_cache.get('token2',''))}chars, has_app_secrets={bool(_token_cache.get('app_secret1'))}")
+    except Exception as e:
+        logger.error(f"Failed to get Meta token: {e}")
+        raise
+
+
 def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None, phone_number_id: str = None) -> Dict:
-    """Make a call to Meta Graph API with dual-token support."""
-    url = f"https://graph.facebook.com/{META_API_VERSION}/{endpoint}"
+    """Make a call to Meta Graph API with dual-token support and appsecret_proof."""
     token = _get_meta_token(phone_number_id=phone_number_id)
+    app_secret = _get_app_secret(phone_number_id=phone_number_id)
+
+    # Build URL with appsecret_proof if app secret is available
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{endpoint}"
+    if app_secret:
+        proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+        separator = '&' if '?' in url else '?'
+        url = f"{url}{separator}appsecret_proof={proof}"
+
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
