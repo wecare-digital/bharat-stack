@@ -1,6 +1,6 @@
 /**************************************************************
  * backend/http-functions.js
- * WECARE.DIGITAL — SEO + AI + DISCOVERY + STORE API (PROD)
+ * WECARE.DIGITAL ΓÇö SEO + AI + DISCOVERY + STORE API (PROD)
  * Updated: 2026-02-13 IST
  **************************************************************/
 import { ok, notFound, badRequest, forbidden, serverError, options } from 'wix-http-functions';
@@ -8,9 +8,9 @@ import { fetch } from 'wix-fetch';
 import wixData from 'wix-data';
 import { getSecret } from 'wix-secrets-backend';
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    Canonical & IDs
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const CANONICAL   = "https://www.wecare.digital";
 const ALT_ORIGIN  = "https://wecare.digital";
 const ORG         = "WECARE.DIGITAL";
@@ -20,17 +20,17 @@ const HOME_ID     = `${CANONICAL}/#home`;
 
 const VERSION = "2026-02-13T12:00:00+05:30";
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    Assets & Social
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const LOGO_SVG     = "https://selfcare.wecare.digital/wecare-digital.svg";
 const LOGO_PNG     = "https://selfcare.wecare.digital/wecare-digital.png";
 const LOGO_FAVICON = "https://selfcare.wecare.digital/wecare-digital.ico";
 const SOCIAL       = ["https://www.instagram.com/wecare.digital"];
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    Caching, MIME & robots headers
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const CACHE_10M = { 'Cache-Control': 'public, max-age=600, stale-while-revalidate=600' };
 
 const CT_XML  = 'application/xml; charset=utf-8';
@@ -91,9 +91,9 @@ function corsPreflight() {
 }
 function http(status, headers, body){ return { status, headers, body }; }
 
-/* ─────────────────────────────────────────────────────────────
-   Single source of truth (DATA) — Updated from live site 2026-02-13
-   ───────────────────────────────────────────────────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   Single source of truth (DATA) ΓÇö Updated from live site 2026-02-13
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const DATA = {
   org: {
     name: "WECARE.DIGITAL",
@@ -138,9 +138,9 @@ const DATA = {
   },
   faq: {
     global: [
-      { q:"What is WECARE.DIGITAL?", a:"A Kolkata-based digital company building a digital ecosystem for everyday Bharat—operating microservice brands including No Fault, BNB Club, Ritual Guru, Legal Champ, Swdhya, and Expo Week on one secure platform.", pathHints:["/","/faq"] },
+      { q:"What is WECARE.DIGITAL?", a:"A Kolkata-based digital company building a digital ecosystem for everyday BharatΓÇöoperating microservice brands including No Fault, BNB Club, Ritual Guru, Legal Champ, Swdhya, and Expo Week on one secure platform.", pathHints:["/","/faq"] },
       { q:"How can I contact you?", a:"Use the Contact page, call +91 9330994400, or email one@wecare.digital. We typically reply within business hours.", pathHints:["/contact","/faq"] },
-      { q:"What are your support hours?", a:"Monday–Friday, 09:00–17:00 IST for assisted help. The Self-Service portal is available 24×7.", pathHints:["/faq","/selfservice"] },
+      { q:"What are your support hours?", a:"MondayΓÇôFriday, 09:00ΓÇô17:00 IST for assisted help. The Self-Service portal is available 24├ù7.", pathHints:["/faq","/selfservice"] },
       { q:"Where are you located?", a:"The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Ln, Kolkata 700012, West Bengal, India.", pathHints:["/contact"] },
       { q:"Is there a mobile app?", a:"Yes. The ONE app lets you track, book, upload documents and pay from your phone. See the /one page for details.", pathHints:["/one","/faq"] }
     ],
@@ -148,7 +148,7 @@ const DATA = {
       { q:"What can I do in Self-Service?", a:"Submit a new request, amend an existing one, track status, book an RX slot, upload documents, or get enterprise support.", pathHints:["/selfservice"] },
       { q:"How do I submit a new request?", a:"Open /submit-request, fill in the guided form, and you'll receive a reference ID and updates.", pathHints:["/submit-request","/selfservice"] },
       { q:"How do I amend my request?", a:"Go to /request-amendment, provide your reference ID or contact details, and attach new information if required.", pathHints:["/request-amendment","/selfservice"] },
-      { q:"How do I track my request?", a:"Use /request-tracking with your reference ID or contact to see status: Received → Reviewing → Completed.", pathHints:["/request-tracking","/selfservice"] },
+      { q:"How do I track my request?", a:"Use /request-tracking with your reference ID or contact to see status: Received ΓåÆ Reviewing ΓåÆ Completed.", pathHints:["/request-tracking","/selfservice"] },
       { q:"Where do I upload documents?", a:"Use /drop-docs to upload supported file types securely; they attach to your request automatically.", pathHints:["/drop-docs","/selfservice"] },
       { q:"How do I book or reschedule an RX slot?", a:"Go to /rx-slot, choose a time, and confirm. You can reschedule in the same flow.", pathHints:["/rx-slot","/selfservice"] },
       { q:"How do I get enterprise assistance?", a:"Use /enterprise-assist with your SRN, company name, and work email for priority help.", pathHints:["/enterprise-assist","/selfservice"] }
@@ -180,20 +180,20 @@ const DATA = {
     ],
     blogAndPolicies: [
       { q:"What do you publish on the blog?", a:"Short reads and updates across brands, products, and practice.", pathHints:["/blog"] },
-      { q:"Can I browse by category or tag?", a:"Yes—use /blog categories/tags to find topics.", pathHints:["/blog"] },
+      { q:"Can I browse by category or tag?", a:"YesΓÇöuse /blog categories/tags to find topics.", pathHints:["/blog"] },
       { q:"Where can I see refund/cancellation policy?", a:"See /legal-stuff for terms.", pathHints:["/legal-stuff"] },
       { q:"How do you handle my data?", a:"See /privacy for data and rights.", pathHints:["/privacy"] }
     ]
   },
   pages: [
-    { path:"/",                  title:"WECARE.DIGITAL | MICROSERVICES COMPANY", meta:"Building a digital ecosystem for everyday Bharat—a network of microservice brands designed to solve real problems for real people, while laying the digital railroads for a Viksit Bharat.", keywords:{ primary:["microservices company","digital ecosystem"], related:["consumer marketplaces","DIY + assisted","partner programs","app","gift card","everyday Bharat","Viksit Bharat"] } },
-    { path:"/selfservice",       title:"Customer Self-Service Portal | WECARE.DIGITAL", meta:"Submit or amend a request, track status, book RX slots, upload documents, or get enterprise support—24×7.", keywords:{ primary:["customer self service"], related:["submit request","request tracking","request amendment","RX slot","upload documents","enterprise support"] } },
+    { path:"/",                  title:"WECARE.DIGITAL | MICROSERVICES COMPANY", meta:"Building a digital ecosystem for everyday BharatΓÇöa network of microservice brands designed to solve real problems for real people, while laying the digital railroads for a Viksit Bharat.", keywords:{ primary:["microservices company","digital ecosystem"], related:["consumer marketplaces","DIY + assisted","partner programs","app","gift card","everyday Bharat","Viksit Bharat"] } },
+    { path:"/selfservice",       title:"Customer Self-Service Portal | WECARE.DIGITAL", meta:"Submit or amend a request, track status, book RX slots, upload documents, or get enterprise supportΓÇö24├ù7.", keywords:{ primary:["customer self service"], related:["submit request","request tracking","request amendment","RX slot","upload documents","enterprise support"] } },
     { path:"/submit-request",    title:"Submit a Request | WECARE.DIGITAL", meta:"Start a new request in minutes with a guided form and secure uploads. Get a reference ID and real-time updates.", keywords:{ primary:["submit request online"], related:["guided intake","reference ID","secure uploads"] } },
-    { path:"/request-amendment", title:"Request Amendment | WECARE.DIGITAL", meta:"Update details for an existing request—attach documents and resubmit without starting over.", keywords:{ primary:["amend request"], related:["update details","attach files","resubmit"] } },
+    { path:"/request-amendment", title:"Request Amendment | WECARE.DIGITAL", meta:"Update details for an existing requestΓÇöattach documents and resubmit without starting over.", keywords:{ primary:["amend request"], related:["update details","attach files","resubmit"] } },
     { path:"/request-tracking",  title:"Track a Request | WECARE.DIGITAL", meta:"Check real-time status and notifications for any request using your ID or contact details.", keywords:{ primary:["request tracking"], related:["status updates","notifications","milestones"] } },
     { path:"/rx-slot",           title:"Book an RX Slot | WECARE.DIGITAL", meta:"Schedule or reschedule a prescription slot with reminders and calendar sync.", keywords:{ primary:["RX slot"], related:["appointment booking","reschedule","reminders"] } },
     { path:"/drop-docs",         title:"Upload Documents Securely | WECARE.DIGITAL", meta:"Encrypted uploads with virus scans and audit trails. Attach to existing requests automatically.", keywords:{ primary:["upload documents"], related:["secure upload","audit trail","file types"] } },
-    { path:"/enterprise-assist", title:"Enterprise Support (SRN) | WECARE.DIGITAL", meta:"Dedicated assistance for enterprise cases—share your SRN, company name, and work email.", keywords:{ primary:["enterprise support"], related:["SRN","SLA","onboarding"] } },
+    { path:"/enterprise-assist", title:"Enterprise Support (SRN) | WECARE.DIGITAL", meta:"Dedicated assistance for enterprise casesΓÇöshare your SRN, company name, and work email.", keywords:{ primary:["enterprise support"], related:["SRN","SLA","onboarding"] } },
     { path:"/order-notes",       title:"Add Order Notes | WECARE.DIGITAL", meta:"Add notes to your order in the account portal for faster resolution and traceability.", keywords:{ primary:["order notes"], related:["account portal","traceability"] } },
     { path:"/ecom",              title:"E-Commerce Portal Login | WECARE.DIGITAL", meta:"Access the merchant portal for store and order operations.", keywords:{ primary:["portal login"], related:["merchant tools","e-commerce access"] } },
     { path:"/star",              title:"STAR | Account Hub | WECARE.DIGITAL", meta:"One hub for account actions and quick links across brands.", keywords:{ primary:["account hub"], related:["quick actions","account access"] } },
@@ -201,23 +201,23 @@ const DATA = {
     { path:"/nofault-store",     title:"No Fault Store | Uncontested Dispute Resolution Online", meta:"Start online for uncontested matters with flat-fee transparency and expert guidance.", keywords:{ primary:["uncontested dispute resolution online"], related:["ODR","flat fee","guided process"] } },
     { path:"/bnb",               title:"BNB Club | Full-Service Travel Club (MICE & FIT)", meta:"A full-service travel club run by creative leaders. Corporate (MICE) and free independent travel (FIT) with personalized itineraries, concierge, and visa support.", keywords:{ primary:["travel club India","full-service travel"], related:["MICE","FIT","visa support","concierge","itinerary","medical tours","corporate travel"] } },
     { path:"/bnb-store",         title:"BNB Club Store | Itinerary & Visa Support", meta:"Products and services for personalized itineraries with seamless visa support.", keywords:{ primary:["itinerary planning"], related:["visa support","concierge","bundles"] } },
-    { path:"/swdhya",            title:"Swdhya | Self-Inquiry Conversations for Clarity", meta:"A conversational practice of self-inquiry. Turn reflection into clarity, connection, and committed action—so you can move toward what truly matters.", keywords:{ primary:["self inquiry","samvad"], related:["leadership conversations","clarity","self-awareness","reflection","committed action"] } },
-    { path:"/swdhya-store",      title:"Swdhya Store | Sessions & Resources", meta:"Book guided conversations and access practice resources—no physical shipments.", keywords:{ primary:["guided sessions"], related:["leadership","resources"] } },
+    { path:"/swdhya",            title:"Swdhya | Self-Inquiry Conversations for Clarity", meta:"A conversational practice of self-inquiry. Turn reflection into clarity, connection, and committed actionΓÇöso you can move toward what truly matters.", keywords:{ primary:["self inquiry","samvad"], related:["leadership conversations","clarity","self-awareness","reflection","committed action"] } },
+    { path:"/swdhya-store",      title:"Swdhya Store | Sessions & Resources", meta:"Book guided conversations and access practice resourcesΓÇöno physical shipments.", keywords:{ primary:["guided sessions"], related:["leadership","resources"] } },
     { path:"/ritual",            title:"Ritual Guru | Temple-Grade Puja Kits & Guides", meta:"Curated, temple-grade puja kits for festivals, vrats, housewarmings, and daily worship. Pure, practical, step-by-step guides. Delivered worldwide.", keywords:{ primary:["puja kits","temple grade"], related:["vrat","aarti guide","eco-conscious","delivered worldwide"] } },
-    { path:"/ritual-store",      title:"Ritual Guru Store | Sacred Essentials", meta:"Practice, Satsang, Yatras, Wisdom—plus From Box to Blessing kits & guides.", keywords:{ primary:["puja kits store"], related:["sacred essentials","guides"] } },
+    { path:"/ritual-store",      title:"Ritual Guru Store | Sacred Essentials", meta:"Practice, Satsang, Yatras, WisdomΓÇöplus From Box to Blessing kits & guides.", keywords:{ primary:["puja kits store"], related:["sacred essentials","guides"] } },
     { path:"/legal-champ",       title:"Legal Champ | Documentation & Paralegal Services", meta:"Affordable documentation and paralegal services with transparent scope and pricing. We help legal paperwork be done reliably with minimal effort. (We're not a law firm.)", keywords:{ primary:["legal documentation","paralegal services"], related:["company registration","trademark","GST","business documentation"] } },
     { path:"/legalchamp-store",  title:"Legal Champ Store | Start Online", meta:"Start documentation and filings online; guided flows with clear deliverables.", keywords:{ primary:["documentation services"], related:["filings","attestation"] } },
     { path:"/expoweek",          title:"Expo Week | Virtual Travel Fair in India", meta:"Talks, panels, and curated experiences for travel professionals and explorers.", keywords:{ primary:["virtual travel fair"], related:["tourism","offers","workshops"] } },
     { path:"/partner-up",        title:"Partner With WECARE.DIGITAL", meta:"Co-sell, co-market, and bundle with WECARE brands. Earn with lifetime partner codes.", keywords:{ primary:["partner program"], related:["reseller","bundles","StoreSlate"] } },
-    { path:"/gift-card",         title:"Digital eGift Card | WECARE.DIGITAL", meta:"Send an e-gift instantly—choose an amount and add a message.", keywords:{ primary:["gift card"], related:["egift","instant delivery"] } },
+    { path:"/gift-card",         title:"Digital eGift Card | WECARE.DIGITAL", meta:"Send an e-gift instantlyΓÇöchoose an amount and add a message.", keywords:{ primary:["gift card"], related:["egift","instant delivery"] } },
     { path:"/one",               title:"WECARE.DIGITAL App | Track, Book, Upload, Pay", meta:"Manage orders, bookings, documents and payments in one app.", keywords:{ primary:["customer app"], related:["track","book","upload","pay"] } },
-    { path:"/blog",              title:"WECARE.DIGITAL Blog | Stories & Updates", meta:"Short reads across brands—ideas, product updates, and practice.", keywords:{ primary:["wecare blog"], related:["stories","updates"] } },
-    { path:"/faq",               title:"Frequently Asked Questions | WECARE.DIGITAL", meta:"One place for answers—Self-Service how-tos, brands, store, and policies.", keywords:{ primary:["FAQ"], related:["self service help","policies","contact"] } },
+    { path:"/blog",              title:"WECARE.DIGITAL Blog | Stories & Updates", meta:"Short reads across brandsΓÇöideas, product updates, and practice.", keywords:{ primary:["wecare blog"], related:["stories","updates"] } },
+    { path:"/faq",               title:"Frequently Asked Questions | WECARE.DIGITAL", meta:"One place for answersΓÇöSelf-Service how-tos, brands, store, and policies.", keywords:{ primary:["FAQ"], related:["self service help","policies","contact"] } },
     { path:"/contact",           title:"CONTACT US | WECARE.DIGITAL", meta:"Call +91 9330994400 or email one@wecare.digital. Visit The W.B.S.I.D.C. Building, Phears Ln, Kolkata 700012.", keywords:{ primary:["contact wecare.digital"], related:["Kolkata address","phone","email"] } },
     { path:"/legal-stuff",       title:"Legal Stuff | Terms, Shipping, Refund", meta:"Our terms and policy notes, including cancellations, shipping, payments and acceptable use.", keywords:{ primary:["terms and conditions"], related:["refund policy","shipping policy","privacy"] } },
     { path:"/privacy",           title:"Privacy Policy | WECARE.DIGITAL", meta:"What we collect and why, retention and rights, cookies and processors.", keywords:{ primary:["privacy policy"], related:["data protection","security"] } },
     { path:"/search",            title:"Search Results | WECARE.DIGITAL", meta:"Find pages, posts and products; filter by type and recency.", keywords:{ primary:["site search"], related:["discover","results"] } },
-    { path:"/sitemap",           title:"Sitemap | WECARE.DIGITAL", meta:"Browse every section of the site—brands, stores, self-service, legal, and blog.", keywords:{ primary:["sitemap"], related:["site index","navigation"] } },
+    { path:"/sitemap",           title:"Sitemap | WECARE.DIGITAL", meta:"Browse every section of the siteΓÇöbrands, stores, self-service, legal, and blog.", keywords:{ primary:["sitemap"], related:["site index","navigation"] } },
     { path:"/careers-plus-culture", title:"Careers + Culture | WECARE.DIGITAL", meta:"Join a team of builders focused on small services with big outcomes.", keywords:{ primary:["careers wecare.digital"], related:["culture","remote","hiring"] } },
     { path:"/products",          title:"All Products | WECARE.DIGITAL", meta:"Browse all products and service packages across brands.", keywords:{ primary:["products"] } },
     { path:"/product-page",      title:"Product Details | WECARE.DIGITAL", meta:"Description, price, availability, and how to start.", keywords:{ primary:["product details"] } },
@@ -273,9 +273,9 @@ const DATA = {
   }
 };
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    Constants & helpers
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const SITE_HOST  = "www.wecare.digital";
 const SITE_BASE  = CANONICAL;
 const LANGUAGE   = "en-US";
@@ -468,9 +468,9 @@ async function getDynamicProductUrls(){
   return matches.map(m=>m[1]).filter(u=>!BLOCKED_URLS.has(u));
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    0) Breadcrumb builder
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 function buildBreadcrumbItems(path){
   const labels = BREADCRUMB_GRID[path];
   if (!labels || labels.length === 0) return null;
@@ -497,9 +497,9 @@ function buildBreadcrumbItems(path){
   }));
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    1) Sitemaps & Robots
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export async function get_smtxt(request){
   const [livePages, blogs, products] = await Promise.all([
     getLivePagesFromSitemap(), getDynamicBlogUrls(), getDynamicProductUrls()
@@ -633,9 +633,9 @@ export function get_robots(request){
   return ok({ headers: withVersion({ 'Content-Type': CT_TXT, ...CACHE_10M }), body: lines.join("\n") });
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    2) JSON-LD / Meta / SEO Head
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export async function get_pagemeta(request){
   const urlParam = request.query?.url;
   if (!urlParam){
@@ -659,7 +659,7 @@ export async function get_pagemeta(request){
   if (!found){
     return http(404, NO_CACHE, { ok:false, reason:"url is not in site discovery", url: canonical });
   }
-  return http(404, NO_CACHE, { ok:false, reason:"dynamic url found but no manual/meta entry — add to DATA.pages or consume via /seohead?relaxed=1", url: canonical });
+  return http(404, NO_CACHE, { ok:false, reason:"dynamic url found but no manual/meta entry ΓÇö add to DATA.pages or consume via /seohead?relaxed=1", url: canonical });
 }
 
 export async function get_pagehead(request){
@@ -739,7 +739,7 @@ export async function get_seohead(request){
   const isDynamic = blogs.includes(full) || products.includes(full);
   if (isDynamic){
     if (!relaxed){
-      return http(404, NO_CACHE, { ok:false, reason:"dynamic page exists but no explicit SEO — call with ?relaxed=1 or add to DATA.pages", path: cleanPath, canonicalParamsRemoved: removed });
+      return http(404, NO_CACHE, { ok:false, reason:"dynamic page exists but no explicit SEO ΓÇö call with ?relaxed=1 or add to DATA.pages", path: cleanPath, canonicalParamsRemoved: removed });
     }
     return ok({ headers: H_JSON, body:{ ok:true, host, path: cleanPath, title:"", description:"", keywords:[], canonical, canonicalParamsRemoved: removed, defaultImageAlt: DEFAULT_IMAGE_ALT, structuredData: [] }});
   }
@@ -786,9 +786,9 @@ export function get_schemaproduct(request){
   return ok({ headers: withVersion({ 'Content-Type': CT_LD, ...CACHE_10M, ...NOINDEX, 'Access-Control-Allow-Origin': '*' }), body: JSON.stringify(sd) });
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    3) FAQ / Contact / Icons / Siteinfo
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export function get_faq(request){
   try{
     const schema = {
@@ -846,11 +846,11 @@ export function get_siteinfo(request){
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    4) AI Feeds (ETag + CORS + noindex) + NEW llms.txt
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 
-/** llms.txt — Standard AI discovery format */
+/** llms.txt ΓÇö Standard AI discovery format */
 export async function get_llmstxt(request){
   try{
     const [livePages, blogs, products] = await Promise.all([ getLivePagesFromSitemap(), getDynamicBlogUrls(), getDynamicProductUrls() ]);
@@ -873,12 +873,12 @@ export async function get_llmstxt(request){
       "",
       "## Brands",
       "",
-      "- [No Fault — Online Dispute Resolution](https://www.wecare.digital/no-fault)",
-      "- [BNB Club — Full-Service Travel](https://www.wecare.digital/bnb)",
-      "- [Ritual Guru — Temple-Grade Puja Kits](https://www.wecare.digital/ritual)",
-      "- [Legal Champ — Documentation & Paralegal](https://www.wecare.digital/legal-champ)",
-      "- [Swdhya — Self-Inquiry Conversations](https://www.wecare.digital/swdhya)",
-      "- [Expo Week — Virtual Travel Fair](https://www.wecare.digital/expoweek)",
+      "- [No Fault ΓÇö Online Dispute Resolution](https://www.wecare.digital/no-fault)",
+      "- [BNB Club ΓÇö Full-Service Travel](https://www.wecare.digital/bnb)",
+      "- [Ritual Guru ΓÇö Temple-Grade Puja Kits](https://www.wecare.digital/ritual)",
+      "- [Legal Champ ΓÇö Documentation & Paralegal](https://www.wecare.digital/legal-champ)",
+      "- [Swdhya ΓÇö Self-Inquiry Conversations](https://www.wecare.digital/swdhya)",
+      "- [Expo Week ΓÇö Virtual Travel Fair](https://www.wecare.digital/expoweek)",
       "",
       "## Pages",
       ""
@@ -987,9 +987,9 @@ export function options_keywordsrelated() { return corsPreflight(); }
 export function options_keywordsglobal()  { return corsPreflight(); }
 export function options_keywordsmeta()    { return corsPreflight(); }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    5) Canonicalization & Diagnostics
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export function get_canonicalize(request){
   const url = request.query?.url;
   if (!url) return http(400, NO_CACHE, { ok:false, reason:"url param required" });
@@ -1121,9 +1121,9 @@ export async function get_ping(request){
 export async function get_pin(request){    return get_ping(request); }
 export async function get_pingnow(request){ return get_ping(request); }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    6) Keywords & CSV
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 function toCSV(rows, cols){
   const esc = (v)=> {
     const s = (v==null?"":String(v));
@@ -1234,9 +1234,9 @@ export function get_keywordsmeta(request){
   return ok({ headers: H_JSON, body:{ ok:true, view, pages: perPage, cloud, common }});
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
    7) RSS Feeds (XML + ETag)
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 function rssHeader({ title, link, selfHref, description }){
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
@@ -1271,7 +1271,7 @@ export async function get_rss(request){
   products.forEach(u => items.add(u));
   const arr = Array.from(items);
   const feed = [
-    rssHeader({ title: "WECARE.DIGITAL — Site Feed", link: SITE_BASE, selfHref: `${SITE_BASE}/_functions/rss`, description: "Site-wide updates (static, blog, products)" }),
+    rssHeader({ title: "WECARE.DIGITAL ΓÇö Site Feed", link: SITE_BASE, selfHref: `${SITE_BASE}/_functions/rss`, description: "Site-wide updates (static, blog, products)" }),
     ...arr.map(u => rssItem({ link:u, guid:u, title:u.split('/').filter(Boolean).pop() })),
     rssFooter()
   ].join('\n');
@@ -1295,7 +1295,7 @@ export async function get_rssblog(request){
     items.push(rssItem({ link: loc, guid: loc, title: loc.split('/').filter(Boolean).pop(), pubDate: lastmod }));
   }
   const feed = [
-    rssHeader({ title: "WECARE.DIGITAL — Blog Feed", link: `${SITE_BASE}/blog`, selfHref: `${SITE_BASE}/_functions/rssblog`, description: "All blog posts, categories, and tags" }),
+    rssHeader({ title: "WECARE.DIGITAL ΓÇö Blog Feed", link: `${SITE_BASE}/blog`, selfHref: `${SITE_BASE}/_functions/rssblog`, description: "All blog posts, categories, and tags" }),
     ...items,
     rssFooter()
   ].join('\n');
@@ -1309,17 +1309,17 @@ export async function get_rssproducts(request){
     .filter(({loc}) => !BLOCKED_URLS.has(loc))
     .map(({loc,lastmod}) => rssItem({ link: loc, guid: loc, title: loc.split('/').filter(Boolean).pop(), pubDate: lastmod }));
   const feed = [
-    rssHeader({ title: "WECARE.DIGITAL — Products Feed", link: `${SITE_BASE}/products`, selfHref: `${SITE_BASE}/_functions/rssproducts`, description: "All published product pages" }),
+    rssHeader({ title: "WECARE.DIGITAL ΓÇö Products Feed", link: `${SITE_BASE}/products`, selfHref: `${SITE_BASE}/_functions/rssproducts`, description: "All published product pages" }),
     ...items,
     rssFooter()
   ].join('\n');
   return etagOk(feed, CT_XML, request);
 }
 
-/* ─────────────────────────────────────────────────────────────
-   8) Store API — WECARE Integration Endpoints
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   8) Store API ΓÇö WECARE Integration Endpoints
    Auth via X-Api-Key header validated against Wix Secret "WECARE_API_KEY"
-   ───────────────────────────────────────────────────────────── */
+   ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const STORE_CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',

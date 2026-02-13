@@ -121,6 +121,10 @@ function ensureAltObserver(opts){
 async function runOnce({ useCanonicalize=true, defaultAlt='WECARE.DIGITAL', honorDecorative=false } = {}){
   stripCartWixcodeOrigin();
   removeQueryParams(STRIP);
+  // Wix sometimes adds appSectionParams after initial load (cart/checkout redirect)
+  // Re-check after a short delay to catch late additions
+  setTimeout(() => { stripCartWixcodeOrigin(); removeQueryParams(STRIP); }, 500);
+  setTimeout(() => { stripCartWixcodeOrigin(); removeQueryParams(STRIP); }, 1500);
   if (useCanonicalize) await normalizeWithCanonicalizer();
 
   const opts = { defaultAlt, honorDecorative };

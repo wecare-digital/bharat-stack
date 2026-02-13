@@ -132,7 +132,7 @@ export async function pingSeoSurfaces() {
       `: ${JSON.stringify(errors.slice(0, 5).map(e => ({ url: e.url.split('/_functions/')[1] || e.url, s: e.status })))}`
     );
   } else {
-    console.log(`[${JOB_TAG}] ok — ${results.length} targets in ${ms}ms`);
+    console.log(`[${JOB_TAG}] ok ΓÇö ${results.length} targets in ${ms}ms`);
   }
 
   return {

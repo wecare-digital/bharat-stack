@@ -4,7 +4,7 @@ import wixData from 'wix-data';
 import wixStoresBackend from 'wix-stores-backend';
 import { webMethod, Permissions } from 'wix-web-module';
 
-// Same charset as orderId/events — no 0/O/1/I
+// Same charset as orderId/events ΓÇö no 0/O/1/I
 const CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SKU_LENGTH = 8;
 
@@ -103,9 +103,9 @@ async function getAllStoreProducts() {
  * Batch assign SKUs to all products.
  *
  * Options:
- *   overwrite  (bool)   — false: only fill empty SKUs. true: replace all.
- *   dryRun     (bool)   — true: preview changes without writing. Default false.
- *   prefix     (string) — optional prefix for SKUs, e.g. "RG" → "RG-ABCD1234"
+ *   overwrite  (bool)   ΓÇö false: only fill empty SKUs. true: replace all.
+ *   dryRun     (bool)   ΓÇö true: preview changes without writing. Default false.
+ *   prefix     (string) ΓÇö optional prefix for SKUs, e.g. "RG" ΓåÆ "RG-ABCD1234"
  *
  * Returns: { updated, skipped, errors, totalProducts, variantsUpdated, dryRun }
  */
@@ -182,7 +182,7 @@ export const assignSkusToAllProducts = webMethod(
       skipped,
       errors,
       variantsUpdated,
-      summary: `${updated.length} updated, ${skipped.length} skipped, ${errors.length} errors, ${variantsUpdated} variants${dryRun ? ' (DRY RUN — no changes written)' : ''}`
+      summary: `${updated.length} updated, ${skipped.length} skipped, ${errors.length} errors, ${variantsUpdated} variants${dryRun ? ' (DRY RUN ΓÇö no changes written)' : ''}`
     };
   }
 );

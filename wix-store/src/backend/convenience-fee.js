@@ -7,13 +7,13 @@
  *   convGst  = round(convBase * 18 / 100)
  *   convTotal = convBase + convGst
  *
- * Wording: "Convenience Fee (Collected by Bank)" — same as pay for WhatsApp
+ * Wording: "Convenience Fee (Collected by Bank)" ΓÇö same as pay for WhatsApp
  *
  * Implementation: Uses Wix eCommerce Additional Fees SPI.
  * This file exports the SPI handler that Wix calls during checkout.
  *
  * Setup in Wix:
- *   1. In Wix Dashboard → Developer Tools → Service Plugins → Additional Fees
+ *   1. In Wix Dashboard ΓåÆ Developer Tools ΓåÆ Service Plugins ΓåÆ Additional Fees
  *   2. Create a new plugin pointing to this file
  *   3. Or use the ecom/additional-fees SPI pattern
  */
@@ -87,7 +87,7 @@ export function getAdditionalFees(options) {
 }
 
 /**
- * Standalone calculator — can be imported by other Velo files or page code.
+ * Standalone calculator ΓÇö can be imported by other Velo files or page code.
  */
 export function calcConvFee(itemTotal) {
   return calculateConvenienceFee(itemTotal);

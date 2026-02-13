@@ -3,7 +3,7 @@
 import wixStoresBackend from 'wix-stores-backend';
 import wixData from 'wix-data';
 
-// Same charset as orderId.web.js — no 0/O/1/I to avoid confusion
+// Same charset as orderId.web.js ΓÇö no 0/O/1/I to avoid confusion
 const CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SKU_LENGTH = 8;
 const MAX_COLLISION_RETRIES = 10;
