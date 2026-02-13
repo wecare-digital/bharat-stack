@@ -1,0 +1,810 @@
+"""
+Wix Store Integration Lambda Function
+
+Purpose: Full bridge between WECARE.DIGITAL platform and Wix Stores/eCommerce REST APIs.
+Supports two modes:
+  - 'api' (default): Wix REST API at wixapis.com
+  - 'velo': Velo HTTP Functions on your published Wix site (yoursite.com/_functions/*)
+
+Velo mode gives access to custom order numbers and all Wix Data collection fields
+that aren't exposed through the standard REST API.
+
+Wix API Docs: https://dev.wix.com/docs/rest/business-solutions/stores
+Velo HTTP Functions: https://dev.wix.com/docs/velo/apis/wix-http-functions
+"""
+
+import os
+import json
+import logging
+import urllib.request
+import urllib.error
+from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+
+import boto3
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+logger = logging.getLogger()
+logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+
+# Mode: 'api' or 'velo'
+WIX_MODE = os.environ.get('WIX_MODE', 'api')
+
+# REST API config
+WIX_API_KEY = os.environ.get('WIX_API_KEY', '')
+WIX_SITE_ID = os.environ.get('WIX_SITE_ID', '')
+WIX_ACCOUNT_ID = os.environ.get('WIX_ACCOUNT_ID', '')
+WIX_API_BASE = os.environ.get('WIX_API_BASE_URL', 'https://www.wixapis.com')
+
+# Velo HTTP Functions config
+WIX_VELO_BASE = os.environ.get('WIX_VELO_BASE_URL', '')  # e.g. https://www.yoursite.com
+WIX_VELO_API_KEY = os.environ.get('WIX_VELO_API_KEY', '')  # shared secret for auth
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'base-wecare-digital-WixProductsCache')
+ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'base-wecare-digital-WixOrdersCache')
+
+
+# ===================================================================
+# HANDLER
+# ===================================================================
+
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """
+    Main Lambda handler — routes by path prefix.
+
+    Routes:
+      GET  /sites                        - List account sites (account-level)
+      GET  /products                     - Query products
+      GET  /products/:id                 - Get single product (full detail)
+      GET  /collections                   - Query collections
+      GET  /collections/:id              - Get single collection
+      GET  /collections/:id/products     - Products in a collection
+      GET  /inventory                    - Query inventory items
+      GET  /inventory/:productId         - Inventory for a product
+      GET  /orders                       - Search orders (full detail)
+      GET  /orders/:id                   - Get single order (full detail)
+      GET  /orders/:id/fulfillments      - Fulfillments for an order
+      GET  /orders/:id/transactions      - Transactions for an order
+      POST /sync/products                - Sync products → DynamoDB
+      POST /sync/orders                  - Sync orders → DynamoDB
+    """
+    request_id = context.aws_request_id if context else 'local'
+
+    try:
+        http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET'))
+        path = event.get('path', event.get('rawPath', '/'))
+        params = event.get('queryStringParameters', {}) or {}
+
+        logger.info(json.dumps({
+            'action': 'wix_store_request',
+            'method': http_method,
+            'path': path,
+            'mode': WIX_MODE,
+            'requestId': request_id,
+        }))
+
+        # ---- Velo mode: route through Velo HTTP Functions ----
+        if WIX_MODE == 'velo':
+            return _velo_route(path, params, request_id)
+
+        # ---- Account-level ----
+        if '/sites' in path:
+            return _list_sites(params, request_id)
+
+        # ---- Collections ----
+        if '/collections' in path:
+            coll_id = _extract_id(path, 'collections')
+            if coll_id and '/products' in path.split('collections/' + coll_id)[-1]:
+                return _collection_products(coll_id, params, request_id)
+            if coll_id:
+                return _get_collection(coll_id, request_id)
+            return _list_collections(params, request_id)
+
+        # ---- Products ----
+        if '/products' in path:
+            product_id = _extract_id(path, 'products')
+            if product_id:
+                return _get_product(product_id, request_id)
+            return _list_products(params, request_id)
+
+        # ---- Inventory ----
+        if '/inventory' in path:
+            product_id = _extract_id(path, 'inventory')
+            if product_id:
+                return _get_inventory(product_id, request_id)
+            return _query_inventory(params, request_id)
+
+        # ---- Orders ----
+        if '/orders' in path:
+            order_id = _extract_id(path, 'orders')
+            if order_id:
+                if '/fulfillments' in path:
+                    return _order_fulfillments(order_id, request_id)
+                if '/transactions' in path:
+                    return _order_transactions(order_id, request_id)
+                return _get_order(order_id, request_id)
+            return _search_orders(params, request_id)
+
+        # ---- Sync ----
+        if '/sync' in path and http_method == 'POST':
+            if 'products' in path:
+                return _sync_products(request_id)
+            if 'orders' in path:
+                return _sync_orders(request_id)
+
+        return _response(404, {'error': 'Not found', 'path': path})
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'action': 'wix_store_error',
+            'error': str(e),
+            'requestId': request_id,
+        }))
+        return _response(500, {'error': 'Internal server error', 'message': str(e)})
+
+
+# ===================================================================
+# WIX API CLIENT
+# ===================================================================
+
+def _wix_request(endpoint: str, method: str = 'GET', body: dict = None,
+                 level: str = 'site') -> Dict[str, Any]:
+    """
+    Authenticated request to Wix REST API.
+
+    level='site'    → sends wix-site-id header (products, orders, inventory, etc.)
+    level='account' → sends wix-account-id header (sites API)
+    These headers are mutually exclusive per Wix docs.
+    """
+    url = f"{WIX_API_BASE}{endpoint}"
+    headers = {
+        'Authorization': WIX_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+    if level == 'account':
+        headers['wix-account-id'] = WIX_ACCOUNT_ID
+    else:
+        headers['wix-site-id'] = WIX_SITE_ID
+
+    data = json.dumps(body).encode('utf-8') if body else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(json.dumps({
+            'action': 'wix_api_error',
+            'status': e.code,
+            'url': url,
+            'response': error_body[:500],
+        }))
+        raise RuntimeError(f"Wix API error {e.code}: {error_body[:200]}")
+
+
+# ===================================================================
+# SITES (account-level)
+# ===================================================================
+
+def _list_sites(params: dict, request_id: str) -> Dict[str, Any]:
+    """Query sites from Wix account. Use to discover WIX_SITE_ID."""
+    limit = int(params.get('limit', 50))
+    offset = int(params.get('offset', 0))
+
+    result = _wix_request(
+        '/site-management/v1/sites/query',
+        method='POST',
+        body={'query': {
+            'paging': {'limit': limit, 'offset': offset},
+            'sort': [{'fieldName': 'dateUpdated', 'order': 'DESC'}],
+        }},
+        level='account',
+    )
+
+    sites = []
+    for s in result.get('sites', []):
+        sites.append({
+            'id': s.get('id'),
+            'displayName': s.get('displayName', ''),
+            'viewUrl': s.get('viewUrl', ''),
+            'editUrl': s.get('editUrl', ''),
+            'published': s.get('published', False),
+            'premium': s.get('premium', False),
+            'thumbnail': s.get('thumbnail', {}).get('url', ''),
+            'dashboardUrl': f"https://manage.wix.com/dashboard/{s.get('id', '')}",
+            'createdDate': s.get('dateCreated', ''),
+            'updatedDate': s.get('dateUpdated', ''),
+        })
+
+    return _response(200, {
+        'sites': sites,
+        'totalResults': result.get('totalResults', len(sites)),
+        'requestId': request_id,
+    })
+
+
+# ===================================================================
+# PRODUCTS
+# ===================================================================
+
+def _list_products(params: dict, request_id: str) -> Dict[str, Any]:
+    """Query products from Wix Stores catalog. Includes variants when requested."""
+    limit = int(params.get('limit', 100))
+    offset = int(params.get('offset', 0))
+    include_variants = params.get('includeVariants', 'true').lower() == 'true'
+
+    query_body = {
+        'query': {
+            'paging': {'limit': limit, 'offset': offset},
+        },
+        'includeVariants': include_variants,
+        'includeHiddenProducts': params.get('includeHidden', 'false').lower() == 'true',
+    }
+
+    # Text search filter
+    search = params.get('search')
+    if search:
+        query_body['query']['filter'] = {'name': {'$contains': search}}
+
+    # Collection filter
+    collection_id = params.get('collectionId')
+    if collection_id:
+        query_body['query']['filter'] = query_body['query'].get('filter', {})
+        query_body['query']['filter']['collections.id'] = {'$hasSome': [collection_id]}
+
+    result = _wix_request('/stores/v1/products/query', method='POST', body=query_body)
+    products = result.get('products', [])
+
+    return _response(200, {
+        'products': products,
+        'totalResults': result.get('totalResults', len(products)),
+        'requestId': request_id,
+    })
+
+
+def _get_product(product_id: str, request_id: str) -> Dict[str, Any]:
+    """Get full product detail including variants, options, media."""
+    result = _wix_request(f'/stores/v1/products/{product_id}')
+    product = result.get('product', {})
+
+    # Also fetch inventory for this product
+    try:
+        inv = _wix_request(
+            f'/stores/v2/inventoryItems/product/{product_id}/getVariants',
+            method='POST',
+            body={},
+        )
+        product['_inventory'] = inv.get('inventoryItem', {})
+    except Exception as e:
+        product['_inventory'] = {'error': str(e)}
+
+    return _response(200, {'product': product, 'requestId': request_id})
+
+
+# ===================================================================
+# COLLECTIONS
+# ===================================================================
+
+def _list_collections(params: dict, request_id: str) -> Dict[str, Any]:
+    """Query store collections."""
+    limit = int(params.get('limit', 100))
+    offset = int(params.get('offset', 0))
+
+    result = _wix_request('/stores/v1/collections/query', method='POST', body={
+        'query': {
+            'paging': {'limit': limit, 'offset': offset},
+        }
+    })
+
+    return _response(200, {
+        'collections': result.get('collections', []),
+        'totalResults': result.get('totalResults', 0),
+        'requestId': request_id,
+    })
+
+
+def _get_collection(collection_id: str, request_id: str) -> Dict[str, Any]:
+    """Get a single collection by ID."""
+    result = _wix_request(f'/stores/v1/collections/{collection_id}')
+    return _response(200, {
+        'collection': result.get('collection', {}),
+        'requestId': request_id,
+    })
+
+
+def _collection_products(collection_id: str, params: dict, request_id: str) -> Dict[str, Any]:
+    """Get products belonging to a specific collection."""
+    limit = int(params.get('limit', 100))
+    offset = int(params.get('offset', 0))
+
+    result = _wix_request('/stores/v1/products/query', method='POST', body={
+        'query': {
+            'paging': {'limit': limit, 'offset': offset},
+            'filter': {'collections.id': {'$hasSome': [collection_id]}},
+        },
+        'includeVariants': True,
+    })
+
+    return _response(200, {
+        'collectionId': collection_id,
+        'products': result.get('products', []),
+        'totalResults': result.get('totalResults', 0),
+        'requestId': request_id,
+    })
+
+
+# ===================================================================
+# INVENTORY
+# ===================================================================
+
+def _query_inventory(params: dict, request_id: str) -> Dict[str, Any]:
+    """Query inventory items across the store."""
+    limit = int(params.get('limit', 100))
+    offset = int(params.get('offset', 0))
+
+    result = _wix_request('/stores-reader/v2/inventoryItems/query', method='POST', body={
+        'query': {
+            'paging': {'limit': limit, 'offset': offset},
+        }
+    })
+
+    return _response(200, {
+        'inventoryItems': result.get('inventoryItems', []),
+        'totalResults': result.get('totalResults', 0),
+        'requestId': request_id,
+    })
+
+
+def _get_inventory(product_id: str, request_id: str) -> Dict[str, Any]:
+    """Get inventory variants for a specific product."""
+    result = _wix_request(
+        f'/stores/v2/inventoryItems/product/{product_id}/getVariants',
+        method='POST',
+        body={},
+    )
+    return _response(200, {
+        'productId': product_id,
+        'inventoryItem': result.get('inventoryItem', {}),
+        'requestId': request_id,
+    })
+
+
+# ===================================================================
+# ORDERS (full detail with custom order numbers)
+# ===================================================================
+
+def _search_orders(params: dict, request_id: str) -> Dict[str, Any]:
+    """
+    Search orders via eCommerce Orders API.
+    Returns full order objects including:
+      - number (custom/sequential order number)
+      - buyerInfo (email, contactId, memberId)
+      - lineItems with product details
+      - priceSummary, shippingInfo, billingInfo
+      - paymentStatus, fulfillmentStatus
+      - channelInfo (including externalOrderId for custom order numbers)
+      - customFields
+
+    Query params:
+      - status: APPROVED, CANCELED, etc.
+      - paymentStatus: PAID, NOT_PAID, PARTIALLY_PAID, PARTIALLY_REFUNDED, FULLY_REFUNDED
+      - fulfillmentStatus: NOT_FULFILLED, PARTIALLY_FULFILLED, FULFILLED
+      - email: filter by buyer email
+      - dateFrom / dateTo: ISO date range on createdDate
+      - limit / cursor: pagination
+    """
+    limit = int(params.get('limit', 50))
+
+    search_body: Dict[str, Any] = {
+        'search': {
+            'cursorPaging': {'limit': limit},
+            'sort': [{'fieldName': 'createdDate', 'order': 'DESC'}],
+        }
+    }
+
+    # Build filter
+    filt: Dict[str, Any] = {}
+
+    if params.get('status'):
+        filt['status'] = {'$eq': params['status'].upper()}
+    if params.get('paymentStatus'):
+        filt['paymentStatus'] = {'$eq': params['paymentStatus'].upper()}
+    if params.get('fulfillmentStatus'):
+        filt['fulfillmentStatus'] = {'$eq': params['fulfillmentStatus'].upper()}
+    if params.get('email'):
+        filt['buyerInfo.email'] = {'$eq': params['email']}
+    if params.get('orderNumber'):
+        filt['number'] = {'$eq': int(params['orderNumber'])}
+
+    # Date range
+    date_filter = {}
+    if params.get('dateFrom'):
+        date_filter['$gte'] = params['dateFrom']
+    if params.get('dateTo'):
+        date_filter['$lte'] = params['dateTo']
+    if date_filter:
+        filt['createdDate'] = date_filter
+
+    if filt:
+        search_body['search']['filter'] = filt
+
+    # Cursor-based pagination
+    cursor = params.get('cursor')
+    if cursor:
+        search_body['search']['cursorPaging']['cursor'] = cursor
+
+    result = _wix_request('/ecom/v1/orders/search', method='POST', body=search_body)
+    orders = result.get('orders', [])
+
+    # Enrich each order with a clean summary
+    enriched = []
+    for order in orders:
+        enriched.append(_enrich_order(order))
+
+    paging = result.get('pagingMetadata', {})
+
+    return _response(200, {
+        'orders': enriched,
+        'totalResults': paging.get('count', len(enriched)),
+        'cursors': paging.get('cursors', {}),
+        'hasNext': paging.get('hasNext', False),
+        'requestId': request_id,
+    })
+
+
+def _get_order(order_id: str, request_id: str) -> Dict[str, Any]:
+    """Get full order detail by ID, including transactions and fulfillments."""
+    result = _wix_request(f'/ecom/v1/orders/{order_id}')
+    order = result.get('order', {})
+
+    # Fetch transactions
+    try:
+        txn = _wix_request(f'/ecom/v1/transactions/orders/{order_id}')
+        order['_transactions'] = txn.get('orderTransactions', {})
+    except Exception:
+        order['_transactions'] = []
+
+    # Fetch fulfillments
+    try:
+        ful = _wix_request(f'/ecom/v1/fulfillments/orders/{order_id}')
+        order['_fulfillments'] = ful.get('orderFulfillments', {})
+    except Exception:
+        order['_fulfillments'] = []
+
+    return _response(200, {'order': _enrich_order(order), 'requestId': request_id})
+
+
+def _order_fulfillments(order_id: str, request_id: str) -> Dict[str, Any]:
+    """List fulfillments for a specific order."""
+    result = _wix_request(f'/ecom/v1/fulfillments/orders/{order_id}')
+    return _response(200, {
+        'orderId': order_id,
+        'fulfillments': result.get('orderFulfillments', {}),
+        'requestId': request_id,
+    })
+
+
+def _order_transactions(order_id: str, request_id: str) -> Dict[str, Any]:
+    """List transactions for a specific order."""
+    result = _wix_request(f'/ecom/v1/transactions/orders/{order_id}')
+    return _response(200, {
+        'orderId': order_id,
+        'transactions': result.get('orderTransactions', {}),
+        'requestId': request_id,
+    })
+
+
+def _enrich_order(order: dict) -> dict:
+    """
+    Add a clean _summary to the raw order for easy consumption.
+    Includes custom order number, buyer details, line items summary, totals.
+    """
+    buyer = order.get('buyerInfo', {})
+    price = order.get('priceSummary', {})
+    channel = order.get('channelInfo', {})
+    billing = order.get('billingInfo', {}).get('contactDetails', {})
+    shipping_info = order.get('shippingInfo', {})
+
+    line_items_summary = []
+    for item in order.get('lineItems', []):
+        line_items_summary.append({
+            'name': item.get('productName', {}).get('original', ''),
+            'quantity': item.get('quantity', 0),
+            'price': item.get('price', {}).get('amount', '0'),
+            'sku': item.get('physicalProperties', {}).get('sku', ''),
+            'image': item.get('image', {}).get('url', ''),
+            'catalogItemId': item.get('catalogReference', {}).get('catalogItemId', ''),
+        })
+
+    order['_summary'] = {
+        'orderNumber': order.get('number'),
+        'externalOrderId': channel.get('externalOrderId', ''),
+        'status': order.get('status', ''),
+        'paymentStatus': order.get('paymentStatus', ''),
+        'fulfillmentStatus': order.get('fulfillmentStatus', ''),
+        'buyerEmail': buyer.get('email', ''),
+        'buyerContactId': buyer.get('contactId', ''),
+        'buyerMemberId': buyer.get('memberId', ''),
+        'billingName': f"{billing.get('firstName', '')} {billing.get('lastName', '')}".strip(),
+        'billingPhone': billing.get('phone', ''),
+        'totalAmount': price.get('total', {}).get('amount', '0'),
+        'subtotal': price.get('subtotal', {}).get('amount', '0'),
+        'shipping': price.get('shipping', {}).get('amount', '0'),
+        'tax': price.get('tax', {}).get('amount', '0'),
+        'discount': price.get('discount', {}).get('amount', '0'),
+        'currency': order.get('currency', ''),
+        'lineItemCount': len(order.get('lineItems', [])),
+        'lineItems': line_items_summary,
+        'createdDate': order.get('createdDate', ''),
+        'updatedDate': order.get('updatedDate', ''),
+        'purchasedDate': order.get('purchasedDate', ''),
+        'archived': order.get('archived', False),
+        'customFields': order.get('customFields', []),
+        'buyerNote': order.get('buyerNote', ''),
+    }
+    return order
+
+
+# ===================================================================
+# SYNC TO DYNAMODB CACHE
+# ===================================================================
+
+def _sync_products(request_id: str) -> Dict[str, Any]:
+    """Sync all Wix products to local DynamoDB cache."""
+    table = dynamodb.Table(PRODUCTS_CACHE_TABLE)
+    synced = 0
+    offset = 0
+
+    while True:
+        result = _wix_request('/stores/v1/products/query', method='POST', body={
+            'query': {'paging': {'limit': 100, 'offset': offset}},
+            'includeVariants': True,
+        })
+        products = result.get('products', [])
+        if not products:
+            break
+
+        with table.batch_writer() as batch:
+            for p in products:
+                batch.put_item(Item={
+                    'productId': p.get('id'),
+                    'name': p.get('name', ''),
+                    'slug': p.get('slug', ''),
+                    'price': str(p.get('price', {}).get('formatted', {}).get('actualPrice', '0')),
+                    'currency': p.get('price', {}).get('currency', 'USD'),
+                    'inStock': p.get('stock', {}).get('inStock', False),
+                    'productType': p.get('productType', 'physical'),
+                    'mediaUrl': _get_main_media(p),
+                    'rawData': json.dumps(p, default=str),
+                    'syncedAt': datetime.now(timezone.utc).isoformat(),
+                })
+                synced += 1
+
+        offset += 100
+        if len(products) < 100:
+            break
+
+    logger.info(json.dumps({'action': 'sync_products_complete', 'count': synced, 'requestId': request_id}))
+    return _response(200, {'message': f'Synced {synced} products', 'requestId': request_id})
+
+
+def _sync_orders(request_id: str) -> Dict[str, Any]:
+    """Sync Wix orders to local DynamoDB cache with full detail."""
+    table = dynamodb.Table(ORDERS_CACHE_TABLE)
+    synced = 0
+    cursor = None
+
+    while True:
+        body: Dict[str, Any] = {
+            'search': {
+                'cursorPaging': {'limit': 100},
+                'sort': [{'fieldName': 'createdDate', 'order': 'DESC'}],
+            }
+        }
+        if cursor:
+            body['search']['cursorPaging']['cursor'] = cursor
+
+        result = _wix_request('/ecom/v1/orders/search', method='POST', body=body)
+        orders = result.get('orders', [])
+        if not orders:
+            break
+
+        with table.batch_writer() as batch:
+            for o in orders:
+                buyer = o.get('buyerInfo', {})
+                price = o.get('priceSummary', {})
+                channel = o.get('channelInfo', {})
+                batch.put_item(Item={
+                    'orderId': o.get('id'),
+                    'orderNumber': str(o.get('number', '')),
+                    'externalOrderId': channel.get('externalOrderId', ''),
+                    'buyerEmail': buyer.get('email', ''),
+                    'buyerPhone': o.get('billingInfo', {}).get('contactDetails', {}).get('phone', ''),
+                    'totalPrice': str(price.get('total', {}).get('amount', '0')),
+                    'currency': o.get('currency', 'USD'),
+                    'paymentStatus': o.get('paymentStatus', ''),
+                    'fulfillmentStatus': o.get('fulfillmentStatus', ''),
+                    'status': o.get('status', ''),
+                    'lineItemCount': len(o.get('lineItems', [])),
+                    'createdDate': o.get('createdDate', ''),
+                    'rawData': json.dumps(o, default=str),
+                    'syncedAt': datetime.now(timezone.utc).isoformat(),
+                })
+                synced += 1
+
+        paging = result.get('pagingMetadata', {})
+        if paging.get('hasNext') and paging.get('cursors', {}).get('next'):
+            cursor = paging['cursors']['next']
+        else:
+            break
+
+    logger.info(json.dumps({'action': 'sync_orders_complete', 'count': synced, 'requestId': request_id}))
+    return _response(200, {'message': f'Synced {synced} orders', 'requestId': request_id})
+
+
+# ===================================================================
+# HELPERS
+# ===================================================================
+
+def _extract_id(path: str, resource: str) -> Optional[str]:
+    """Extract resource ID from path like /orders/abc123 or /orders/abc123/fulfillments."""
+    parts = path.rstrip('/').split('/')
+    try:
+        idx = parts.index(resource)
+        if idx + 1 < len(parts) and parts[idx + 1]:
+            return parts[idx + 1]
+    except ValueError:
+        pass
+    return None
+
+
+def _get_main_media(product: dict) -> str:
+    """Extract main media URL from product."""
+    return product.get('media', {}).get('mainMedia', {}).get('image', {}).get('url', '')
+
+
+def _parse_body(event: dict) -> dict:
+    """Parse request body from event."""
+    body = event.get('body', '')
+    if not body:
+        return {}
+    if isinstance(body, str):
+        try:
+            return json.loads(body)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    return body
+
+
+def _response(status_code: int, body: dict) -> Dict[str, Any]:
+    """Build API Gateway response."""
+    return {
+        'statusCode': status_code,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        },
+        'body': json.dumps(body, default=str),
+    }
+
+
+# ===================================================================
+# VELO HTTP FUNCTIONS MODE
+# ===================================================================
+# When WIX_MODE='velo', calls go to your Wix site's Velo HTTP Functions
+# at https://www.yoursite.com/_functions/<endpoint>
+#
+# This gives access to Wix Data collections directly, including:
+# - Custom order numbers (customOrderNumber field)
+# - All Stores/Orders collection fields
+# - All Stores/Products collection fields with collections included
+# - Any custom fields you've added
+#
+# Required Velo code on Wix side: backend/http-functions.js
+# See resource.ts comments for the Velo code template.
+# ===================================================================
+
+def _velo_request(endpoint: str, params: dict = None) -> Dict[str, Any]:
+    """
+    Call a Velo HTTP Function on the published Wix site.
+    URL format: {WIX_VELO_BASE}/_functions/{endpoint}?key=val&...
+    """
+    if not WIX_VELO_BASE:
+        raise RuntimeError("WIX_VELO_BASE_URL not configured. Set it to your Wix site URL.")
+
+    query_string = ''
+    if params:
+        parts = [f"{k}={urllib.request.quote(str(v))}" for k, v in params.items() if v]
+        if parts:
+            query_string = '?' + '&'.join(parts)
+
+    url = f"{WIX_VELO_BASE}/_functions/{endpoint}{query_string}"
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+    if WIX_VELO_API_KEY:
+        headers['X-Api-Key'] = WIX_VELO_API_KEY
+
+    req = urllib.request.Request(url, headers=headers, method='GET')
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(json.dumps({
+            'action': 'velo_api_error',
+            'status': e.code,
+            'url': url,
+            'response': error_body[:500],
+        }))
+        raise RuntimeError(f"Velo HTTP error {e.code}: {error_body[:200]}")
+
+
+def _velo_route(path: str, params: dict, request_id: str) -> Dict[str, Any]:
+    """Route requests through Velo HTTP Functions."""
+
+    # Products
+    if '/products' in path:
+        product_id = _extract_id(path, 'products')
+        if product_id:
+            result = _velo_request('product', {'id': product_id})
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+        result = _velo_request('products', {
+            'limit': params.get('limit', '100'),
+            'search': params.get('search', ''),
+            'collectionId': params.get('collectionId', ''),
+        })
+        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+    # Orders (includes custom order numbers from Wix Data)
+    if '/orders' in path:
+        order_id = _extract_id(path, 'orders')
+        if order_id:
+            result = _velo_request('order', {'id': order_id})
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+        result = _velo_request('orders', {
+            'limit': params.get('limit', '50'),
+            'status': params.get('status', ''),
+            'email': params.get('email', ''),
+            'customOrderNumber': params.get('customOrderNumber', ''),
+        })
+        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+    # Collections
+    if '/collections' in path:
+        result = _velo_request('collections', {
+            'limit': params.get('limit', '100'),
+        })
+        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+    # Inventory
+    if '/inventory' in path:
+        product_id = _extract_id(path, 'inventory')
+        if product_id:
+            result = _velo_request('inventory', {'productId': product_id})
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+        result = _velo_request('inventory-all', {
+            'limit': params.get('limit', '100'),
+        })
+        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+    # Sites — always uses REST API (account-level, not available via Velo)
+    if '/sites' in path:
+        return _list_sites(params, request_id)
+
+    # Sync — always uses REST API for bulk operations
+    if '/sync' in path:
+        if 'products' in path:
+            return _sync_products(request_id)
+        if 'orders' in path:
+            return _sync_orders(request_id)
+
+    return _response(404, {'error': 'Not found', 'path': path, 'mode': 'velo'})

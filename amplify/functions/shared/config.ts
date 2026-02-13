@@ -26,6 +26,16 @@ export const TABLES = {
   VOICE_CALLS: process.env.VOICE_CALLS_TABLE || 'base-wecare-digital-VoiceCalls',
   SMS_AWS: process.env.SMS_AWS_TABLE || 'base-wecare-digital-SmsAwsTable',
   VOICE_AWS: process.env.VOICE_AWS_TABLE || 'base-wecare-digital-VoiceAwsTable',
+  WIX_PRODUCTS_CACHE: process.env.WIX_PRODUCTS_CACHE_TABLE || 'base-wecare-digital-WixProductsCache',
+  WIX_ORDERS_CACHE: process.env.WIX_ORDERS_CACHE_TABLE || 'base-wecare-digital-WixOrdersCache',
+};
+
+// Wix Store Configuration
+export const WIX_CONFIG = {
+  API_BASE_URL: 'https://www.wixapis.com',
+  API_KEY: process.env.WIX_API_KEY || '',
+  SITE_ID: process.env.WIX_SITE_ID || '',
+  ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '6b2d7a93-ef14-45ab-a04e-d445f599e9f4',
 };
 
 // S3 Buckets

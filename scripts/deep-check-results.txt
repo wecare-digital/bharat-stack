@@ -1,0 +1,69 @@
+﻿=== siteinfo (200) ===
+{"site":"https://www.wecare.digital","alias":"https://wecare.digital","subdomains":["https://selfcare.wecare.digital","*.wecare.digital"],"language":"en-US","defaultImageAlt":"WECARE.DIGITAL","contact":{"name":"WECARE.DIGITAL","email":"one@wecare.digital","telephone":"+91 9330994400","address":"The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7, Phears Ln, Kolkata, West Bengal 700012, India"},"social":["https://www.instagram.com/wecare.digital"],"icons":["https://selfcare.wecare.digital/wecare-digital
+
+=== discovery (200) ===
+{"ok":true,"count":33,"functions":[{"name":"get_smtxt","url":"https://www.wecare.digital/_functions/smtxt"},{"name":"get_smextra","url":"https://www.wecare.digital/_functions/smextra"},{"name":"get_smindex","url":"https://www.wecare.digital/_functions/smindex"},{"name":"get_sitemap","url":"https://www.wecare.digital/_functions/sitemap"},{"name":"get_robots","url":"https://www.wecare.digital/_functions/robots"},{"name":"get_llms","url":"https://www.wecare.digital/_functions/llms"},{"name":"get_ll
+
+=== faq (200) ===
+{"ok":true,"source":"wecare.digital","faqs":{"global":[{"q":"What is WECARE.DIGITAL?","a":"A Kolkata-based digital company operating multiple customer brands—No Fault, BNB Club, Ritual Guru, Legal Champ, and Swdhya—on one secure platform.","pathHints":["/","/faq"]},{"q":"How can I contact you?","a":"Use the Contact page, call +91 9330994400, or email one@wecare.digital. We typically reply within business hours.","pathHints":["/contact","/faq"]},{"q":"What are your support hours?","a":"Monday–Fri
+
+=== contact (200) ===
+{"name":"WECARE.DIGITAL","legalName":"WECARE.DIGITAL","url":"https://www.wecare.digital","logo":"https://selfcare.wecare.digital/wecare-digital.png","icon":"https://selfcare.wecare.digital/wecare-digital.ico","image":"https://selfcare.wecare.digital/wecare-digital.svg","sameAs":["https://www.instagram.com/wecare.digital"],"address":{"streetAddress":"The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Ln","addressLocality":"Kolkata","addressRegion":"West Bengal","postalCode":"700012","addressCoun
+
+=== robots (200) ===
+# WECARE.DIGITAL robots.txt
+User-agent: *
+Allow: /
+
+# De-duplicate by blocking only query variants with tracking/tech params
+Disallow: /*utm_source=
+Disallow: /*utm_medium=
+Disallow: /*utm_campaign=
+Disallow: /*utm_term=
+Disallow: /*utm_content=
+Disallow: /*utm_id=
+Disallow: /*utm_source_platform=
+Disallow: /*utm_creative_format=
+Disallow: /*utm_marketing_tactic=
+Disallow: /*fbclid=
+Disallow: /*gclid=
+Disallow: /*msclkid=
+Disallow: /*wbraid=
+Disallow: /*gbraid=
+Disallow: /*ttclid=
+Disallow: /*tw
+
+=== seohead-home (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== seohead-nofault (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== seohead-bnb (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== seohead-ritual (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== seohead-swdhya (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== seohead-legal (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== keywordscloud (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== icons (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== rss (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== diag (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+=== seoerrors (429) ===
+The remote server returned an error: (429) Too Many Requests.
+
+

@@ -1,185 +1,703 @@
 /**
  * Store Page - WECARE.DIGITAL
- * WhatsApp Catalog & Product Management
+ * Wix Store Integration — Products, Orders, Collections, Inventory
  * URL: https://base.wecare.digital/store
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import SEO from '../../components/SEO';
-import { WhatsAppIcon, MessageIcon, PaymentIcon, DocumentIcon } from '../../lib/icons';
+import Tabs, { TabItem } from '../../components/ui/Tabs';
+import Table from '../../components/ui/Table';
+import Modal from '../../components/ui/Modal';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import * as api from '../../api/client';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-type TabType = 'catalog' | 'products' | 'orders';
+type TabType = 'products' | 'orders' | 'collections' | 'admin' | 'settings';
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  imageUrl?: string;
-  category: string;
-  inStock: boolean;
-}
+const TABS: TabItem[] = [
+  { id: 'products', label: 'Products' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'collections', label: 'Collections' },
+  { id: 'admin', label: 'Store Admin' },
+  { id: 'settings', label: 'Settings' },
+];
 
 const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('catalog');
-  const [products] = useState<Product[]>([
-    { id: '1', name: 'Sample Product', description: 'Product description', price: 999, currency: 'INR', category: 'General', inStock: true },
-  ]);
+  const [activeTab, setActiveTab] = useState<TabType>('products');
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
+  // Products
+  const [products, setProducts] = useState<api.WixProduct[]>([]);
+  const [productCount, setProductCount] = useState(0);
+  const [productSearch, setProductSearch] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<api.WixProduct | null>(null);
+
+  // Orders
+  const [orders, setOrders] = useState<api.WixOrder[]>([]);
+  const [orderCount, setOrderCount] = useState(0);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<api.WixOrder | null>(null);
+
+  // Collections
+  const [collections, setCollections] = useState<api.WixCollection[]>([]);
+  const [collectionCount, setCollectionCount] = useState(0);
+
+  // Sites (settings)
+  const [sites, setSites] = useState<any[]>([]);
+
+  // ---- Data fetching ----
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.listWixProducts({
+        limit: 100,
+        search: productSearch || undefined,
+      });
+      setProducts(data.products);
+      setProductCount(data.totalCount);
+    } catch (e) {
+      console.error('Failed to fetch products:', e);
+    }
+    setLoading(false);
+  }, [productSearch]);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: any = { limit: 50 };
+      if (orderStatusFilter) params.paymentStatus = orderStatusFilter;
+      if (orderSearch) {
+        // Try as order number first, then as email
+        if (/^\d+$/.test(orderSearch)) {
+          params.orderNumber = orderSearch;
+        } else if (orderSearch.includes('@')) {
+          params.email = orderSearch;
+        } else {
+          params.customOrderNumber = orderSearch;
+        }
+      }
+      const data = await api.listWixOrders(params);
+      setOrders(data.orders);
+      setOrderCount(data.totalCount);
+    } catch (e) {
+      console.error('Failed to fetch orders:', e);
+    }
+    setLoading(false);
+  }, [orderSearch, orderStatusFilter]);
+
+  const fetchCollections = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.listWixCollections(100);
+      setCollections(data.collections);
+      setCollectionCount(data.totalCount);
+    } catch (e) {
+      console.error('Failed to fetch collections:', e);
+    }
+    setLoading(false);
+  }, []);
+
+  const fetchSites = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.listWixSites();
+      setSites(data);
+    } catch (e) {
+      console.error('Failed to fetch sites:', e);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'products') fetchProducts();
+    else if (activeTab === 'orders') fetchOrders();
+    else if (activeTab === 'collections') fetchCollections();
+    else if (activeTab === 'settings') fetchSites();
+  }, [activeTab, fetchProducts, fetchOrders, fetchCollections, fetchSites]);
+
+  const handleSync = async (type: 'products' | 'orders') => {
+    setSyncing(true);
+    try {
+      if (type === 'products') {
+        await api.syncWixProducts();
+        await fetchProducts();
+      } else {
+        await api.syncWixOrders();
+        await fetchOrders();
+      }
+    } catch (e) {
+      console.error('Sync failed:', e);
+    }
+    setSyncing(false);
+  };
+
+  const handleProductClick = async (product: api.WixProduct) => {
+    try {
+      const full = await api.getWixProduct(product._id);
+      setSelectedProduct(full || product);
+    } catch {
+      setSelectedProduct(product);
+    }
+  };
+
+  const handleOrderClick = async (order: api.WixOrder) => {
+    try {
+      const full = await api.getWixOrder(order._id);
+      setSelectedOrder(full || order);
+    } catch {
+      setSelectedOrder(order);
+    }
+  };
+
+  // ---- Product columns ----
+  const productColumns = [
+    {
+      key: 'image', header: '', width: '50px',
+      render: (p: api.WixProduct) => (
+        <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', background: '#f3f4f6' }}>
+          {p.mainMedia?.url ? (
+            <img src={p.mainMedia.url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 12 }}>—</div>
+          )}
+        </div>
+      ),
+    },
+    { key: 'name', header: 'Product', render: (p: api.WixProduct) => (
+      <div>
+        <div style={{ fontWeight: 500 }}>{p.name}</div>
+        {p.sku && <div style={{ fontSize: 12, color: '#6b7280' }}>SKU: {p.sku}</div>}
+      </div>
+    )},
+    { key: 'price', header: 'Price', render: (p: api.WixProduct) => (
+      <span>{p.formattedPrice || `${p.currency || '₹'}${p.price || 0}`}</span>
+    )},
+    { key: 'collections', header: 'Collections', render: (p: api.WixProduct) => (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {(p.collections || []).map(c => (
+          <span key={c._id} style={{ background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: 12, fontSize: 11 }}>{c.name}</span>
+        ))}
+      </div>
+    )},
+    { key: 'stock', header: 'Stock', render: (p: api.WixProduct) => (
+      <span style={{ color: p.inStock ? '#059669' : '#dc2626', fontWeight: 500, fontSize: 13 }}>
+        {p.inStock ? (p.quantityInStock !== undefined ? `${p.quantityInStock} in stock` : 'In Stock') : 'Out of Stock'}
+      </span>
+    )},
+    { key: 'type', header: 'Type', render: (p: api.WixProduct) => (
+      <span style={{ textTransform: 'capitalize', fontSize: 13 }}>{p.productType || 'physical'}</span>
+    )},
+    { key: 'actions', header: '', width: '80px', render: (p: api.WixProduct) => (
+      <button onClick={() => handleProductClick(p)} style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 12 }}>View</button>
+    )},
+  ];
+
+  // ---- Order columns ----
+  const orderColumns = [
+    { key: 'number', header: 'Order #', width: '100px', render: (o: api.WixOrder) => (
+      <div>
+        <div style={{ fontWeight: 600 }}>#{o.number || o._summary?.orderNumber || '—'}</div>
+        {(o.customField?.value || o._summary?.externalOrderId) && (
+          <div style={{ fontSize: 11, color: '#6b7280' }}>{o.customField?.value || o._summary?.externalOrderId}</div>
+        )}
+      </div>
+    )},
+    { key: 'buyer', header: 'Buyer', render: (o: api.WixOrder) => {
+      const email = (o as any).buyerEmail || o.buyerInfo?.email || o._summary?.buyerEmail || '';
+      const name = (o as any).buyerName || o._summary?.billingName || '';
+      return (
+        <div>
+          {name && <div style={{ fontWeight: 500, fontSize: 13 }}>{name}</div>}
+          <div style={{ fontSize: 12, color: '#6b7280' }}>{email}</div>
+        </div>
+      );
+    }},
+    { key: 'items', header: 'Items', width: '60px', render: (o: api.WixOrder) => (
+      <span>{(o as any).lineItemCount || o.lineItems?.length || o._summary?.lineItemCount || 0}</span>
+    )},
+    { key: 'total', header: 'Total', render: (o: api.WixOrder) => {
+      const total = o.totals?.total || o._summary?.totalAmount || '0';
+      const currency = o.currency || o._summary?.currency || 'INR';
+      return <span style={{ fontWeight: 600 }}>{currency === 'INR' ? '₹' : currency + ' '}{total}</span>;
+    }},
+    { key: 'payment', header: 'Payment', render: (o: api.WixOrder) => {
+      const status = o.paymentStatus || o._summary?.paymentStatus || '';
+      const color = status === 'PAID' ? '#059669' : status === 'NOT_PAID' ? '#dc2626' : '#d97706';
+      return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ')}</span>;
+    }},
+    { key: 'fulfillment', header: 'Fulfillment', render: (o: api.WixOrder) => {
+      const status = o.fulfillmentStatus || o._summary?.fulfillmentStatus || '';
+      const color = status === 'FULFILLED' ? '#059669' : status === 'NOT_FULFILLED' ? '#6b7280' : '#d97706';
+      return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ') || '—'}</span>;
+    }},
+    { key: 'date', header: 'Date', render: (o: api.WixOrder) => {
+      const d = o.dateCreated || (o as any).createdDate || o._summary?.createdDate || '';
+      return <span style={{ fontSize: 12, color: '#6b7280' }}>{d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>;
+    }},
+    { key: 'actions', header: '', width: '80px', render: (o: api.WixOrder) => (
+      <button onClick={() => handleOrderClick(o)} style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 12 }}>View</button>
+    )},
+  ];
+
+  // ---- Render ----
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Store | WECARE.DIGITAL" description="WhatsApp Catalog & Product Management" />
+      <SEO title="Store | WECARE.DIGITAL" description="Wix Store — Products, Orders, Collections" />
       <div className="store-page">
-        <PageHeader 
-          title="Store" 
-          subtitle="WhatsApp Catalog & Product Management"
+        <PageHeader
+          title="Store"
+          subtitle={`Wix Store Integration — ${productCount} products, ${orderCount} orders`}
           icon="store"
+          actions={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => handleSync('products')} disabled={syncing} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {syncing ? <Spinner size="sm" /> : null} Sync Products
+              </button>
+              <button onClick={() => handleSync('orders')} disabled={syncing} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {syncing ? <Spinner size="sm" /> : null} Sync Orders
+              </button>
+            </div>
+          }
         />
 
-        <div className="page-tabs">
-          <button className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`} onClick={() => setActiveTab('catalog')}>
-            Catalog
-          </button>
-          <button className={`tab-btn ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
-            Products
-          </button>
-          <button className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
-            Orders
-          </button>
-        </div>
+        <Tabs items={TABS} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} />
 
-        <div className="tab-content">
-          {activeTab === 'catalog' && (
-            <div className="catalog-section">
-              <div className="info-banner">
-                <h3>WhatsApp Business Catalog</h3>
-                <p>Connect your product catalog to WhatsApp Business API for seamless shopping experiences.</p>
-                <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/guides/sell-products-and-services" target="_blank" rel="noopener noreferrer" className="docs-link">
-                  View Documentation →
-                </a>
+        <div style={{ marginTop: 16 }}>
+          {/* ---- PRODUCTS TAB ---- */}
+          {activeTab === 'products' && (
+            <div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && fetchProducts()}
+                  style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 12, fontSize: 14, outline: 'none' }}
+                />
+                <button onClick={fetchProducts}>Search</button>
               </div>
-              
-              <div className="features-grid">
-                <div className="feature-card">
-                  <span className="feature-icon"><WhatsAppIcon size={28} /></span>
-                  <h4>Product Catalog</h4>
-                  <p>Sync products from Meta Commerce Manager</p>
-                </div>
-                <div className="feature-card">
-                  <span className="feature-icon"><MessageIcon size={28} /></span>
-                  <h4>Interactive Messages</h4>
-                  <p>Send product lists and single product messages</p>
-                </div>
-                <div className="feature-card">
-                  <span className="feature-icon"><DocumentIcon size={28} /></span>
-                  <h4>Cart & Checkout</h4>
-                  <p>Customers can add items and checkout via WhatsApp</p>
-                </div>
-                <div className="feature-card">
-                  <span className="feature-icon"><PaymentIcon size={28} /></span>
-                  <h4>Payment Integration</h4>
-                  <p>Razorpay UPI payments for Indian customers</p>
-                </div>
-              </div>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: 60 }}><Spinner size="lg" /></div>
+              ) : products.length === 0 ? (
+                <EmptyState icon="search" title="No Products Found" description="Connect your Wix Store and sync products to see them here." />
+              ) : (
+                <Table columns={productColumns} data={products} keyField="_id" />
+              )}
             </div>
           )}
 
-          {activeTab === 'products' && (
-            <div className="products-section">
-              <div className="section-header">
-                <h3>Products ({products.length})</h3>
-                <button className="add-btn">+ Add Product</button>
+          {/* ---- ORDERS TAB ---- */}
+          {activeTab === 'orders' && (
+            <div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Search by order #, email, or custom order number..."
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && fetchOrders()}
+                  style={{ flex: 1, minWidth: 200, padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 12, fontSize: 14, outline: 'none' }}
+                />
+                <select
+                  value={orderStatusFilter}
+                  onChange={e => setOrderStatusFilter(e.target.value)}
+                  style={{ padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 12, fontSize: 14, background: '#fff' }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PAID">Paid</option>
+                  <option value="NOT_PAID">Not Paid</option>
+                  <option value="PARTIALLY_PAID">Partially Paid</option>
+                  <option value="PARTIALLY_REFUNDED">Partially Refunded</option>
+                  <option value="FULLY_REFUNDED">Fully Refunded</option>
+                </select>
+                <button onClick={fetchOrders}>Search</button>
               </div>
-              
-              <div className="products-grid">
-                {products.map(product => (
-                  <div key={product.id} className="product-card">
-                    <div className="product-image">
-                      {product.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.name} />
-                      ) : (
-                        <div className="placeholder">—</div>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: 60 }}><Spinner size="lg" /></div>
+              ) : orders.length === 0 ? (
+                <EmptyState icon="order" title="No Orders Found" description="Orders from your Wix Store will appear here." />
+              ) : (
+                <Table columns={orderColumns} data={orders} keyField="_id" />
+              )}
+            </div>
+          )}
+
+          {/* ---- COLLECTIONS TAB ---- */}
+          {activeTab === 'collections' && (
+            <div>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: 60 }}><Spinner size="lg" /></div>
+              ) : collections.length === 0 ? (
+                <EmptyState icon="default" title="No Collections" description="Create collections in your Wix Store to organize products." />
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                  {collections.map(c => (
+                    <div key={c._id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, cursor: 'pointer' }}
+                      onClick={() => { setProductSearch(''); setActiveTab('products'); /* TODO: filter by collection */ }}>
+                      {c.mainMedia?.url && (
+                        <img src={c.mainMedia.url} alt={c.name} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} />
                       )}
+                      <h4 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{c.name}</h4>
+                      {c.description && <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>{c.description}</p>}
                     </div>
-                    <div className="product-info">
-                      <h4>{product.name}</h4>
-                      <p>{product.description}</p>
-                      <div className="product-meta">
-                        <span className="price">₹{product.price}</span>
-                        <span className={`stock ${product.inStock ? 'in' : 'out'}`}>
-                          {product.inStock ? 'In Stock' : 'Out of Stock'}
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ---- STORE ADMIN TAB ---- */}
+          {activeTab === 'admin' && (
+            <div style={{ maxWidth: 900 }}>
+              {/* Site Overview */}
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Wix Site</h3>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: '#10b981', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
+                    Open Wix Dashboard →
+                  </a>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                  <div style={adminCard}><span style={adminLabel}>Site Name</span><span style={adminVal}>WECARE.DIGITAL</span></div>
+                  <div style={adminCard}><span style={adminLabel}>Site ID</span><span style={{ ...adminVal, fontSize: 11, fontFamily: 'monospace' }}>461dece3-613a</span></div>
+                  <div style={adminCard}><span style={adminLabel}>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ ...adminVal, color: '#10b981', textDecoration: 'none' }}>wecare.digital</a></div>
+                  <div style={adminCard}><span style={adminLabel}>Status</span><span style={{ ...adminVal, color: '#059669' }}>Published</span></div>
+                  <div style={adminCard}><span style={adminLabel}>Currency</span><span style={adminVal}>INR (₹)</span></div>
+                  <div style={adminCard}><span style={adminLabel}>Conv. Fee</span><span style={adminVal}>2% + 18% GST</span></div>
+                </div>
+              </div>
+
+              {/* Velo Code Files */}
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Velo Code Files</h3>
+                  <a href="https://editor.wix.com/html/editor/web/renderer/edit/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: '#10b981', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
+                    Open in Wix Editor →
+                  </a>
+                </div>
+
+                {/* Backend Files */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Backend</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      { name: 'orderId.web.js', desc: 'Custom order ID (WDSR prefix)', type: 'web-module', status: 'active' },
+                      { name: 'convenience-fee.js', desc: 'Checkout convenience fee (2% + 18% GST)', type: 'backend', status: 'active' },
+                      { name: 'pinger.js', desc: 'SEO + Store API health checks', type: 'backend', status: 'active' },
+                      { name: 'sku-batch.web.js', desc: 'Batch SKU ops (dryRun, prefix)', type: 'web-module', status: 'active' },
+                      { name: 'events.js', desc: 'Auto SKU on product create', type: 'events', status: 'active' },
+                      { name: 'http-functions.js', desc: 'SEO + AI + Store API (merged)', type: 'http', status: 'active' },
+                      { name: 'jobs.config', desc: 'Scheduled jobs configuration', type: 'config', status: 'active' },
+                    ].map(f => (
+                      <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
+                        <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>
+                          {f.type === 'web-module' ? '🔌' : f.type === 'events' ? '⚡' : f.type === 'http' ? '🌐' : f.type === 'config' ? '⚙️' : '📄'}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>{f.name}</div>
+                          <div style={{ fontSize: 11, color: '#6b7280' }}>{f.desc}</div>
+                        </div>
+                        <span style={{
+                          fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500,
+                          background: f.status === 'active' ? '#d1fae5' : '#fef3c7',
+                          color: f.status === 'active' ? '#059669' : '#d97706',
+                        }}>
+                          {f.status === 'active' ? 'Active' : 'Pending Merge'}
                         </span>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Public Files */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Public</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      { name: 'global-apply.js', desc: 'Global site-level code (runs on every page)' },
+                      { name: 'ops-lite.js', desc: 'Operations / utility functions' },
+                      { name: 'seo-bridge.js', desc: 'SEO meta tags & structured data' },
+                      { name: 'site-hygiene.js', desc: 'Site maintenance & cleanup' },
+                    ].map(f => (
+                      <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
+                        <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>📄</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>{f.name}</div>
+                          <div style={{ fontSize: 11, color: '#6b7280' }}>{f.desc}</div>
+                        </div>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#d1fae5', color: '#059669' }}>Active</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Service Plugins */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Service Plugins</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
+                    <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🧩</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>automations-velo-action-provider</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Custom automation actions for Wix Automations</div>
+                    </div>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#d1fae5', color: '#059669' }}>Active</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>Quick Actions</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={actionBtn}>
+                    <span style={{ fontSize: 20 }}>📦</span>
+                    <div><div style={{ fontWeight: 500, fontSize: 13 }}>Manage Products</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={actionBtn}>
+                    <span style={{ fontSize: 20 }}>🧾</span>
+                    <div><div style={{ fontWeight: 500, fontSize: 13 }}>Manage Orders</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/inventory" target="_blank" rel="noopener noreferrer" style={actionBtn}>
+                    <span style={{ fontSize: 20 }}>📊</span>
+                    <div><div style={{ fontWeight: 500, fontSize: 13 }}>Inventory</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/coupons" target="_blank" rel="noopener noreferrer" style={actionBtn}>
+                    <span style={{ fontSize: 20 }}>🏷️</span>
+                    <div><div style={{ fontWeight: 500, fontSize: 13 }}>Coupons</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/analytics" target="_blank" rel="noopener noreferrer" style={actionBtn}>
+                    <span style={{ fontSize: 20 }}>📈</span>
+                    <div><div style={{ fontWeight: 500, fontSize: 13 }}>Analytics</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/developer-tools/secrets-manager" target="_blank" rel="noopener noreferrer" style={actionBtn}>
+                    <span style={{ fontSize: 20 }}>🔑</span>
+                    <div><div style={{ fontWeight: 500, fontSize: 13 }}>Secrets Manager</div><div style={{ fontSize: 11, color: '#6b7280' }}>API Keys & Secrets</div></div>
+                  </a>
+                </div>
+              </div>
+
+              {/* Git Integration Info */}
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 600 }}>Git Integration</h3>
+                <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>
+                  Velo code is managed in <code>wix-store/src/</code> — sync with Wix via GitHub integration.
+                </p>
+                <div style={{ fontSize: 13, background: '#f9fafb', padding: 12, borderRadius: 8, fontFamily: 'monospace', lineHeight: 1.8 }}>
+                  <span style={{ color: '#6b7280' }}># Pull code from Wix</span><br />
+                  cd wix-store<br />
+                  wix login<br />
+                  wix dev<br /><br />
+                  <span style={{ color: '#6b7280' }}># Push changes to Wix</span><br />
+                  git add -A<br />
+                  git commit -m "Update Velo code"<br />
+                  git push
+                </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'orders' && (
-            <div className="orders-section">
-              <div className="empty-state">
-                <span className="empty-icon"><DocumentIcon size={48} /></span>
-                <h3>No Orders Yet</h3>
-                <p>Orders from WhatsApp catalog will appear here</p>
+          {/* ---- SETTINGS TAB ---- */}
+          {activeTab === 'settings' && (
+            <div style={{ maxWidth: 700 }}>
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>Connected Wix Sites</h3>
+                {loading ? (
+                  <Spinner size="md" />
+                ) : sites.length === 0 ? (
+                  <p style={{ color: '#6b7280', fontSize: 14 }}>No sites found. Check your WIX_API_KEY and WIX_ACCOUNT_ID configuration.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {sites.map((s: any) => (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#f9fafb', borderRadius: 8 }}>
+                        {s.thumbnail && <img src={s.thumbnail} alt={s.displayName} style={{ width: 48, height: 36, borderRadius: 6, objectFit: 'cover' }} />}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 500 }}>{s.displayName}</div>
+                          <div style={{ fontSize: 12, color: '#6b7280' }}>ID: {s.id}</div>
+                        </div>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: s.published ? '#d1fae5' : '#fef3c7', color: s.published ? '#059669' : '#d97706' }}>
+                          {s.published ? 'Published' : 'Draft'}
+                        </span>
+                        {s.viewUrl && (
+                          <a href={s.viewUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#10b981' }}>Visit →</a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 600 }}>Integration Mode</h3>
+                <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>
+                  Configure in <code>amplify/functions/ecommerce/wix-store/resource.ts</code>
+                </p>
+                <div style={{ fontSize: 13, background: '#f9fafb', padding: 12, borderRadius: 8, fontFamily: 'monospace' }}>
+                  WIX_MODE = "api" | "velo"<br />
+                  WIX_API_KEY = IST.eyJ...<br />
+                  WIX_SITE_ID = (from sites list above)<br />
+                  WIX_VELO_BASE_URL = https://www.yoursite.com
+                </div>
               </div>
             </div>
           )}
         </div>
-      </div>
 
-      <style jsx>{`
-        .store-page { }
-        .page-tabs { }
-        .tab-btn { }
-        .tab-btn:hover { }
-        .tab-btn.active { }
-        .tab-content { min-height: 400px; }
-        .info-banner { }
-        .info-banner h3 { }
-        .info-banner p { }
-        .docs-link { }
-        .docs-link:hover { }
-        .features-grid { }
-        .feature-card { }
-        .feature-icon { }
-        .feature-card h4 { }
-        .feature-card p { }
-        .section-header { }
-        .section-header h3 { }
-        .add-btn { }
-        .add-btn:hover { }
-        .products-grid { }
-        .product-card { }
-        .product-image { }
-        .product-image img { }
-        .placeholder { }
-        .product-info { }
-        .product-info h4 { }
-        .product-info p { }
-        .product-meta { }
-        .price { }
-        .stock { }
-        .stock.in { }
-        .stock.out { }
-        .empty-state { }
-        .empty-icon { }
-        .empty-state h3 { }
-        .empty-state p { }
-        @media (max-width: 768px) { }
-        @media (max-width: 480px) { }
-      `}</style>
+        {/* ---- PRODUCT DETAIL MODAL ---- */}
+        <Modal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} title={selectedProduct?.name || 'Product Detail'} size="lg">
+          {selectedProduct && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {selectedProduct.mainMedia?.url && (
+                  <img src={selectedProduct.mainMedia.url} alt={selectedProduct.name} style={{ width: 160, height: 160, objectFit: 'cover', borderRadius: 12 }} />
+                )}
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: 0 }}>{selectedProduct.name}</h3>
+                  <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0' }}>{selectedProduct.description}</p>
+                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Price</span><br /><span style={{ fontWeight: 600, fontSize: 18 }}>{selectedProduct.formattedPrice || `₹${selectedProduct.price}`}</span></div>
+                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>SKU</span><br /><span style={{ fontWeight: 500 }}>{selectedProduct.sku || '—'}</span></div>
+                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Stock</span><br /><span style={{ fontWeight: 500, color: selectedProduct.inStock ? '#059669' : '#dc2626' }}>{selectedProduct.inStock ? `${selectedProduct.quantityInStock ?? 'Yes'}` : 'Out'}</span></div>
+                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Type</span><br /><span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{selectedProduct.productType}</span></div>
+                  </div>
+                </div>
+              </div>
+              {selectedProduct.collections?.length > 0 && (
+                <div>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>Collections</span>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                    {selectedProduct.collections.map(c => (
+                      <span key={c._id} style={{ background: '#ecfdf5', color: '#059669', padding: '3px 10px', borderRadius: 12, fontSize: 12 }}>{c.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedProduct.productOptions?.length > 0 && (
+                <div>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>Options</span>
+                  <div style={{ marginTop: 4 }}>
+                    {selectedProduct.productOptions.map((opt: any, i: number) => (
+                      <div key={i} style={{ fontSize: 13 }}>{opt.name}: {(opt.choices || []).map((c: any) => c.description || c.value).join(', ')}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedProduct.variants?.length > 1 && (
+                <div>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>Variants ({selectedProduct.variants.length})</span>
+                  <div style={{ marginTop: 4, maxHeight: 200, overflowY: 'auto' }}>
+                    {selectedProduct.variants.map((v: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                        <span style={{ flex: 1 }}>{Object.values(v.choices || {}).join(' / ') || `Variant ${i + 1}`}</span>
+                        <span style={{ fontWeight: 500 }}>{v.variant?.priceData?.formatted?.price || '—'}</span>
+                        <span style={{ color: '#6b7280' }}>SKU: {v.variant?.sku || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+
+        {/* ---- ORDER DETAIL MODAL ---- */}
+        <Modal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} title={`Order #${selectedOrder?.number || selectedOrder?._summary?.orderNumber || '—'}`} size="lg">
+          {selectedOrder && (() => {
+            const s = selectedOrder._summary || {};
+            const buyerEmail = (selectedOrder as any).buyerEmail || s.buyerEmail || selectedOrder.buyerInfo?.email || '';
+            const buyerName = (selectedOrder as any).buyerName || s.billingName || '';
+            const buyerPhone = (selectedOrder as any).buyerPhone || s.billingPhone || '';
+            const total = selectedOrder.totals?.total || s.totalAmount || '0';
+            const currency = selectedOrder.currency || s.currency || 'INR';
+            const customNum = selectedOrder.customField?.value || (selectedOrder as any).customOrderNumber || s.externalOrderId || '';
+            const items = (selectedOrder as any).lineItemsSummary || s.lineItems || selectedOrder.lineItems || [];
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Order summary */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                  <div style={statBox}><span style={statLabel}>Order #</span><span style={statValue}>#{selectedOrder.number || s.orderNumber}</span></div>
+                  {customNum && <div style={statBox}><span style={statLabel}>Custom #</span><span style={statValue}>{customNum}</span></div>}
+                  <div style={statBox}><span style={statLabel}>Total</span><span style={statValue}>{currency === 'INR' ? '₹' : currency + ' '}{total}</span></div>
+                  <div style={statBox}><span style={statLabel}>Payment</span><span style={{ ...statValue, color: (selectedOrder.paymentStatus || s.paymentStatus) === 'PAID' ? '#059669' : '#dc2626' }}>{(selectedOrder.paymentStatus || s.paymentStatus || '').replace(/_/g, ' ')}</span></div>
+                  <div style={statBox}><span style={statLabel}>Fulfillment</span><span style={statValue}>{(selectedOrder.fulfillmentStatus || s.fulfillmentStatus || '—').replace(/_/g, ' ')}</span></div>
+                  <div style={statBox}><span style={statLabel}>Date</span><span style={statValue}>{new Date(selectedOrder.dateCreated || (selectedOrder as any).createdDate || s.createdDate || '').toLocaleDateString('en-IN')}</span></div>
+                </div>
+
+                {/* Buyer info */}
+                <div style={{ background: '#f9fafb', borderRadius: 8, padding: 12 }}>
+                  <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>Buyer</span>
+                  <div style={{ marginTop: 4, fontSize: 14 }}>
+                    {buyerName && <div>{buyerName}</div>}
+                    {buyerEmail && <div style={{ color: '#6b7280' }}>{buyerEmail}</div>}
+                    {buyerPhone && <div style={{ color: '#6b7280' }}>{buyerPhone}</div>}
+                  </div>
+                  {selectedOrder.buyerNote && <div style={{ marginTop: 8, fontSize: 13, fontStyle: 'italic', color: '#6b7280' }}>Note: {selectedOrder.buyerNote}</div>}
+                </div>
+
+                {/* Line items */}
+                <div>
+                  <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>Line Items ({items.length})</span>
+                  <div style={{ marginTop: 8 }}>
+                    {items.map((item: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+                        {(item.image?.url || item.mediaItem?.url) && (
+                          <img src={item.image?.url || item.mediaItem?.url} alt={item.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover' }} />
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 500, fontSize: 14 }}>{item.name || item.productName}</div>
+                          {item.sku && <div style={{ fontSize: 11, color: '#6b7280' }}>SKU: {item.sku}</div>}
+                        </div>
+                        <span style={{ fontSize: 13, color: '#6b7280' }}>×{item.quantity}</span>
+                        <span style={{ fontWeight: 500, fontSize: 14 }}>{currency === 'INR' ? '₹' : ''}{item.price || item.totalPrice || '0'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Transactions & Fulfillments */}
+                {selectedOrder._transactions && (
+                  <div>
+                    <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>Transactions</span>
+                    <pre style={{ background: '#f9fafb', padding: 12, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 150 }}>
+                      {JSON.stringify(selectedOrder._transactions, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {selectedOrder._fulfillments && Array.isArray(selectedOrder._fulfillments) && selectedOrder._fulfillments.length > 0 && (
+                  <div>
+                    <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>Fulfillments</span>
+                    <pre style={{ background: '#f9fafb', padding: 12, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 150 }}>
+                      {JSON.stringify(selectedOrder._fulfillments, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </Modal>
+      </div>
     </Layout>
   );
 };
+
+const statBox: React.CSSProperties = { background: '#f9fafb', borderRadius: 8, padding: '10px 12px' };
+const statLabel: React.CSSProperties = { fontSize: 11, color: '#6b7280', display: 'block' };
+const statValue: React.CSSProperties = { fontSize: 15, fontWeight: 600, display: 'block', marginTop: 2 };
+const adminCard: React.CSSProperties = { background: '#f9fafb', borderRadius: 8, padding: '10px 12px' };
+const adminLabel: React.CSSProperties = { fontSize: 11, color: '#6b7280', display: 'block' };
+const adminVal: React.CSSProperties = { fontSize: 14, fontWeight: 600, display: 'block', marginTop: 2 };
+const actionBtn: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#f9fafb', borderRadius: 10, textDecoration: 'none', color: 'inherit', border: '1px solid #e5e7eb', transition: 'background 0.15s' };
 
 export default StorePage;
