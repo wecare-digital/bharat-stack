@@ -12,7 +12,7 @@ export const voiceAws = defineFunction({
     CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
     VOICE_AWS_TABLE: 'base-wecare-digital-VoiceAwsTable',
     // Amazon Pinpoint Voice v2 (us-east-1)
-    VOICE_ORIGINATION_IDENTITY: '', // Phone number registered for voice in Pinpoint
-    VOICE_ID: 'Aditi', // Polly voice (Aditi = Hindi/English)
+    VOICE_ORIGINATION_IDENTITY: '+18444891209', // Toll-Free, Intl enabled
+    VOICE_ID: 'RAVEENA', // Polly voice (RAVEENA = Indian English, must be UPPERCASE)
   },
 });

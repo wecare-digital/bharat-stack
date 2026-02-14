@@ -162,7 +162,7 @@ def _make_call(body: Dict, request_id: str) -> Dict[str, Any]:
     contact_id = body.get('contactId', '')
     phone_number = body.get('phoneNumber') or body.get('phone')
     message = body.get('message') or body.get('messageText', '')
-    voice_id = body.get('voiceId', VOICE_ID)
+    voice_id = (body.get('voiceId') or VOICE_ID).upper()
     campaign_id = body.get('campaignId', '')
     campaign_name = body.get('campaignName', '')
 

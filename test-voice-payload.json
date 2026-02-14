@@ -1,0 +1,11 @@
+{
+  "requestContext": {
+    "http": {
+      "method": "POST"
+    }
+  },
+  "rawPath": "/voice-aws/call",
+  "pathParameters": {},
+  "queryStringParameters": {},
+  "body": "{\"phoneNumber\":\"+919903300440\",\"message\":\"Hello this is a test call from WECARE Digital\",\"voiceId\":\"RAVEENA\"}"
+}

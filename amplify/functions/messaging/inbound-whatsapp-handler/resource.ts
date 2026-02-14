@@ -4,7 +4,7 @@ export const inboundWhatsappHandler = defineFunction({
   name: 'wecare-inbound-whatsapp',
   entry: './handler.py',
   runtime: 20,
-  timeoutSeconds: 60,
+  timeoutSeconds: 120, // Increased for multimodal AI processing
   memoryMB: 512,
   environment: {
     AWS_REGION: 'us-east-1',
