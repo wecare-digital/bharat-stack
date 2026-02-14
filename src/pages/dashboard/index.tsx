@@ -25,7 +25,7 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'webhook' | 'guide';
+type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'botflow' | 'webhook' | 'guide';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
@@ -581,6 +581,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [newWebhook, setNewWebhook] = useState({ name: '', url: '', events: ['message.received', 'message.sent'] });
   const [showWebhookForm, setShowWebhookForm] = useState(false);
 
+  // Bot Flow state
+  const [botFlowConfigs, setBotFlowConfigs] = useState<Record<string, any>>({});
+  const [botFlowLoading, setBotFlowLoading] = useState(false);
+  const [botFlowSaving, setBotFlowSaving] = useState(false);
+  const [botFlowEditKey, setBotFlowEditKey] = useState('');
+  const [botFlowEditValue, setBotFlowEditValue] = useState('');
+
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     
@@ -797,7 +804,41 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   useEffect(() => {
     if (activeTab === 'ai') loadAiConfig();
     if (activeTab === 'webhook') loadWebhooks();
+    if (activeTab === 'botflow') loadBotFlowConfigs();
   }, [activeTab]);
+
+  const loadBotFlowConfigs = async () => {
+    setBotFlowLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/ai/botflow`);
+      if (res.ok) {
+        const data = await res.json();
+        setBotFlowConfigs(data.configs || {});
+      }
+    } catch (error) {
+      console.log('Failed to load bot flow configs');
+    }
+    setBotFlowLoading(false);
+  };
+
+  const handleSaveBotFlowConfig = async (configKey: string, configValue: any) => {
+    setBotFlowSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/ai/botflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configKey, configValue }),
+      });
+      if (res.ok) {
+        setBotFlowConfigs(prev => ({ ...prev, [configKey]: configValue }));
+        setBotFlowEditKey('');
+        setBotFlowEditValue('');
+      }
+    } catch (error) {
+      console.error('Failed to save bot flow config');
+    }
+    setBotFlowSaving(false);
+  };
 
   // Stats
   const todayMessages = messages.filter(m => {
@@ -966,7 +1007,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'botflow', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -980,10 +1021,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'health' && <HealthIcon size={16} />}
               {tab === 'advisor' && <AdvisorIcon size={16} />}
               {tab === 'ai' && <AIIcon size={16} />}
+              {tab === 'botflow' && <WhatsAppIcon size={16} />}
               {tab === 'webhook' && <LinkIcon size={16} />}
               {tab === 'guide' && <DocumentIcon size={16} />}
               {tab === 'search' && <SearchIcon size={16} />}
-              <span>{tab === 'ai' ? 'AI' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              <span>{tab === 'ai' ? 'AI' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -1760,6 +1802,107 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 For WhatsApp auto-reply AI (customer-facing), go to Messages → WhatsApp → AI Config.
               </div>
 
+            </div>
+          )}
+
+          {/* BOT FLOW TAB */}
+          {activeTab === 'botflow' && (
+            <div className="botflow-tab">
+              <div className="section-header">
+                <h3>WhatsApp Bot Flow Config</h3>
+                <Button variant="secondary" onClick={loadBotFlowConfigs} loading={botFlowLoading}>
+                  <RefreshIcon size={14} /> Refresh
+                </Button>
+              </div>
+              <p style={{ color: '#666', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                Manage welcome messages, menus, options, rating, and language picker configs stored in SystemConfigTable.
+              </p>
+
+              {botFlowLoading ? (
+                <SkeletonCard />
+              ) : (
+                <>
+                  {/* Config cards */}
+                  {[
+                    { key: 'welcome_message_config', label: 'Welcome / Main Menu', desc: 'Header, body, footer, button text, sections & rows for the main menu' },
+                    { key: 'bot_options_config', label: 'Options Menu', desc: 'Do more / Done buttons shown after each action' },
+                    { key: 'bot_rating_config', label: 'Rating Menu', desc: 'Feedback buttons shown when user is done' },
+                    { key: 'bot_language_picker_config', label: 'Language Picker', desc: 'Language selection list' },
+                    { key: 'bot_flow_config', label: 'Full Bot Flow', desc: 'Complete bot flow config (welcome, menus, responses, flows, toggles)' },
+                  ].map(item => (
+                    <div key={item.key} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', background: '#fff' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <div>
+                          <strong>{item.label}</strong>
+                          <div style={{ fontSize: '0.8rem', color: '#888' }}>{item.desc}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#aaa', fontFamily: 'monospace' }}>key: {item.key}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              setBotFlowEditKey(item.key);
+                              setBotFlowEditValue(JSON.stringify(botFlowConfigs[item.key] || {}, null, 2));
+                            }}
+                          >
+                            {botFlowConfigs[item.key] ? 'Edit' : 'Create'}
+                          </Button>
+                        </div>
+                      </div>
+                      {botFlowConfigs[item.key] && (
+                        <pre style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '0.375rem', fontSize: '0.75rem', maxHeight: '200px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {JSON.stringify(botFlowConfigs[item.key], null, 2)}
+                        </pre>
+                      )}
+                      {!botFlowConfigs[item.key] && (
+                        <div style={{ padding: '0.5rem', color: '#999', fontSize: '0.85rem' }}>
+                          Not configured — using Lambda defaults
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Edit modal */}
+                  {botFlowEditKey && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                      <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '1.5rem', width: '90%', maxWidth: '700px', maxHeight: '80vh', overflow: 'auto' }}>
+                        <h4 style={{ marginBottom: '0.5rem' }}>Edit: {botFlowEditKey}</h4>
+                        <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1rem' }}>Paste valid JSON. This will be stored in SystemConfigTable.</p>
+                        <textarea
+                          value={botFlowEditValue}
+                          onChange={(e) => setBotFlowEditValue(e.target.value)}
+                          rows={20}
+                          style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical' }}
+                        />
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+                          <Button variant="secondary" onClick={() => { setBotFlowEditKey(''); setBotFlowEditValue(''); }}>
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="primary"
+                            loading={botFlowSaving}
+                            onClick={() => {
+                              try {
+                                const parsed = JSON.parse(botFlowEditValue);
+                                handleSaveBotFlowConfig(botFlowEditKey, parsed);
+                              } catch {
+                                alert('Invalid JSON');
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
+                <strong>How it works:</strong> Configs stored here override Lambda defaults. The inbound handler reads these on each message.
+                Leave empty to use the hardcoded defaults in the Lambda code.
+              </div>
             </div>
           )}
 

@@ -48,6 +48,9 @@ AI_GENERATE_RESPONSE_FUNCTION = os.environ.get('AI_GENERATE_RESPONSE_FUNCTION', 
 # Outbound WhatsApp Lambda function name
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
 
+# WhatsApp Voice Lambda function name (TTS via Amazon Polly)
+WHATSAPP_VOICE_FUNCTION = os.environ.get('WHATSAPP_VOICE_FUNCTION', 'wecare-whatsapp-voice')
+
 # WhatsApp Phone Number IDs - Map Meta phone number IDs to AWS phone number IDs
 # Format: Meta phone number ID -> AWS EUM phone-number-id
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
@@ -463,7 +466,12 @@ def _extract_content(message: Dict, msg_type: str) -> str:
         interactive = message.get('interactive', {})
         interactive_type = interactive.get('type', '')
         if interactive_type == 'button_reply':
-            return interactive.get('button_reply', {}).get('title', '[Button Reply]')
+            btn_reply = interactive.get('button_reply', {})
+            btn_id = btn_reply.get('id', '')
+            # If this is a bot flow reply, return the id for reliable matching
+            if btn_id.startswith(('opt_', 'rate_', 'menu_', 'lang_', 'store_')):
+                return btn_id
+            return btn_reply.get('title', '[Button Reply]')
         elif interactive_type == 'list_reply':
             list_reply = interactive.get('list_reply', {})
             reply_id = list_reply.get('id', '')
@@ -1827,6 +1835,113 @@ def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_u
         }))
 
 
+def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Dict, request_id: str) -> None:
+    """
+    Send WhatsApp interactive reply buttons (max 3 buttons).
+    button_config: {header, body, footer, buttons: [{id, title}]}
+    """
+    if not contact_id or not button_config.get('buttons'):
+        return
+
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'phoneNumberId': phone_number_id,
+                'isInteractive': True,
+                'interactiveType': 'button',
+                'interactiveData': {
+                    'header': button_config.get('header', ''),
+                    'body': button_config.get('body', 'Please select an option'),
+                    'footer': button_config.get('footer', ''),
+                    'buttons': button_config.get('buttons', []),
+                }
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'reply_buttons_sent',
+            'contactId': contact_id,
+            'buttonCount': len(button_config.get('buttons', [])),
+            'statusCode': response.get('StatusCode'),
+            'requestId': request_id
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'reply_buttons_error',
+            'contactId': contact_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+
+
+def _send_audio_response(contact_id: str, phone_number_id: str, text: str, language: str, request_id: str) -> None:
+    """
+    Invoke the whatsapp-voice Lambda to generate TTS audio and send it.
+    Called when user has audioEnabled=True.
+    """
+    if not contact_id or not text or len(text.strip()) < 5:
+        return
+
+    # Map language preference to Polly voice/language code
+    LANG_TO_POLLY = {
+        'english': ('Kajal', 'en-IN'),
+        'hindi': ('Kajal', 'hi-IN'),
+        'bengali': ('Kajal', 'en-IN'),  # Polly doesn't have Bengali, use en-IN
+        'tamil': ('Kajal', 'en-IN'),
+        'telugu': ('Kajal', 'en-IN'),
+        'marathi': ('Kajal', 'hi-IN'),
+        'hinglish': ('Kajal', 'hi-IN'),
+    }
+    voice_id, lang_code = LANG_TO_POLLY.get(language.lower(), ('Kajal', 'en-IN'))
+
+    try:
+        # The voice Lambda expects an HTTP-style event with POST /whatsapp-voice/tts
+        tts_payload = {
+            'requestContext': {'http': {'method': 'POST'}},
+            'rawPath': '/whatsapp-voice/tts',
+            'body': json.dumps({
+                'contactId': contact_id,
+                'messageText': text[:500],  # Polly limit
+                'voiceId': voice_id,
+                'languageCode': lang_code,
+                'engine': 'neural',
+                'phoneNumberId': phone_number_id,
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=WHATSAPP_VOICE_FUNCTION,
+            InvocationType='Event',  # Async — don't block
+            Payload=json.dumps(tts_payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'audio_response_triggered',
+            'contactId': contact_id,
+            'voiceId': voice_id,
+            'langCode': lang_code,
+            'textLength': len(text),
+            'statusCode': response.get('StatusCode'),
+            'requestId': request_id
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'audio_response_error',
+            'contactId': contact_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+
+
 def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, request_id: str) -> None:
     """Send WhatsApp Pay order_details message for in-chat payment."""
     if not contact_id or amount <= 0:
@@ -1836,32 +1951,31 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
         reference_id = f"WDSR{uuid.uuid4().hex[:12].upper()}"
         amount_in_paise = int(amount * 100)
 
+        # Build payload matching outbound handler's isInteractivePayment format
         payload = {
             'body': json.dumps({
                 'contactId': contact_id,
                 'phoneNumberId': phone_number_id,
-                'isPayment': True,
-                'paymentData': {
+                'isInteractivePayment': True,
+                'orderDetails': {
                     'reference_id': reference_id,
                     'type': 'digital-goods',
-                    'payment_settings': [{
-                        'type': 'payment_gateway',
-                    }],
                     'currency': 'INR',
-                    'total_amount': {
-                        'value': amount_in_paise,
-                        'offset': 100,
-                    },
+                    'itemName': 'WECARE.DIGITAL Payment',
+                    'quantity': 1,
+                    'gstRate': 0,
                     'order': {
                         'status': 'pending',
                         'items': [{
+                            'retailer_id': 'ITEM_MAIN',
                             'name': 'WECARE.DIGITAL Payment',
-                            'amount': {
-                                'value': amount_in_paise,
-                                'offset': 100,
-                            },
+                            'amount': {'value': amount_in_paise, 'offset': 100},
                             'quantity': 1,
                         }],
+                        'subtotal': {'value': amount_in_paise, 'offset': 100},
+                        'discount': {'value': 0, 'offset': 100, 'description': 'Promo'},
+                        'shipping': {'value': 0, 'offset': 100, 'description': 'Express'},
+                        'tax': {'value': 0, 'offset': 100, 'description': 'Tax'},
                     },
                 }
             })
@@ -2335,11 +2449,17 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
 
         # Follow-up flow actions
         if flow_action == 'showOptions':
-            options_config = _get_options_config()
-            _send_interactive_list(
+            _send_reply_buttons(
                 contact_id=contact_id,
                 phone_number_id=phone_number_id,
-                list_config=options_config,
+                button_config={
+                    'body': "What\u2019s next?",
+                    'footer': 'wecare.digital',
+                    'buttons': [
+                        {'id': 'opt_do_more', 'title': '\U0001f9ed Do more'},
+                        {'id': 'opt_done', 'title': '\u270c\ufe0f Done here'},
+                    ],
+                },
                 request_id=request_id
             )
         elif flow_action == 'showMainMenu':
@@ -2360,11 +2480,17 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     request_id=request_id
                 )
         elif flow_action == 'showRating':
-            rating_config = _get_rating_config()
-            _send_interactive_list(
+            _send_reply_buttons(
                 contact_id=contact_id,
                 phone_number_id=phone_number_id,
-                list_config=rating_config,
+                button_config={
+                    'body': "How was your experience? \U0001faf6",
+                    'footer': 'wecare.digital',
+                    'buttons': [
+                        {'id': 'rate_good', 'title': '\U0001f64c Great'},
+                        {'id': 'rate_mid', 'title': '\U0001fae4 Could be better'},
+                    ],
+                },
                 request_id=request_id
             )
         elif flow_action == 'sendPayment':
@@ -2379,11 +2505,58 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM
+            try:
+                contacts_table = dynamodb.Table(CONTACTS_TABLE)
+                contacts_table.update_item(
+                    Key={'id': contact_id},
+                    UpdateExpression='SET humanHandoff = :h, handoffAt = :t',
+                    ExpressionAttributeValues={
+                        ':h': True,
+                        ':t': Decimal(str(int(time.time()))),
+                    }
+                )
+            except Exception as hh_err:
+                logger.warning(json.dumps({
+                    'event': 'human_handoff_flag_error',
+                    'contactId': contact_id,
+                    'error': str(hh_err),
+                    'requestId': request_id
+                }))
             logger.info(json.dumps({
                 'event': 'human_handoff_requested',
                 'contactId': contact_id,
                 'requestId': request_id
             }))
+
+        # ── Audio response: if user has audioEnabled, send TTS version ──
+        if ai_response and not ai_response.get('locked') and not ai_response.get('escalate'):
+            suggestion_text = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
+            if suggestion_text and len(suggestion_text) > 10:
+                try:
+                    # Load user preferences to check audioEnabled
+                    from hashlib import sha256
+                    ph = sha256(sender_phone.encode()).hexdigest()[:16] if sender_phone else ''
+                    if ph:
+                        conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable'))
+                        pref_resp = conv_table.get_item(Key={'phoneHash': ph})
+                        pref_item = pref_resp.get('Item', {})
+                        audio_enabled = pref_item.get('audioEnabled', False)
+                        user_lang = pref_item.get('preferredLanguage', 'English')
+                        if audio_enabled:
+                            _send_audio_response(
+                                contact_id=contact_id,
+                                phone_number_id=phone_number_id,
+                                text=suggestion_text,
+                                language=user_lang,
+                                request_id=request_id
+                            )
+                except Exception as audio_err:
+                    logger.warning(json.dumps({
+                        'event': 'audio_check_error',
+                        'contactId': contact_id,
+                        'error': str(audio_err),
+                        'requestId': request_id
+                    }))
         
         return ai_response
     except Exception as e:

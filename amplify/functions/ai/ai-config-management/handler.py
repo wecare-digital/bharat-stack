@@ -145,6 +145,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _get_stats(request_id)
             elif '/ai/languages' in path:
                 return _get_languages(request_id)
+            elif '/ai/botflow' in path:
+                return _get_botflow_config(request_id)
         
         elif http_method == 'PUT':
             # Internal AI config
@@ -159,6 +161,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             elif '/ai/fallbacks' in path:
                 lang = path_params.get('lang') or body.get('language')
                 return _update_fallback(lang, body, request_id)
+            elif '/ai/botflow' in path:
+                return _update_botflow_config(body, request_id)
         
         elif http_method == 'POST':
             if '/ai/test' in path:
@@ -617,3 +621,77 @@ def _update_internal_config(body: Dict, request_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         return _error_response(500, f'Failed to update internal config: {str(e)}')
+
+
+# Bot flow config keys stored in SystemConfigTable (using 'id' as PK for compatibility with inbound handler)
+BOT_FLOW_CONFIG_KEYS = [
+    'welcome_message_config',
+    'bot_options_config',
+    'bot_rating_config',
+    'bot_language_picker_config',
+    'bot_flow_config',
+]
+
+
+def _get_botflow_config(request_id: str) -> Dict[str, Any]:
+    """Get all bot flow configs from SystemConfigTable."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        configs = {}
+
+        for key in BOT_FLOW_CONFIG_KEYS:
+            # Try 'id' key first (inbound handler pattern), then 'configKey'
+            for pk_name in ('id', 'configKey'):
+                try:
+                    response = config_table.get_item(Key={pk_name: key})
+                    if 'Item' in response:
+                        raw = response['Item'].get('configValue', '{}')
+                        configs[key] = json.loads(raw) if isinstance(raw, str) else raw
+                        break
+                except Exception:
+                    continue
+
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'configs': configs})
+        }
+    except Exception as e:
+        logger.error(f'Failed to get bot flow config: {str(e)}')
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'configs': {}})
+        }
+
+
+def _update_botflow_config(body: Dict, request_id: str) -> Dict[str, Any]:
+    """Update bot flow configs in SystemConfigTable."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        config_key = body.get('configKey', '')
+        config_value = body.get('configValue', {})
+
+        if not config_key or config_key not in BOT_FLOW_CONFIG_KEYS:
+            return _error_response(400, f'Invalid configKey. Must be one of: {BOT_FLOW_CONFIG_KEYS}')
+
+        # Store using 'id' as PK (matches inbound handler pattern)
+        config_table.put_item(Item={
+            'id': config_key,
+            'configValue': json.dumps(config_value) if isinstance(config_value, dict) else str(config_value),
+            'updatedAt': Decimal(str(int(time.time())))
+        })
+
+        logger.info(json.dumps({
+            'event': 'botflow_config_updated',
+            'configKey': config_key,
+            'requestId': request_id
+        }))
+
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'success': True, 'configKey': config_key})
+        }
+    except Exception as e:
+        return _error_response(500, f'Failed to update bot flow config: {str(e)}')
