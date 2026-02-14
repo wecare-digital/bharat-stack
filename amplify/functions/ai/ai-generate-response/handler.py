@@ -364,8 +364,13 @@ DEFAULT_BOT_FLOW = {
         },
         'pay': {
             'step_amount': "💳 Enter the amount to pay (e.g. 500):",
+            'step_item_name': "What's this payment for? (or press SKIP for default: Services/Goods)",
             'invalid_amount': "Please enter a valid number between 1 and 100000. 💳",
             'sending': "Processing payment of ₹{amount}... ⏳",
+            'default_item_name': 'Services/Goods',
+            'default_gst_rate': 18,
+            'default_shipping': 49,
+            'gstin': '19AADFW7431N1ZK',
         },
     },
 
@@ -1761,6 +1766,10 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         # ── Pay flow ──
         if flow_name == 'pay':
             pay_prompts = flows.get('pay', {})
+            default_gst = float(pay_prompts.get('default_gst_rate', 18))
+            default_shipping = float(pay_prompts.get('default_shipping', 49))
+            gstin = pay_prompts.get('gstin', '19AADFW7431N1ZK')
+            default_item = pay_prompts.get('default_item_name', 'Services/Goods')
 
             if step == 'awaiting_amount':
                 # Strip currency symbols and whitespace
@@ -1775,13 +1784,51 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestedResponse': msg,
                         'suggestion': msg,
                     }
-                # Save amount and ask for confirmation
                 data['amount'] = amount
-                _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)
-                confirm_msg = f"Send ₹{amount:.0f}? Reply YES to confirm or NO to cancel. 💳"
+                prompt = pay_prompts.get('step_item_name', "What's this payment for? (or type SKIP)")
+                _save_flow_state(phone_hash, 'pay', 'awaiting_item_name', data)
                 return {
-                    'suggestedResponse': confirm_msg,
-                    'suggestion': confirm_msg,
+                    'suggestedResponse': prompt,
+                    'suggestion': prompt,
+                }
+
+            if step == 'awaiting_item_name':
+                if content_lower in ('skip', 'default', '-'):
+                    data['item_name'] = default_item
+                else:
+                    data['item_name'] = message_content.strip()[:60]
+                # Calculate breakdown and show confirmation
+                amount = data.get('amount', 0)
+                item_name = data.get('item_name', default_item)
+                gst_amount = round(amount * default_gst / 100, 2)
+                shipping = default_shipping
+                conv_base = round(amount * 0.02, 2)
+                conv_gst = round(conv_base * 0.18, 2)
+                conv_fee = round(conv_base + conv_gst, 2)
+                total = round(amount + gst_amount + shipping + conv_fee, 2)
+
+                data['gst_rate'] = default_gst
+                data['gst_amount'] = gst_amount
+                data['shipping'] = shipping
+                data['conv_fee'] = conv_fee
+                data['total'] = total
+
+                breakdown = (
+                    f"📋 *Payment Summary*\n\n"
+                    f"Item: {item_name} — ₹{amount:,.2f}\n"
+                    f"Subtotal: ₹{amount:,.2f}\n"
+                    f"GST ({default_gst:.0f}%): ₹{gst_amount:,.2f}\n"
+                    f"Shipping: ₹{shipping:,.2f}\n"
+                    f"Conv. Fee: ₹{conv_fee:,.2f}\n"
+                    f"─────────────\n"
+                    f"*Total: ₹{total:,.2f}*\n"
+                    f"GSTIN: {gstin}\n\n"
+                    f"Reply *YES* to pay or *NO* to cancel."
+                )
+                _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)
+                return {
+                    'suggestedResponse': breakdown,
+                    'suggestion': breakdown,
                 }
 
             if step == 'awaiting_confirmation':
@@ -1794,6 +1841,9 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestion': sending_msg,
                         'flowAction': 'sendPayment',
                         'paymentAmount': amount,
+                        'paymentItemName': data.get('item_name', default_item),
+                        'paymentGstRate': data.get('gst_rate', default_gst),
+                        'paymentShipping': data.get('shipping', default_shipping),
                     }
                 elif content_lower in ('no', 'n', 'nahi', 'nope'):
                     _clear_flow_state(phone_hash)
@@ -1804,8 +1854,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     }
                 else:
                     return {
-                        'suggestedResponse': f"Reply YES to send ₹{data.get('amount', 0):.0f} or NO to cancel.",
-                        'suggestion': f"Reply YES to send ₹{data.get('amount', 0):.0f} or NO to cancel.",
+                        'suggestedResponse': f"Reply YES to pay ₹{data.get('total', 0):,.2f} or NO to cancel.",
+                        'suggestion': f"Reply YES to pay ₹{data.get('total', 0):,.2f} or NO to cancel.",
                     }
 
         # ── Toggle flows (audio/notifications) ──
@@ -1884,9 +1934,21 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestion': prompt,
                 }
 
-            # Start pay flow
+            # Start pay flow — check for pending dues first
             if action == 'start_pay_flow':
+                pending = _check_pending_payments(phone_hash, request_id)
                 flows_config = flow_config.get('flows', {}).get('pay', {})
+                if pending:
+                    due_msg = (
+                        f"⚠️ You have a pending payment:\n"
+                        f"Ref: {pending.get('ref', 'N/A')} — ₹{pending.get('amount', 0):,.2f}\n\n"
+                        f"Would you like to continue with a new payment? Type the amount, or reply CANCEL."
+                    )
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
+                    return {
+                        'suggestedResponse': due_msg,
+                        'suggestion': due_msg,
+                    }
                 prompt = flows_config.get('step_amount', "Enter the amount to pay:")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
                 return {
@@ -2117,6 +2179,33 @@ def _save_rating(phone_hash: str, rating: str, request_id: str) -> None:
             'phoneHash': phone_hash,
             'requestId': request_id
         }))
+
+
+def _check_pending_payments(phone_hash: str, request_id: str) -> Optional[Dict]:
+    """Check if user has any pending payment requests (not yet captured/failed)."""
+    try:
+        # Look in ConversationHistoryTable for last payment ref
+        table = dynamodb.Table(CONVERSATION_TABLE)
+        resp = table.get_item(Key={'phoneHash': phone_hash})
+        item = resp.get('Item', {})
+        last_payment_ref = item.get('lastPaymentRef', '')
+        last_payment_amount = float(item.get('lastPaymentAmount', 0))
+        last_payment_status = item.get('lastPaymentStatus', '')
+        if last_payment_ref and last_payment_status == 'pending':
+            return {
+                'ref': last_payment_ref,
+                'amount': last_payment_amount,
+                'status': 'pending',
+            }
+        return None
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'pending_payment_check_error',
+            'error': str(e),
+            'phoneHash': phone_hash,
+            'requestId': request_id
+        }))
+        return None
 
 
 def _save_language_preference(phone_hash: str, language: str) -> None:

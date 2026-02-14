@@ -1946,14 +1946,18 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
         }))
 
 
-def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, request_id: str) -> None:
-    """Send WhatsApp Pay order_details message for in-chat payment."""
+def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, request_id: str,
+                          item_name: str = 'Services/Goods', gst_rate: float = 18,
+                          shipping: float = 49, sender_phone: str = '') -> None:
+    """Send WhatsApp Pay order_details message with GST breakdown and payment log."""
     if not contact_id or amount <= 0:
         return
 
     try:
         reference_id = f"WDSR{uuid.uuid4().hex[:12].upper()}"
         amount_in_paise = int(amount * 100)
+        gst_paise = int(round(amount * gst_rate / 100, 2) * 100)
+        shipping_paise = int(shipping * 100)
 
         # Build payload matching outbound handler's isInteractivePayment format
         payload = {
@@ -1965,21 +1969,22 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                     'reference_id': reference_id,
                     'type': 'digital-goods',
                     'currency': 'INR',
-                    'itemName': 'WECARE.DIGITAL Payment',
+                    'itemName': item_name,
                     'quantity': 1,
-                    'gstRate': 0,
+                    'gstRate': gst_rate,
+                    'gstin': '19AADFW7431N1ZK',
                     'order': {
                         'status': 'pending',
                         'items': [{
                             'retailer_id': 'ITEM_MAIN',
-                            'name': 'WECARE.DIGITAL Payment',
+                            'name': item_name,
                             'amount': {'value': amount_in_paise, 'offset': 100},
                             'quantity': 1,
                         }],
                         'subtotal': {'value': amount_in_paise, 'offset': 100},
                         'discount': {'value': 0, 'offset': 100, 'description': 'Promo'},
-                        'shipping': {'value': 0, 'offset': 100, 'description': 'Express'},
-                        'tax': {'value': 0, 'offset': 100, 'description': 'Tax'},
+                        'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
+                        'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: 19AADFW7431N1ZK'},
                     },
                 }
             })
@@ -1991,7 +1996,14 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
             Payload=json.dumps(payload)
         )
 
-        # Store payment request for amount lookup on webhook
+        # Calculate totals for logging
+        conv_base_paise = int(round(amount * 0.02, 2) * 100)
+        conv_gst_paise = int(round(conv_base_paise * 0.18 / 100, 2) * 100)
+        conv_total_paise = conv_base_paise + conv_gst_paise
+        # Note: outbound handler calculates conv fee independently — this is for our log only
+        total_paise = amount_in_paise + gst_paise + shipping_paise + conv_total_paise
+
+        # Store payment request with full GST breakdown for accounting
         try:
             messages_table = dynamodb.Table(MESSAGES_TABLE)
             now = int(time.time())
@@ -2002,12 +2014,20 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'channel': 'whatsapp',
                 'direction': 'outbound',
                 'messageType': 'payment_request',
-                'content': f'Payment request: \u20b9{amount:.2f}',
+                'content': f'Payment: ₹{amount:.2f} | {item_name} | GST {gst_rate}%: ₹{gst_paise/100:.2f} | Ship: ₹{shipping:.2f} | Total: ₹{total_paise/100:.2f}',
                 'paymentReferenceId': reference_id,
                 'paymentAmount': Decimal(str(amount_in_paise)),
                 'paymentOffset': Decimal('100'),
                 'paymentCurrency': 'INR',
+                'paymentItemName': item_name,
+                'paymentGstRate': Decimal(str(gst_rate)),
+                'paymentGstAmount': Decimal(str(gst_paise)),
+                'paymentShipping': Decimal(str(shipping_paise)),
+                'paymentConvFee': Decimal(str(conv_total_paise)),
+                'paymentTotal': Decimal(str(total_paise)),
+                'paymentGstin': '19AADFW7431N1ZK',
                 'status': 'pending',
+                'senderPhone': sender_phone,
                 'createdAt': Decimal(str(now)),
                 'expiresAt': Decimal(str(now + 86400 * 30)),
             })
@@ -2019,11 +2039,41 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'requestId': request_id
             }))
 
+        # Save pending payment ref to ConversationHistoryTable for due check
+        if sender_phone:
+            try:
+                from hashlib import sha256
+                clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
+                ph = sha256(clean_phone.encode()).hexdigest()[:32]
+                conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable'))
+                conv_table.update_item(
+                    Key={'phoneHash': ph},
+                    UpdateExpression='SET lastPaymentRef = :ref, lastPaymentAmount = :amt, lastPaymentStatus = :s, lastPaymentAt = :t',
+                    ExpressionAttributeValues={
+                        ':ref': reference_id,
+                        ':amt': Decimal(str(amount)),
+                        ':s': 'pending',
+                        ':t': Decimal(str(int(time.time()))),
+                    }
+                )
+            except Exception as conv_err:
+                logger.warning(json.dumps({
+                    'event': 'payment_conv_update_error',
+                    'error': str(conv_err),
+                    'requestId': request_id
+                }))
+
         logger.info(json.dumps({
             'event': 'payment_request_sent',
             'contactId': contact_id,
             'referenceId': reference_id,
+            'itemName': item_name,
             'amount': amount,
+            'gstRate': gst_rate,
+            'gstAmount': gst_paise / 100,
+            'shipping': shipping,
+            'convFee': conv_total_paise / 100,
+            'total': total_paise / 100,
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
         }))
@@ -2435,14 +2485,18 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 request_id=request_id
             )
         elif flow_action == 'sendPayment':
-            # Send WhatsApp Pay order_details message
+            # Send WhatsApp Pay order_details message with GST breakdown
             payment_amount = ai_response.get('paymentAmount', 0) if ai_response else 0
             if payment_amount > 0:
                 _send_payment_request(
                     contact_id=contact_id,
                     phone_number_id=phone_number_id,
                     amount=payment_amount,
-                    request_id=request_id
+                    request_id=request_id,
+                    item_name=ai_response.get('paymentItemName', 'Services/Goods'),
+                    gst_rate=ai_response.get('paymentGstRate', 18),
+                    shipping=ai_response.get('paymentShipping', 49),
+                    sender_phone=sender_phone,
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM
