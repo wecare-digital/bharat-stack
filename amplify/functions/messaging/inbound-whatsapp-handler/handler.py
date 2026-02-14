@@ -1948,7 +1948,8 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
 
 def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, request_id: str,
                           item_name: str = 'Services/Goods', gst_rate: float = 18,
-                          shipping: float = 49, sender_phone: str = '') -> None:
+                          shipping: float = 49, sender_phone: str = '',
+                          quantity: int = 1, discount: float = 0) -> None:
     """Send WhatsApp Pay order_details message with GST breakdown and payment log."""
     if not contact_id or amount <= 0:
         return
@@ -1956,7 +1957,10 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
     try:
         reference_id = f"WDSR{uuid.uuid4().hex[:12].upper()}"
         amount_in_paise = int(amount * 100)
-        gst_paise = int(round(amount * gst_rate / 100, 2) * 100)
+        qty = max(1, int(quantity))
+        subtotal_paise = amount_in_paise * qty
+        discount_paise = int(discount * 100)
+        gst_paise = int(round(subtotal_paise * gst_rate / 100 / 100, 2) * 100)
         shipping_paise = int(shipping * 100)
 
         # Build payload matching outbound handler's isInteractivePayment format
@@ -1970,7 +1974,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                     'type': 'digital-goods',
                     'currency': 'INR',
                     'itemName': item_name,
-                    'quantity': 1,
+                    'quantity': qty,
                     'gstRate': gst_rate,
                     'gstin': '19AADFW7431N1ZK',
                     'order': {
@@ -1979,10 +1983,10 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                             'retailer_id': 'ITEM_MAIN',
                             'name': item_name,
                             'amount': {'value': amount_in_paise, 'offset': 100},
-                            'quantity': 1,
+                            'quantity': qty,
                         }],
-                        'subtotal': {'value': amount_in_paise, 'offset': 100},
-                        'discount': {'value': 0, 'offset': 100, 'description': 'Promo'},
+                        'subtotal': {'value': subtotal_paise, 'offset': 100},
+                        'discount': {'value': discount_paise, 'offset': 100, 'description': 'Promo'},
                         'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
                         'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: 19AADFW7431N1ZK'},
                     },
@@ -1997,11 +2001,10 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
         )
 
         # Calculate totals for logging
-        conv_base_paise = int(round(amount * 0.02, 2) * 100)
+        conv_base_paise = int(round(subtotal_paise * 0.02 / 100, 2) * 100)
         conv_gst_paise = int(round(conv_base_paise * 0.18 / 100, 2) * 100)
         conv_total_paise = conv_base_paise + conv_gst_paise
-        # Note: outbound handler calculates conv fee independently — this is for our log only
-        total_paise = amount_in_paise + gst_paise + shipping_paise + conv_total_paise
+        total_paise = subtotal_paise - discount_paise + gst_paise + shipping_paise + conv_total_paise
 
         # Store payment request with full GST breakdown for accounting
         try:
@@ -2014,18 +2017,22 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'channel': 'whatsapp',
                 'direction': 'outbound',
                 'messageType': 'payment_request',
-                'content': f'Payment: ₹{amount:.2f} | {item_name} | GST {gst_rate}%: ₹{gst_paise/100:.2f} | Ship: ₹{shipping:.2f} | Total: ₹{total_paise/100:.2f}',
+                'content': f'Payment: ₹{subtotal_paise/100:.2f} | {item_name} x{qty} | GST {gst_rate}%: ₹{gst_paise/100:.2f} | Promo: -₹{discount:.2f} | Ship: ₹{shipping:.2f} | Total: ₹{total_paise/100:.2f}',
                 'paymentReferenceId': reference_id,
                 'paymentAmount': Decimal(str(amount_in_paise)),
                 'paymentOffset': Decimal('100'),
                 'paymentCurrency': 'INR',
                 'paymentItemName': item_name,
+                'paymentQuantity': qty,
+                'paymentSubtotal': Decimal(str(subtotal_paise)),
+                'paymentDiscount': Decimal(str(discount_paise)),
                 'paymentGstRate': Decimal(str(gst_rate)),
                 'paymentGstAmount': Decimal(str(gst_paise)),
                 'paymentShipping': Decimal(str(shipping_paise)),
                 'paymentConvFee': Decimal(str(conv_total_paise)),
                 'paymentTotal': Decimal(str(total_paise)),
                 'paymentGstin': '19AADFW7431N1ZK',
+                'paymentSource': 'whatsapp_bot',
                 'status': 'pending',
                 'senderPhone': sender_phone,
                 'createdAt': Decimal(str(now)),
@@ -2051,7 +2058,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                     UpdateExpression='SET lastPaymentRef = :ref, lastPaymentAmount = :amt, lastPaymentStatus = :s, lastPaymentAt = :t',
                     ExpressionAttributeValues={
                         ':ref': reference_id,
-                        ':amt': Decimal(str(amount)),
+                        ':amt': Decimal(str(subtotal_paise / 100)),
                         ':s': 'pending',
                         ':t': Decimal(str(int(time.time()))),
                     }
@@ -2068,12 +2075,16 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
             'contactId': contact_id,
             'referenceId': reference_id,
             'itemName': item_name,
-            'amount': amount,
+            'unitPrice': amount,
+            'quantity': qty,
+            'subtotal': subtotal_paise / 100,
+            'discount': discount,
             'gstRate': gst_rate,
             'gstAmount': gst_paise / 100,
             'shipping': shipping,
             'convFee': conv_total_paise / 100,
             'total': total_paise / 100,
+            'source': 'whatsapp_bot',
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
         }))
@@ -2497,6 +2508,8 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     gst_rate=ai_response.get('paymentGstRate', 18),
                     shipping=ai_response.get('paymentShipping', 49),
                     sender_phone=sender_phone,
+                    quantity=ai_response.get('paymentQuantity', 1),
+                    discount=ai_response.get('paymentDiscount', 0),
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM

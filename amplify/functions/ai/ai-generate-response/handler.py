@@ -363,9 +363,13 @@ DEFAULT_BOT_FLOW = {
             'invalid_phone': "That doesn\u2019t look right. Enter phone with country code (e.g. +91 98765 43210) 📱",
         },
         'pay': {
-            'step_amount': "💳 Enter the amount to pay (e.g. 500):",
-            'step_item_name': "What's this payment for? (or press SKIP for default: Services/Goods)",
+            'step_amount': "💳 Enter the unit price per item (e.g. 500):",
+            'step_quantity': "How many? Enter quantity (or type 1):",
+            'step_item_name': "What's this payment for? (or type SKIP for default: Services/Goods)",
+            'step_discount': "Any discount? Enter amount in ₹ (or type 0 for none):",
             'invalid_amount': "Please enter a valid number between 1 and 100000. 💳",
+            'invalid_quantity': "Please enter a valid quantity between 1 and 999.",
+            'invalid_discount': "Please enter a valid discount amount (0 or more).",
             'sending': "Processing payment of ₹{amount}... ⏳",
             'default_item_name': 'Services/Goods',
             'default_gst_rate': 18,
@@ -751,7 +755,8 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 })
             }
 
-        # ── Check if this is a brand-new session (no history) → send welcome + menu ──
+        # ── Check if this is a brand-new session (no history) → send welcome text only ──
+        # Menu is NOT auto-sent. User types "menu" to see it.
         is_new_session = not history.get('messages') and not history.get('preferredLanguage')
         is_returning = not history.get('messages') and history.get('preferredLanguage')
         if is_new_session or is_returning:
@@ -763,28 +768,12 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 'phoneHash': phone_hash,
                 'requestId': request_id
             }))
-            if is_returning:
-                # Returning users: welcome back text + options buttons (lighter)
-                return {
-                    'statusCode': 200, 'headers': headers,
-                    'body': json.dumps({
-                        'suggestedResponse': welcome_text,
-                        'suggestion': welcome_text,
-                        'flowAction': 'showOptions',
-                        'originalMessage': message_content,
-                        'messageId': message_id,
-                        'contactId': contact_id,
-                    })
-                }
+            # Just send welcome text — no auto menu
             return {
                 'statusCode': 200, 'headers': headers,
                 'body': json.dumps({
                     'suggestedResponse': welcome_text,
                     'suggestion': welcome_text,
-                    'sendWelcomeMenu': True,
-                    'flowConfig': {
-                        'mainMenu': flow_config.get('mainMenu', {}),
-                    },
                     'originalMessage': message_content,
                     'messageId': message_id,
                     'contactId': contact_id,
@@ -1785,6 +1774,26 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestion': msg,
                     }
                 data['amount'] = amount
+                prompt = pay_prompts.get('step_quantity', "How many? Enter quantity (or type 1):")
+                _save_flow_state(phone_hash, 'pay', 'awaiting_quantity', data)
+                return {
+                    'suggestedResponse': prompt,
+                    'suggestion': prompt,
+                }
+
+            if step == 'awaiting_quantity':
+                qty_str = re.sub(r'[^\d]', '', message_content.strip())
+                try:
+                    qty = int(qty_str) if qty_str else 1
+                    if qty < 1 or qty > 999:
+                        raise ValueError("out of range")
+                except (ValueError, TypeError):
+                    msg = pay_prompts.get('invalid_quantity', "Enter a valid quantity between 1 and 999.")
+                    return {
+                        'suggestedResponse': msg,
+                        'suggestion': msg,
+                    }
+                data['quantity'] = qty
                 prompt = pay_prompts.get('step_item_name', "What's this payment for? (or type SKIP)")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_item_name', data)
                 return {
@@ -1797,16 +1806,40 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['item_name'] = default_item
                 else:
                     data['item_name'] = message_content.strip()[:60]
-                # Calculate breakdown and show confirmation
-                amount = data.get('amount', 0)
+                prompt = pay_prompts.get('step_discount', "Any discount? Enter amount in ₹ (or type 0 for none):")
+                _save_flow_state(phone_hash, 'pay', 'awaiting_discount', data)
+                return {
+                    'suggestedResponse': prompt,
+                    'suggestion': prompt,
+                }
+
+            if step == 'awaiting_discount':
+                disc_str = re.sub(r'[^\d.]', '', message_content.strip())
+                try:
+                    discount = float(disc_str) if disc_str else 0
+                    if discount < 0:
+                        raise ValueError("negative")
+                except (ValueError, TypeError):
+                    msg = pay_prompts.get('invalid_discount', "Enter a valid discount amount (0 or more).")
+                    return {
+                        'suggestedResponse': msg,
+                        'suggestion': msg,
+                    }
+                data['discount'] = discount
+
+                # Calculate full breakdown
+                unit_price = data.get('amount', 0)
+                qty = data.get('quantity', 1)
                 item_name = data.get('item_name', default_item)
-                gst_amount = round(amount * default_gst / 100, 2)
+                subtotal = unit_price * qty
+                gst_amount = round(subtotal * default_gst / 100, 2)
                 shipping = default_shipping
-                conv_base = round(amount * 0.02, 2)
+                conv_base = round(subtotal * 0.02, 2)
                 conv_gst = round(conv_base * 0.18, 2)
                 conv_fee = round(conv_base + conv_gst, 2)
-                total = round(amount + gst_amount + shipping + conv_fee, 2)
+                total = round(subtotal - discount + gst_amount + shipping + conv_fee, 2)
 
+                data['subtotal'] = subtotal
                 data['gst_rate'] = default_gst
                 data['gst_amount'] = gst_amount
                 data['shipping'] = shipping
@@ -1815,8 +1848,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
                 breakdown = (
                     f"📋 *Payment Summary*\n\n"
-                    f"Item: {item_name} — ₹{amount:,.2f}\n"
-                    f"Subtotal: ₹{amount:,.2f}\n"
+                    f"Item: {item_name}\n"
+                    f"Unit Price: ₹{unit_price:,.2f} × {qty}\n"
+                    f"Subtotal: ₹{subtotal:,.2f}\n"
+                )
+                if discount > 0:
+                    breakdown += f"Promo: -₹{discount:,.2f}\n"
+                breakdown += (
                     f"GST ({default_gst:.0f}%): ₹{gst_amount:,.2f}\n"
                     f"Shipping: ₹{shipping:,.2f}\n"
                     f"Conv. Fee: ₹{conv_fee:,.2f}\n"
@@ -1833,17 +1871,19 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
             if step == 'awaiting_confirmation':
                 if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
-                    amount = data.get('amount', 0)
+                    amount = data.get('subtotal', data.get('amount', 0))
                     _clear_flow_state(phone_hash)
                     sending_msg = pay_prompts.get('sending', "Processing payment...").format(amount=f"{amount:.0f}")
                     return {
                         'suggestedResponse': sending_msg,
                         'suggestion': sending_msg,
                         'flowAction': 'sendPayment',
-                        'paymentAmount': amount,
+                        'paymentAmount': data.get('amount', 0),
+                        'paymentQuantity': data.get('quantity', 1),
                         'paymentItemName': data.get('item_name', default_item),
                         'paymentGstRate': data.get('gst_rate', default_gst),
                         'paymentShipping': data.get('shipping', default_shipping),
+                        'paymentDiscount': data.get('discount', 0),
                     }
                 elif content_lower in ('no', 'n', 'nahi', 'nope'):
                     _clear_flow_state(phone_hash)
@@ -1889,6 +1929,14 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestedResponse': msg,
                     'suggestion': msg,
                 }
+
+    # ── "menu" keyword trigger — show main menu on demand ──
+    if content_lower in ('menu', 'main menu', 'show menu', 'hi', 'hello'):
+        return {
+            'suggestedResponse': '',
+            'suggestion': '',
+            'flowAction': 'showMainMenu',
+        }
 
     # ── Main menu / store item selected ──
     if content_lower.startswith('menu_') or content_lower.startswith('store_'):

@@ -848,9 +848,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   });
   const inboundCount = messages.filter(m => m.direction === 'INBOUND').length;
   const outboundCount = messages.filter(m => m.direction === 'OUTBOUND').length;
-  const paymentMessages = messages.filter(m => m.messageType === 'payment');
+  const paymentMessages = messages.filter(m => m.messageType === 'payment' || m.messageType === 'payment_request');
   const capturedPayments = paymentMessages.filter(m => (m as any).paymentStatus === 'captured').length;
   const failedPayments = paymentMessages.filter(m => (m as any).paymentStatus === 'failed').length;
+  const pendingPayments = paymentMessages.filter(m => m.status === 'pending').length;
 
   // Filter messages
   const filteredMessages = searchQuery.trim()
@@ -1190,6 +1191,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div className="stat-value">{failedPayments}</div>
                   <div className="stat-label">Failed</div>
                 </div>
+                <div className="stat-card warning">
+                  <div className="stat-value">{pendingPayments}</div>
+                  <div className="stat-label">Pending</div>
+                </div>
                 <div className="stat-card">
                   <div className="stat-value">{paymentMessages.length}</div>
                   <div className="stat-label">Total</div>
@@ -1200,31 +1205,56 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <span>Payments sent from: <strong>{PAYMENT_PHONE}</strong> ({PAYMENT_NAME})</span>
               </div>
 
+              <div style={{ overflowX: 'auto' }}>
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Reference</th>
                     <th>Phone</th>
-                    <th>Amount</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Subtotal</th>
+                    <th>GST</th>
+                    <th>Promo</th>
+                    <th>Ship</th>
+                    <th>Total</th>
+                    <th>Source</th>
                     <th>Status</th>
                     <th>Time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paymentMessages.map(p => (
-                    <tr key={p.id} className={(p as any).paymentStatus}>
-                      <td>{(p as any).paymentReferenceId || '-'}</td>
+                  {paymentMessages.map(p => {
+                    const pa = p as any;
+                    const subtotal = pa.paymentSubtotal ? (pa.paymentSubtotal / 100).toFixed(2) : '-';
+                    const gstAmt = pa.paymentGstAmount ? `₹${(pa.paymentGstAmount / 100).toFixed(2)} (${pa.paymentGstRate || 18}%)` : '-';
+                    const disc = pa.paymentDiscount ? `₹${(pa.paymentDiscount / 100).toFixed(2)}` : '₹0';
+                    const ship = pa.paymentShipping ? `₹${(pa.paymentShipping / 100).toFixed(2)}` : '-';
+                    const total = pa.paymentTotal ? `₹${(pa.paymentTotal / 100).toFixed(2)}` : p.content;
+                    const source = pa.paymentSource || (pa.messageType === 'payment' ? 'webhook' : 'dashboard');
+                    return (
+                    <tr key={p.id} className={pa.paymentStatus || p.status}>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{pa.paymentReferenceId || '-'}</td>
                       <td>{p.senderPhone || '-'}</td>
-                      <td>{p.content}</td>
-                      <td><span className={`badge ${(p as any).paymentStatus}`}>{(p as any).paymentStatus || p.status}</span></td>
-                      <td>{new Date(p.timestamp).toLocaleString()}</td>
+                      <td>{pa.paymentItemName || '-'}</td>
+                      <td>{pa.paymentQuantity || 1}</td>
+                      <td>₹{subtotal}</td>
+                      <td>{gstAmt}</td>
+                      <td>{disc}</td>
+                      <td>{ship}</td>
+                      <td style={{ fontWeight: 600 }}>{total}</td>
+                      <td><span className={`badge ${source === 'whatsapp_bot' ? 'info' : ''}`}>{source === 'whatsapp_bot' ? 'WA Bot' : source}</span></td>
+                      <td><span className={`badge ${pa.paymentStatus || p.status}`}>{pa.paymentStatus || p.status}</span></td>
+                      <td style={{ fontSize: '0.75rem' }}>{new Date(p.timestamp).toLocaleString()}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {paymentMessages.length === 0 && (
-                    <tr><td colSpan={5} className="empty">No payment records</td></tr>
+                    <tr><td colSpan={12} className="empty">No payment records</td></tr>
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
