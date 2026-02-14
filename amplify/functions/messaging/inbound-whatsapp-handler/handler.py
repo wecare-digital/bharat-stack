@@ -2328,8 +2328,9 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                 'contactId': contact_id,
                 'phoneNumberId': phone_number_id,
                 'content': f'Here is your invoice {inv_ref}',
-                'mediaFile': s3_key,
+                'mediaFile': f's3://{MEDIA_BUCKET}/{s3_key}',
                 'mediaType': 'image',
+                'mediaFileName': f'{inv_ref}.png',
             })
         }
         lambda_client.invoke(
