@@ -1786,9 +1786,21 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     }
                 elif content_lower in ('2', 'new', 'new payment', 'advance'):
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
+                    purpose_msg = (
+                        "🏷️ What's this payment for?\n\n"
+                        "  *1* — Advance Payment\n"
+                        "  *2* — Service Fee\n"
+                        "  *3* — Subscription\n"
+                        "  *4* — Consultation\n"
+                        "  *5* — Travel Booking\n"
+                        "  *6* — Legal / Docs\n"
+                        "  *7* — Event / Expo\n"
+                        "  *8* — Gift Card\n"
+                        "  *9* — Other (type your own)"
+                    )
                     return {
-                        'suggestedResponse': "What's this payment for?\n  *1* — Advance payment\n  *2* — Service payment\n  *3* — Other (type the purpose)",
-                        'suggestion': "What's this payment for?\n  *1* — Advance payment\n  *2* — Service payment\n  *3* — Other (type the purpose)",
+                        'suggestedResponse': purpose_msg,
+                        'suggestion': purpose_msg,
                     }
                 else:
                     return {
@@ -1798,14 +1810,23 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
             # ── Purpose step for new payments ──
             if step == 'awaiting_purpose':
-                purpose_map = {'1': 'Advance Payment', '2': 'Service Payment'}
-                purpose = purpose_map.get(content_lower, message_content.strip()[:60])
+                purpose_map = {
+                    '1': 'Advance Payment', '2': 'Service Fee', '3': 'Subscription',
+                    '4': 'Consultation', '5': 'Travel Booking', '6': 'Legal / Docs',
+                    '7': 'Event / Expo', '8': 'Gift Card', '9': 'Other',
+                }
+                if content_lower in purpose_map:
+                    purpose = purpose_map[content_lower]
+                else:
+                    # Auto-clean: title case, strip extra spaces, cap at 40 chars
+                    raw = re.sub(r'\s+', ' ', message_content.strip())
+                    purpose = raw.title()[:40]
                 data['payment_purpose'] = purpose
                 prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
                 return {
-                    'suggestedResponse': f"Purpose: {purpose}\n\n{prompt}",
-                    'suggestion': f"Purpose: {purpose}\n\n{prompt}",
+                    'suggestedResponse': f"✅ Purpose: {purpose}\n\n{prompt}",
+                    'suggestion': f"✅ Purpose: {purpose}\n\n{prompt}",
                 }
 
             if step == 'awaiting_amount':

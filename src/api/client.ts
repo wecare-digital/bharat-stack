@@ -278,6 +278,14 @@ export async function deleteMessage(messageId: string, direction: 'INBOUND' | 'O
   return data !== null && (data.success === true || data.messageId === messageId || !data.error);
 }
 
+export async function updateMessage(messageId: string, updates: Record<string, any>): Promise<boolean> {
+  const data = await apiCall<any>(`${API_BASE}/messages/${messageId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return data !== null && data.success === true;
+}
+
 function normalizeMessage(item: any): Message {
   const timestamp = item.timestamp || item.createdAt;
   return {

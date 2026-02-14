@@ -565,6 +565,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   
+  // Payment edit state
+  const [editPayment, setEditPayment] = useState<any>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
   // Billing expanded rows
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
 
@@ -645,6 +649,42 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleSavePayment = async () => {
+    if (!editPayment) return;
+    setEditSaving(true);
+    try {
+      const ok = await api.updateMessage(editPayment.id, {
+        paymentItemName: editPayment.paymentItemName,
+        paymentQuantity: Number(editPayment.paymentQuantity) || 1,
+        paymentGstRate: Number(editPayment.paymentGstRate) || 18,
+        paymentPurpose: editPayment.paymentPurpose,
+        paymentDueRef: editPayment.paymentDueRef,
+        paymentDiscount: Number(editPayment.paymentDiscount) || 0,
+        paymentShipping: Number(editPayment.paymentShipping) || 0,
+        status: editPayment.status,
+      });
+      if (ok) {
+        setEditPayment(null);
+        await loadData(true);
+      } else {
+        alert('Update failed — check console');
+      }
+    } catch (err) {
+      console.error('Save payment error:', err);
+      alert('Error saving');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const downloadInvoicePdf = (invoiceUrl: string, refId: string) => {
+    const link = document.createElement('a');
+    link.href = invoiceUrl;
+    link.download = `invoice-${refId}.png`;
+    link.target = '_blank';
+    link.click();
   };
 
   const handleHardDelete = async () => {
@@ -1222,6 +1262,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <th>Status</th>
                     <th>Invoice</th>
                     <th>Time</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1233,6 +1274,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     const ship = pa.paymentShipping ? `₹${(pa.paymentShipping / 100).toFixed(2)}` : '-';
                     const total = pa.paymentTotal ? `₹${(pa.paymentTotal / 100).toFixed(2)}` : p.content;
                     const source = pa.paymentSource || (pa.messageType === 'payment' ? 'webhook' : 'dashboard');
+                    const invoiceUrl = pa.invoiceS3Key
+                      ? `https://app.wecare.digital/${pa.invoiceS3Key}`
+                      : pa.paymentReferenceId ? `https://app.wecare.digital/invoices/${pa.paymentReferenceId}.png` : '';
                     return (
                     <tr key={p.id} className={pa.paymentStatus || p.status}>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{pa.paymentReferenceId || '-'}</td>
@@ -1247,22 +1291,71 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                       <td><span className={`badge ${source === 'whatsapp_bot' ? 'info' : ''}`}>{source === 'whatsapp_bot' ? 'WA Bot' : source}</span></td>
                       <td><span className={`badge ${pa.paymentStatus || p.status}`}>{pa.paymentStatus || p.status}</span></td>
                       <td>
-                        {pa.invoiceS3Key ? (
-                          <a href={`https://app.wecare.digital/${pa.invoiceS3Key}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#10B981', textDecoration: 'none' }}>📄 View</a>
-                        ) : pa.messageType === 'payment_request' ? (
-                          <button onClick={() => window.open(`https://app.wecare.digital/invoices/${pa.paymentReferenceId}.png`, '_blank')} style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer' }}>🔍</button>
+                        {invoiceUrl ? (
+                          <span style={{ display: 'flex', gap: 4 }}>
+                            <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#10B981', textDecoration: 'none' }}>📄</a>
+                            <button onClick={() => downloadInvoicePdf(invoiceUrl, pa.paymentReferenceId || p.id)} style={{ fontSize: '0.65rem', padding: '1px 4px', borderRadius: 4, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer' }} title="Download">⬇</button>
+                          </span>
                         ) : '-'}
                       </td>
                       <td style={{ fontSize: '0.75rem' }}>{new Date(p.timestamp).toLocaleString()}</td>
+                      <td>
+                        <button onClick={() => setEditPayment({ ...pa, id: p.id })} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 6, border: '1px solid #6366f1', background: '#eef2ff', color: '#4f46e5', cursor: 'pointer' }}>✏️ Edit</button>
+                      </td>
                     </tr>
                     );
                   })}
                   {paymentMessages.length === 0 && (
-                    <tr><td colSpan={13} className="empty">No payment records</td></tr>
+                    <tr><td colSpan={14} className="empty">No payment records</td></tr>
                   )}
                 </tbody>
               </table>
               </div>
+
+              {/* Edit Payment Modal */}
+              {editPayment && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditPayment(null)}>
+                  <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+                    <h3 style={{ margin: '0 0 16px', fontSize: '1rem' }}>Edit Payment — {editPayment.paymentReferenceId || editPayment.id}</h3>
+                    {[
+                      { label: 'Item Name', key: 'paymentItemName', type: 'text' },
+                      { label: 'Quantity', key: 'paymentQuantity', type: 'number' },
+                      { label: 'GST Rate (%)', key: 'paymentGstRate', type: 'number' },
+                      { label: 'Purpose', key: 'paymentPurpose', type: 'text' },
+                      { label: 'Due Reference', key: 'paymentDueRef', type: 'text' },
+                      { label: 'Discount (paise)', key: 'paymentDiscount', type: 'number' },
+                      { label: 'Shipping (paise)', key: 'paymentShipping', type: 'number' },
+                    ].map(f => (
+                      <div key={f.key} style={{ marginBottom: 10 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: 2 }}>{f.label}</label>
+                        <input
+                          type={f.type}
+                          value={editPayment[f.key] ?? ''}
+                          onChange={e => setEditPayment((prev: any) => ({ ...prev, [f.key]: f.type === 'number' ? e.target.value : e.target.value }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                    ))}
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: 2 }}>Status</label>
+                      <select
+                        value={editPayment.status || editPayment.paymentStatus || 'pending'}
+                        onChange={e => setEditPayment((prev: any) => ({ ...prev, status: e.target.value }))}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="captured">Captured</option>
+                        <option value="failed">Failed</option>
+                        <option value="refunded">Refunded</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+                      <button onClick={() => setEditPayment(null)} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Cancel</button>
+                      <button onClick={handleSavePayment} disabled={editSaving} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', opacity: editSaving ? 0.6 : 1 }}>{editSaving ? 'Saving...' : 'Save'}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

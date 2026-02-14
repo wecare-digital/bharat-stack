@@ -32,12 +32,17 @@ def handler(event, context):
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'DELETE,OPTIONS'
+        'Access-Control-Allow-Methods': 'DELETE,PUT,PATCH,OPTIONS'
     }
     
     # Handle OPTIONS preflight
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': headers, 'body': ''}
+
+    # ── PATCH/PUT: Update payment/invoice fields ──
+    http_method = event.get('httpMethod', 'DELETE').upper()
+    if http_method in ('PUT', 'PATCH'):
+        return _handle_update(event, headers)
     
     try:
         # Get message ID from path
@@ -195,3 +200,50 @@ def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
     except Exception as e:
         print(f"Error finding/deleting S3 file: {e}")
         raise
+
+
+def _handle_update(event, headers):
+    """Update editable fields on a payment/invoice record."""
+    try:
+        path_params = event.get('pathParameters', {}) or {}
+        message_id = path_params.get('messageId')
+        if not message_id:
+            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'messageId required'})}
+
+        body = json.loads(event.get('body', '{}'))
+        # Allowed editable fields
+        ALLOWED = {
+            'paymentItemName', 'paymentQuantity', 'paymentGstRate',
+            'paymentPurpose', 'paymentDueRef', 'status',
+            'paymentDiscount', 'paymentShipping',
+        }
+        updates = {k: v for k, v in body.items() if k in ALLOWED}
+        if not updates:
+            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'No valid fields to update'})}
+
+        table = dynamodb.Table(INBOUND_TABLE)
+        expr_parts = []
+        attr_names = {}
+        attr_values = {}
+        for i, (k, v) in enumerate(updates.items()):
+            alias = f'#f{i}'
+            val_alias = f':v{i}'
+            expr_parts.append(f'{alias} = {val_alias}')
+            attr_names[alias] = k
+            attr_values[val_alias] = v
+
+        table.update_item(
+            Key={'id': message_id},
+            UpdateExpression='SET ' + ', '.join(expr_parts),
+            ExpressionAttributeNames=attr_names,
+            ExpressionAttributeValues=attr_values,
+        )
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({'success': True, 'messageId': message_id, 'updated': list(updates.keys())})
+        }
+    except Exception as e:
+        print(f"Update error: {e}")
+        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
