@@ -1891,14 +1891,18 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
         return
 
     # Map language preference to Polly voice/language code
+    # Fix #6: Bengali/Tamil/Telugu don't have native Polly voices — use Hindi Kajal as fallback
     LANG_TO_POLLY = {
         'english': ('Kajal', 'en-IN'),
         'hindi': ('Kajal', 'hi-IN'),
-        'bengali': ('Kajal', 'en-IN'),  # Polly doesn't have Bengali, use en-IN
-        'tamil': ('Kajal', 'en-IN'),
-        'telugu': ('Kajal', 'en-IN'),
+        'bengali': ('Kajal', 'hi-IN'),     # No Bengali Polly voice, Hindi Kajal fallback
+        'tamil': ('Kajal', 'en-IN'),       # No Tamil Polly voice
+        'telugu': ('Kajal', 'en-IN'),      # No Telugu Polly voice
         'marathi': ('Kajal', 'hi-IN'),
         'hinglish': ('Kajal', 'hi-IN'),
+        'gujarati': ('Kajal', 'hi-IN'),    # No Gujarati Polly voice, Hindi fallback
+        'kannada': ('Kajal', 'en-IN'),     # No Kannada Polly voice
+        'malayalam': ('Kajal', 'en-IN'),   # No Malayalam Polly voice
     }
     voice_id, lang_code = LANG_TO_POLLY.get(language.lower(), ('Kajal', 'en-IN'))
 
@@ -2067,38 +2071,6 @@ DEFAULT_MAIN_MENU = {
     ]
 }
 
-DEFAULT_OPTIONS = {
-    'header': "What\u2019s next?",
-    'body': "Pick an option below \U0001f447",
-    'footer': 'wecare.digital',
-    'buttonText': 'Next',
-    'sections': [
-        {
-            'title': 'Choose',
-            'rows': [
-                {'id': 'opt_do_more', 'title': '\U0001f9ed Do more', 'description': 'Back to the main menu'},
-                {'id': 'opt_done', 'title': '\u270c\ufe0f Done here', 'description': 'All finished for now'},
-            ]
-        }
-    ]
-}
-
-DEFAULT_RATING = {
-    'header': 'Quick feedback',
-    'body': "How was your experience? \U0001faf6",
-    'footer': 'wecare.digital',
-    'buttonText': 'Rate',
-    'sections': [
-        {
-            'title': 'How was it?',
-            'rows': [
-                {'id': 'rate_good', 'title': 'Vibes immaculate \U0001f64c', 'description': 'Great experience'},
-                {'id': 'rate_mid', 'title': 'Kinda mid \U0001fae4', 'description': 'Could be better'},
-            ]
-        }
-    ]
-}
-
 DEFAULT_LANGUAGE_PICKER = {
     'header': '🌐 Choose Language',
     'body': 'Please choose your preferred language.\n\nकृपया अपनी पसंदीदा भाषा चुनें।',
@@ -2135,38 +2107,6 @@ def _get_welcome_config() -> Dict:
         return DEFAULT_MAIN_MENU.copy()
     except Exception:
         return DEFAULT_MAIN_MENU.copy()
-
-
-def _get_options_config() -> Dict:
-    """Load options config from SystemConfigTable (id: 'bot_options_config')."""
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'bot_options_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            merged = DEFAULT_OPTIONS.copy()
-            merged.update(config)
-            return merged
-        return DEFAULT_OPTIONS.copy()
-    except Exception:
-        return DEFAULT_OPTIONS.copy()
-
-
-def _get_rating_config() -> Dict:
-    """Load rating config from SystemConfigTable (id: 'bot_rating_config')."""
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'bot_rating_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            merged = DEFAULT_RATING.copy()
-            merged.update(config)
-            return merged
-        return DEFAULT_RATING.copy()
-    except Exception:
-        return DEFAULT_RATING.copy()
 
 
 def _get_language_picker_config() -> Dict:
@@ -2371,8 +2311,8 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             )
             return ai_response
         
-        # Check if AI flagged for human escalation
-        if ai_response and ai_response.get('escalate'):
+        # Check if AI flagged for human escalation (from intent classification, NOT from menu handoff)
+        if ai_response and ai_response.get('escalate') and not ai_response.get('humanHandoff'):
             logger.info(json.dumps({
                 'event': 'ai_escalation_triggered',
                 'intent': ai_response.get('intent', 'unknown'),
@@ -2488,6 +2428,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     'footer': 'wecare.digital',
                     'buttons': [
                         {'id': 'rate_good', 'title': '\U0001f64c Great'},
+                        {'id': 'rate_ok', 'title': '\U0001f610 Just okay'},
                         {'id': 'rate_mid', 'title': '\U0001fae4 Could be better'},
                     ],
                 },
@@ -2527,6 +2468,9 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 'contactId': contact_id,
                 'requestId': request_id
             }))
+        elif flow_action == 'end':
+            # Rating submitted — nothing more to do, message already sent
+            pass
 
         # ── Audio response: if user has audioEnabled, send TTS version ──
         if ai_response and not ai_response.get('locked') and not ai_response.get('escalate'):
@@ -2534,8 +2478,10 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             if suggestion_text and len(suggestion_text) > 10:
                 try:
                     # Load user preferences to check audioEnabled
+                    # Fix #2: Use same hash as AI handler — sha256(clean_phone)[:32]
                     from hashlib import sha256
-                    ph = sha256(sender_phone.encode()).hexdigest()[:16] if sender_phone else ''
+                    clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '') if sender_phone else ''
+                    ph = sha256(clean_phone.encode()).hexdigest()[:32] if clean_phone else ''
                     if ph:
                         conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable'))
                         pref_resp = conv_table.get_item(Key={'phoneHash': ph})

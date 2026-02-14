@@ -1810,9 +1810,24 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <div className="botflow-tab">
               <div className="section-header">
                 <h3>WhatsApp Bot Flow Config</h3>
-                <Button variant="secondary" onClick={loadBotFlowConfigs} loading={botFlowLoading}>
-                  <RefreshIcon size={14} /> Refresh
-                </Button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <Button variant="secondary" onClick={async () => {
+                    if (!confirm('Reset ALL bot flow configs to Lambda defaults? This deletes all custom configs.')) return;
+                    try {
+                      const res = await fetch(`${API_BASE}/ai/botflow`, { method: 'DELETE' });
+                      if (res.ok) {
+                        setBotFlowConfigs({});
+                      }
+                    } catch (error) {
+                      console.error('Failed to reset bot flow configs');
+                    }
+                  }}>
+                    Reset to Defaults
+                  </Button>
+                  <Button variant="secondary" onClick={loadBotFlowConfigs} loading={botFlowLoading}>
+                    <RefreshIcon size={14} /> Refresh
+                  </Button>
+                </div>
               </div>
               <p style={{ color: '#666', marginBottom: '1rem', fontSize: '0.9rem' }}>
                 Manage welcome messages, menus, options, rating, and language picker configs stored in SystemConfigTable.

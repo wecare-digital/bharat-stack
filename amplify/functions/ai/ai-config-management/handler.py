@@ -168,6 +168,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if '/ai/test' in path:
                 return _test_ai_response(body, request_id)
         
+        elif http_method == 'DELETE':
+            if '/ai/botflow' in path:
+                return _delete_botflow_configs(request_id)
+        
         return _error_response(400, 'Invalid request')
         
     except json.JSONDecodeError:
@@ -695,3 +699,28 @@ def _update_botflow_config(body: Dict, request_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         return _error_response(500, f'Failed to update bot flow config: {str(e)}')
+
+
+def _delete_botflow_configs(request_id: str) -> Dict[str, Any]:
+    """Delete all bot flow configs from SystemConfigTable (reset to Lambda defaults)."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        deleted = []
+        for key in BOT_FLOW_CONFIG_KEYS:
+            try:
+                config_table.delete_item(Key={'id': key})
+                deleted.append(key)
+            except Exception:
+                pass
+        logger.info(json.dumps({
+            'event': 'botflow_configs_reset',
+            'deleted': deleted,
+            'requestId': request_id
+        }))
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'success': True, 'deleted': deleted})
+        }
+    except Exception as e:
+        return _error_response(500, f'Failed to reset bot flow configs: {str(e)}')

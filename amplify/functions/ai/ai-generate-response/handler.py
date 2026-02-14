@@ -207,6 +207,7 @@ DEFAULT_BOT_FLOW = {
                     'title': 'Gifting',
                     'rows': [
                         {'id': 'store_gift_card', 'title': '🎁 Gift Card', 'description': 'Send a WECARE.DIGITAL gift card'},
+                        {'id': 'menu_back', 'title': '↩️ Back to Menu', 'description': 'Return to main menu'},
                     ]
                 }
             ]
@@ -232,6 +233,7 @@ DEFAULT_BOT_FLOW = {
                         {'id': 'menu_drop_docs', 'title': '📤 Drop Docs', 'description': 'Upload supporting documents'},
                         {'id': 'menu_hours', 'title': '⏰ Business Hours', 'description': 'When we are available'},
                         {'id': 'menu_enterprise', 'title': '🤝 Enterprise Assist', 'description': 'Business & technical support'},
+                        {'id': 'menu_back', 'title': '↩️ Back to Menu', 'description': 'Return to main menu'},
                     ]
                 }
             ]
@@ -271,6 +273,11 @@ DEFAULT_BOT_FLOW = {
         'menu_human': {
             'text': "💬 Connecting you with a live agent... A team member will be with you shortly. 🙏",
             'action': 'human_handoff',
+        },
+        # Back to main menu (from sub-menus)
+        'menu_back': {
+            'text': '',
+            'action': 'show_main_menu',
         },
         # Language picker
         'menu_language': {
@@ -406,6 +413,7 @@ DEFAULT_BOT_FLOW = {
                 'title': 'How was it?',
                 'rows': [
                     {'id': 'rate_good', 'title': 'Vibes immaculate 🙌', 'description': 'Great experience'},
+                    {'id': 'rate_ok', 'title': '😐 Just okay', 'description': 'It was fine'},
                     {'id': 'rate_mid', 'title': 'Kinda mid 🫤', 'description': 'Could be better'},
                 ]
             }
@@ -413,6 +421,7 @@ DEFAULT_BOT_FLOW = {
     },
     'ratingResponses': {
         'rate_good': "Thanks for vibin\u2019 with us! 🌟",
+        'rate_ok': "Appreciate the honesty! We\u2019ll keep improving. 💪",
         'rate_mid': "Bet — glow-up in progress 🔧",
     },
     'errorMsg': "Whoops! That didn\u2019t register. Try picking from the menu. ⚠️",
@@ -726,7 +735,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
 
         # ── Bot flow: handle menu/options/rating selections ──
         flow_config = _get_bot_flow_config()
-        flow_result = _handle_bot_flow(message_content, message_type, flow_config, history, phone_hash, request_id)
+        flow_result = _handle_bot_flow(message_content, message_type, flow_config, history, phone_hash, sender_phone, request_id)
         if flow_result:
             return {
                 'statusCode': 200, 'headers': headers,
@@ -749,6 +758,19 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 'phoneHash': phone_hash,
                 'requestId': request_id
             }))
+            if is_returning:
+                # Returning users: welcome back text + options buttons (lighter)
+                return {
+                    'statusCode': 200, 'headers': headers,
+                    'body': json.dumps({
+                        'suggestedResponse': welcome_text,
+                        'suggestion': welcome_text,
+                        'flowAction': 'showOptions',
+                        'originalMessage': message_content,
+                        'messageId': message_id,
+                        'contactId': contact_id,
+                    })
+                }
             return {
                 'statusCode': 200, 'headers': headers,
                 'body': json.dumps({
@@ -1640,7 +1662,7 @@ def _get_bot_flow_config() -> Dict:
 
 
 def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
-                     history: Dict, phone_hash: str, request_id: str) -> Optional[Dict]:
+                     history: Dict, phone_hash: str, sender_phone: str, request_id: str) -> Optional[Dict]:
     """
     Handle bot flow selections (menu items, options, ratings) and multi-step
     conversational flows (subscribe, pay) via a state machine stored in DynamoDB.
@@ -1651,9 +1673,21 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
     content_lower = message_content.strip().lower()
 
+    # ── Fix #3: Escape words — cancel/back/exit during active flows ──
+    ESCAPE_WORDS = {'cancel', 'menu', 'back', 'exit', 'stop', 'quit', 'main menu'}
+
     # ── Check for active conversational flow (state machine) ──
     flow_state = history.get('flowState')
     if flow_state:
+        # Check escape words first
+        if content_lower in ESCAPE_WORDS:
+            _clear_flow_state(phone_hash)
+            return {
+                'suggestedResponse': "No worries! Back to the main menu 👇",
+                'suggestion': "No worries! Back to the main menu 👇",
+                'flowAction': 'showMainMenu',
+            }
+
         flow_name = flow_state.get('flow', '')
         step = flow_state.get('step', '')
         data = flow_state.get('data', {})
@@ -1687,6 +1721,17 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestion': msg,
                     }
                 data['email'] = email
+                # Skip phone step if sender's WhatsApp phone is available
+                if sender_phone:
+                    data['phone'] = sender_phone
+                    _save_subscriber(data, phone_hash, request_id)
+                    _clear_flow_state(phone_hash)
+                    done_msg = sub_prompts.get('done', "You're all set! ✅").format(name=data.get('name', ''))
+                    return {
+                        'suggestedResponse': done_msg,
+                        'suggestion': done_msg,
+                        'flowAction': 'showOptions',
+                    }
                 prompt = sub_prompts.get('step_phone', 'Phone number with country code?')
                 _save_flow_state(phone_hash, 'subscribe', 'awaiting_phone', data)
                 return {
@@ -1730,14 +1775,38 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestedResponse': msg,
                         'suggestion': msg,
                     }
-                _clear_flow_state(phone_hash)
-                sending_msg = pay_prompts.get('sending', "Processing payment...").format(amount=f"{amount:.0f}")
+                # Save amount and ask for confirmation
+                data['amount'] = amount
+                _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)
+                confirm_msg = f"Send ₹{amount:.0f}? Reply YES to confirm or NO to cancel. 💳"
                 return {
-                    'suggestedResponse': sending_msg,
-                    'suggestion': sending_msg,
-                    'flowAction': 'sendPayment',
-                    'paymentAmount': amount,
+                    'suggestedResponse': confirm_msg,
+                    'suggestion': confirm_msg,
                 }
+
+            if step == 'awaiting_confirmation':
+                if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
+                    amount = data.get('amount', 0)
+                    _clear_flow_state(phone_hash)
+                    sending_msg = pay_prompts.get('sending', "Processing payment...").format(amount=f"{amount:.0f}")
+                    return {
+                        'suggestedResponse': sending_msg,
+                        'suggestion': sending_msg,
+                        'flowAction': 'sendPayment',
+                        'paymentAmount': amount,
+                    }
+                elif content_lower in ('no', 'n', 'nahi', 'nope'):
+                    _clear_flow_state(phone_hash)
+                    return {
+                        'suggestedResponse': "Payment cancelled. Back to the menu 👇",
+                        'suggestion': "Payment cancelled. Back to the menu 👇",
+                        'flowAction': 'showMainMenu',
+                    }
+                else:
+                    return {
+                        'suggestedResponse': f"Reply YES to send ₹{data.get('amount', 0):.0f} or NO to cancel.",
+                        'suggestion': f"Reply YES to send ₹{data.get('amount', 0):.0f} or NO to cancel.",
+                    }
 
         # ── Toggle flows (audio/notifications) ──
         if flow_name in ('toggle_audio', 'toggle_notifications'):
@@ -1797,6 +1866,14 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     }
                 return None
 
+            # Back to main menu (from sub-menus)
+            if action == 'show_main_menu':
+                return {
+                    'suggestedResponse': '',
+                    'suggestion': '',
+                    'flowAction': 'showMainMenu',
+                }
+
             # Start subscribe flow
             if action == 'start_subscribe_flow':
                 flows_config = flow_config.get('flows', {}).get('subscribe', {})
@@ -1846,7 +1923,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestedResponse': item.get('text', ''),
                     'suggestion': item.get('text', ''),
                     'flowAction': 'humanHandoff',
-                    'escalate': True,
+                    'humanHandoff': True,
                     'intent': 'human_handoff_requested',
                 }
 
@@ -2117,7 +2194,7 @@ def _load_conversation_history(phone_hash: str) -> Dict:
 
 
 def _save_conversation_history(phone_hash: str, messages: List[Dict], message_count: int) -> None:
-    """Save conversation history to DynamoDB with TTL."""
+    """Save conversation history to DynamoDB with TTL. Uses update_item to preserve flowState, audioEnabled, etc."""
     try:
         table = dynamodb.Table(CONVERSATION_TABLE)
         now = int(time.time())
@@ -2126,13 +2203,16 @@ def _save_conversation_history(phone_hash: str, messages: List[Dict], message_co
         # Trim to max history size
         trimmed = messages[-(MAX_HISTORY_MESSAGES * 2):]
 
-        table.put_item(Item={
-            'phoneHash': phone_hash,
-            'messages': json.dumps(trimmed, default=str),
-            'messageCount': message_count,
-            'updatedAt': Decimal(str(now)),
-            'expiresAt': Decimal(str(ttl)),
-        })
+        table.update_item(
+            Key={'phoneHash': phone_hash},
+            UpdateExpression='SET messages = :msgs, messageCount = :cnt, updatedAt = :now, expiresAt = :ttl',
+            ExpressionAttributeValues={
+                ':msgs': json.dumps(trimmed, default=str),
+                ':cnt': message_count,
+                ':now': Decimal(str(now)),
+                ':ttl': Decimal(str(ttl)),
+            }
+        )
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'history_save_error',
