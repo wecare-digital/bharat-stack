@@ -1949,7 +1949,8 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
 def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, request_id: str,
                           item_name: str = 'Services/Goods', gst_rate: float = 18,
                           shipping: float = 49, sender_phone: str = '',
-                          quantity: int = 1, discount: float = 0) -> None:
+                          quantity: int = 1, discount: float = 0,
+                          payment_purpose: str = '', due_ref: str = '') -> None:
     """Send WhatsApp Pay order_details message with GST breakdown and payment log."""
     if not contact_id or amount <= 0:
         return
@@ -2033,6 +2034,8 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'paymentTotal': Decimal(str(total_paise)),
                 'paymentGstin': '19AADFW7431N1ZK',
                 'paymentSource': 'whatsapp_bot',
+                'paymentPurpose': payment_purpose or '',
+                'paymentDueRef': due_ref or '',
                 'status': 'pending',
                 'senderPhone': sender_phone,
                 'createdAt': Decimal(str(now)),
@@ -2510,6 +2513,8 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     sender_phone=sender_phone,
                     quantity=ai_response.get('paymentQuantity', 1),
                     discount=ai_response.get('paymentDiscount', 0),
+                    payment_purpose=ai_response.get('paymentPurpose', ''),
+                    due_ref=ai_response.get('paymentDueRef', ''),
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM

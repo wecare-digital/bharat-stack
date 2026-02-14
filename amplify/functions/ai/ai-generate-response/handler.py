@@ -62,6 +62,7 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 CONVERSATION_TABLE = os.environ.get('CONVERSATION_TABLE', 'base-wecare-digital-ConversationHistoryTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
 
 # Internal Agent (FloatingAgent — admin tasks, unchanged)
 INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'QIEEHEBTZO')
@@ -768,6 +769,12 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 'phoneHash': phone_hash,
                 'requestId': request_id
             }))
+            # Save a history marker so welcome doesn't repeat on next message
+            _save_conversation_history(
+                phone_hash=phone_hash,
+                messages=[{'role': 'assistant', 'content': [{'text': welcome_text}]}],
+                message_count=0
+            )
             # Just send welcome text — no auto menu
             return {
                 'statusCode': 200, 'headers': headers,
@@ -1760,6 +1767,57 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             gstin = pay_prompts.get('gstin', '19AADFW7431N1ZK')
             default_item = pay_prompts.get('default_item_name', 'Services/Goods')
 
+            # ── Due choice step: pay dues vs new payment ──
+            if step == 'awaiting_due_choice':
+                if content_lower in ('1', 'dues', 'pay dues'):
+                    # Pay existing dues — use the first pending due amount
+                    pending_dues = data.get('pending_dues', [])
+                    if pending_dues:
+                        due = pending_dues[0]
+                        # Auto-fill amount from the due
+                        data['amount'] = due['amount']
+                        data['quantity'] = 1
+                        data['item_name'] = f"Due: {due['ref']}"
+                        data['payment_purpose'] = 'dues'
+                        data['due_ref'] = due['ref']
+                        prompt = pay_prompts.get('step_discount', "Any discount? Enter amount in ₹ (or type 0 for none):")
+                        _save_flow_state(phone_hash, 'pay', 'awaiting_discount', data)
+                        return {
+                            'suggestedResponse': f"Paying due {due['ref']} — ₹{due['amount']:,.2f}\n\n{prompt}",
+                            'suggestion': f"Paying due {due['ref']} — ₹{due['amount']:,.2f}\n\n{prompt}",
+                        }
+                    # Fallback if no dues data
+                    prompt = pay_prompts.get('step_amount', "Enter the amount to pay:")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
+                    return {
+                        'suggestedResponse': prompt,
+                        'suggestion': prompt,
+                    }
+                elif content_lower in ('2', 'new', 'new payment', 'advance'):
+                    # New payment — ask purpose first
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
+                    return {
+                        'suggestedResponse': "What's this payment for?\n  *1* — Advance payment\n  *2* — Service payment\n  *3* — Other (type the purpose)",
+                        'suggestion': "What's this payment for?\n  *1* — Advance payment\n  *2* — Service payment\n  *3* — Other (type the purpose)",
+                    }
+                else:
+                    return {
+                        'suggestedResponse': "Reply *1* to pay dues, *2* for new payment, or *CANCEL* to go back.",
+                        'suggestion': "Reply *1* to pay dues, *2* for new payment, or *CANCEL* to go back.",
+                    }
+
+            # ── Purpose step for new payments ──
+            if step == 'awaiting_purpose':
+                purpose_map = {'1': 'Advance Payment', '2': 'Service Payment'}
+                purpose = purpose_map.get(content_lower, message_content.strip()[:60])
+                data['payment_purpose'] = purpose
+                prompt = pay_prompts.get('step_amount', "Enter the unit price per item (e.g. 500):")
+                _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                return {
+                    'suggestedResponse': f"Purpose: {purpose}\n\n{prompt}",
+                    'suggestion': f"Purpose: {purpose}\n\n{prompt}",
+                }
+
             if step == 'awaiting_amount':
                 # Strip currency symbols and whitespace
                 amount_str = re.sub(r'[^\d.]', '', message_content.strip())
@@ -1849,6 +1907,12 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 breakdown = (
                     f"📋 *Payment Summary*\n\n"
                     f"Item: {item_name}\n"
+                )
+                if data.get('payment_purpose'):
+                    breakdown += f"Purpose: {data['payment_purpose']}\n"
+                if data.get('due_ref'):
+                    breakdown += f"Due Ref: {data['due_ref']}\n"
+                breakdown += (
                     f"Unit Price: ₹{unit_price:,.2f} × {qty}\n"
                     f"Subtotal: ₹{subtotal:,.2f}\n"
                 )
@@ -1884,6 +1948,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'paymentGstRate': data.get('gst_rate', default_gst),
                         'paymentShipping': data.get('shipping', default_shipping),
                         'paymentDiscount': data.get('discount', 0),
+                        'paymentPurpose': data.get('payment_purpose', ''),
+                        'paymentDueRef': data.get('due_ref', ''),
                     }
                 elif content_lower in ('no', 'n', 'nahi', 'nope'):
                     _clear_flow_state(phone_hash)
@@ -1984,15 +2050,24 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
             # Start pay flow — check for pending dues first
             if action == 'start_pay_flow':
-                pending = _check_pending_payments(phone_hash, request_id)
+                pending = _check_pending_payments(phone_hash, request_id, sender_phone)
                 flows_config = flow_config.get('flows', {}).get('pay', {})
                 if pending:
+                    # Build dues summary
+                    total_due = sum(d['amount'] for d in pending)
+                    dues_lines = []
+                    for i, d in enumerate(pending[:5], 1):
+                        dues_lines.append(f"  {i}. Ref: {d['ref']} — ₹{d['amount']:,.2f} ({d['item']})")
+                    dues_text = "\n".join(dues_lines)
                     due_msg = (
-                        f"⚠️ You have a pending payment:\n"
-                        f"Ref: {pending.get('ref', 'N/A')} — ₹{pending.get('amount', 0):,.2f}\n\n"
-                        f"Would you like to continue with a new payment? Type the amount, or reply CANCEL."
+                        f"⚠️ You have {len(pending)} pending payment(s) totalling ₹{total_due:,.2f}:\n"
+                        f"{dues_text}\n\n"
+                        f"Reply:\n"
+                        f"  *1* — Pay existing dues\n"
+                        f"  *2* — Make a new payment\n"
+                        f"  *CANCEL* — Go back"
                     )
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
                     return {
                         'suggestedResponse': due_msg,
                         'suggestion': due_msg,
@@ -2229,10 +2304,54 @@ def _save_rating(phone_hash: str, rating: str, request_id: str) -> None:
         }))
 
 
-def _check_pending_payments(phone_hash: str, request_id: str) -> Optional[Dict]:
-    """Check if user has any pending payment requests (not yet captured/failed)."""
+def _check_pending_payments(phone_hash: str, request_id: str, sender_phone: str = '') -> Optional[List[Dict]]:
+    """
+    Check if user has any pending payment requests by querying the Messages table.
+    Returns a list of pending payments [{ref, amount, item, createdAt}] or None.
+    Queries by senderPhone (contactId GSI or scan) for messageType=payment_request, status=pending.
+    """
     try:
-        # Look in ConversationHistoryTable for last payment ref
+        # First try the Messages table for full payment history
+        if sender_phone:
+            messages_table = dynamodb.Table(MESSAGES_TABLE)
+            clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
+
+            # Scan for pending payment_request records for this phone
+            # (In production, a GSI on senderPhone+status would be ideal)
+            try:
+                resp = messages_table.scan(
+                    FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
+                    ExpressionAttributeNames={'#s': 'status'},
+                    ExpressionAttributeValues={
+                        ':phone': clean_phone,
+                        ':mt': 'payment_request',
+                        ':pending': 'pending',
+                    },
+                    Limit=10,
+                )
+                items = resp.get('Items', [])
+                if items:
+                    dues = []
+                    for item in items:
+                        total_paise = float(item.get('paymentTotal', item.get('paymentAmount', 0)))
+                        total_rs = total_paise / 100 if total_paise > 500 else total_paise  # handle paise vs rupees
+                        dues.append({
+                            'ref': item.get('paymentReferenceId', item.get('messageId', 'N/A')),
+                            'amount': total_rs,
+                            'item': item.get('paymentItemName', 'Services/Goods'),
+                            'createdAt': int(float(item.get('createdAt', 0))),
+                        })
+                    # Sort by most recent first
+                    dues.sort(key=lambda x: x['createdAt'], reverse=True)
+                    return dues
+            except Exception as scan_err:
+                logger.warning(json.dumps({
+                    'event': 'pending_payment_scan_error',
+                    'error': str(scan_err),
+                    'requestId': request_id
+                }))
+
+        # Fallback: check ConversationHistoryTable for last payment ref
         table = dynamodb.Table(CONVERSATION_TABLE)
         resp = table.get_item(Key={'phoneHash': phone_hash})
         item = resp.get('Item', {})
@@ -2240,11 +2359,12 @@ def _check_pending_payments(phone_hash: str, request_id: str) -> Optional[Dict]:
         last_payment_amount = float(item.get('lastPaymentAmount', 0))
         last_payment_status = item.get('lastPaymentStatus', '')
         if last_payment_ref and last_payment_status == 'pending':
-            return {
+            return [{
                 'ref': last_payment_ref,
                 'amount': last_payment_amount,
-                'status': 'pending',
-            }
+                'item': 'Previous Payment',
+                'createdAt': int(float(item.get('lastPaymentAt', 0))),
+            }]
         return None
     except Exception as e:
         logger.warning(json.dumps({

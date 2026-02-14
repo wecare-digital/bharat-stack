@@ -41,6 +41,8 @@ export const aiGenerateResponse = defineFunction({
     SYSTEM_CONFIG_TABLE: 'base-wecare-digital-SystemConfigTable',
     // Conversation history
     CONVERSATION_TABLE: 'base-wecare-digital-ConversationHistoryTable',
+    // Messages table (for payment due checks)
+    MESSAGES_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
     MAX_HISTORY_MESSAGES: '20',
     MAX_SESSION_MESSAGES: '50',
     CONVERSATION_TTL_HOURS: '24',
