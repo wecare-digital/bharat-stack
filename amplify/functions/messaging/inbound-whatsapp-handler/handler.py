@@ -2103,6 +2103,310 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
 
 
 # ============================================================================
+# POS INVOICE IMAGE GENERATOR (pure Python PNG — zero external dependencies)
+# ============================================================================
+
+# Minimal 5x7 bitmap font for ASCII 32-126 (space to ~)
+# Each char is 5 pixels wide, 7 pixels tall, stored as 7 bytes (each byte = 5-bit row)
+_FONT_5x7 = {
+    32: [0,0,0,0,0,0,0], 33: [4,4,4,4,0,0,4], 34: [10,10,0,0,0,0,0],
+    35: [10,31,10,10,31,10,0], 36: [4,15,20,14,5,30,4], 37: [24,25,2,4,8,19,3],
+    38: [8,20,20,8,21,18,13], 39: [4,4,0,0,0,0,0], 40: [2,4,8,8,8,4,2],
+    41: [8,4,2,2,2,4,8], 42: [0,4,21,14,21,4,0], 43: [0,4,4,31,4,4,0],
+    44: [0,0,0,0,0,4,8], 45: [0,0,0,31,0,0,0], 46: [0,0,0,0,0,0,4],
+    47: [0,1,2,4,8,16,0], 48: [14,17,19,21,25,17,14], 49: [4,12,4,4,4,4,14],
+    50: [14,17,1,2,4,8,31], 51: [14,17,1,6,1,17,14], 52: [2,6,10,18,31,2,2],
+    53: [31,16,30,1,1,17,14], 54: [6,8,16,30,17,17,14], 55: [31,1,2,4,8,8,8],
+    56: [14,17,17,14,17,17,14], 57: [14,17,17,15,1,2,12], 58: [0,0,4,0,0,4,0],
+    59: [0,0,4,0,0,4,8], 60: [1,2,4,8,4,2,1], 61: [0,0,31,0,31,0,0],
+    62: [16,8,4,2,4,8,16], 63: [14,17,1,2,4,0,4], 64: [14,17,23,21,23,16,14],
+    65: [14,17,17,31,17,17,17], 66: [30,17,17,30,17,17,30], 67: [14,17,16,16,16,17,14],
+    68: [30,17,17,17,17,17,30], 69: [31,16,16,30,16,16,31], 70: [31,16,16,30,16,16,16],
+    71: [14,17,16,23,17,17,14], 72: [17,17,17,31,17,17,17], 73: [14,4,4,4,4,4,14],
+    74: [7,2,2,2,2,18,12], 75: [17,18,20,24,20,18,17], 76: [16,16,16,16,16,16,31],
+    77: [17,27,21,21,17,17,17], 78: [17,25,21,21,21,19,17], 79: [14,17,17,17,17,17,14],
+    80: [30,17,17,30,16,16,16], 81: [14,17,17,17,21,18,13], 82: [30,17,17,30,20,18,17],
+    83: [14,17,16,14,1,17,14], 84: [31,4,4,4,4,4,4], 85: [17,17,17,17,17,17,14],
+    86: [17,17,17,17,10,10,4], 87: [17,17,17,21,21,21,10], 88: [17,17,10,4,10,17,17],
+    89: [17,17,10,4,4,4,4], 90: [31,1,2,4,8,16,31],
+    91: [14,8,8,8,8,8,14], 92: [0,16,8,4,2,1,0], 93: [14,2,2,2,2,2,14],
+    94: [4,10,17,0,0,0,0], 95: [0,0,0,0,0,0,31], 96: [8,4,0,0,0,0,0],
+    97: [0,0,14,1,15,17,15], 98: [16,16,30,17,17,17,30], 99: [0,0,14,17,16,17,14],
+    100: [1,1,15,17,17,17,15], 101: [0,0,14,17,31,16,14], 102: [6,9,8,28,8,8,8],
+    103: [0,0,15,17,15,1,14], 104: [16,16,30,17,17,17,17], 105: [4,0,12,4,4,4,14],
+    106: [2,0,6,2,2,18,12], 107: [16,16,18,20,24,20,18], 108: [12,4,4,4,4,4,14],
+    109: [0,0,26,21,21,21,17], 110: [0,0,30,17,17,17,17], 111: [0,0,14,17,17,17,14],
+    112: [0,0,30,17,30,16,16], 113: [0,0,15,17,15,1,1], 114: [0,0,22,25,16,16,16],
+    115: [0,0,15,16,14,1,30], 116: [8,8,28,8,8,9,6], 117: [0,0,17,17,17,17,15],
+    118: [0,0,17,17,17,10,4], 119: [0,0,17,17,21,21,10], 120: [0,0,17,10,4,10,17],
+    121: [0,0,17,17,15,1,14], 122: [0,0,31,2,4,8,31],
+    123: [3,4,4,8,4,4,3], 124: [4,4,4,4,4,4,4], 125: [24,4,4,2,4,4,24],
+    126: [0,0,8,21,2,0,0],
+}
+# Special chars mapped to ASCII equivalents
+_CHAR_MAP = {0x20B9: ord('R'), 0x2500: ord('-'), 0x2502: ord('|'), 0x2714: ord('*'),
+             0x274C: ord('x'), 0x2705: ord('*')}
+
+
+def _render_text_to_png(lines: list, scale: int = 2) -> bytes:
+    """Render lines of text to a PNG image using a 5x7 bitmap font. Returns PNG bytes."""
+    import struct as _struct
+    import zlib as _zlib
+    import io as _io
+
+    char_w, char_h = 6 * scale, 9 * scale  # 5+1 spacing, 7+2 spacing, scaled
+    pad_x, pad_y = 12 * scale, 8 * scale
+    max_cols = max((len(l) for l in lines), default=1)
+    img_w = max_cols * char_w + pad_x * 2
+    img_h = len(lines) * char_h + pad_y * 2
+
+    # Create pixel buffer (grayscale: 0=black, 255=white)
+    pixels = bytearray([255] * (img_w * img_h))
+
+    for row_idx, line in enumerate(lines):
+        for col_idx, ch in enumerate(line):
+            code = ord(ch)
+            code = _CHAR_MAP.get(code, code)
+            glyph = _FONT_5x7.get(code, _FONT_5x7.get(63))  # '?' fallback
+            if not glyph:
+                continue
+            bx = pad_x + col_idx * char_w
+            by = pad_y + row_idx * char_h
+            for gy, row_bits in enumerate(glyph):
+                for gx in range(5):
+                    if row_bits & (1 << (4 - gx)):
+                        # Draw scaled pixel
+                        for sy in range(scale):
+                            for sx in range(scale):
+                                px = bx + gx * scale + sx
+                                py = by + gy * scale + sy
+                                if 0 <= px < img_w and 0 <= py < img_h:
+                                    pixels[py * img_w + px] = 0  # black
+
+    # Encode as PNG (grayscale, 8-bit)
+    def _png_chunk(chunk_type, data):
+        c = chunk_type + data
+        return _struct.pack('>I', len(data)) + c + _struct.pack('>I', _zlib.crc32(c) & 0xFFFFFFFF)
+
+    raw_rows = b''
+    for y in range(img_h):
+        raw_rows += b'\x00' + bytes(pixels[y * img_w:(y + 1) * img_w])
+
+    buf = _io.BytesIO()
+    buf.write(b'\x89PNG\r\n\x1a\n')
+    buf.write(_png_chunk(b'IHDR', _struct.pack('>IIBBBBB', img_w, img_h, 8, 0, 0, 0, 0)))
+    buf.write(_png_chunk(b'IDAT', _zlib.compress(raw_rows, 9)))
+    buf.write(_png_chunk(b'IEND', b''))
+    return buf.getvalue()
+
+
+def _build_invoice_lines(ref_id: str, item_name: str, unit_price: float, qty: int,
+                         gst_rate: float, shipping: float, discount: float,
+                         sender_phone: str, purpose: str, due_ref: str) -> list:
+    """Build POS receipt text lines for the invoice."""
+    import datetime
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+    date_str = now.strftime('%d-%m-%Y')
+    time_str = now.strftime('%H:%M')
+
+    subtotal = unit_price * qty
+    after_promo = subtotal - discount
+    gst_amt = round(after_promo * gst_rate / 100, 2)
+    # Split GST into CGST + SGST (equal halves)
+    half_rate = gst_rate / 2
+    cgst = round(gst_amt / 2, 2)
+    sgst = round(gst_amt / 2, 2)
+    conv_base = round(after_promo * 0.02, 2)
+    conv_gst = round(conv_base * 0.18, 2)
+    conv_fee = round(conv_base + conv_gst, 2)
+    total = round(after_promo + gst_amt + shipping + conv_fee, 2)
+
+    W = 40  # receipt width in chars
+    sep = '-' * W
+    dsep = '=' * W
+
+    def center(t):
+        return t.center(W)
+
+    def lr(left, right):
+        space = W - len(left) - len(right)
+        return left + ' ' * max(space, 1) + right
+
+    def fmt(v):
+        return f'{v:,.2f}'
+
+    lines = []
+    lines.append(dsep)
+    lines.append(center('WECARE.DIGITAL'))
+    lines.append(center('GSTIN: 19AADFW7431N1ZK'))
+    lines.append(center('State: West Bengal, Code: 19'))
+    lines.append(dsep)
+    lines.append(center('TAX INVOICE'))
+    lines.append(sep)
+    lines.append(lr(f'Invoice: {ref_id}', f'Date: {date_str}'))
+    lines.append(lr(f'Phone: {sender_phone[-10:] if len(sender_phone) > 10 else sender_phone}', f'Time: {time_str}'))
+    if purpose:
+        lines.append(f'Purpose: {purpose[:30]}')
+    if due_ref:
+        lines.append(f'Due Ref: {due_ref}')
+    lines.append(sep)
+    # Item header
+    lines.append(lr('ITEM', 'AMOUNT'))
+    lines.append(sep)
+    # Item line
+    item_display = item_name[:22]
+    lines.append(f'{item_display}')
+    lines.append(lr(f'  {fmt(unit_price)} x {qty}', f'Rs.{fmt(subtotal)}'))
+    lines.append(sep)
+    lines.append(lr('Subtotal:', f'Rs.{fmt(subtotal)}'))
+    if discount > 0:
+        lines.append(lr('Promo:', f'-Rs.{fmt(discount)}'))
+    lines.append(lr(f'CGST @{half_rate:.1f}%:', f'Rs.{fmt(cgst)}'))
+    lines.append(lr(f'SGST @{half_rate:.1f}%:', f'Rs.{fmt(sgst)}'))
+    lines.append(lr('Shipping (Express):', f'Rs.{fmt(shipping)}'))
+    lines.append(lr('Conv. Fee:', f'Rs.{fmt(conv_fee)}'))
+    lines.append(dsep)
+    lines.append(lr('TOTAL:', f'Rs.{fmt(total)}'))
+    lines.append(dsep)
+    # GST summary
+    lines.append(center('GST SUMMARY'))
+    lines.append(sep)
+    lines.append(lr('Tax', 'Taxable    Amount'))
+    lines.append(lr(f'CGST @{half_rate:.1f}%', f'{fmt(after_promo)}  {fmt(cgst)}'))
+    lines.append(lr(f'SGST @{half_rate:.1f}%', f'{fmt(after_promo)}  {fmt(sgst)}'))
+    lines.append(lr('Total Tax:', f'Rs.{fmt(gst_amt)}'))
+    lines.append(sep)
+    lines.append('')
+    lines.append(center('Thank You!'))
+    lines.append(center('wecare.digital'))
+    lines.append(dsep)
+
+    return lines
+
+
+def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: float,
+                               quantity: int, item_name: str, gst_rate: float,
+                               shipping: float, discount: float, purpose: str,
+                               due_ref: str, sender_phone: str, request_id: str) -> None:
+    """Generate POS invoice image, upload to S3, send via WhatsApp."""
+    try:
+        # Generate unique invoice ref (reuse payment ref pattern)
+        inv_ref = f"WDSR{uuid.uuid4().hex[:12].upper()}"
+
+        # Build receipt lines
+        lines = _build_invoice_lines(
+            ref_id=inv_ref, item_name=item_name, unit_price=amount,
+            qty=quantity, gst_rate=gst_rate, shipping=shipping,
+            discount=discount, sender_phone=sender_phone,
+            purpose=purpose, due_ref=due_ref,
+        )
+
+        # Render to PNG
+        png_bytes = _render_text_to_png(lines, scale=3)
+
+        # Upload to S3
+        s3_key = f'invoices/{inv_ref}.png'
+        s3.put_object(
+            Bucket=MEDIA_BUCKET,
+            Key=s3_key,
+            Body=png_bytes,
+            ContentType='image/png',
+            CacheControl='public, max-age=31536000',
+        )
+
+        logger.info(json.dumps({
+            'event': 'invoice_uploaded',
+            'invoiceRef': inv_ref,
+            's3Key': s3_key,
+            'sizeBytes': len(png_bytes),
+            'requestId': request_id,
+        }))
+
+        # Send invoice image via outbound WhatsApp Lambda
+        invoice_payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'phoneNumberId': phone_number_id,
+                'content': f'Here is your invoice {inv_ref}',
+                'mediaFile': s3_key,
+                'mediaType': 'image',
+            })
+        }
+        lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(invoice_payload),
+        )
+
+        # Store invoice record in Messages table for dashboard
+        try:
+            messages_table = dynamodb.Table(MESSAGES_TABLE)
+            now = int(time.time())
+            subtotal = amount * quantity
+            after_promo = subtotal - discount
+            gst_amt = round(after_promo * gst_rate / 100, 2)
+            half_rate = gst_rate / 2
+            cgst = round(gst_amt / 2, 2)
+            sgst = round(gst_amt / 2, 2)
+            conv_base = round(after_promo * 0.02, 2)
+            conv_gst = round(conv_base * 0.18, 2)
+            conv_fee = round(conv_base + conv_gst, 2)
+            total = round(after_promo + gst_amt + shipping + conv_fee, 2)
+
+            messages_table.put_item(Item={
+                'id': str(uuid.uuid4()),
+                'messageId': inv_ref,
+                'contactId': contact_id,
+                'channel': 'whatsapp',
+                'direction': 'outbound',
+                'messageType': 'invoice',
+                'content': f'Invoice {inv_ref}',
+                'invoiceRef': inv_ref,
+                'invoiceS3Key': s3_key,
+                'paymentItemName': item_name,
+                'paymentQuantity': quantity,
+                'paymentAmount': Decimal(str(int(amount * 100))),
+                'paymentSubtotal': Decimal(str(int(subtotal * 100))),
+                'paymentDiscount': Decimal(str(int(discount * 100))),
+                'paymentGstRate': Decimal(str(gst_rate)),
+                'paymentGstAmount': Decimal(str(int(gst_amt * 100))),
+                'paymentCgst': Decimal(str(int(cgst * 100))),
+                'paymentSgst': Decimal(str(int(sgst * 100))),
+                'paymentShipping': Decimal(str(int(shipping * 100))),
+                'paymentConvFee': Decimal(str(int(conv_fee * 100))),
+                'paymentTotal': Decimal(str(int(total * 100))),
+                'paymentPurpose': purpose or '',
+                'paymentDueRef': due_ref or '',
+                'senderPhone': sender_phone,
+                'status': 'generated',
+                'createdAt': Decimal(str(now)),
+                'expiresAt': Decimal(str(now + 86400 * 365)),
+            })
+        except Exception as store_err:
+            logger.warning(json.dumps({
+                'event': 'invoice_store_error',
+                'error': str(store_err),
+                'invoiceRef': inv_ref,
+                'requestId': request_id,
+            }))
+
+        logger.info(json.dumps({
+            'event': 'invoice_sent',
+            'invoiceRef': inv_ref,
+            'contactId': contact_id,
+            'requestId': request_id,
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'invoice_generation_error',
+            'error': str(e),
+            'contactId': contact_id,
+            'requestId': request_id,
+        }))
+
+
+# ============================================================================
 # BOT FLOW CONFIGS (loaded from SystemConfigTable, dashboard-manageable)
 # ============================================================================
 
@@ -2515,6 +2819,21 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     discount=ai_response.get('paymentDiscount', 0),
                     payment_purpose=ai_response.get('paymentPurpose', ''),
                     due_ref=ai_response.get('paymentDueRef', ''),
+                )
+                # Generate and send POS invoice image
+                _generate_and_send_invoice(
+                    contact_id=contact_id,
+                    phone_number_id=phone_number_id,
+                    amount=payment_amount,
+                    quantity=ai_response.get('paymentQuantity', 1),
+                    item_name=ai_response.get('paymentItemName', 'Services/Goods'),
+                    gst_rate=ai_response.get('paymentGstRate', 18),
+                    shipping=ai_response.get('paymentShipping', 49),
+                    discount=ai_response.get('paymentDiscount', 0),
+                    purpose=ai_response.get('paymentPurpose', ''),
+                    due_ref=ai_response.get('paymentDueRef', ''),
+                    sender_phone=sender_phone,
+                    request_id=request_id,
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM

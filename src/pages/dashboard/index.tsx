@@ -1220,6 +1220,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <th>Total</th>
                     <th>Source</th>
                     <th>Status</th>
+                    <th>Invoice</th>
                     <th>Time</th>
                   </tr>
                 </thead>
@@ -1245,12 +1246,19 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                       <td style={{ fontWeight: 600 }}>{total}</td>
                       <td><span className={`badge ${source === 'whatsapp_bot' ? 'info' : ''}`}>{source === 'whatsapp_bot' ? 'WA Bot' : source}</span></td>
                       <td><span className={`badge ${pa.paymentStatus || p.status}`}>{pa.paymentStatus || p.status}</span></td>
+                      <td>
+                        {pa.invoiceS3Key ? (
+                          <a href={`https://app.wecare.digital/${pa.invoiceS3Key}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#10B981', textDecoration: 'none' }}>📄 View</a>
+                        ) : pa.messageType === 'payment_request' ? (
+                          <button onClick={() => window.open(`https://app.wecare.digital/invoices/${pa.paymentReferenceId}.png`, '_blank')} style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer' }}>🔍</button>
+                        ) : '-'}
+                      </td>
                       <td style={{ fontSize: '0.75rem' }}>{new Date(p.timestamp).toLocaleString()}</td>
                     </tr>
                     );
                   })}
                   {paymentMessages.length === 0 && (
-                    <tr><td colSpan={12} className="empty">No payment records</td></tr>
+                    <tr><td colSpan={13} className="empty">No payment records</td></tr>
                   )}
                 </tbody>
               </table>
