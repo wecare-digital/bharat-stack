@@ -364,17 +364,15 @@ DEFAULT_BOT_FLOW = {
             'invalid_phone': "That doesn\u2019t look right. Enter phone with country code (e.g. +91 98765 43210) 📱",
         },
         'pay': {
-            'step_amount': "💳 Enter the unit price per item (e.g. 500):",
-            'step_quantity': "How many? Enter quantity (or type 1):",
-            'step_item_name': "What's this payment for? (or type SKIP for default: Services/Goods)",
-            'step_discount': "Any discount? Enter amount in ₹ (or type 0 for none):",
-            'invalid_amount': "Please enter a valid number between 1 and 100000. 💳",
-            'invalid_quantity': "Please enter a valid quantity between 1 and 999.",
-            'invalid_discount': "Please enter a valid discount amount (0 or more).",
+            'step_amount': "💳 Enter unit price (₹) (numbers only)\nExample: 500",
+            'step_quantity': "📦 Enter quantity / units (type 1 for single)\nExample: 2",
+            'invalid_amount': "⚠️ Please enter a valid number between 1 and 100000.",
+            'invalid_quantity': "⚠️ Please enter a valid quantity between 1 and 999.",
             'sending': "Processing payment of ₹{amount}... ⏳",
             'default_item_name': 'Services/Goods',
             'default_gst_rate': 18,
             'default_shipping': 49,
+            'default_promo': 15,
             'gstin': '19AADFW7431N1ZK',
         },
     },
@@ -1770,31 +1768,23 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             # ── Due choice step: pay dues vs new payment ──
             if step == 'awaiting_due_choice':
                 if content_lower in ('1', 'dues', 'pay dues'):
-                    # Pay existing dues — use the first pending due amount
                     pending_dues = data.get('pending_dues', [])
                     if pending_dues:
                         due = pending_dues[0]
-                        # Auto-fill amount from the due
                         data['amount'] = due['amount']
                         data['quantity'] = 1
                         data['item_name'] = f"Due: {due['ref']}"
                         data['payment_purpose'] = 'dues'
                         data['due_ref'] = due['ref']
-                        prompt = pay_prompts.get('step_discount', "Any discount? Enter amount in ₹ (or type 0 for none):")
-                        _save_flow_state(phone_hash, 'pay', 'awaiting_discount', data)
-                        return {
-                            'suggestedResponse': f"Paying due {due['ref']} — ₹{due['amount']:,.2f}\n\n{prompt}",
-                            'suggestion': f"Paying due {due['ref']} — ₹{due['amount']:,.2f}\n\n{prompt}",
-                        }
-                    # Fallback if no dues data
-                    prompt = pay_prompts.get('step_amount', "Enter the amount to pay:")
+                        # Skip to summary directly for dues
+                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash)
+                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
                     _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
                     return {
                         'suggestedResponse': prompt,
                         'suggestion': prompt,
                     }
                 elif content_lower in ('2', 'new', 'new payment', 'advance'):
-                    # New payment — ask purpose first
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
                     return {
                         'suggestedResponse': "What's this payment for?\n  *1* — Advance payment\n  *2* — Service payment\n  *3* — Other (type the purpose)",
@@ -1811,7 +1801,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 purpose_map = {'1': 'Advance Payment', '2': 'Service Payment'}
                 purpose = purpose_map.get(content_lower, message_content.strip()[:60])
                 data['payment_purpose'] = purpose
-                prompt = pay_prompts.get('step_amount', "Enter the unit price per item (e.g. 500):")
+                prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
                 return {
                     'suggestedResponse': f"Purpose: {purpose}\n\n{prompt}",
@@ -1819,20 +1809,19 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 }
 
             if step == 'awaiting_amount':
-                # Strip currency symbols and whitespace
                 amount_str = re.sub(r'[^\d.]', '', message_content.strip())
                 try:
                     amount = float(amount_str)
                     if amount < 1 or amount > 100000:
                         raise ValueError("out of range")
                 except (ValueError, TypeError):
-                    msg = pay_prompts.get('invalid_amount', "Enter a valid number between 1 and 100000.")
+                    msg = pay_prompts.get('invalid_amount', "⚠️ Please enter a valid number between 1 and 100000.")
                     return {
                         'suggestedResponse': msg,
                         'suggestion': msg,
                     }
                 data['amount'] = amount
-                prompt = pay_prompts.get('step_quantity', "How many? Enter quantity (or type 1):")
+                prompt = pay_prompts.get('step_quantity', "📦 Enter quantity / units (type 1 for single)\nExample: 2")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_quantity', data)
                 return {
                     'suggestedResponse': prompt,
@@ -1846,92 +1835,15 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     if qty < 1 or qty > 999:
                         raise ValueError("out of range")
                 except (ValueError, TypeError):
-                    msg = pay_prompts.get('invalid_quantity', "Enter a valid quantity between 1 and 999.")
+                    msg = pay_prompts.get('invalid_quantity', "⚠️ Please enter a valid quantity between 1 and 999.")
                     return {
                         'suggestedResponse': msg,
                         'suggestion': msg,
                     }
                 data['quantity'] = qty
-                prompt = pay_prompts.get('step_item_name', "What's this payment for? (or type SKIP)")
-                _save_flow_state(phone_hash, 'pay', 'awaiting_item_name', data)
-                return {
-                    'suggestedResponse': prompt,
-                    'suggestion': prompt,
-                }
-
-            if step == 'awaiting_item_name':
-                if content_lower in ('skip', 'default', '-'):
-                    data['item_name'] = default_item
-                else:
-                    data['item_name'] = message_content.strip()[:60]
-                prompt = pay_prompts.get('step_discount', "Any discount? Enter amount in ₹ (or type 0 for none):")
-                _save_flow_state(phone_hash, 'pay', 'awaiting_discount', data)
-                return {
-                    'suggestedResponse': prompt,
-                    'suggestion': prompt,
-                }
-
-            if step == 'awaiting_discount':
-                disc_str = re.sub(r'[^\d.]', '', message_content.strip())
-                try:
-                    discount = float(disc_str) if disc_str else 0
-                    if discount < 0:
-                        raise ValueError("negative")
-                except (ValueError, TypeError):
-                    msg = pay_prompts.get('invalid_discount', "Enter a valid discount amount (0 or more).")
-                    return {
-                        'suggestedResponse': msg,
-                        'suggestion': msg,
-                    }
-                data['discount'] = discount
-
-                # Calculate full breakdown
-                unit_price = data.get('amount', 0)
-                qty = data.get('quantity', 1)
-                item_name = data.get('item_name', default_item)
-                subtotal = unit_price * qty
-                gst_amount = round(subtotal * default_gst / 100, 2)
-                shipping = default_shipping
-                conv_base = round(subtotal * 0.02, 2)
-                conv_gst = round(conv_base * 0.18, 2)
-                conv_fee = round(conv_base + conv_gst, 2)
-                total = round(subtotal - discount + gst_amount + shipping + conv_fee, 2)
-
-                data['subtotal'] = subtotal
-                data['gst_rate'] = default_gst
-                data['gst_amount'] = gst_amount
-                data['shipping'] = shipping
-                data['conv_fee'] = conv_fee
-                data['total'] = total
-
-                breakdown = (
-                    f"📋 *Payment Summary*\n\n"
-                    f"Item: {item_name}\n"
-                )
-                if data.get('payment_purpose'):
-                    breakdown += f"Purpose: {data['payment_purpose']}\n"
-                if data.get('due_ref'):
-                    breakdown += f"Due Ref: {data['due_ref']}\n"
-                breakdown += (
-                    f"Unit Price: ₹{unit_price:,.2f} × {qty}\n"
-                    f"Subtotal: ₹{subtotal:,.2f}\n"
-                )
-                if discount > 0:
-                    breakdown += f"Promo: -₹{discount:,.2f}\n"
-                breakdown += (
-                    f"GST ({default_gst:.0f}%): ₹{gst_amount:,.2f}\n"
-                    f"Shipping: ₹{shipping:,.2f}\n"
-                    f"Conv. Fee: ₹{conv_fee:,.2f}\n"
-                    f"─────────────\n"
-                    f"*Total: ₹{total:,.2f}*\n"
-                    f"GSTIN: {gstin}\n\n"
-                    f"Reply *YES* to pay or *NO* to cancel."
-                )
-                _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)
-                return {
-                    'suggestedResponse': breakdown,
-                    'suggestion': breakdown,
-                }
+                data['item_name'] = data.get('item_name', default_item)
+                # Go straight to summary (no item_name / discount questions)
+                return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash)
 
             if step == 'awaiting_confirmation':
                 if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
@@ -1954,14 +1866,23 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 elif content_lower in ('no', 'n', 'nahi', 'nope'):
                     _clear_flow_state(phone_hash)
                     return {
-                        'suggestedResponse': "Payment cancelled. Back to the menu 👇",
-                        'suggestion': "Payment cancelled. Back to the menu 👇",
+                        'suggestedResponse': "❌ Payment cancelled. Back to the menu 👇",
+                        'suggestion': "❌ Payment cancelled. Back to the menu 👇",
                         'flowAction': 'showMainMenu',
+                    }
+                elif content_lower in ('back', 'edit'):
+                    # Let user re-enter from unit price
+                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
+                    purpose = data.get('payment_purpose', '')
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {'payment_purpose': purpose} if purpose else {})
+                    return {
+                        'suggestedResponse': f"🔄 Let's redo it.\n\n{prompt}",
+                        'suggestion': f"🔄 Let's redo it.\n\n{prompt}",
                     }
                 else:
                     return {
-                        'suggestedResponse': f"Reply YES to pay ₹{data.get('total', 0):,.2f} or NO to cancel.",
-                        'suggestion': f"Reply YES to pay ₹{data.get('total', 0):,.2f} or NO to cancel.",
+                        'suggestedResponse': f"Reply ✅ *YES* to pay ₹{data.get('total', 0):,.2f}, ❌ *NO* to cancel, or *BACK* to edit.",
+                        'suggestion': f"Reply ✅ *YES* to pay ₹{data.get('total', 0):,.2f}, ❌ *NO* to cancel, or *BACK* to edit.",
                     }
 
         # ── Toggle flows (audio/notifications) ──
@@ -2151,6 +2072,60 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         }
 
     return None
+
+
+# ── Pay summary builder ──
+
+def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
+                       default_shipping: float, gstin: str, default_item: str,
+                       phone_hash: str) -> Dict:
+    """Calculate breakdown with fixed promo and return summary + save confirmation state."""
+    unit_price = data.get('amount', 0)
+    qty = data.get('quantity', 1)
+    item_name = data.get('item_name', default_item)
+    promo = float(pay_prompts.get('default_promo', 15))
+    subtotal = unit_price * qty
+    after_promo = subtotal - promo
+    gst_amount = round(after_promo * default_gst / 100, 2)
+    shipping = default_shipping
+    conv_base = round(after_promo * 0.02, 2)
+    conv_gst = round(conv_base * 0.18, 2)
+    conv_fee = round(conv_base + conv_gst, 2)
+    total = round(after_promo + gst_amount + shipping + conv_fee, 2)
+
+    data['subtotal'] = subtotal
+    data['discount'] = promo
+    data['gst_rate'] = default_gst
+    data['gst_amount'] = gst_amount
+    data['shipping'] = shipping
+    data['conv_fee'] = conv_fee
+    data['total'] = total
+
+    breakdown = f"📋 *Payment Summary*\n\n"
+    breakdown += f"Item: {item_name}\n"
+    if data.get('payment_purpose'):
+        breakdown += f"Purpose: {data['payment_purpose']}\n"
+    if data.get('due_ref'):
+        breakdown += f"Due Ref: {data['due_ref']}\n"
+    breakdown += (
+        f"Unit Price: ₹{unit_price:,.2f}\n"
+        f"Quantity: {qty}\n"
+        f"Subtotal: ₹{subtotal:,.2f}\n"
+        f"Promo: -₹{promo:,.2f}\n"
+        f"GST ({default_gst:.0f}%): ₹{gst_amount:,.2f}\n"
+        f"Shipping: ₹{shipping:,.2f}\n"
+        f"Convenience Fee: ₹{conv_fee:,.2f}\n"
+        f"────────────────────\n"
+        f"✅ *Total Payable: ₹{total:,.2f}*\n"
+        f"GSTIN: {gstin}\n\n"
+        f"Reply ✅ *YES* to pay or ❌ *NO* to cancel.\n"
+        f"_(Tip: Reply BACK to edit details)_"
+    )
+    _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)
+    return {
+        'suggestedResponse': breakdown,
+        'suggestion': breakdown,
+    }
 
 
 # ── Flow state helpers (DynamoDB) ──
