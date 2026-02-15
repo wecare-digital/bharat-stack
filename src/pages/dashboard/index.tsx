@@ -1157,7 +1157,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <span className="icon"><PaymentIcon size={20} /></span>
                     <span>Pay</span>
                   </Link>
-                  <Link href="/invoice" className="action-card">
+                  <Link href="/pay" className="action-card">
                     <span className="icon"><InvoiceIcon size={20} /></span>
                     <span>Invoice</span>
                   </Link>
