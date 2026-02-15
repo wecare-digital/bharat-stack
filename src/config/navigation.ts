@@ -31,6 +31,7 @@ export const navigationConfig: NavItem[] = [
     children: [
       { path: '/pay/link', label: 'Link' },
       { path: '/pay/wa', label: 'WhatsApp' },
+      { path: '/pay/flow', label: 'Flow' },
       { path: '/pay/logs', label: 'Logs' },
     ]
   },
