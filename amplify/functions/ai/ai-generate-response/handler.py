@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
@@ -872,6 +872,15 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
 
         # ── Bot flow: handle menu/options/rating selections ──
         flow_config = _get_bot_flow_config()
+
+        # ── Apply welcome page override (welcome.tsx → SystemConfigTable 'welcome_message') ──
+        welcome_override = _get_welcome_config()
+        if welcome_override:
+            if welcome_override.get('textMessage'):
+                flow_config.setdefault('welcome', {})['text'] = welcome_override['textMessage']
+            if welcome_override.get('welcomeBackMessage'):
+                flow_config.setdefault('welcomeBack', {})['text'] = welcome_override['welcomeBackMessage']
+
         flow_result = _handle_bot_flow(message_content, message_type, flow_config, history, phone_hash, sender_phone, request_id)
         if flow_result:
             return {
@@ -1826,6 +1835,26 @@ def _get_language_picker_config_from_db() -> Dict:
         'languagesByRegion': LANGUAGE_BY_REGION,
         'languageConfirmations': LANGUAGE_CONFIRMATIONS,
     }
+
+def _get_welcome_config() -> Optional[Dict]:
+    """
+    Load welcome message config from SystemConfigTable (id: 'welcome_message').
+    This is managed by the Welcome page (welcome.tsx).
+    Returns the config dict if enabled, None otherwise.
+    """
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = table.get_item(Key={'id': 'welcome_message'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            if config.get('enabled', False):
+                return config
+    except Exception as e:
+        logger.warning(f"Failed to get welcome config: {str(e)}")
+    return None
+
+
 
 
 def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,

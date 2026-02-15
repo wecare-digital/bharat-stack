@@ -18,13 +18,15 @@ interface PageProps {
 interface WelcomeConfig {
   enabled: boolean;
   textMessage: string;
+  welcomeBackMessage: string;
   delaySeconds: number;
   phoneNumberId: string;
 }
 
 const defaultConfig: WelcomeConfig = {
   enabled: false,
-  textMessage: 'Hello! Welcome to WECARE.DIGITAL. How can we help you today?',
+  textMessage: "Hi there! 👋 Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support — all right here.\n\nℹ️ _You're chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started 👇",
+  welcomeBackMessage: "Welcome back! 💛 What can we help with today? 👇",
   delaySeconds: 2,
   phoneNumberId: WHATSAPP_PHONES.primary.id,
 };
@@ -77,11 +79,16 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
       {!embedded && (
         <>
           <h1 style={{ fontSize: 22, marginBottom: 4 }}>Welcome Message</h1>
-          <p style={{ color: '#666', marginBottom: 24 }}>Configure automated welcome messages</p>
+          <p style={{ color: '#666', marginBottom: 24 }}>Configure the welcome messages sent to new and returning WhatsApp users</p>
         </>
       )}
 
       <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: embedded ? 'none' : '0 1px 3px rgba(0,0,0,0.08)' }}>
+        {/* Info banner */}
+        <div style={{ marginBottom: 24, padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 13, color: '#166534' }}>
+          When enabled, these messages override the default bot welcome. Disable to use the Lambda default welcome text.
+        </div>
+
         <div style={{ marginBottom: 24 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input
@@ -90,7 +97,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
               onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
               style={{ width: 18, height: 18 }}
             />
-            <span>Enable Welcome Message</span>
+            <span>Enable Welcome Message Override</span>
           </label>
         </div>
 
@@ -111,12 +118,25 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 14, marginBottom: 12 }}>Welcome Text</h3>
+          <h3 style={{ fontSize: 14, marginBottom: 8 }}>New User Welcome</h3>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Sent when a user messages for the first time (no conversation history)</p>
           <textarea
             value={config.textMessage}
             onChange={(e) => setConfig({ ...config, textMessage: e.target.value })}
-            placeholder="Enter your welcome message..."
-            rows={4}
+            placeholder="Enter your welcome message for new users..."
+            rows={5}
+            style={{ width: '100%', padding: 10, border: '1px solid #000', borderRadius: 13, resize: 'vertical', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontSize: 14, marginBottom: 8 }}>Returning User Welcome</h3>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Sent when a returning user starts a new session (has language preference but no recent messages)</p>
+          <textarea
+            value={config.welcomeBackMessage}
+            onChange={(e) => setConfig({ ...config, welcomeBackMessage: e.target.value })}
+            placeholder="Enter your welcome back message..."
+            rows={3}
             style={{ width: '100%', padding: 10, border: '1px solid #000', borderRadius: 13, resize: 'vertical', boxSizing: 'border-box' }}
           />
         </div>
