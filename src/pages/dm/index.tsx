@@ -1,55 +1,53 @@
 /**
- * DM Hub - Direct Messaging Hub
- * Clean, responsive design with enhanced UX
+ * Messages Mega Page - All channels as tabs
+ * Uses PageShell for section header + scrollable tab bar
+ * Each tab embeds a channel mega-page (which has its own inner PageShell)
  */
 
-import Link from 'next/link';
+import React from 'react';
 import Layout from '../../components/Layout';
-import PageHeader from '../../components/PageHeader';
 import SEO from '../../components/SEO';
-import { WhatsAppIcon, SmsIcon, EmailIcon, VoiceIcon, RcsIcon, LogsIcon } from '../../lib/icons';
+import PageShell, { ShellTab } from '../../components/PageShell';
+
+import WhatsAppPage from './whatsapp';
+import SmsPage from './sms';
+import VoicePage from './voice';
+import EmailPage from './ses';
+import RcsPage from './rcs';
+import MessageLogsPage from './logs';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
 }
 
-const channels = [
-  { href: '/dm/whatsapp', icon: WhatsAppIcon, label: 'WhatsApp', variant: 'whatsapp' },
-  { href: '/dm/sms', icon: SmsIcon, label: 'SMS', variant: 'sms' },
-  { href: '/dm/ses', icon: EmailIcon, label: 'Email', variant: 'email' },
-  { href: '/dm/voice', icon: VoiceIcon, label: 'Voice', variant: 'voice' },
-  { href: '/dm/rcs', icon: RcsIcon, label: 'RCS', variant: 'rcs' },
-  { href: '/dm/logs', icon: LogsIcon, label: 'Logs', variant: '' },
+const TABS: ShellTab[] = [
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'sms', label: 'SMS' },
+  { id: 'voice', label: 'Voice' },
+  { id: 'email', label: 'Email' },
+  { id: 'rcs', label: 'RCS' },
+  { id: 'logs', label: 'All Logs' },
 ];
 
-export default function DMHub({ signOut, user }: PageProps) {
+const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO 
-        title="Direct Messaging | WECARE.DIGITAL"
-        description="Send messages across all channels - WhatsApp, SMS, Email, Voice, RCS"
-      />
-      <div className="hub-page">
-        <PageHeader 
-          title="Direct Messaging" 
-          subtitle="Send messages across all channels"
-          icon="message"
-        />
-
-        <div className="hub-grid">
-          {channels.map(({ href, icon: Icon, label, variant }) => (
-            <Link 
-              key={href} 
-              href={href} 
-              className={`hub-card ${variant ? `hub-card-${variant}` : ''}`}
-            >
-              <span className="hub-icon"><Icon size={32} /></span>
-              <span className="hub-label">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
+      <SEO title="Messages | WECARE.DIGITAL" description="Direct Messaging — WhatsApp, SMS, Voice, Email, RCS" />
+      <PageShell title="Messages" subtitle="WhatsApp, SMS, Voice, Email, RCS" tabs={TABS} defaultTab="whatsapp">
+        {(activeTab) => (
+          <>
+            {activeTab === 'whatsapp' && <WhatsAppPage signOut={signOut} user={user} embedded />}
+            {activeTab === 'sms' && <SmsPage signOut={signOut} user={user} embedded />}
+            {activeTab === 'voice' && <VoicePage signOut={signOut} user={user} embedded />}
+            {activeTab === 'email' && <EmailPage signOut={signOut} user={user} embedded />}
+            {activeTab === 'rcs' && <RcsPage signOut={signOut} user={user} embedded />}
+            {activeTab === 'logs' && <MessageLogsPage signOut={signOut} user={user} embedded />}
+          </>
+        )}
+      </PageShell>
     </Layout>
   );
-}
+};
+
+export default MessagesPage;

@@ -27,6 +27,7 @@ import AIConfigPage from './ai-config';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 const TABS: ShellTab[] = [
@@ -46,34 +47,40 @@ const TABS: ShellTab[] = [
   { id: 'waba', label: 'WABA' },
 ];
 
-const WhatsAppPage: React.FC<PageProps> = ({ signOut, user }) => {
+const WhatsAppPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
+  const shellContent = (
+    <PageShell
+      title="WhatsApp"
+      subtitle="Business API — Messaging, Campaigns, Templates & More"
+      tabs={TABS}
+      defaultTab="inbox"
+    >
+      {(activeTab) => (
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+          {activeTab === 'inbox' && <InboxPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'board' && <WABADashboard signOut={signOut} user={user} embedded />}
+          {activeTab === 'campaign' && <CampaignPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'lists' && <InteractiveListsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'flows' && <FlowsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'calling' && <CallingPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'groups' && <GroupsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'logs' && <LogsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'welcome' && <WelcomePage signOut={signOut} user={user} embedded />}
+          {activeTab === 'ai-config' && <AIConfigPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'profile' && <BusinessProfilePage signOut={signOut} user={user} embedded />}
+          {activeTab === 'webhooks' && <WebhooksPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'waba' && <WABADashboard signOut={signOut} user={user} embedded />}
+        </Suspense>
+      )}
+    </PageShell>
+  );
+
+  if (embedded) return shellContent;
+
   return (
     <Layout user={user} onSignOut={signOut}>
-      <PageShell
-        title="WhatsApp"
-        subtitle="Business API — Messaging, Campaigns, Templates & More"
-        tabs={TABS}
-        defaultTab="inbox"
-      >
-        {(activeTab) => (
-          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
-            {activeTab === 'inbox' && <InboxPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'board' && <WABADashboard signOut={signOut} user={user} embedded />}
-            {activeTab === 'campaign' && <CampaignPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'lists' && <InteractiveListsPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'flows' && <FlowsPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'calling' && <CallingPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'groups' && <GroupsPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'logs' && <LogsPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'welcome' && <WelcomePage signOut={signOut} user={user} embedded />}
-            {activeTab === 'ai-config' && <AIConfigPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'profile' && <BusinessProfilePage signOut={signOut} user={user} embedded />}
-            {activeTab === 'webhooks' && <WebhooksPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'waba' && <WABADashboard signOut={signOut} user={user} embedded />}
-          </Suspense>
-        )}
-      </PageShell>
+      {shellContent}
     </Layout>
   );
 };

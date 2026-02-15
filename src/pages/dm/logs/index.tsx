@@ -13,6 +13,7 @@ import * as api from '../../../api/client';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 interface MessageLog {
@@ -25,7 +26,7 @@ interface MessageLog {
   createdAt: string;
 }
 
-const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [logs, setLogs] = useState<MessageLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -112,8 +113,8 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
     return content.substring(0, maxLen) + '...';
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <div className="logs-page">
         <PageHeader 
           title="Message Logs" 
@@ -297,6 +298,14 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
           .table-container { overflow-x: auto; }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

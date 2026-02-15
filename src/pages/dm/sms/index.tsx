@@ -12,7 +12,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import { SmsIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface Contact { contactId: string; name: string; phone: string; }
 interface SmsMessage { 
   messageId: string; contactId: string; contactName?: string; phone: string; 
@@ -31,7 +31,7 @@ const TABS: ShellTab[] = [
   { id: 'campaign', label: 'Campaign' },
 ];
 
-const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   // AWS Pinpoint state
   const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -214,9 +214,8 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
   const airtelTotalPages = Math.ceil(filteredAirtel.length / ITEMS_PER_PAGE);
   const paginatedAirtel = filteredAirtel.slice((airtelPage - 1) * ITEMS_PER_PAGE, airtelPage * ITEMS_PER_PAGE);
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="SMS | WECARE.DIGITAL" description="SMS — AWS Pinpoint & Airtel" />
+  const shellContent = (
+    <>
       <PageShell title="SMS" subtitle="AWS Pinpoint & Airtel IN — Send, Campaign, Logs" tabs={TABS} defaultTab="aws">
         {(activeTab) => (
           <>
@@ -396,6 +395,15 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user }) => {
           .hide-mobile { display: none; }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return shellContent;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="SMS | WECARE.DIGITAL" description="SMS — AWS Pinpoint & Airtel" />
+      {shellContent}
     </Layout>
   );
 };

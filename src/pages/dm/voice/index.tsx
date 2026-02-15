@@ -15,7 +15,7 @@ import * as api from '../../../api/client';
 // Embedded sub-page
 import VoiceInPage from '../voice-in/index';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface Contact { contactId: string; name: string; phone: string; }
 interface VoiceCall {
   callId: string; contactId: string; contactName?: string; phoneNumber: string;
@@ -31,7 +31,7 @@ const TABS: ShellTab[] = [
   { id: 'campaign', label: 'Campaign' },
 ];
 
-const VoicePage: React.FC<PageProps> = ({ signOut, user }) => {
+const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [calls, setCalls] = useState<VoiceCall[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,9 +161,8 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user }) => {
   const inboundCount = calls.filter(c => c.direction === 'INBOUND').length;
   const outboundCount = calls.filter(c => c.direction === 'OUTBOUND').length;
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="Voice | WECARE.DIGITAL" description="Voice — AWS Pinpoint & Airtel IQ" />
+  const shellContent = (
+    <>
       <PageShell title="Voice" subtitle="AWS Pinpoint & Airtel IQ — Calls, OBD, CDR" tabs={TABS} defaultTab="aws">
         {(activeTab) => (
           <>
@@ -316,6 +315,15 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user }) => {
           .hide-mobile { display: none; }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return shellContent;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="Voice | WECARE.DIGITAL" description="Voice — AWS Pinpoint & Airtel IQ" />
+      {shellContent}
     </Layout>
   );
 };

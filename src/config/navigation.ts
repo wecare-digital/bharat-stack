@@ -31,14 +31,6 @@ export const navigationConfig: NavItem[] = [
     path: '/dm',
     label: 'Messages',
     icon: 'message',
-    children: [
-      { path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp' },
-      { path: '/dm/sms', label: 'SMS', icon: 'sms' },
-      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
-      { path: '/dm/ses', label: 'Email', icon: 'email' },
-      { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
-      { path: '/dm/logs', label: 'All Logs', icon: 'logs' },
-    ],
   },
   {
     path: '/pay',

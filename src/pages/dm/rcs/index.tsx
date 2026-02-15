@@ -11,7 +11,7 @@ import RcsInbox from './inbox';
 import RcsCampaignPage from './campaign';
 import RcsLogsPage from './logs';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const TABS: ShellTab[] = [
   { id: 'inbox', label: 'Inbox' },
@@ -19,19 +19,25 @@ const TABS: ShellTab[] = [
   { id: 'logs', label: 'Logs' },
 ];
 
-const RcsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const RcsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
+  const shellContent = (
+    <PageShell title="RCS" subtitle="Rich Communication Services — Inbox, Campaigns & Logs" tabs={TABS} defaultTab="inbox">
+      {(activeTab) => (
+        <>
+          {activeTab === 'inbox' && <RcsInbox signOut={signOut} user={user} embedded />}
+          {activeTab === 'campaign' && <RcsCampaignPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'logs' && <RcsLogsPage signOut={signOut} user={user} embedded />}
+        </>
+      )}
+    </PageShell>
+  );
+
+  if (embedded) return shellContent;
+
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO title="RCS | WECARE.DIGITAL" description="RCS Business Messaging" />
-      <PageShell title="RCS" subtitle="Rich Communication Services — Inbox, Campaigns & Logs" tabs={TABS} defaultTab="inbox">
-        {(activeTab) => (
-          <>
-            {activeTab === 'inbox' && <RcsInbox signOut={signOut} user={user} embedded />}
-            {activeTab === 'campaign' && <RcsCampaignPage signOut={signOut} user={user} embedded />}
-            {activeTab === 'logs' && <RcsLogsPage signOut={signOut} user={user} embedded />}
-          </>
-        )}
-      </PageShell>
+      {shellContent}
     </Layout>
   );
 };
