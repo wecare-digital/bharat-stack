@@ -61,6 +61,20 @@ const WABA_CONFIG = {
   },
 };
 
+// Avatar color palette - consistent per contact
+const AVATAR_COLORS = [
+  '#059669', '#0891b2', '#7c3aed', '#db2777', '#ea580c',
+  '#2563eb', '#4f46e5', '#0d9488', '#c026d3', '#d97706',
+];
+
+const getAvatarColor = (name: string): string => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
 // Confirmation Modal Component
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -155,6 +169,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [showDeleteContactModal, setShowDeleteContactModal] = useState<Contact | null>(null);
   const [showDeleteMessageModal, setShowDeleteMessageModal] = useState<Message | null>(null);
   const [showInteractiveComposer, setShowInteractiveComposer] = useState(false);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const CONTACTS_PER_PAGE = 20;
   const MESSAGES_PER_PAGE = 50;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -854,7 +869,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         onCancel={() => setShowDeleteMessageModal(null)}
       />
 
-      <div className="whatsapp-inbox">
+      <div className={`whatsapp-inbox ${mobileShowChat ? 'mobile-chat-active' : ''}`}>
         {/* Contacts Sidebar */}
         <div className="contacts-sidebar">
           <div className="sidebar-header">
@@ -929,9 +944,9 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                 <div
                   key={contact.id}
                   className={`contact-item ${selectedContact?.id === contact.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedContact(contact)}
+                  onClick={() => { setSelectedContact(contact); setMobileShowChat(true); }}
                 >
-                  <div className="contact-avatar">
+                  <div className="contact-avatar" style={{ background: getAvatarColor(contact.name), color: '#fff' }}>
                     {contact.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="contact-info">
@@ -983,7 +998,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               {/* Chat Header */}
               <div className="chat-header">
                 <div className="chat-contact-info">
-                  <div className="contact-avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
+                  <button 
+                    className="mobile-back-btn"
+                    onClick={() => setMobileShowChat(false)}
+                    aria-label="Back to contacts"
+                  >
+                    ‹
+                  </button>
+                  <div className="contact-avatar" style={{ width: 40, height: 40, fontSize: 16, background: getAvatarColor(selectedContact.name), color: '#fff' }}>
                     {selectedContact.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -1130,8 +1152,8 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                             })}
                           </span>
                           {msg.direction === 'outbound' && (
-                            <span className="message-status">
-                              {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
+                            <span className={`message-status ${msg.status}`}>
+                              {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : msg.status === 'failed' ? '!' : '✓'}
                             </span>
                           )}
                           {msg.mediaUrl && (
@@ -1252,11 +1274,11 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             </>
           ) : (
             <div className="empty-chat">
-              <div className="empty-chat-icon">◈</div>
+              <div className="empty-chat-icon">💬</div>
               <h3>WhatsApp Unified Inbox</h3>
-              <p>Select a contact to view messages</p>
-              <p style={{ fontSize: '13px', marginTop: '8px' }}>
-                Messages from both WABAs appear here
+              <p>Select a contact to start messaging</p>
+              <p style={{ fontSize: '12px', marginTop: '12px', color: '#9ca3af' }}>
+                Messages from all WABAs appear here · Auto-refreshes every 15s
               </p>
             </div>
           )}
