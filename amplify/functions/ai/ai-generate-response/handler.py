@@ -1777,7 +1777,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         data['payment_purpose'] = 'dues'
                         data['due_ref'] = due['ref']
                         # Skip to summary directly for dues
-                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash)
+                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
                     prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
                     _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
                     return {
@@ -1875,8 +1875,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 # New customer — ask who is paying
                 _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
                 return {
-                    'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
-                    'suggestion': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
+                    'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
+                    'suggestion': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
                 }
 
             # ── Reuse saved profile ──
@@ -1900,8 +1900,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data.pop('saved_profile', None)
                     _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
                     return {
-                        'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
-                        'suggestion': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
+                        'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
+                        'suggestion': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
                     }
 
             # ── Pay for self or other ──
@@ -1923,8 +1923,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     }
                 else:
                     return {
-                        'suggestedResponse': "Reply *1* for Myself or *2* for Someone else.",
-                        'suggestion': "Reply *1* for Myself or *2* for Someone else.",
+                        'suggestedResponse': "Reply *1* for Self or *2* for Someone else.",
+                        'suggestion': "Reply *1* for Self or *2* for Someone else.",
                     }
 
             # ── Customer name ──
@@ -2084,7 +2084,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 data['quantity'] = qty
                 data['item_name'] = data.get('item_name', default_item)
                 # Go straight to summary (no item_name / discount questions)
-                return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash)
+                return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
 
             if step == 'awaiting_confirmation':
                 if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
@@ -2352,7 +2352,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
 def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
                        default_shipping: float, gstin: str, default_item: str,
-                       phone_hash: str) -> Dict:
+                       phone_hash: str, sender_phone: str = '') -> Dict:
     """Calculate breakdown with fixed promo and return summary + save confirmation state."""
     unit_price = data.get('amount', 0)
     qty = data.get('quantity', 1)
@@ -2395,7 +2395,9 @@ def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
     if bill_addr and bill_addr != ship_addr:
         breakdown += f"🏢 Bill To: {bill_addr[:60]}\n"
     if pay_for == 'other':
-        breakdown += f"💰 Paid By: WhatsApp sender\n"
+        breakdown += f"💰 Paid By: {sender_phone}\n"
+    else:
+        breakdown += f"📱 Paid By: You\n"
     breakdown += f"🛒 Order: {order_id}\n"
     breakdown += f"────────────────────\n"
     breakdown += f"Item: {item_name}\n"
