@@ -1765,7 +1765,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             gstin = pay_prompts.get('gstin', '19AADFW7431N1ZK')
             default_item = pay_prompts.get('default_item_name', 'Services/Goods')
 
-            # ── Due choice step: pay dues vs new payment ──
+            # ── Due choice: pay dues vs new payment ──
             if step == 'awaiting_due_choice':
                 if content_lower in ('1', 'dues', 'pay dues'):
                     pending_dues = data.get('pending_dues', [])
@@ -1776,112 +1776,54 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         data['item_name'] = f"Due: {due['ref']}"
                         data['payment_purpose'] = 'dues'
                         data['due_ref'] = due['ref']
-                        # Skip to summary directly for dues
                         return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
-                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
-                    return {
-                        'suggestedResponse': prompt,
-                        'suggestion': prompt,
-                    }
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
+                    return _r(_pay_purpose_prompt())
                 elif content_lower in ('2', 'new', 'new payment', 'advance'):
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-                    purpose_msg = (
-                        "🏷️ What's this payment for?\n\n"
-                        "  *Store Brands*\n"
-                        "  *1* — ✈️ BNB Club — Travel\n"
-                        "  *2* — ⚖️ No Fault — ODR\n"
-                        "  *3* — 🌍 Expo Week — Events\n"
-                        "  *4* — 🙏 Ritual Guru — Puja\n"
-                        "  *5* — 📄 Legal Champ — Docs\n"
-                        "  *6* — 🧘 Swdhya — Samvad\n"
-                        "  *7* — 🎁 Gift Card\n\n"
-                        "  *General*\n"
-                        "  *8* — Advance Payment\n"
-                        "  *9* — Service Fee\n"
-                        "  *10* — Subscription\n"
-                        "  *11* — Consultation\n"
-                        "  *12* — Other (type your own)"
-                    )
-                    return {
-                        'suggestedResponse': purpose_msg,
-                        'suggestion': purpose_msg,
-                    }
+                    return _r(_pay_purpose_prompt())
                 else:
-                    return {
-                        'suggestedResponse': "Reply *1* to pay dues, *2* for new payment, or *CANCEL* to go back.",
-                        'suggestion': "Reply *1* to pay dues, *2* for new payment, or *CANCEL* to go back.",
-                    }
+                    return _r("Reply 1 (pay dues) or 2 (new payment) · CANCEL")
 
-            # ── Purpose step for new payments ──
+            # ── Purpose ──
             if step == 'awaiting_purpose':
-                purpose_map = {
-                    '1': 'BNB Club — Travel',
-                    '2': 'No Fault — ODR',
-                    '3': 'Expo Week — Events',
-                    '4': 'Ritual Guru — Puja',
-                    '5': 'Legal Champ — Docs',
-                    '6': 'Swdhya — Samvad',
-                    '7': 'Gift Card',
-                    '8': 'Advance Payment',
-                    '9': 'Service Fee',
-                    '10': 'Subscription',
-                    '11': 'Consultation',
-                    '12': 'Other (type your own)',
-                }
-                if content_lower in purpose_map:
-                    purpose = purpose_map[content_lower]
+                if content_lower in PURPOSE_MAP:
+                    purpose = PURPOSE_MAP[content_lower]
                 else:
-                    raw = re.sub(r'\s+', ' ', message_content.strip())
-                    purpose = raw.title()[:40]
+                    purpose = re.sub(r'\s+', ' ', message_content.strip()).title()[:40]
                 data['payment_purpose'] = purpose
-                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                return {
-                    'suggestedResponse': f"✅ Purpose: {purpose}\n\n🛒 Enter Wix Store Order ID\n_(Type *SKIP* if this is an offline payment)_",
-                    'suggestion': f"✅ Purpose: {purpose}\n\n🛒 Enter Wix Store Order ID\n_(Type *SKIP* if this is an offline payment)_",
-                }
-
-            # ── Order ID step ──
-            if step == 'awaiting_order_id':
-                if content_lower in ('skip', 'na', 'none', 'offline', '-'):
-                    data['order_id'] = 'Offline'
-                else:
-                    data['order_id'] = message_content.strip()[:40]
-                # Load saved customer profile for returning customers
+                # Check for saved profile
                 profile = _load_customer_profile(phone_hash)
                 if profile.get('customer_name'):
-                    # Returning customer — show saved details
                     name = profile.get('customer_name', '')
                     phone = profile.get('customer_phone', sender_phone)
                     email = profile.get('customer_email', '')
                     ship = profile.get('shipping_address', '')
-                    bill = profile.get('billing_address', '')
-                    saved_msg = (
-                        f"📋 *Saved Customer Details*\n\n"
-                        f"👤 Name: {name}\n"
-                        f"📱 Phone: {phone}\n"
-                        f"📧 Email: {email or '-'}\n"
-                        f"📦 Shipping: {ship or '-'}\n"
-                        f"🏢 Billing: {bill or ship or '-'}\n\n"
-                        f"Reply *YES* to use these details\n"
-                        f"Reply *NO* to enter new details"
-                    )
                     data['saved_profile'] = profile
+                    saved_msg = (
+                        f"✅ Purpose: {purpose}\n\n"
+                        f"📋 Saved profile\n"
+                        f"👤 {name}\n"
+                        f"📱 {phone}\n"
+                        f"📧 {email or '-'}\n"
+                        f"📦 {ship or '-'}\n\n"
+                        " 1 — Use saved\n"
+                        " 2 — Edit details\n"
+                        " 3 — Pay for someone else\n\n"
+                        "Reply 1/2/3 · BACK · CANCEL"
+                    )
                     _save_flow_state(phone_hash, 'pay', 'awaiting_reuse_profile', data)
-                    return {
-                        'suggestedResponse': saved_msg,
-                        'suggestion': saved_msg,
-                    }
-                # New customer — ask who is paying
+                    return _r(saved_msg)
+                # No saved profile — ask who is paying
                 _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
-                return {
-                    'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
-                    'suggestion': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
-                }
+                return _r(f"✅ Purpose: {purpose}\n\n👤 Who is this payment for?\n 1 — Self\n 2 — Someone else\n\nReply 1/2 · BACK · CANCEL")
 
-            # ── Reuse saved profile ──
+            # ── Reuse saved profile (3 options) ──
             if step == 'awaiting_reuse_profile':
-                if content_lower in ('yes', 'y', 'ok', 'haan', 'ha'):
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
+                    return _r(_pay_purpose_prompt())
+                if content_lower in ('1', 'use', 'use saved', 'yes', 'y'):
                     profile = data.get('saved_profile', {})
                     data['customer_name'] = profile.get('customer_name', '')
                     data['customer_phone'] = profile.get('customer_phone', sender_phone)
@@ -1890,150 +1832,109 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['billing_address'] = profile.get('billing_address', profile.get('shipping_address', ''))
                     data['pay_for'] = 'self' if data['customer_phone'] == sender_phone else 'other'
                     data.pop('saved_profile', None)
-                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
-                    return {
-                        'suggestedResponse': f"✅ Using saved details.\n\n{prompt}",
-                        'suggestion': f"✅ Using saved details.\n\n{prompt}",
-                    }
-                else:
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                    return _r("✅ Using saved details.\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                elif content_lower in ('2', 'edit'):
                     data.pop('saved_profile', None)
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
-                    return {
-                        'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
-                        'suggestion': "👤 Who is this payment for?\n\n  *1* — Self\n  *2* — Someone else",
-                    }
-
-            # ── Pay for self or other ──
-            if step == 'awaiting_pay_for':
-                if content_lower in ('1', 'self', 'myself', 'me'):
                     data['pay_for'] = 'self'
                     data['customer_phone'] = sender_phone
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
-                    return {
-                        'suggestedResponse': "📝 Enter your *full name*:",
-                        'suggestion': "📝 Enter your *full name*:",
-                    }
+                    return _r("📝 Full name?\nBACK · CANCEL")
+                elif content_lower in ('3', 'other', 'someone', 'someone else'):
+                    data.pop('saved_profile', None)
+                    data['pay_for'] = 'other'
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    return _r("📝 Customer's full name?\nBACK · CANCEL")
+                else:
+                    return _r("Reply 1 (use saved), 2 (edit), or 3 (someone else) · BACK · CANCEL")
+
+            # ── Pay for self or other ──
+            if step == 'awaiting_pay_for':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
+                    return _r(_pay_purpose_prompt())
+                if content_lower in ('1', 'self', 'me'):
+                    data['pay_for'] = 'self'
+                    data['customer_phone'] = sender_phone
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    return _r("📝 Full name?\nBACK · CANCEL")
                 elif content_lower in ('2', 'other', 'someone', 'someone else'):
                     data['pay_for'] = 'other'
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
-                    return {
-                        'suggestedResponse': "📝 Enter the *customer's full name*:",
-                        'suggestion': "📝 Enter the *customer's full name*:",
-                    }
+                    return _r("📝 Customer's full name?\nBACK · CANCEL")
                 else:
-                    return {
-                        'suggestedResponse': "Reply *1* for Self or *2* for Someone else.",
-                        'suggestion': "Reply *1* for Self or *2* for Someone else.",
-                    }
+                    return _r("Reply 1 (Self) or 2 (Someone else) · BACK · CANCEL")
 
             # ── Customer name ──
             if step == 'awaiting_customer_name':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
+                    return _r("👤 Who is this payment for?\n 1 — Self\n 2 — Someone else\n\nReply 1/2 · BACK · CANCEL")
                 name = message_content.strip()
                 if len(name) < 2 or len(name) > 100:
-                    return {
-                        'suggestedResponse': "⚠️ Please enter a valid name (2-100 characters).",
-                        'suggestion': "⚠️ Please enter a valid name (2-100 characters).",
-                    }
+                    return _r("⚠️ Valid name (2-100 chars) · BACK · CANCEL")
                 data['customer_name'] = name.title()
                 if data.get('pay_for') == 'other':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_phone', data)
-                    return {
-                        'suggestedResponse': "📱 Enter the *customer's phone number* (with country code):",
-                        'suggestion': "📱 Enter the *customer's phone number* (with country code):",
-                    }
-                # Self — skip phone, ask email
+                    return _r("📱 Customer's phone (with country code)?\nBACK · CANCEL")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
-                return {
-                    'suggestedResponse': "📧 Enter your *email address*\n_(Type *SKIP* if not available)_",
-                    'suggestion': "📧 Enter your *email address*\n_(Type *SKIP* if not available)_",
-                }
+                return _r("� Email? (SKIP if none)\nBACK · CANCEL")e
 
-            # ── Customer phone (only for "other") ──
+            # ── Customer phone (other only) ──
             if step == 'awaiting_customer_phone':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    return _r("📝 Customer's full name?\nBACK · CANCEL")
                 phone = message_content.strip()
                 if not re.match(r'^\+?\d[\d\s\-]{7,18}$', phone):
-                    return {
-                        'suggestedResponse': "⚠️ Invalid phone number. Please enter with country code (e.g. +919876543210).",
-                        'suggestion': "⚠️ Invalid phone number. Please enter with country code (e.g. +919876543210).",
-                    }
+                    return _r("⚠️ Invalid phone. Example: +919876543210\nBACK · CANCEL")
                 data['customer_phone'] = re.sub(r'[\s\-]', '', phone)
                 _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
-                return {
-                    'suggestedResponse': "📧 Enter the *customer's email address*\n_(Type *SKIP* if not available)_",
-                    'suggestion': "📧 Enter the *customer's email address*\n_(Type *SKIP* if not available)_",
-                }
+                return _r("📧 Email? (SKIP if none)\nBACK · CANCEL")
 
             # ── Customer email ──
             if step == 'awaiting_customer_email':
+                if content_lower == 'back':
+                    if data.get('pay_for') == 'other':
+                        _save_flow_state(phone_hash, 'pay', 'awaiting_customer_phone', data)
+                        return _r("📱 Customer's phone (with country code)?\nBACK · CANCEL")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    return _r("📝 Full name?\nBACK · CANCEL")
                 email = message_content.strip()
                 if content_lower in ('skip', 'na', 'none', '-'):
                     data['customer_email'] = ''
                 elif re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', email):
                     data['customer_email'] = email.lower()
                 else:
-                    return {
-                        'suggestedResponse': "⚠️ Invalid email. Please enter a valid email or type *SKIP*.",
-                        'suggestion': "⚠️ Invalid email. Please enter a valid email or type *SKIP*.",
-                    }
+                    return _r("⚠️ Invalid email. Try again or SKIP\nBACK · CANCEL")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
-                return {
-                    'suggestedResponse': "📦 Enter *shipping address*\n_(Type *SKIP* if not applicable)_",
-                    'suggestion': "📦 Enter *shipping address*\n_(Type *SKIP* if not applicable)_",
-                }
+                return _r("📦 Shipping address? (SKIP if N/A)\nBACK · CANCEL")
 
             # ── Shipping address ──
             if step == 'awaiting_shipping_address':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
+                    return _r("📧 Email? (SKIP if none)\nBACK · CANCEL")
                 if content_lower in ('skip', 'na', 'none', '-'):
                     data['shipping_address'] = ''
                 else:
                     data['shipping_address'] = message_content.strip()[:200]
                 if data.get('shipping_address'):
                     _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
-                    return {
-                        'suggestedResponse': "🏢 Is billing address *same as shipping*?\n\n  *YES* — Same\n  *NO* — Enter different billing address",
-                        'suggestion': "🏢 Is billing address *same as shipping*?\n\n  *YES* — Same\n  *NO* — Enter different billing address",
-                    }
-                # No shipping, ask billing directly
+                    return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
-                return {
-                    'suggestedResponse': "🏢 Enter *billing address*\n_(Type *SKIP* if not applicable)_",
-                    'suggestion': "🏢 Enter *billing address*\n_(Type *SKIP* if not applicable)_",
-                }
+                return _r("🏢 Billing address? (SKIP if N/A)\nBACK · CANCEL")
 
             # ── Billing same as shipping? ──
             if step == 'awaiting_billing_same':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
+                    return _r("📦 Shipping address? (SKIP if N/A)\nBACK · CANCEL")
                 if content_lower in ('yes', 'y', 'same', 'haan', 'ha'):
                     data['billing_address'] = data.get('shipping_address', '')
-                    # Save customer profile for future reuse
-                    _save_customer_profile(phone_hash, {
-                        'customer_name': data.get('customer_name', ''),
-                        'customer_phone': data.get('customer_phone', sender_phone),
-                        'customer_email': data.get('customer_email', ''),
-                        'shipping_address': data.get('shipping_address', ''),
-                        'billing_address': data.get('billing_address', ''),
-                    })
-                    _update_contact_with_customer_info(sender_phone, data, request_id)
-                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
-                    return {
-                        'suggestedResponse': f"✅ Details saved.\n\n{prompt}",
-                        'suggestion': f"✅ Details saved.\n\n{prompt}",
-                    }
                 else:
                     _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
-                    return {
-                        'suggestedResponse': "🏢 Enter *billing address*:",
-                        'suggestion': "🏢 Enter *billing address*:",
-                    }
-
-            # ── Billing address ──
-            if step == 'awaiting_billing_address':
-                if content_lower in ('skip', 'na', 'none', '-'):
-                    data['billing_address'] = ''
-                else:
-                    data['billing_address'] = message_content.strip()[:200]
-                # Save customer profile for future reuse
+                    return _r("🏢 Billing address?\nBACK · CANCEL")
                 _save_customer_profile(phone_hash, {
                     'customer_name': data.get('customer_name', ''),
                     'customer_phone': data.get('customer_phone', sender_phone),
@@ -2042,50 +1943,101 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'billing_address': data.get('billing_address', ''),
                 })
                 _update_contact_with_customer_info(sender_phone, data, request_id)
-                prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
-                _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
-                return {
-                    'suggestedResponse': f"✅ Details saved.\n\n{prompt}",
-                    'suggestion': f"✅ Details saved.\n\n{prompt}",
-                }
+                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                return _r("✅ Details saved.\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
 
+            # ── Billing address ──
+            if step == 'awaiting_billing_address':
+                if content_lower == 'back':
+                    if data.get('shipping_address'):
+                        _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
+                        return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
+                    return _r("📦 Shipping address? (SKIP if N/A)\nBACK · CANCEL")
+                if content_lower in ('skip', 'na', 'none', '-'):
+                    data['billing_address'] = ''
+                else:
+                    data['billing_address'] = message_content.strip()[:200]
+                _save_customer_profile(phone_hash, {
+                    'customer_name': data.get('customer_name', ''),
+                    'customer_phone': data.get('customer_phone', sender_phone),
+                    'customer_email': data.get('customer_email', ''),
+                    'shipping_address': data.get('shipping_address', ''),
+                    'billing_address': data.get('billing_address', ''),
+                })
+                _update_contact_with_customer_info(sender_phone, data, request_id)
+                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                return _r("✅ Details saved.\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+
+            # ── Order ID ──
+            if step == 'awaiting_order_id':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
+                    return _r("🏢 Billing address? (SKIP if N/A)\nBACK · CANCEL")
+                if content_lower in ('skip', 'na', 'none', 'offline', '-'):
+                    data['order_id'] = 'Offline'
+                else:
+                    data['order_id'] = message_content.strip()[:40]
+                _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                return _r(f"🛒 Order: {data['order_id']}\n\n💳 Amount? (e.g. 500, 500x2, 2x500)\nBACK · CANCEL")
+
+            # ── Amount (flexible: 500, 500x2, 2x500, 500*2) ──
             if step == 'awaiting_amount':
-                amount_str = re.sub(r'[^\d.]', '', message_content.strip())
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                raw = message_content.strip()
+                # Try PxN format (e.g. 500x2, 500*2)
+                m_pxn = re.match(r'^(\d+(?:\.\d+)?)\s*[x*×]\s*(\d+)$', raw, re.IGNORECASE)
+                if m_pxn:
+                    price_val = float(m_pxn.group(1))
+                    qty_val = int(m_pxn.group(2))
+                    if 1 <= price_val <= 100000 and 1 <= qty_val <= 999:
+                        data['amount'] = price_val
+                        data['quantity'] = qty_val
+                        data['item_name'] = data.get('item_name', default_item)
+                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
+                    return _r("⚠️ Price 1–100000, qty 1–999\nBACK · CANCEL")
+                # Try NxP format (e.g. 2x500)
+                m_nxp = re.match(r'^(\d+)\s*[x*×]\s*(\d+(?:\.\d+)?)$', raw, re.IGNORECASE)
+                if m_nxp:
+                    qty_val = int(m_nxp.group(1))
+                    price_val = float(m_nxp.group(2))
+                    if 1 <= price_val <= 100000 and 1 <= qty_val <= 999:
+                        data['amount'] = price_val
+                        data['quantity'] = qty_val
+                        data['item_name'] = data.get('item_name', default_item)
+                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
+                    return _r("⚠️ Price 1–100000, qty 1–999\nBACK · CANCEL")
+                # Plain number
+                amount_str = re.sub(r'[^\d.]', '', raw)
                 try:
                     amount = float(amount_str)
                     if amount < 1 or amount > 100000:
                         raise ValueError("out of range")
                 except (ValueError, TypeError):
-                    msg = pay_prompts.get('invalid_amount', "⚠️ Please enter a valid number between 1 and 100000.")
-                    return {
-                        'suggestedResponse': msg,
-                        'suggestion': msg,
-                    }
+                    return _r("⚠️ Valid amount 1–100000\nExamples: 500, 500x2, 2x500\nBACK · CANCEL")
                 data['amount'] = amount
-                prompt = pay_prompts.get('step_quantity', "📦 Enter quantity / units (type 1 for single)\nExample: 2")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_quantity', data)
-                return {
-                    'suggestedResponse': prompt,
-                    'suggestion': prompt,
-                }
+                return _r(f"💳 ₹{amount:,.2f}\n\n📦 Quantity? (1 for single)\nBACK · CANCEL")
 
+            # ── Quantity ──
             if step == 'awaiting_quantity':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                    return _r("💳 Amount? (e.g. 500, 500x2, 2x500)\nBACK · CANCEL")
                 qty_str = re.sub(r'[^\d]', '', message_content.strip())
                 try:
                     qty = int(qty_str) if qty_str else 1
                     if qty < 1 or qty > 999:
                         raise ValueError("out of range")
                 except (ValueError, TypeError):
-                    msg = pay_prompts.get('invalid_quantity', "⚠️ Please enter a valid quantity between 1 and 999.")
-                    return {
-                        'suggestedResponse': msg,
-                        'suggestion': msg,
-                    }
+                    return _r("⚠️ Quantity 1–999\nBACK · CANCEL")
                 data['quantity'] = qty
                 data['item_name'] = data.get('item_name', default_item)
-                # Go straight to summary (no item_name / discount questions)
                 return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
 
+            # ── Confirmation (YES / NO / EDIT) ──
             if step == 'awaiting_confirmation':
                 if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
                     amount = data.get('subtotal', data.get('amount', 0))
@@ -2114,33 +2066,38 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 elif content_lower in ('no', 'n', 'nahi', 'nope'):
                     _clear_flow_state(phone_hash)
                     return {
-                        'suggestedResponse': "❌ Payment cancelled. Back to the menu 👇",
-                        'suggestion': "❌ Payment cancelled. Back to the menu 👇",
+                        'suggestedResponse': "❌ Payment cancelled.",
+                        'suggestion': "❌ Payment cancelled.",
                         'flowAction': 'showMainMenu',
                     }
-                elif content_lower in ('back', 'edit'):
-                    # Let user re-enter from purpose step (keeps customer info)
-                    keep_data = {
-                        'customer_name': data.get('customer_name', ''),
-                        'customer_phone': data.get('customer_phone', ''),
-                        'customer_email': data.get('customer_email', ''),
-                        'shipping_address': data.get('shipping_address', ''),
-                        'billing_address': data.get('billing_address', ''),
-                        'pay_for': data.get('pay_for', 'self'),
-                        'order_id': data.get('order_id', 'Offline'),
-                        'payment_purpose': data.get('payment_purpose', ''),
-                    }
-                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', keep_data)
-                    return {
-                        'suggestedResponse': f"🔄 Let's redo it.\n\n{prompt}",
-                        'suggestion': f"🔄 Let's redo it.\n\n{prompt}",
-                    }
+                elif content_lower in ('edit', 'change', 'modify'):
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_edit_choice', data)
+                    return _r(EDIT_MENU)
                 else:
-                    return {
-                        'suggestedResponse': f"Reply ✅ *YES* to pay ₹{data.get('total', 0):,.2f}, ❌ *NO* to cancel, or *BACK* to edit.",
-                        'suggestion': f"Reply ✅ *YES* to pay ₹{data.get('total', 0):,.2f}, ❌ *NO* to cancel, or *BACK* to edit.",
-                    }
+                    return _r(f"Reply YES to pay ₹{data.get('total', 0):,.2f}, NO to cancel, or EDIT")
+
+            # ── Edit menu ──
+            if step == 'awaiting_edit_choice':
+                if content_lower == 'back':
+                    return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
+                if content_lower == '1':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                    return _r("💳 New amount? (e.g. 500, 500x2)\nBACK · CANCEL")
+                elif content_lower == '2':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_quantity', data)
+                    return _r(f"� New quantit'y? (current: {data.get('quantity', 1)})\nBACK · CANCEL")
+                elif content_lower == '3':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
+                    return _r(_pay_purpose_prompt())
+                elif content_lower == '4':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    label = "Customer's full name?" if data.get('pay_for') == 'other' else "Full name?"
+                    return _r(f"📝 {label}\nBACK · CANCEL")
+                elif content_lower == '5':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                else:
+                    return _r("Reply 1–5 · BACK · CANCEL")
 
         # ── Toggle flows (audio/notifications) ──
         if flow_name in ('toggle_audio', 'toggle_notifications'):
@@ -2238,12 +2195,11 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         dues_lines.append(f"  {i}. Ref: {d['ref']} — ₹{d['amount']:,.2f} ({d['item']})")
                     dues_text = "\n".join(dues_lines)
                     due_msg = (
-                        f"⚠️ You have {len(pending)} pending payment(s) totalling ₹{total_due:,.2f}:\n"
+                        f"⚠️ {len(pending)} pending payment(s) — ₹{total_due:,.2f}\n"
                         f"{dues_text}\n\n"
-                        f"Reply:\n"
-                        f"  *1* — Pay existing dues\n"
-                        f"  *2* — Make a new payment\n"
-                        f"  *CANCEL* — Go back"
+                        " 1 — Pay existing dues\n"
+                        " 2 — New payment\n\n"
+                        "Reply 1/2 · CANCEL"
                     )
                     _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
                     return {
@@ -2252,27 +2208,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     }
                 prompt = flows_config.get('step_amount', "Enter the amount to pay:")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-                purpose_msg = (
-                    "🏷️ What's this payment for?\n\n"
-                    "  *Store Brands*\n"
-                    "  *1* — ✈️ BNB Club — Travel\n"
-                    "  *2* — ⚖️ No Fault — ODR\n"
-                    "  *3* — 🌍 Expo Week — Events\n"
-                    "  *4* — 🙏 Ritual Guru — Puja\n"
-                    "  *5* — 📄 Legal Champ — Docs\n"
-                    "  *6* — 🧘 Swdhya — Samvad\n"
-                    "  *7* — 🎁 Gift Card\n\n"
-                    "  *General*\n"
-                    "  *8* — Advance Payment\n"
-                    "  *9* — Service Fee\n"
-                    "  *10* — Subscription\n"
-                    "  *11* — Consultation\n"
-                    "  *12* — Other (type your own)"
-                )
-                return {
-                    'suggestedResponse': purpose_msg,
-                    'suggestion': purpose_msg,
-                }
+                return _r(_pay_purpose_prompt())
 
             # Toggle audio
             if action == 'toggle_audio':
@@ -2348,6 +2284,61 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
     return None
 
 
+# ── Pay helpers ──
+
+def _r(msg: str) -> Dict:
+    """Shorthand: return a simple suggestedResponse/suggestion pair."""
+    return {'suggestedResponse': msg, 'suggestion': msg}
+
+
+def _pay_purpose_prompt() -> str:
+    """Return the formatted purpose list used in multiple places."""
+    return (
+        "🏷️ What is this payment for?\n\n"
+        "Store brands\n"
+        " 1 — ✈️ BNB Club — Travel\n"
+        " 2 — ⚖️ No Fault — ODR\n"
+        " 3 — 🌍 Expo Week — Events\n"
+        " 4 — 🙏 Ritual Guru — Puja\n"
+        " 5 — 📄 Legal Champ — Docs\n"
+        " 6 — 🧘 Swdhya — Samvad\n"
+        " 7 — 🎁 Gift Card\n\n"
+        "General\n"
+        " 8 — Advance Payment\n"
+        " 9 — Service Fee\n"
+        " 10 — Subscription\n"
+        " 11 — Consultation\n"
+        " 12 — Other (type it)\n\n"
+        "Reply 1–12 or type your own · CANCEL"
+    )
+
+
+PURPOSE_MAP = {
+    '1': 'BNB Club — Travel',
+    '2': 'No Fault — ODR',
+    '3': 'Expo Week — Events',
+    '4': 'Ritual Guru — Puja',
+    '5': 'Legal Champ — Docs',
+    '6': 'Swdhya — Samvad',
+    '7': 'Gift Card',
+    '8': 'Advance Payment',
+    '9': 'Service Fee',
+    '10': 'Subscription',
+    '11': 'Consultation',
+}
+
+
+EDIT_MENU = (
+    "✏️ What would you like to edit?\n\n"
+    " 1 — Amount\n"
+    " 2 — Quantity\n"
+    " 3 — Purpose\n"
+    " 4 — Customer info\n"
+    " 5 — Order ID\n\n"
+    "Reply 1–5 · BACK · CANCEL"
+)
+
+
 # ── Pay summary builder ──
 
 def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
@@ -2375,55 +2366,52 @@ def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
     data['conv_fee'] = conv_fee
     data['total'] = total
 
-    breakdown = f"📋 *Payment Summary*\n\n"
-    # Customer info
+    # Build summary
+    lines = ["📋 *Payment Summary*\n"]
     cust_name = data.get('customer_name', '')
     cust_phone = data.get('customer_phone', '')
     cust_email = data.get('customer_email', '')
     order_id = data.get('order_id', 'Offline')
     pay_for = data.get('pay_for', 'self')
     if cust_name:
-        breakdown += f"👤 Customer: {cust_name}\n"
+        lines.append(f"👤 {cust_name}")
     if cust_phone:
-        breakdown += f"📱 Phone: {cust_phone}\n"
+        lines.append(f"📱 {cust_phone}")
     if cust_email:
-        breakdown += f"📧 Email: {cust_email}\n"
+        lines.append(f"📧 {cust_email}")
     ship_addr = data.get('shipping_address', '')
     bill_addr = data.get('billing_address', '')
     if ship_addr:
-        breakdown += f"📦 Ship To: {ship_addr[:60]}\n"
+        lines.append(f"📦 Ship: {ship_addr[:60]}")
     if bill_addr and bill_addr != ship_addr:
-        breakdown += f"🏢 Bill To: {bill_addr[:60]}\n"
+        lines.append(f"🏢 Bill: {bill_addr[:60]}")
     if pay_for == 'other':
-        breakdown += f"💰 Paid By: {sender_phone}\n"
+        lines.append(f"💰 Paid by: {sender_phone}")
     else:
-        breakdown += f"📱 Paid By: You\n"
-    breakdown += f"🛒 Order: {order_id}\n"
-    breakdown += f"────────────────────\n"
-    breakdown += f"Item: {item_name}\n"
+        lines.append(f"💰 Paid by: You")
+    lines.append(f"🛒 Order: {order_id}")
+    lines.append("────────────────────")
+    lines.append(f"Item: {item_name}")
     if data.get('payment_purpose'):
-        breakdown += f"Purpose: {data['payment_purpose']}\n"
+        lines.append(f"Purpose: {data['payment_purpose']}")
     if data.get('due_ref'):
-        breakdown += f"Due Ref: {data['due_ref']}\n"
-    breakdown += (
-        f"Unit Price: ₹{unit_price:,.2f}\n"
-        f"Quantity: {qty}\n"
-        f"Subtotal: ₹{subtotal:,.2f}\n"
-        f"Promo: -₹{promo:,.2f}\n"
-        f"GST ({default_gst:.0f}%): ₹{gst_amount:,.2f}\n"
-        f"Shipping: ₹{shipping:,.2f}\n"
-        f"Convenience Fee: ₹{conv_fee:,.2f}\n"
-        f"────────────────────\n"
-        f"✅ *Total Payable: ₹{total:,.2f}*\n"
-        f"GSTIN: {gstin}\n\n"
-        f"Reply ✅ *YES* to pay or ❌ *NO* to cancel.\n"
-        f"_(Tip: Reply BACK to edit details)_"
-    )
+        lines.append(f"Due Ref: {data['due_ref']}")
+    lines.append(f"Unit Price: ₹{unit_price:,.2f}")
+    lines.append(f"Qty: {qty}")
+    lines.append(f"Subtotal: ₹{subtotal:,.2f}")
+    lines.append(f"Promo: -₹{promo:,.2f}")
+    lines.append(f"GST ({default_gst:.0f}%): ₹{gst_amount:,.2f}")
+    lines.append(f"Shipping: ₹{shipping:,.2f}")
+    lines.append(f"Conv Fee: ₹{conv_fee:,.2f}")
+    lines.append("────────────────────")
+    lines.append(f"✅ *Total: ₹{total:,.2f}*")
+    lines.append(f"GSTIN: {gstin}")
+    lines.append("")
+    lines.append("YES · NO · EDIT")
+
+    breakdown = "\n".join(lines)
     _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)
-    return {
-        'suggestedResponse': breakdown,
-        'suggestion': breakdown,
-    }
+    return _r(breakdown)
 
 
 # ── Customer profile helpers (for returning customers) ──
