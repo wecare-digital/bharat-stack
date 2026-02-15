@@ -10,7 +10,7 @@ import { API_BASE } from '../../../config/constants';
 import Button from '../../../components/ui/Button';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 type TabType = 'create' | 'logs';
 interface CampaignLog { id: string; name: string; recipients: number; sent: number; delivered: number; read: number; failed: number; status: string; createdAt: string; }
 
@@ -19,7 +19,7 @@ const tabItems: TabItem[] = [
   { id: 'logs', label: 'Campaign Logs' },
 ];
 
-const RcsCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
+const RcsCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [activeTab, setActiveTab] = useState<TabType>('create');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -88,9 +88,7 @@ const RcsCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
     } catch (err: any) { setMessage({ type: 'error', text: err.message || 'Campaign failed' }); } finally { setSending(false); }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="RCS Campaign | WECARE.DIGITAL" description="Send bulk RCS campaigns" />
+  const content = (
       <div className="inner-page campaign-page">
         <div className="page-header"><h2>RCS Campaign</h2><Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} /></div>
         <Tabs items={tabItems.map(t => ({ ...t, count: t.id === 'logs' ? campaigns.length : undefined }))} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} variant="sub" />
@@ -116,6 +114,14 @@ const RcsCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
           </tbody></table></div>
         )}
       </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="RCS Campaign | WECARE.DIGITAL" description="Send bulk RCS campaigns" />
+      {content}
     </Layout>
   );
 };

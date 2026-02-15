@@ -9,12 +9,12 @@ import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; }
 
 const LOGS_PER_PAGE = 50;
 
-export default function RcsLogsPage({ signOut, user }: PageProps) {
+export default function RcsLogsPage({ signOut, user, embedded }: PageProps) {
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [page, setPage] = useState(1);
@@ -52,9 +52,8 @@ export default function RcsLogsPage({ signOut, user }: PageProps) {
   const totalPages = Math.ceil(filteredLogs.length / LOGS_PER_PAGE);
   const paginatedLogs = filteredLogs.slice((page - 1) * LOGS_PER_PAGE, page * LOGS_PER_PAGE);
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="RCS Logs | WECARE.DIGITAL" description="RCS message logs" />
+  const content = (
+    <>
       <div className="inner-page logs-page">
         <div className="page-header"><h2>RCS Logs</h2><Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} /></div>
         <div className="filters-row">
@@ -104,6 +103,15 @@ export default function RcsLogsPage({ signOut, user }: PageProps) {
         .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .empty-state { text-align: center; color: #6b7280; padding: 40px; }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="RCS Logs | WECARE.DIGITAL" description="RCS message logs" />
+      {content}
     </Layout>
   );
 }

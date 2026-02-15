@@ -13,11 +13,12 @@ import Button from '../../../components/ui/Button';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 const ITEMS_PER_PAGE = 20;
 
-const EmailLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<api.Message[]>([]);
   const [filter, setFilter] = useState<'all' | 'sent' | 'delivered' | 'failed'>('all');
@@ -108,9 +109,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
     opacity: disabled ? 0.4 : 1
   });
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="Email Logs | WECARE.DIGITAL" description="View email logs" />
+  const content = (
       <div style={{ padding: '20px' }}>
         <Breadcrumbs />
         
@@ -254,6 +253,14 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
           <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
         </div>
       </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="Email Logs | WECARE.DIGITAL" description="View email logs" />
+      {content}
     </Layout>
   );
 };

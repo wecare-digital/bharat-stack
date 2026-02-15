@@ -13,13 +13,13 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import { CloseIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface Contact { id: string; name: string; email: string; unread: number; lastMessage?: string; }
 interface EmailMessage { id: string; direction: 'inbound' | 'outbound'; subject?: string; content: string; timestamp: string; status: string; contactId: string; }
 
 const CONTACTS_PER_PAGE = 20;
 
-const EmailInbox: React.FC<PageProps> = ({ signOut, user }) => {
+const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [messages, setMessages] = useState<EmailMessage[]>([]);
@@ -74,9 +74,8 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user }) => {
 
   const toggleSelect = (id: string) => { const newSet = new Set(selectedIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedIds(newSet); };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="Email Inbox | WECARE.DIGITAL" description="Email inbox via AWS SES" />
+  const content = (
+    <>
       <div className="inbox-page">
         <div className="inbox-header">
           <div className="inbox-actions">
@@ -187,6 +186,15 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user }) => {
         .form-input:focus { outline: none; border-color: #000; }
         .form-input.disabled { background: #f9fafb; }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="Email Inbox | WECARE.DIGITAL" description="Email inbox via AWS SES" />
+      {content}
     </Layout>
   );
 };

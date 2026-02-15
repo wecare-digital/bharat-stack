@@ -63,6 +63,9 @@ const PageShell: React.FC<PageShellProps> = ({
         </div>
       </div>
 
+      {/* Section separator */}
+      <div className="ps-separator" />
+
       {/* Tab Content */}
       <div className="ps-content" role="tabpanel">
         {children(activeTab)}
