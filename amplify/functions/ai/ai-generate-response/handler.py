@@ -791,8 +791,13 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
             if isinstance(lang_selection, dict) and 'region' in lang_selection:
                 region_id = lang_selection['region']
                 region_languages = lang_selection['languages']
+                lp_config = _get_language_picker_config_from_db()
+                # Use DB config if available, fallback to detected
+                db_region_langs = lp_config['languagesByRegion'].get(region_id)
+                if db_region_langs:
+                    region_languages = db_region_langs
                 region_title = next(
-                    (r['title'] for r in LANGUAGE_REGION_PICKER if r['id'] == region_id),
+                    (r['title'] for r in lp_config['regionPicker'] if r['id'] == region_id),
                     'Languages'
                 )
                 logger.info(json.dumps({
@@ -814,9 +819,11 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 }
 
             # Language selection (Step 2) → save preference
+            lp_config = _get_language_picker_config_from_db()
             _save_language_preference(phone_hash, lang_selection)
-            confirmation = LANGUAGE_CONFIRMATIONS.get(lang_selection,
-                f"Language set to {lang_selection}! 🌐 How can I help you?")
+            confirmation = lp_config['languageConfirmations'].get(lang_selection,
+                LANGUAGE_CONFIRMATIONS.get(lang_selection,
+                    f"Language set to {lang_selection}! \U0001f310 How can I help you?"))
             logger.info(json.dumps({
                 'event': 'language_preference_set',
                 'language': lang_selection,
@@ -1764,6 +1771,33 @@ def _get_bot_flow_config() -> Dict:
         return DEFAULT_BOT_FLOW.copy()
 
 
+def _get_language_picker_config_from_db() -> Dict:
+    """
+    Load language picker config from SystemConfigTable (id: 'bot_language_picker_config').
+    Returns dict with keys: regionPicker, languagesByRegion, languageConfirmations.
+    All are dashboard-manageable. Falls back to hardcoded defaults.
+    """
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = table.get_item(Key={'id': 'bot_language_picker_config'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            return {
+                'regionPicker': config.get('regionPicker', LANGUAGE_REGION_PICKER),
+                'languagesByRegion': config.get('languagesByRegion', LANGUAGE_BY_REGION),
+                'languageConfirmations': config.get('languageConfirmations', LANGUAGE_CONFIRMATIONS),
+            }
+    except Exception as e:
+        logger.warning(f"Failed to get language picker config: {str(e)}")
+
+    return {
+        'regionPicker': LANGUAGE_REGION_PICKER,
+        'languagesByRegion': LANGUAGE_BY_REGION,
+        'languageConfirmations': LANGUAGE_CONFIRMATIONS,
+    }
+
+
 def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                      history: Dict, phone_hash: str, sender_phone: str, request_id: str) -> Optional[Dict]:
     """
@@ -2334,11 +2368,12 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
             # Show language picker (Step 1: region picker)
             if action == 'show_language_picker':
+                lp_config = _get_language_picker_config_from_db()
                 return {
                     'suggestedResponse': '',
                     'showLanguagePicker': True,
                     'languagePickerStep': 'region',
-                    'regionOptions': LANGUAGE_REGION_PICKER,
+                    'regionOptions': lp_config['regionPicker'],
                 }
 
             # Show sub-menu

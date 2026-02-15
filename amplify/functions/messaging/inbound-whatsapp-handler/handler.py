@@ -2082,18 +2082,37 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
         return
 
     # Map language preference to Polly voice/language code
-    # Fix #6: Bengali/Tamil/Telugu don't have native Polly voices — use Hindi Kajal as fallback
+    # Languages with native Polly voices use them; others use best fallback
     LANG_TO_POLLY = {
+        # ── Popular (Indian + English) ──
         'english': ('Kajal', 'en-IN'),
         'hindi': ('Kajal', 'hi-IN'),
-        'bengali': ('Kajal', 'hi-IN'),     # No Bengali Polly voice, Hindi Kajal fallback
-        'tamil': ('Kajal', 'en-IN'),       # No Tamil Polly voice
-        'telugu': ('Kajal', 'en-IN'),      # No Telugu Polly voice
-        'marathi': ('Kajal', 'hi-IN'),
         'hinglish': ('Kajal', 'hi-IN'),
-        'gujarati': ('Kajal', 'hi-IN'),    # No Gujarati Polly voice, Hindi fallback
-        'kannada': ('Kajal', 'en-IN'),     # No Kannada Polly voice
-        'malayalam': ('Kajal', 'en-IN'),   # No Malayalam Polly voice
+        'bengali': ('Kajal', 'hi-IN'),       # No native voice → Hindi fallback
+        'tamil': ('Kajal', 'en-IN'),         # No native voice → English fallback
+        'telugu': ('Kajal', 'en-IN'),        # No native voice
+        'gujarati': ('Kajal', 'hi-IN'),      # No native voice → Hindi fallback
+        'marathi': ('Kajal', 'hi-IN'),       # No native voice → Hindi fallback
+        'kannada': ('Kajal', 'en-IN'),       # No native voice
+        'malayalam': ('Kajal', 'en-IN'),     # No native voice
+        # ── Asian ──
+        'chinese': ('Zhiyu', 'cmn-CN'),
+        'japanese': ('Kazuha', 'ja-JP'),
+        'korean': ('Seoyeon', 'ko-KR'),
+        'thai': ('Kajal', 'en-IN'),          # No native voice
+        'vietnamese': ('Kajal', 'en-IN'),    # No native voice
+        'indonesian': ('Kajal', 'en-IN'),    # No native voice
+        'sinhala': ('Kajal', 'en-IN'),       # No native voice
+        # ── Middle East ──
+        'arabic': ('Hala', 'arb'),
+        'turkish': ('Burcu', 'tr-TR'),
+        'russian': ('Tatyana', 'ru-RU'),
+        'urdu': ('Kajal', 'hi-IN'),          # No native voice → Hindi fallback
+        'punjabi': ('Kajal', 'hi-IN'),       # No native voice → Hindi fallback
+        # ── European ──
+        'french': ('Lea', 'fr-FR'),
+        'spanish': ('Lupe', 'es-US'),
+        'portuguese': ('Camila', 'pt-BR'),
     }
     voice_id, lang_code = LANG_TO_POLLY.get(language.lower(), ('Kajal', 'en-IN'))
 
@@ -3008,12 +3027,41 @@ def _get_language_picker_config() -> Dict:
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
             config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            # Region picker (Step 1) — override rows if provided
+            if 'regionPicker' in config:
+                region_rows = config['regionPicker']
+                return {
+                    'header': config.get('regionHeader', DEFAULT_LANGUAGE_PICKER['header']),
+                    'body': config.get('regionBody', DEFAULT_LANGUAGE_PICKER['body']),
+                    'footer': config.get('regionFooter', DEFAULT_LANGUAGE_PICKER['footer']),
+                    'buttonText': config.get('regionButtonText', DEFAULT_LANGUAGE_PICKER['buttonText']),
+                    'sections': [{'title': 'Select Region', 'rows': region_rows}]
+                }
             merged = DEFAULT_LANGUAGE_PICKER.copy()
             merged.update(config)
             return merged
         return DEFAULT_LANGUAGE_PICKER.copy()
     except Exception:
         return DEFAULT_LANGUAGE_PICKER.copy()
+
+
+def _get_region_language_list(region_id: str) -> Optional[Dict]:
+    """
+    Get the language list for a specific region.
+    Checks SystemConfigTable first (dashboard-manageable), falls back to REGION_LANGUAGE_LISTS.
+    """
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = config_table.get_item(Key={'id': 'bot_language_picker_config'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            db_region_lists = config.get('regionLanguageLists', {})
+            if region_id in db_region_lists:
+                return db_region_lists[region_id]
+    except Exception:
+        pass
+    return REGION_LANGUAGE_LISTS.get(region_id)
 
 
 def _send_read_receipt(whatsapp_message_id: str, phone_number_id: str, request_id: str) -> None:
@@ -3245,7 +3293,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             if picker_step == 'languages':
                 # Step 2: Show languages for the selected region
                 region_id = ai_response.get('regionId', '')
-                region_list = REGION_LANGUAGE_LISTS.get(region_id)
+                region_list = _get_region_language_list(region_id)
                 if region_list:
                     _send_interactive_list(
                         contact_id=contact_id,

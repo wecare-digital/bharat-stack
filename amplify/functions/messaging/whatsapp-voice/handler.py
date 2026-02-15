@@ -111,6 +111,10 @@ POLLY_VOICES = {
     'tr-TR': [
         {'id': 'Burcu', 'gender': 'Female', 'engine': 'neural'},
     ],
+    'ru-RU': [
+        {'id': 'Tatyana', 'gender': 'Female', 'engine': 'standard'},
+        {'id': 'Maxim', 'gender': 'Male', 'engine': 'standard'},
+    ],
 }
 
 
