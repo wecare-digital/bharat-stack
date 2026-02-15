@@ -952,10 +952,12 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                     'phoneHash': phone_hash,
                     'requestId': request_id
                 }))
+                escalation_msg = "I'd like to connect you with our team for the best help on this. 🙏 A team member will be with you shortly. You can also reach us at +91 9330994400."
                 return {
                     'statusCode': 200, 'headers': headers,
                     'body': json.dumps({
-                        'suggestedResponse': '',
+                        'suggestedResponse': escalation_msg,
+                        'suggestion': escalation_msg,
                         'escalate': True,
                         'intent': intent_result.get('intent', 'unknown'),
                         'confidence': intent_result.get('confidence', 0),

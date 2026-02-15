@@ -3252,12 +3252,21 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
         
         # Check if AI flagged for human escalation (from intent classification, NOT from menu handoff)
         if ai_response and ai_response.get('escalate') and not ai_response.get('humanHandoff'):
+            escalation_text = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
+            if escalation_text and len(escalation_text) > 5:
+                _send_ai_auto_reply(
+                    contact_id=contact_id,
+                    content=escalation_text,
+                    phone_number_id=phone_number_id,
+                    request_id=request_id
+                )
             logger.info(json.dumps({
                 'event': 'ai_escalation_triggered',
                 'intent': ai_response.get('intent', 'unknown'),
                 'confidence': ai_response.get('confidence', 0),
                 'messageId': message_id,
                 'contactId': contact_id,
+                'escalationTextSent': bool(escalation_text),
                 'requestId': request_id
             }))
             return ai_response
@@ -3448,6 +3457,26 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
         elif flow_action == 'end':
             # Rating submitted — nothing more to do, message already sent
             pass
+
+        # ── Safety net: if AI returned but nothing was sent to user, send fallback ──
+        if ai_response and not ai_response.get('locked') and not ai_response.get('showLanguagePicker'):
+            suggestion_sent = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
+            has_flow_action = flow_action in ('showMainMenu', 'showSubMenu', 'showOptions', 'showRating', 'sendPayment', 'humanHandoff', 'end')
+            if not suggestion_sent and not has_flow_action and not ai_response.get('sendWelcomeMenu'):
+                fallback_msg = "Hi! 👋 I'm here to help. Type *menu* to see options, or just ask me anything. 😊"
+                logger.warning(json.dumps({
+                    'event': 'ai_blank_response_fallback',
+                    'contactId': contact_id,
+                    'messageId': message_id,
+                    'aiResponseKeys': list(ai_response.keys()) if ai_response else [],
+                    'requestId': request_id
+                }))
+                _send_ai_auto_reply(
+                    contact_id=contact_id,
+                    content=fallback_msg,
+                    phone_number_id=phone_number_id,
+                    request_id=request_id
+                )
 
         # ── Audio response: if user has audioEnabled, send TTS version ──
         if ai_response and not ai_response.get('locked') and not ai_response.get('escalate'):
