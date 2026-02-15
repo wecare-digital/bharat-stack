@@ -82,6 +82,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     processed_count = 0
     error_count = 0
+
+    # ── Direct invoke: create_invoice from dashboard ──
+    if event.get('action') == 'create_invoice':
+        return _handle_dashboard_invoice(event, request_id)
     
     logger.info(json.dumps({
         'event': 'inbound_processing_start',
@@ -2621,10 +2625,12 @@ def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: 
     if pay_for == 'other':
         paid_by = sender_phone[-10:] if len(sender_phone) > 10 else sender_phone
         lines.append(f'Paid By: {paid_by}')
-    if shipping_address and shipping_address != billing_address:
-        lines.append(sep)
-        lines.append(center('SHIP TO'))
+    lines.append(sep)
+    lines.append(center('SHIP TO'))
+    if shipping_address:
         lines.append(f'{shipping_address[:42]}')
+    else:
+        lines.append('Same as billing')
     if purpose:
         lines.append(f'Purpose: {purpose[:30]}')
     if due_ref:
@@ -2662,6 +2668,58 @@ def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: 
     lines.append(dsep)
 
     return lines
+
+
+def _handle_dashboard_invoice(event, request_id):
+    """Handle direct invoke from dashboard to create and send an invoice."""
+    try:
+        contact_id = event['contactId']
+        phone_number_id = event.get('phoneNumberId', '919330994400')
+        item_name = event['itemName']
+        unit_price = float(event['unitPrice'])
+        quantity = int(event.get('quantity', 1))
+        gst_rate = float(event.get('gstRate', 18))
+        shipping = float(event.get('shipping', 49))
+        discount = float(event.get('discount', 15))
+        purpose = event.get('purpose', '')
+        order_id = event.get('orderId', 'Offline')
+        customer_name = event.get('customerName', '')
+        customer_phone = event.get('customerPhone', '')
+        customer_email = event.get('customerEmail', '')
+        shipping_address = event.get('shippingAddress', '')
+        billing_address = event.get('billingAddress', '')
+        sender_phone = event.get('senderPhone', customer_phone or contact_id)
+
+        # Cap promo so it never exceeds subtotal
+        subtotal = unit_price * quantity
+        discount = min(discount, subtotal)
+
+        _generate_and_send_invoice(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            amount=unit_price,
+            quantity=quantity,
+            item_name=item_name,
+            gst_rate=gst_rate,
+            shipping=shipping,
+            discount=discount,
+            purpose=purpose,
+            due_ref='',
+            sender_phone=sender_phone,
+            request_id=request_id,
+            order_id=order_id,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            customer_email=customer_email,
+            shipping_address=shipping_address,
+            billing_address=billing_address,
+            pay_for='self',
+        )
+
+        return {'statusCode': 200, 'success': True, 'message': 'Invoice created and sent'}
+    except Exception as e:
+        logger.error(json.dumps({'event': 'dashboard_invoice_error', 'error': str(e), 'requestId': request_id}))
+        return {'statusCode': 500, 'success': False, 'error': str(e)}
 
 
 def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: float,

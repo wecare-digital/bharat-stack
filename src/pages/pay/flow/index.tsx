@@ -30,14 +30,8 @@ interface CustomerRecord {
   updatedAt: string;
 }
 
-interface PendingDue {
-  ref: string;
-  amount: number;
-  item: string;
-  timestamp: string;
-}
-
 const emptyForm = { name: '', phone: '', email: '', shippingAddress: '', billingAddress: '' };
+const emptyInvoiceForm = { itemName: '', unitPrice: '', quantity: '1', gstRate: '18', shipping: '49', discount: '15', purpose: '', orderId: '' };
 
 const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
@@ -48,6 +42,9 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [invoiceCustomer, setInvoiceCustomer] = useState<CustomerRecord | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
+  const [invoiceSaving, setInvoiceSaving] = useState(false);
 
   // Load customers from contacts API (raw, to get shippingAddress/billingAddress)
   const loadCustomers = useCallback(async () => {
@@ -155,6 +152,50 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
     setMsg(null);
   };
 
+  const handleOpenInvoice = (c: CustomerRecord) => {
+    setInvoiceCustomer(c);
+    setInvoiceForm(emptyInvoiceForm);
+    setMsg(null);
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!invoiceCustomer) return;
+    if (!invoiceForm.itemName || !invoiceForm.unitPrice || parseFloat(invoiceForm.unitPrice) <= 0) {
+      setMsg({ type: 'error', text: 'Item name and unit price > 0 are required' });
+      return;
+    }
+    setInvoiceSaving(true);
+    setMsg(null);
+    try {
+      const result = await api.createInvoice({
+        contactId: invoiceCustomer.contactId,
+        itemName: invoiceForm.itemName,
+        unitPrice: parseFloat(invoiceForm.unitPrice),
+        quantity: parseInt(invoiceForm.quantity) || 1,
+        gstRate: parseFloat(invoiceForm.gstRate) || 18,
+        shipping: parseFloat(invoiceForm.shipping) || 49,
+        discount: parseFloat(invoiceForm.discount) || 15,
+        purpose: invoiceForm.purpose,
+        orderId: invoiceForm.orderId || 'Offline',
+        customerName: invoiceCustomer.name,
+        customerPhone: invoiceCustomer.phone,
+        customerEmail: invoiceCustomer.email,
+        shippingAddress: invoiceCustomer.shippingAddress,
+        billingAddress: invoiceCustomer.billingAddress,
+      });
+      if (result && result.success) {
+        setMsg({ type: 'success', text: `Invoice created and sent to ${invoiceCustomer.name} via WhatsApp` });
+        setInvoiceCustomer(null);
+      } else {
+        setMsg({ type: 'error', text: 'Failed to create invoice' });
+      }
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error creating invoice' });
+    } finally {
+      setInvoiceSaving(false);
+    }
+  };
+
   const filtered = search.trim()
     ? customers.filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -249,7 +290,10 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
                     <td className="flow-td-addr">{c.billingAddress ? c.billingAddress.slice(0, 40) + (c.billingAddress.length > 40 ? '…' : '') : <span className="flow-missing">Not set</span>}</td>
                     <td className="flow-td-date">{c.updatedAt}</td>
                     <td>
-                      <button className="flow-edit-btn" onClick={() => handleEdit(c)}>Edit</button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="flow-edit-btn" onClick={() => handleEdit(c)}>Edit</button>
+                        <button className="flow-invoice-btn" onClick={() => handleOpenInvoice(c)}>Invoice</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -293,6 +337,76 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
             </div>
           </div>
         )}
+
+        {/* Create Invoice Modal */}
+        {invoiceCustomer && (
+          <div className="flow-modal-overlay" onClick={() => setInvoiceCustomer(null)}>
+            <div className="flow-modal" onClick={e => e.stopPropagation()}>
+              <h3>Create Invoice</h3>
+              <p className="flow-modal-sub">
+                For {invoiceCustomer.name} ({invoiceCustomer.phone}) — invoice will be sent via WhatsApp
+              </p>
+              <div className="flow-invoice-customer-info">
+                <div>Name: {invoiceCustomer.name}</div>
+                <div>Phone: {invoiceCustomer.phone}</div>
+                {invoiceCustomer.email && <div>Email: {invoiceCustomer.email}</div>}
+                {invoiceCustomer.billingAddress && <div>Bill To: {invoiceCustomer.billingAddress}</div>}
+                {invoiceCustomer.shippingAddress && <div>Ship To: {invoiceCustomer.shippingAddress}</div>}
+              </div>
+              {[
+                { label: 'Item Name *', key: 'itemName', type: 'text', placeholder: 'Product or service name' },
+                { label: 'Unit Price (Rs) *', key: 'unitPrice', type: 'number', placeholder: '500' },
+                { label: 'Quantity', key: 'quantity', type: 'number', placeholder: '1' },
+                { label: 'GST Rate (%)', key: 'gstRate', type: 'number', placeholder: '18' },
+                { label: 'Shipping (Rs)', key: 'shipping', type: 'number', placeholder: '49' },
+                { label: 'Promo Discount (Rs)', key: 'discount', type: 'number', placeholder: '15' },
+                { label: 'Purpose', key: 'purpose', type: 'text', placeholder: 'e.g. BNB Club, Legal Champ' },
+                { label: 'Order ID', key: 'orderId', type: 'text', placeholder: 'Offline' },
+              ].map(f => (
+                <div key={f.key} className="flow-field">
+                  <label>{f.label}</label>
+                  <input
+                    type={f.type}
+                    value={(invoiceForm as any)[f.key] || ''}
+                    placeholder={f.placeholder}
+                    onChange={e => setInvoiceForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              {invoiceForm.unitPrice && parseFloat(invoiceForm.unitPrice) > 0 && (
+                <div className="flow-invoice-preview">
+                  {(() => {
+                    const up = parseFloat(invoiceForm.unitPrice) || 0;
+                    const q = parseInt(invoiceForm.quantity) || 1;
+                    const sub = up * q;
+                    const disc = Math.min(parseFloat(invoiceForm.discount) || 15, sub);
+                    const afterPromo = sub - disc;
+                    const gst = afterPromo * (parseFloat(invoiceForm.gstRate) || 18) / 100;
+                    const ship = parseFloat(invoiceForm.shipping) || 49;
+                    const convBase = afterPromo * 0.02;
+                    const convGst = convBase * 0.18;
+                    const conv = convBase + convGst;
+                    const total = afterPromo + gst + ship + conv;
+                    return (
+                      <>
+                        <div>Subtotal: Rs.{sub.toFixed(2)}</div>
+                        {disc > 0 && <div>Promo: -Rs.{disc.toFixed(2)}</div>}
+                        <div>GST: Rs.{gst.toFixed(2)}</div>
+                        <div>Shipping: Rs.{ship.toFixed(2)}</div>
+                        <div>Conv Fee: Rs.{conv.toFixed(2)}</div>
+                        <div className="flow-invoice-total">Total: Rs.{total.toFixed(2)}</div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              <div className="flow-modal-actions">
+                <Button variant="secondary" onClick={() => setInvoiceCustomer(null)}>Cancel</Button>
+                <Button variant="primary" onClick={handleCreateInvoice} loading={invoiceSaving}>{invoiceSaving ? 'Creating...' : 'Create & Send'}</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <style jsx>{`
@@ -325,6 +439,11 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
         .flow-missing { color: #d1d5db; font-style: italic; font-size: 0.8rem; }
         .flow-edit-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid #6366f1; background: #eef2ff; color: #4f46e5; cursor: pointer; font-size: 0.75rem; }
         .flow-edit-btn:hover { background: #e0e7ff; }
+        .flow-invoice-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid #10B981; background: #ecfdf5; color: #059669; cursor: pointer; font-size: 0.75rem; }
+        .flow-invoice-btn:hover { background: #d1fae5; }
+        .flow-invoice-customer-info { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; color: #4b5563; line-height: 1.6; }
+        .flow-invoice-preview { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; font-size: 0.8rem; color: #92400e; line-height: 1.6; }
+        .flow-invoice-total { font-weight: 700; margin-top: 4px; padding-top: 4px; border-top: 1px solid #fde68a; }
         .flow-empty { text-align: center; padding: 2rem; color: #9ca3af; }
         .flow-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .flow-modal { background: #fff; border-radius: 12px; padding: 24px; width: 440px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }

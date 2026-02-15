@@ -13,11 +13,13 @@ from botocore.exceptions import ClientError
 # Initialize clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Table names - actual tables used by the system
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+INBOUND_WHATSAPP_FUNCTION = os.environ.get('INBOUND_WHATSAPP_FUNCTION', 'wecare-inbound-whatsapp')
 
 def handler(event, context):
     """
@@ -32,15 +34,19 @@ def handler(event, context):
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'DELETE,PUT,PATCH,OPTIONS'
+        'Access-Control-Allow-Methods': 'DELETE,PUT,PATCH,POST,OPTIONS'
     }
     
     # Handle OPTIONS preflight
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': headers, 'body': ''}
 
-    # ── PATCH/PUT: Update payment/invoice fields ──
+    # ── POST: Create invoice ──
     http_method = event.get('httpMethod', 'DELETE').upper()
+    if http_method == 'POST':
+        return _handle_create_invoice(event, headers)
+
+    # ── PATCH/PUT: Update payment/invoice fields ──
     if http_method in ('PUT', 'PATCH'):
         return _handle_update(event, headers)
     
@@ -250,3 +256,83 @@ def _handle_update(event, headers):
     except Exception as e:
         print(f"Update error: {e}")
         return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
+
+
+def _handle_create_invoice(event, headers):
+    """Create an invoice from dashboard — invokes inbound-whatsapp handler to generate & send."""
+    try:
+        body = json.loads(event.get('body', '{}'))
+
+        # Required fields
+        contact_id = body.get('contactId', '')
+        item_name = body.get('itemName', '')
+        unit_price = float(body.get('unitPrice', 0))
+        quantity = int(body.get('quantity', 1))
+
+        if not contact_id or not item_name or unit_price <= 0:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'contactId, itemName, and unitPrice > 0 are required'})
+            }
+
+        # Optional fields with defaults
+        gst_rate = float(body.get('gstRate', 18))
+        shipping = float(body.get('shipping', 49))
+        discount = float(body.get('discount', 15))
+        purpose = body.get('purpose', '')
+        order_id = body.get('orderId', 'Offline')
+        customer_name = body.get('customerName', '')
+        customer_phone = body.get('customerPhone', '')
+        customer_email = body.get('customerEmail', '')
+        shipping_address = body.get('shippingAddress', '')
+        billing_address = body.get('billingAddress', '')
+        phone_number_id = body.get('phoneNumberId', '919330994400')
+
+        # Invoke inbound-whatsapp handler with a special "create_invoice" action
+        invoke_payload = {
+            'action': 'create_invoice',
+            'contactId': contact_id,
+            'phoneNumberId': phone_number_id,
+            'itemName': item_name,
+            'unitPrice': unit_price,
+            'quantity': quantity,
+            'gstRate': gst_rate,
+            'shipping': shipping,
+            'discount': discount,
+            'purpose': purpose,
+            'orderId': order_id,
+            'customerName': customer_name,
+            'customerPhone': customer_phone,
+            'customerEmail': customer_email,
+            'shippingAddress': shipping_address,
+            'billingAddress': billing_address,
+            'senderPhone': customer_phone or contact_id,
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=INBOUND_WHATSAPP_FUNCTION,
+            InvocationType='RequestResponse',
+            Payload=json.dumps(invoke_payload),
+        )
+
+        result_payload = json.loads(response['Payload'].read().decode('utf-8'))
+        print(f"Invoice creation result: {json.dumps(result_payload)}")
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'success': True,
+                'message': 'Invoice created and sent via WhatsApp',
+                'result': result_payload,
+            })
+        }
+
+    except Exception as e:
+        print(f"Create invoice error: {e}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': str(e)})
+        }

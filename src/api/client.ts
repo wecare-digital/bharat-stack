@@ -286,6 +286,31 @@ export async function updateMessage(messageId: string, updates: Record<string, a
   return data !== null && data.success === true;
 }
 
+export interface CreateInvoiceRequest {
+  contactId: string;
+  itemName: string;
+  unitPrice: number;
+  quantity?: number;
+  gstRate?: number;
+  shipping?: number;
+  discount?: number;
+  purpose?: string;
+  orderId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  shippingAddress?: string;
+  billingAddress?: string;
+  phoneNumberId?: string;
+}
+
+export async function createInvoice(request: CreateInvoiceRequest): Promise<{ success: boolean; message?: string } | null> {
+  return apiCall<{ success: boolean; message?: string }>(`${API_BASE}/messages/invoice`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
 function normalizeMessage(item: any): Message {
   const timestamp = item.timestamp || item.createdAt;
   return {
