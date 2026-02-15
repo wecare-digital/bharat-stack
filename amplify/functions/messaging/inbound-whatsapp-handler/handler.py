@@ -1282,6 +1282,13 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             phone_number_id=originating_phone_id,
             request_id=request_id,
         )
+        # Check for remaining pending dues and notify
+        _check_and_notify_balance_due(
+            recipient_id=recipient_id,
+            paid_reference_id=reference_id,
+            phone_number_id=originating_phone_id,
+            request_id=request_id,
+        )
     elif payment_status == 'failed':
         _send_order_status_message(
             recipient_id=recipient_id,
@@ -1382,6 +1389,75 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
         logger.error(json.dumps({
             'event': 'invoice_for_captured_error',
             'referenceId': reference_id,
+            'error': str(e),
+            'requestId': request_id,
+        }))
+
+
+def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
+                                  phone_number_id: str, request_id: str) -> None:
+    """After a payment is captured, check if there are remaining pending dues and notify."""
+    try:
+        clean_phone = recipient_id.replace('+', '').replace(' ', '').replace('-', '')
+        messages_table = dynamodb.Table(MESSAGES_TABLE)
+        resp = messages_table.scan(
+            FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
+            ExpressionAttributeNames={'#s': 'status'},
+            ExpressionAttributeValues={
+                ':phone': clean_phone,
+                ':mt': 'payment_request',
+                ':pending': 'pending',
+            },
+            Limit=10,
+        )
+        items = resp.get('Items', [])
+        # Exclude the just-paid reference
+        remaining = [i for i in items if i.get('paymentReferenceId', i.get('messageId', '')) != paid_reference_id]
+        if not remaining:
+            return
+        total_bal = 0
+        lines = []
+        for i, item in enumerate(remaining[:5], 1):
+            amt_paise = float(item.get('paymentTotal', item.get('paymentAmount', 0)))
+            amt_rs = amt_paise / 100 if amt_paise > 500 else amt_paise
+            total_bal += amt_rs
+            ref = item.get('paymentReferenceId', item.get('messageId', 'N/A'))
+            name = item.get('paymentItemName', 'Payment')
+            lines.append(f" {i}) {name} — ₹{amt_rs:,.2f} (Ref …{ref[-4:]})")
+        bal_msg = (
+            f"📌 Balance due: {len(remaining)} pending payment(s) — ₹{total_bal:,.2f}\n"
+            + "\n".join(lines)
+            + "\n\nReply PAY to settle remaining dues."
+        )
+        # Resolve contact and send
+        if phone_number_id:
+            contact = _get_contact_by_phone(recipient_id)
+            contact_id = contact.get('id', '') if contact else ''
+            contact_phone = contact.get('phone', f'+{clean_phone}') if contact else f'+{clean_phone}'
+            sending_phone_id = phone_number_id or PHONE_NUMBER_ID_1
+            payload = {
+                'body': json.dumps({
+                    'contactId': contact_id if contact_id else None,
+                    'recipientPhone': contact_phone,
+                    'content': bal_msg,
+                    'phoneNumberId': sending_phone_id,
+                })
+            }
+            lambda_client.invoke(
+                FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+                InvocationType='Event',
+                Payload=json.dumps(payload)
+            )
+        logger.info(json.dumps({
+            'event': 'balance_due_notification_sent',
+            'recipientId': recipient_id,
+            'remainingDues': len(remaining),
+            'totalBalance': total_bal,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'balance_due_check_error',
             'error': str(e),
             'requestId': request_id,
         }))

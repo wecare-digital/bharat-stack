@@ -1,4 +1,4 @@
-"""
+﻿"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
@@ -1673,7 +1673,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
     content_lower = message_content.strip().lower()
 
     # ── Fix #3: Escape words — cancel/back/exit during active flows ──
-    ESCAPE_WORDS = {'cancel', 'menu', 'back', 'exit', 'stop', 'quit', 'main menu'}
+    ESCAPE_WORDS = {'cancel', 'menu', 'exit', 'stop', 'quit', 'main menu'}
 
     # ── Check for active conversational flow (state machine) ──
     flow_state = history.get('flowState')
@@ -1765,11 +1765,24 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             gstin = pay_prompts.get('gstin', '19AADFW7431N1ZK')
             default_item = pay_prompts.get('default_item_name', 'Services/Goods')
 
-            # ── Due choice: pay dues vs new payment ──
+            # ── Due choice: pay ALL / pay ONE / new payment ──
             if step == 'awaiting_due_choice':
-                if content_lower in ('1', 'dues', 'pay dues'):
+                if content_lower in ('1', 'all', 'pay all'):
                     pending_dues = data.get('pending_dues', [])
                     if pending_dues:
+                        total_due = sum(d['amount'] for d in pending_dues)
+                        data['amount'] = total_due
+                        data['quantity'] = 1
+                        refs = ', '.join(d['ref'][-4:] for d in pending_dues)
+                        data['item_name'] = f"Dues: {refs}"
+                        data['payment_purpose'] = 'dues'
+                        data['due_ref'] = pending_dues[0]['ref']
+                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
+                    return _r(_pay_purpose_prompt())
+                elif content_lower in ('2', 'one', 'pay one'):
+                    pending_dues = data.get('pending_dues', [])
+                    if len(pending_dues) == 1:
                         due = pending_dues[0]
                         data['amount'] = due['amount']
                         data['quantity'] = 1
@@ -1777,13 +1790,54 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         data['payment_purpose'] = 'dues'
                         data['due_ref'] = due['ref']
                         return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-                    return _r(_pay_purpose_prompt())
-                elif content_lower in ('2', 'new', 'new payment', 'advance'):
+                    # Multiple dues — ask which one
+                    lines = ["Which due would you like to pay?\n"]
+                    for i, d in enumerate(pending_dues[:5], 1):
+                        lines.append(f" {i} — {d['item']} — ₹{d['amount']:,.2f} (Ref …{d['ref'][-4:]})")
+                    lines.append(f"\nReply 1–{min(len(pending_dues), 5)} · BACK · CANCEL")
+                    data['selecting_due'] = True
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_due_select', data)
+                    return _r("\n".join(lines))
+                elif content_lower in ('3', 'new', 'new payment', 'advance'):
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
                     return _r(_pay_purpose_prompt())
                 else:
-                    return _r("Reply 1 (pay dues) or 2 (new payment) · CANCEL")
+                    return _r("Reply 1 (pay all), 2 (pay one), or 3 (new payment) · CANCEL")
+
+            # ── Due selection (pick one) ──
+            if step == 'awaiting_due_select':
+                if content_lower == 'back':
+                    pending_dues = data.get('pending_dues', [])
+                    total_due = sum(d['amount'] for d in pending_dues)
+                    dues_lines = []
+                    for i, d in enumerate(pending_dues[:5], 1):
+                        dues_lines.append(f" {i}) {d['item']} — ₹{d['amount']:,.2f} (Ref …{d['ref'][-4:]})")
+                    dues_text = "\n".join(dues_lines)
+                    due_msg = (
+                        f"⚠️ {len(pending_dues)} pending payment(s) — ₹{total_due:,.2f}\n"
+                        f"{dues_text}\n\n"
+                        " 1 — Pay ALL (₹{:,.2f})\n".format(total_due) +
+                        " 2 — Pay ONE due\n"
+                        " 3 — New payment\n\n"
+                        "Reply 1/2/3 · CANCEL"
+                    )
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', data)
+                    return _r(due_msg)
+                pending_dues = data.get('pending_dues', [])
+                try:
+                    idx = int(content_lower) - 1
+                    if 0 <= idx < len(pending_dues):
+                        due = pending_dues[idx]
+                        data['amount'] = due['amount']
+                        data['quantity'] = 1
+                        data['item_name'] = f"Due: {due['ref']}"
+                        data['payment_purpose'] = 'dues'
+                        data['due_ref'] = due['ref']
+                        data.pop('selecting_due', None)
+                        return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
+                except (ValueError, IndexError):
+                    pass
+                return _r(f"Reply 1–{min(len(pending_dues), 5)} · BACK · CANCEL")
 
             # ── Purpose ──
             if step == 'awaiting_purpose':
@@ -1792,8 +1846,23 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 else:
                     purpose = re.sub(r'\s+', ' ', message_content.strip()).title()[:40]
                 data['payment_purpose'] = purpose
+                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                return _r(f"✅ Purpose: {purpose}\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+
+            # ── Order ID ──
+            if step == 'awaiting_order_id':
+                if content_lower == 'back':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
+                    return _r(_pay_purpose_prompt())
+                if content_lower in ('skip', 'na', 'none', 'offline', '-'):
+                    data['order_id'] = 'Offline'
+                else:
+                    data['order_id'] = message_content.strip()[:40]
                 # Check for saved profile
                 profile = _load_customer_profile(phone_hash)
+                # Also try to auto-fill from contacts table
+                if not profile.get('customer_name'):
+                    profile = _load_contact_as_profile(sender_phone)
                 if profile.get('customer_name'):
                     name = profile.get('customer_name', '')
                     phone = profile.get('customer_phone', sender_phone)
@@ -1801,13 +1870,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     ship = profile.get('shipping_address', '')
                     data['saved_profile'] = profile
                     saved_msg = (
-                        f"✅ Purpose: {purpose}\n\n"
-                        f"📋 Saved profile\n"
+                        f"🛒 Order: {data['order_id']}\n\n"
+                        f"📋 Saved customer details\n"
                         f"👤 {name}\n"
                         f"📱 {phone}\n"
-                        f"📧 {email or '-'}\n"
+                        f" {email or '-'}\n"
                         f"📦 {ship or '-'}\n\n"
-                        " 1 — Use saved\n"
+                        " 1 — Use these details\n"
                         " 2 — Edit details\n"
                         " 3 — Pay for someone else\n\n"
                         "Reply 1/2/3 · BACK · CANCEL"
@@ -1816,13 +1885,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     return _r(saved_msg)
                 # No saved profile — ask who is paying
                 _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
-                return _r(f"✅ Purpose: {purpose}\n\n👤 Who is this payment for?\n 1 — Self\n 2 — Someone else\n\nReply 1/2 · BACK · CANCEL")
+                return _r(f"🛒 Order: {data['order_id']}\n\n👤 Who is this payment for?\n 1 — Self\n 2 — Someone else\n\nReply 1/2 · BACK · CANCEL")
 
             # ── Reuse saved profile (3 options) ──
             if step == 'awaiting_reuse_profile':
                 if content_lower == 'back':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
-                    return _r(_pay_purpose_prompt())
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
                 if content_lower in ('1', 'use', 'use saved', 'yes', 'y'):
                     profile = data.get('saved_profile', {})
                     data['customer_name'] = profile.get('customer_name', '')
@@ -1832,8 +1901,12 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['billing_address'] = profile.get('billing_address', profile.get('shipping_address', ''))
                     data['pay_for'] = 'self' if data['customer_phone'] == sender_phone else 'other'
                     data.pop('saved_profile', None)
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("✅ Using saved details.\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                    # If shipping address missing, collect it
+                    if not data.get('shipping_address'):
+                        _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
+                        return _r(" Using saved details.\n\n Shipping address?\nBACK  CANCEL")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                    return _r("✅ Using saved details.\n\n💳 Amount? (e.g. 500, 500x2, 2x500)\nBACK · CANCEL")
                 elif content_lower in ('2', 'edit'):
                     data.pop('saved_profile', None)
                     data['pay_for'] = 'self'
@@ -1851,8 +1924,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             # ── Pay for self or other ──
             if step == 'awaiting_pay_for':
                 if content_lower == 'back':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
-                    return _r(_pay_purpose_prompt())
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
                 if content_lower in ('1', 'self', 'me'):
                     data['pay_for'] = 'self'
                     data['customer_phone'] = sender_phone
@@ -1878,7 +1951,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_phone', data)
                     return _r("📱 Customer's phone (with country code)?\nBACK · CANCEL")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
-                return _r("� Email? (SKIP if none)\nBACK · CANCEL")e
+                return _r("📧 Email? (SKIP if none)\nBACK · CANCEL")
 
             # ── Customer phone (other only) ──
             if step == 'awaiting_customer_phone':
@@ -1908,28 +1981,25 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 else:
                     return _r("⚠️ Invalid email. Try again or SKIP\nBACK · CANCEL")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
-                return _r("📦 Shipping address? (SKIP if N/A)\nBACK · CANCEL")
+                return _r("📦 Shipping address?\n(One-time collection for billing)\nBACK · CANCEL")
 
-            # ── Shipping address ──
+            # ── Shipping address (mandatory) ──
             if step == 'awaiting_shipping_address':
                 if content_lower == 'back':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
                     return _r("📧 Email? (SKIP if none)\nBACK · CANCEL")
-                if content_lower in ('skip', 'na', 'none', '-'):
-                    data['shipping_address'] = ''
-                else:
-                    data['shipping_address'] = message_content.strip()[:200]
-                if data.get('shipping_address'):
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
-                    return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
-                _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
-                return _r("🏢 Billing address? (SKIP if N/A)\nBACK · CANCEL")
+                addr = message_content.strip()
+                if len(addr) < 5:
+                    return _r("⚠️ Please enter a valid shipping address\nBACK · CANCEL")
+                data['shipping_address'] = addr[:200]
+                _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
+                return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
 
             # ── Billing same as shipping? ──
             if step == 'awaiting_billing_same':
                 if content_lower == 'back':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
-                    return _r("📦 Shipping address? (SKIP if N/A)\nBACK · CANCEL")
+                    return _r("📦 Shipping address?\nBACK · CANCEL")
                 if content_lower in ('yes', 'y', 'same', 'haan', 'ha'):
                     data['billing_address'] = data.get('shipping_address', '')
                 else:
@@ -1943,21 +2013,18 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'billing_address': data.get('billing_address', ''),
                 })
                 _update_contact_with_customer_info(sender_phone, data, request_id)
-                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                return _r("✅ Details saved.\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                return _r(" Details saved.\n\n Amount? (e.g. 500, 500x2, 2x500)\nBACK  CANCEL")
 
             # ── Billing address ──
             if step == 'awaiting_billing_address':
                 if content_lower == 'back':
-                    if data.get('shipping_address'):
-                        _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
-                        return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
-                    return _r("📦 Shipping address? (SKIP if N/A)\nBACK · CANCEL")
-                if content_lower in ('skip', 'na', 'none', '-'):
-                    data['billing_address'] = ''
-                else:
-                    data['billing_address'] = message_content.strip()[:200]
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
+                    return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
+                addr = message_content.strip()
+                if len(addr) < 5:
+                    return _r("⚠️ Please enter a valid billing address\nBACK · CANCEL")
+                data['billing_address'] = addr[:200]
                 _save_customer_profile(phone_hash, {
                     'customer_name': data.get('customer_name', ''),
                     'customer_phone': data.get('customer_phone', sender_phone),
@@ -1966,26 +2033,14 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'billing_address': data.get('billing_address', ''),
                 })
                 _update_contact_with_customer_info(sender_phone, data, request_id)
-                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                return _r("✅ Details saved.\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
-
-            # ── Order ID ──
-            if step == 'awaiting_order_id':
-                if content_lower == 'back':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
-                    return _r("🏢 Billing address? (SKIP if N/A)\nBACK · CANCEL")
-                if content_lower in ('skip', 'na', 'none', 'offline', '-'):
-                    data['order_id'] = 'Offline'
-                else:
-                    data['order_id'] = message_content.strip()[:40]
                 _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
-                return _r(f"🛒 Order: {data['order_id']}\n\n💳 Amount? (e.g. 500, 500x2, 2x500)\nBACK · CANCEL")
+                return _r("✅ Details saved.\n\n💳 Amount? (e.g. 500, 500x2, 2x500)\nBACK · CANCEL")
 
             # ── Amount (flexible: 500, 500x2, 2x500, 500*2) ──
             if step == 'awaiting_amount':
                 if content_lower == 'back':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
+                    return _r("🏢 Billing same as shipping?\n YES / NO\nBACK · CANCEL")
                 raw = message_content.strip()
                 # Try PxN format (e.g. 500x2, 500*2)
                 m_pxn = re.match(r'^(\d+(?:\.\d+)?)\s*[x*×]\s*(\d+)$', raw, re.IGNORECASE)
@@ -2042,7 +2097,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
                     amount = data.get('subtotal', data.get('amount', 0))
                     _clear_flow_state(phone_hash)
-                    sending_msg = pay_prompts.get('sending', "Processing payment...").format(amount=f"{amount:.0f}")
+                    sending_msg = "✅ Sending payment request now…\n(Invoice will be generated after payment is received.)"
                     return {
                         'suggestedResponse': sending_msg,
                         'suggestion': sending_msg,
@@ -2077,28 +2132,32 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     return _r(f"Reply YES to pay ₹{data.get('total', 0):,.2f}, NO to cancel, or EDIT")
 
             # ── Edit menu ──
+            # -- Edit menu --
             if step == 'awaiting_edit_choice':
                 if content_lower == 'back':
                     return _build_pay_summary(data, pay_prompts, default_gst, default_shipping, gstin, default_item, phone_hash, sender_phone)
                 if content_lower == '1':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
-                    return _r("💳 New amount? (e.g. 500, 500x2)\nBACK · CANCEL")
-                elif content_lower == '2':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_quantity', data)
-                    return _r(f"� New quantit'y? (current: {data.get('quantity', 1)})\nBACK · CANCEL")
-                elif content_lower == '3':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', data)
                     return _r(_pay_purpose_prompt())
-                elif content_lower == '4':
+                elif content_lower == '2':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                    return _r(" Wix Order ID?\nType SKIP for offline  BACK  CANCEL")
+                elif content_lower == '3':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
                     label = "Customer's full name?" if data.get('pay_for') == 'other' else "Full name?"
-                    return _r(f"📝 {label}\nBACK · CANCEL")
+                    return _r(f" {label}\nBACK  CANCEL")
+                elif content_lower == '4':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                    return _r(" New amount? (e.g. 500, 500x2)\nBACK  CANCEL")
                 elif content_lower == '5':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                    _clear_flow_state(phone_hash)
+                    return {
+                        'suggestedResponse': " Payment cancelled.",
+                        'suggestion': " Payment cancelled.",
+                        'flowAction': 'showMainMenu',
+                    }
                 else:
-                    return _r("Reply 1–5 · BACK · CANCEL")
-
+                    return _r("Reply 1-5  BACK  CANCEL")
         # ── Toggle flows (audio/notifications) ──
         if flow_name in ('toggle_audio', 'toggle_notifications'):
             toggles = flow_config.get('toggles', {})
@@ -2188,18 +2247,18 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 pending = _check_pending_payments(phone_hash, request_id, sender_phone)
                 flows_config = flow_config.get('flows', {}).get('pay', {})
                 if pending:
-                    # Build dues summary
                     total_due = sum(d['amount'] for d in pending)
                     dues_lines = []
                     for i, d in enumerate(pending[:5], 1):
-                        dues_lines.append(f"  {i}. Ref: {d['ref']} — ₹{d['amount']:,.2f} ({d['item']})")
+                        dues_lines.append(f" {i}) {d['item']} — ₹{d['amount']:,.2f} (Ref …{d['ref'][-4:]})")
                     dues_text = "\n".join(dues_lines)
                     due_msg = (
                         f"⚠️ {len(pending)} pending payment(s) — ₹{total_due:,.2f}\n"
                         f"{dues_text}\n\n"
-                        " 1 — Pay existing dues\n"
-                        " 2 — New payment\n\n"
-                        "Reply 1/2 · CANCEL"
+                        f" 1 — Pay ALL (₹{total_due:,.2f})\n"
+                        f" 2 — Pay ONE due\n"
+                        f" 3 — New payment\n\n"
+                        f"Reply 1/2/3 · CANCEL"
                     )
                     _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
                     return {
@@ -2330,11 +2389,11 @@ PURPOSE_MAP = {
 
 EDIT_MENU = (
     "✏️ What would you like to edit?\n\n"
-    " 1 — Amount\n"
-    " 2 — Quantity\n"
-    " 3 — Purpose\n"
-    " 4 — Customer info\n"
-    " 5 — Order ID\n\n"
+    " 1 — Purpose\n"
+    " 2 — Order ID\n"
+    " 3 — Customer details\n"
+    " 4 — Amount / Qty\n"
+    " 5 — Cancel payment\n\n"
     "Reply 1–5 · BACK · CANCEL"
 )
 
@@ -2427,6 +2486,38 @@ def _load_customer_profile(phone_hash: str) -> Dict:
             return json.loads(profile_str) if isinstance(profile_str, str) else profile_str
     except Exception as e:
         logger.warning(json.dumps({'event': 'customer_profile_load_error', 'error': str(e)}))
+    return {}
+
+
+def _load_contact_as_profile(sender_phone: str) -> Dict:
+    """Try to load customer details from contacts table as a profile fallback."""
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
+        for variant in [f'+{clean_phone}', clean_phone]:
+            try:
+                resp = contacts_table.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :phone',
+                    ExpressionAttributeValues={':phone': variant},
+                    Limit=1
+                )
+                items = resp.get('Items', [])
+                if items:
+                    c = items[0]
+                    name = c.get('customerName', c.get('name', ''))
+                    if name:
+                        return {
+                            'customer_name': name,
+                            'customer_phone': sender_phone,
+                            'customer_email': c.get('customerEmail', c.get('email', '')),
+                            'shipping_address': c.get('shippingAddress', ''),
+                            'billing_address': c.get('billingAddress', ''),
+                        }
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'contact_profile_load_error', 'error': str(e)}))
     return {}
 
 
