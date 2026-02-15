@@ -1274,6 +1274,14 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             request_id=request_id,
             phone_number_id=originating_phone_id
         )
+        # Generate and send invoice after successful payment
+        _generate_invoice_for_captured_payment(
+            reference_id=reference_id,
+            recipient_id=recipient_id,
+            actual_amount=actual_amount,
+            phone_number_id=originating_phone_id,
+            request_id=request_id,
+        )
     elif payment_status == 'failed':
         _send_order_status_message(
             recipient_id=recipient_id,
@@ -1284,6 +1292,83 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             request_id=request_id,
             phone_number_id=originating_phone_id
         )
+
+
+def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
+                                           actual_amount: float, phone_number_id: str,
+                                           request_id: str) -> None:
+    """Look up the original payment_request record and generate invoice with paid timestamp."""
+    import datetime
+    try:
+        messages_table = dynamodb.Table(MESSAGES_TABLE)
+        # Query by messageId (which is the reference_id for payment_request records)
+        resp = messages_table.query(
+            IndexName='messageId-index',
+            KeyConditionExpression='messageId = :mid',
+            ExpressionAttributeValues={':mid': reference_id},
+            Limit=1,
+        )
+        items = resp.get('Items', [])
+
+        # Fallback: scan for paymentReferenceId if GSI not available
+        if not items:
+            resp = messages_table.scan(
+                FilterExpression='paymentReferenceId = :ref AND messageType = :mt',
+                ExpressionAttributeValues={':ref': reference_id, ':mt': 'payment_request'},
+                Limit=5,
+            )
+            items = resp.get('Items', [])
+
+        if not items:
+            logger.warning(json.dumps({
+                'event': 'invoice_no_payment_request_found',
+                'referenceId': reference_id,
+                'requestId': request_id,
+            }))
+            return
+
+        pr = items[0]
+        contact_id = pr.get('contactId', '')
+        sender_phone = pr.get('senderPhone', recipient_id)
+
+        # Extract fields from payment_request record
+        unit_price = float(pr.get('paymentAmount', 0)) / 100  # stored in paise
+        quantity = int(pr.get('paymentQuantity', 1))
+        item_name = pr.get('paymentItemName', 'Services/Goods')
+        gst_rate = float(pr.get('paymentGstRate', 18))
+        shipping = float(pr.get('paymentShipping', 0)) / 100  # stored in paise
+        discount = float(pr.get('paymentDiscount', 0)) / 100  # stored in paise
+        purpose = pr.get('paymentPurpose', '')
+        due_ref = pr.get('paymentDueRef', '')
+
+        # Paid timestamp in IST
+        now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        paid_at = now_ist.strftime('%d-%m-%Y %H:%M:%S')
+
+        _generate_and_send_invoice(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            amount=unit_price,
+            quantity=quantity,
+            item_name=item_name,
+            gst_rate=gst_rate,
+            shipping=shipping,
+            discount=discount,
+            purpose=purpose,
+            due_ref=due_ref,
+            sender_phone=sender_phone,
+            request_id=request_id,
+            pay_ref=reference_id,
+            paid_at=paid_at,
+        )
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'invoice_for_captured_error',
+            'referenceId': reference_id,
+            'error': str(e),
+            'requestId': request_id,
+        }))
 
 
 def _store_payment_record(reference_id: str, recipient_id: str, payment_status: str,
@@ -2148,71 +2233,221 @@ _CHAR_MAP = {0x20B9: ord('R'), 0x2500: ord('-'), 0x2502: ord('|'), 0x2714: ord('
              0x274C: ord('x'), 0x2705: ord('*')}
 
 
-def _render_text_to_png(lines: list, scale: int = 2) -> bytes:
-    """Render lines of text to a PNG image using a 5x7 bitmap font. Returns PNG bytes."""
+def _decode_png_pixels(png_bytes: bytes):
+    """Minimal pure-Python PNG decoder. Returns (width, height, rows) where rows is list of lists of (R,G,B,A)."""
+    import struct as _struct
+    import zlib as _zlib
+
+    if png_bytes[:8] != b'\x89PNG\r\n\x1a\n':
+        return None, None, None
+
+    pos = 8
+    width = height = bit_depth = color_type = 0
+    idat_chunks = []
+    palette = []
+
+    while pos < len(png_bytes):
+        length = _struct.unpack('>I', png_bytes[pos:pos+4])[0]
+        chunk_type = png_bytes[pos+4:pos+8]
+        chunk_data = png_bytes[pos+8:pos+8+length]
+        pos += 12 + length
+
+        if chunk_type == b'IHDR':
+            width, height, bit_depth, color_type = _struct.unpack('>IIBB', chunk_data[:10])
+        elif chunk_type == b'PLTE':
+            for i in range(0, len(chunk_data), 3):
+                palette.append((chunk_data[i], chunk_data[i+1], chunk_data[i+2]))
+        elif chunk_type == b'IDAT':
+            idat_chunks.append(chunk_data)
+        elif chunk_type == b'IEND':
+            break
+
+    raw = _zlib.decompress(b''.join(idat_chunks))
+
+    # Determine bytes per pixel
+    if color_type == 0:
+        bpp = 1  # grayscale
+    elif color_type == 2:
+        bpp = 3  # RGB
+    elif color_type == 3:
+        bpp = 1  # indexed
+    elif color_type == 4:
+        bpp = 2  # grayscale + alpha
+    elif color_type == 6:
+        bpp = 4  # RGBA
+    else:
+        return None, None, None
+
+    stride = width * bpp
+    rows = []
+    prev_row = bytearray(stride)
+
+    offset = 0
+    for y in range(height):
+        filter_type = raw[offset]
+        offset += 1
+        cur_row = bytearray(raw[offset:offset + stride])
+        offset += stride
+
+        # Reconstruct filtered row
+        for i in range(stride):
+            a = cur_row[i - bpp] if i >= bpp else 0
+            b = prev_row[i]
+            c = prev_row[i - bpp] if i >= bpp else 0
+            if filter_type == 1:
+                cur_row[i] = (cur_row[i] + a) & 0xFF
+            elif filter_type == 2:
+                cur_row[i] = (cur_row[i] + b) & 0xFF
+            elif filter_type == 3:
+                cur_row[i] = (cur_row[i] + (a + b) // 2) & 0xFF
+            elif filter_type == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                pr = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                cur_row[i] = (cur_row[i] + pr) & 0xFF
+
+        # Convert to RGBA tuples
+        pixel_row = []
+        for x in range(width):
+            idx = x * bpp
+            if color_type == 0:
+                v = cur_row[idx]
+                pixel_row.append((v, v, v, 255))
+            elif color_type == 2:
+                pixel_row.append((cur_row[idx], cur_row[idx+1], cur_row[idx+2], 255))
+            elif color_type == 3:
+                ci = cur_row[idx]
+                if ci < len(palette):
+                    r, g, b = palette[ci]
+                    pixel_row.append((r, g, b, 255))
+                else:
+                    pixel_row.append((0, 0, 0, 255))
+            elif color_type == 4:
+                v, a = cur_row[idx], cur_row[idx+1]
+                pixel_row.append((v, v, v, a))
+            elif color_type == 6:
+                pixel_row.append((cur_row[idx], cur_row[idx+1], cur_row[idx+2], cur_row[idx+3]))
+
+        rows.append(pixel_row)
+        prev_row = cur_row
+
+    return width, height, rows
+
+
+def _render_text_to_png(lines: list, scale: int = 2, logo_pixels=None, logo_w: int = 0, logo_h: int = 0) -> bytes:
+    """Render lines of text to a PNG image using a 5x7 bitmap font. Optionally composites a logo at top center. Returns PNG bytes."""
     import struct as _struct
     import zlib as _zlib
     import io as _io
 
-    char_w, char_h = 6 * scale, 9 * scale  # 5+1 spacing, 7+2 spacing, scaled
+    char_w, char_h = 6 * scale, 9 * scale
     pad_x, pad_y = 12 * scale, 8 * scale
     max_cols = max((len(l) for l in lines), default=1)
     img_w = max_cols * char_w + pad_x * 2
     img_h = len(lines) * char_h + pad_y * 2
 
-    # Create pixel buffer (grayscale: 0=black, 255=white)
-    pixels = bytearray([255] * (img_w * img_h))
+    # If logo, add space at top
+    logo_offset_y = 0
+    if logo_pixels and logo_h > 0:
+        # Scale logo to fit ~60% of receipt width, max 80px tall
+        target_w = int(img_w * 0.4)
+        logo_scale = min(target_w / max(logo_w, 1), 80 / max(logo_h, 1), 1.0)
+        scaled_lw = int(logo_w * logo_scale)
+        scaled_lh = int(logo_h * logo_scale)
+        logo_offset_y = scaled_lh + pad_y
+        img_h += logo_offset_y
 
+    # Create RGBA pixel buffer (white background)
+    pixels = bytearray([255, 255, 255, 255] * (img_w * img_h))
+
+    # Composite logo at top center
+    if logo_pixels and logo_h > 0 and logo_offset_y > 0:
+        logo_x_start = (img_w - scaled_lw) // 2
+        for ly in range(scaled_lh):
+            src_y = int(ly / logo_scale)
+            if src_y >= logo_h:
+                src_y = logo_h - 1
+            for lx in range(scaled_lw):
+                src_x = int(lx / logo_scale)
+                if src_x >= logo_w:
+                    src_x = logo_w - 1
+                r, g, b, a = logo_pixels[src_y][src_x]
+                px = logo_x_start + lx
+                py = pad_y + ly
+                if 0 <= px < img_w and 0 <= py < img_h and a > 0:
+                    idx = (py * img_w + px) * 4
+                    if a == 255:
+                        pixels[idx] = r
+                        pixels[idx+1] = g
+                        pixels[idx+2] = b
+                        pixels[idx+3] = 255
+                    else:
+                        # Alpha blend
+                        af = a / 255.0
+                        pixels[idx] = int(r * af + pixels[idx] * (1 - af))
+                        pixels[idx+1] = int(g * af + pixels[idx+1] * (1 - af))
+                        pixels[idx+2] = int(b * af + pixels[idx+2] * (1 - af))
+                        pixels[idx+3] = 255
+
+    # Render text
     for row_idx, line in enumerate(lines):
         for col_idx, ch in enumerate(line):
             code = ord(ch)
             code = _CHAR_MAP.get(code, code)
-            glyph = _FONT_5x7.get(code, _FONT_5x7.get(63))  # '?' fallback
+            glyph = _FONT_5x7.get(code, _FONT_5x7.get(63))
             if not glyph:
                 continue
             bx = pad_x + col_idx * char_w
-            by = pad_y + row_idx * char_h
+            by = pad_y + logo_offset_y + row_idx * char_h
             for gy, row_bits in enumerate(glyph):
                 for gx in range(5):
                     if row_bits & (1 << (4 - gx)):
-                        # Draw scaled pixel
                         for sy in range(scale):
                             for sx in range(scale):
                                 px = bx + gx * scale + sx
                                 py = by + gy * scale + sy
                                 if 0 <= px < img_w and 0 <= py < img_h:
-                                    pixels[py * img_w + px] = 0  # black
+                                    idx = (py * img_w + px) * 4
+                                    pixels[idx] = 0
+                                    pixels[idx+1] = 0
+                                    pixels[idx+2] = 0
+                                    pixels[idx+3] = 255
 
-    # Encode as PNG (grayscale, 8-bit)
+    # Encode as PNG (RGBA, 8-bit)
     def _png_chunk(chunk_type, data):
         c = chunk_type + data
         return _struct.pack('>I', len(data)) + c + _struct.pack('>I', _zlib.crc32(c) & 0xFFFFFFFF)
 
     raw_rows = b''
     for y in range(img_h):
-        raw_rows += b'\x00' + bytes(pixels[y * img_w:(y + 1) * img_w])
+        raw_rows += b'\x00' + bytes(pixels[y * img_w * 4:(y + 1) * img_w * 4])
 
     buf = _io.BytesIO()
     buf.write(b'\x89PNG\r\n\x1a\n')
-    buf.write(_png_chunk(b'IHDR', _struct.pack('>IIBBBBB', img_w, img_h, 8, 0, 0, 0, 0)))
+    # color_type=6 = RGBA
+    buf.write(_png_chunk(b'IHDR', _struct.pack('>IIBBBBB', img_w, img_h, 8, 6, 0, 0, 0)))
     buf.write(_png_chunk(b'IDAT', _zlib.compress(raw_rows, 9)))
     buf.write(_png_chunk(b'IEND', b''))
     return buf.getvalue()
 
 
-def _build_invoice_lines(ref_id: str, item_name: str, unit_price: float, qty: int,
+def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: float, qty: int,
                          gst_rate: float, shipping: float, discount: float,
-                         sender_phone: str, purpose: str, due_ref: str) -> list:
+                         sender_phone: str, purpose: str, due_ref: str,
+                         paid_at: str = '') -> list:
     """Build POS receipt text lines for the invoice."""
     import datetime
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
-    date_str = now.strftime('%d-%m-%Y')
-    time_str = now.strftime('%H:%M')
+    if paid_at:
+        date_str = paid_at.split(' ')[0] if ' ' in paid_at else paid_at
+        time_str = paid_at.split(' ')[1] if ' ' in paid_at else ''
+    else:
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        date_str = now.strftime('%d-%m-%Y')
+        time_str = now.strftime('%H:%M:%S')
 
     subtotal = unit_price * qty
     after_promo = subtotal - discount
     gst_amt = round(after_promo * gst_rate / 100, 2)
-    # Split GST into CGST + SGST (equal halves)
     half_rate = gst_rate / 2
     cgst = round(gst_amt / 2, 2)
     sgst = round(gst_amt / 2, 2)
@@ -2221,7 +2456,7 @@ def _build_invoice_lines(ref_id: str, item_name: str, unit_price: float, qty: in
     conv_fee = round(conv_base + conv_gst, 2)
     total = round(after_promo + gst_amt + shipping + conv_fee, 2)
 
-    W = 40  # receipt width in chars
+    W = 42  # receipt width in chars
     sep = '-' * W
     dsep = '=' * W
 
@@ -2236,39 +2471,45 @@ def _build_invoice_lines(ref_id: str, item_name: str, unit_price: float, qty: in
         return f'{v:,.2f}'
 
     lines = []
-    lines.append(dsep)
+    # Header — logo will be composited above this
+    lines.append('')
+    lines.append('')
+    lines.append('')  # space for logo
     lines.append(center('WECARE.DIGITAL'))
     lines.append(center('GSTIN: 19AADFW7431N1ZK'))
-    lines.append(center('State: West Bengal, Code: 19'))
+    lines.append(center('The W.B.S.I.D.C. Building'))
+    lines.append(center('Unit 1/20, 81/2/7 Phears Ln'))
+    lines.append(center('Kolkata, WB 700012'))
+    lines.append(center('Email: one@wecare.digital'))
+    lines.append(center('Phone: +919330994400'))
     lines.append(dsep)
     lines.append(center('TAX INVOICE'))
     lines.append(sep)
-    lines.append(lr(f'Invoice: {ref_id}', f'Date: {date_str}'))
-    lines.append(lr(f'Phone: {sender_phone[-10:] if len(sender_phone) > 10 else sender_phone}', f'Time: {time_str}'))
+    lines.append(lr(f'Inv: {ref_id}', f'Date: {date_str}'))
+    lines.append(lr(f'Pay Ref: {pay_ref}', f'Time: {time_str}'))
+    cust_phone = sender_phone[-10:] if len(sender_phone) > 10 else sender_phone
+    lines.append(f'Customer: {cust_phone}')
     if purpose:
         lines.append(f'Purpose: {purpose[:30]}')
     if due_ref:
         lines.append(f'Due Ref: {due_ref}')
     lines.append(sep)
-    # Item header
     lines.append(lr('ITEM', 'AMOUNT'))
     lines.append(sep)
-    # Item line
-    item_display = item_name[:22]
+    item_display = item_name[:24]
     lines.append(f'{item_display}')
-    lines.append(lr(f'  {fmt(unit_price)} x {qty}', f'Rs.{fmt(subtotal)}'))
+    lines.append(lr(f'  Rs.{fmt(unit_price)} x {qty}', f'Rs.{fmt(subtotal)}'))
     lines.append(sep)
     lines.append(lr('Subtotal:', f'Rs.{fmt(subtotal)}'))
     if discount > 0:
-        lines.append(lr('Promo:', f'-Rs.{fmt(discount)}'))
+        lines.append(lr('Promo Discount:', f'-Rs.{fmt(discount)}'))
     lines.append(lr(f'CGST @{half_rate:.1f}%:', f'Rs.{fmt(cgst)}'))
     lines.append(lr(f'SGST @{half_rate:.1f}%:', f'Rs.{fmt(sgst)}'))
-    lines.append(lr('Shipping (Express):', f'Rs.{fmt(shipping)}'))
-    lines.append(lr('Conv. Fee:', f'Rs.{fmt(conv_fee)}'))
+    lines.append(lr('Shipping:', f'Rs.{fmt(shipping)}'))
+    lines.append(lr('Conv. Fee (2%+GST):', f'Rs.{fmt(conv_fee)}'))
     lines.append(dsep)
-    lines.append(lr('TOTAL:', f'Rs.{fmt(total)}'))
+    lines.append(lr('TOTAL PAID:', f'Rs.{fmt(total)}'))
     lines.append(dsep)
-    # GST summary
     lines.append(center('GST SUMMARY'))
     lines.append(sep)
     lines.append(lr('Tax', 'Taxable    Amount'))
@@ -2277,7 +2518,10 @@ def _build_invoice_lines(ref_id: str, item_name: str, unit_price: float, qty: in
     lines.append(lr('Total Tax:', f'Rs.{fmt(gst_amt)}'))
     lines.append(sep)
     lines.append('')
-    lines.append(center('Thank You!'))
+    lines.append(center('** PAID **'))
+    lines.append(center(f'{date_str} {time_str} IST'))
+    lines.append('')
+    lines.append(center('Thank You for your payment!'))
     lines.append(center('wecare.digital'))
     lines.append(dsep)
 
@@ -2287,24 +2531,41 @@ def _build_invoice_lines(ref_id: str, item_name: str, unit_price: float, qty: in
 def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: float,
                                quantity: int, item_name: str, gst_rate: float,
                                shipping: float, discount: float, purpose: str,
-                               due_ref: str, sender_phone: str, request_id: str) -> None:
-    """Generate POS invoice image, upload to S3, send via WhatsApp."""
+                               due_ref: str, sender_phone: str, request_id: str,
+                               pay_ref: str = '', paid_at: str = '') -> None:
+    """Generate POS invoice image with logo, upload to S3, send via WhatsApp."""
     try:
-        # Generate unique invoice ref (reuse payment ref pattern)
         inv_ref = f"WDSR{uuid.uuid4().hex[:12].upper()}"
 
-        # Build receipt lines
+        # Build paid timestamp
+        if not paid_at:
+            import datetime
+            now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+            paid_at = now_ist.strftime('%d-%m-%Y %H:%M:%S')
+
+        # Load logo from S3
+        logo_pixels = None
+        logo_w = logo_h = 0
+        try:
+            logo_obj = s3.get_object(Bucket=MEDIA_BUCKET, Key='stream/media/m/wecare-digital.png')
+            logo_bytes = logo_obj['Body'].read()
+            logo_w, logo_h, logo_pixels = _decode_png_pixels(logo_bytes)
+            if logo_w is None:
+                logo_pixels = None
+                logo_w = logo_h = 0
+            logger.info(json.dumps({'event': 'logo_loaded', 'width': logo_w, 'height': logo_h}))
+        except Exception as logo_err:
+            logger.warning(json.dumps({'event': 'logo_load_error', 'error': str(logo_err)}))
+
         lines = _build_invoice_lines(
-            ref_id=inv_ref, item_name=item_name, unit_price=amount,
-            qty=quantity, gst_rate=gst_rate, shipping=shipping,
-            discount=discount, sender_phone=sender_phone,
-            purpose=purpose, due_ref=due_ref,
+            ref_id=inv_ref, pay_ref=pay_ref or '-', item_name=item_name,
+            unit_price=amount, qty=quantity, gst_rate=gst_rate,
+            shipping=shipping, discount=discount, sender_phone=sender_phone,
+            purpose=purpose, due_ref=due_ref, paid_at=paid_at,
         )
 
-        # Render to PNG
-        png_bytes = _render_text_to_png(lines, scale=3)
+        png_bytes = _render_text_to_png(lines, scale=3, logo_pixels=logo_pixels, logo_w=logo_w, logo_h=logo_h)
 
-        # Upload to S3
         s3_key = f'invoices/{inv_ref}.png'
         s3.put_object(
             Bucket=MEDIA_BUCKET,
@@ -2317,12 +2578,12 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
         logger.info(json.dumps({
             'event': 'invoice_uploaded',
             'invoiceRef': inv_ref,
+            'payRef': pay_ref,
             's3Key': s3_key,
             'sizeBytes': len(png_bytes),
             'requestId': request_id,
         }))
 
-        # Send invoice image via outbound WhatsApp Lambda
         invoice_payload = {
             'body': json.dumps({
                 'contactId': contact_id,
@@ -2339,14 +2600,13 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
             Payload=json.dumps(invoice_payload),
         )
 
-        # Store invoice record in Messages table for dashboard
+        # Store invoice record in Messages table
         try:
             messages_table = dynamodb.Table(MESSAGES_TABLE)
             now = int(time.time())
             subtotal = amount * quantity
             after_promo = subtotal - discount
             gst_amt = round(after_promo * gst_rate / 100, 2)
-            half_rate = gst_rate / 2
             cgst = round(gst_amt / 2, 2)
             sgst = round(gst_amt / 2, 2)
             conv_base = round(after_promo * 0.02, 2)
@@ -2361,9 +2621,10 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                 'channel': 'whatsapp',
                 'direction': 'outbound',
                 'messageType': 'invoice',
-                'content': f'Invoice {inv_ref}',
+                'content': f'Invoice {inv_ref} (Paid)',
                 'invoiceRef': inv_ref,
                 'invoiceS3Key': s3_key,
+                'paymentReferenceId': pay_ref or '',
                 'paymentItemName': item_name,
                 'paymentQuantity': quantity,
                 'paymentAmount': Decimal(str(int(amount * 100))),
@@ -2379,7 +2640,8 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                 'paymentPurpose': purpose or '',
                 'paymentDueRef': due_ref or '',
                 'senderPhone': sender_phone,
-                'status': 'generated',
+                'paidAt': paid_at,
+                'status': 'paid',
                 'createdAt': Decimal(str(now)),
                 'expiresAt': Decimal(str(now + 86400 * 365)),
             })
@@ -2394,6 +2656,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
         logger.info(json.dumps({
             'event': 'invoice_sent',
             'invoiceRef': inv_ref,
+            'payRef': pay_ref,
             'contactId': contact_id,
             'requestId': request_id,
         }))
@@ -2820,21 +3083,6 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     discount=ai_response.get('paymentDiscount', 0),
                     payment_purpose=ai_response.get('paymentPurpose', ''),
                     due_ref=ai_response.get('paymentDueRef', ''),
-                )
-                # Generate and send POS invoice image
-                _generate_and_send_invoice(
-                    contact_id=contact_id,
-                    phone_number_id=phone_number_id,
-                    amount=payment_amount,
-                    quantity=ai_response.get('paymentQuantity', 1),
-                    item_name=ai_response.get('paymentItemName', 'Services/Goods'),
-                    gst_rate=ai_response.get('paymentGstRate', 18),
-                    shipping=ai_response.get('paymentShipping', 49),
-                    discount=ai_response.get('paymentDiscount', 0),
-                    purpose=ai_response.get('paymentPurpose', ''),
-                    due_ref=ai_response.get('paymentDueRef', ''),
-                    sender_phone=sender_phone,
-                    request_id=request_id,
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM
