@@ -1788,15 +1788,20 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
                     purpose_msg = (
                         "🏷️ What's this payment for?\n\n"
-                        "  *1* — Advance Payment\n"
-                        "  *2* — Service Fee\n"
-                        "  *3* — Subscription\n"
-                        "  *4* — Consultation\n"
-                        "  *5* — Travel Booking\n"
-                        "  *6* — Legal / Docs\n"
-                        "  *7* — Event / Expo\n"
-                        "  *8* — Gift Card\n"
-                        "  *9* — Other (type your own)"
+                        "  *Store Brands*\n"
+                        "  *1* — ✈️ BNB Club — Travel\n"
+                        "  *2* — ⚖️ No Fault — ODR\n"
+                        "  *3* — 🌍 Expo Week — Events\n"
+                        "  *4* — 🙏 Ritual Guru — Puja\n"
+                        "  *5* — 📄 Legal Champ — Docs\n"
+                        "  *6* — 🧘 Swdhya — Samvad\n"
+                        "  *7* — 🎁 Gift Card\n\n"
+                        "  *General*\n"
+                        "  *8* — Advance Payment\n"
+                        "  *9* — Service Fee\n"
+                        "  *10* — Subscription\n"
+                        "  *11* — Consultation\n"
+                        "  *12* — Other (type your own)"
                     )
                     return {
                         'suggestedResponse': purpose_msg,
@@ -1811,9 +1816,18 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             # ── Purpose step for new payments ──
             if step == 'awaiting_purpose':
                 purpose_map = {
-                    '1': 'Advance Payment', '2': 'Service Fee', '3': 'Subscription',
-                    '4': 'Consultation', '5': 'Travel Booking', '6': 'Legal / Docs',
-                    '7': 'Event / Expo', '8': 'Gift Card', '9': 'Other',
+                    '1': 'BNB Club — Travel',
+                    '2': 'No Fault — ODR',
+                    '3': 'Expo Week — Events',
+                    '4': 'Ritual Guru — Puja',
+                    '5': 'Legal Champ — Docs',
+                    '6': 'Swdhya — Samvad',
+                    '7': 'Gift Card',
+                    '8': 'Advance Payment',
+                    '9': 'Service Fee',
+                    '10': 'Subscription',
+                    '11': 'Consultation',
+                    '12': 'Other (type your own)',
                 }
                 if content_lower in purpose_map:
                     purpose = purpose_map[content_lower]
@@ -2237,10 +2251,27 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestion': due_msg,
                     }
                 prompt = flows_config.get('step_amount', "Enter the amount to pay:")
-                _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {})
+                _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
+                purpose_msg = (
+                    "🏷️ What's this payment for?\n\n"
+                    "  *Store Brands*\n"
+                    "  *1* — ✈️ BNB Club — Travel\n"
+                    "  *2* — ⚖️ No Fault — ODR\n"
+                    "  *3* — 🌍 Expo Week — Events\n"
+                    "  *4* — 🙏 Ritual Guru — Puja\n"
+                    "  *5* — 📄 Legal Champ — Docs\n"
+                    "  *6* — 🧘 Swdhya — Samvad\n"
+                    "  *7* — 🎁 Gift Card\n\n"
+                    "  *General*\n"
+                    "  *8* — Advance Payment\n"
+                    "  *9* — Service Fee\n"
+                    "  *10* — Subscription\n"
+                    "  *11* — Consultation\n"
+                    "  *12* — Other (type your own)"
+                )
                 return {
-                    'suggestedResponse': prompt,
-                    'suggestion': prompt,
+                    'suggestedResponse': purpose_msg,
+                    'suggestion': purpose_msg,
                 }
 
             # Toggle audio
