@@ -1922,33 +1922,44 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         total_due = sum(d['amount'] for d in pending_dues)
                         data['amount'] = total_due
                         data['quantity'] = 1
-                        refs = ', '.join(d['ref'][-4:] for d in pending_dues)
-                        data['item_name'] = f"Dues: {refs}"
-                        data['payment_purpose'] = 'dues'
+                        brands = ', '.join(d.get('item', 'Due') for d in pending_dues[:3])
+                        data['item_name'] = f"All Dues ({brands})"
+                        data['payment_purpose'] = brands if brands != 'Due' else 'Pending Dues'
                         data['due_ref'] = pending_dues[0]['ref']
+                        data['due_number'] = 'ALL'
                         data['from_dues'] = True
-                        # Route through customer info collection
                         _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                        return _r(f"\u2705 All {len(pending_dues)} dues clubbed \u2192 single payment of \u20b9{total_due:,.2f}\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
+                        return _r(f"\u2705 All {len(pending_dues)} dues clubbed \u2192 \u20b9{total_due:,.2f}\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
                     return _r(_pay_purpose_prompt())
                 elif content_lower in ('2', 'one', 'pay one'):
                     pending_dues = data.get('pending_dues', [])
                     if len(pending_dues) == 1:
                         due = pending_dues[0]
+                        brand = due.get('item', 'Due')
                         data['amount'] = due['amount']
                         data['quantity'] = 1
-                        data['item_name'] = f"Due: {due['ref']}"
-                        data['payment_purpose'] = 'dues'
+                        data['item_name'] = brand
+                        data['payment_purpose'] = brand
                         data['due_ref'] = due['ref']
+                        data['due_number'] = '1'
                         data['from_dues'] = True
-                        # Route through customer info collection
                         _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                        return _r(f"\u2705 Due selected \u2192 \u20b9{due['amount']:,.2f}\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
+                        return _r(f"\u2705 Due #1 \u2022 {brand} \u2022 \u20b9{due['amount']:,.2f}\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                     # Multiple dues — ask which one
                     lines = ["\U0001f4cb Pick one to pay\n"]
                     for i, d in enumerate(pending_dues[:5], 1):
-                        lines.append(f" {i}. {d['item']} \u2014 \u20b9{d['amount']:,.2f} (...{d['ref'][-4:]})")
+                        brand = d.get('item', 'Due')
+                        masked = f"...{d['ref'][-4:]}" if len(d['ref']) > 4 else d['ref']
+                        due_date = ''
+                        if d.get('createdAt'):
+                            try:
+                                import datetime
+                                dt = datetime.datetime.fromtimestamp(d['createdAt'])
+                                due_date = f" \u2022 Due: {dt.strftime('%d %b')}"
+                            except Exception:
+                                pass
+                        lines.append(f" {i}. {brand} \u2022 \u20b9{d['amount']:,.2f}{due_date} ({masked})")
                     lines.append(f"\nReply 1\u2013{min(len(pending_dues), 5)} \u00b7 BACK \u00b7 CANCEL")
                     data['selecting_due'] = True
                     _save_flow_state(phone_hash, 'pay', 'awaiting_due_select', data)
@@ -1957,7 +1968,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
                     return _r(_pay_purpose_prompt())
                 else:
-                    return _r("Reply 1 (pay all in one), 2 (pick one), or 3 (new) \u00b7 CANCEL")
+                    return _r("Reply 1 (pay all), 2 (pick one), or 3 (new payment) \u00b7 CANCEL")
 
             # ── Due selection (pick one) ──
             if step == 'awaiting_due_select':
@@ -1970,16 +1981,17 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     idx = int(content_lower) - 1
                     if 0 <= idx < len(pending_dues):
                         due = pending_dues[idx]
+                        brand = due.get('item', 'Due')
                         data['amount'] = due['amount']
                         data['quantity'] = 1
-                        data['item_name'] = f"Due: {due['ref']}"
-                        data['payment_purpose'] = 'dues'
+                        data['item_name'] = brand
+                        data['payment_purpose'] = brand
                         data['due_ref'] = due['ref']
+                        data['due_number'] = str(idx + 1)
                         data.pop('selecting_due', None)
                         data['from_dues'] = True
-                        # Route through customer info collection
                         _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                        return _r(f"\u2705 Due selected \u2192 \u20b9{due['amount']:,.2f}\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
+                        return _r(f"\u2705 Due #{idx + 1} \u2022 {brand} \u2022 \u20b9{due['amount']:,.2f}\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                 except (ValueError, IndexError):
                     pass
                 return _r(f"Reply 1\u2013{min(len(pending_dues), 5)} \u00b7 BACK \u00b7 CANCEL")
@@ -2010,7 +2022,6 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             if step == 'awaiting_order_id':
                 if content_lower == 'back':
                     if data.get('from_dues'):
-                        # Go back to due choice
                         pending_dues = data.get('pending_dues', [])
                         if pending_dues:
                             _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', data)
@@ -2021,40 +2032,21 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['order_id'] = 'Offline'
                 else:
                     data['order_id'] = message_content.strip()[:40]
-                # Check for saved profile
-                profile = _load_customer_profile(phone_hash)
-                # Also try to auto-fill from contacts table
-                if not profile.get('customer_name'):
-                    profile = _load_contact_as_profile(sender_phone)
-                if profile.get('customer_name'):
-                    name = profile.get('customer_name', '')
-                    phone = profile.get('customer_phone', sender_phone)
-                    email = profile.get('customer_email', '')
-                    ship = profile.get('shipping_address', '')
-                    data['saved_profile'] = profile
-                    saved_msg = (
-                        f"\U0001f4cb Order: *{data['order_id']}*\n\n"
-                        f"\U0001f464 *Saved Profile*\n"
-                        f"\U0001f464 {name}\n"
-                        f"\U0001f4de {phone}\n"
-                        f"\u2709\ufe0f {email or '\u2014'}\n"
-                        f"\U0001f4e6 {ship or '\u2014'}\n\n"
-                        " 1 \u2192 Use these details\n"
-                        " 2 \u2192 Edit details\n"
-                        " 3 \u2192 Pay for someone else\n\n"
-                        "Reply 1/2/3 \u00b7 BACK \u00b7 CANCEL"
-                    )
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_reuse_profile', data)
-                    return _r(saved_msg)
-                # No saved profile — ask who is paying
+                # Always ask: Who is this for?
                 _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
-                return _r(f"\U0001f4cb Order: *{data['order_id']}*\n\n\U0001f464 Who is this payment for?\n 1 \u2192 Self\n 2 \u2192 Someone else\n\nReply 1/2 \u00b7 BACK \u00b7 CANCEL")
+                return _r(
+                    f"\U0001f4cb Order: *{data['order_id']}*\n\n"
+                    f"\U0001f464 Who is this payment for?\n"
+                    f" 1 \u2192 Self\n"
+                    f" 2 \u2192 Someone else\n\n"
+                    f"Reply 1/2 \u00b7 BACK \u00b7 CANCEL"
+                )
 
-            # ── Reuse saved profile (3 options) ──
+            # ── Reuse saved profile (Self only — 2 options) ──
             if step == 'awaiting_reuse_profile':
                 if content_lower == 'back':
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
+                    return _r("\U0001f464 Who is this payment for?\n 1 \u2192 Self\n 2 \u2192 Someone else\n\nReply 1/2 \u00b7 BACK \u00b7 CANCEL")
                 if content_lower in ('1', 'use', 'use saved', 'yes', 'y'):
                     profile = data.get('saved_profile', {})
                     data['customer_name'] = profile.get('customer_name', '')
@@ -2062,7 +2054,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['customer_email'] = profile.get('customer_email', '')
                     data['shipping_address'] = profile.get('shipping_address', '')
                     data['billing_address'] = profile.get('billing_address', profile.get('shipping_address', ''))
-                    data['pay_for'] = 'self' if data['customer_phone'] == sender_phone else 'other'
+                    data['pay_for'] = 'self'
                     data.pop('saved_profile', None)
                     # If shipping address missing, collect it
                     if not data.get('shipping_address'):
@@ -2079,13 +2071,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['customer_phone'] = sender_phone
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
                     return _r("\u270f\ufe0f Full name?\nBACK \u00b7 CANCEL")
-                elif content_lower in ('3', 'other', 'someone', 'someone else'):
-                    data.pop('saved_profile', None)
-                    data['pay_for'] = 'other'
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
-                    return _r("\u270f\ufe0f Customer\u2019s full name?\nBACK \u00b7 CANCEL")
                 else:
-                    return _r("Reply 1 (use saved), 2 (edit), or 3 (someone else) \u00b7 BACK \u00b7 CANCEL")
+                    return _r("Reply 1 (use saved) or 2 (edit) \u00b7 BACK \u00b7 CANCEL")
 
             # ── Pay for self or other ──
             if step == 'awaiting_pay_for':
@@ -2095,6 +2082,29 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 if content_lower in ('1', 'self', 'me'):
                     data['pay_for'] = 'self'
                     data['customer_phone'] = sender_phone
+                    # Check for saved profile — show only for Self
+                    profile = _load_customer_profile(phone_hash)
+                    if not profile.get('customer_name'):
+                        profile = _load_contact_as_profile(sender_phone)
+                    if profile.get('customer_name'):
+                        name = profile.get('customer_name', '')
+                        phone_disp = profile.get('customer_phone', sender_phone)
+                        email = profile.get('customer_email', '')
+                        ship = profile.get('shipping_address', '')
+                        data['saved_profile'] = profile
+                        saved_msg = (
+                            f"\U0001f464 *Saved Profile*\n"
+                            f"\U0001f464 {name}\n"
+                            f"\U0001f4de {phone_disp}\n"
+                            f"\u2709\ufe0f {email or '\u2014'}\n"
+                            f"\U0001f4e6 {ship or '\u2014'}\n\n"
+                            " 1 \u2192 Use saved details\n"
+                            " 2 \u2192 Edit details\n\n"
+                            "Reply 1/2 \u00b7 BACK \u00b7 CANCEL"
+                        )
+                        _save_flow_state(phone_hash, 'pay', 'awaiting_reuse_profile', data)
+                        return _r(saved_msg)
+                    # No saved profile — collect name
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
                     return _r("\u270f\ufe0f Full name?\nBACK \u00b7 CANCEL")
                 elif content_lower in ('2', 'other', 'someone', 'someone else'):
@@ -2102,7 +2112,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
                     return _r("\u270f\ufe0f Customer\u2019s full name?\nBACK \u00b7 CANCEL")
                 else:
-                    return _r("Reply 1 (Self) or 2 (Someone else) \u00b7 BACK \u00b7 CANCEL")
+                    return _r("\U0001f464 Reply 1 (Self) or 2 (Someone else) \u00b7 BACK \u00b7 CANCEL")
 
             # ── Customer name ──
             if step == 'awaiting_customer_name':
@@ -2370,6 +2380,26 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             'flowAction': 'showMainMenu',
         }
 
+    # ── Keyword-based pay flow trigger ──
+    PAY_KEYWORDS = {
+        'pay', 'payment', 'i want to pay', 'make payment', 'make a payment',
+        'send payment', 'pay now', 'pay bill', 'bill pay', 'pay due',
+        'pay dues', 'pending payment', 'pending due', 'bhugtan', 'paisa',
+        'rupees', 'amount pay', 'pay amount', 'invoice', 'pay invoice',
+    }
+    if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
+        pending = _check_pending_payments(phone_hash, request_id, sender_phone)
+        flows_config = flow_config.get('flows', {}).get('pay', {})
+        if pending:
+            due_msg = _dues_prompt(pending)
+            _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
+            return {
+                'suggestedResponse': due_msg,
+                'suggestion': due_msg,
+            }
+        _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
+        return _r(_pay_purpose_prompt())
+
     # ── Main menu / store item selected ──
     if content_lower.startswith('menu_') or content_lower.startswith('store_'):
         menu_responses = flow_config.get('menuResponses', {})
@@ -2513,18 +2543,41 @@ def _r(msg: str) -> Dict:
 
 
 def _dues_prompt(pending_dues: list) -> str:
-    """Build the pending dues prompt shown at multiple points in the flow."""
+    """Build the pending dues prompt with brand, readable ref, amount, and due date."""
     total_due = sum(d['amount'] for d in pending_dues)
     dues_lines = []
     for i, d in enumerate(pending_dues[:5], 1):
-        dues_lines.append(f" {i}. {d['item']} \u2014 \u20b9{d['amount']:,.2f} (...{d['ref'][-4:]})")
+        brand = d.get('item', 'Services/Goods')
+        ref = d.get('ref', 'N/A')
+        amount = d['amount']
+        # Readable ref: Due #1, #2, etc. + masked original ref
+        readable_ref = f"Due #{i}"
+        masked_ref = f"...{ref[-4:]}" if len(ref) > 4 else ref
+        # Due date from createdAt (show as DD Mon)
+        created = d.get('createdAt', 0)
+        due_date = ''
+        if created:
+            try:
+                import datetime
+                dt = datetime.datetime.fromtimestamp(created)
+                due_date = dt.strftime('%d %b')
+            except Exception:
+                pass
+        # Format: BNB Club • Due #1 • ₹1,000 • Due: 10 Feb (…a1b2)
+        line_parts = [f" {i}. {brand}"]
+        line_parts.append(f"{readable_ref}")
+        line_parts.append(f"\u20b9{amount:,.2f}")
+        if due_date:
+            line_parts.append(f"Due: {due_date}")
+        line_parts.append(f"({masked_ref})")
+        dues_lines.append(" \u2022 ".join(line_parts))
     dues_text = "\n".join(dues_lines)
     return (
         f"\U0001f4cc *{len(pending_dues)} Pending* \u2014 Total \u20b9{total_due:,.2f}\n\n"
         f"{dues_text}\n\n"
-        f" 1 \u2192 Pay ALL in one go (\u20b9{total_due:,.2f})\n"
-        f" 2 \u2192 Pick ONE to pay\n"
-        f" 3 \u2192 New payment (advance/other)\n\n"
+        f" 1 \u2192 Pay ALL pending (\u20b9{total_due:,.2f})\n"
+        f" 2 \u2192 Pay a specific due\n"
+        f" 3 \u2192 Create a new payment\n\n"
         f"Reply 1/2/3 \u00b7 CANCEL"
     )
 
@@ -2630,11 +2683,19 @@ def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
         lines.append(f"\U0001f4b3 Paid by: Self")
     lines.append(f"\U0001f4cb Order: {order_id}")
     lines.append("\u2500" * 20)
-    lines.append(f"*{item_name}*")
-    if data.get('payment_purpose'):
-        lines.append(f"Purpose: {data['payment_purpose']}")
+    # Show purpose/brand as the item line instead of generic "Services/Goods"
+    purpose = data.get('payment_purpose', '')
+    display_item = purpose if purpose else item_name
+    lines.append(f"*{display_item}*")
     if data.get('due_ref'):
-        lines.append(f"Ref: ...{data['due_ref'][-6:]}")
+        ref = data['due_ref']
+        masked = f"...{ref[-6:]}" if len(ref) > 6 else ref
+        # Generate readable due ref
+        due_num = data.get('due_number', '')
+        if due_num:
+            lines.append(f"Due #{due_num} ({masked})")
+        else:
+            lines.append(f"Ref: {masked}")
     lines.append(f"\u20b9{unit_price:,.2f} \u00d7 {qty}")
     lines.append(f"Subtotal  \u20b9{subtotal:,.2f}")
     lines.append(f"Promo     \u2212\u20b9{promo:,.2f}")
