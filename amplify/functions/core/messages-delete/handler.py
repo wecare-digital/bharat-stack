@@ -216,6 +216,9 @@ def _handle_update(event, headers):
             'paymentItemName', 'paymentQuantity', 'paymentGstRate',
             'paymentPurpose', 'paymentDueRef', 'status',
             'paymentDiscount', 'paymentShipping',
+            'paymentOrderId', 'paymentCustomerName', 'paymentCustomerPhone',
+            'paymentCustomerEmail', 'paymentShippingAddress', 'paymentBillingAddress',
+            'paymentPayFor',
         }
         updates = {k: v for k, v in body.items() if k in ALLOWED}
         if not updates:

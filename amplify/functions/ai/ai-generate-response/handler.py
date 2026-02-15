@@ -1818,15 +1818,221 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 if content_lower in purpose_map:
                     purpose = purpose_map[content_lower]
                 else:
-                    # Auto-clean: title case, strip extra spaces, cap at 40 chars
                     raw = re.sub(r'\s+', ' ', message_content.strip())
                     purpose = raw.title()[:40]
                 data['payment_purpose'] = purpose
+                _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
+                return {
+                    'suggestedResponse': f"✅ Purpose: {purpose}\n\n🛒 Enter Wix Store Order ID\n_(Type *SKIP* if this is an offline payment)_",
+                    'suggestion': f"✅ Purpose: {purpose}\n\n🛒 Enter Wix Store Order ID\n_(Type *SKIP* if this is an offline payment)_",
+                }
+
+            # ── Order ID step ──
+            if step == 'awaiting_order_id':
+                if content_lower in ('skip', 'na', 'none', 'offline', '-'):
+                    data['order_id'] = 'Offline'
+                else:
+                    data['order_id'] = message_content.strip()[:40]
+                # Load saved customer profile for returning customers
+                profile = _load_customer_profile(phone_hash)
+                if profile.get('customer_name'):
+                    # Returning customer — show saved details
+                    name = profile.get('customer_name', '')
+                    phone = profile.get('customer_phone', sender_phone)
+                    email = profile.get('customer_email', '')
+                    ship = profile.get('shipping_address', '')
+                    bill = profile.get('billing_address', '')
+                    saved_msg = (
+                        f"📋 *Saved Customer Details*\n\n"
+                        f"👤 Name: {name}\n"
+                        f"📱 Phone: {phone}\n"
+                        f"📧 Email: {email or '-'}\n"
+                        f"📦 Shipping: {ship or '-'}\n"
+                        f"🏢 Billing: {bill or ship or '-'}\n\n"
+                        f"Reply *YES* to use these details\n"
+                        f"Reply *NO* to enter new details"
+                    )
+                    data['saved_profile'] = profile
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_reuse_profile', data)
+                    return {
+                        'suggestedResponse': saved_msg,
+                        'suggestion': saved_msg,
+                    }
+                # New customer — ask who is paying
+                _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
+                return {
+                    'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
+                    'suggestion': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
+                }
+
+            # ── Reuse saved profile ──
+            if step == 'awaiting_reuse_profile':
+                if content_lower in ('yes', 'y', 'ok', 'haan', 'ha'):
+                    profile = data.get('saved_profile', {})
+                    data['customer_name'] = profile.get('customer_name', '')
+                    data['customer_phone'] = profile.get('customer_phone', sender_phone)
+                    data['customer_email'] = profile.get('customer_email', '')
+                    data['shipping_address'] = profile.get('shipping_address', '')
+                    data['billing_address'] = profile.get('billing_address', profile.get('shipping_address', ''))
+                    data['pay_for'] = 'self' if data['customer_phone'] == sender_phone else 'other'
+                    data.pop('saved_profile', None)
+                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                    return {
+                        'suggestedResponse': f"✅ Using saved details.\n\n{prompt}",
+                        'suggestion': f"✅ Using saved details.\n\n{prompt}",
+                    }
+                else:
+                    data.pop('saved_profile', None)
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_pay_for', data)
+                    return {
+                        'suggestedResponse': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
+                        'suggestion': "👤 Who is this payment for?\n\n  *1* — Myself\n  *2* — Someone else",
+                    }
+
+            # ── Pay for self or other ──
+            if step == 'awaiting_pay_for':
+                if content_lower in ('1', 'self', 'myself', 'me'):
+                    data['pay_for'] = 'self'
+                    data['customer_phone'] = sender_phone
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    return {
+                        'suggestedResponse': "📝 Enter your *full name*:",
+                        'suggestion': "📝 Enter your *full name*:",
+                    }
+                elif content_lower in ('2', 'other', 'someone', 'someone else'):
+                    data['pay_for'] = 'other'
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
+                    return {
+                        'suggestedResponse': "📝 Enter the *customer's full name*:",
+                        'suggestion': "📝 Enter the *customer's full name*:",
+                    }
+                else:
+                    return {
+                        'suggestedResponse': "Reply *1* for Myself or *2* for Someone else.",
+                        'suggestion': "Reply *1* for Myself or *2* for Someone else.",
+                    }
+
+            # ── Customer name ──
+            if step == 'awaiting_customer_name':
+                name = message_content.strip()
+                if len(name) < 2 or len(name) > 100:
+                    return {
+                        'suggestedResponse': "⚠️ Please enter a valid name (2-100 characters).",
+                        'suggestion': "⚠️ Please enter a valid name (2-100 characters).",
+                    }
+                data['customer_name'] = name.title()
+                if data.get('pay_for') == 'other':
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_customer_phone', data)
+                    return {
+                        'suggestedResponse': "📱 Enter the *customer's phone number* (with country code):",
+                        'suggestion': "📱 Enter the *customer's phone number* (with country code):",
+                    }
+                # Self — skip phone, ask email
+                _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
+                return {
+                    'suggestedResponse': "📧 Enter your *email address*\n_(Type *SKIP* if not available)_",
+                    'suggestion': "📧 Enter your *email address*\n_(Type *SKIP* if not available)_",
+                }
+
+            # ── Customer phone (only for "other") ──
+            if step == 'awaiting_customer_phone':
+                phone = message_content.strip()
+                if not re.match(r'^\+?\d[\d\s\-]{7,18}$', phone):
+                    return {
+                        'suggestedResponse': "⚠️ Invalid phone number. Please enter with country code (e.g. +919876543210).",
+                        'suggestion': "⚠️ Invalid phone number. Please enter with country code (e.g. +919876543210).",
+                    }
+                data['customer_phone'] = re.sub(r'[\s\-]', '', phone)
+                _save_flow_state(phone_hash, 'pay', 'awaiting_customer_email', data)
+                return {
+                    'suggestedResponse': "📧 Enter the *customer's email address*\n_(Type *SKIP* if not available)_",
+                    'suggestion': "📧 Enter the *customer's email address*\n_(Type *SKIP* if not available)_",
+                }
+
+            # ── Customer email ──
+            if step == 'awaiting_customer_email':
+                email = message_content.strip()
+                if content_lower in ('skip', 'na', 'none', '-'):
+                    data['customer_email'] = ''
+                elif re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', email):
+                    data['customer_email'] = email.lower()
+                else:
+                    return {
+                        'suggestedResponse': "⚠️ Invalid email. Please enter a valid email or type *SKIP*.",
+                        'suggestion': "⚠️ Invalid email. Please enter a valid email or type *SKIP*.",
+                    }
+                _save_flow_state(phone_hash, 'pay', 'awaiting_shipping_address', data)
+                return {
+                    'suggestedResponse': "📦 Enter *shipping address*\n_(Type *SKIP* if not applicable)_",
+                    'suggestion': "📦 Enter *shipping address*\n_(Type *SKIP* if not applicable)_",
+                }
+
+            # ── Shipping address ──
+            if step == 'awaiting_shipping_address':
+                if content_lower in ('skip', 'na', 'none', '-'):
+                    data['shipping_address'] = ''
+                else:
+                    data['shipping_address'] = message_content.strip()[:200]
+                if data.get('shipping_address'):
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_same', data)
+                    return {
+                        'suggestedResponse': "🏢 Is billing address *same as shipping*?\n\n  *YES* — Same\n  *NO* — Enter different billing address",
+                        'suggestion': "🏢 Is billing address *same as shipping*?\n\n  *YES* — Same\n  *NO* — Enter different billing address",
+                    }
+                # No shipping, ask billing directly
+                _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
+                return {
+                    'suggestedResponse': "🏢 Enter *billing address*\n_(Type *SKIP* if not applicable)_",
+                    'suggestion': "🏢 Enter *billing address*\n_(Type *SKIP* if not applicable)_",
+                }
+
+            # ── Billing same as shipping? ──
+            if step == 'awaiting_billing_same':
+                if content_lower in ('yes', 'y', 'same', 'haan', 'ha'):
+                    data['billing_address'] = data.get('shipping_address', '')
+                    # Save customer profile for future reuse
+                    _save_customer_profile(phone_hash, {
+                        'customer_name': data.get('customer_name', ''),
+                        'customer_phone': data.get('customer_phone', sender_phone),
+                        'customer_email': data.get('customer_email', ''),
+                        'shipping_address': data.get('shipping_address', ''),
+                        'billing_address': data.get('billing_address', ''),
+                    })
+                    _update_contact_with_customer_info(sender_phone, data, request_id)
+                    prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
+                    return {
+                        'suggestedResponse': f"✅ Details saved.\n\n{prompt}",
+                        'suggestion': f"✅ Details saved.\n\n{prompt}",
+                    }
+                else:
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_billing_address', data)
+                    return {
+                        'suggestedResponse': "🏢 Enter *billing address*:",
+                        'suggestion': "🏢 Enter *billing address*:",
+                    }
+
+            # ── Billing address ──
+            if step == 'awaiting_billing_address':
+                if content_lower in ('skip', 'na', 'none', '-'):
+                    data['billing_address'] = ''
+                else:
+                    data['billing_address'] = message_content.strip()[:200]
+                # Save customer profile for future reuse
+                _save_customer_profile(phone_hash, {
+                    'customer_name': data.get('customer_name', ''),
+                    'customer_phone': data.get('customer_phone', sender_phone),
+                    'customer_email': data.get('customer_email', ''),
+                    'shipping_address': data.get('shipping_address', ''),
+                    'billing_address': data.get('billing_address', ''),
+                })
+                _update_contact_with_customer_info(sender_phone, data, request_id)
                 prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
                 _save_flow_state(phone_hash, 'pay', 'awaiting_amount', data)
                 return {
-                    'suggestedResponse': f"✅ Purpose: {purpose}\n\n{prompt}",
-                    'suggestion': f"✅ Purpose: {purpose}\n\n{prompt}",
+                    'suggestedResponse': f"✅ Details saved.\n\n{prompt}",
+                    'suggestion': f"✅ Details saved.\n\n{prompt}",
                 }
 
             if step == 'awaiting_amount':
@@ -1883,6 +2089,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'paymentDiscount': data.get('discount', 0),
                         'paymentPurpose': data.get('payment_purpose', ''),
                         'paymentDueRef': data.get('due_ref', ''),
+                        'paymentOrderId': data.get('order_id', 'Offline'),
+                        'paymentCustomerName': data.get('customer_name', ''),
+                        'paymentCustomerPhone': data.get('customer_phone', sender_phone),
+                        'paymentCustomerEmail': data.get('customer_email', ''),
+                        'paymentShippingAddress': data.get('shipping_address', ''),
+                        'paymentBillingAddress': data.get('billing_address', ''),
+                        'paymentPayFor': data.get('pay_for', 'self'),
                     }
                 elif content_lower in ('no', 'n', 'nahi', 'nope'):
                     _clear_flow_state(phone_hash)
@@ -1892,10 +2105,19 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'flowAction': 'showMainMenu',
                     }
                 elif content_lower in ('back', 'edit'):
-                    # Let user re-enter from unit price
+                    # Let user re-enter from purpose step (keeps customer info)
+                    keep_data = {
+                        'customer_name': data.get('customer_name', ''),
+                        'customer_phone': data.get('customer_phone', ''),
+                        'customer_email': data.get('customer_email', ''),
+                        'shipping_address': data.get('shipping_address', ''),
+                        'billing_address': data.get('billing_address', ''),
+                        'pay_for': data.get('pay_for', 'self'),
+                        'order_id': data.get('order_id', 'Offline'),
+                        'payment_purpose': data.get('payment_purpose', ''),
+                    }
                     prompt = pay_prompts.get('step_amount', "💳 Enter unit price (₹)")
-                    purpose = data.get('payment_purpose', '')
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', {'payment_purpose': purpose} if purpose else {})
+                    _save_flow_state(phone_hash, 'pay', 'awaiting_amount', keep_data)
                     return {
                         'suggestedResponse': f"🔄 Let's redo it.\n\n{prompt}",
                         'suggestion': f"🔄 Let's redo it.\n\n{prompt}",
@@ -2123,6 +2345,28 @@ def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
     data['total'] = total
 
     breakdown = f"📋 *Payment Summary*\n\n"
+    # Customer info
+    cust_name = data.get('customer_name', '')
+    cust_phone = data.get('customer_phone', '')
+    cust_email = data.get('customer_email', '')
+    order_id = data.get('order_id', 'Offline')
+    pay_for = data.get('pay_for', 'self')
+    if cust_name:
+        breakdown += f"👤 Customer: {cust_name}\n"
+    if cust_phone:
+        breakdown += f"📱 Phone: {cust_phone}\n"
+    if cust_email:
+        breakdown += f"📧 Email: {cust_email}\n"
+    ship_addr = data.get('shipping_address', '')
+    bill_addr = data.get('billing_address', '')
+    if ship_addr:
+        breakdown += f"📦 Ship To: {ship_addr[:60]}\n"
+    if bill_addr and bill_addr != ship_addr:
+        breakdown += f"🏢 Bill To: {bill_addr[:60]}\n"
+    if pay_for == 'other':
+        breakdown += f"💰 Paid By: WhatsApp sender\n"
+    breakdown += f"🛒 Order: {order_id}\n"
+    breakdown += f"────────────────────\n"
     breakdown += f"Item: {item_name}\n"
     if data.get('payment_purpose'):
         breakdown += f"Purpose: {data['payment_purpose']}\n"
@@ -2147,6 +2391,122 @@ def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
         'suggestedResponse': breakdown,
         'suggestion': breakdown,
     }
+
+
+# ── Customer profile helpers (for returning customers) ──
+
+def _load_customer_profile(phone_hash: str) -> Dict:
+    """Load saved customer profile from ConversationHistoryTable."""
+    try:
+        table = dynamodb.Table(CONVERSATION_TABLE)
+        resp = table.get_item(Key={'phoneHash': phone_hash}, ProjectionExpression='customerProfile')
+        item = resp.get('Item', {})
+        profile_str = item.get('customerProfile', '')
+        if profile_str:
+            return json.loads(profile_str) if isinstance(profile_str, str) else profile_str
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'customer_profile_load_error', 'error': str(e)}))
+    return {}
+
+
+def _save_customer_profile(phone_hash: str, profile: Dict) -> None:
+    """Save customer profile to ConversationHistoryTable for reuse."""
+    try:
+        table = dynamodb.Table(CONVERSATION_TABLE)
+        table.update_item(
+            Key={'phoneHash': phone_hash},
+            UpdateExpression='SET customerProfile = :cp, updatedAt = :now',
+            ExpressionAttributeValues={
+                ':cp': json.dumps(profile),
+                ':now': Decimal(str(int(time.time()))),
+            }
+        )
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'customer_profile_save_error', 'error': str(e)}))
+
+
+def _update_contact_with_customer_info(sender_phone: str, profile: Dict, request_id: str) -> None:
+    """Update the contacts table with customer billing/shipping info."""
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
+        # Find contact by phone
+        existing = None
+        for variant in [f'+{clean_phone}', clean_phone]:
+            try:
+                resp = contacts_table.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :phone',
+                    ExpressionAttributeValues={':phone': variant},
+                    Limit=1
+                )
+                items = resp.get('Items', [])
+                if items:
+                    existing = items[0]
+                    break
+            except Exception:
+                pass
+
+        now = Decimal(str(int(time.time())))
+        update_parts = []
+        attr_names = {}
+        attr_values = {':now': now}
+
+        field_map = {
+            'customer_name': ('customerName', '#cn'),
+            'customer_email': ('customerEmail', '#ce'),
+            'billing_address': ('billingAddress', '#ba'),
+            'shipping_address': ('shippingAddress', '#sa'),
+        }
+        for data_key, (db_field, alias) in field_map.items():
+            val = profile.get(data_key, '')
+            if val:
+                update_parts.append(f'{alias} = :{db_field}')
+                attr_names[alias] = db_field
+                attr_values[f':{db_field}'] = val
+
+        if not update_parts:
+            return
+
+        update_parts.append('updatedAt = :now')
+
+        if existing:
+            contacts_table.update_item(
+                Key={'id': existing['id']},
+                UpdateExpression='SET ' + ', '.join(update_parts),
+                ExpressionAttributeNames=attr_names,
+                ExpressionAttributeValues=attr_values,
+            )
+        else:
+            # Create new contact with customer info
+            contact_id = str(uuid.uuid4())
+            item = {
+                'id': contact_id,
+                'phone': clean_phone,
+                'channel': 'whatsapp',
+                'source': 'payment_flow',
+                'createdAt': now,
+                'updatedAt': now,
+            }
+            for data_key, (db_field, _) in field_map.items():
+                val = profile.get(data_key, '')
+                if val:
+                    item[db_field] = val
+            if profile.get('customer_name'):
+                item['name'] = profile['customer_name']
+            contacts_table.put_item(Item=item)
+
+        logger.info(json.dumps({
+            'event': 'contact_customer_info_updated',
+            'phone': clean_phone,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'contact_customer_info_error',
+            'error': str(e),
+            'requestId': request_id,
+        }))
 
 
 # ── Flow state helpers (DynamoDB) ──

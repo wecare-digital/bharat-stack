@@ -1341,6 +1341,15 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
         purpose = pr.get('paymentPurpose', '')
         due_ref = pr.get('paymentDueRef', '')
 
+        # Customer info from payment_request record
+        order_id = pr.get('paymentOrderId', 'Offline')
+        customer_name = pr.get('paymentCustomerName', '')
+        customer_phone = pr.get('paymentCustomerPhone', sender_phone)
+        customer_email = pr.get('paymentCustomerEmail', '')
+        shipping_address = pr.get('paymentShippingAddress', '')
+        billing_address = pr.get('paymentBillingAddress', '')
+        pay_for = pr.get('paymentPayFor', 'self')
+
         # Paid timestamp in IST
         now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
         paid_at = now_ist.strftime('%d-%m-%Y %H:%M:%S')
@@ -1360,6 +1369,13 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
             request_id=request_id,
             pay_ref=reference_id,
             paid_at=paid_at,
+            order_id=order_id,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            customer_email=customer_email,
+            shipping_address=shipping_address,
+            billing_address=billing_address,
+            pay_for=pay_for,
         )
 
     except Exception as e:
@@ -2035,7 +2051,11 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                           item_name: str = 'Services/Goods', gst_rate: float = 18,
                           shipping: float = 49, sender_phone: str = '',
                           quantity: int = 1, discount: float = 0,
-                          payment_purpose: str = '', due_ref: str = '') -> None:
+                          payment_purpose: str = '', due_ref: str = '',
+                          order_id: str = 'Offline', customer_name: str = '',
+                          customer_phone: str = '', customer_email: str = '',
+                          shipping_address: str = '', billing_address: str = '',
+                          pay_for: str = 'self') -> None:
     """Send WhatsApp Pay order_details message with GST breakdown and payment log."""
     if not contact_id or amount <= 0:
         return
@@ -2096,7 +2116,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
         try:
             messages_table = dynamodb.Table(MESSAGES_TABLE)
             now = int(time.time())
-            messages_table.put_item(Item={
+            messages_table.put_item(Item={k: v for k, v in {
                 'id': str(uuid.uuid4()),
                 'messageId': reference_id,
                 'contactId': contact_id,
@@ -2121,11 +2141,18 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'paymentSource': 'whatsapp_bot',
                 'paymentPurpose': payment_purpose or '',
                 'paymentDueRef': due_ref or '',
+                'paymentOrderId': order_id or 'Offline',
+                'paymentCustomerName': customer_name or '',
+                'paymentCustomerPhone': customer_phone or sender_phone,
+                'paymentCustomerEmail': customer_email or '',
+                'paymentShippingAddress': shipping_address or '',
+                'paymentBillingAddress': billing_address or '',
+                'paymentPayFor': pay_for or 'self',
                 'status': 'pending',
                 'senderPhone': sender_phone,
                 'createdAt': Decimal(str(now)),
                 'expiresAt': Decimal(str(now + 86400 * 30)),
-            })
+            }.items() if v is not None and v != ''})
         except Exception as store_err:
             logger.warning(json.dumps({
                 'event': 'payment_request_store_error',
@@ -2434,7 +2461,10 @@ def _render_text_to_png(lines: list, scale: int = 2, logo_pixels=None, logo_w: i
 def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: float, qty: int,
                          gst_rate: float, shipping: float, discount: float,
                          sender_phone: str, purpose: str, due_ref: str,
-                         paid_at: str = '') -> list:
+                         paid_at: str = '', order_id: str = 'Offline',
+                         customer_name: str = '', customer_phone: str = '',
+                         customer_email: str = '', shipping_address: str = '',
+                         billing_address: str = '', pay_for: str = 'self') -> list:
     """Build POS receipt text lines for the invoice."""
     import datetime
     if paid_at:
@@ -2487,8 +2517,28 @@ def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: 
     lines.append(sep)
     lines.append(lr(f'Inv: {ref_id}', f'Date: {date_str}'))
     lines.append(lr(f'Pay Ref: {pay_ref}', f'Time: {time_str}'))
-    cust_phone = sender_phone[-10:] if len(sender_phone) > 10 else sender_phone
-    lines.append(f'Customer: {cust_phone}')
+    lines.append(f'Order: {order_id}')
+    lines.append(sep)
+    # Customer details
+    lines.append(center('BILL TO'))
+    if customer_name:
+        lines.append(f'Name: {customer_name[:30]}')
+    cust_ph = customer_phone or sender_phone
+    cust_ph_display = cust_ph[-10:] if len(cust_ph) > 10 else cust_ph
+    lines.append(f'Phone: {cust_ph_display}')
+    if customer_email:
+        lines.append(f'Email: {customer_email[:30]}')
+    if billing_address:
+        # Wrap long address
+        addr = billing_address[:60]
+        lines.append(f'Addr: {addr}')
+    if pay_for == 'other':
+        paid_by = sender_phone[-10:] if len(sender_phone) > 10 else sender_phone
+        lines.append(f'Paid By: {paid_by}')
+    if shipping_address and shipping_address != billing_address:
+        lines.append(sep)
+        lines.append(center('SHIP TO'))
+        lines.append(f'{shipping_address[:42]}')
     if purpose:
         lines.append(f'Purpose: {purpose[:30]}')
     if due_ref:
@@ -2532,12 +2582,15 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                                quantity: int, item_name: str, gst_rate: float,
                                shipping: float, discount: float, purpose: str,
                                due_ref: str, sender_phone: str, request_id: str,
-                               pay_ref: str = '', paid_at: str = '') -> None:
+                               pay_ref: str = '', paid_at: str = '',
+                               order_id: str = 'Offline', customer_name: str = '',
+                               customer_phone: str = '', customer_email: str = '',
+                               shipping_address: str = '', billing_address: str = '',
+                               pay_for: str = 'self') -> None:
     """Generate POS invoice image with logo, upload to S3, send via WhatsApp."""
     try:
         inv_ref = f"WDSR{uuid.uuid4().hex[:12].upper()}"
 
-        # Build paid timestamp
         if not paid_at:
             import datetime
             now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
@@ -2562,6 +2615,10 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
             unit_price=amount, qty=quantity, gst_rate=gst_rate,
             shipping=shipping, discount=discount, sender_phone=sender_phone,
             purpose=purpose, due_ref=due_ref, paid_at=paid_at,
+            order_id=order_id, customer_name=customer_name,
+            customer_phone=customer_phone, customer_email=customer_email,
+            shipping_address=shipping_address, billing_address=billing_address,
+            pay_for=pay_for,
         )
 
         png_bytes = _render_text_to_png(lines, scale=3, logo_pixels=logo_pixels, logo_w=logo_w, logo_h=logo_h)
@@ -3083,6 +3140,13 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     discount=ai_response.get('paymentDiscount', 0),
                     payment_purpose=ai_response.get('paymentPurpose', ''),
                     due_ref=ai_response.get('paymentDueRef', ''),
+                    order_id=ai_response.get('paymentOrderId', 'Offline'),
+                    customer_name=ai_response.get('paymentCustomerName', ''),
+                    customer_phone=ai_response.get('paymentCustomerPhone', sender_phone),
+                    customer_email=ai_response.get('paymentCustomerEmail', ''),
+                    shipping_address=ai_response.get('paymentShippingAddress', ''),
+                    billing_address=ai_response.get('paymentBillingAddress', ''),
+                    pay_for=ai_response.get('paymentPayFor', 'self'),
                 )
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM
