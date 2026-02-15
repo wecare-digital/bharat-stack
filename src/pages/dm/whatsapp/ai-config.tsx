@@ -40,9 +40,10 @@ import {
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
-export default function AIConfigPage({ signOut, user }: PageProps) {
+export default function AIConfigPage({ signOut, user, embedded = false }: PageProps) {
   const [config, setConfig] = useState<BedrockAIConfig | null>(null);
   const [prompts, setPrompts] = useState<Record<string, string>>({});
   const [fallbacks, setFallbacks] = useState<Record<string, string>>({});
@@ -125,18 +126,24 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
   };
 
   if (loading) {
+    const loadingContent = (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div className="spinner" />
+        <p>Loading AI configuration...</p>
+      </div>
+    );
+
+    if (embedded) return loadingContent;
+
     return (
       <Layout user={user} onSignOut={signOut}>
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <div className="spinner" />
-          <p>Loading AI configuration...</p>
-        </div>
+        {loadingContent}
       </Layout>
     );
   }
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <PageHeader 
@@ -174,7 +181,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
               <div className="stat-label">Approval Rate</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: config?.enabled ? '#10B981' : '#6b7280' }}>
+              <div className="stat-value" style={{ color: config?.enabled ? '#059669' : '#6b7280' }}>
                 {config?.enabled ? 'ON' : 'OFF'}
               </div>
               <div className="stat-label">AI Status</div>
@@ -501,7 +508,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
             bottom: '1rem',
             right: '1rem',
             padding: '0.75rem 1.5rem',
-            background: toast.type === 'success' ? '#10B981' : '#6b7280',
+            background: toast.type === 'success' ? '#059669' : '#6b7280',
             color: 'white',
             borderRadius: '13px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -539,7 +546,7 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
           width: 40px;
           height: 40px;
           border: 3px solid #e5e7eb;
-          border-top-color: #10b981;
+          border-top-color: #059669;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 1rem;
@@ -548,6 +555,14 @@ export default function AIConfigPage({ signOut, user }: PageProps) {
           to { transform: rotate(360deg); }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 }

@@ -11,7 +11,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const PHONE_NUMBERS = [
   { id: 'phone-number-id-5e020cecd221429996f6ae721cc42206', metaId: '960395407161423', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_2K', quality: 'GREEN', callingReady: true },
@@ -180,7 +180,7 @@ const CHANGELOG = [
   { date: 'Jul 21, 2025', title: 'Account settings webhooks', desc: 'Get webhooks when calling settings are updated' },
 ];
 
-const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
+const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'live' | 'webhook' | 'setup' | 'resources' | 'settings'>('overview');
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [autoPickup, setAutoPickup] = useState(true);
@@ -945,8 +945,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
   const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' };
   const tdStyle: React.CSSProperties = { padding: '8px 12px', fontSize: '12px', color: '#6b7280' };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO title="WhatsApp Calling | WECARE.DIGITAL" description="WhatsApp Business Calling API" />
       <div style={s.page}>
         {/* Header */}
@@ -1867,6 +1867,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

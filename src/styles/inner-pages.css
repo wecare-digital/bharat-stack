@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Inner Pages Theme - WECARE.DIGITAL
  * Emerald color scheme - Clean, Modern, Professional
  * Only affects pages using Layout component (not home page)
@@ -34,7 +34,7 @@
 .layout .nav-item--active {
   background: #D1FAE5 !important;
   border: none !important;
-  border-left: 3px solid #10B981 !important;
+  border-left: 3px solid #059669 !important;
 }
 
 /* ========================================
@@ -51,7 +51,7 @@
 .layout .main-content .action-btn {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   border-radius: 13px !important;
   padding: 10px 18px !important;
   font-weight: 500 !important;
@@ -71,7 +71,7 @@
 .layout .main-content button:active,
 .layout .main-content .btn:active {
   background: #D1FAE5 !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 .layout .main-content button:focus-visible,
@@ -85,7 +85,7 @@
 .layout .main-content .tab-btn.active,
 .layout .main-content .tab.active {
   background: #D1FAE5 !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   font-weight: 600 !important;
 }
 
@@ -102,7 +102,7 @@
 .layout .main-content .tabs-nav button {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   border-radius: 13px !important;
 }
 
@@ -115,7 +115,7 @@
 .layout .main-content .tab.active,
 .layout .main-content .tabs button.active {
   background: #D1FAE5 !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   font-weight: 600 !important;
 }
 
@@ -125,7 +125,7 @@
 .layout .main-content .dialer-key {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   border-radius: 16px !important;
   padding: 20px !important;
   font-size: 24px !important;
@@ -150,11 +150,11 @@
 }
 
 .layout .main-content select:hover {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 .layout .main-content select:focus {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
   outline: none !important;
 }
@@ -171,7 +171,7 @@
 
 .layout .main-content input:focus,
 .layout .main-content textarea:focus {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
   outline: none !important;
 }
@@ -192,12 +192,12 @@
 }
 
 .layout .main-content .stat-card:hover {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 .layout .main-content .stat-card.accent,
 .layout .main-content .stat-card.success {
-  border-left: 4px solid #10B981 !important;
+  border-left: 4px solid #059669 !important;
 }
 
 .layout .main-content .hub-card,
@@ -211,7 +211,7 @@
 .layout .main-content .hub-card:hover,
 .layout .main-content .action-card:hover,
 .layout .main-content .quick-action-card:hover {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   background: #f0fdf4 !important;
 }
 
@@ -235,7 +235,7 @@
 .layout .main-content .contact-row.active,
 .layout .main-content .contact-item.active {
   background: #D1FAE5 !important;
-  border-left: 3px solid #10B981 !important;
+  border-left: 3px solid #059669 !important;
 }
 
 /* ========================================
@@ -388,11 +388,11 @@
 }
 /* Refresh button icon color - match border */
 .layout .main-content .refresh-btn {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .refresh-btn svg {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .refresh-btn:hover svg {
@@ -446,7 +446,7 @@
 
 .layout .main-content .sub-tab.active {
   background: #ffffff !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   color: #065f46 !important;
   font-weight: 600 !important;
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
@@ -534,7 +534,7 @@
 }
 
 .layout .main-content .health-status-card.warning h3 {
-  color: #10B981;
+  color: #059669;
 }
 
 .layout .main-content .health-status-card.error h3 {
@@ -562,7 +562,7 @@
 
 .layout .main-content .info-banner-blue a {
   margin-left: 8px;
-  color: #10B981;
+  color: #059669;
 }
 
 /* Issue Card */
@@ -605,7 +605,7 @@
 }
 
 .layout .main-content .issue-badge.warning {
-  background: #10B981;
+  background: #059669;
 }
 
 .layout .main-content .issue-card p {
@@ -623,7 +623,7 @@
   display: inline-block;
   margin-top: 12px;
   padding: 8px 16px;
-  background: #10B981;
+  background: #059669;
   color: white;
   border-radius: 6px;
   font-size: 13px;
@@ -683,7 +683,7 @@
 
 .layout .main-content .count-badge.warning {
   background: #ECFDF5;
-  color: #10B981;
+  color: #059669;
 }
 
 .layout .main-content .count-badge.ok {
@@ -803,7 +803,7 @@
 
 .layout .main-content .campaign-page .sub-tab.active {
   background: #ffffff !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   color: #065f46 !important;
   font-weight: 600 !important;
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
@@ -845,14 +845,14 @@
 .layout .main-content .campaign-page .form-group input:hover,
 .layout .main-content .campaign-page .form-group select:hover,
 .layout .main-content .campaign-page .form-group textarea:hover {
-  border-color: #10B981;
+  border-color: #059669;
 }
 
 .layout .main-content .campaign-page .form-group input:focus,
 .layout .main-content .campaign-page .form-group select:focus,
 .layout .main-content .campaign-page .form-group textarea:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
@@ -898,7 +898,7 @@
 .layout .main-content .campaign-page .select-all-btn {
   padding: 10px 18px;
   background: #ffffff;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -934,18 +934,18 @@
 }
 
 .layout .main-content .campaign-page .contact-item:hover {
-  border-color: #10B981;
+  border-color: #059669;
 }
 
 .layout .main-content .campaign-page .contact-item.selected {
   background: #ECFDF5;
-  border-color: #10B981;
+  border-color: #059669;
 }
 
 .layout .main-content .campaign-page .contact-item input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #10B981;
+  accent-color: #059669;
 }
 
 .layout .main-content .campaign-page .contact-name {
@@ -968,7 +968,7 @@
 
 .layout .main-content .campaign-page .send-btn {
   padding: 14px 32px;
-  background: #10B981;
+  background: #059669;
   color: #ffffff;
   border: none;
   border-radius: 13px;
@@ -1055,7 +1055,7 @@
 }
 
 .layout .main-content .campaign-page .logs-table .success {
-  color: #10B981;
+  color: #059669;
   font-weight: 600;
 }
 
@@ -1149,7 +1149,7 @@
 
 .layout .main-content .store-page .tab-btn.active {
   background: #ffffff !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   color: #065f46 !important;
   font-weight: 600 !important;
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
@@ -1177,7 +1177,7 @@
 }
 
 .layout .main-content .store-page .docs-link {
-  color: #10B981;
+  color: #059669;
   font-weight: 500;
   text-decoration: none;
 }
@@ -1202,7 +1202,7 @@
 }
 
 .layout .main-content .store-page .feature-card:hover {
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
@@ -1215,7 +1215,7 @@
   background: #ECFDF5;
   border-radius: 12px;
   margin-bottom: 16px;
-  color: #10B981;
+  color: #059669;
 }
 
 .layout .main-content .store-page .feature-card h4 {
@@ -1249,7 +1249,7 @@
   padding: 10px 20px;
   background: #ffffff;
   color: #111827;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -1278,7 +1278,7 @@
 }
 
 .layout .main-content .store-page .product-card:hover {
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -1404,11 +1404,11 @@
 
 .layout .main-content .stat-card.warning {
   background: #ECFDF5 !important;
-  border-left: 4px solid #10B981 !important;
+  border-left: 4px solid #059669 !important;
 }
 
 .layout .main-content .stat-card.warning .stat-value {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .stat-card.success .stat-value {
@@ -1416,12 +1416,12 @@
 }
 
 .layout .main-content .stat-card.accent .stat-value {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .stat-card.accent {
   background: #ECFDF5 !important;
-  border-left: 4px solid #10B981 !important;
+  border-left: 4px solid #059669 !important;
 }
 
 .layout .main-content .stat-card .status-icon {
@@ -1438,7 +1438,7 @@
 }
 
 .layout .main-content .health-status-card.info h3 {
-  color: #10B981;
+  color: #059669;
 }
 
 .layout .main-content .health-status-card .status-icon {
@@ -1446,11 +1446,11 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
-  color: #10B981;
+  color: #059669;
 }
 
 .layout .main-content .health-status-card.info .status-icon {
-  color: #10B981;
+  color: #059669;
 }
 
 .layout .main-content .health-status-card.healthy .status-icon {
@@ -1474,7 +1474,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #10B981;
+  color: #059669;
 }
 
 /* Resolve Button - Emerald theme */
@@ -1482,7 +1482,7 @@
   display: inline-block;
   margin-top: 12px;
   padding: 10px 18px;
-  background: #10B981 !important;
+  background: #059669 !important;
   color: white !important;
   border-radius: 13px;
   font-size: 14px;
@@ -1659,7 +1659,7 @@
 .layout .main-content .sms-sidebar input:focus,
 .layout .main-content .voice-sidebar input:focus,
 .layout .main-content .sidebar-search input:focus {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
 }
 
@@ -1667,7 +1667,7 @@
 .layout .main-content .contact-row.active,
 .layout .main-content .contact-item.active {
   background: #D1FAE5 !important;
-  border-left: 3px solid #10B981 !important;
+  border-left: 3px solid #059669 !important;
 }
 
 .layout .main-content .contact-row:hover,
@@ -1678,13 +1678,13 @@
 /* Message bubbles - emerald outbound */
 .layout .main-content .message.outbound .message-bubble {
   background: #D1FAE5 !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 /* Info panel links - emerald */
 .layout .main-content .info-panel a,
 .layout .main-content .info-section a {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .info-panel a:hover,
@@ -1717,7 +1717,7 @@
 .layout .main-content .pay-page select:focus,
 .layout .main-content .pay-link-page input:focus,
 .layout .main-content .pay-link-page select:focus {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
 }
 
@@ -1725,7 +1725,7 @@
 .layout .main-content .pay-page select:hover,
 .layout .main-content .pay-link-page input:hover,
 .layout .main-content .pay-link-page select:hover {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 /* Pay page buttons - emerald theme */
@@ -1737,7 +1737,7 @@
 .layout .main-content .pay-link-page .generate-btn,
 .layout .main-content .pay-link-page .copy-btn,
 .layout .main-content .pay-link-page .share-btn {
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   border-radius: 13px !important;
   background: #ffffff !important;
   color: #111827 !important;
@@ -1757,26 +1757,26 @@
 
 /* Pay page sender notice - emerald */
 .layout .main-content .sender-notice {
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   background: #ECFDF5 !important;
 }
 
 .layout .main-content .sender-badge {
-  background: #10B981 !important;
+  background: #059669 !important;
 }
 
 /* Pay page preview card - emerald */
 .layout .main-content .preview-card {
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
 }
 
 .layout .main-content .preview-total {
-  background: #10B981 !important;
+  background: #059669 !important;
 }
 
 /* Pay page coming soon banner - emerald */
 .layout .main-content .coming-soon-banner {
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   background: #ECFDF5 !important;
 }
 
@@ -1803,7 +1803,7 @@
 .layout .main-content .form-field select:hover,
 .layout .main-content .form-group input:hover,
 .layout .main-content .form-group select:hover {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 .layout .main-content .form-section input:focus,
@@ -1815,7 +1815,7 @@
 .layout .main-content .form-group input:focus,
 .layout .main-content .form-group select:focus,
 .layout .main-content .form-group textarea:focus {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
   outline: none !important;
 }
@@ -1837,7 +1837,7 @@
 .layout .main-content .link-form:hover,
 .layout .main-content .feature-card:hover,
 .layout .main-content .product-card:hover {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 /* ========================================
@@ -1845,7 +1845,7 @@
    ======================================== */
 .layout .main-content a.docs-link,
 .layout .main-content .docs-link {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content a.docs-link:hover,
@@ -1942,11 +1942,11 @@
 }
 
 .layout .main-content .coming-soon .feature-list li::before {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .coming-soon a {
-  color: #10B981 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .coming-soon a:hover {
@@ -1969,7 +1969,7 @@
 .layout .main-content .btn-primary {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
 }
 
 .layout .main-content .btn-primary:hover {
@@ -1985,7 +1985,7 @@
 
 .layout .main-content .btn-secondary:hover {
   background: #f9fafb !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
 }
 
 /* ========================================
@@ -2015,7 +2015,7 @@
 }
 
 .layout .main-content .modal .btn-primary {
-  background: #10B981 !important;
+  background: #059669 !important;
   color: #ffffff !important;
   border: none !important;
 }
@@ -2027,7 +2027,7 @@
 .layout .main-content .modal input:focus,
 .layout .main-content .modal select:focus,
 .layout .main-content .modal textarea:focus {
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
 }
 
@@ -2056,7 +2056,7 @@
 
 .layout .main-content .wa-tab-btn {
   padding: 10px 18px !important;
-  border: 1.5px solid #10B981 !important;
+  border: 1.5px solid #059669 !important;
   border-radius: 13px !important;
   background: #fff !important;
   cursor: pointer !important;
@@ -2077,7 +2077,7 @@
 
 .layout .main-content .wa-tab-btn.active {
   background: #D1FAE5 !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   font-weight: 600 !important;
 }
 
@@ -2123,7 +2123,7 @@
 
 .layout .main-content .waba-dashboard .tab {
   background: #fff !important;
-  border: 1px solid #10B981 !important;
+  border: 1px solid #059669 !important;
   padding: 10px 20px !important;
   cursor: pointer !important;
   border-radius: 13px !important;
@@ -2141,7 +2141,7 @@
 
 .layout .main-content .waba-dashboard .tab.active {
   background: #D1FAE5 !important;
-  border-color: #10B981 !important;
+  border-color: #059669 !important;
   font-weight: 600 !important;
 }
 
@@ -2161,7 +2161,7 @@
 
 .board-tab {
   background: #fff;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
   padding: 10px 20px;
   cursor: pointer;
   border-radius: 13px;
@@ -2180,6 +2180,6 @@
 
 .board-tab.active {
   background: #D1FAE5;
-  border-color: #10B981;
+  border-color: #059669;
   font-weight: 600;
 }

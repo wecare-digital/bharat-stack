@@ -11,7 +11,7 @@ import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface Contact { contactId: string; name: string; phone: string; }
 interface C2CCall { callId: string; fromNumber: string; toNumber: string; callerId: string; status: string; duration: number; recordingUrl?: string; correlationId?: string; createdAt: number; }
 interface OBDCampaign { id: string; airtelCampaignId: string; campaignName: string; status: string; audioUrl: string; contactCount?: number; createdAt: number; }
@@ -20,7 +20,7 @@ interface CDRRecord { id: string; vmSessionId: string; clientCorrelationId: stri
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 const ITEMS_PER_PAGE = 20;
 
-const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
+const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [activeTab, setActiveTab] = useState<'c2c' | 'obd' | 'cdr'>('c2c');
   const [c2cCalls, setC2cCalls] = useState<C2CCall[]>([]);
   const [obdCampaigns, setObdCampaigns] = useState<OBDCampaign[]>([]);
@@ -213,9 +213,8 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
     { id: 'cdr', label: `CDR (${cdrs.length})` }
   ];
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="Voice-IN | Airtel IQ | WECARE.DIGITAL" description="Voice calls via Airtel IQ" />
+  const pageContent = (
+    <>
       <div className="voice-page">
         <div className="page-header">
           <div className="header-title">
@@ -310,7 +309,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ padding: '8px 12px', background: '#ecfdf5', borderBottom: '1px solid #d1fae5', display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '12px', color: '#065f46', fontWeight: 500 }}>Direction:</span>
                     {(['all', 'INBOUND', 'OUTBOUND'] as const).map(dir => (
-                      <button key={dir} onClick={() => setCdrDirectionFilter(dir)} style={{ padding: '3px 10px', borderRadius: '4px', border: '1px solid', borderColor: cdrDirectionFilter === dir ? '#10b981' : '#d1fae5', background: cdrDirectionFilter === dir ? '#d1fae5' : '#fff', color: '#065f46', fontSize: '11px', cursor: 'pointer', fontWeight: cdrDirectionFilter === dir ? 600 : 400 }}>
+                      <button key={dir} onClick={() => setCdrDirectionFilter(dir)} style={{ padding: '3px 10px', borderRadius: '4px', border: '1px solid', borderColor: cdrDirectionFilter === dir ? '#059669' : '#d1fae5', background: cdrDirectionFilter === dir ? '#d1fae5' : '#fff', color: '#065f46', fontSize: '11px', cursor: 'pointer', fontWeight: cdrDirectionFilter === dir ? 600 : 400 }}>
                         {dir === 'all' ? 'All' : dir}
                       </button>
                     ))}
@@ -450,12 +449,12 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
         .header-title { display: flex; align-items: center; gap: 10px; color: #065f46; flex-wrap: wrap; }
         .header-title h2 { margin: 0; font-size: 1.1rem; }
-        .badge { background: #10b981; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+        .badge { background: #059669; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; }
         .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
         .tabs-row { background: #fff; border-radius: 8px; padding: 0 12px; margin-bottom: 12px; border: 1px solid #d1fae5; flex-shrink: 0; overflow-x: auto; }
         .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
         .search-input { padding: 8px 12px; border: 1px solid #a7f3d0; border-radius: 8px; width: 100%; max-width: 280px; font-size: 14px; }
-        .search-input:focus { outline: none; border-color: #10b981; }
+        .search-input:focus { outline: none; border-color: #059669; }
         .content-area { flex: 1; background: #fff; border-radius: 12px; border: 1px solid #d1fae5; overflow: auto; min-height: 0; }
         .loading-state { padding: 40px; text-align: center; color: #047857; }
         .table-container { min-width: 100%; }
@@ -474,7 +473,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
         .status-badge.failed, .status-badge.error { background: #fee2e2; color: #dc2626; }
         .status-badge.pending, .status-badge.in_progress { background: #fef3c7; color: #92400e; }
         .type-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #e0e7ff; color: #4338ca; }
-        .recording-link { color: #10b981; text-decoration: none; }
+        .recording-link { color: #059669; text-decoration: none; }
         .empty-state { text-align: center; color: #047857; padding: 30px !important; }
         .webhook-info { padding: 12px; background: #ecfdf5; border-top: 1px solid #d1fae5; font-size: 12px; }
         .webhook-info strong { color: #065f46; }
@@ -488,16 +487,16 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; color: #374151; }
         .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #10b981; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #059669; }
         .form-group small { display: block; margin-top: 3px; font-size: 11px; color: #9ca3af; }
         .file-input { padding: 6px; background: #f9fafb; }
         .audio-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .audio-option { display: flex; align-items: center; gap: 8px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 12px; }
         .audio-option:hover { border-color: #a7f3d0; background: #f0fdf4; }
-        .audio-option.selected { border-color: #10b981; background: #ecfdf5; }
+        .audio-option.selected { border-color: #059669; background: #ecfdf5; }
         .audio-option input[type="radio"] { display: none; }
         .checkbox-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
-        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #10b981; }
+        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #059669; }
         .info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #166534; }
         .info-box strong { color: #065f46; }
         .info-box.warning { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
@@ -506,7 +505,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
         .input-with-btn { display: flex; gap: 6px; }
         .input-with-btn input { flex: 1; }
         .textarea-with-btn { display: flex; flex-direction: column; gap: 6px; }
-        .fetch-btn { padding: 8px 10px; background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; color: #065f46; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .fetch-btn { padding: 8px 10px; background: #ecfdf5; border: 1px solid #059669; border-radius: 8px; color: #065f46; font-size: 12px; cursor: pointer; white-space: nowrap; }
         .fetch-btn:hover { background: #d1fae5; }
         .var-btn { background: #e0e7ff; border-color: #6366f1; color: #4338ca; }
         .var-btn:hover { background: #c7d2fe; }
@@ -519,7 +518,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
         .contact-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
         .contact-row:hover { background: #f0fdf4; }
         .contact-row:last-child { border-bottom: none; }
-        .contact-avatar { width: 32px; height: 32px; background: #10b981; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
+        .contact-avatar { width: 32px; height: 32px; background: #059669; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
         .contact-details { flex: 1; min-width: 0; }
         .contact-name { font-size: 13px; font-weight: 500; color: #065f46; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .contact-phone { font-size: 11px; color: #6b7280; font-family: monospace; }
@@ -548,6 +547,15 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user }) => {
           .audio-options { grid-template-columns: 1fr; }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return pageContent;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="Voice-IN | Airtel IQ | WECARE.DIGITAL" description="Voice calls via Airtel IQ" />
+      {pageContent}
     </Layout>
   );
 };

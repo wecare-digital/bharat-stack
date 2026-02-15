@@ -10,7 +10,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const WABAS = [
   { id: WHATSAPP_PHONES.primary.wabaId, name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
@@ -48,7 +48,7 @@ const META_WEBHOOK_CONFIG = {
   tokenType: 'System User Token',
 };
 
-const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
+const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
   const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
@@ -83,8 +83,8 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
     setSubscribing(false);
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO title="Webhooks" description="WhatsApp Webhook Management" noindex />
       <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
         <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>WhatsApp Webhooks</h2>
@@ -177,6 +177,14 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user }) => {
           </table>
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

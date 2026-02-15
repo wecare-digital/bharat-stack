@@ -9,7 +9,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const PHONES = [
   { id: WHATSAPP_PHONES.primary.id, metaId: '960395407161423', display: WHATSAPP_PHONES.primary.display, name: WHATSAPP_PHONES.primary.name },
@@ -18,7 +18,7 @@ const PHONES = [
 
 const VERTICALS = ['UNDEFINED','OTHER','AUTO','BEAUTY','APPAREL','EDU','ENTERTAIN','EVENT_PLAN','FINANCE','GROCERY','GOVT','HOTEL','HEALTH','NONPROFIT','PROF_SERVICES','RETAIL','TRAVEL','RESTAURANT','NOT_A_BIZ'];
 
-const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user }) => {
+const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
   const [selectedPhone, setSelectedPhone] = useState(PHONES[0]);
   const [profile, setProfile] = useState<any>(null);
@@ -64,8 +64,8 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user }) => {
     setSaving(false);
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO title="Business Profile" description="WhatsApp Business Profile" noindex />
       <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
         <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>WhatsApp Business Profile</h2>
@@ -147,6 +147,14 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user }) => {
           </>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

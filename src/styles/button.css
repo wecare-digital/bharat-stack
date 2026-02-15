@@ -76,9 +76,9 @@
    Emerald background, white text
    ======================================== */
 .btn-primary {
-  background: #10B981;
+  background: #059669;
   color: #ffffff;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -103,7 +103,7 @@
 .btn-secondary {
   background: #ffffff;
   color: #111827;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -114,7 +114,7 @@
 .btn-secondary:active:not(:disabled) {
   transform: scale(0.98);
   background: #D1FAE5;
-  border-color: #10B981;
+  border-color: #059669;
 }
 
 .btn-secondary:focus-visible {
@@ -202,7 +202,7 @@
 
 /* Secondary button icons - emerald green */
 .btn-secondary svg {
-  color: #10B981;
+  color: #059669;
 }
 
 .btn-secondary:hover:not(:disabled) svg {
@@ -211,7 +211,7 @@
 
 /* Ghost button icons - emerald green on hover */
 .btn-ghost:hover:not(:disabled) svg {
-  color: #10B981;
+  color: #059669;
 }
 
 /* Primary button icons - white */

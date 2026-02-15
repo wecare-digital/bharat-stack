@@ -10,7 +10,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const WABAS = [
   { id: WHATSAPP_PHONES.primary.wabaId, name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
@@ -23,7 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
   DRAFT: '#f59e0b', PUBLISHED: '#16a34a', DEPRECATED: '#9ca3af', BLOCKED: '#dc2626', THROTTLED: '#f97316',
 };
 
-const FlowsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
   const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
   const [flows, setFlows] = useState<any[]>([]);
@@ -89,8 +89,8 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user }) => {
     setFlowDetail(detail);
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO title="WhatsApp Flows" description="Manage WhatsApp Flows" noindex />
       <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -193,6 +193,14 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

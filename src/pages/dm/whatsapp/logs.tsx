@@ -9,12 +9,12 @@ import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; templateName?: string; }
 
 const LOGS_PER_PAGE = 50;
 
-const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [contacts, setContacts] = useState<Map<string, api.Contact>>(new Map());
@@ -72,9 +72,8 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
     }
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
-      <SEO title="WhatsApp Logs | WECARE.DIGITAL" description="WhatsApp message logs" />
+  const content = (
+    <>
       <div className="inner-page logs-page">
         <div className="page-header">
           <h2>WhatsApp Logs</h2>
@@ -130,6 +129,15 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
         .text-error { color: #dc2626; }
         .empty-state { text-align: center; color: #6b7280; padding: 40px; }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      <SEO title="WhatsApp Logs | WECARE.DIGITAL" description="WhatsApp message logs" />
+      {content}
     </Layout>
   );
 };

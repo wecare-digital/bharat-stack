@@ -10,7 +10,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 interface ListRow { id: string; title: string; description?: string; }
 interface ListSection { title: string; rows: ListRow[]; }
@@ -55,7 +55,7 @@ const PRESETS: { name: string; headerText: string; bodyText: string; footerText:
   },
 ];
 
-const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
   const [selectedPhone, setSelectedPhone] = useState(PHONES[0]);
   const [to, setTo] = useState('');
@@ -129,8 +129,8 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const cs = { card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '16px 20px', marginBottom: 12 } as React.CSSProperties };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO title="Interactive Lists" description="WhatsApp Interactive List Messages" noindex />
       <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
         <h2 style={{ margin: '0 0 6px', fontSize: 20 }}>WhatsApp Interactive List Messages</h2>
@@ -275,6 +275,14 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

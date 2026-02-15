@@ -1,13 +1,14 @@
 /**
  * Navigation Configuration - WECARE.DIGITAL
  * Centralized sidebar navigation with nested items
- * Updated: 2026-02-03
+ * Updated: 2026-02-15
  */
 
 export interface NavSubItem {
   path: string;
   label: string;
   icon?: string;
+  badge?: string;
   children?: NavSubItem[];
 }
 
@@ -15,6 +16,8 @@ export interface NavItem {
   path: string;
   label: string;
   icon: string;
+  badge?: string;
+  sectionLabel?: string;
   children?: NavSubItem[];
 }
 
@@ -25,77 +28,13 @@ export const navigationConfig: NavItem[] = [
     icon: 'dashboard',
   },
   {
-    path: '/pay',
-    label: 'Pay',
-    icon: 'payment',
-    children: [
-      { path: '/pay/link', label: 'Link' },
-      { path: '/pay/wa', label: 'WhatsApp' },
-      { path: '/pay/flow', label: 'Flow' },
-      { path: '/pay/logs', label: 'Logs' },
-    ]
-  },
-  {
-    path: '/link',
-    label: 'Link',
-    icon: 'link',
-    children: [
-      { path: '/link/create', label: 'Create' },
-      { path: '/link/logs', label: 'Logs' },
-    ]
-  },
-  {
-    path: '/forms',
-    label: 'Forms',
-    icon: 'form',
-    children: [
-      { path: '/forms/create', label: 'Create' },
-      { path: '/forms/logs', label: 'Logs' },
-    ]
-  },
-  {
-    path: '/docs',
-    label: 'Docs',
-    icon: 'document',
-    children: [
-      { path: '/docs/create', label: 'Create' },
-      { path: '/docs/logs', label: 'Logs' },
-    ]
-  },
-  {
-    path: '/invoice',
-    label: 'Invoice',
-    icon: 'invoice',
-    children: [
-      { path: '/invoice/create', label: 'Create' },
-      { path: '/invoice/logs', label: 'Logs' },
-    ]
-  },
-  {
     path: '/dm',
     label: 'Messages',
     icon: 'message',
     children: [
-      { 
-        path: '/dm/whatsapp', 
-        label: 'WhatsApp', 
-        icon: 'whatsapp',
-        children: [
-          { path: '/dm/whatsapp/board', label: 'Board' },
-          { path: '/dm/whatsapp/inbox', label: 'Inbox' },
-          { path: '/dm/whatsapp/campaign', label: 'Campaign' },
-          { path: '/dm/whatsapp/logs', label: 'Logs' },
-          { path: '/dm/whatsapp/templates', label: 'Templates' },
-          { path: '/dm/whatsapp/calling', label: 'Calling' },
-          { path: '/dm/whatsapp/interactive-lists', label: 'List Messages' },
-          { path: '/dm/whatsapp/flows', label: 'Flows' },
-          { path: '/dm/whatsapp/groups', label: 'Groups' },
-          { path: '/dm/whatsapp/business-profile', label: 'Profile' },
-          { path: '/dm/whatsapp/webhooks', label: 'Webhooks' },
-        ]
-      },
+      { path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp' },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },
-      { path: '/dm/sms-in', label: 'SMS-IN', icon: 'sms' },
+      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
       { 
         path: '/dm/ses', 
         label: 'Email', 
@@ -106,8 +45,6 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/ses/logs', label: 'Logs' },
         ]
       },
-      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
-      { path: '/dm/voice-in', label: 'Voice-IN', icon: 'voice' },
       { 
         path: '/dm/rcs', 
         label: 'RCS', 
@@ -118,7 +55,18 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/rcs/logs', label: 'Logs' },
         ]
       },
+      { path: '/dm/logs', label: 'All Logs', icon: 'logs' },
     ],
+  },
+  {
+    path: '/pay',
+    label: 'Pay',
+    icon: 'payment',
+    children: [
+      { path: '/pay/flow', label: 'Flow' },
+      { path: '/pay/wa', label: 'WhatsApp' },
+      { path: '/pay/link', label: 'Link', badge: 'Soon' },
+    ]
   },
   {
     path: '/contacts',
@@ -134,6 +82,26 @@ export const navigationConfig: NavItem[] = [
     path: '/access',
     label: 'Access',
     icon: 'access',
+  },
+  // Coming Soon section
+  {
+    path: '/link',
+    label: 'Link',
+    icon: 'link',
+    badge: 'Soon',
+    sectionLabel: 'Coming Soon',
+  },
+  {
+    path: '/forms',
+    label: 'Forms',
+    icon: 'form',
+    badge: 'Soon',
+  },
+  {
+    path: '/docs',
+    label: 'Docs',
+    icon: 'document',
+    badge: 'Soon',
   },
 ];
 

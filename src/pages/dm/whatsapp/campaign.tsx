@@ -11,7 +11,7 @@ import { WHATSAPP_PHONES, API_BASE } from '../../../config/constants';
 import Button from '../../../components/ui/Button';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 type TabType = 'create' | 'logs';
 interface Template { name: string; language: string; status: string; category: string; }
 interface CampaignLog { id: string; name: string; template: string; recipients: number; sent: number; delivered: number; read: number; failed: number; status: string; createdAt: string; }
@@ -21,7 +21,7 @@ const tabItems: TabItem[] = [
   { id: 'logs', label: 'Campaign Logs' },
 ];
 
-const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
+const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const [activeTab, setActiveTab] = useState<TabType>('create');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -227,6 +227,8 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user }) => {
       )}
     </div>
   );
+
+  if (embedded) return content;
 
   return (
     <Layout user={user} onSignOut={signOut}>

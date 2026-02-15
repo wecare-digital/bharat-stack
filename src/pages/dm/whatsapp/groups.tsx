@@ -10,14 +10,14 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const WABAS = [
   { id: WHATSAPP_PHONES.primary.wabaId, phoneId: WHATSAPP_PHONES.primary.id, metaId: '960395407161423', name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
   { id: WHATSAPP_PHONES.secondary.wabaId, phoneId: WHATSAPP_PHONES.secondary.id, metaId: '997428863451102', name: WHATSAPP_PHONES.secondary.name, display: WHATSAPP_PHONES.secondary.display },
 ];
 
-const GroupsPage: React.FC<PageProps> = ({ signOut, user }) => {
+const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
   const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
   const [groups, setGroups] = useState<any[]>([]);
@@ -93,8 +93,8 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user }) => {
     else toast.error('Remove failed');
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <SEO title="WhatsApp Groups" description="Manage WhatsApp Groups" noindex />
       <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -216,6 +216,14 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

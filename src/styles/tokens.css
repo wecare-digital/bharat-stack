@@ -43,12 +43,12 @@
   --border-light: #f0f0f0;
   
   /* Accent - Clean Emerald theme (black text) */
-  --accent: #10b981;
+  --accent: #059669;
   --accent-light: #f0fdf4;
-  --accent-hover: #059669;
+  --accent-hover: #047857;
   
   /* Semantic Colors - Muted versions */
-  --success: #10b981;
+  --success: #059669;
   --success-light: #f0fdf4;
   --success-bg: #ecfdf5;
   
@@ -56,11 +56,11 @@
   --danger-light: #fef2f2;
   --danger-bg: #fef2f2;
   
-  --warning: #10B981;
+  --warning: #059669;
   --warning-light: #ECFDF5;
   --warning-bg: #ECFDF5;
   
-  --info: #10B981;
+  --info: #059669;
   --info-light: #ECFDF5;
   
   /* ========================================
@@ -165,9 +165,9 @@
   --notion-text-light: var(--text-muted);
   --notion-border: var(--border);
   --notion-border-dark: var(--border-dark);
-  --notion-accent: #10b981;
+  --notion-accent: #059669;
   --notion-accent-light: #f0fdf4;
-  --notion-green: #10b981;
+  --notion-green: #059669;
   --notion-green-light: #ecfdf5;
   --notion-red: var(--danger);
   --notion-red-light: var(--danger-light);
@@ -177,14 +177,14 @@
   --notion-purple-light: var(--info-light);
   
   /* Pages.css compatibility */
-  --color-primary: #10b981;
-  --color-secondary: #059669;
+  --color-primary: #059669;
+  --color-secondary: #047857;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-bg: #fff;
   --color-bg-secondary: #f5f5f5;
-  --color-success: #10b981;
-  --color-warning: #10b981;
+  --color-success: #059669;
+  --color-warning: #059669;
   --color-danger: #ef4444;
 }
 

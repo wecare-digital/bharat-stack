@@ -6,10 +6,10 @@
  * VERSION: 2.0 - Unified Design System
  * 
  * COLOR SCHEME:
- * - Primary: Emerald (#10B981) - All interactive elements
+ * - Primary: Emerald (#059669) - All interactive elements
  * - Danger: Red (#dc2626) - Errors, delete actions
- * - Warning: Emerald (#10B981) - Same as primary
- * - Success: Emerald (#10B981) - Same as primary
+ * - Warning: Emerald (#059669) - Same as primary
+ * - Success: Emerald (#059669) - Same as primary
  * 
  * NO BLUE, PURPLE, CYAN for semantic UI elements
  */
@@ -43,8 +43,8 @@
   --bp-wide: 1440px;
   
   /* Colors - Emerald Theme (SINGLE SOURCE OF TRUTH) */
-  --color-primary: #10B981;
-  --color-primary-hover: #059669;
+  --color-primary: #059669;
+  --color-primary-hover: #047857;
   --color-primary-light: #ECFDF5;
   --color-primary-active: #D1FAE5;
   --color-primary-dark: #065f46;
@@ -56,12 +56,12 @@
   --color-danger-border: #fecaca;
   
   /* Warning - Emerald (same as primary) */
-  --color-warning: #10B981;
+  --color-warning: #059669;
   --color-warning-light: #ECFDF5;
   --color-warning-border: #A7F3D0;
   
   /* Success - Same as Primary */
-  --color-success: #10B981;
+  --color-success: #059669;
   --color-success-light: #ECFDF5;
   --color-success-border: #A7F3D0;
   
@@ -455,7 +455,7 @@
   margin-bottom: var(--space-4);
   background: #ECFDF5;
   border-radius: 50%;
-  color: #10B981;
+  color: #059669;
 }
 
 .empty-state-title {
@@ -739,12 +739,12 @@
 
 .toast-warning .toast-icon {
   background: #ECFDF5;
-  color: #10B981;
+  color: #059669;
 }
 
 .toast-info .toast-icon {
   background: #ECFDF5;
-  color: #10B981;
+  color: #059669;
 }
 
 .toast-message {
@@ -1292,7 +1292,7 @@
 }
 
 .breadcrumbs-link {
-  color: #10B981;
+  color: #059669;
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -1307,7 +1307,7 @@
 }
 
 .breadcrumbs-link:focus-visible {
-  outline: 2px solid #10B981;
+  outline: 2px solid #059669;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -1613,4 +1613,194 @@
   color: var(--color-text-secondary);
   font-size: var(--font-body);
   line-height: 1.5;
+}
+
+
+/* ========================================
+   PAGE SHELL - Section wrapper with tabs
+   Used by WhatsApp, SMS, Voice mega-pages
+   ======================================== */
+.page-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0 20px 20px;
+}
+
+.ps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 0 12px;
+  flex-shrink: 0;
+}
+
+.ps-header-left {
+  min-width: 0;
+}
+
+.ps-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text, #111827);
+  line-height: 1.2;
+}
+
+.ps-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.ps-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Scrollable Tab Bar */
+.ps-tabs-wrapper {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  margin-bottom: 16px;
+}
+
+.ps-tabs {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 0;
+}
+
+.ps-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ps-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #6b7280);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.ps-tab:hover {
+  color: var(--color-text, #111827);
+  background: var(--color-bg-hover, #f5f5f5);
+}
+
+.ps-tab.active {
+  color: #059669;
+  border-bottom-color: #059669;
+  font-weight: 600;
+}
+
+/* Tab Content */
+.ps-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ========================================
+   RESPONSIVE UTILITIES
+   ======================================== */
+.hide-mobile {
+  display: table-cell;
+}
+
+.hide-tablet {
+  display: table-cell;
+}
+
+@media (max-width: 768px) {
+  .hide-tablet {
+    display: none !important;
+  }
+
+  .page-shell {
+    padding: 0 12px 12px;
+  }
+
+  .ps-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 0 8px;
+  }
+
+  .ps-header-actions {
+    width: 100%;
+  }
+
+  .ps-title {
+    font-size: 18px;
+  }
+
+  .ps-tab {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .page-shell {
+    padding: 0 8px 8px;
+  }
+
+  .ps-title {
+    font-size: 16px;
+  }
+
+  .ps-subtitle {
+    font-size: 12px;
+  }
+
+  .ps-tab {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .ps-header-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* ========================================
+   SIDEBAR SECTION LABELS & BADGES
+   ======================================== */
+.nav-section-label {
+  padding: 16px 16px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  user-select: none;
+}
+
+.nav-badge-soon {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #9ca3af;
+  margin-left: auto;
+  flex-shrink: 0;
 }

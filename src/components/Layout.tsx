@@ -86,7 +86,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
   };
 
   const renderNavItems = (items: (NavItem | NavSubItem)[], level: number = 0) => {
-    return items.map(item => {
+    return items.map((item, index) => {
       const hasChildren = 'children' in item && item.children && item.children.length > 0;
       const isExpanded = expandedPaths.has(item.path);
       const isActive = isPathActive(item.path);
@@ -94,30 +94,41 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         ? `nav-item ${hasChildren ? 'nav-item-expandable' : ''} ${isActive ? 'nav-item-active' : ''}`
         : `nav-subitem ${hasChildren ? 'nav-subitem-expandable' : ''} ${isActive ? 'nav-subitem-active' : ''}`;
 
+      // Section label (e.g. "Coming Soon")
+      const sectionLabel = 'sectionLabel' in item ? (item as NavItem).sectionLabel : undefined;
+      const badge = 'badge' in item ? item.badge : undefined;
+
       return (
-        <div key={item.path} className={level === 0 ? 'nav-group' : 'nav-nested-group'}>
-          {hasChildren ? (
-            <>
-              <button className={itemClass} onClick={() => toggleExpand(item.path)}>
+        <React.Fragment key={item.path}>
+          {sectionLabel && (
+            <div className="nav-section-label">{sectionLabel}</div>
+          )}
+          <div className={level === 0 ? 'nav-group' : 'nav-nested-group'}>
+            {hasChildren ? (
+              <>
+                <button className={itemClass} onClick={() => toggleExpand(item.path)}>
+                  {'icon' in item && <span className="nav-icon">{renderIcon(item.icon, level === 0 ? 16 : 14)}</span>}
+                  <span className="nav-label">{item.label}</span>
+                  {badge && <span className="nav-badge-soon">{badge}</span>}
+                  <span className={`nav-arrow ${isExpanded ? 'expanded' : ''}`}>
+                    <ChevronRightIcon size={level === 0 ? 12 : 10} />
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className={level === 0 ? 'nav-subitems' : 'nav-nested-items'}>
+                    {renderNavItems(item.children!, level + 1)}
+                  </div>
+                )}
+              </>
+            ) : (
+              <span className={itemClass} onClick={() => router.push(item.path)}>
                 {'icon' in item && <span className="nav-icon">{renderIcon(item.icon, level === 0 ? 16 : 14)}</span>}
                 <span className="nav-label">{item.label}</span>
-                <span className={`nav-arrow ${isExpanded ? 'expanded' : ''}`}>
-                  <ChevronRightIcon size={level === 0 ? 12 : 10} />
-                </span>
-              </button>
-              {isExpanded && (
-                <div className={level === 0 ? 'nav-subitems' : 'nav-nested-items'}>
-                  {renderNavItems(item.children!, level + 1)}
-                </div>
-              )}
-            </>
-          ) : (
-            <span className={itemClass} onClick={() => router.push(item.path)}>
-              {'icon' in item && <span className="nav-icon">{renderIcon(item.icon, level === 0 ? 16 : 14)}</span>}
-              <span className="nav-label">{item.label}</span>
-            </span>
-          )}
-        </div>
+                {badge && <span className="nav-badge-soon">{badge}</span>}
+              </span>
+            )}
+          </div>
+        </React.Fragment>
       );
     });
   };

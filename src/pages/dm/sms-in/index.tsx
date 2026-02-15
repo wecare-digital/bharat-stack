@@ -1,5 +1,5 @@
 /**
- * SMS IN Index - Redirects to Inbox
+ * SMS IN Index - Redirects to SMS (merged page)
  */
 
 import { useEffect } from 'react';
@@ -9,7 +9,7 @@ const SmsInIndex = () => {
   const router = useRouter();
   
   useEffect(() => {
-    router.replace('/dm/sms-in/inbox');
+    router.replace('/dm/sms');
   }, [router]);
 
   return null;
