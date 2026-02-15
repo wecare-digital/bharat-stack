@@ -96,49 +96,116 @@ MAX_DOC_BYTES = 5 * 1024 * 1024     # 5MB
 # Tool use max iterations to prevent infinite loops
 MAX_TOOL_USE_ITERATIONS = 5
 
-# Supported languages for user preference
+# Supported languages for user preference (all regions)
 SUPPORTED_LANGUAGES = {
+    # Popular (Indian + English + Hinglish)
     'english': 'English', 'en': 'English',
     'hindi': 'Hindi', 'hi': 'Hindi',
+    'hinglish': 'Hinglish',
     'bengali': 'Bengali', 'bangla': 'Bengali', 'bn': 'Bengali',
     'tamil': 'Tamil', 'ta': 'Tamil',
     'telugu': 'Telugu', 'te': 'Telugu',
     'gujarati': 'Gujarati', 'gu': 'Gujarati',
     'marathi': 'Marathi', 'mr': 'Marathi',
-    'hinglish': 'Hinglish',
     'kannada': 'Kannada', 'kn': 'Kannada',
     'malayalam': 'Malayalam', 'ml': 'Malayalam',
+    # Asian
+    'chinese': 'Chinese', 'zh': 'Chinese', '中文': 'Chinese',
+    'japanese': 'Japanese', 'ja': 'Japanese', '日本語': 'Japanese',
+    'korean': 'Korean', 'ko': 'Korean', '한국어': 'Korean',
+    'thai': 'Thai', 'th': 'Thai', 'ไทย': 'Thai',
+    'vietnamese': 'Vietnamese', 'vi': 'Vietnamese',
+    'indonesian': 'Indonesian', 'id': 'Indonesian', 'bahasa': 'Indonesian',
+    'sinhala': 'Sinhala', 'si': 'Sinhala', 'sinhalese': 'Sinhala',
+    # Middle East
+    'arabic': 'Arabic', 'ar': 'Arabic', 'العربية': 'Arabic',
+    'turkish': 'Turkish', 'tr': 'Turkish', 'türkçe': 'Turkish',
+    'russian': 'Russian', 'ru': 'Russian', 'русский': 'Russian',
+    'urdu': 'Urdu', 'ur': 'Urdu', 'اردو': 'Urdu',
     'punjabi': 'Punjabi', 'pa': 'Punjabi',
-    'odia': 'Odia', 'oriya': 'Odia', 'or': 'Odia',
-    'urdu': 'Urdu', 'ur': 'Urdu',
+    # European
+    'french': 'French', 'fr': 'French', 'français': 'French',
+    'spanish': 'Spanish', 'es': 'Spanish', 'español': 'Spanish',
+    'portuguese': 'Portuguese', 'pt': 'Portuguese', 'português': 'Portuguese',
 }
 
-# Language picker options
-LANGUAGE_PICKER_OPTIONS = [
-    {'id': 'lang_english', 'title': 'English'},
-    {'id': 'lang_hindi', 'title': 'हिंदी / Hindi'},
-    {'id': 'lang_bengali', 'title': 'বাংলা / Bengali'},
-    {'id': 'lang_tamil', 'title': 'தமிழ் / Tamil'},
-    {'id': 'lang_telugu', 'title': 'తెలుగు / Telugu'},
-    {'id': 'lang_gujarati', 'title': 'ગુજરાતી / Gujarati'},
-    {'id': 'lang_marathi', 'title': 'मराठी / Marathi'},
-    {'id': 'lang_hinglish', 'title': 'Hinglish'},
-    {'id': 'lang_kannada', 'title': 'ಕನ್ನಡ / Kannada'},
-    {'id': 'lang_malayalam', 'title': 'മലയാളം / Malayalam'},
+# ── Two-step language picker: Step 1 = Region, Step 2 = Languages ──
+
+LANGUAGE_REGION_PICKER = [
+    {'id': 'region_popular', 'title': '\u2b50 Popular', 'description': 'English, Hindi, Bengali, Tamil & more'},
+    {'id': 'region_asian', 'title': '\U0001f30f Asian', 'description': '\u4e2d\u6587, \u65e5\u672c\u8a9e, \ud55c\uad6d\uc5b4, \u0e44\u0e17\u0e22 & more'},
+    {'id': 'region_middle_east', 'title': '\U0001f30d Middle East', 'description': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629, T\u00fcrk\u00e7e, \u0420\u0443\u0441\u0441\u043a\u0438\u0439, \u0627\u0631\u062f\u0648'},
+    {'id': 'region_european', 'title': '\U0001f1ea\U0001f1fa European', 'description': 'Fran\u00e7ais, Espa\u00f1ol, Portugu\u00eas'},
 ]
-LANGUAGE_ID_MAP = {opt['id']: opt['title'].split(' / ')[-1] for opt in LANGUAGE_PICKER_OPTIONS}
+
+LANGUAGE_BY_REGION = {
+    'region_popular': [
+        {'id': 'lang_english', 'title': 'English'},
+        {'id': 'lang_hindi', 'title': 'हिन्दी / Hindi'},
+        {'id': 'lang_hinglish', 'title': 'Hinglish'},
+        {'id': 'lang_bengali', 'title': 'বাংলা / Bengali'},
+        {'id': 'lang_tamil', 'title': 'தமிழ் / Tamil'},
+        {'id': 'lang_telugu', 'title': 'తెలుగు / Telugu'},
+        {'id': 'lang_gujarati', 'title': 'ગુજરાતી / Gujarati'},
+        {'id': 'lang_marathi', 'title': 'मराठी / Marathi'},
+        {'id': 'lang_kannada', 'title': 'ಕನ್ನಡ / Kannada'},
+        {'id': 'lang_malayalam', 'title': 'മലയാളം / Malayalam'},
+    ],
+    'region_asian': [
+        {'id': 'lang_chinese', 'title': '简体中文 / Chinese'},
+        {'id': 'lang_japanese', 'title': '日本語 / Japanese'},
+        {'id': 'lang_korean', 'title': '한국어 / Korean'},
+        {'id': 'lang_thai', 'title': 'ไทย / Thai'},
+        {'id': 'lang_vietnamese', 'title': 'Tiếng Việt / Vietnamese'},
+        {'id': 'lang_indonesian', 'title': 'Indonesia / Indonesian'},
+        {'id': 'lang_sinhala', 'title': 'සිංහල / Sinhala'},
+    ],
+    'region_middle_east': [
+        {'id': 'lang_arabic', 'title': 'العربية / Arabic'},
+        {'id': 'lang_turkish', 'title': 'Türkçe / Turkish'},
+        {'id': 'lang_russian', 'title': 'Русский / Russian'},
+        {'id': 'lang_urdu', 'title': 'اردو / Urdu'},
+        {'id': 'lang_punjabi', 'title': 'ਪੰਜਾਬੀ / Punjabi'},
+    ],
+    'region_european': [
+        {'id': 'lang_french', 'title': 'Français / French'},
+        {'id': 'lang_spanish', 'title': 'Español / Spanish'},
+        {'id': 'lang_portuguese', 'title': 'Português / Portuguese'},
+    ],
+}
+
+# Flat map: lang ID → language name (built from all regions)
+LANGUAGE_ID_MAP = {}
+for _region_langs in LANGUAGE_BY_REGION.values():
+    for _opt in _region_langs:
+        LANGUAGE_ID_MAP[_opt['id']] = _opt['title'].split(' / ')[-1] if ' / ' in _opt['title'] else _opt['title']
 
 LANGUAGE_CONFIRMATIONS = {
     'English': "Language set to English! 🌐 How can I help you today?",
     'Hindi': "भाषा हिंदी में सेट हो गई! 🌐 मैं आपकी कैसे मदद कर सकता हूँ?",
+    'Hinglish': "Language Hinglish mein set ho gayi! 🌐 Kaise help kar sakta hoon?",
     'Bengali': "ভাষা বাংলায় সেট হয়েছে! 🌐 আমি কীভাবে সাহায্য করতে পারি?",
     'Tamil': "மொழி தமிழில் அமைக்கப்பட்டது! 🌐 நான் எப்படி உதவ முடியும்?",
     'Telugu': "భాష తెలుగులో సెట్ చేయబడింది! 🌐 నేను ఎలా సహాయం చేయగలను?",
     'Gujarati': "ભાષા ગુજરાતીમાં સેટ થઈ! 🌐 હું કેવી રીતે મદદ કરી શકું?",
     'Marathi': "भाषा मराठीत सेट झाली! 🌐 मी कशी मदत करू शकतो?",
-    'Hinglish': "Language Hinglish mein set ho gayi! 🌐 Kaise help kar sakta hoon?",
     'Kannada': "ಭಾಷೆ ಕನ್ನಡಕ್ಕೆ ಹೊಂದಿಸಲಾಗಿದೆ! 🌐 ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
     'Malayalam': "ഭാഷ മലയാളത്തിൽ സജ്ജീകരിച്ചു! 🌐 ഞാൻ എങ്ങനെ സഹായിക്കാം?",
+    'Chinese': "语言已设置为中文！🌐 我能帮您什么？",
+    'Japanese': "言語が日本語に設定されました！🌐 何かお手伝いできますか？",
+    'Korean': "언어가 한국어로 설정되었습니다! 🌐 무엇을 도와드릴까요?",
+    'Thai': "ตั้งค่าภาษาเป็นภาษาไทยแล้ว! 🌐 ให้ช่วยอะไรดีคะ?",
+    'Vietnamese': "Ngôn ngữ đã được đặt thành Tiếng Việt! 🌐 Tôi có thể giúp gì?",
+    'Indonesian': "Bahasa diatur ke Indonesia! 🌐 Ada yang bisa saya bantu?",
+    'Sinhala': "භාෂාව සිංහලට සකසා ඇත! 🌐 මට ඔබට උදව් කළ හැක්කේ කෙසේද?",
+    'Arabic': "تم تعيين اللغة إلى العربية! 🌐 كيف يمكنني مساعدتك؟",
+    'Turkish': "Dil Türkçe olarak ayarlandı! 🌐 Size nasıl yardımcı olabilirim?",
+    'Russian': "Язык установлен на русский! 🌐 Чем могу помочь?",
+    'Urdu': "زبان اردو میں سیٹ ہو گئی! 🌐 میں آپ کی کیسے مدد کر سکتا ہوں؟",
+    'Punjabi': "ਭਾਸ਼ਾ ਪੰਜਾਬੀ ਵਿੱਚ ਸੈੱਟ ਹੋ ਗਈ! 🌐 ਮੈਂ ਤੁਹਾਡੀ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
+    'French': "Langue définie sur le français ! 🌐 Comment puis-je vous aider ?",
+    'Spanish': "¡Idioma configurado en español! 🌐 ¿Cómo puedo ayudarte?",
+    'Portuguese': "Idioma definido para português! 🌐 Como posso ajudar?",
 }
 
 
@@ -720,6 +787,33 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         # ── Check if this is a language selection reply ──
         lang_selection = _detect_language_selection(message_content, message_type)
         if lang_selection:
+            # Region selection (Step 1) → return languages for that region
+            if isinstance(lang_selection, dict) and 'region' in lang_selection:
+                region_id = lang_selection['region']
+                region_languages = lang_selection['languages']
+                region_title = next(
+                    (r['title'] for r in LANGUAGE_REGION_PICKER if r['id'] == region_id),
+                    'Languages'
+                )
+                logger.info(json.dumps({
+                    'event': 'language_region_selected',
+                    'region': region_id,
+                    'phoneHash': phone_hash,
+                    'requestId': request_id
+                }))
+                return {
+                    'statusCode': 200, 'headers': headers,
+                    'body': json.dumps({
+                        'suggestedResponse': '',
+                        'showLanguagePicker': True,
+                        'languagePickerStep': 'languages',
+                        'regionId': region_id,
+                        'regionTitle': region_title,
+                        'regionLanguages': region_languages,
+                    })
+                }
+
+            # Language selection (Step 2) → save preference
             _save_language_preference(phone_hash, lang_selection)
             confirmation = LANGUAGE_CONFIRMATIONS.get(lang_selection,
                 f"Language set to {lang_selection}! 🌐 How can I help you?")
@@ -1576,21 +1670,31 @@ def _retrieve_kb_context(query: str, request_id: str) -> str:
 # LANGUAGE PREFERENCE
 # ============================================================================
 
-def _detect_language_selection(message_content: str, message_type: str) -> Optional[str]:
+def _detect_language_selection(message_content: str, message_type: str) -> Optional[Any]:
     """
-    Detect if the user's message is a language selection.
+    Detect if the user's message is a language or region selection.
     Handles:
-    - Interactive list reply ID (e.g. "lang_hindi")
+    - Region picker reply ID (e.g. "region_popular") → returns dict with region languages
+    - Interactive list reply ID (e.g. "lang_hindi") → returns language name string
     - Interactive list reply title (e.g. "हिंदी / Hindi")
     - Text commands like "language hindi", "lang: bengali"
-    Returns the normalized language name or None.
+    Returns:
+    - str: normalized language name (for lang_ selections)
+    - dict: {'region': region_id, 'languages': [...]} (for region_ selections)
+    - None: not a language/region selection
     """
     if not message_content:
         return None
 
     content_lower = message_content.strip().lower()
 
-    # Check if it matches a language picker list reply ID (e.g. "lang_hindi")
+    # ── Step 1 reply: Region selection (e.g. "region_popular") ──
+    if content_lower.startswith('region_'):
+        languages = LANGUAGE_BY_REGION.get(content_lower)
+        if languages:
+            return {'region': content_lower, 'languages': languages}
+
+    # ── Step 2 reply: Language selection (e.g. "lang_hindi") ──
     if content_lower.startswith('lang_'):
         lang = LANGUAGE_ID_MAP.get(content_lower)
         if lang:
@@ -2228,11 +2332,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         if item:
             action = item.get('action', '')
 
-            # Show language picker
+            # Show language picker (Step 1: region picker)
             if action == 'show_language_picker':
                 return {
                     'suggestedResponse': '',
                     'showLanguagePicker': True,
+                    'languagePickerStep': 'region',
+                    'regionOptions': LANGUAGE_REGION_PICKER,
                 }
 
             # Show sub-menu

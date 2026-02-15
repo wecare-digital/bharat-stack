@@ -2905,24 +2905,82 @@ DEFAULT_MAIN_MENU = {
 }
 
 DEFAULT_LANGUAGE_PICKER = {
-    'header': '🌐 Choose Language',
-    'body': 'Please choose your preferred language.\n\nकृपया अपनी पसंदीदा भाषा चुनें।',
+    'header': '\U0001f310 Choose Region',
+    'body': 'Please select a language group.\n\n\u0915\u0943\u092a\u092f\u093e \u092d\u093e\u0937\u093e \u0938\u092e\u0942\u0939 \u091a\u0941\u0928\u0947\u0902\u0964',
     'footer': 'You can change anytime by typing "language <name>"',
-    'buttonText': 'Languages',
+    'buttonText': 'Regions',
     'sections': [
         {
-            'title': 'Languages / भाषाएँ',
+            'title': 'Select Region',
             'rows': [
-                {'id': 'lang_english', 'title': 'English', 'description': 'Respond in English'},
-                {'id': 'lang_hindi', 'title': 'हिंदी / Hindi', 'description': 'हिंदी में जवाब दें'},
-                {'id': 'lang_bengali', 'title': 'বাংলা / Bengali', 'description': 'বাংলায় উত্তর দিন'},
-                {'id': 'lang_tamil', 'title': 'தமிழ் / Tamil', 'description': 'தமிழில் பதிலளிக்கவும்'},
-                {'id': 'lang_telugu', 'title': 'తెలుగు / Telugu', 'description': 'తెలుగులో సమాధానం'},
-                {'id': 'lang_marathi', 'title': 'मराठी / Marathi', 'description': 'मराठीत उत्तर द्या'},
-                {'id': 'lang_hinglish', 'title': 'Hinglish', 'description': 'Hindi + English mix'},
+                {'id': 'region_popular', 'title': '\u2b50 Popular', 'description': 'English, Hindi, Bengali, Tamil & more'},
+                {'id': 'region_asian', 'title': '\U0001f30f Asian', 'description': '\u4e2d\u6587, \u65e5\u672c\u8a9e, \ud55c\uad6d\uc5b4, \u0e44\u0e17\u0e22 & more'},
+                {'id': 'region_middle_east', 'title': '\U0001f30d Middle East', 'description': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629, T\u00fcrk\u00e7e, \u0420\u0443\u0441\u0441\u043a\u0438\u0439, \u0627\u0631\u062f\u0648'},
+                {'id': 'region_european', 'title': '\U0001f1ea\U0001f1fa European', 'description': 'Fran\u00e7ais, Espa\u00f1ol, Portugu\u00eas'},
             ]
         }
     ]
+}
+
+# Step 2: Language lists per region (used when ai-generate-response returns regionLanguages)
+REGION_LANGUAGE_LISTS = {
+    'region_popular': {
+        'header': '\u2b50 Popular Languages',
+        'body': 'Choose your language \U0001f447',
+        'footer': 'wecare.digital',
+        'buttonText': 'Languages',
+        'sections': [{'title': 'Languages', 'rows': [
+            {'id': 'lang_english', 'title': 'English', 'description': 'Respond in English'},
+            {'id': 'lang_hindi', 'title': '\u0939\u093f\u0928\u094d\u0926\u0940 / Hindi', 'description': '\u0939\u093f\u0902\u0926\u0940 \u092e\u0947\u0902 \u091c\u0935\u093e\u092c \u0926\u0947\u0902'},
+            {'id': 'lang_hinglish', 'title': 'Hinglish', 'description': 'Hindi + English mix'},
+            {'id': 'lang_bengali', 'title': '\u09ac\u09be\u0982\u09b2\u09be / Bengali', 'description': '\u09ac\u09be\u0982\u09b2\u09be\u09af\u09bc \u0989\u09a4\u09cd\u09a4\u09b0 \u09a6\u09bf\u09a8'},
+            {'id': 'lang_tamil', 'title': '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd / Tamil', 'description': '\u0ba4\u0bae\u0bbf\u0bb4\u0bbf\u0bb2\u0bcd \u0baa\u0ba4\u0bbf\u0bb2\u0bb3\u0bbf\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd'},
+            {'id': 'lang_telugu', 'title': '\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41 / Telugu', 'description': '\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41\u0c32\u0c4b \u0c38\u0c2e\u0c3e\u0c27\u0c3e\u0c28\u0c02'},
+            {'id': 'lang_gujarati', 'title': '\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0 / Gujarati', 'description': '\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0\u0aae\u0abe\u0a82 \u0a9c\u0ab5\u0abe\u0aac'},
+            {'id': 'lang_marathi', 'title': '\u092e\u0930\u093e\u0920\u0940 / Marathi', 'description': '\u092e\u0930\u093e\u0920\u0940\u0924 \u0909\u0924\u094d\u0924\u0930 \u0926\u094d\u092f\u093e'},
+            {'id': 'lang_kannada', 'title': '\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 / Kannada', 'description': '\u0c95\u0ca8\u0ccd\u0ca8\u0ca1\u0ca6\u0cb2\u0ccd\u0cb2\u0cbf \u0c89\u0ca4\u0ccd\u0ca4\u0cb0'},
+            {'id': 'lang_malayalam', 'title': '\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d02 / Malayalam', 'description': '\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d24\u0d4d\u0d24\u0d3f\u0d7d \u0d2e\u0d31\u0d41\u0d2a\u0d1f\u0d3f'},
+        ]}]
+    },
+    'region_asian': {
+        'header': '\U0001f30f Asian Languages',
+        'body': 'Choose your language \U0001f447',
+        'footer': 'wecare.digital',
+        'buttonText': 'Languages',
+        'sections': [{'title': 'Languages', 'rows': [
+            {'id': 'lang_chinese', 'title': '\u7b80\u4f53\u4e2d\u6587 / Chinese', 'description': '\u7528\u4e2d\u6587\u56de\u590d'},
+            {'id': 'lang_japanese', 'title': '\u65e5\u672c\u8a9e / Japanese', 'description': '\u65e5\u672c\u8a9e\u3067\u5fdc\u7b54'},
+            {'id': 'lang_korean', 'title': '\ud55c\uad6d\uc5b4 / Korean', 'description': '\ud55c\uad6d\uc5b4\ub85c \ub2f5\ubcc0'},
+            {'id': 'lang_thai', 'title': '\u0e44\u0e17\u0e22 / Thai', 'description': '\u0e15\u0e2d\u0e1a\u0e40\u0e1b\u0e47\u0e19\u0e20\u0e32\u0e29\u0e32\u0e44\u0e17\u0e22'},
+            {'id': 'lang_vietnamese', 'title': 'Ti\u1ebfng Vi\u1ec7t / Vietnamese', 'description': 'Tr\u1ea3 l\u1eddi b\u1eb1ng ti\u1ebfng Vi\u1ec7t'},
+            {'id': 'lang_indonesian', 'title': 'Indonesia / Indonesian', 'description': 'Balas dalam Bahasa Indonesia'},
+            {'id': 'lang_sinhala', 'title': '\u0dc3\u0dd2\u0d82\u0dc4\u0dbd / Sinhala', 'description': '\u0dc3\u0dd2\u0d82\u0dc4\u0dbd\u0dd9\u0db1\u0dca \u0db4\u0dd2\u0dc5\u0dd2\u0dad\u0dd4\u0dbb\u0dd4'},
+        ]}]
+    },
+    'region_middle_east': {
+        'header': '\U0001f30d Middle East Languages',
+        'body': 'Choose your language \U0001f447',
+        'footer': 'wecare.digital',
+        'buttonText': 'Languages',
+        'sections': [{'title': 'Languages', 'rows': [
+            {'id': 'lang_arabic', 'title': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629 / Arabic', 'description': '\u0627\u0644\u0631\u062f \u0628\u0627\u0644\u0639\u0631\u0628\u064a\u0629'},
+            {'id': 'lang_turkish', 'title': 'T\u00fcrk\u00e7e / Turkish', 'description': 'T\u00fcrk\u00e7e yan\u0131t verin'},
+            {'id': 'lang_russian', 'title': '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 / Russian', 'description': '\u041e\u0442\u0432\u0435\u0442 \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c'},
+            {'id': 'lang_urdu', 'title': '\u0627\u0631\u062f\u0648 / Urdu', 'description': '\u0627\u0631\u062f\u0648 \u0645\u06cc\u06ba \u062c\u0648\u0627\u0628 \u062f\u06cc\u06ba'},
+            {'id': 'lang_punjabi', 'title': '\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40 / Punjabi', 'description': '\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40 \u0a35\u0a3f\u0a71\u0a1a \u0a1c\u0a35\u0a3e\u0a2c'},
+        ]}]
+    },
+    'region_european': {
+        'header': '\U0001f1ea\U0001f1fa European Languages',
+        'body': 'Choose your language \U0001f447',
+        'footer': 'wecare.digital',
+        'buttonText': 'Languages',
+        'sections': [{'title': 'Languages', 'rows': [
+            {'id': 'lang_french', 'title': 'Fran\u00e7ais / French', 'description': 'R\u00e9pondre en fran\u00e7ais'},
+            {'id': 'lang_spanish', 'title': 'Espa\u00f1ol / Spanish', 'description': 'Responder en espa\u00f1ol'},
+            {'id': 'lang_portuguese', 'title': 'Portugu\u00eas / Portuguese', 'description': 'Responder em portugu\u00eas'},
+        ]}]
+    },
 }
 
 
@@ -3180,14 +3238,37 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             )
             return ai_response
 
-        # Language picker requested
+        # Language picker requested (two-step: region → languages)
         if ai_response and ai_response.get('showLanguagePicker'):
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                list_config=_get_language_picker_config(),
-                request_id=request_id
-            )
+            picker_step = ai_response.get('languagePickerStep', 'region')
+
+            if picker_step == 'languages':
+                # Step 2: Show languages for the selected region
+                region_id = ai_response.get('regionId', '')
+                region_list = REGION_LANGUAGE_LISTS.get(region_id)
+                if region_list:
+                    _send_interactive_list(
+                        contact_id=contact_id,
+                        phone_number_id=phone_number_id,
+                        list_config=region_list,
+                        request_id=request_id
+                    )
+                else:
+                    # Fallback: show region picker again
+                    _send_interactive_list(
+                        contact_id=contact_id,
+                        phone_number_id=phone_number_id,
+                        list_config=_get_language_picker_config(),
+                        request_id=request_id
+                    )
+            else:
+                # Step 1: Show region picker
+                _send_interactive_list(
+                    contact_id=contact_id,
+                    phone_number_id=phone_number_id,
+                    list_config=_get_language_picker_config(),
+                    request_id=request_id
+                )
             return ai_response
 
         # Send text response first (menu item response, language confirmation, etc.)
