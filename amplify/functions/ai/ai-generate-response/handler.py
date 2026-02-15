@@ -1780,7 +1780,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         data['from_dues'] = True
                         # Route through customer info collection
                         _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                        return _r(f"\u2705 Paying all dues: \u20b9{total_due:,.2f}\n\n\U0001f6d2 Wix Order ID?\nType SKIP for offline \u00b7 BACK \u00b7 CANCEL")
+                        return _r(f"\u2705 Paying all dues: \u20b9{total_due:,.2f}\n\n\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                     _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
                     return _r(_pay_purpose_prompt())
                 elif content_lower in ('2', 'one', 'pay one'):
@@ -1795,7 +1795,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         data['from_dues'] = True
                         # Route through customer info collection
                         _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                        return _r(f"\u2705 Due selected: \u20b9{due['amount']:,.2f}\n\n\U0001f6d2 Wix Order ID?\nType SKIP for offline \u00b7 BACK \u00b7 CANCEL")
+                        return _r(f"\u2705 Due selected: \u20b9{due['amount']:,.2f}\n\n\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                     # Multiple dues — ask which one
                     lines = ["Which due would you like to pay?\n"]
                     for i, d in enumerate(pending_dues[:5], 1):
@@ -1843,7 +1843,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         data['from_dues'] = True
                         # Route through customer info collection
                         _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                        return _r(f"\u2705 Due selected: \u20b9{due['amount']:,.2f}\n\n\U0001f6d2 Wix Order ID?\nType SKIP for offline \u00b7 BACK \u00b7 CANCEL")
+                        return _r(f"\u2705 Due selected: \u20b9{due['amount']:,.2f}\n\n\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                 except (ValueError, IndexError):
                     pass
                 return _r(f"Reply 1\u2013{min(len(pending_dues), 5)} \u00b7 BACK \u00b7 CANCEL")
@@ -1881,7 +1881,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     purpose = re.sub(r'\s+', ' ', message_content.strip()).title()[:40]
                 data['payment_purpose'] = purpose
                 _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                return _r(f"✅ Purpose: {purpose}\n\n🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                return _r(f"\u2705 Purpose: {purpose}\n\n\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
 
             # ── Order ID ──
             if step == 'awaiting_order_id':
@@ -1944,7 +1944,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             if step == 'awaiting_reuse_profile':
                 if content_lower == 'back':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                    return _r("\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                 if content_lower in ('1', 'use', 'use saved', 'yes', 'y'):
                     profile = data.get('saved_profile', {})
                     data['customer_name'] = profile.get('customer_name', '')
@@ -1981,7 +1981,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             if step == 'awaiting_pay_for':
                 if content_lower == 'back':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                    return _r("\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                 if content_lower in ('1', 'self', 'me'):
                     data['pay_for'] = 'self'
                     data['customer_phone'] = sender_phone
@@ -2203,7 +2203,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     return _r(_pay_purpose_prompt())
                 elif content_lower == '2':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                    return _r("🛒 Wix Order ID?\nType SKIP for offline · BACK · CANCEL")
+                    return _r("\U0001f6d2 Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
                 elif content_lower == '3':
                     _save_flow_state(phone_hash, 'pay', 'awaiting_customer_name', data)
                     label = "Customer's full name?" if data.get('pay_for') == 'other' else "Full name?"

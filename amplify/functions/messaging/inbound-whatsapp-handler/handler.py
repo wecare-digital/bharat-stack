@@ -1308,16 +1308,26 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
     import datetime
     try:
         messages_table = dynamodb.Table(MESSAGES_TABLE)
-        # Query by messageId (which is the reference_id for payment_request records)
-        resp = messages_table.query(
-            IndexName='messageId-index',
-            KeyConditionExpression='messageId = :mid',
-            ExpressionAttributeValues={':mid': reference_id},
-            Limit=1,
-        )
-        items = resp.get('Items', [])
+        items = []
 
-        # Fallback: scan for paymentReferenceId if GSI not available
+        # Try GSI query first, fall back to scan if index doesn't exist
+        try:
+            resp = messages_table.query(
+                IndexName='messageId-index',
+                KeyConditionExpression='messageId = :mid',
+                ExpressionAttributeValues={':mid': reference_id},
+                Limit=1,
+            )
+            items = resp.get('Items', [])
+        except Exception as gsi_err:
+            logger.info(json.dumps({
+                'event': 'invoice_gsi_fallback',
+                'referenceId': reference_id,
+                'gsiError': str(gsi_err)[:100],
+                'requestId': request_id,
+            }))
+
+        # Fallback: scan for paymentReferenceId
         if not items:
             resp = messages_table.scan(
                 FilterExpression='paymentReferenceId = :ref AND messageType = :mt',
