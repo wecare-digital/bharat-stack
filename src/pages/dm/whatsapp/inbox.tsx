@@ -761,7 +761,10 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       return <span className="system-msg">System Message</span>;
     }
     
-    // Default: show content as-is
+    // Default: show content as-is (hide blank messages)
+    if (!content.trim()) {
+      return <span className="special-msg" style={{ opacity: 0.5, fontStyle: 'italic' }}>Menu / Interactive message</span>;
+    }
     return content;
   };
 

@@ -703,7 +703,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _handle_external(body, headers, request_id)
 
     except Exception as e:
-        logger.error(json.dumps({'event': 'ai_generate_error', 'error': str(e), 'requestId': request_id}))
+        logger.error(json.dumps({'event': 'ai_generate_error', 'error': str(e), 'errorType': type(e).__name__, 'requestId': request_id}))
+        import traceback
+        logger.error(f"TRACEBACK: {traceback.format_exc()}")
         return {
             'statusCode': 200,
             'headers': headers,
@@ -761,6 +763,16 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
     # Hash phone for DynamoDB key (privacy)
     phone_hash = _hash_phone(sender_phone) if sender_phone else contact_id
 
+    logger.info(json.dumps({
+        'event': 'external_handler_start',
+        'hasSenderPhone': bool(sender_phone),
+        'hasMessageContent': bool(message_content),
+        'messageType': message_type,
+        'phoneHash': phone_hash[:8] if phone_hash else 'NONE',
+        'contactId': contact_id,
+        'requestId': request_id
+    }))
+
     if not phone_hash:
         return {
             'statusCode': 200, 'headers': headers,
@@ -793,6 +805,11 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
             message_content = message_content[:MAX_INPUT_TEXT_LENGTH] + '...[truncated]'
 
         # ── Load conversation history ──
+        logger.info(json.dumps({
+            'event': 'loading_history',
+            'phoneHash': phone_hash[:8],
+            'requestId': request_id
+        }))
         history = _load_conversation_history(phone_hash)
 
         # ── Check if this is a language selection reply ──
@@ -820,7 +837,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 return {
                     'statusCode': 200, 'headers': headers,
                     'body': json.dumps({
-                        'suggestedResponse': '',
+                        'suggestedResponse': f'🌐 Choose your language from {region_title} 👇',
                         'showLanguagePicker': True,
                         'languagePickerStep': 'languages',
                         'regionId': region_id,
@@ -2376,9 +2393,10 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
     # ── "menu" keyword trigger — show main menu on demand ──
     if content_lower in ('menu', 'main menu', 'show menu', 'hi', 'hello'):
+        greeting = flow_config.get('welcome', {}).get('text', '') if not history.get('messages') else flow_config.get('welcomeBack', {}).get('text', "Here's the menu 👇")
         return {
-            'suggestedResponse': '',
-            'suggestion': '',
+            'suggestedResponse': greeting or "Here's the menu 👇",
+            'suggestion': greeting or "Here's the menu 👇",
             'flowAction': 'showMainMenu',
         }
 
@@ -2413,7 +2431,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             if action == 'show_language_picker':
                 lp_config = _get_language_picker_config_from_db()
                 return {
-                    'suggestedResponse': '',
+                    'suggestedResponse': '🌐 Choose your region to see available languages 👇',
                     'showLanguagePicker': True,
                     'languagePickerStep': 'region',
                     'regionOptions': lp_config['regionPicker'],
@@ -2425,7 +2443,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 sub_menu = sub_menus.get(content_lower)
                 if sub_menu:
                     return {
-                        'suggestedResponse': '',
+                        'suggestedResponse': sub_menu.get('body', 'Choose an option 👇'),
+                        'suggestion': sub_menu.get('body', 'Choose an option 👇'),
                         'flowAction': 'showSubMenu',
                         'subMenuConfig': sub_menu,
                     }
@@ -2434,8 +2453,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             # Back to main menu (from sub-menus)
             if action == 'show_main_menu':
                 return {
-                    'suggestedResponse': '',
-                    'suggestion': '',
+                    'suggestedResponse': "Here's the menu 👇",
+                    'suggestion': "Here's the menu 👇",
                     'flowAction': 'showMainMenu',
                 }
 

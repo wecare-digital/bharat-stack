@@ -1782,6 +1782,16 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
     now = int(time.time())
     expires_at = now + MESSAGE_TTL_SECONDS
     
+    # Guard: don't store messages with empty content (prevents blank inbox entries)
+    if not content and not media_id and not s3_key and status != 'failed':
+        logger.warning(json.dumps({
+            'event': 'empty_content_skipped',
+            'messageId': message_id,
+            'contactId': contact_id,
+            'status': status,
+        }))
+        return
+    
     record = {
         'id': message_id,
         'messageId': message_id,

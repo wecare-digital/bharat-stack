@@ -1898,7 +1898,7 @@ def _send_ai_auto_reply(contact_id: str, content: str, phone_number_id: str, req
     Send AI-generated auto-reply to WhatsApp.
     Uses the same phone number that received the message.
     """
-    if not content or not contact_id:
+    if not content or not content.strip() or not contact_id:
         return
     
     try:
