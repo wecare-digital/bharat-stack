@@ -356,6 +356,21 @@ export interface SendReactionRequest {
 }
 
 export async function sendWhatsAppMessage(request: SendMessageRequest): Promise<{ messageId: string; status: string } | null> {
+  // Send typing indicator first (fire and forget)
+  try {
+    await apiCall(`${API_BASE}/whatsapp/send`, {
+      method: 'POST',
+      body: JSON.stringify({
+        contactId: request.contactId,
+        phoneNumberId: request.phoneNumberId,
+        isTypingIndicator: true,
+      }),
+    });
+  } catch (e) {
+    // Typing indicator is best-effort, don't block send
+    console.debug('Typing indicator failed (non-blocking):', e);
+  }
+
   // Ensure mediaFile is properly formatted
   const payload = {
     ...request,

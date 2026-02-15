@@ -1209,6 +1209,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
 
               {/* Input Area */}
               <div className="input-area">
+                {/* Typing indicator */}
+                {sending && (
+                  <div className="typing-indicator">
+                    <div className="typing-dots"><span></span><span></span><span></span></div>
+                    <span>Sending...</span>
+                  </div>
+                )}
+                
                 {/* Media Preview */}
                 {mediaPreview && (
                   <div className="media-preview">
@@ -1234,15 +1242,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     style={{ display: 'none' }}
                   />
                   
-                  <button 
-                    className="interactive-btn" 
-                    onClick={() => setShowInteractiveComposer(true)}
-                    title="Send Interactive Message (List/Buttons)"
-                    style={{ padding: '6px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}
-                  >
-                    List
-                  </button>
-                  
                   <div className="input-box">
                     <RichTextEditor
                       value={messageText}
@@ -1258,6 +1257,18 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                       onSendTTS={handleSendTTS}
                     />
                   </div>
+                </div>
+                
+                {/* Interactive Message Button - below editor */}
+                <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 6 }}>
+                  <button 
+                    className="interactive-btn" 
+                    onClick={() => setShowInteractiveComposer(true)}
+                    title="Send Interactive Message (List/Buttons)"
+                    style={{ padding: '6px 14px', background: '#ECFDF5', border: '1.5px solid #A7F3D0', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap', color: '#059669', fontWeight: 500, transition: 'all 0.15s' }}
+                  >
+                    ☰ Interactive List
+                  </button>
                 </div>
                 
                 {/* Interactive Message Composer */}
