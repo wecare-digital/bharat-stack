@@ -5,7 +5,7 @@
  * Does NOT break existing pages — just wraps them.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export interface ShellTab {
   id: string;
@@ -33,16 +33,6 @@ const PageShell: React.FC<PageShellProps> = ({
   className = '',
 }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id || '');
-  const tabsRef = useRef<HTMLDivElement>(null);
-
-  // Scroll active tab into view on mount and tab change
-  useEffect(() => {
-    if (!tabsRef.current) return;
-    const activeBtn = tabsRef.current.querySelector('.ps-tab.active') as HTMLElement;
-    if (activeBtn) {
-      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [activeTab]);
 
   return (
     <div className={`page-shell ${className}`}>
@@ -57,7 +47,7 @@ const PageShell: React.FC<PageShellProps> = ({
 
       {/* Scrollable Tab Bar */}
       <div className="ps-tabs-wrapper">
-        <div className="ps-tabs" ref={tabsRef} role="tablist">
+        <div className="ps-tabs" role="tablist">
           {tabs.map((tab) => (
             <button
               key={tab.id}
