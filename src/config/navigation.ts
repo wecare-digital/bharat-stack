@@ -44,11 +44,6 @@ export const navigationConfig: NavItem[] = [
     path: '/pay',
     label: 'Pay',
     icon: 'payment',
-    children: [
-      { path: '/pay/flow', label: 'Flow' },
-      { path: '/pay/wa', label: 'WhatsApp' },
-      { path: '/pay/link', label: 'Link', badge: 'Soon' },
-    ]
   },
   {
     path: '/contacts',

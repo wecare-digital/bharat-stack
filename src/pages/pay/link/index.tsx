@@ -11,9 +11,10 @@ import Button from '../../../components/ui/Button';
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
-const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
+const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [referenceId, setReferenceId] = useState('');
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState('');
@@ -48,8 +49,8 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <div className="pay-link-page">
         <PageHeader 
           title="Pay Link" 
@@ -243,6 +244,14 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user }) => {
           .form-field.full-width { grid-column: span 1; }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

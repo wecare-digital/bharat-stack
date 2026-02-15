@@ -37,6 +37,7 @@ import { PAYMENT_CONFIG, GST_RATES, CONVENIENCE_FEE, DEFAULT_GSTIN, WHATSAPP_PHO
 interface PageProps {
   signOut?: () => void;
   user?: any;
+  embedded?: boolean;
 }
 
 interface Contact {
@@ -46,7 +47,7 @@ interface Contact {
   phone: string;
 }
 
-const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
+const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -170,8 +171,8 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const selectedContactInfo = contacts.find(c => c.contactId === selectedContact);
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <div className="pay-page">
         <PageHeader 
           title="WhatsApp Pay" 
@@ -342,6 +343,14 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user }) => {
         .send-btn { width: 100%; }
         @media (max-width: 800px) { .pay-layout { grid-template-columns: 1fr; } .item-grid { grid-template-columns: 1fr; } .breakdown-grid { grid-template-columns: 1fr; } .breakdown-field.full-width { grid-column: span 1; } }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };

@@ -16,7 +16,7 @@ import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { API_BASE } from '../../../config/constants';
 
-interface PageProps { signOut?: () => void; user?: any; }
+interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 // ── Shared types ──
 interface CustomerRecord {
@@ -53,7 +53,7 @@ const TABS: TabItem[] = [
   { id: 'config', label: '⚙️ Flow Config' },
 ];
 
-const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
+const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [tab, setTab] = useState('customers');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -259,8 +259,8 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
   });
 
 
-  return (
-    <Layout user={user} onSignOut={signOut}>
+  const content = (
+    <>
       <div className="crm-page">
         <PageHeader title="Pay Flow CRM" subtitle="Customers, invoices, dues & flow config" icon="payment" backLink="/pay" backLabel="← Pay"
           actions={tab === 'customers' ? <Button variant="primary" onClick={handleCustNew}>+ New Customer</Button> : undefined} />
@@ -548,6 +548,14 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user }) => {
           .crm-modal { width: 95%; margin: 0 10px; }
         }
       `}</style>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Layout user={user} onSignOut={signOut}>
+      {content}
     </Layout>
   );
 };
