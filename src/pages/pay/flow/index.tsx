@@ -35,7 +35,7 @@ interface FlowConfig {
 }
 
 const emptyForm = { name: '', phone: '', email: '', shippingAddress: '', billingAddress: '' };
-const emptyInvoiceForm = { items: [{ name: '', unitPrice: '', quantity: '1', gstRate: '18' }], shipping: '49', discount: '15', handling: '0', purpose: '', orderId: '' };
+const emptyInvoiceForm = { items: [{ name: '', unitPrice: '', quantity: '1', gstRate: '18' }], shipping: '49', discount: '15', purpose: '', orderId: '' };
 const defaultFlowConfig: FlowConfig = {
   default_gst_rate: 18, default_shipping: 49, default_promo: 15,
   gstin: '19AADFW7431N1ZK', default_item_name: 'Services/Goods',

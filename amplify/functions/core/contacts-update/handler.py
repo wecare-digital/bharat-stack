@@ -23,7 +23,7 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'Contact')
 
 # Allowed update fields
-ALLOWED_FIELDS = {'name', 'phone', 'email', 'optInWhatsApp', 'optInSms', 'optInEmail', 'allowlistWhatsApp', 'allowlistSms', 'allowlistEmail'}
+ALLOWED_FIELDS = {'name', 'phone', 'email', 'shippingAddress', 'billingAddress', 'optInWhatsApp', 'optInSms', 'optInEmail', 'allowlistWhatsApp', 'allowlistSms', 'allowlistEmail'}
 OPT_IN_FIELDS = {'optInWhatsApp', 'optInSms', 'optInEmail', 'allowlistWhatsApp', 'allowlistSms', 'allowlistEmail'}
 
 # CORS headers
@@ -53,8 +53,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if not body:
             return _error_response(400, 'Request body is required')
         
-        # Filter to allowed fields only
-        updates = {k: v for k, v in body.items() if k in ALLOWED_FIELDS}
+        # Filter to allowed fields only (exclude key attributes)
+        updates = {k: v for k, v in body.items() if k in ALLOWED_FIELDS and k not in ('id', 'contactId')}
+        
+        logger.info(json.dumps({
+            'event': 'contact_update_debug',
+            'contactId': contact_id,
+            'bodyKeys': list(body.keys()),
+            'updateKeys': list(updates.keys()),
+            'requestId': request_id,
+        }))
         
         if not updates:
             return _error_response(400, 'No valid fields to update')
@@ -90,11 +98,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 UpdateExpression=update_expr,
                 ExpressionAttributeNames=expr_names,
                 ExpressionAttributeValues=expr_values,
-                ConditionExpression=Attr('id').exists() & Attr('deletedAt').not_exists(),
                 ReturnValues='ALL_NEW'
             )
-        except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            return _error_response(404, 'Contact not found or has been deleted')
+        except Exception as update_err:
+            error_msg = str(update_err)
+            if 'ConditionalCheckFailedException' in error_msg:
+                return _error_response(404, 'Contact not found or has been deleted')
+            raise update_err
         
         updated_contact = response.get('Attributes', {})
         

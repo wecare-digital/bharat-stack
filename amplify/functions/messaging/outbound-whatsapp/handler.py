@@ -966,7 +966,6 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                 subtotal_val = order_data.get('subtotal', {}).get('value', 0)
                 discount_val = order_data.get('discount', {}).get('value', 0)
                 shipping_val = order_data.get('shipping', {}).get('value', 0)
-                handling_val = order_data.get('handling', {}).get('value', 0)
                 tax_val = order_data.get('tax', {}).get('value', 0)
                 
                 # Calculate per-item GST total for gstRate field
@@ -1010,7 +1009,6 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                     'paymentGstRate': Decimal(str(total_gst_rate)),
                     'paymentGstAmount': Decimal(str(tax_val)),
                     'paymentShipping': Decimal(str(shipping_val)),
-                    'paymentHandling': Decimal(str(handling_val)),
                     'paymentTotal': Decimal(str(int((payment_amount or 0) * 100))),
                     'paymentGstin': order_details.get('gstin', '19AADFW7431N1ZK'),
                     'paymentSource': 'inbox_ui',
@@ -1028,7 +1026,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                 # Store in INBOUND table — invoice generator scans WhatsAppInboundTable
                 inbound_table_name = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
                 inbound_table = dynamodb.Table(inbound_table_name)
-                inbound_table.put_item(Item={k: v for k, v in pay_req_record.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping', 'paymentHandling')})
+                inbound_table.put_item(Item={k: v for k, v in pay_req_record.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping')})
                 logger.info(json.dumps({
                     'event': 'payment_request_record_stored',
                     'referenceId': payment_ref_id,
@@ -1152,7 +1150,15 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         }))
         
         # If media_file is already an S3 key, use it directly
-        if media_file.startswith('s3://') or media_file.startswith(MEDIA_PREFIX):
+        # Detect S3 keys: s3:// prefix, media prefix, invoices/ prefix, or any path with / that isn't base64
+        is_s3_key = (
+            media_file.startswith('s3://') or
+            media_file.startswith(MEDIA_PREFIX) or
+            media_file.startswith('invoices/') or
+            media_file.startswith('stream/') or
+            (('/' in media_file) and media_file.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp4', '.pdf', '.ogg', '.mp3')))
+        )
+        if is_s3_key:
             s3_key = media_file.replace('s3://', '').replace(f'{MEDIA_BUCKET}/', '')
             
             # Get file size from S3 for validation
@@ -1500,10 +1506,9 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         # GSTIN
         gstin = order_details.get('gstin', '19AADFW7431N1ZK')
         
-        # Discount, Delivery & Handling (user input, mandatory - show even if 0)
+        # Discount, Delivery (user input, mandatory - show even if 0)
         discount_paise = int(order_data.get('discount', {}).get('value', 0))
         delivery_paise = int(order_data.get('shipping', {}).get('value', 0))
-        handling_paise = int(order_data.get('handling', {}).get('value', 0))
         
         # Build items from input array (multi-item support with per-item GST)
         items_list = order_data.get('items', [])
@@ -1564,10 +1569,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         # WhatsApp subtotal = sum of (item.amount * item.quantity) for all items
         whatsapp_subtotal = item_total_paise + conv_total
         
-        # WhatsApp validates: total = subtotal - discount + shipping + tax
-        total_paise = whatsapp_subtotal - discount_paise + delivery_paise + handling_paise + gst_paise
+        total_paise = whatsapp_subtotal - discount_paise + delivery_paise + gst_paise
         
         # Build order object - ALL fields mandatory (show even if 0)
+        # WhatsApp only supports: subtotal, discount, shipping, tax
         order_obj = {
             'status': 'pending',
             'items': items_for_whatsapp,
@@ -1581,11 +1586,6 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'value': delivery_paise,
                 'offset': 100,
                 'description': 'Express'
-            },
-            'handling': {
-                'value': handling_paise,
-                'offset': 100,
-                'description': 'Handling'
             },
             'tax': {
                 'value': gst_paise,
@@ -1642,7 +1642,6 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'gstTotal': gst_paise / 100,
             'discount': discount_paise / 100,
             'shipping': delivery_paise / 100,
-            'handling': handling_paise / 100,
             'convFee': conv_total / 100,
             'whatsappSubtotal': whatsapp_subtotal / 100,
             'total': total_paise / 100,

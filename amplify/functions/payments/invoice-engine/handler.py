@@ -503,6 +503,7 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     gstin = invoice.get('gstin', COMPANY['gstin'])
     purpose = invoice.get('purpose', '')
     payment_id = invoice.get('paymentId', '')
+    order_id = invoice.get('orderId', '')
     paid_at = invoice.get('paidAt', 0)
     created_at = invoice.get('createdAt', 0)
     payment_status = invoice.get('paymentStatus', 'pending')
@@ -550,6 +551,7 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
 
     # Payment ID display (Razorpay ID if available, otherwise skip)
     pay_id_html = f'<div class="info-row"><span>Payment ID: {payment_id}</span></div>' if payment_id else ''
+    order_id_html = f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else '<div class="info-row"><span>Order: Offline</span></div>'
 
     # Status badge color
     status_upper = payment_status.upper()
@@ -592,6 +594,7 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="divider"></div>
 <div class="info-row"><span>Invoice: {inv_num}</span><span>{date_str} {time_str}</span></div>
 {pay_id_html}
+{order_id_html}
 {f'<div class="info-row"><span>Purpose: {purpose}</span></div>' if purpose else ''}
 <div class="divider"></div>
 <div class="section-title">Bill To</div>
@@ -653,15 +656,17 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
 
     html = _build_invoice_html(invoice, items)
 
-    # Render HTML to PNG using a lightweight approach
-    # We use the html content and convert via a simple SVG/foreignObject trick
-    # For production, use a Lambda Layer with headless Chrome or wkhtmltoimage
+    # Render to PNG image
+    # Try PIL-based POS receipt image first (proper PNG), fall back to HTML-to-SVG
     try:
-        png_bytes = _render_html_to_png(html)
-    except Exception as e:
-        logger.error(f"Image render error: {e}")
-        # Fallback: store HTML and generate a simple text-based image
         png_bytes = _generate_fallback_image(invoice, items)
+    except Exception as e:
+        logger.warning(f"PIL image render failed: {e}, trying HTML approach")
+        try:
+            png_bytes = _render_html_to_png(html)
+        except Exception as e2:
+            logger.error(f"All image render methods failed: {e2}")
+            return _resp(500, {'error': 'Image generation failed'})
 
     # Upload to S3
     inv_num_safe = invoice.get('invoiceNumber', invoice_id).replace('/', '-')
@@ -1205,7 +1210,9 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
     invoice = inv_resp.get('Item', {})
     inv_num = invoice.get('invoiceNumber', '')
     total = float(invoice.get('total', 0))
-    caption = f"Invoice {inv_num} — Total: Rs.{total:,.2f}\nThank you for your payment!"
+    order_id = invoice.get('orderId', '')
+    order_line = f"\nOrder: {order_id}" if order_id and order_id != 'Offline' else ''
+    caption = f"Invoice {inv_num} — Total: Rs.{total:,.2f}{order_line}\nThank you for your payment!"
 
     # Look up contact by phone
     contact = _lookup_contact_by_phone(to_phone)

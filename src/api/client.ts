@@ -1563,7 +1563,6 @@ export interface SendPaymentMessageRequest {
   items: PaymentOrderItem[];
   discount?: number;      // In paise
   delivery?: number;      // In paise (shipping/delivery)
-  handling?: number;      // In paise (handling fee)
   tax?: number;           // In paise (total GST from all items)
   taxDescription?: string; // e.g., "GST 18%" or "Tax"
   gstin?: string;         // GSTIN number
@@ -1592,7 +1591,6 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   const subtotal = request.items.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
   const discount = request.discount || 0;
   const delivery = request.delivery || 0;
-  const handling = request.handling || 0;
   const tax = request.tax || 0;
 
   // Get first item details for backend
@@ -1622,7 +1620,6 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
       subtotal: { value: subtotal, offset: 100 },
       discount: { value: discount, offset: 100, description: 'Promo' },
       shipping: { value: delivery, offset: 100, description: 'Express' },
-      handling: { value: handling, offset: 100, description: 'Handling' },
       tax: { value: tax, offset: 100, description: `GSTIN: ${request.gstin || DEFAULT_GSTIN}` },
     },
   };
@@ -3502,7 +3499,6 @@ export interface CreateInvoiceEngineRequest {
   items: { name: string; amount: number; quantity: number; productId?: string; gstRate?: number }[];
   discount?: number;
   shipping?: number;
-  handling?: number;
   gstRate?: number;       // Fallback global GST rate (used if items don't have per-item rates)
   convenienceFee?: number;
   purpose?: string;

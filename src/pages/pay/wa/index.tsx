@@ -62,7 +62,6 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [items, setItems] = useState<{ name: string; amount: number; quantity: number; gstRate: number }[]>([{ name: '', amount: 0, quantity: 1, gstRate: 0 }]);
   const [discount, setDiscount] = useState<number>(0);
   const [shipping, setShipping] = useState<number>(0);
-  const [handling, setHandling] = useState<number>(0);
   const [gstin, setGstin] = useState<string>(DEFAULT_GSTIN);
   const [orderId, setOrderId] = useState<string>('');
   const [selectedPhone, setSelectedPhone] = useState<string>(PAYMENT_CONFIG.phoneNumberId);
@@ -129,7 +128,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const calculateItemTotal = () => items.reduce((s, i) => s + i.amount * i.quantity, 0);
   const calculateTax = () => items.reduce((s, i) => s + i.amount * i.quantity * i.gstRate / 100, 0);
   const calculateSubtotal = () => calculateItemTotal();
-  const calculateTotal = () => calculateSubtotal() + calculateConvenienceFee() - discount + shipping + handling + calculateTax();
+  const calculateTotal = () => calculateSubtotal() + calculateConvenienceFee() - discount + shipping + calculateTax();
 
   const handleGenerateReferenceId = () => {
     setReferenceId(generateReferenceId());
@@ -166,7 +165,6 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         items: validItems.map((i, idx) => ({ name: i.name, amount: Math.round(i.amount * 100), quantity: i.quantity, gstRate: i.gstRate, productId: `ITEM_${idx + 1}` })),
         discount: Math.round(discount * 100),
         delivery: Math.round(shipping * 100),
-        handling: Math.round(handling * 100),
         tax: totalTaxPaise,
         gstin: gstin,
         orderId: orderId || 'Offline',
@@ -180,7 +178,6 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         setItems([{ name: '', amount: 0, quantity: 1, gstRate: 0 }]);
         setDiscount(0);
         setShipping(0);
-        setHandling(0);
         setOrderId('');
       } else {
         const connStatus = api.getConnectionStatus();
@@ -310,7 +307,6 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="breakdown-grid">
                 <div className="breakdown-field"><label>Promo (₹)</label><input type="number" value={discount || ''} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
                 <div className="breakdown-field"><label>Express / Shipping (₹)</label><input type="number" value={shipping || ''} onChange={(e) => setShipping(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
-                <div className="breakdown-field"><label>Handling (₹)</label><input type="number" value={handling || ''} onChange={(e) => setHandling(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
                 <div className="breakdown-field"><label>GSTIN</label><input type="text" value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="19AADFW7431N1ZK" /></div>
               </div>
             </div>
@@ -355,7 +351,6 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 <div className="breakdown-row"><span>Subtotal</span><span>₹{calculateSubtotal().toFixed(2)}</span></div>
                 <div className="breakdown-row"><span>Promo</span><span>-₹{discount.toFixed(2)}</span></div>
                 <div className="breakdown-row"><span>Shipping</span><span>₹{shipping.toFixed(2)}</span></div>
-                <div className="breakdown-row"><span>Handling</span><span>₹{handling.toFixed(2)}</span></div>
                 <div className="breakdown-row"><span>Tax (GST)</span><span>₹{calculateTax().toFixed(2)}</span></div>
               </div>
               <div className="preview-total"><span>TOTAL</span><span>₹{calculateTotal().toFixed(2)}</span></div>

@@ -23,7 +23,6 @@ interface PaymentDialogState {
   referenceId: string;
   promo: string;      // Discount/Promo
   express: string;    // Delivery/Express
-  handling: string;   // Handling fee (₹)
   gstin: string;      // GSTIN number
   paymentMethod: string;  // Payment configuration name on WABA
   phoneNumberId: string;  // Which phone to send from
@@ -105,7 +104,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     referenceId: '',
     promo: '0',
     express: '0',
-    handling: '0',
     gstin: DEFAULT_GSTIN,
     paymentMethod: 'WECARE-DIGITAL',
     phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
@@ -392,7 +390,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       const promoInPaise = Math.round(parseFloat(paymentForm.promo || '0') * 100);
       const expressInPaise = Math.round(parseFloat(paymentForm.express || '0') * 100);
-      const handlingInPaise = Math.round(parseFloat(paymentForm.handling || '0') * 100);
       // Calculate total tax = sum of per-item GST
       const totalTaxPaise = itemsInPaise.reduce((sum, i) => sum + Math.round(i.amount * i.quantity * i.gstRate / 100), 0);
 
@@ -401,7 +398,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         items: itemsInPaise,
         discount: promoInPaise,
         shipping: expressInPaise,
-        handling: handlingInPaise,
         totalTax: totalTaxPaise,
         gstin: paymentForm.gstin,
         orderId: paymentForm.orderId || 'Offline',
@@ -414,7 +410,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         items: itemsInPaise.map(i => ({ name: i.name, amount: i.amount, quantity: i.quantity, gstRate: i.gstRate })),
         discount: promoInPaise,
         delivery: expressInPaise,
-        handling: handlingInPaise,
         tax: totalTaxPaise,
         gstin: paymentForm.gstin || DEFAULT_GSTIN,
         orderId: paymentForm.orderId || 'Offline',
@@ -427,7 +422,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (result) {
         setTemplateMessage(`✓ Payment request sent! Ref: ${paymentForm.referenceId}`);
         setShowPaymentDialog(false);
-        setPaymentForm({ items: [{ name: '', amount: '', quantity: '1', gstRate: '0' }], referenceId: '', promo: '0', express: '0', handling: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE-DIGITAL', phoneNumberId: PAYMENT_CONFIG.phoneNumberId, orderId: '' });
+        setPaymentForm({ items: [{ name: '', amount: '', quantity: '1', gstRate: '0' }], referenceId: '', promo: '0', express: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE-DIGITAL', phoneNumberId: PAYMENT_CONFIG.phoneNumberId, orderId: '' });
       } else {
         const connStatus = api.getConnectionStatus();
         setTemplateMessage(`× Failed: ${connStatus.lastError || 'Unknown error'}`);
@@ -793,17 +788,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 />
               </div>
               <div className={styles['variable-input-row']}>
-                <label>Handling (₹)</label>
-                <input
-                  type="number"
-                  value={paymentForm.handling}
-                  onChange={(e) => setPaymentForm({...paymentForm, handling: e.target.value})}
-                  placeholder="0"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-              <div className={styles['variable-input-row']}>
                 <label>GSTIN</label>
                 <input
                   type="text"
@@ -826,8 +810,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 const convTotal = convBase + convGst;
                 const promo = parseFloat(paymentForm.promo) || 0;
                 const express = parseFloat(paymentForm.express) || 0;
-                const handling = parseFloat(paymentForm.handling) || 0;
-                const grand = subtotal + totalGst + convTotal - promo + express + handling;
+                const grand = subtotal + totalGst + convTotal - promo + express;
                 return (
                   <div className={`${styles['variable-input-row']} ${styles['full-width']}`} style={{ background: '#F0FDF4', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', color: '#374151', lineHeight: '1.6' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal ({items.length} item{items.length > 1 ? 's' : ''})</span><span>₹{subtotal.toFixed(2)}</span></div>
@@ -840,7 +823,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Conv. Fee (2%+18%GST)</span><span>₹{convTotal.toFixed(2)}</span></div>
                     {promo > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669' }}><span>Promo</span><span>-₹{promo.toFixed(2)}</span></div>}
                     {express > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Express</span><span>₹{express.toFixed(2)}</span></div>}
-                    {handling > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Handling</span><span>₹{handling.toFixed(2)}</span></div>}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #A7F3D0', paddingTop: '4px', marginTop: '4px', color: '#059669' }}><span>Total</span><span>₹{grand.toFixed(2)}</span></div>
                   </div>
                 );

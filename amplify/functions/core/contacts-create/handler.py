@@ -66,6 +66,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'name': body.get('name', '').strip(),
             'phone': phone,
             'email': email,
+            'shippingAddress': body.get('shippingAddress', '').strip() if body.get('shippingAddress') else None,
+            'billingAddress': body.get('billingAddress', '').strip() if body.get('billingAddress') else None,
             'optInWhatsApp': True,
             'optInSms': True,
             'optInEmail': True,
