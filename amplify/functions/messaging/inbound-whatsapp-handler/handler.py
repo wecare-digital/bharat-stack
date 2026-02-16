@@ -2273,23 +2273,61 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                           item_name: str = 'Services/Goods', gst_rate: float = 18,
                           shipping: float = 49, sender_phone: str = '',
                           quantity: int = 1, discount: float = 0,
+                          handling: float = 0,
+                          items: list = None,
                           payment_purpose: str = '', due_ref: str = '',
                           order_id: str = 'Offline', customer_name: str = '',
                           customer_phone: str = '', customer_email: str = '',
                           shipping_address: str = '', billing_address: str = '',
                           pay_for: str = 'self') -> None:
-    """Send WhatsApp Pay order_details message with GST breakdown and payment log."""
+    """Send WhatsApp Pay order_details message with per-item GST and payment log.
+    
+    Supports multi-item via `items` list of dicts:
+      [{'name': str, 'amount_paise': int, 'quantity': int, 'gst_rate': float}]
+    Falls back to single item_name/amount/quantity/gst_rate if items not provided.
+    """
     if not contact_id or amount <= 0:
         return
 
     try:
         reference_id = f"WDSR{uuid.uuid4().hex[:12].upper()}"
-        amount_in_paise = int(amount * 100)
         qty = max(1, int(quantity))
-        subtotal_paise = amount_in_paise * qty
+        
+        # Build items array for order_details with per-item GST
+        if items and len(items) > 0:
+            order_items = []
+            subtotal_paise = 0
+            gst_paise = 0
+            for i, item in enumerate(items):
+                i_amount = int(item.get('amount_paise', int(amount * 100)))
+                i_qty = int(item.get('quantity', 1))
+                i_name = item.get('name', item_name)
+                i_gst_rate = float(item.get('gst_rate', gst_rate))
+                i_line_total = i_amount * i_qty
+                subtotal_paise += i_line_total
+                gst_paise += int(round(i_line_total * i_gst_rate / 100 / 100, 2) * 100)
+                order_items.append({
+                    'retailer_id': f'ITEM_{i+1}',
+                    'name': i_name,
+                    'amount': {'value': i_amount, 'offset': 100},
+                    'quantity': i_qty,
+                    'gstRate': i_gst_rate,
+                })
+        else:
+            amount_in_paise = int(amount * 100)
+            subtotal_paise = amount_in_paise * qty
+            gst_paise = int(round(subtotal_paise * gst_rate / 100 / 100, 2) * 100)
+            order_items = [{
+                'retailer_id': 'ITEM_MAIN',
+                'name': item_name,
+                'amount': {'value': amount_in_paise, 'offset': 100},
+                'quantity': qty,
+                'gstRate': gst_rate,
+            }]
+        
         discount_paise = int(discount * 100)
-        gst_paise = int(round(subtotal_paise * gst_rate / 100 / 100, 2) * 100)
         shipping_paise = int(shipping * 100)
+        handling_paise = int(handling * 100)
 
         # Build payload matching outbound handler's isInteractivePayment format
         payload = {
@@ -2301,21 +2339,18 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                     'reference_id': reference_id,
                     'type': 'digital-goods',
                     'currency': 'INR',
-                    'itemName': item_name,
+                    'itemName': order_items[0]['name'] if order_items else item_name,
                     'quantity': qty,
                     'gstRate': gst_rate,
                     'gstin': '19AADFW7431N1ZK',
+                    'orderId': order_id or 'Offline',
                     'order': {
                         'status': 'pending',
-                        'items': [{
-                            'retailer_id': 'ITEM_MAIN',
-                            'name': item_name,
-                            'amount': {'value': amount_in_paise, 'offset': 100},
-                            'quantity': qty,
-                        }],
+                        'items': order_items,
                         'subtotal': {'value': subtotal_paise, 'offset': 100},
                         'discount': {'value': discount_paise, 'offset': 100, 'description': 'Promo'},
                         'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
+                        'handling': {'value': handling_paise, 'offset': 100, 'description': 'Handling'},
                         'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: 19AADFW7431N1ZK'},
                     },
                 }
@@ -2332,12 +2367,14 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
         conv_base_paise = int(round(subtotal_paise * 0.02 / 100, 2) * 100)
         conv_gst_paise = int(round(conv_base_paise * 0.18 / 100, 2) * 100)
         conv_total_paise = conv_base_paise + conv_gst_paise
-        total_paise = subtotal_paise - discount_paise + gst_paise + shipping_paise + conv_total_paise
+        total_paise = subtotal_paise - discount_paise + gst_paise + shipping_paise + handling_paise + conv_total_paise
 
         # Store payment request with full GST breakdown for accounting
         try:
             messages_table = dynamodb.Table(MESSAGES_TABLE)
             now = int(time.time())
+            # Build item summary for content field
+            item_summary = ' | '.join([f"{it['name']} x{it['quantity']} @₹{it['amount']['value']/100:.2f}" for it in order_items])
             messages_table.put_item(Item={k: v for k, v in {
                 'id': str(uuid.uuid4()),
                 'messageId': reference_id,
@@ -2345,18 +2382,20 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'channel': 'whatsapp',
                 'direction': 'outbound',
                 'messageType': 'payment_request',
-                'content': f'Payment: ₹{subtotal_paise/100:.2f} | {item_name} x{qty} | GST {gst_rate}%: ₹{gst_paise/100:.2f} | Promo: -₹{discount:.2f} | Ship: ₹{shipping:.2f} | Total: ₹{total_paise/100:.2f}',
+                'content': f'Payment: {item_summary} | GST {gst_rate}%: ₹{gst_paise/100:.2f} | Promo: -₹{discount:.2f} | Ship: ₹{shipping:.2f} | Handling: ₹{handling:.2f} | Total: ₹{total_paise/100:.2f}',
                 'paymentReferenceId': reference_id,
-                'paymentAmount': Decimal(str(amount_in_paise)),
+                'paymentAmount': Decimal(str(subtotal_paise)),
                 'paymentOffset': Decimal('100'),
                 'paymentCurrency': 'INR',
-                'paymentItemName': item_name,
+                'paymentItemName': order_items[0]['name'] if order_items else item_name,
+                'paymentItemCount': len(order_items),
                 'paymentQuantity': qty,
                 'paymentSubtotal': Decimal(str(subtotal_paise)),
                 'paymentDiscount': Decimal(str(discount_paise)),
                 'paymentGstRate': Decimal(str(gst_rate)),
                 'paymentGstAmount': Decimal(str(gst_paise)),
                 'paymentShipping': Decimal(str(shipping_paise)),
+                'paymentHandling': Decimal(str(handling_paise)),
                 'paymentConvFee': Decimal(str(conv_total_paise)),
                 'paymentTotal': Decimal(str(total_paise)),
                 'paymentGstin': '19AADFW7431N1ZK',
@@ -2411,16 +2450,16 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
             'event': 'payment_request_sent',
             'contactId': contact_id,
             'referenceId': reference_id,
-            'itemName': item_name,
-            'unitPrice': amount,
-            'quantity': qty,
+            'itemCount': len(order_items),
             'subtotal': subtotal_paise / 100,
             'discount': discount,
             'gstRate': gst_rate,
             'gstAmount': gst_paise / 100,
             'shipping': shipping,
+            'handling': handling,
             'convFee': conv_total_paise / 100,
             'total': total_paise / 100,
+            'orderId': order_id or 'Offline',
             'source': 'whatsapp_bot',
             'statusCode': response.get('StatusCode'),
             'requestId': request_id

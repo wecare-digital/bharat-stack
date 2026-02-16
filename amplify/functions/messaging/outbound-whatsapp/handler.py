@@ -1392,8 +1392,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
     # Handle INTERACTIVE order_details message (for within 24h window)
     # Structure:
     # BODY: Your payment is overdue—please tap below to complete it 💳🤝
-    # CART ITEMS: 1. Item Name, 2. Convenience Fee
-    # BREAKDOWN: Subtotal, Discount, Shipping, Tax (with GSTIN)
+    # CART ITEMS: from input items array
+    # BREAKDOWN: Subtotal, Discount, Shipping, Handling, Tax (with GSTIN)
     # TOTAL: auto-calculated
     if is_interactive_payment and order_details:
         from decimal import Decimal, ROUND_HALF_UP
@@ -1410,70 +1410,79 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         # Get order components from frontend
         order_data = order_details.get('order', {})
         
-        # Item details (user input)
-        item_name = order_details.get('itemName', 'Service Fee')
-        item_quantity = int(order_details.get('quantity', 1))
-        
-        # Get item amount from the first item in the items array (user input amount)
-        items_list = order_data.get('items', [])
-        if items_list and len(items_list) > 0:
-            first_item = items_list[0]
-            item_amount_paise = int(first_item.get('amount', {}).get('value', 100))
-            # Also get item name from items if not provided at top level
-            if not order_details.get('itemName'):
-                item_name = first_item.get('name', 'Service Fee')
-        else:
-            # Fallback to subtotal if no items array
-            item_amount_paise = int(order_data.get('subtotal', {}).get('value', 100))
-        
-        # GST rate (0, 3, 5, 12, 18, 28) - default 0 if not selected
-        gst_rate = float(order_details.get('gstRate', 0))
+        # GSTIN
         gstin = order_details.get('gstin', '19AADFW7431N1ZK')
         
-        # Discount & Delivery (user input, mandatory - show even if 0)
+        # Discount, Delivery & Handling (user input, mandatory - show even if 0)
         discount_paise = int(order_data.get('discount', {}).get('value', 0))
         delivery_paise = int(order_data.get('shipping', {}).get('value', 0))
+        handling_paise = int(order_data.get('handling', {}).get('value', 0))
         
-        # Total item value = unit price * quantity
-        item_total_paise = item_amount_paise * item_quantity
+        # Build items from input array (multi-item support with per-item GST)
+        items_list = order_data.get('items', [])
+        items_for_whatsapp = []
+        item_total_paise = 0
+        gst_paise = 0  # Total GST across all items
         
-        # Calculate GST on total item value (0 if no rate selected)
-        gst_paise = round_paise(Decimal(item_total_paise) * Decimal(str(gst_rate)) / Decimal("100")) if gst_rate > 0 else 0
+        for i, item in enumerate(items_list):
+            item_amount = int(item.get('amount', {}).get('value', 100))
+            item_qty = int(item.get('quantity', 1))
+            item_name = item.get('name', 'Service Fee')
+            item_line_total = item_amount * item_qty
+            item_total_paise += item_line_total
+            
+            # Per-item GST rate
+            item_gst_rate = float(item.get('gstRate', 0))
+            if item_gst_rate > 0:
+                gst_paise += round_paise(Decimal(item_line_total) * Decimal(str(item_gst_rate)) / Decimal("100"))
+            
+            items_for_whatsapp.append({
+                'retailer_id': item.get('retailer_id', f'ITEM_{i+1}'),
+                'name': item_name,
+                'amount': {'value': item_amount, 'offset': 100},
+                'quantity': item_qty
+            })
+        
+        # Fallback if no items
+        if not items_for_whatsapp:
+            item_name = order_details.get('itemName', 'Service Fee')
+            item_quantity = int(order_details.get('quantity', 1))
+            fallback_amount = int(order_data.get('subtotal', {}).get('value', 100))
+            item_total_paise = fallback_amount
+            items_for_whatsapp.append({
+                'retailer_id': 'ITEM_MAIN',
+                'name': item_name,
+                'amount': {'value': fallback_amount // max(item_quantity, 1), 'offset': 100},
+                'quantity': item_quantity
+            })
+            # Use tax value from order_data as fallback
+            gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
         # Convenience Fee: 2% of total item value + 18% GST on that 2%
         conv_base = round_paise(Decimal(item_total_paise) * Decimal("0.02"))
         conv_gst = round_paise(Decimal(conv_base) * Decimal("0.18"))
         conv_total = conv_base + conv_gst
         
+        # Add convenience fee as a line item
+        items_for_whatsapp.append({
+            'retailer_id': 'ITEM_CONV',
+            'name': 'Convenience Fee (Collected by Bank)',
+            'amount': {'value': conv_total, 'offset': 100},
+            'quantity': 1
+        })
+        
         # Build reference ID
         ref_id = _sanitize_reference_id(order_details.get('reference_id', ''))
         
-        # CART ITEMS: Main item + Convenience Fee
-        # WhatsApp calculates: subtotal = sum(item.amount * item.quantity)
-        items_for_whatsapp = [
-            {
-                'retailer_id': 'ITEM_MAIN',
-                'name': item_name,
-                'amount': {'value': item_amount_paise, 'offset': 100},
-                'quantity': item_quantity
-            },
-            {
-                'retailer_id': 'ITEM_CONV',
-                'name': 'Convenience Fee (Collected by Bank)',
-                'amount': {'value': conv_total, 'offset': 100},
-                'quantity': 1
-            }
-        ]
-        
-        # WhatsApp subtotal = sum of (item.amount * item.quantity) for all items
-        # = (item_amount_paise * item_quantity) + (conv_total * 1)
+        # WhatsApp subtotal = sum of (item.amount * item.quantity) for all items including conv fee
         whatsapp_subtotal = item_total_paise + conv_total
         
         # WhatsApp validates: total = subtotal - discount + shipping + tax
-        total_paise = whatsapp_subtotal - discount_paise + delivery_paise + gst_paise
+        # NOTE: handling is added to shipping since WhatsApp API may not support handling natively
+        effective_shipping = delivery_paise + handling_paise
+        total_paise = whatsapp_subtotal - discount_paise + effective_shipping + gst_paise
         
         # Build order object - ALL fields mandatory (show even if 0)
-        # WhatsApp interactive order_details supports: items, subtotal, discount, shipping, tax
         order_obj = {
             'status': 'pending',
             'items': items_for_whatsapp,
@@ -1484,9 +1493,9 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'description': 'Promo'
             },
             'shipping': {
-                'value': delivery_paise,
+                'value': effective_shipping,
                 'offset': 100,
-                'description': 'Express'
+                'description': 'Shipping + Handling' if handling_paise > 0 else 'Express'
             },
             'tax': {
                 'value': gst_paise,
@@ -1496,11 +1505,6 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         }
         
         # Build interactive order_details payload
-        # Structure per WhatsApp API:
-        # - header: image
-        # - body: text message
-        # - footer: business name
-        # - action: review_and_pay with order details
         interactive_payload = {
             'type': 'order_details',
             'header': {
@@ -1543,18 +1547,17 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         logger.info(json.dumps({
             'event': 'interactive_payment_payload_built',
             'referenceId': ref_id,
-            'itemName': item_name,
-            'itemUnitPrice': item_amount_paise / 100,
-            'quantity': item_quantity,
+            'itemCount': len(items_list),
             'itemTotal': item_total_paise / 100,
-            'gstRate': gst_rate,
-            'gstAmount': gst_paise / 100,
+            'gstTotal': gst_paise / 100,
             'discount': discount_paise / 100,
             'shipping': delivery_paise / 100,
+            'handling': handling_paise / 100,
             'convFee': conv_total / 100,
             'whatsappSubtotal': whatsapp_subtotal / 100,
             'total': total_paise / 100,
             'gstin': gstin,
+            'orderId': order_details.get('orderId', 'Offline'),
             'paymentConfig': order_details.get('payment_configuration', PHONE_PAYMENT_CONFIG.get(phone_number_id, DEFAULT_PAYMENT_CONFIG))
         }))
         

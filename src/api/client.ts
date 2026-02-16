@@ -1552,6 +1552,7 @@ export interface PaymentOrderItem {
   amount: number;  // In smallest currency unit (paise for INR)
   quantity: number;
   productId?: string;
+  gstRate?: number;  // Per-item GST rate (0, 3, 5, 12, 18, 28)
 }
 
 export interface SendPaymentMessageRequest {
@@ -1562,9 +1563,9 @@ export interface SendPaymentMessageRequest {
   items: PaymentOrderItem[];
   discount?: number;      // In paise
   delivery?: number;      // In paise (shipping/delivery)
-  tax?: number;           // In paise (from frontend - NOT auto-calculated)
+  handling?: number;      // In paise (handling fee)
+  tax?: number;           // In paise (total GST from all items)
   taxDescription?: string; // e.g., "GST 18%" or "Tax"
-  gstRate?: number;       // GST rate: 0, 3, 5, 12, 18, 28
   gstin?: string;         // GSTIN number
   currency?: string;
   headerImageUrl?: string;
@@ -1572,6 +1573,7 @@ export interface SendPaymentMessageRequest {
   useInteractive?: boolean;
   paymentConfiguration?: string;
   convenienceFee?: number; // In paise (2% + 18% GST)
+  orderId?: string;       // Order ID (blank = Offline)
 }
 
 /**
@@ -1590,6 +1592,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   const subtotal = request.items.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
   const discount = request.discount || 0;
   const delivery = request.delivery || 0;
+  const handling = request.handling || 0;
   const tax = request.tax || 0;
 
   // Get first item details for backend
@@ -1601,11 +1604,12 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
     type: 'digital-goods',
     payment_configuration: request.paymentConfiguration || 'WECARE-DIGITAL',
     currency: request.currency || 'INR',
-    // New fields for backend calculation
+    // First item name for backward compat
     itemName: firstItem.name || 'Service Fee',
     quantity: firstItem.quantity || 1,
-    gstRate: request.gstRate ?? 0,  // Use 0 as default if not specified
     gstin: request.gstin || DEFAULT_GSTIN,
+    orderId: request.orderId || 'Offline',
+    // Per-item GST rates passed in items array
     order: {
       status: 'pending',
       items: request.items.map((item, idx) => ({
@@ -1613,10 +1617,12 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
         name: item.name,
         amount: { value: item.amount, offset: 100 },
         quantity: item.quantity,
+        gstRate: item.gstRate ?? 0,
       })),
       subtotal: { value: subtotal, offset: 100 },
       discount: { value: discount, offset: 100, description: 'Promo' },
       shipping: { value: delivery, offset: 100, description: 'Express' },
+      handling: { value: handling, offset: 100, description: 'Handling' },
       tax: { value: tax, offset: 100, description: `GSTIN: ${request.gstin || DEFAULT_GSTIN}` },
     },
   };

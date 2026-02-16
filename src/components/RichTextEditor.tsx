@@ -11,17 +11,23 @@ import { generateReferenceId } from '../lib/formatters';
 import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_DETAILS, PAYMENT_UNLOCK_PASSWORD } from '../config/constants';
 
 // Payment dialog state
-interface PaymentDialogState {
-  itemName: string;
+interface PaymentItem {
+  name: string;
   amount: string;
   quantity: string;
+  gstRate: string;  // Per-item GST rate (0, 3, 5, 12, 18, 28)
+}
+
+interface PaymentDialogState {
+  items: PaymentItem[];
   referenceId: string;
   promo: string;      // Discount/Promo
   express: string;    // Delivery/Express
-  gstRate: string;    // GST rate (0, 3, 5, 12, 18, 28)
+  handling: string;   // Handling fee (₹)
   gstin: string;      // GSTIN number
   paymentMethod: string;  // Payment configuration name on WABA
   phoneNumberId: string;  // Which phone to send from
+  orderId: string;    // Order ID (blank = Offline)
 }
 
 interface RichTextEditorProps {
@@ -95,16 +101,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   } | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentForm, setPaymentForm] = useState<PaymentDialogState>({
-    itemName: '',
-    amount: '',
-    quantity: '1',
+    items: [{ name: '', amount: '', quantity: '1', gstRate: '0' }],
     referenceId: '',
     promo: '0',
     express: '0',
-    gstRate: '0',
+    handling: '0',
     gstin: DEFAULT_GSTIN,
     paymentMethod: 'WECARE-DIGITAL',
     phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
+    orderId: '',
   });
   const [sendingPayment, setSendingPayment] = useState(false);
   const [payPhone2Unlocked, setPayPhone2Unlocked] = useState(false);
@@ -354,7 +359,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   
   const sendPaymentMessage = async () => {
     if (!selectedContactId) return;
-    if (!paymentForm.itemName || !paymentForm.amount || !paymentForm.referenceId) return;
+    const validItems = paymentForm.items.filter(i => i.name.trim() && parseFloat(i.amount) > 0);
+    if (validItems.length === 0 || !paymentForm.referenceId) return;
 
     // Mandatory field enforcement: check contact has email + addresses
     try {
@@ -376,43 +382,43 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setTemplateMessage('Sending interactive payment request...');
 
     try {
-      const amountInPaise = Math.round(parseFloat(paymentForm.amount) * 100);
-      const quantity = parseInt(paymentForm.quantity) || 1;
+      // Build items array in paise with per-item GST
+      const itemsInPaise = validItems.map(item => {
+        const amt = Math.round(parseFloat(item.amount) * 100);
+        const qty = parseInt(item.quantity) || 1;
+        const rate = parseInt(item.gstRate) || 0;
+        return { name: item.name.trim(), amount: amt, quantity: qty, gstRate: rate };
+      });
+
       const promoInPaise = Math.round(parseFloat(paymentForm.promo || '0') * 100);
       const expressInPaise = Math.round(parseFloat(paymentForm.express || '0') * 100);
-      const gstRate = parseInt(paymentForm.gstRate) || 0;
-      // Calculate tax based on GST rate on full item total (amount × quantity)
-      const itemTotalPaise = amountInPaise * quantity;
-      const taxInPaise = Math.round(itemTotalPaise * gstRate / 100);
+      const handlingInPaise = Math.round(parseFloat(paymentForm.handling || '0') * 100);
+      // Calculate total tax = sum of per-item GST
+      const totalTaxPaise = itemsInPaise.reduce((sum, i) => sum + Math.round(i.amount * i.quantity * i.gstRate / 100), 0);
 
       console.log('Sending payment from RichTextEditor:', {
         contactId: selectedContactId,
-        itemName: paymentForm.itemName,
-        amount: amountInPaise,
-        quantity: paymentForm.quantity,
+        items: itemsInPaise,
         discount: promoInPaise,
         shipping: expressInPaise,
-        gstRate,
-        tax: taxInPaise,
+        handling: handlingInPaise,
+        totalTax: totalTaxPaise,
         gstin: paymentForm.gstin,
+        orderId: paymentForm.orderId || 'Offline',
       });
 
       const result = await api.sendWhatsAppPaymentMessage({
         contactId: selectedContactId,
-        // Use selected phone from payment dialog (both phones now have payment enabled)
         phoneNumberId: paymentForm.phoneNumberId,
         referenceId: paymentForm.referenceId,
-        items: [{
-          name: paymentForm.itemName,
-          amount: amountInPaise,
-          quantity: quantity,
-        }],
+        items: itemsInPaise.map(i => ({ name: i.name, amount: i.amount, quantity: i.quantity, gstRate: i.gstRate })),
         discount: promoInPaise,
         delivery: expressInPaise,
-        tax: taxInPaise,
-        gstRate: gstRate,
+        handling: handlingInPaise,
+        tax: totalTaxPaise,
         gstin: paymentForm.gstin || DEFAULT_GSTIN,
-        useInteractive: true, // ALWAYS use interactive mode from inbox
+        orderId: paymentForm.orderId || 'Offline',
+        useInteractive: true,
         paymentConfiguration: getPayConfigForPhone(paymentForm.phoneNumberId),
       });
 
@@ -421,7 +427,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (result) {
         setTemplateMessage(`✓ Payment request sent! Ref: ${paymentForm.referenceId}`);
         setShowPaymentDialog(false);
-        setPaymentForm({ itemName: '', amount: '', quantity: '1', referenceId: '', promo: '0', express: '0', gstRate: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE-DIGITAL', phoneNumberId: PAYMENT_CONFIG.phoneNumberId });
+        setPaymentForm({ items: [{ name: '', amount: '', quantity: '1', gstRate: '0' }], referenceId: '', promo: '0', express: '0', handling: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE-DIGITAL', phoneNumberId: PAYMENT_CONFIG.phoneNumberId, orderId: '' });
       } else {
         const connStatus = api.getConnectionStatus();
         setTemplateMessage(`× Failed: ${connStatus.lastError || 'Unknown error'}`);
@@ -675,35 +681,94 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 />
               </div>
               <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
-                <label>Item Name *</label>
+                <label>Order ID</label>
                 <input
                   type="text"
-                  value={paymentForm.itemName}
-                  onChange={(e) => setPaymentForm({...paymentForm, itemName: e.target.value})}
-                  placeholder="Service Fee"
-                  autoFocus
+                  value={paymentForm.orderId}
+                  onChange={(e) => setPaymentForm({...paymentForm, orderId: e.target.value})}
+                  placeholder="Blank = Offline"
                 />
               </div>
-              <div className={styles['variable-input-row']}>
-                <label>Amount (₹) *</label>
-                <input
-                  type="number"
-                  value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm({...paymentForm, amount: e.target.value})}
-                  placeholder="100"
-                  step="0.01"
-                  min="1"
-                />
-              </div>
-              <div className={styles['variable-input-row']}>
-                <label>Qty *</label>
-                <input
-                  type="number"
-                  value={paymentForm.quantity}
-                  onChange={(e) => setPaymentForm({...paymentForm, quantity: e.target.value})}
-                  placeholder="1"
-                  min="1"
-                />
+              {/* Multi-item rows with per-item GST */}
+              {paymentForm.items.map((item, idx) => {
+                const itemAmt = parseFloat(item.amount) || 0;
+                const itemQty = parseInt(item.quantity) || 1;
+                const itemGst = parseInt(item.gstRate) || 0;
+                const itemTotal = itemAmt * itemQty;
+                const itemTax = itemTotal * itemGst / 100;
+                return (
+                <React.Fragment key={idx}>
+                  <div className={`${styles['variable-input-row']} ${styles['full-width']}`} style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 2.5 }}>
+                      <label>{idx === 0 ? 'Item *' : `Item ${idx + 1} *`}</label>
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => { const items = [...paymentForm.items]; items[idx] = {...items[idx], name: e.target.value}; setPaymentForm({...paymentForm, items}); }}
+                        placeholder="Service Fee"
+                        autoFocus={idx === 0}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2 }}>
+                      <label>₹ *</label>
+                      <input
+                        type="number"
+                        value={item.amount}
+                        onChange={(e) => { const items = [...paymentForm.items]; items[idx] = {...items[idx], amount: e.target.value}; setPaymentForm({...paymentForm, items}); }}
+                        placeholder="100"
+                        step="0.01"
+                        min="1"
+                      />
+                    </div>
+                    <div style={{ flex: 0.6 }}>
+                      <label>Qty</label>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => { const items = [...paymentForm.items]; items[idx] = {...items[idx], quantity: e.target.value}; setPaymentForm({...paymentForm, items}); }}
+                        placeholder="1"
+                        min="1"
+                      />
+                    </div>
+                    <div style={{ flex: 0.8 }}>
+                      <label>GST</label>
+                      <select
+                        value={item.gstRate}
+                        onChange={(e) => { const items = [...paymentForm.items]; items[idx] = {...items[idx], gstRate: e.target.value}; setPaymentForm({...paymentForm, items}); }}
+                        style={{ padding: '6px 2px', fontSize: '12px' }}
+                      >
+                        <option value="0">0%</option>
+                        <option value="3">3%</option>
+                        <option value="5">5%</option>
+                        <option value="12">12%</option>
+                        <option value="18">18%</option>
+                        <option value="28">28%</option>
+                      </select>
+                    </div>
+                    {paymentForm.items.length > 1 && (
+                      <button
+                        onClick={() => { const items = paymentForm.items.filter((_, i) => i !== idx); setPaymentForm({...paymentForm, items}); }}
+                        style={{ padding: '4px 8px', borderRadius: '4px', background: '#f3f4f6', border: '1px solid #d1d5db', cursor: 'pointer', fontSize: '12px', marginBottom: '1px', color: '#6b7280' }}
+                        title="Remove item"
+                      >×</button>
+                    )}
+                  </div>
+                  {/* Per-item GST calculation */}
+                  {itemAmt > 0 && itemGst > 0 && (
+                    <div className={`${styles['variable-input-row']} ${styles['full-width']}`} style={{ marginTop: '-4px', paddingLeft: '4px' }}>
+                      <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                        ₹{itemTotal.toFixed(2)} + GST {itemGst}% = ₹{itemTax.toFixed(2)} tax
+                      </span>
+                    </div>
+                  )}
+                </React.Fragment>
+                );
+              })}
+              <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
+                <button
+                  onClick={() => setPaymentForm({...paymentForm, items: [...paymentForm.items, { name: '', amount: '', quantity: '1', gstRate: '0' }]})}
+                  style={{ padding: '4px 12px', borderRadius: '6px', background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', fontSize: '12px', cursor: 'pointer' }}
+                >+ Add Item</button>
               </div>
               <div className={styles['variable-input-row']}>
                 <label>Promo (₹)</label>
@@ -728,18 +793,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 />
               </div>
               <div className={styles['variable-input-row']}>
-                <label>Tax Rate</label>
-                <select
-                  value={paymentForm.gstRate}
-                  onChange={(e) => setPaymentForm({...paymentForm, gstRate: e.target.value})}
-                >
-                  <option value="0">0%</option>
-                  <option value="3">3%</option>
-                  <option value="5">5%</option>
-                  <option value="12">12%</option>
-                  <option value="18">18%</option>
-                  <option value="28">28%</option>
-                </select>
+                <label>Handling (₹)</label>
+                <input
+                  type="number"
+                  value={paymentForm.handling}
+                  onChange={(e) => setPaymentForm({...paymentForm, handling: e.target.value})}
+                  placeholder="0"
+                  step="0.01"
+                  min="0"
+                />
               </div>
               <div className={styles['variable-input-row']}>
                 <label>GSTIN</label>
@@ -750,6 +812,39 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   placeholder={DEFAULT_GSTIN}
                 />
               </div>
+              {/* Live calculation summary */}
+              {(() => {
+                const items = paymentForm.items.filter(i => parseFloat(i.amount) > 0);
+                if (items.length === 0) return null;
+                const subtotal = items.reduce((s, i) => s + (parseFloat(i.amount) || 0) * (parseInt(i.quantity) || 1), 0);
+                const totalGst = items.reduce((s, i) => {
+                  const t = (parseFloat(i.amount) || 0) * (parseInt(i.quantity) || 1);
+                  return s + t * (parseInt(i.gstRate) || 0) / 100;
+                }, 0);
+                const convBase = subtotal * 0.02;
+                const convGst = convBase * 0.18;
+                const convTotal = convBase + convGst;
+                const promo = parseFloat(paymentForm.promo) || 0;
+                const express = parseFloat(paymentForm.express) || 0;
+                const handling = parseFloat(paymentForm.handling) || 0;
+                const grand = subtotal + totalGst + convTotal - promo + express + handling;
+                return (
+                  <div className={`${styles['variable-input-row']} ${styles['full-width']}`} style={{ background: '#F0FDF4', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', color: '#374151', lineHeight: '1.6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal ({items.length} item{items.length > 1 ? 's' : ''})</span><span>₹{subtotal.toFixed(2)}</span></div>
+                    {totalGst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>GST (itemwise)</span><span>₹{totalGst.toFixed(2)}</span></div>}
+                    {totalGst > 0 && items.filter(i => (parseInt(i.gstRate) || 0) > 0).map((i, idx) => {
+                      const t = (parseFloat(i.amount) || 0) * (parseInt(i.quantity) || 1);
+                      const g = t * (parseInt(i.gstRate) || 0) / 100;
+                      return <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '10px', fontSize: '11px', color: '#6b7280' }}><span>{i.name || `Item ${idx+1}`} @ {i.gstRate}%</span><span>₹{g.toFixed(2)}</span></div>;
+                    })}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Conv. Fee (2%+18%GST)</span><span>₹{convTotal.toFixed(2)}</span></div>
+                    {promo > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669' }}><span>Promo</span><span>-₹{promo.toFixed(2)}</span></div>}
+                    {express > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Express</span><span>₹{express.toFixed(2)}</span></div>}
+                    {handling > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Handling</span><span>₹{handling.toFixed(2)}</span></div>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #A7F3D0', paddingTop: '4px', marginTop: '4px', color: '#059669' }}><span>Total</span><span>₹{grand.toFixed(2)}</span></div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <div className={styles['variable-dialog-actions']}>
@@ -759,7 +854,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <button
               className={styles['send-template-btn']}
               onClick={sendPaymentMessage}
-              disabled={sendingPayment || !paymentForm.itemName || !paymentForm.amount || !paymentForm.referenceId || isPayPhoneLocked()}
+              disabled={sendingPayment || paymentForm.items.every(i => !i.name.trim() || !parseFloat(i.amount)) || !paymentForm.referenceId || isPayPhoneLocked()}
             >
               {isPayPhoneLocked() ? '🔒 Unlock to send' : sendingPayment ? 'Sending...' : 'Send'}
             </button>
