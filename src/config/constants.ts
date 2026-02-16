@@ -55,12 +55,12 @@ export const PAYMENT_UNLOCK_PASSWORD = 'WeCare@Pay2026';
 
 // GST Rate Options
 export const GST_RATES = [
-  { value: 0, label: 'No GST (0%)' },
-  { value: 3, label: 'GST 3%' },
-  { value: 5, label: 'GST 5%' },
-  { value: 12, label: 'GST 12%' },
-  { value: 18, label: 'GST 18%' },
-  { value: 28, label: 'GST 28%' },
+  { value: 0, label: '0%' },
+  { value: 3, label: '3%' },
+  { value: 5, label: '5%' },
+  { value: 12, label: '12%' },
+  { value: 18, label: '18%' },
+  { value: 28, label: '28%' },
 ];
 
 // Convenience Fee Configuration

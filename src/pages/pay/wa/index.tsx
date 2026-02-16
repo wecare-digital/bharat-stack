@@ -285,21 +285,54 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             </div>
 
             <div className="form-section">
+              <h3>Order ID</h3>
+              <input type="text" value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="Blank = Offline" />
+            </div>
+
+            <div className="form-section">
               <h3>Item Details *</h3>
-              <div className="item-grid">
-                <div className="item-field"><label>Item Name *</label><input type="text" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Service Fee" /></div>
-                <div className="item-field"><label>Amount (₹) *</label><input type="number" value={itemAmount || ''} onChange={(e) => setItemAmount(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
-                <div className="item-field"><label>Qty *</label><input type="number" value={itemQuantity} onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)} min="1" /></div>
-              </div>
+              {items.map((item, idx) => (
+                <div key={idx} className="item-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 60px 90px 30px', gap: 8, marginBottom: 8, alignItems: 'end' }}>
+                  <div className="item-field"><label>{idx === 0 ? 'Item *' : `Item ${idx+1} *`}</label><input type="text" value={item.name} onChange={(e) => { const n = [...items]; n[idx] = {...n[idx], name: e.target.value}; setItems(n); }} placeholder="Service Fee" /></div>
+                  <div className="item-field"><label>₹ *</label><input type="number" value={item.amount || ''} onChange={(e) => { const n = [...items]; n[idx] = {...n[idx], amount: parseFloat(e.target.value) || 0}; setItems(n); }} placeholder="0" min="0" step="0.01" /></div>
+                  <div className="item-field"><label>Qty</label><input type="number" value={item.quantity} onChange={(e) => { const n = [...items]; n[idx] = {...n[idx], quantity: parseInt(e.target.value) || 1}; setItems(n); }} min="1" /></div>
+                  <div className="item-field"><label>GST%</label><select value={item.gstRate} onChange={(e) => { const n = [...items]; n[idx] = {...n[idx], gstRate: parseInt(e.target.value)}; setItems(n); }}>{GST_RATES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
+                  <div style={{ paddingBottom: 2 }}>
+                    {items.length > 1 && <button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', color: '#059669', fontSize: 18, cursor: 'pointer', padding: 0 }} title="Remove">×</button>}
+                  </div>
+                </div>
+              ))}
+              <button type="button" onClick={() => setItems([...items, { name: '', amount: 0, quantity: 1, gstRate: 0 }])} style={{ padding: '4px 12px', borderRadius: 8, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', fontSize: 12, cursor: 'pointer', marginTop: 4 }}>+ Add Item</button>
             </div>
 
             <div className="form-section">
               <h3>Breakdown</h3>
               <div className="breakdown-grid">
                 <div className="breakdown-field"><label>Promo (₹)</label><input type="number" value={discount || ''} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
-                <div className="breakdown-field"><label>Express (₹)</label><input type="number" value={shipping || ''} onChange={(e) => setShipping(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
-                <div className="breakdown-field"><label>Tax Rate</label><select value={gstRate} onChange={(e) => setGstRate(parseInt(e.target.value))}>{GST_RATES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
-                <div className="breakdown-field full-width"><label>GSTIN</label><input type="text" value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="19AADFW7431N1ZK" /></div>
+                <div className="breakdown-field"><label>Express / Shipping (₹)</label><input type="number" value={shipping || ''} onChange={(e) => setShipping(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
+                <div className="breakdown-field"><label>Handling (₹)</label><input type="number" value={handling || ''} onChange={(e) => setHandling(parseFloat(e.target.value) || 0)} placeholder="0" min="0" step="0.01" /></div>
+                <div className="breakdown-field"><label>GSTIN</label><input type="text" value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="19AADFW7431N1ZK" /></div>
+              </div>
+            </div>
+
+            {/* Live Calculation Summary */}
+            <div className="form-section" style={{ background: '#ECFDF5', padding: 14, borderRadius: 13, border: '1px solid #A7F3D0' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 13 }}>Calculation Summary</h3>
+              {items.filter(i => i.name.trim() && i.amount > 0).map((item, idx) => {
+                const lineTotal = item.amount * item.quantity;
+                const lineTax = lineTotal * item.gstRate / 100;
+                return (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
+                    <span>{item.name} (×{item.quantity}) @ {item.gstRate}% GST</span>
+                    <span>₹{lineTotal.toFixed(2)} + ₹{lineTax.toFixed(2)} tax</span>
+                  </div>
+                );
+              })}
+              <div style={{ borderTop: '1px dashed #059669', marginTop: 6, paddingTop: 6, fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                <span>Conv. Fee (2% + 18% GST)</span><span>₹{calculateConvenienceFee().toFixed(2)}</span>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
+                <span>Total</span><span>₹{calculateTotal().toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -311,20 +344,28 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="preview-body">Your payment is overdue - please tap below to complete it</div>
               <div className="preview-section">
                 <div className="section-title">CART ITEMS</div>
-                <div className="cart-item"><span>{itemName || '—'}</span><span>₹{itemAmount.toFixed(2)} × {itemQuantity} = ₹{calculateItemTotal().toFixed(2)}</span></div>
+                {items.filter(i => i.name.trim()).map((item, idx) => (
+                  <div key={idx} className="cart-item"><span>{item.name}</span><span>₹{item.amount.toFixed(2)} × {item.quantity} = ₹{(item.amount * item.quantity).toFixed(2)}</span></div>
+                ))}
+                {items.filter(i => i.name.trim()).length === 0 && <div className="cart-item"><span>—</span><span>₹0.00</span></div>}
                 <div className="cart-item conv-fee"><span>Conv. Fee (Bank)</span><span>₹{calculateConvenienceFee().toFixed(2)}</span></div>
               </div>
               <div className="preview-section">
                 <div className="section-title">BREAKDOWN</div>
                 <div className="breakdown-row"><span>Subtotal</span><span>₹{calculateSubtotal().toFixed(2)}</span></div>
                 <div className="breakdown-row"><span>Promo</span><span>-₹{discount.toFixed(2)}</span></div>
-                <div className="breakdown-row"><span>Express</span><span>₹{shipping.toFixed(2)}</span></div>
-                <div className="breakdown-row"><span>Tax</span><span>₹{calculateTax().toFixed(2)}</span></div>
+                <div className="breakdown-row"><span>Shipping</span><span>₹{shipping.toFixed(2)}</span></div>
+                <div className="breakdown-row"><span>Handling</span><span>₹{handling.toFixed(2)}</span></div>
+                <div className="breakdown-row"><span>Tax (GST)</span><span>₹{calculateTax().toFixed(2)}</span></div>
               </div>
               <div className="preview-total"><span>TOTAL</span><span>₹{calculateTotal().toFixed(2)}</span></div>
-              <div className="preview-config"><small>To: {selectedContactInfo?.name || '—'}</small><small>Ref: {formatReferenceNumber(referenceId)}</small></div>
+              <div className="preview-config">
+                <small>To: {selectedContactInfo?.name || '—'}</small>
+                <small>Ref: {formatReferenceNumber(referenceId)}</small>
+                <small>Order: {orderId || 'Offline'}</small>
+              </div>
             </div>
-            <Button variant="primary" className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0 || isPhoneLocked} loading={sending}>
+            <Button variant="primary" className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || items.filter(i => i.name.trim() && i.amount > 0).length === 0 || isPhoneLocked} loading={sending}>
               {isPhoneLocked ? 'Unlock phone to send' : sending ? 'Sending...' : 'Send Payment'}
             </Button>
           </div>
