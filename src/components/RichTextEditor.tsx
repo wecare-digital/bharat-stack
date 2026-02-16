@@ -40,6 +40,11 @@ interface RichTextEditorProps {
   phoneNumberId?: string;
   onAttachClick?: () => void;
   onSendTTS?: (data: { text: string; voiceId: string; languageCode: string; engine: string }) => Promise<boolean>;
+  onEmojiClick?: () => void;
+  emojiActive?: boolean;
+  onInteractiveClick?: () => void;
+  interactiveActive?: boolean;
+  onLocationClick?: () => void;
 }
 
 // Variable placeholders for templates
@@ -66,6 +71,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   phoneNumberId,
   onAttachClick,
   onSendTTS,
+  onEmojiClick,
+  emojiActive = false,
+  onInteractiveClick,
+  interactiveActive = false,
+  onLocationClick,
 }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
@@ -945,6 +955,42 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             title="Text-to-Speech (Polly)"
           >
             <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 10v2a7 7 0 0 1-7 7m-7-9v2a7 7 0 0 0 7 7m0 0v3m-4 0h8m-4-7a3 3 0 0 1-3-3V5a3 3 0 1 1 6 0v7a3 3 0 0 1-3 3"/></svg>
+          </button>
+        )}
+
+        {/* Emoji Button (WhatsApp only) */}
+        {channel === 'whatsapp' && onEmojiClick && (
+          <button
+            type="button"
+            className={`${styles['toolbar-btn']} ${emojiActive ? styles['active'] : ''}`}
+            onClick={onEmojiClick}
+            title="Emoji"
+          >
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 9h.01M9 9h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10m-6.5-3a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m-6 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m2.5 8.5c2.5 0 4.5-1.833 4.5-3.5h-9c0 1.667 2 3.5 4.5 3.5"/></svg>
+          </button>
+        )}
+
+        {/* Interactive List Button (WhatsApp only) */}
+        {channel === 'whatsapp' && onInteractiveClick && (
+          <button
+            type="button"
+            className={`${styles['toolbar-btn']} ${interactiveActive ? styles['active'] : ''}`}
+            onClick={onInteractiveClick}
+            title="Interactive Message (List / Buttons)"
+          >
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 12H9m12-6H9m12 12H9m-4-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0m0-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0m0 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
+          </button>
+        )}
+
+        {/* Location Request Button (WhatsApp only) */}
+        {channel === 'whatsapp' && onLocationClick && (
+          <button
+            type="button"
+            className={styles['toolbar-btn']}
+            onClick={onLocationClick}
+            title="Request Location"
+          >
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#10B981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.5 5h.434c3.048 0 4.571 0 5.15.547a2 2 0 0 1 .586 1.845c-.156.781-1.4 1.66-3.888 3.42l-4.064 2.876c-2.488 1.76-3.732 2.639-3.888 3.42a2 2 0 0 0 .586 1.845c.579.547 2.102.547 5.15.547h.934M8 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m14 14a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/></svg>
           </button>
         )}
 

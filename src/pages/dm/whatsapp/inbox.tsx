@@ -67,6 +67,13 @@ const AVATAR_COLORS = [
   '#2563eb', '#4f46e5', '#0d9488', '#c026d3', '#d97706',
 ];
 
+// Delete/clear icon — backspace tag with X (emerald themed)
+const DeleteIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m17 9-6 6m0-6 6 6M2.72 12.96l4.32 5.76c.352.47.528.704.751.873.198.15.421.262.66.33C8.72 20 9.013 20 9.6 20h7.6c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C22 17.72 22 16.88 22 15.2V8.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C19.72 4 18.88 4 17.2 4H9.6c-.587 0-.88 0-1.15.077a2 2 0 0 0-.659.33c-.223.169-.399.404-.751.873l-4.32 5.76c-.258.344-.387.516-.437.705a1 1 0 0 0 0 .51c.05.189.179.36.437.705"/>
+  </svg>
+);
+
 const getAvatarColor = (name: string): string => {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -909,13 +916,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                 title="Delete all messages and contacts"
                 className="delete-all-btn"
               >
-                {clearing ? '...' : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                  </svg>
-                )}
+                {clearing ? '...' : <DeleteIcon size={16} />}
               </button>
               <input
                 type="text"
@@ -1005,7 +1006,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                       disabled={deleting === contact.id}
                       title="Delete contact"
                     >
-                      {deleting === contact.id ? '...' : '×'}
+                      {deleting === contact.id ? '...' : <DeleteIcon size={14} />}
                     </button>
                   </div>
                 </div>
@@ -1061,7 +1062,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     disabled={deleting === 'clearing' || filteredMessages.length === 0}
                     title="Clear all messages for this contact"
                   >
-                    {deleting === 'clearing' ? '...' : '×'}
+                    {deleting === 'clearing' ? '...' : <DeleteIcon size={14} />}
                   </button>
                 </div>
               </div>
@@ -1213,7 +1214,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                               disabled={deleting === msg.id}
                               title="Delete message"
                             >
-                              {deleting === msg.id ? '...' : '×'}
+                              {deleting === msg.id ? '...' : <DeleteIcon size={12} />}
                             </button>
                           </div>
                         )}
@@ -1225,7 +1226,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                               disabled={deleting === msg.id}
                               title="Delete message"
                             >
-                              {deleting === msg.id ? '...' : '×'}
+                              {deleting === msg.id ? '...' : <DeleteIcon size={12} />}
                             </button>
                           </div>
                         )}
@@ -1249,7 +1250,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                         <span>{mediaFile?.name}</span>
                       </div>
                     )}
-                    <button className="clear-media-btn" onClick={clearMedia}>×</button>
+                    <button className="clear-media-btn" onClick={clearMedia}><DeleteIcon size={12} /></button>
                   </div>
                 )}
                 
