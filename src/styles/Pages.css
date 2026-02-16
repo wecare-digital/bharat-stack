@@ -2094,7 +2094,7 @@
 .contact-delete-btn {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: #059669;
   cursor: pointer;
   font-size: var(--text-xs);
   padding: 4px;
@@ -2103,8 +2103,8 @@
 }
 
 .contact-delete-btn:hover {
-  background: var(--danger-light);
-  color: var(--danger);
+  background: #ECFDF5;
+  color: #047857;
 }
 
 /* Chat Area */
@@ -2163,8 +2163,8 @@
 
 .clear-chat-btn {
   background: none;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
+  border: 1px solid #d1fae5;
+  color: #059669;
   padding: 6px 8px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -2173,9 +2173,9 @@
 }
 
 .clear-chat-btn:hover {
-  background: var(--danger-light);
-  border-color: var(--danger);
-  color: var(--danger);
+  background: #ECFDF5;
+  border-color: #10b981;
+  color: #047857;
 }
 
 /* Messages Area */
@@ -2291,9 +2291,9 @@
 
 .reaction-btn,
 .delete-msg-btn {
-  background: var(--bg-secondary);
+  background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: #059669;
   padding: 4px 6px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -2302,13 +2302,13 @@
 }
 
 .reaction-btn:hover {
-  background: var(--accent-light);
-  color: var(--accent);
+  background: #ECFDF5;
+  color: #047857;
 }
 
 .delete-msg-btn:hover {
-  background: var(--danger-light);
-  color: var(--danger);
+  background: #ECFDF5;
+  color: #047857;
 }
 
 /* Media in messages */
@@ -2405,8 +2405,8 @@
 
 .clear-media-btn {
   background: #fff;
-  border: 1px solid #e5e7eb;
-  color: #6b7280;
+  border: 1px solid #d1fae5;
+  color: #059669;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -2416,9 +2416,9 @@
 }
 
 .clear-media-btn:hover {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
+  background: #ECFDF5;
+  color: #047857;
+  border-color: #10b981;
 }
 
 .input-wrapper {

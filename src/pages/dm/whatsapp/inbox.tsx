@@ -70,7 +70,7 @@ const AVATAR_COLORS = [
 // Delete/clear icon — trash can (emerald themed)
 const DeleteIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
+    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
   </svg>
 );
 
@@ -917,7 +917,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                 title="Delete all messages and contacts"
                 className="delete-all-btn"
               >
-                {clearing ? '...' : <DeleteIcon size={16} />}
+                {clearing ? '...' : <DeleteIcon size={18} />}
               </button>
               <input
                 type="text"
