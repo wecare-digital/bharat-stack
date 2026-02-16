@@ -2160,13 +2160,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
                       { event: 'payment.captured', desc: 'Payment successful', color: '#10b981' },
-                      { event: 'payment.failed', desc: 'Payment failed', color: '#ef4444' },
+                      { event: 'payment.failed', desc: 'Payment failed', color: '#6b7280' },
                       { event: 'payment.authorized', desc: 'Payment authorized', color: '#10b981' },
                       { event: 'refund.created', desc: 'Refund initiated', color: '#6b7280' },
                       { event: 'refund.processed', desc: 'Refund completed', color: '#10b981' },
                       { event: 'order.paid', desc: 'Order paid', color: '#10b981' },
                       { event: 'payment_link.paid', desc: 'Payment link used', color: '#10b981' },
-                      { event: 'payment.dispute.*', desc: 'Dispute events', color: '#ef4444' },
+                      { event: 'payment.dispute.*', desc: 'Dispute events', color: '#6b7280' },
                       { event: 'settlement.*', desc: 'Settlement events', color: '#10b981' },
                     ].map(({ event, desc, color }) => (
                       <div key={event} style={{ background: '#D1FAE5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
@@ -2551,7 +2551,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div key={path} style={{ marginBottom: '0.5rem' }}>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
                       <code style={{ fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>
-                        <span style={{ color: method === 'POST' ? '#059669' : method === 'DELETE' ? '#dc2626' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
+                        <span style={{ color: method === 'POST' ? '#059669' : method === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
                       </code>
                     </div>
                   ))}
@@ -2676,7 +2676,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                         { m: 'DELETE', p: '/whatsapp-calling', d: 'Clear logs' },
                       ].map(({ m, p, d }) => (
                         <div key={`${m}${p}`} style={{ background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          <code><span style={{ color: m === 'POST' ? '#059669' : m === 'DELETE' ? '#dc2626' : '#1d4ed8', fontWeight: 600, fontSize: '0.7rem' }}>{m}</span> <span style={{ fontSize: '0.75rem' }}>{p}</span></code>
+                          <code><span style={{ color: m === 'POST' ? '#059669' : m === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600, fontSize: '0.7rem' }}>{m}</span> <span style={{ fontSize: '0.75rem' }}>{p}</span></code>
                           <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: '4px' }}>{d}</span>
                         </div>
                       ))}
@@ -3005,7 +3005,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
       {/* Billing table expand styles - other styles in Dashboard.css */}
       <style jsx>{`
         .billing-row.warning { background: #ECFDF5; }
-        .billing-row.paid { background: #fef2f2; }
+        .billing-row.paid { background: #ECFDF5; }
         .expand-cell { width: 30px; }
         .expand-btn { width: 28px; height: 28px; border: 1px solid var(--notion-border, #e9e9e7); border-radius: 6px; background: var(--notion-bg, #fff); cursor: pointer; font-size: 16px; color: var(--notion-text-secondary, #787774); }
         .expand-btn:hover { background: var(--notion-bg-hover, #efefef); color: var(--notion-text, #37352f); }

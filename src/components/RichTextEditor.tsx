@@ -648,11 +648,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                       onChange={e => { setPayPasswordInput(e.target.value); setPayPasswordError(''); }}
                       onKeyDown={e => e.key === 'Enter' && handlePayPhoneUnlock()}
                       placeholder="Enter password"
-                      style={{ flex: 1, borderColor: payPasswordError ? '#dc2626' : undefined }}
+                      style={{ flex: 1, borderColor: payPasswordError ? '#059669' : undefined }}
                     />
                     <button onClick={handlePayPhoneUnlock} style={{ padding: '4px 12px', borderRadius: '6px', background: '#10B981', color: '#fff', border: 'none', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Unlock</button>
                   </div>
-                  {payPasswordError && <span style={{ color: '#dc2626', fontSize: '11px' }}>{payPasswordError}</span>}
+                  {payPasswordError && <span style={{ color: '#059669', fontSize: '11px' }}>{payPasswordError}</span>}
                 </div>
               )}
               {!isPayPhoneLocked() && PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.paymentProtected && (

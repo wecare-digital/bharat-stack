@@ -441,6 +441,9 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             ) : (
               /* ── Invoice List View ── */
               <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                  <Button variant="primary" onClick={() => { setTab('customers'); setMsg({ type: 'success', text: 'Select a customer, then click "Invoice" to create one.' }); }}>+ New Invoice</Button>
+                </div>
                 {invLoading ? <div className="crm-loading">Loading invoices...</div> : (
                   <>
                     <div className="crm-stats">
@@ -630,7 +633,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .crm-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
         .crm-msg { padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         .crm-msg.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-        .crm-msg.error { background: #ECFDF5; color: #059669; border: 1px solid #fca5a5; }
+        .crm-msg.error { background: #ECFDF5; color: #059669; border: 1px solid #6ee7b7; }
         .crm-msg button { background: none; border: none; font-size: 16px; cursor: pointer; color: inherit; }
         .crm-tab-content { margin-top: 16px; }
         .crm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
@@ -660,8 +663,10 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .btn-inv:hover { background: #d1fae5; }
         .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .badge.pending { background: #fef3c7; color: #92400e; }
-        .badge.paid { background: #d1fae5; color: #065f46; }
-        .badge.failed { background: #ECFDF5; color: #065f46; }
+        .badge.paid, .badge.captured { background: #d1fae5; color: #065f46; }
+        .badge.sent, .badge.delivered { background: #dbeafe; color: #1e40af; }
+        .badge.failed, .badge.cancelled { background: #ECFDF5; color: #065f46; }
+        .badge.created { background: #f3f4f6; color: #374151; }
         .crm-config { max-width: 600px; }
         .crm-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .crm-field { margin-bottom: 12px; }

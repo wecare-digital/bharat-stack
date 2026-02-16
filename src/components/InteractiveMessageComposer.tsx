@@ -572,8 +572,8 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           width: 32px;
           height: 32px;
           border: none;
-          background: #fee2e2;
-          color: #dc2626;
+          background: #ECFDF5;
+          color: #059669;
           border-radius: 6px;
           cursor: pointer;
           font-size: 16px;

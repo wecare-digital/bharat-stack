@@ -588,7 +588,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           font-size: 13px;
         }
         .clear-btn:hover {
-          color: #dc2626;
+          color: #059669;
         }
         .preview-table {
           overflow-x: auto;
@@ -649,7 +649,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           border: 1px solid #000;
         }
         .import-result.has-errors {
-          border-color: #dc2626;
+          border-color: #059669;
         }
         .import-stats {
           display: flex;
@@ -673,7 +673,7 @@ Rahul Kumar,+917654321098,rahul@gmail.com`;
           padding-top: 12px;
           border-top: 1px solid #e5e5e5;
           font-size: 13px;
-          color: #dc2626;
+          color: #059669;
         }
         .import-errors ul {
           margin: 8px 0 0 0;
