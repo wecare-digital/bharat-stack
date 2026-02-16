@@ -3410,3 +3410,176 @@ export async function syncWixOrders(): Promise<{ message: string }> {
   const data = await apiCall<any>(`${WIX_STORE_BASE}/sync/orders`, { method: 'POST' });
   return data || { message: 'Sync failed' };
 }
+
+// ============================================================================
+// INVOICE ENGINE API (Unified Invoice System)
+// Lambda: wecare-invoice-engine
+// ============================================================================
+
+const INVOICE_BASE = `${API_BASE}/invoices`;
+
+export interface InvoiceItem {
+  invoiceId: string;
+  itemIndex: number;
+  name: string;
+  amount: number;
+  quantity: number;
+  productId?: string;
+}
+
+export interface InvoiceAsset {
+  invoiceId: string;
+  assetType: 'image' | 'pdf';
+  s3Key: string;
+  url: string;
+  contentType: string;
+  version: number;
+  generatedAt: number;
+}
+
+export interface InvoiceDeliveryLog {
+  timestamp: number;
+  channel: string;
+  toNumber: string;
+  waMessageId: string;
+  status: string;
+  error: string;
+  imageUrl: string;
+}
+
+export interface Invoice {
+  invoiceId: string;
+  invoiceNumber: string;
+  paymentId: string;
+  orderId: string;
+  referenceId: string;
+  entryPoint: string;
+  status: string;
+  paymentStatus: string;
+  contactId: string;
+  customerName: string;
+  customerPhone: string;
+  paidByPhone: string;
+  customerEmail: string;
+  shippingAddress: string;
+  billingAddress: string;
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  gstRate: number;
+  tax: number;
+  convenienceFee: number;
+  total: number;
+  currency: string;
+  gstin: string;
+  purpose: string;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+  paidAt: number;
+  items?: InvoiceItem[];
+  assets?: InvoiceAsset[];
+}
+
+export interface CreateInvoiceEngineRequest {
+  customerPhone: string;
+  paidByPhone?: string;
+  customerEmail: string;
+  shippingAddress: string;
+  billingAddress: string;
+  customerName?: string;
+  contactId?: string;
+  items: { name: string; amount: number; quantity: number; productId?: string }[];
+  discount?: number;
+  shipping?: number;
+  gstRate?: number;
+  convenienceFee?: number;
+  purpose?: string;
+  orderId?: string;
+  referenceId?: string;
+  entryPoint?: string;
+  paymentId?: string;
+  gstin?: string;
+  currency?: string;
+}
+
+// Create invoice directly
+export async function createInvoiceEngine(request: CreateInvoiceEngineRequest): Promise<{ invoiceId: string; invoiceNumber: string; total: number } | null> {
+  return apiCall<{ invoiceId: string; invoiceNumber: string; total: number }>(INVOICE_BASE, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+// Create invoice from Razorpay payment ID
+export async function createInvoiceFromPayment(paymentId: string, extras?: Record<string, any>): Promise<{ invoiceId: string; invoiceNumber: string; total: number } | null> {
+  return apiCall<{ invoiceId: string; invoiceNumber: string; total: number }>(`${INVOICE_BASE}/from-payment`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentId, ...extras }),
+  });
+}
+
+// List invoices with optional filters
+export async function listInvoicesEngine(params?: { status?: string; contactId?: string; paymentId?: string; limit?: number }): Promise<{ invoices: Invoice[]; count: number }> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set('status', params.status);
+  if (params?.contactId) query.set('contactId', params.contactId);
+  if (params?.paymentId) query.set('paymentId', params.paymentId);
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  const data = await apiCall<any>(`${INVOICE_BASE}${qs ? '?' + qs : ''}`);
+  return { invoices: data?.invoices || [], count: data?.count || 0 };
+}
+
+// Get single invoice with items and assets
+export async function getInvoiceEngine(invoiceId: string): Promise<Invoice | null> {
+  const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}`);
+  return data?.invoice || null;
+}
+
+// Update invoice (admin)
+export async function updateInvoiceEngine(invoiceId: string, updates: Partial<Invoice>): Promise<boolean> {
+  const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return data?.updated === true;
+}
+
+// Generate invoice image (PNG)
+export async function generateInvoiceImage(invoiceId: string): Promise<{ invoiceId: string; imageUrl: string; s3Key: string } | null> {
+  return apiCall<{ invoiceId: string; imageUrl: string; s3Key: string }>(`${INVOICE_BASE}/${invoiceId}/generate-image`, {
+    method: 'POST',
+    body: JSON.stringify({ invoiceId }),
+  });
+}
+
+// Generate invoice PDF
+export async function generateInvoicePdf(invoiceId: string): Promise<{ invoiceId: string; pdfUrl: string; s3Key: string } | null> {
+  return apiCall<{ invoiceId: string; pdfUrl: string; s3Key: string }>(`${INVOICE_BASE}/${invoiceId}/generate-pdf`, {
+    method: 'POST',
+    body: JSON.stringify({ invoiceId }),
+  });
+}
+
+// Send invoice image on WhatsApp
+export async function sendInvoiceWhatsApp(invoiceId: string, toWhatsAppNumber: string, phoneNumberId?: string): Promise<{ invoiceId: string; waMessageId: string; status: string; imageUrl: string } | null> {
+  return apiCall<{ invoiceId: string; waMessageId: string; status: string; imageUrl: string }>(`${INVOICE_BASE}/${invoiceId}/send-whatsapp`, {
+    method: 'POST',
+    body: JSON.stringify({ invoiceId, toWhatsAppNumber, phoneNumberId }),
+  });
+}
+
+// Get delivery log for an invoice
+export async function getInvoiceDeliveryLog(invoiceId: string): Promise<{ deliveryLogs: InvoiceDeliveryLog[]; count: number }> {
+  const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}/delivery-log`);
+  return { deliveryLogs: data?.deliveryLogs || [], count: data?.count || 0 };
+}
+
+// Preview next invoice number (without incrementing)
+export async function previewNextInvoiceNumber(fy?: string): Promise<{ nextInvoiceNumber: string; fy: string; lastSeq: number } | null> {
+  return apiCall<{ nextInvoiceNumber: string; fy: string; lastSeq: number }>(`${INVOICE_BASE}/next-sequence`, {
+    method: 'POST',
+    body: JSON.stringify({ fy }),
+  });
+}

@@ -15,6 +15,7 @@ import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 import { API_BASE } from '../../../config/constants';
+import type { Invoice, InvoiceDeliveryLog } from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -23,12 +24,7 @@ interface CustomerRecord {
   id: string; contactId: string; name: string; phone: string; email: string;
   shippingAddress: string; billingAddress: string; createdAt: string; updatedAt: string;
 }
-interface InvoiceRecord {
-  id: string; contactId: string; customerName: string; customerPhone: string;
-  itemName: string; unitPrice: number; quantity: number; gstRate: number;
-  shipping: number; discount: number; total: number; purpose: string;
-  orderId: string; status: string; createdAt: string;
-}
+// InvoiceRecord now uses the Invoice type from api/client
 interface DueRecord {
   id: string; ref: string; customerName: string; customerPhone: string;
   itemName: string; amount: number; status: string; createdAt: string;
@@ -71,9 +67,13 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const [invoiceSaving, setInvoiceSaving] = useState(false);
 
-  // ── Invoices list state ──
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  // ── Invoices list state (from InvoicesTable via invoice engine) ──
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invLoading, setInvLoading] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invDetailLoading, setInvDetailLoading] = useState(false);
+  const [invDeliveryLogs, setInvDeliveryLogs] = useState<InvoiceDeliveryLog[]>([]);
+  const [invActionLoading, setInvActionLoading] = useState<string | null>(null); // 'image' | 'pdf' | 'send' | null
 
   // ── Dues state ──
   const [dues, setDues] = useState<DueRecord[]>([]);
@@ -108,33 +108,26 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     finally { setCustLoading(false); }
   }, []);
 
-  // ── Load invoices ──
+  // ── Load invoices from InvoicesTable ──
   const loadInvoices = useCallback(async () => {
     setInvLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/messages?messageType=payment_request&limit=50`);
-      if (!res.ok) throw new Error('Failed');
-      const json = await res.json();
-      const raw: any[] = json.messages || (Array.isArray(json) ? json : []);
-      setInvoices(raw.map((m: any) => ({
-        id: m.messageId || m.id || '',
-        contactId: m.contactId || '',
-        customerName: m.paymentCustomerName || m.customerName || '',
-        customerPhone: m.senderPhone || '',
-        itemName: m.paymentItemName || 'Services/Goods',
-        unitPrice: parseFloat(m.paymentAmount || 0),
-        quantity: parseInt(m.paymentQuantity || 1),
-        gstRate: parseFloat(m.paymentGstRate || 18),
-        shipping: parseFloat(m.paymentShipping || 49),
-        discount: parseFloat(m.paymentDiscount || 0),
-        total: parseFloat(m.paymentTotal || 0),
-        purpose: m.paymentPurpose || '',
-        orderId: m.paymentOrderId || 'Offline',
-        status: m.status || 'pending',
-        createdAt: m.createdAt ? new Date(Number(m.createdAt) * 1000).toLocaleDateString() : '',
-      })));
+      const result = await api.listInvoicesEngine({ limit: 100 });
+      setInvoices(result.invoices || []);
     } catch (err) { console.error('Load invoices error:', err); }
     finally { setInvLoading(false); }
+  }, []);
+
+  // ── Load single invoice detail ──
+  const loadInvoiceDetail = useCallback(async (invoiceId: string) => {
+    setInvDetailLoading(true);
+    try {
+      const inv = await api.getInvoiceEngine(invoiceId);
+      if (inv) setSelectedInvoice(inv);
+      const logs = await api.getInvoiceDeliveryLog(invoiceId);
+      setInvDeliveryLogs(logs.deliveryLogs || []);
+    } catch (err) { console.error('Load invoice detail error:', err); }
+    finally { setInvDetailLoading(false); }
   }, []);
 
   // ── Load pending dues ──
@@ -312,33 +305,158 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         {/* ═══ INVOICES TAB ═══ */}
         {tab === 'invoices' && (
           <div className="crm-tab-content">
-            {invLoading ? <div className="crm-loading">Loading invoices...</div> : (
+            {selectedInvoice ? (
+              /* ── Invoice Detail View ── */
+              <div className="inv-detail">
+                <button className="inv-back" onClick={() => { setSelectedInvoice(null); setInvDeliveryLogs([]); }}>← Back to list</button>
+                {invDetailLoading ? <div className="crm-loading">Loading...</div> : (
+                  <>
+                    <div className="inv-header">
+                      <div>
+                        <div className="inv-num">{selectedInvoice.invoiceNumber || 'Draft'}</div>
+                        <div className="inv-meta">{selectedInvoice.customerName} — {selectedInvoice.customerPhone}</div>
+                        {selectedInvoice.customerEmail && <div className="inv-meta">Email: {selectedInvoice.customerEmail}</div>}
+                        {selectedInvoice.purpose && <div className="inv-meta">Purpose: {selectedInvoice.purpose}</div>}
+                        <div className="inv-meta">Entry: {selectedInvoice.entryPoint || '—'} | Payment: <span className={`badge ${selectedInvoice.paymentStatus}`}>{selectedInvoice.paymentStatus || '—'}</span></div>
+                      </div>
+                      <div className="inv-total-box">
+                        <div className="inv-total-label">Total</div>
+                        <div className="inv-total-val">Rs. {(selectedInvoice.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                        <span className={`badge ${selectedInvoice.status}`}>{selectedInvoice.status}</span>
+                      </div>
+                    </div>
+
+                    {/* Addresses */}
+                    <div className="inv-addr-row">
+                      <div className="inv-addr"><div className="inv-addr-label">Bill To</div><div>{selectedInvoice.billingAddress || '—'}</div></div>
+                      <div className="inv-addr"><div className="inv-addr-label">Ship To</div><div>{selectedInvoice.shippingAddress || '—'}</div></div>
+                    </div>
+
+                    {/* Items */}
+                    {selectedInvoice.items && selectedInvoice.items.length > 0 && (
+                      <table className="crm-table" style={{ marginBottom: 12 }}>
+                        <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+                        <tbody>
+                          {selectedInvoice.items.map((it, i) => (
+                            <tr key={i}><td>{i + 1}</td><td>{it.name}</td><td>{it.quantity}</td><td>Rs. {it.amount.toLocaleString()}</td><td>Rs. {(it.amount * it.quantity).toLocaleString()}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+
+                    {/* Breakdown */}
+                    <div className="inv-breakdown">
+                      <div className="inv-bk-row"><span>Subtotal</span><span>Rs. {(selectedInvoice.subtotal || 0).toFixed(2)}</span></div>
+                      {selectedInvoice.discount > 0 && <div className="inv-bk-row"><span>Discount</span><span>-Rs. {selectedInvoice.discount.toFixed(2)}</span></div>}
+                      {selectedInvoice.shipping > 0 && <div className="inv-bk-row"><span>Shipping</span><span>Rs. {selectedInvoice.shipping.toFixed(2)}</span></div>}
+                      <div className="inv-bk-row"><span>CGST @{(selectedInvoice.gstRate / 2).toFixed(1)}%</span><span>Rs. {(selectedInvoice.tax / 2).toFixed(2)}</span></div>
+                      <div className="inv-bk-row"><span>SGST @{(selectedInvoice.gstRate / 2).toFixed(1)}%</span><span>Rs. {(selectedInvoice.tax / 2).toFixed(2)}</span></div>
+                      {selectedInvoice.convenienceFee > 0 && <div className="inv-bk-row"><span>Conv. Fee</span><span>Rs. {selectedInvoice.convenienceFee.toFixed(2)}</span></div>}
+                      <div className="inv-bk-row inv-bk-total"><span>Grand Total</span><span>Rs. {(selectedInvoice.total || 0).toFixed(2)}</span></div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="inv-actions">
+                      <Button variant="primary" loading={invActionLoading === 'image'} onClick={async () => {
+                        setInvActionLoading('image'); setMsg(null);
+                        try {
+                          const r = await api.generateInvoiceImage(selectedInvoice.invoiceId);
+                          if (r?.imageUrl) { window.open(r.imageUrl, '_blank'); setMsg({ type: 'success', text: 'Image generated' }); }
+                          else setMsg({ type: 'error', text: 'Image generation failed' });
+                        } catch { setMsg({ type: 'error', text: 'Error generating image' }); }
+                        finally { setInvActionLoading(null); }
+                      }}>Download Image</Button>
+                      <Button variant="secondary" loading={invActionLoading === 'pdf'} onClick={async () => {
+                        setInvActionLoading('pdf'); setMsg(null);
+                        try {
+                          const r = await api.generateInvoicePdf(selectedInvoice.invoiceId);
+                          if (r?.pdfUrl) { window.open(r.pdfUrl, '_blank'); setMsg({ type: 'success', text: 'PDF generated' }); }
+                          else setMsg({ type: 'error', text: 'PDF generation failed' });
+                        } catch { setMsg({ type: 'error', text: 'Error generating PDF' }); }
+                        finally { setInvActionLoading(null); }
+                      }}>Download PDF</Button>
+                      <Button variant="primary" loading={invActionLoading === 'send'} onClick={async () => {
+                        if (!selectedInvoice.customerPhone) { setMsg({ type: 'error', text: 'No phone number' }); return; }
+                        setInvActionLoading('send'); setMsg(null);
+                        try {
+                          const r = await api.sendInvoiceWhatsApp(selectedInvoice.invoiceId, selectedInvoice.customerPhone);
+                          if (r?.status === 'sent' || r?.status === 'delivered' || r?.waMessageId) {
+                            setMsg({ type: 'success', text: `Invoice sent to ${selectedInvoice.customerPhone}` });
+                            loadInvoiceDetail(selectedInvoice.invoiceId);
+                          } else setMsg({ type: 'error', text: 'WhatsApp send failed' });
+                        } catch { setMsg({ type: 'error', text: 'Error sending' }); }
+                        finally { setInvActionLoading(null); }
+                      }}>Send on WhatsApp</Button>
+                    </div>
+
+                    {/* Delivery Logs */}
+                    {invDeliveryLogs.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 8 }}>Delivery Log</div>
+                        <table className="crm-table">
+                          <thead><tr><th>Time</th><th>Channel</th><th>To</th><th>Status</th><th>WA ID</th></tr></thead>
+                          <tbody>
+                            {invDeliveryLogs.map((log, i) => (
+                              <tr key={i}>
+                                <td className="td-date">{log.timestamp ? new Date(log.timestamp * 1000).toLocaleString() : '—'}</td>
+                                <td>{log.channel}</td>
+                                <td className="td-mono">{log.toNumber}</td>
+                                <td><span className={`badge ${log.status}`}>{log.status}</span></td>
+                                <td className="td-mono" style={{ fontSize: '0.7rem' }}>{log.waMessageId ? log.waMessageId.slice(-8) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Metadata */}
+                    <div className="inv-meta-grid">
+                      <div><span>Invoice ID:</span> <span className="td-mono">{selectedInvoice.invoiceId.slice(0, 8)}...</span></div>
+                      <div><span>Payment ID:</span> <span className="td-mono">{selectedInvoice.paymentId || '—'}</span></div>
+                      <div><span>Order ID:</span> <span className="td-mono">{selectedInvoice.orderId || '—'}</span></div>
+                      <div><span>GSTIN:</span> <span className="td-mono">{selectedInvoice.gstin || '—'}</span></div>
+                      <div><span>Created:</span> <span>{selectedInvoice.createdAt ? new Date(selectedInvoice.createdAt * 1000).toLocaleString() : '—'}</span></div>
+                      {selectedInvoice.paidAt > 0 && <div><span>Paid:</span> <span>{new Date(selectedInvoice.paidAt * 1000).toLocaleString()}</span></div>}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              /* ── Invoice List View ── */
               <>
-                <div className="crm-stats">
-                  <div className="crm-stat"><div className="crm-stat-val">{invoices.length}</div><div className="crm-stat-lbl">Total Invoices</div></div>
-                  <div className="crm-stat"><div className="crm-stat-val">{invoices.filter(i => i.status === 'paid').length}</div><div className="crm-stat-lbl">Paid</div></div>
-                  <div className="crm-stat"><div className="crm-stat-val">{invoices.filter(i => i.status === 'pending').length}</div><div className="crm-stat-lbl">Pending</div></div>
-                  <div className="crm-stat"><div className="crm-stat-val">₹{invoices.reduce((s, i) => s + (i.total || 0), 0).toLocaleString()}</div><div className="crm-stat-lbl">Total Value</div></div>
-                </div>
-                <div className="crm-table-wrap">
-                  <table className="crm-table">
-                    <thead><tr><th>Customer</th><th>Item</th><th>Purpose</th><th>Order ID</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-                    <tbody>
-                      {invoices.map(inv => (
-                        <tr key={inv.id}>
-                          <td className="td-name">{inv.customerName || inv.customerPhone}</td>
-                          <td>{inv.itemName}</td>
-                          <td>{inv.purpose || '—'}</td>
-                          <td className="td-mono">{inv.orderId}</td>
-                          <td className="td-name">₹{(inv.total || inv.unitPrice).toLocaleString()}</td>
-                          <td><span className={`badge ${inv.status}`}>{inv.status}</span></td>
-                          <td className="td-date">{inv.createdAt}</td>
-                        </tr>
-                      ))}
-                      {!invoices.length && <tr><td colSpan={7} className="td-empty">No invoices yet</td></tr>}
-                    </tbody>
-                  </table>
-                </div>
+                {invLoading ? <div className="crm-loading">Loading invoices...</div> : (
+                  <>
+                    <div className="crm-stats">
+                      <div className="crm-stat"><div className="crm-stat-val">{invoices.length}</div><div className="crm-stat-lbl">Total Invoices</div></div>
+                      <div className="crm-stat"><div className="crm-stat-val">{invoices.filter(i => i.paymentStatus === 'captured' || i.status === 'paid').length}</div><div className="crm-stat-lbl">Paid</div></div>
+                      <div className="crm-stat"><div className="crm-stat-val">{invoices.filter(i => i.status === 'created' || i.status === 'sent').length}</div><div className="crm-stat-lbl">Pending</div></div>
+                      <div className="crm-stat"><div className="crm-stat-val">Rs. {invoices.reduce((s, i) => s + (i.total || 0), 0).toLocaleString()}</div><div className="crm-stat-lbl">Total Value</div></div>
+                    </div>
+                    <div className="crm-table-wrap">
+                      <table className="crm-table">
+                        <thead><tr><th>Invoice #</th><th>Customer</th><th>Purpose</th><th>Entry</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody>
+                          {invoices.map(inv => (
+                            <tr key={inv.invoiceId}>
+                              <td className="td-mono" style={{ cursor: 'pointer', color: '#059669' }} onClick={() => loadInvoiceDetail(inv.invoiceId)}>{inv.invoiceNumber || inv.invoiceId.slice(0, 8)}</td>
+                              <td className="td-name">{inv.customerName || inv.customerPhone}</td>
+                              <td>{inv.purpose || '—'}</td>
+                              <td style={{ fontSize: '0.75rem' }}>{inv.entryPoint || '—'}</td>
+                              <td className="td-name">Rs. {(inv.total || 0).toLocaleString()}</td>
+                              <td><span className={`badge ${inv.paymentStatus || inv.status}`}>{inv.paymentStatus || inv.status}</span></td>
+                              <td className="td-date">{inv.createdAt ? new Date(inv.createdAt * 1000).toLocaleDateString() : '—'}</td>
+                              <td>
+                                <button className="btn-inv" onClick={() => loadInvoiceDetail(inv.invoiceId)}>View</button>
+                              </td>
+                            </tr>
+                          ))}
+                          {!invoices.length && <tr><td colSpan={8} className="td-empty">No invoices yet. Invoices are created automatically when payments are captured via Razorpay webhook, or manually from the Customers tab.</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -542,6 +660,24 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .crm-cust-info { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.8rem; color: #4b5563; line-height: 1.6; }
         .crm-preview { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; font-size: 0.8rem; color: #92400e; line-height: 1.6; }
         .crm-preview-total { font-weight: 700; margin-top: 4px; padding-top: 4px; border-top: 1px solid #fde68a; }
+        .inv-detail { }
+        .inv-back { background: none; border: none; color: #059669; cursor: pointer; font-size: 0.85rem; margin-bottom: 12px; padding: 0; }
+        .inv-back:hover { text-decoration: underline; }
+        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+        .inv-num { font-size: 1.2rem; font-weight: 700; font-family: monospace; color: #111827; }
+        .inv-meta { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+        .inv-total-box { text-align: right; }
+        .inv-total-label { font-size: 0.75rem; color: #6b7280; }
+        .inv-total-val { font-size: 1.4rem; font-weight: 700; color: #059669; }
+        .inv-addr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .inv-addr { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #4b5563; }
+        .inv-addr-label { font-weight: 600; font-size: 0.75rem; color: #374151; margin-bottom: 4px; }
+        .inv-breakdown { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; max-width: 360px; }
+        .inv-bk-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4b5563; padding: 3px 0; }
+        .inv-bk-total { font-weight: 700; color: #111827; border-top: 2px solid #10B981; padding-top: 6px; margin-top: 4px; font-size: 0.9rem; }
+        .inv-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .inv-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem; color: #6b7280; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
+        .inv-meta-grid span:first-child { font-weight: 600; color: #374151; }
         @media (max-width: 768px) {
           .crm-stats { grid-template-columns: 1fr 1fr; }
           .crm-config-grid { grid-template-columns: 1fr; }
