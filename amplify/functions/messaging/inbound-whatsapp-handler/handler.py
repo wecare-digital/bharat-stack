@@ -1335,14 +1335,21 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
                 'requestId': request_id,
             }))
 
-        # Fallback: scan for paymentReferenceId
+        # Fallback: scan for paymentReferenceId (paginate to find it)
         if not items:
-            resp = messages_table.scan(
-                FilterExpression='paymentReferenceId = :ref AND messageType = :mt',
-                ExpressionAttributeValues={':ref': reference_id, ':mt': 'payment_request'},
-                Limit=5,
-            )
-            items = resp.get('Items', [])
+            scan_kwargs = {
+                'FilterExpression': 'paymentReferenceId = :ref AND messageType = :mt',
+                'ExpressionAttributeValues': {':ref': reference_id, ':mt': 'payment_request'},
+            }
+            while not items:
+                resp = messages_table.scan(**scan_kwargs)
+                items = resp.get('Items', [])
+                if items:
+                    break
+                if 'LastEvaluatedKey' in resp:
+                    scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                else:
+                    break
 
         if not items:
             logger.warning(json.dumps({
@@ -1362,6 +1369,7 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
         item_name = pr.get('paymentItemName', 'Services/Goods')
         gst_rate = float(pr.get('paymentGstRate', 18))
         shipping = float(pr.get('paymentShipping', 0)) / 100  # stored in paise
+        handling = float(pr.get('paymentHandling', 0)) / 100  # stored in paise
         discount = float(pr.get('paymentDiscount', 0)) / 100  # stored in paise
         purpose = pr.get('paymentPurpose', '')
         order_id = pr.get('paymentOrderId', 'Offline')
@@ -1387,6 +1395,7 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
                 'items': [{'name': item_name, 'amount': unit_price, 'quantity': quantity}],
                 'gstRate': gst_rate,
                 'shipping': shipping,
+                'handling': handling,
                 'discount': discount,
                 'purpose': purpose,
                 'orderId': order_id,

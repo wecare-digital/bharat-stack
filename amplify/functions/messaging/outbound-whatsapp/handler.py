@@ -1025,8 +1025,10 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                     'createdAt': Decimal(str(int(time.time()))),
                     'expiresAt': Decimal(str(int(time.time()) + 86400 * 30)),
                 }
-                messages_table = dynamodb.Table(MESSAGES_TABLE)
-                messages_table.put_item(Item={k: v for k, v in pay_req_record.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping', 'paymentHandling')})
+                # Store in INBOUND table — invoice generator scans WhatsAppInboundTable
+                inbound_table_name = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
+                inbound_table = dynamodb.Table(inbound_table_name)
+                inbound_table.put_item(Item={k: v for k, v in pay_req_record.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping', 'paymentHandling')})
                 logger.info(json.dumps({
                     'event': 'payment_request_record_stored',
                     'referenceId': payment_ref_id,
@@ -1559,13 +1561,11 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         # Build reference ID
         ref_id = _sanitize_reference_id(order_details.get('reference_id', ''))
         
-        # WhatsApp subtotal = sum of (item.amount * item.quantity) for all items including conv fee
+        # WhatsApp subtotal = sum of (item.amount * item.quantity) for all items
         whatsapp_subtotal = item_total_paise + conv_total
         
         # WhatsApp validates: total = subtotal - discount + shipping + tax
-        # NOTE: handling is added to shipping since WhatsApp API may not support handling natively
-        effective_shipping = delivery_paise + handling_paise
-        total_paise = whatsapp_subtotal - discount_paise + effective_shipping + gst_paise
+        total_paise = whatsapp_subtotal - discount_paise + delivery_paise + handling_paise + gst_paise
         
         # Build order object - ALL fields mandatory (show even if 0)
         order_obj = {
@@ -1578,9 +1578,14 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'description': 'Promo'
             },
             'shipping': {
-                'value': effective_shipping,
+                'value': delivery_paise,
                 'offset': 100,
-                'description': f'Shipping ₹{delivery_paise/100:.0f} + Handling ₹{handling_paise/100:.0f}' if handling_paise > 0 else 'Express'
+                'description': 'Express'
+            },
+            'handling': {
+                'value': handling_paise,
+                'offset': 100,
+                'description': 'Handling'
             },
             'tax': {
                 'value': gst_paise,

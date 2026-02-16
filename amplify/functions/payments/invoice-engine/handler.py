@@ -269,10 +269,11 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     subtotal = sum(float(i.get('amount', 0)) * int(i.get('quantity', 1)) for i in items)
     discount = float(body.get('discount', 0))
     shipping = float(body.get('shipping', 0))
+    handling = float(body.get('handling', 0))
     gst_rate = float(body.get('gstRate', 18))
     tax = subtotal * (gst_rate / 100)
     convenience_fee = float(body.get('convenienceFee', 0))
-    total = subtotal - discount + shipping + tax + convenience_fee
+    total = subtotal - discount + shipping + handling + tax + convenience_fee
 
     invoice = {
         'invoiceId': invoice_id,
@@ -295,6 +296,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'subtotal': _dec(subtotal),
         'discount': _dec(discount),
         'shipping': _dec(shipping),
+        'handling': _dec(handling),
         'gstRate': _dec(gst_rate),
         'tax': _dec(tax),
         'convenienceFee': _dec(convenience_fee),
@@ -393,7 +395,7 @@ def update_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
 
     allowed = ['customerName', 'customerPhone', 'paidByPhone', 'customerEmail',
                'shippingAddress', 'billingAddress', 'status', 'paymentStatus',
-               'discount', 'shipping', 'gstRate', 'tax', 'convenienceFee', 'total',
+               'discount', 'shipping', 'handling', 'gstRate', 'tax', 'convenienceFee', 'total',
                'gstin', 'purpose', 'notes', 'subtotal']
 
     for key in allowed:
@@ -493,6 +495,7 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     subtotal = float(invoice.get('subtotal', 0))
     discount = float(invoice.get('discount', 0))
     shipping_amt = float(invoice.get('shipping', 0))
+    handling_amt = float(invoice.get('handling', 0))
     tax = float(invoice.get('tax', 0))
     gst_rate = float(invoice.get('gstRate', 0))
     conv_fee = float(invoice.get('convenienceFee', 0))
@@ -606,6 +609,7 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="total-row"><span>Subtotal</span><span>{subtotal:,.2f}</span></div>
 {'<div class="total-row"><span>Discount</span><span>-' + f'{discount:,.2f}' + '</span></div>' if discount else ''}
 {'<div class="total-row"><span>Shipping</span><span>' + f'{shipping_amt:,.2f}' + '</span></div>' if shipping_amt else ''}
+{'<div class="total-row"><span>Handling</span><span>' + f'{handling_amt:,.2f}' + '</span></div>' if handling_amt else ''}
 <div class="total-row"><span>CGST @{gst_rate/2:.1f}%</span><span>{cgst:,.2f}</span></div>
 <div class="total-row"><span>SGST @{gst_rate/2:.1f}%</span><span>{sgst:,.2f}</span></div>
 {'<div class="total-row"><span>Conv. Fee (2%+GST)</span><span>' + f'{conv_fee:,.2f}' + '</span></div>' if conv_fee else ''}
@@ -899,6 +903,7 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
         subtotal = float(invoice.get('subtotal', 0))
         discount = float(invoice.get('discount', 0))
         shipping_amt = float(invoice.get('shipping', 0))
+        handling_amt = float(invoice.get('handling', 0))
         tax = float(invoice.get('tax', 0))
         gst_rate = float(invoice.get('gstRate', 0))
         conv_fee = float(invoice.get('convenienceFee', 0))
@@ -913,6 +918,9 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
             y += 15
         if shipping_amt:
             _total_line(draw, pad, W - pad, y, "Shipping", f"{shipping_amt:,.2f}", font_r)
+            y += 15
+        if handling_amt:
+            _total_line(draw, pad, W - pad, y, "Handling", f"{handling_amt:,.2f}", font_r)
             y += 15
         if gst_rate > 0:
             _total_line(draw, pad, W - pad, y, f"CGST @{gst_rate/2:.1f}%", f"{cgst:,.2f}", font_r)
@@ -1346,6 +1354,7 @@ def _normalize_invoice(item: Dict) -> Dict:
         'subtotal': float(item.get('subtotal', 0)),
         'discount': float(item.get('discount', 0)),
         'shipping': float(item.get('shipping', 0)),
+        'handling': float(item.get('handling', 0)),
         'gstRate': float(item.get('gstRate', 0)),
         'tax': float(item.get('tax', 0)),
         'convenienceFee': float(item.get('convenienceFee', 0)),
