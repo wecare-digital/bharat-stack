@@ -147,27 +147,27 @@
 
 /* ========================================
    VARIANT: DANGER
-   White background, red border, red text
+   White background, emerald border, emerald text
    ======================================== */
 .btn-danger {
   background: #ffffff;
-  color: #dc2626;
-  border: 1.5px solid #dc2626;
+  color: #059669;
+  border: 1.5px solid #059669;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #fef2f2;
-  border-color: #b91c1c;
+  background: #ECFDF5;
+  border-color: #047857;
 }
 
 .btn-danger:active:not(:disabled) {
   transform: scale(0.98);
-  background: #fee2e2;
-  border-color: #dc2626;
+  background: #D1FAE5;
+  border-color: #059669;
 }
 
 .btn-danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3);
 }
 
 /* ========================================
@@ -219,9 +219,9 @@
   color: #ffffff;
 }
 
-/* Danger button icons - red */
+/* Danger button icons - emerald */
 .btn-danger svg {
-  color: #dc2626;
+  color: #059669;
 }
 
 /* ========================================

@@ -7,7 +7,7 @@
  * 
  * COLOR SCHEME:
  * - Primary: Emerald (#059669) - All interactive elements
- * - Danger: Red (#dc2626) - Errors, delete actions
+ * - Danger: Emerald (#059669) - Errors, delete actions (unified theme)
  * - Warning: Emerald (#059669) - Same as primary
  * - Success: Emerald (#059669) - Same as primary
  * 
@@ -49,11 +49,11 @@
   --color-primary-active: #D1FAE5;
   --color-primary-dark: #065f46;
   
-  /* Danger - Red (errors, delete) */
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-light: #fef2f2;
-  --color-danger-border: #fecaca;
+  /* Danger - Emerald (same as primary, unified theme) */
+  --color-danger: #059669;
+  --color-danger-hover: #047857;
+  --color-danger-light: #ECFDF5;
+  --color-danger-border: #A7F3D0;
   
   /* Warning - Emerald (same as primary) */
   --color-warning: #059669;
@@ -1038,7 +1038,7 @@
 .msg-bar.error {
   background: var(--color-danger-light);
   color: var(--color-danger);
-  border: 1px solid #FECACA;
+  border: 1px solid var(--color-danger-border);
 }
 
 .msg-bar button {

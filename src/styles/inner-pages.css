@@ -519,8 +519,8 @@
 }
 
 .layout .main-content .health-status-card.error {
-  background: #fef2f2;
-  border-color: #fca5a5;
+  background: #ECFDF5;
+  border-color: #A7F3D0;
 }
 
 .layout .main-content .health-status-card .status-icon {
@@ -538,7 +538,7 @@
 }
 
 .layout .main-content .health-status-card.error h3 {
-  color: #dc2626;
+  color: #059669;
 }
 
 .layout .main-content .health-status-card p {
@@ -573,8 +573,8 @@
 }
 
 .layout .main-content .issue-card.error {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
 }
 
 .layout .main-content .issue-card.warning {
@@ -601,7 +601,7 @@
 }
 
 .layout .main-content .issue-badge.error {
-  background: #dc2626;
+  background: #059669;
 }
 
 .layout .main-content .issue-badge.warning {
@@ -677,8 +677,8 @@
 }
 
 .layout .main-content .count-badge.error {
-  background: #fef2f2;
-  color: #dc2626;
+  background: #ECFDF5;
+  color: #059669;
 }
 
 .layout .main-content .count-badge.warning {
@@ -1009,9 +1009,9 @@
 }
 
 .layout .main-content .campaign-page .msg-bar.error {
-  background: #FEF2F2;
-  color: #dc2626;
-  border: 1px solid #FECACA;
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
 }
 
 .layout .main-content .campaign-page .msg-bar button {
@@ -1060,7 +1060,7 @@
 }
 
 .layout .main-content .campaign-page .logs-table .error {
-  color: #dc2626;
+  color: #059669;
   font-weight: 600;
 }
 
@@ -1344,8 +1344,8 @@
 }
 
 .layout .main-content .store-page .stock.out {
-  background: #FEF2F2;
-  color: #dc2626;
+  background: #ECFDF5;
+  color: #059669;
 }
 
 .layout .main-content .store-page .empty-state {
@@ -1394,12 +1394,12 @@
    STAT CARD VARIANTS - Health/Advisor Tabs
    ======================================== */
 .layout .main-content .stat-card.error {
-  background: #fef2f2 !important;
-  border-left: 4px solid #dc2626 !important;
+  background: #ECFDF5 !important;
+  border-left: 4px solid #059669 !important;
 }
 
 .layout .main-content .stat-card.error .stat-value {
-  color: #dc2626 !important;
+  color: #059669 !important;
 }
 
 .layout .main-content .stat-card.warning {
@@ -1542,9 +1542,9 @@
   color: #065f46 !important;
 }
 
-/* Keep error badges red for visibility */
+/* Keep error badges emerald for unified theme */
 .layout .main-content .issue-badge.error {
-  background: #dc2626 !important;
+  background: #059669 !important;
   color: white !important;
 }
 
@@ -1993,9 +1993,9 @@
    ======================================== */
 .layout .main-content .error-banner,
 .layout .main-content .error-bar {
-  background: #fef2f2 !important;
-  color: #dc2626 !important;
-  border: 1px solid #fecaca !important;
+  background: #ECFDF5 !important;
+  color: #059669 !important;
+  border: 1px solid #A7F3D0 !important;
   border-radius: 13px !important;
 }
 

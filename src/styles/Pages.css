@@ -43,7 +43,7 @@
   /* Semantic Colors - Clean Emerald */
   --color-success: #10b981;
   --color-warning: #10b981;
-  --color-danger: #ef4444;
+  --color-danger: #059669;
   
   /* Channel Colors - Emerald */
   --color-whatsapp: #10b981;
@@ -301,8 +301,8 @@
 }
 
 .btn-danger:hover {
-  background: #fef2f2;
-  border-color: #b91c1c;
+  background: #ECFDF5;
+  border-color: #047857;
 }
 
 /* Success button - outline style */
@@ -398,8 +398,8 @@
 
 /* Error Banner */
 .error-banner {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #ECFDF5;
+  color: #059669;
   padding: 10px 14px;
   border-radius: 6px;
   margin-bottom: 12px;
@@ -412,7 +412,7 @@
 .error-banner button {
   background: none;
   border: none;
-  color: #dc2626;
+  color: #059669;
   cursor: pointer;
   font-size: 14px;
   padding: 4px;
@@ -443,7 +443,7 @@
 }
 
 .status-dot.disconnected {
-  background: #dc2626;
+  background: #059669;
 }
 
 /* Stats Grid - Responsive */
@@ -1575,7 +1575,7 @@
 }
 
 .message-status.failed {
-  color: #dc2626;
+  color: #059669;
 }
 
 @media (max-width: 768px) {
@@ -1883,8 +1883,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
   background: #ECFDF5;
   border: 1.5px solid #10B981;
   border-radius: 10px;
@@ -1892,22 +1893,16 @@
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  padding: 0;
 }
 
 .delete-all-btn svg {
-  color: #059669;
-  stroke: #059669;
+  display: block;
 }
 
 .delete-all-btn:hover {
   background: #D1FAE5;
   border-color: #059669;
-  color: #047857;
-}
-
-.delete-all-btn:hover svg {
-  color: #047857;
-  stroke: #047857;
 }
 
 .delete-all-btn:disabled {
@@ -3298,8 +3293,8 @@ pre code {
 }
 
 .api-method.delete {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #ECFDF5;
+  color: #065f46;
 }
 
 .api-url {
@@ -4455,12 +4450,12 @@ pre code {
 }
 
 .action-buttons .btn-icon-danger {
-  color: #dc2626;
-  border-color: #dc2626;
+  color: #059669;
+  border-color: #059669;
 }
 
 .action-buttons .btn-icon-danger:hover {
-  background: #fef2f2;
+  background: #ECFDF5;
 }
 
 /* ========================================
@@ -4674,11 +4669,11 @@ pre code {
 }
 
 .confirm-modal-confirm.danger {
-  background: #dc2626;
+  background: #059669;
 }
 
 .confirm-modal-confirm.danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #047857;
 }
 
 /* Mobile responsive */

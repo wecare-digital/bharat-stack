@@ -52,9 +52,9 @@
   --success-light: #f0fdf4;
   --success-bg: #ecfdf5;
   
-  --danger: #dc2626;
-  --danger-light: #fef2f2;
-  --danger-bg: #fef2f2;
+  --danger: #059669;
+  --danger-light: #ECFDF5;
+  --danger-bg: #ECFDF5;
   
   --warning: #059669;
   --warning-light: #ECFDF5;
@@ -185,7 +185,7 @@
   --color-bg-secondary: #f5f5f5;
   --color-success: #059669;
   --color-warning: #059669;
-  --color-danger: #ef4444;
+  --color-danger: #059669;
 }
 
 /* ========================================

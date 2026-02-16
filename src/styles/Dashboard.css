@@ -24,7 +24,7 @@
   
   /* Accent colors - minimal */
   --accent-blue: #000000;
-  --accent-red: #dc2626;
+  --accent-red: #059669;
   --accent-orange: #059669;
   --accent-yellow: #059669;
   --accent-purple: #059669;
@@ -609,8 +609,8 @@
 
 .data-table .badge.failed,
 .data-table .badge.error {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #ECFDF5;
+  color: #059669;
 }
 
 /* Data Tab */
@@ -840,7 +840,7 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: #047857;
 }
 
 .btn-danger:disabled {
@@ -849,7 +849,7 @@
 }
 
 .btn-danger.hard {
-  background: #991b1b;
+  background: #047857;
 }
 
 /* Billing Tab */
@@ -977,8 +977,8 @@
 
 .billing-table .status-badge.paid,
 .billing-table .badge.paid {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #ECFDF5;
+  color: #059669;
 }
 
 /* Expand button for billing rows */
@@ -2060,8 +2060,8 @@
 }
 
 .issue-card.error {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
 }
 
 .issue-card.warning {
@@ -2088,7 +2088,7 @@
 }
 
 .issue-badge.error {
-  background: #dc2626;
+  background: #059669;
 }
 
 .issue-badge.warning {
@@ -2170,8 +2170,8 @@
 }
 
 .count-badge.error {
-  background: #fef2f2;
-  color: #dc2626;
+  background: #ECFDF5;
+  color: #059669;
 }
 
 .count-badge.warning {
@@ -2271,12 +2271,12 @@
 
 /* Stat Card Variants */
 .stat-card.error {
-  background: #fef2f2;
-  border-left: 4px solid #dc2626;
+  background: #ECFDF5;
+  border-left: 4px solid #059669;
 }
 
 .stat-card.error .stat-value {
-  color: #dc2626;
+  color: #059669;
 }
 
 .stat-card.warning {

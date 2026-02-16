@@ -71,7 +71,7 @@
 }
 
 .toolbar-btn.ai-btn.error {
-  background: var(--danger, #e03e3e);
+  background: var(--danger, #059669);
   animation: shake 0.3s ease-in-out;
 }
 
@@ -92,7 +92,7 @@
 }
 
 .char-counter.over-limit {
-  color: var(--danger, #e03e3e);
+  color: var(--danger, #059669);
   font-weight: 600;
 }
 
@@ -325,7 +325,7 @@
 }
 
 .editor-textarea.over-limit {
-  color: var(--danger, #e03e3e);
+  color: var(--danger, #059669);
 }
 
 .send-btn {
@@ -409,8 +409,8 @@
 }
 
 .template-status.rejected {
-  background: var(--danger-light, #fbe4e4);
-  color: var(--danger, #e03e3e);
+  background: var(--danger-light, #ECFDF5);
+  color: var(--danger, #059669);
 }
 
 .template-info {
