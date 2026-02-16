@@ -231,7 +231,7 @@ export interface Message {
   id: string;
   messageId: string;
   contactId: string;
-  channel: 'WHATSAPP' | 'SMS' | 'EMAIL';
+  channel: 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS';
   direction: 'INBOUND' | 'OUTBOUND';
   content: string;
   timestamp: string;
@@ -317,7 +317,7 @@ function normalizeMessage(item: any): Message {
     id: item.id || item.messageId || '',
     messageId: item.messageId || item.id || '',
     contactId: item.contactId || '',
-    channel: (item.channel || 'WHATSAPP').toUpperCase() as 'WHATSAPP' | 'SMS' | 'EMAIL',
+    channel: (item.channel || 'WHATSAPP').toUpperCase() as 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS',
     direction: (item.direction || 'INBOUND').toUpperCase() as 'INBOUND' | 'OUTBOUND',
     content: item.content || item.text || '',
     timestamp: timestamp ? (typeof timestamp === 'number' ? new Date(timestamp * 1000).toISOString() : timestamp) : new Date().toISOString(),

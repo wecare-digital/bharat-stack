@@ -9,7 +9,6 @@ import PageShell, { ShellTab } from '../../../components/PageShell';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import { useToastContext } from '../../../contexts/ToastContext';
-import { SmsIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }

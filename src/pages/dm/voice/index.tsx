@@ -9,7 +9,6 @@ import PageShell, { ShellTab } from '../../../components/PageShell';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import { useToastContext } from '../../../contexts/ToastContext';
-import { VoiceIcon } from '../../../lib/icons';
 import * as api from '../../../api/client';
 
 // Embedded sub-page

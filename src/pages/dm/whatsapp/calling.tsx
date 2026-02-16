@@ -9,7 +9,6 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
-import { WHATSAPP_PHONES } from '../../../config/constants';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 

@@ -154,7 +154,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         <div className="contacts-sidebar">
           <div className="sidebar-header">
             <div className="sidebar-controls">
-              <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0 || deleting} title="Delete selected" className="delete-all-btn">
+              <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0 || deleting} title="Delete selected" aria-label="Delete selected contacts" className="delete-all-btn">
                 {deleting ? '...' : <TrashIcon size={20} />}
               </button>
               <input type="text" placeholder="Search contacts..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="contacts-search" />
