@@ -896,18 +896,18 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
     center("Service: wecare.digital/selfservice")
 
     # ── Render lines to image ──
-    # Use 2x scale for crisp text, then resize down
-    SCALE = 2
-    CHAR_W = 7 * SCALE   # pixels per character
-    LINE_H = 14 * SCALE  # pixels per line
-    PAD = 16 * SCALE
+    # Default bitmap font is ~6px wide, ~10px tall per character
+    # Draw at native size — no scaling needed
+    CHAR_W = 6    # approximate width per character
+    LINE_H = 13   # line height
+    PAD = 10
     IMG_W = W_CHARS * CHAR_W + PAD * 2
     IMG_H = len(lines) * LINE_H + PAD * 2
 
     img = Image.new('RGB', (IMG_W, IMG_H), (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    # Get default font (guaranteed to exist)
+    # Get default font (guaranteed to exist on any Pillow)
     font = ImageFont.load_default()
 
     y = PAD
@@ -943,11 +943,11 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
     # Crop to content
     img = img.crop((0, 0, IMG_W, y + PAD))
 
-    # Scale down to final size (420px wide)
-    final_w = 420
-    ratio = final_w / IMG_W
-    final_h = int(img.height * ratio)
-    img = img.resize((final_w, final_h), Image.LANCZOS)
+    # Scale UP for WhatsApp readability (native is ~308px wide, scale to ~620px)
+    scale_factor = 2
+    final_w = IMG_W * scale_factor
+    final_h = img.height * scale_factor
+    img = img.resize((final_w, final_h), Image.NEAREST)
 
     buf = io.BytesIO()
     img.save(buf, format='PNG')
