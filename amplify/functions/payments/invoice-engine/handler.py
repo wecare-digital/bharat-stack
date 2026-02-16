@@ -179,9 +179,58 @@ def get_next_sequence_preview(body: Dict, request_id: str) -> Dict:
 # ─── Create Invoice ───
 
 def create_invoice(body: Dict, request_id: str) -> Dict:
-    """Create a new invoice from direct input."""
-    invoice_id = str(uuid.uuid4())
+    """Create a new invoice from direct input. Includes deduplication by referenceId/paymentId."""
     now = int(time.time())
+
+    # ── Deduplication: check if invoice already exists for this referenceId or paymentId ──
+    reference_id = body.get('referenceId', '')
+    payment_id = body.get('paymentId', '')
+    table = dynamodb.Table(INVOICES_TABLE)
+
+    if reference_id or payment_id:
+        try:
+            # Scan for existing invoice with same referenceId or paymentId
+            filter_parts = []
+            expr_values = {}
+            if reference_id:
+                filter_parts.append('referenceId = :ref')
+                expr_values[':ref'] = reference_id
+            if payment_id:
+                filter_parts.append('paymentId = :pid')
+                expr_values[':pid'] = payment_id
+
+            filter_expr = ' OR '.join(filter_parts)
+            result = table.scan(
+                FilterExpression=filter_expr,
+                ExpressionAttributeValues=expr_values,
+                Limit=1,
+            )
+            existing = result.get('Items', [])
+            if existing:
+                inv = existing[0]
+                logger.info(json.dumps({
+                    'event': 'invoice_dedup_hit',
+                    'existingInvoiceId': inv.get('invoiceId', ''),
+                    'existingInvoiceNumber': inv.get('invoiceNumber', ''),
+                    'referenceId': reference_id,
+                    'paymentId': payment_id,
+                    'requestId': request_id,
+                }))
+                return _resp(200, {
+                    'invoiceId': inv.get('invoiceId', ''),
+                    'invoiceNumber': inv.get('invoiceNumber', ''),
+                    'total': float(inv.get('total', 0)),
+                    'deduplicated': True,
+                })
+        except Exception as dedup_err:
+            logger.warning(json.dumps({
+                'event': 'invoice_dedup_check_error',
+                'error': str(dedup_err),
+                'requestId': request_id,
+            }))
+            # Continue with creation if dedup check fails
+
+    invoice_id = str(uuid.uuid4())
 
     # Validate mandatory fields (relaxed for webhook-originated invoices)
     customer_phone = body.get('customerPhone', '')
@@ -193,7 +242,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
     # Only enforce mandatory fields for non-webhook invoices
     # Webhook invoices are created AFTER payment — can't block retroactively
-    if entry_point not in ('webhook',):
+    if entry_point not in ('webhook', 'whatsapp_payment'):
         missing = []
         if not customer_phone: missing.append('customerPhone')
         if not paid_by_phone: missing.append('paidByPhone')
@@ -217,10 +266,10 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     invoice = {
         'invoiceId': invoice_id,
         'invoiceNumber': invoice_number,
-        'paymentId': body.get('paymentId', ''),
+        'paymentId': payment_id,
         'orderId': body.get('orderId', ''),
-        'referenceId': body.get('referenceId', ''),
-        'entryPoint': body.get('entryPoint', 'manual'),  # inbox_editor | pay_wa | pay_flow | manual
+        'referenceId': reference_id,
+        'entryPoint': entry_point,
         'status': body.get('status', 'created'),  # created | paid | sent | failed | cancelled
         'paymentStatus': body.get('paymentStatus', 'pending'),
         # Customer
@@ -249,7 +298,6 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'paidAt': body.get('paidAt', 0),
     }
 
-    table = dynamodb.Table(INVOICES_TABLE)
     table.put_item(Item={k: v for k, v in invoice.items() if v is not None and v != ''})
 
     # Store invoice items
@@ -267,6 +315,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
     logger.info(json.dumps({'event': 'invoice_created', 'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'total': float(total), 'requestId': request_id}))
     return _resp(201, {'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'total': float(total)})
+
 
 
 def create_invoice_from_payment(body: Dict, request_id: str) -> Dict:

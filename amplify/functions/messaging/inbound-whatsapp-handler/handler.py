@@ -1308,7 +1308,11 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
 def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
                                            actual_amount: float, phone_number_id: str,
                                            request_id: str) -> None:
-    """Look up the original payment_request record and generate invoice with paid timestamp."""
+    """
+    After WhatsApp payment captured: create invoice via unified invoice engine.
+    Uses wecare-invoice-engine Lambda for proper GST sequencing (WD/FY/NNNNN).
+    Also sends the invoice image on WhatsApp automatically.
+    """
     import datetime
     try:
         messages_table = dynamodb.Table(MESSAGES_TABLE)
@@ -1360,44 +1364,153 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
         shipping = float(pr.get('paymentShipping', 0)) / 100  # stored in paise
         discount = float(pr.get('paymentDiscount', 0)) / 100  # stored in paise
         purpose = pr.get('paymentPurpose', '')
-        due_ref = pr.get('paymentDueRef', '')
-
-        # Customer info from payment_request record
         order_id = pr.get('paymentOrderId', 'Offline')
         customer_name = pr.get('paymentCustomerName', '')
         customer_phone = pr.get('paymentCustomerPhone', sender_phone)
         customer_email = pr.get('paymentCustomerEmail', '')
         shipping_address = pr.get('paymentShippingAddress', '')
         billing_address = pr.get('paymentBillingAddress', '')
-        pay_for = pr.get('paymentPayFor', 'self')
 
-        # Paid timestamp in IST
         now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
-        paid_at = now_ist.strftime('%d-%m-%Y %H:%M:%S')
+        paid_at_ts = int(now_ist.timestamp())
 
-        _generate_and_send_invoice(
-            contact_id=contact_id,
-            phone_number_id=phone_number_id,
-            amount=unit_price,
-            quantity=quantity,
-            item_name=item_name,
-            gst_rate=gst_rate,
-            shipping=shipping,
-            discount=discount,
-            purpose=purpose,
-            due_ref=due_ref,
-            sender_phone=sender_phone,
-            request_id=request_id,
-            pay_ref=reference_id,
-            paid_at=paid_at,
-            order_id=order_id,
-            customer_name=customer_name,
-            customer_phone=customer_phone,
-            customer_email=customer_email,
-            shipping_address=shipping_address,
-            billing_address=billing_address,
-            pay_for=pay_for,
+        # ── Step 1: Create invoice via unified invoice engine ──
+        invoice_payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'customerName': customer_name,
+                'customerPhone': customer_phone,
+                'paidByPhone': customer_phone,
+                'customerEmail': customer_email,
+                'shippingAddress': shipping_address,
+                'billingAddress': billing_address,
+                'items': [{'name': item_name, 'amount': unit_price, 'quantity': quantity}],
+                'gstRate': gst_rate,
+                'shipping': shipping,
+                'discount': discount,
+                'purpose': purpose,
+                'orderId': order_id,
+                'referenceId': reference_id,
+                'entryPoint': 'whatsapp_payment',
+                'status': 'paid',
+                'paymentStatus': 'captured',
+                'paidAt': paid_at_ts,
+            }),
+            'rawPath': '/invoices',
+            'requestContext': {'http': {'method': 'POST'}},
+        }
+
+        inv_response = lambda_client.invoke(
+            FunctionName='wecare-invoice-engine',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(invoice_payload),
         )
+        inv_result = json.loads(inv_response['Payload'].read())
+        inv_body = json.loads(inv_result.get('body', '{}'))
+        invoice_id = inv_body.get('invoiceId', '')
+        invoice_number = inv_body.get('invoiceNumber', '')
+
+        logger.info(json.dumps({
+            'event': 'invoice_created_via_engine',
+            'invoiceId': invoice_id,
+            'invoiceNumber': invoice_number,
+            'referenceId': reference_id,
+            'entryPoint': 'whatsapp_payment',
+            'requestId': request_id,
+        }))
+
+        if not invoice_id:
+            logger.error(json.dumps({
+                'event': 'invoice_engine_empty_response',
+                'referenceId': reference_id,
+                'response': str(inv_body),
+                'requestId': request_id,
+            }))
+            return
+
+        # ── Step 2: Generate invoice image ──
+        try:
+            img_payload = {
+                'rawPath': f'/invoices/{invoice_id}/generate-image',
+                'requestContext': {'http': {'method': 'POST'}},
+                'pathParameters': {'invoiceId': invoice_id},
+                'body': json.dumps({'invoiceId': invoice_id}),
+            }
+            img_response = lambda_client.invoke(
+                FunctionName='wecare-invoice-engine',
+                InvocationType='RequestResponse',
+                Payload=json.dumps(img_payload),
+            )
+            img_result = json.loads(img_response['Payload'].read())
+            img_body = json.loads(img_result.get('body', '{}'))
+            image_url = img_body.get('imageUrl', '')
+            logger.info(json.dumps({
+                'event': 'invoice_image_generated',
+                'invoiceId': invoice_id,
+                'imageUrl': image_url,
+                'requestId': request_id,
+            }))
+        except Exception as img_err:
+            logger.error(json.dumps({
+                'event': 'invoice_image_error',
+                'invoiceId': invoice_id,
+                'error': str(img_err),
+                'requestId': request_id,
+            }))
+
+        # ── Step 3: Send invoice on WhatsApp ──
+        if invoice_id and customer_phone:
+            try:
+                send_phone_id = phone_number_id or PHONE_NUMBER_ID_1
+                send_payload = {
+                    'rawPath': f'/invoices/{invoice_id}/send-whatsapp',
+                    'requestContext': {'http': {'method': 'POST'}},
+                    'pathParameters': {'invoiceId': invoice_id},
+                    'body': json.dumps({
+                        'invoiceId': invoice_id,
+                        'toWhatsAppNumber': customer_phone,
+                        'phoneNumberId': send_phone_id,
+                    }),
+                }
+                lambda_client.invoke(
+                    FunctionName='wecare-invoice-engine',
+                    InvocationType='Event',  # Async
+                    Payload=json.dumps(send_payload),
+                )
+                logger.info(json.dumps({
+                    'event': 'invoice_whatsapp_triggered',
+                    'invoiceId': invoice_id,
+                    'toPhone': customer_phone,
+                    'requestId': request_id,
+                }))
+            except Exception as send_err:
+                logger.error(json.dumps({
+                    'event': 'invoice_whatsapp_error',
+                    'invoiceId': invoice_id,
+                    'error': str(send_err),
+                    'requestId': request_id,
+                }))
+
+        # ── Step 4: Generate PDF (async) ──
+        try:
+            pdf_payload = {
+                'rawPath': f'/invoices/{invoice_id}/generate-pdf',
+                'requestContext': {'http': {'method': 'POST'}},
+                'pathParameters': {'invoiceId': invoice_id},
+                'body': json.dumps({'invoiceId': invoice_id}),
+            }
+            lambda_client.invoke(
+                FunctionName='wecare-invoice-engine',
+                InvocationType='Event',
+                Payload=json.dumps(pdf_payload),
+            )
+        except Exception as pdf_err:
+            logger.error(json.dumps({
+                'event': 'invoice_pdf_error',
+                'invoiceId': invoice_id,
+                'error': str(pdf_err),
+                'requestId': request_id,
+            }))
 
     except Exception as e:
         logger.error(json.dumps({

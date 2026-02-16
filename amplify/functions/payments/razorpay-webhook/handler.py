@@ -356,18 +356,20 @@ def _store_payment_record(payment: Dict, status: str, request_id: str) -> None:
 # POST-PAYMENT HANDLER (Invoice + WhatsApp)
 # ═══════════════════════════════════════════════════════════════════
 
+
 def _post_payment_handler(payment_id: str, amount: float, currency: str, contact: str,
                           email: str, description: str, notes: Dict, request_id: str) -> None:
     """
-    After payment captured:
-    1. Invoke invoice-engine to create invoice from payment
-    2. Generate invoice image (POS receipt style)
-    3. Send invoice image on WhatsApp (async)
-    4. Generate PDF (async)
+    After payment captured (Razorpay webhook path):
+    This is the BACKUP path — WhatsApp inbound handler is the primary invoice generator.
+    1. Invoke invoice-engine to create invoice from payment (dedup will return existing if WhatsApp path already created it)
+    2. Generate invoice image (POS receipt style) — for internal reference
+    3. Generate PDF (async) — for internal reference
+    4. NO WhatsApp send — WhatsApp path handles customer delivery
     """
-    logger.info(json.dumps({'event': 'post_payment_start', 'paymentId': payment_id, 'requestId': request_id}))
+    logger.info(json.dumps({'event': 'post_payment_start', 'paymentId': payment_id, 'path': 'webhook_backup', 'requestId': request_id}))
 
-    # ── Step 1: Create invoice from payment ──
+    # ── Step 1: Create invoice from payment (dedup-safe) ──
     try:
         invoice_payload = {
             'body': json.dumps({
@@ -393,10 +395,12 @@ def _post_payment_handler(payment_id: str, amount: float, currency: str, contact
         inv_body = json.loads(inv_result.get('body', '{}'))
         invoice_id = inv_body.get('invoiceId', '')
         invoice_number = inv_body.get('invoiceNumber', '')
+        deduplicated = inv_body.get('deduplicated', False)
 
         logger.info(json.dumps({
             'event': 'invoice_created_from_payment', 'paymentId': payment_id,
-            'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'requestId': request_id,
+            'invoiceId': invoice_id, 'invoiceNumber': invoice_number,
+            'deduplicated': deduplicated, 'requestId': request_id,
         }))
     except Exception as e:
         logger.error(json.dumps({'event': 'invoice_create_error', 'paymentId': payment_id, 'error': str(e), 'requestId': request_id}))
@@ -406,7 +410,12 @@ def _post_payment_handler(payment_id: str, amount: float, currency: str, contact
         logger.error(json.dumps({'event': 'invoice_create_empty', 'paymentId': payment_id, 'response': str(inv_body), 'requestId': request_id}))
         return
 
-    # ── Step 2: Generate invoice image ──
+    # If deduplicated (WhatsApp path already created it), image/PDF already exist — skip
+    if deduplicated:
+        logger.info(json.dumps({'event': 'post_payment_dedup_skip', 'paymentId': payment_id, 'invoiceId': invoice_id, 'requestId': request_id}))
+        return
+
+    # ── Step 2: Generate invoice image (internal reference only) ──
     try:
         img_payload = {
             'rawPath': f'/invoices/{invoice_id}/generate-image',
@@ -426,31 +435,8 @@ def _post_payment_handler(payment_id: str, amount: float, currency: str, contact
         logger.info(json.dumps({'event': 'invoice_image_generated', 'invoiceId': invoice_id, 'imageUrl': image_url, 'requestId': request_id}))
     except Exception as e:
         logger.error(json.dumps({'event': 'invoice_image_error', 'invoiceId': invoice_id, 'error': str(e), 'requestId': request_id}))
-        image_url = ''
 
-    # ── Step 3: Send invoice on WhatsApp (if we have a phone number) ──
-    if contact and invoice_id:
-        try:
-            send_payload = {
-                'rawPath': f'/invoices/{invoice_id}/send-whatsapp',
-                'requestContext': {'http': {'method': 'POST'}},
-                'pathParameters': {'invoiceId': invoice_id},
-                'body': json.dumps({
-                    'invoiceId': invoice_id,
-                    'toWhatsAppNumber': contact,
-                    'phoneNumberId': 'phone-number-id-5e020cecd221429996f6ae721cc42206',
-                }),
-            }
-            send_response = lambda_client.invoke(
-                FunctionName='wecare-invoice-engine',
-                InvocationType='Event',  # Async — don't wait
-                Payload=json.dumps(send_payload),
-            )
-            logger.info(json.dumps({'event': 'invoice_whatsapp_triggered', 'invoiceId': invoice_id, 'toPhone': contact, 'requestId': request_id}))
-        except Exception as e:
-            logger.error(json.dumps({'event': 'invoice_whatsapp_error', 'invoiceId': invoice_id, 'error': str(e), 'requestId': request_id}))
-
-    # ── Step 4: Generate PDF (async) ──
+    # ── Step 3: Generate PDF (async, internal reference only) ──
     try:
         pdf_payload = {
             'rawPath': f'/invoices/{invoice_id}/generate-pdf',
@@ -467,7 +453,9 @@ def _post_payment_handler(payment_id: str, amount: float, currency: str, contact
     except Exception as e:
         logger.error(json.dumps({'event': 'invoice_pdf_error', 'invoiceId': invoice_id, 'error': str(e), 'requestId': request_id}))
 
-    logger.info(json.dumps({'event': 'post_payment_complete', 'paymentId': payment_id, 'invoiceId': invoice_id, 'requestId': request_id}))
+    # NO WhatsApp send — WhatsApp inbound handler is the primary path for customer delivery
+    logger.info(json.dumps({'event': 'post_payment_complete', 'paymentId': payment_id, 'invoiceId': invoice_id, 'path': 'webhook_backup', 'requestId': request_id}))
+
 
 
 # ═══════════════════════════════════════════════════════════════════
