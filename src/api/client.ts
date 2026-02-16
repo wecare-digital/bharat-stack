@@ -3499,10 +3499,11 @@ export interface CreateInvoiceEngineRequest {
   billingAddress: string;
   customerName?: string;
   contactId?: string;
-  items: { name: string; amount: number; quantity: number; productId?: string }[];
+  items: { name: string; amount: number; quantity: number; productId?: string; gstRate?: number }[];
   discount?: number;
   shipping?: number;
-  gstRate?: number;
+  handling?: number;
+  gstRate?: number;       // Fallback global GST rate (used if items don't have per-item rates)
   convenienceFee?: number;
   purpose?: string;
   orderId?: string;

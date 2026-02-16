@@ -1495,7 +1495,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'shipping': {
                 'value': effective_shipping,
                 'offset': 100,
-                'description': 'Shipping + Handling' if handling_paise > 0 else 'Express'
+                'description': f'Shipping ₹{delivery_paise/100:.0f} + Handling ₹{handling_paise/100:.0f}' if handling_paise > 0 else 'Express'
             },
             'tax': {
                 'value': gst_paise,

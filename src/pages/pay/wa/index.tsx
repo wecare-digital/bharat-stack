@@ -57,15 +57,14 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Form state - all mandatory
+  // Form state - multi-item with per-item GST
   const [referenceId, setReferenceId] = useState('');
-  const [itemName, setItemName] = useState('');
-  const [itemAmount, setItemAmount] = useState<number>(0);
-  const [itemQuantity, setItemQuantity] = useState<number>(1);
+  const [items, setItems] = useState<{ name: string; amount: number; quantity: number; gstRate: number }[]>([{ name: '', amount: 0, quantity: 1, gstRate: 0 }]);
   const [discount, setDiscount] = useState<number>(0);
   const [shipping, setShipping] = useState<number>(0);
-  const [gstRate, setGstRate] = useState<number>(0);
+  const [handling, setHandling] = useState<number>(0);
   const [gstin, setGstin] = useState<string>(DEFAULT_GSTIN);
+  const [orderId, setOrderId] = useState<string>('');
   const [selectedPhone, setSelectedPhone] = useState<string>(PAYMENT_CONFIG.phoneNumberId);
   const [phone2Unlocked, setPhone2Unlocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -121,16 +120,16 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   };
 
   const calculateConvenienceFee = () => {
-    const itemTotal = itemAmount * itemQuantity;
+    const itemTotal = items.reduce((s, i) => s + i.amount * i.quantity, 0);
     const feeBase = itemTotal * (CONVENIENCE_FEE.percent / 100);
     const feeGst = feeBase * (CONVENIENCE_FEE.gstPercent / 100);
     return feeBase + feeGst;
   };
 
-  const calculateItemTotal = () => itemAmount * itemQuantity;
-  const calculateTax = () => calculateItemTotal() * (gstRate / 100);
+  const calculateItemTotal = () => items.reduce((s, i) => s + i.amount * i.quantity, 0);
+  const calculateTax = () => items.reduce((s, i) => s + i.amount * i.quantity * i.gstRate / 100, 0);
   const calculateSubtotal = () => calculateItemTotal();
-  const calculateTotal = () => calculateSubtotal() + calculateConvenienceFee() - discount + shipping + calculateTax();
+  const calculateTotal = () => calculateSubtotal() + calculateConvenienceFee() - discount + shipping + handling + calculateTax();
 
   const handleGenerateReferenceId = () => {
     setReferenceId(generateReferenceId());
@@ -139,8 +138,8 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const sendPaymentRequest = async () => {
     if (!selectedContact) { setMessage({ type: 'error', text: 'Please select a contact' }); return; }
     if (!referenceId) { setMessage({ type: 'error', text: 'Please generate a Reference ID' }); return; }
-    if (!itemName) { setMessage({ type: 'error', text: 'Please enter item name' }); return; }
-    if (itemAmount <= 0) { setMessage({ type: 'error', text: 'Please enter item amount' }); return; }
+    const validItems = items.filter(i => i.name.trim() && i.amount > 0);
+    if (validItems.length === 0) { setMessage({ type: 'error', text: 'At least one item with name and amount required' }); return; }
 
     // Mandatory field enforcement for invoice readiness
     const contact = contacts.find(c => c.contactId === selectedContact);
@@ -159,29 +158,30 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     setMessage(null);
 
     try {
+      const totalTaxPaise = validItems.reduce((s, i) => s + Math.round(i.amount * 100 * i.quantity * i.gstRate / 100), 0);
       const result = await api.sendWhatsAppPaymentMessage({
         contactId: selectedContact,
         phoneNumberId: selectedPhone,
         referenceId: referenceId,
-        items: [{ name: itemName, amount: Math.round(itemAmount * 100), quantity: itemQuantity, productId: 'ITEM_MAIN' }],
+        items: validItems.map((i, idx) => ({ name: i.name, amount: Math.round(i.amount * 100), quantity: i.quantity, gstRate: i.gstRate, productId: `ITEM_${idx + 1}` })),
         discount: Math.round(discount * 100),
         delivery: Math.round(shipping * 100),
-        tax: Math.round(calculateTax() * 100),
-        gstRate: gstRate,
+        handling: Math.round(handling * 100),
+        tax: totalTaxPaise,
         gstin: gstin,
+        orderId: orderId || 'Offline',
         useInteractive: true,
         paymentConfiguration: getPaymentConfigName(),
-        convenienceFee: Math.round(calculateConvenienceFee() * 100),
       });
 
       if (result) {
         setMessage({ type: 'success', text: `Payment request sent! ID: ${result.messageId}` });
         setReferenceId(generateReferenceId());
-        setItemName('');
-        setItemAmount(0);
-        setItemQuantity(1);
+        setItems([{ name: '', amount: 0, quantity: 1, gstRate: 0 }]);
         setDiscount(0);
         setShipping(0);
+        setHandling(0);
+        setOrderId('');
       } else {
         const connStatus = api.getConnectionStatus();
         setMessage({ type: 'error', text: `Failed: ${connStatus.lastError || 'Unknown error'}` });
