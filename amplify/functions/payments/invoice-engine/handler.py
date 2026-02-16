@@ -51,11 +51,22 @@ COMPANY = {
     'name': 'WECARE.DIGITAL',
     'gstin': '19AADFW7431N1ZK',
     'pan': 'AADFW7431N',
-    'address': 'Kolkata, West Bengal, India',
-    'email': 'pay@wecare.digital',
+    'address': 'The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7 Phears Ln, Kolkata, WB 700012',
+    'email': 'one@wecare.digital',
     'phone': '+91 93309 94400',
     'website': 'https://wecare.digital',
+    'logo_s3_key': 'stream/media/m/wecare-digital.png',
 }
+
+
+def _load_logo_bytes() -> Optional[bytes]:
+    """Load company logo from S3. Returns PNG bytes or None."""
+    try:
+        obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=COMPANY['logo_s3_key'])
+        return obj['Body'].read()
+    except Exception as e:
+        logger.warning(f"Logo load error: {e}")
+        return None
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -470,8 +481,9 @@ def list_invoices(params: Dict, request_id: str) -> Dict:
 
 # ─── Invoice Rendering (POS Receipt Style Image + PDF) ───
 
+
 def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
-    """Build POS receipt style HTML for invoice rendering."""
+    """Build POS receipt style HTML with logo for invoice rendering."""
     inv_num = invoice.get('invoiceNumber', '')
     cust_name = invoice.get('customerName', 'Customer')
     cust_phone = invoice.get('customerPhone', '')
@@ -487,18 +499,28 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     total = float(invoice.get('total', 0))
     gstin = invoice.get('gstin', COMPANY['gstin'])
     purpose = invoice.get('purpose', '')
-    ref_id = invoice.get('referenceId', '')
+    payment_id = invoice.get('paymentId', '')
     paid_at = invoice.get('paidAt', 0)
     created_at = invoice.get('createdAt', 0)
     payment_status = invoice.get('paymentStatus', 'pending')
 
     date_str = time.strftime('%d-%m-%Y', time.localtime(int(created_at))) if created_at else ''
     time_str = time.strftime('%H:%M', time.localtime(int(created_at))) if created_at else ''
-    paid_str = time.strftime('%d-%m-%Y %H:%M', time.localtime(int(paid_at))) if paid_at else ''
+    paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at))) if paid_at else ''
 
-    # Split GST into CGST + SGST (equal halves)
     cgst = tax / 2
     sgst = tax / 2
+
+    # Logo as base64 data URI
+    logo_html = ''
+    try:
+        logo_bytes = _load_logo_bytes()
+        if logo_bytes:
+            import base64
+            b64 = base64.b64encode(logo_bytes).decode('ascii')
+            logo_html = f'<img src="data:image/png;base64,{b64}" style="width:60px;height:60px;object-fit:contain;margin-bottom:6px" alt="Logo">'
+    except Exception:
+        pass
 
     # Items rows
     items_html = ''
@@ -509,66 +531,75 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
         qty = int(item.get('quantity', 1))
         total_qty += qty
         line_total = amt * qty
-        items_html += f'''<tr>
-            <td>{i+1}</td><td>{name}</td><td>{qty}</td>
-            <td class="r">{amt:,.2f}</td><td class="r">{line_total:,.2f}</td>
-        </tr>'''
+        items_html += f'<tr><td>{i+1}</td><td>{name}</td><td class="r">{qty}</td><td class="r">{amt:,.2f}</td><td class="r">{line_total:,.2f}</td></tr>'
 
-    # GST breakdown rows
+    # GST breakdown
     gst_html = ''
     if gst_rate > 0:
         half_rate = gst_rate / 2
         taxable = subtotal - discount
-        gst_html = f'''<tr><td colspan="3">CGST @{half_rate:.1f}%</td><td class="r">On {taxable:,.2f}</td><td class="r">{cgst:,.2f}</td></tr>
-        <tr><td colspan="3">SGST @{half_rate:.1f}%</td><td class="r">On {taxable:,.2f}</td><td class="r">{sgst:,.2f}</td></tr>
-        <tr class="sep"><td colspan="4">Tax Total</td><td class="r">{tax:,.2f}</td></tr>'''
+        gst_html = f'''<div class="divider"></div>
+        <div class="section-title">GST Summary</div>
+        <div class="total-row"><span>Taxable Amount</span><span>{taxable:,.2f}</span></div>
+        <div class="total-row"><span>CGST @{half_rate:.1f}%</span><span>{cgst:,.2f}</span></div>
+        <div class="total-row"><span>SGST @{half_rate:.1f}%</span><span>{sgst:,.2f}</span></div>
+        <div class="total-row b"><span>Total Tax</span><span>{tax:,.2f}</span></div>'''
+
+    # Payment ID display (Razorpay ID if available, otherwise skip)
+    pay_id_html = f'<div class="info-row"><span>Payment ID: {payment_id}</span></div>' if payment_id else ''
+
+    # Status badge color
+    status_upper = payment_status.upper()
+    badge_color = '#059669' if status_upper == 'CAPTURED' else '#d97706' if status_upper == 'PENDING' else '#dc2626'
+    badge_bg = '#D1FAE5' if status_upper == 'CAPTURED' else '#FEF3C7' if status_upper == 'PENDING' else '#FEE2E2'
 
     return f'''<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:'Courier New',Courier,monospace;color:#000;background:#fff;width:420px;padding:20px;font-size:13px;line-height:1.4}}
+body{{font-family:'Courier New',Courier,monospace;color:#1a1a1a;background:#fff;width:420px;padding:18px;font-size:12px;line-height:1.4}}
 .center{{text-align:center}}
 .r{{text-align:right}}
 .b{{font-weight:bold}}
-.sep{{border-top:1px dashed #000}}
-.sep2{{border-top:2px solid #000}}
-h1{{font-size:18px;margin:0}}
-h2{{font-size:14px;margin:4px 0 8px}}
-.divider{{border-top:1px dashed #000;margin:8px 0}}
-.divider2{{border-top:2px solid #000;margin:8px 0}}
-table{{width:100%;border-collapse:collapse;font-size:12px}}
-th{{text-align:left;padding:3px 2px;border-bottom:1px solid #000;font-size:11px}}
+h1{{font-size:17px;margin:2px 0;letter-spacing:1px}}
+.subtitle{{font-size:10px;color:#555;margin:1px 0}}
+.divider{{border-top:1px dashed #999;margin:8px 0}}
+.divider2{{border-top:2px solid #333;margin:8px 0}}
+.section-title{{font-size:11px;font-weight:bold;color:#333;margin:4px 0 2px;text-transform:uppercase;letter-spacing:0.5px}}
+table{{width:100%;border-collapse:collapse;font-size:11px;margin:4px 0}}
+th{{text-align:left;padding:3px 2px;border-bottom:1px solid #333;font-size:10px;text-transform:uppercase;color:#555}}
 th.r{{text-align:right}}
 td{{padding:3px 2px;vertical-align:top}}
-.info-row{{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}}
-.addr{{font-size:11px;color:#333;margin:2px 0;line-height:1.3}}
-.total-row{{display:flex;justify-content:space-between;font-size:13px;margin:2px 0}}
-.grand{{font-size:16px;font-weight:bold;border-top:2px solid #000;padding-top:6px;margin-top:4px}}
-.badge{{display:inline-block;padding:2px 8px;font-size:11px;font-weight:bold;border:1px solid #000}}
-.footer{{margin-top:12px;text-align:center;font-size:11px;color:#555}}
+.info-row{{display:flex;justify-content:space-between;font-size:11px;margin:2px 0}}
+.addr{{font-size:10px;color:#444;margin:2px 0 4px;line-height:1.3}}
+.total-row{{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}}
+.grand{{font-size:15px;font-weight:bold;background:#f0fdf4;padding:6px 4px;margin:4px -4px;border-top:2px solid #333;border-bottom:2px solid #333}}
+.badge{{display:inline-block;padding:2px 10px;font-size:10px;font-weight:bold;border-radius:3px;color:{badge_color};background:{badge_bg};border:1px solid {badge_color}}}
+.footer{{margin-top:10px;text-align:center;font-size:10px;color:#777}}
+.paid-stamp{{font-size:18px;font-weight:bold;color:#059669;text-align:center;margin:6px 0;letter-spacing:2px}}
 </style></head><body>
 <div class="center">
+    {logo_html}
     <h1>{COMPANY['name']}</h1>
-    <div style="font-size:12px">GSTIN/UIN: {COMPANY['gstin']}</div>
-    <div style="font-size:11px">{COMPANY['address']}</div>
-    <div style="font-size:11px">{COMPANY['phone']} | {COMPANY['email']}</div>
+    <div class="subtitle">GSTIN: {COMPANY['gstin']}</div>
+    <div class="subtitle">{COMPANY['address']}</div>
+    <div class="subtitle">{COMPANY['phone']} | {COMPANY['email']}</div>
 </div>
 <div class="divider2"></div>
-<div class="center"><h2>POS Invoice</h2></div>
-<div class="info-row"><span>Bill No.: {inv_num}</span><span>Time: {time_str}</span></div>
-<div class="info-row"><span>Date: {date_str}</span><span>Ref: {ref_id[:12] if ref_id else '-'}</span></div>
-<div class="info-row"><span>Buyer: {cust_name}</span></div>
-<div class="info-row"><span>Phone: {cust_phone}</span></div>
-{f'<div class="info-row"><span>Email: {cust_email}</span></div>' if cust_email else ''}
+<div class="center" style="margin:4px 0"><span style="font-size:13px;font-weight:bold;letter-spacing:1px">TAX INVOICE</span></div>
+<div class="divider"></div>
+<div class="info-row"><span>Invoice: {inv_num}</span><span>{date_str} {time_str}</span></div>
+{pay_id_html}
 {f'<div class="info-row"><span>Purpose: {purpose}</span></div>' if purpose else ''}
 <div class="divider"></div>
-<div style="font-size:11px;font-weight:bold;margin-bottom:2px">Bill To:</div>
+<div class="section-title">Bill To</div>
+<div style="font-size:11px;font-weight:bold">{cust_name}</div>
+<div class="addr">{cust_phone}{(' | ' + cust_email) if cust_email else ''}</div>
 <div class="addr">{bill_addr if bill_addr else '-'}</div>
-<div style="font-size:11px;font-weight:bold;margin:4px 0 2px">Ship To:</div>
-<div class="addr">{ship_addr if ship_addr else '-'}</div>
+<div class="section-title">Ship To</div>
+<div class="addr">{ship_addr if ship_addr else 'Same as billing'}</div>
 <div class="divider"></div>
 <table>
-    <thead><tr><th>Sl</th><th>Description</th><th>Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
     <tbody>{items_html}</tbody>
 </table>
 <div class="divider"></div>
@@ -577,20 +608,23 @@ td{{padding:3px 2px;vertical-align:top}}
 {'<div class="total-row"><span>Shipping</span><span>' + f'{shipping_amt:,.2f}' + '</span></div>' if shipping_amt else ''}
 <div class="total-row"><span>CGST @{gst_rate/2:.1f}%</span><span>{cgst:,.2f}</span></div>
 <div class="total-row"><span>SGST @{gst_rate/2:.1f}%</span><span>{sgst:,.2f}</span></div>
-{'<div class="total-row"><span>Conv. Fee</span><span>' + f'{conv_fee:,.2f}' + '</span></div>' if conv_fee else ''}
-<div class="total-row grand"><span>Total  {total_qty} Items</span><span>Rs. {total:,.2f}</span></div>
-{f'<div class="divider"></div><table><thead><tr><th colspan="3">GST Breakup</th><th class="r">Taxable</th><th class="r">Tax</th></tr></thead><tbody>{gst_html}</tbody></table>' if gst_rate > 0 else ''}
+{'<div class="total-row"><span>Conv. Fee (2%+GST)</span><span>' + f'{conv_fee:,.2f}' + '</span></div>' if conv_fee else ''}
+<div class="total-row grand"><span>Total ({total_qty} items)</span><span>Rs. {total:,.2f}</span></div>
+{gst_html}
 <div class="divider2"></div>
-<div class="total-row b"><span>Total Paid</span><span>Rs. {total:,.2f}</span></div>
-<div class="info-row"><span>Status: <span class="badge">{payment_status.upper()}</span></span></div>
+{'<div class="paid-stamp">PAID</div>' if status_upper == 'CAPTURED' else ''}
+<div class="info-row"><span>Status: <span class="badge">{status_upper}</span></span></div>
 {f'<div class="info-row"><span>Paid: {paid_str}</span></div>' if paid_str else ''}
 <div class="divider2"></div>
 <div class="footer">
-    <div style="font-size:13px;font-weight:bold;margin:8px 0">Thank You!</div>
+    <div style="font-size:12px;font-weight:bold;margin:6px 0">Thank You for your business!</div>
     <div>{COMPANY['website']}</div>
-    <div style="margin-top:4px;font-size:10px">GSTIN: {gstin} | Computer-generated invoice</div>
+    <div style="margin-top:3px">GSTIN: {gstin} | Computer-generated tax invoice</div>
+    <div style="margin-top:2px">Customer Service: wecare.digital/selfservice</div>
 </div>
 </body></html>'''
+
+
 
 
 # ─── Generate Invoice Image (PNG) ───
@@ -692,110 +726,138 @@ def _render_with_pil(html_unused: str) -> bytes:
 
 
 def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
-    """Generate a POS receipt style PNG image."""
+    """Generate a POS receipt style PNG image with logo."""
     try:
         from PIL import Image, ImageDraw, ImageFont
 
         W = 420
         # Calculate height based on content
-        base_h = 600
+        base_h = 720
         item_h = len(items) * 22
-        H = base_h + item_h + (80 if float(invoice.get('gstRate', 0)) > 0 else 0)
+        addr_lines = 0
+        bill_addr = invoice.get('billingAddress', '')
+        ship_addr = invoice.get('shippingAddress', '')
+        if bill_addr:
+            addr_lines += max(1, len(bill_addr) // 45 + 1)
+        if ship_addr:
+            addr_lines += max(1, len(ship_addr) // 45 + 1)
+        H = base_h + item_h + addr_lines * 13 + (80 if float(invoice.get('gstRate', 0)) > 0 else 0)
 
         img = Image.new('RGB', (W, H), '#ffffff')
         draw = ImageDraw.Draw(img)
 
         try:
-            font_b = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 16)
-            font_r = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
+            font_b = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 14)
+            font_r = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 11)
             font_s = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 10)
-            font_t = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 20)
-            font_h = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 13)
+            font_t = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 16)
+            font_h = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 12)
+            font_paid = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 22)
         except:
             font_b = ImageFont.load_default()
             font_r = font_b
             font_s = font_b
             font_t = font_b
             font_h = font_b
+            font_paid = font_b
 
         pad = 20
-        y = 15
+        y = 12
 
-        # ── Company header (centered) ──
+        # ── Logo from S3 ──
+        try:
+            logo_bytes = _load_logo_bytes()
+            if logo_bytes:
+                logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
+                logo_size = 56
+                logo_img = logo_img.resize((logo_size, logo_size), Image.LANCZOS)
+                logo_x = (W - logo_size) // 2
+                # Paste with alpha mask
+                bg = Image.new('RGBA', (logo_size, logo_size), (255, 255, 255, 255))
+                bg.paste(logo_img, (0, 0), logo_img)
+                img.paste(bg.convert('RGB'), (logo_x, y))
+                y += logo_size + 6
+        except Exception as logo_err:
+            logger.warning(f"Logo paste error: {logo_err}")
+
+        # ── Company header ──
         _center_text(draw, COMPANY['name'], W, y, font_t, '#000')
-        y += 24
-        _center_text(draw, f"GSTIN/UIN: {COMPANY['gstin']}", W, y, font_s, '#333')
-        y += 14
-        _center_text(draw, COMPANY['address'], W, y, font_s, '#333')
-        y += 14
-        _center_text(draw, f"{COMPANY['phone']} | {COMPANY['email']}", W, y, font_s, '#333')
-        y += 18
+        y += 20
+        _center_text(draw, f"GSTIN: {COMPANY['gstin']}", W, y, font_s, '#555')
+        y += 13
+        # Address wrapping
+        for addr_line in _wrap_text(COMPANY['address'], 48):
+            _center_text(draw, addr_line, W, y, font_s, '#555')
+            y += 12
+        _center_text(draw, f"{COMPANY['phone']} | {COMPANY['email']}", W, y, font_s, '#555')
+        y += 16
 
         # ── Double line ──
-        draw.line([(pad, y), (W - pad, y)], fill='#000', width=2)
+        draw.line([(pad, y), (W - pad, y)], fill='#333', width=2)
         y += 8
 
-        # ── POS Invoice title ──
-        _center_text(draw, "POS Invoice", W, y, font_b, '#000')
-        y += 22
-
-        # ── Bill info ──
-        inv_num = invoice.get('invoiceNumber', '')
-        created_at = invoice.get('createdAt', 0)
-        date_str = time.strftime('%d-%m-%Y', time.localtime(int(created_at))) if created_at else ''
-        time_str = time.strftime('%H:%M hrs', time.localtime(int(created_at))) if created_at else ''
-        ref_id = invoice.get('referenceId', '')
-        cust_name = invoice.get('customerName', 'Customer')
-        cust_phone = invoice.get('customerPhone', '')
-        cust_email = invoice.get('customerEmail', '')
-        bill_addr = invoice.get('billingAddress', '')
-        ship_addr = invoice.get('shippingAddress', '')
-        purpose = invoice.get('purpose', '')
-
-        draw.text((pad, y), f"Bill No.: {inv_num}", fill='#000', font=font_r)
-        draw.text((W - pad - 120, y), f"Time: {time_str}", fill='#000', font=font_r)
-        y += 16
-        draw.text((pad, y), f"Date: {date_str}", fill='#000', font=font_r)
-        if ref_id:
-            draw.text((W - pad - 120, y), f"Ref: {ref_id[:12]}", fill='#000', font=font_r)
-        y += 16
-        draw.text((pad, y), f"Buyer: {cust_name}", fill='#000', font=font_r)
-        y += 16
-        draw.text((pad, y), f"Phone: {cust_phone}", fill='#000', font=font_r)
-        y += 16
-        if cust_email:
-            draw.text((pad, y), f"Email: {cust_email}", fill='#333', font=font_s)
-            y += 14
-        if purpose:
-            draw.text((pad, y), f"Purpose: {purpose}", fill='#333', font=font_s)
-            y += 14
+        # ── TAX INVOICE title ──
+        _center_text(draw, "TAX INVOICE", W, y, font_b, '#000')
+        y += 20
 
         # ── Dashed line ──
-        y += 4
         _dashed_line(draw, pad, W - pad, y)
         y += 8
 
-        # ── Addresses ──
-        draw.text((pad, y), "Bill To:", fill='#000', font=font_h)
-        y += 16
-        if bill_addr:
-            for line in _wrap_text(bill_addr, 45):
-                draw.text((pad, y), line, fill='#333', font=font_s)
-                y += 13
-        else:
-            draw.text((pad, y), "-", fill='#999', font=font_s)
+        # ── Invoice info ──
+        inv_num = invoice.get('invoiceNumber', '')
+        created_at = invoice.get('createdAt', 0)
+        date_str = time.strftime('%d-%m-%Y', time.localtime(int(created_at))) if created_at else ''
+        time_str = time.strftime('%H:%M', time.localtime(int(created_at))) if created_at else ''
+        payment_id = invoice.get('paymentId', '')
+        cust_name = invoice.get('customerName', 'Customer')
+        cust_phone = invoice.get('customerPhone', '')
+        cust_email = invoice.get('customerEmail', '')
+        purpose = invoice.get('purpose', '')
+
+        draw.text((pad, y), f"Invoice: {inv_num}", fill='#000', font=font_r)
+        draw.text((W - pad - 100, y), f"{date_str} {time_str}", fill='#000', font=font_r)
+        y += 15
+        if payment_id:
+            draw.text((pad, y), f"Payment ID: {payment_id}", fill='#555', font=font_s)
+            y += 13
+        if purpose:
+            draw.text((pad, y), f"Purpose: {purpose}", fill='#555', font=font_s)
             y += 13
 
-        y += 4
-        draw.text((pad, y), "Ship To:", fill='#000', font=font_h)
+        # ── Dashed line ──
+        y += 2
+        _dashed_line(draw, pad, W - pad, y)
+        y += 8
+
+        # ── BILL TO ──
+        draw.text((pad, y), "BILL TO", fill='#333', font=font_h)
+        y += 15
+        draw.text((pad, y), cust_name, fill='#000', font=font_b)
         y += 16
-        if ship_addr:
-            for line in _wrap_text(ship_addr, 45):
-                draw.text((pad, y), line, fill='#333', font=font_s)
-                y += 13
+        contact_line = cust_phone
+        if cust_email:
+            contact_line += f" | {cust_email}"
+        draw.text((pad, y), contact_line[:50], fill='#444', font=font_s)
+        y += 13
+        if bill_addr:
+            for line in _wrap_text(bill_addr, 48):
+                draw.text((pad, y), line, fill='#444', font=font_s)
+                y += 12
         else:
             draw.text((pad, y), "-", fill='#999', font=font_s)
-            y += 13
+            y += 12
+
+        y += 4
+        draw.text((pad, y), "SHIP TO", fill='#333', font=font_h)
+        y += 15
+        if ship_addr:
+            for line in _wrap_text(ship_addr, 48):
+                draw.text((pad, y), line, fill='#444', font=font_s)
+                y += 12
+        else:
+            draw.text((pad, y), "Same as billing", fill='#999', font=font_s)
+            y += 12
 
         # ── Dashed line ──
         y += 4
@@ -803,20 +865,20 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
         y += 8
 
         # ── Items table header ──
-        cols = [pad, pad + 25, pad + 200, pad + 260, pad + 330]
-        draw.text((cols[0], y), "Sl", fill='#000', font=font_h)
-        draw.text((cols[1], y), "Description", fill='#000', font=font_h)
-        draw.text((cols[2], y), "Qty", fill='#000', font=font_h)
-        draw.text((cols[3], y), "Rate", fill='#000', font=font_h)
-        draw.text((cols[4], y), "Amount", fill='#000', font=font_h)
-        y += 16
-        draw.line([(pad, y), (W - pad, y)], fill='#000', width=1)
+        cols = [pad, pad + 22, pad + 195, pad + 255, pad + 325]
+        draw.text((cols[0], y), "#", fill='#555', font=font_h)
+        draw.text((cols[1], y), "ITEM", fill='#555', font=font_h)
+        draw.text((cols[2], y), "QTY", fill='#555', font=font_h)
+        draw.text((cols[3], y), "RATE", fill='#555', font=font_h)
+        draw.text((cols[4], y), "AMT", fill='#555', font=font_h)
+        y += 15
+        draw.line([(pad, y), (W - pad, y)], fill='#333', width=1)
         y += 4
 
         # ── Items ──
         total_qty = 0
         for idx, item in enumerate(items):
-            name = item.get('name', 'Item')[:22]
+            name = item.get('name', 'Item')[:24]
             amt = float(item.get('amount', 0))
             qty = int(item.get('quantity', 1))
             total_qty += qty
@@ -845,50 +907,74 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
         sgst = tax / 2
 
         _total_line(draw, pad, W - pad, y, "Subtotal", f"{subtotal:,.2f}", font_r)
-        y += 16
+        y += 15
         if discount:
             _total_line(draw, pad, W - pad, y, "Discount", f"-{discount:,.2f}", font_r)
-            y += 16
+            y += 15
         if shipping_amt:
             _total_line(draw, pad, W - pad, y, "Shipping", f"{shipping_amt:,.2f}", font_r)
-            y += 16
+            y += 15
         if gst_rate > 0:
             _total_line(draw, pad, W - pad, y, f"CGST @{gst_rate/2:.1f}%", f"{cgst:,.2f}", font_r)
-            y += 16
+            y += 15
             _total_line(draw, pad, W - pad, y, f"SGST @{gst_rate/2:.1f}%", f"{sgst:,.2f}", font_r)
-            y += 16
+            y += 15
         if conv_fee:
-            _total_line(draw, pad, W - pad, y, "Conv. Fee", f"{conv_fee:,.2f}", font_r)
+            _total_line(draw, pad, W - pad, y, "Conv. Fee (2%+GST)", f"{conv_fee:,.2f}", font_r)
+            y += 15
+
+        # ── Grand total (green background) ──
+        draw.line([(pad, y), (W - pad, y)], fill='#333', width=2)
+        y += 2
+        draw.rectangle([(pad, y), (W - pad, y + 22)], fill='#f0fdf4')
+        _total_line(draw, pad + 4, W - pad - 4, y + 3, f"Total ({total_qty} items)", f"Rs. {total:,.2f}", font_b)
+        y += 24
+        draw.line([(pad, y), (W - pad, y)], fill='#333', width=2)
+        y += 10
+
+        # ── GST Summary ──
+        if gst_rate > 0:
+            taxable = subtotal - discount
+            draw.text((pad, y), "GST SUMMARY", fill='#333', font=font_h)
+            y += 15
+            _total_line(draw, pad, W - pad, y, "Taxable Amount", f"{taxable:,.2f}", font_s)
+            y += 13
+            _total_line(draw, pad, W - pad, y, f"CGST @{gst_rate/2:.1f}%", f"{cgst:,.2f}", font_s)
+            y += 13
+            _total_line(draw, pad, W - pad, y, f"SGST @{gst_rate/2:.1f}%", f"{sgst:,.2f}", font_s)
+            y += 13
+            _total_line(draw, pad, W - pad, y, "Total Tax", f"{tax:,.2f}", font_r)
             y += 16
+            _dashed_line(draw, pad, W - pad, y)
+            y += 8
 
-        # ── Grand total ──
-        draw.line([(pad, y), (W - pad, y)], fill='#000', width=2)
-        y += 6
-        _total_line(draw, pad, W - pad, y, f"Total  {total_qty} Items", f"Rs. {total:,.2f}", font_b)
-        y += 22
+        # ── PAID stamp ──
+        payment_status = invoice.get('paymentStatus', 'pending').upper()
+        if payment_status == 'CAPTURED':
+            _center_text(draw, "PAID", W, y, font_paid, '#059669')
+            y += 26
 
-        # ── Payment status ──
-        draw.line([(pad, y), (W - pad, y)], fill='#000', width=2)
-        y += 6
-        _total_line(draw, pad, W - pad, y, "Total Paid", f"Rs. {total:,.2f}", font_b)
-        y += 18
-        status = invoice.get('paymentStatus', 'pending').upper()
-        draw.text((pad, y), f"Status: [{status}]", fill='#000', font=font_r)
+        # ── Status + paid date ──
+        status_text = f"Status: [{payment_status}]"
+        draw.text((pad, y), status_text, fill='#000', font=font_r)
         paid_at = invoice.get('paidAt', 0)
         if paid_at:
-            paid_str = time.strftime('%d-%m-%Y %H:%M', time.localtime(int(paid_at)))
-            draw.text((W - pad - 140, y), f"Paid: {paid_str}", fill='#333', font=font_s)
-        y += 20
+            paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
+            draw.text((pad, y + 14), f"Paid: {paid_str}", fill='#555', font=font_s)
+            y += 14
+        y += 18
 
         # ── Footer ──
-        draw.line([(pad, y), (W - pad, y)], fill='#000', width=2)
-        y += 12
-        _center_text(draw, "Thank You!", W, y, font_b, '#000')
-        y += 20
+        draw.line([(pad, y), (W - pad, y)], fill='#333', width=2)
+        y += 10
+        _center_text(draw, "Thank You for your business!", W, y, font_b, '#000')
+        y += 18
         _center_text(draw, COMPANY['website'], W, y, font_s, '#555')
-        y += 14
-        _center_text(draw, f"GSTIN: {invoice.get('gstin', COMPANY['gstin'])} | Computer-generated", W, y, font_s, '#999')
-        y += 20
+        y += 13
+        _center_text(draw, f"GSTIN: {invoice.get('gstin', COMPANY['gstin'])} | Computer-generated tax invoice", W, y, font_s, '#999')
+        y += 13
+        _center_text(draw, "Customer Service: wecare.digital/selfservice", W, y, font_s, '#999')
+        y += 18
 
         # Crop to actual content
         img = img.crop((0, 0, W, min(y, H)))
@@ -898,6 +984,8 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
         return buf.getvalue()
 
     except ImportError:
+        logger.warning("PIL not available, storing HTML for client-side rendering")
+        return _build_invoice_html(invoice, items).encode('utf-8')
         logger.warning("PIL not available, storing HTML for client-side rendering")
         return _build_invoice_html(invoice, items).encode('utf-8')
 
