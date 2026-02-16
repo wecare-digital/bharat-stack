@@ -952,7 +952,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {/* Header */}
         <div style={s.header}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: '#065f46' }}>📞 WhatsApp Business Calling</h2>
+            <h2 style={{ margin: 0, fontSize: '20px', color: '#065f46' }}>WhatsApp Business Calling</h2>
             <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#047857' }}>
               VoIP calls in WhatsApp threads — Graph API/SIP signaling + WebRTC media (OPUS) + Amazon Polly IVR
             </p>
@@ -963,11 +963,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {/* Tabs */}
         <div style={s.tabs}>
           <button style={tab(activeTab === 'overview')} onClick={() => setActiveTab('overview')}>Overview</button>
-          <button style={tab(activeTab === 'live')} onClick={() => setActiveTab('live')}>🔴 Live Calls</button>
+          <button style={tab(activeTab === 'live')} onClick={() => setActiveTab('live')}>Live Calls</button>
           <button style={tab(activeTab === 'webhook')} onClick={() => setActiveTab('webhook')}>Webhook Config</button>
           <button style={tab(activeTab === 'setup')} onClick={() => setActiveTab('setup')}>Setup Guide</button>
           <button style={tab(activeTab === 'resources')} onClick={() => setActiveTab('resources')}>AWS Resources</button>
-          <button style={tab(activeTab === 'settings')} onClick={() => { setActiveTab('settings'); loadCallingSettings(); }}>⚙️ Calling Settings</button>
+          <button style={tab(activeTab === 'settings')} onClick={() => { setActiveTab('settings'); loadCallingSettings(); }}>Calling Settings</button>
         </div>
 
         {/* LIVE CALLS TAB — WebRTC Call Handling */}
@@ -999,9 +999,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, color: '#312e81' }}>Auto-pickup Mode:</label>
                   {([
-                    { value: 'manual' as const, label: '👤 Manual', desc: 'Connect call, human answers' },
-                    { value: 'ivr' as const, label: '🔊 IVR', desc: 'Play audio greeting, then hang up' },
-                    { value: 'ai' as const, label: '🤖 AI Bot', desc: 'Bedrock AI answers the call' },
+                    { value: 'manual' as const, label: 'Manual', desc: 'Connect call, human answers' },
+                    { value: 'ivr' as const, label: 'IVR', desc: 'Play audio greeting, then hang up' },
+                    { value: 'ai' as const, label: 'AI Bot', desc: 'Bedrock AI answers the call' },
                   ]).map((m) => (
                     <button key={m.value} onClick={async () => {
                       setAutoPickupMode(m.value);
@@ -1062,7 +1062,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               </h4>
               {activeCalls.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 16px', color: '#9ca3af' }}>
-                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>📞</div>
+                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>-</div>
                   <p style={{ margin: 0, fontSize: '14px' }}>No active calls</p>
                   <p style={{ margin: '4px 0 0', fontSize: '12px' }}>Incoming calls will appear here when a user calls your WhatsApp number</p>
                 </div>
@@ -1081,7 +1081,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                           </span>
                           {call.callerName && <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>{call.fromNumber}</span>}
                           <span style={{ ...badge(call.status === 'ringing' ? 'planned' : call.status === 'connected' ? 'active' : 'default'), marginLeft: '8px' }}>
-                            {call.status === 'ringing' ? '🔔 Ringing' : call.status === 'connected' ? '🟢 Connected' : call.status}
+                            {call.status === 'ringing' ? 'Ringing' : call.status === 'connected' ? 'Connected' : call.status}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -1089,18 +1089,18 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                             <>
                               <button onClick={() => answerCallWebRTC(call)}
                                 style={{ padding: '6px 16px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                                ✅ Answer
+                                Answer
                               </button>
                               <button onClick={() => rejectCall(call.callId, call.phoneNumberId)}
                                 style={{ padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                                ❌ Reject
+                                Reject
                               </button>
                             </>
                           )}
                           {call.status === 'connected' && (
                             <button onClick={() => { hangupCall(call.callId, call.phoneNumberId); cleanupWebRTC(); }}
                               style={{ padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                              📴 Hang Up
+                              Hang Up
                             </button>
                           )}
                         </div>
@@ -1119,7 +1119,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
             {/* Outbound Call — Business-Initiated */}
             <div style={{ ...s.card, marginTop: '12px', border: '1px solid #c7d2fe', background: outboundStep === 'connected' ? '#ecfdf5' : outboundStep === 'calling' ? '#fef3c7' : '#eef2ff' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#312e81' }}>📤 Outbound Call (Business-Initiated)</h4>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#312e81' }}>Outbound Call (Business-Initiated)</h4>
 
               {outboundStep === 'idle' && (
                 <div>
@@ -1149,7 +1149,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     </div>
                     <button onClick={requestOutboundPermission} disabled={outboundLoading || !outboundPhone.trim()}
                       style={{ padding: '8px 18px', background: outboundPhone.trim() ? '#6366f1' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {outboundLoading ? 'Sending...' : '📩 Request Permission'}
+                      {outboundLoading ? 'Sending...' : 'Request Permission'}
                     </button>
                   </div>
                 </div>
@@ -1158,7 +1158,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               {outboundStep === 'permission_sent' && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '20px' }}>⏳</span>
+                    <span style={{ fontSize: '20px' }}>-</span>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '14px', color: '#312e81' }}>Permission request sent to {outboundPhone}</div>
                       <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
@@ -1169,7 +1169,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={initiateOutboundCall} disabled={outboundLoading}
                       style={{ padding: '8px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
-                      {outboundLoading ? 'Connecting...' : '📞 Call Now'}
+                      {outboundLoading ? 'Connecting...' : 'Call Now'}
                     </button>
                     <button onClick={resetOutbound}
                       style={{ padding: '8px 16px', background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>
@@ -1181,14 +1181,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
               {outboundStep === 'calling' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '24px' }}>📞</span>
+                  <span style={{ fontSize: '24px' }}>-</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: '14px', color: '#92400e' }}>Calling {outboundPhone}...</div>
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>Ringing — waiting for user to pick up</div>
                   </div>
                   <button onClick={hangupOutbound}
                     style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                    📴 Cancel
+                    Cancel
                   </button>
                 </div>
               )}
@@ -1196,7 +1196,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               {outboundStep === 'connected' && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>🟢</span>
+                    <span style={{ fontSize: '24px' }}>-</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: '14px', color: '#065f46' }}>Connected to {outboundPhone}</div>
                       <div style={{ fontSize: '20px', fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>{fmtDuration(outboundCallDuration)}</div>
@@ -1204,11 +1204,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={toggleOutboundMute}
                         style={{ padding: '8px 14px', background: outboundMuted ? '#fef3c7' : '#f3f4f6', color: outboundMuted ? '#92400e' : '#374151', border: `1px solid ${outboundMuted ? '#fde68a' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        {outboundMuted ? '🔇 Unmute' : '🎙 Mute'}
+                        {outboundMuted ? 'Unmute' : 'Mute'}
                       </button>
                       <button onClick={hangupOutbound}
                         style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        📴 Hang Up
+                        Hang Up
                       </button>
                     </div>
                   </div>
@@ -1217,7 +1217,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
               {(outboundStep === 'ended' || outboundStep === 'failed') && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '20px' }}>{outboundStep === 'ended' ? '✅' : '❌'}</span>
+                  <span style={{ fontSize: '20px' }}>{outboundStep === 'ended' ? 'Done' : 'Failed'}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: '14px', color: outboundStep === 'ended' ? '#065f46' : '#991b1b' }}>
                       {outboundStep === 'ended' ? 'Call ended' : 'Call failed'}
@@ -1353,11 +1353,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Call Flow (User-Initiated)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                 {[
-                  { icon: '📱', label: 'User calls', desc: 'User taps call icon in WhatsApp' },
-                  { icon: '🔔', label: 'Webhook: connect', desc: 'Meta sends call event + SDP offer' },
-                  { icon: '✅', label: 'Pre-accept → Accept', desc: 'Business responds with SDP answer' },
-                  { icon: '🎙', label: 'WebRTC call', desc: 'Audio via OPUS codec' },
-                  { icon: '📴', label: 'Webhook: terminate', desc: 'Call ends, log to DynamoDB' },
+                  { icon: 'Call', label: 'User calls', desc: 'User taps call icon in WhatsApp' },
+                  { icon: 'Hook', label: 'Webhook: connect', desc: 'Meta sends call event + SDP offer' },
+                  { icon: 'OK', label: 'Pre-accept → Accept', desc: 'Business responds with SDP answer' },
+                  { icon: 'RTC', label: 'WebRTC call', desc: 'Audio via OPUS codec' },
+                  { icon: 'End', label: 'Webhook: terminate', desc: 'Call ends, log to DynamoDB' },
                 ].map((f, i) => (
                   <div key={i} style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
                     <div style={{ fontSize: '24px', marginBottom: '6px' }}>{f.icon}</div>
@@ -1479,7 +1479,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             {/* Webhook Status */}
             <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '18px' }}>🔗</span>
+                <span style={{ fontSize: '18px' }}>-</span>
                 <h3 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Webhook Endpoint — Deployed & Verified</h3>
                 <span style={badge('active')}>live</span>
               </div>
@@ -1587,7 +1587,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{p.display}</span>
                     <span style={{ fontSize: '12px', color: '#6b7280' }}>{p.name}</span>
-                    <span style={badge(p.callingReady ? 'active' : 'planned')}>{p.callingReady ? '✓ Ready' : '⚠ Not Ready'}</span>
+                    <span style={badge(p.callingReady ? 'active' : 'planned')}>{p.callingReady ? 'Ready' : 'Not Ready'}</span>
                   </div>
                   <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
                     Tier: <strong>{p.tier}</strong> | Quality: <strong>{p.quality}</strong> | Meta ID: <code style={{ fontSize: '11px' }}>{p.metaId}</code>
@@ -1742,7 +1742,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {activeTab === 'settings' && (
           <div>
             <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
-              <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: '#065f46' }}>⚙️ Enable & Configure Calling</h3>
+              <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: '#065f46' }}>Enable & Configure Calling</h3>
               <p style={{ margin: 0, fontSize: '13px', color: '#047857' }}>
                 Use this to enable the call icon on your WhatsApp number, set business hours, and restrict calling to specific countries.
                 This sends a POST to <code style={{ background: '#d1fae5', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>/{'{phone-number-id}'}/settings</code> with the calling configuration.
@@ -1757,8 +1757,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   <button key={i} onClick={() => { setSettingsPhone(p); }}
                     style={{ padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #10b981' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
                     {p.name} ({p.display})
-                    {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#10b981' }}>✓ Ready</span>}
-                    {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#f59e0b' }}>⚠ Needs 2K</span>}
+                    {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#10b981' }}>Ready</span>}
+                    {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#f59e0b' }}>Needs 2K</span>}
                   </button>
                 ))}
               </div>

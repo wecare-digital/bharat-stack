@@ -404,7 +404,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                     ].map(f => (
                       <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
                         <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>
-                          {f.type === 'web-module' ? '🔌' : f.type === 'events' ? '⚡' : f.type === 'http' ? '🌐' : f.type === 'config' ? '⚙️' : '📄'}
+                          {f.type === 'web-module' ? 'Plug' : f.type === 'events' ? 'Evt' : f.type === 'http' ? 'API' : f.type === 'config' ? 'Cfg' : 'File'}
                         </span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>{f.name}</div>
@@ -433,7 +433,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                       { name: 'site-hygiene.js', desc: 'Site maintenance & cleanup' },
                     ].map(f => (
                       <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
-                        <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>📄</span>
+                        <span style={{ fontSize: 16, width: 24, textAlign: 'center', color: '#059669' }}>File</span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>{f.name}</div>
                           <div style={{ fontSize: 11, color: '#6b7280' }}>{f.desc}</div>
@@ -448,7 +448,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Service Plugins</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
-                    <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🧩</span>
+                    <span style={{ fontSize: 16, width: 24, textAlign: 'center', color: '#059669' }}>Ext</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>automations-velo-action-provider</div>
                       <div style={{ fontSize: 11, color: '#6b7280' }}>Custom automation actions for Wix Automations</div>
@@ -463,27 +463,27 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>Quick Actions</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <span style={{ fontSize: 20 }}>📦</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Manage Products</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <span style={{ fontSize: 20 }}>🧾</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Manage Orders</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/inventory" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <span style={{ fontSize: 20 }}>📊</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Inventory</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/coupons" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <span style={{ fontSize: 20 }}>🏷️</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Coupons</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/analytics" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <span style={{ fontSize: 20 }}>📈</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><polyline points="18 20 12 10 6 20"/><polyline points="4 14 12 6 20 14"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Analytics</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/developer-tools/secrets-manager" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <span style={{ fontSize: 20 }}>🔑</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Secrets Manager</div><div style={{ fontSize: 11, color: '#6b7280' }}>API Keys & Secrets</div></div>
                   </a>
                 </div>

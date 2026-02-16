@@ -47,10 +47,10 @@ const defaultFlowConfig: FlowConfig = {
 };
 
 const TABS: TabItem[] = [
-  { id: 'customers', label: '👥 Customers' },
-  { id: 'invoices', label: '🧾 Invoices' },
-  { id: 'dues', label: '📌 Pending Dues' },
-  { id: 'config', label: '⚙️ Flow Config' },
+  { id: 'customers', label: 'Customers' },
+  { id: 'invoices', label: 'Invoices' },
+  { id: 'dues', label: 'Pending Dues' },
+  { id: 'config', label: 'Flow Config' },
 ];
 
 const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
@@ -277,7 +277,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="crm-stat"><div className="crm-stat-val">{withAddr}</div><div className="crm-stat-lbl">With Address</div></div>
               <div className="crm-stat"><div className="crm-stat-val">{customers.length - withAddr}</div><div className="crm-stat-lbl">Missing Address</div></div>
             </div>
-            <div className="crm-info"><span>💡</span><div><b>How it works:</b> Customer details auto-fill in WhatsApp pay flow. No re-entry needed.</div></div>
+            <div className="crm-info"><span>Tip</span><div><b>How it works:</b> Customer details auto-fill in WhatsApp pay flow. No re-entry needed.</div></div>
             <div className="crm-search">
               <input type="text" placeholder="Search name, phone, email..." value={custSearch} onChange={e => setCustSearch(e.target.value)} />
               {custSearch && <button className="crm-search-x" onClick={() => setCustSearch('')}>×</button>}
@@ -353,7 +353,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <div className="crm-stat"><div className="crm-stat-val">{dues.length}</div><div className="crm-stat-lbl">Pending</div></div>
                   <div className="crm-stat"><div className="crm-stat-val">₹{dues.reduce((s, d) => s + (d.amount || 0), 0).toLocaleString()}</div><div className="crm-stat-lbl">Total Outstanding</div></div>
                 </div>
-                <div className="crm-info"><span>📌</span><div>These are payment requests sent via WhatsApp that haven't been paid yet. Customers see these as "Pending Dues" when they start the pay flow.</div></div>
+                <div className="crm-info"><span>Info</span><div>These are payment requests sent via WhatsApp that haven't been paid yet. Customers see these as "Pending Dues" when they start the pay flow.</div></div>
                 <div className="crm-table-wrap">
                   <table className="crm-table">
                     <thead><tr><th>#</th><th>Customer</th><th>Phone</th><th>Item</th><th>Amount</th><th>Ref</th><th>Date</th></tr></thead>
@@ -369,7 +369,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                           <td className="td-date">{d.createdAt}</td>
                         </tr>
                       ))}
-                      {!dues.length && <tr><td colSpan={7} className="td-empty">No pending dues 🎉</td></tr>}
+                      {!dues.length && <tr><td colSpan={7} className="td-empty">No pending dues</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -383,7 +383,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           <div className="crm-tab-content">
             {configLoading ? <div className="crm-loading">Loading config...</div> : (
               <div className="crm-config">
-                <div className="crm-info"><span>⚙️</span><div>These settings control the WhatsApp pay flow: GST rate, shipping, promo discount, GSTIN, and purpose list. Changes apply immediately to new pay flows.</div></div>
+                <div className="crm-info"><span>Config</span><div>These settings control the WhatsApp pay flow: GST rate, shipping, promo discount, GSTIN, and purpose list. Changes apply immediately to new pay flows.</div></div>
                 <div className="crm-config-grid">
                   {[
                     { label: 'GST Rate (%)', key: 'default_gst_rate', type: 'number' },

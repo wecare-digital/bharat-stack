@@ -267,7 +267,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
                           <td>{formatDuration(call.duration)}</td>
                           <td><span className={`status-badge ${call.status?.toLowerCase()}`}>{call.status}</span></td>
                           <td className="id-cell hide-mobile">{call.correlationId?.slice(0, 12)}...</td>
-                          <td>{call.recordingUrl ? <a href={call.recordingUrl} target="_blank" rel="noopener noreferrer" className="recording-link">🎙️</a> : '-'}</td>
+                          <td>{call.recordingUrl ? <a href={call.recordingUrl} target="_blank" rel="noopener noreferrer" className="recording-link">Rec</a> : '-'}</td>
                         </tr>
                       ))}
                       {paginatedData.length === 0 && <tr><td colSpan={7} className="empty-state">No C2C calls yet</td></tr>}
@@ -337,7 +337,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
                           <td>{formatDuration(cdr.durationSec)}</td>
                           <td><span className={`status-badge ${cdr.overallCallStatus?.toLowerCase()}`}>{cdr.overallCallStatus}</span></td>
                           <td className="hide-mobile">{cdr.hangupStatus}</td>
-                          <td>{cdr.recordingURL ? <a href={cdr.recordingURL} target="_blank" rel="noopener noreferrer" className="recording-link">🎙️</a> : '-'}</td>
+                          <td>{cdr.recordingURL ? <a href={cdr.recordingURL} target="_blank" rel="noopener noreferrer" className="recording-link">Rec</a> : '-'}</td>
                         </tr>
                       ))}
                       {paginatedData.length === 0 && <tr><td colSpan={8} className="empty-state">No CDR records yet</td></tr>}

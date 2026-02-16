@@ -187,7 +187,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             <select value={selectedPhone} onChange={e => handlePhoneChange(e.target.value)}
               style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', marginBottom: '4px' }}>
               {PAYMENT_PHONES.map(p => (
-                <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' 🔒' : ''}</option>
+                <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' (Protected)' : ''}</option>
               ))}
             </select>
             {isPhoneLocked && (
@@ -207,7 +207,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px' }}>{passwordError}</div>
             )}
             {selectedPhoneConfig?.paymentProtected && phone2Unlocked && (
-              <div style={{ color: '#10B981', fontSize: '11px', marginTop: '4px' }}>🔓 Unlocked for this session</div>
+              <div style={{ color: '#10B981', fontSize: '11px', marginTop: '4px' }}>Unlocked for this session</div>
             )}
             <div style={{ marginTop: '6px', fontSize: '12px', color: '#4a4a4a' }}>
               Razorpay Gateway (UPI + Cards + Netbanking)
@@ -290,7 +290,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="preview-config"><small>To: {selectedContactInfo?.name || '—'}</small><small>Ref: {formatReferenceNumber(referenceId)}</small></div>
             </div>
             <Button variant="primary" className="send-btn" onClick={sendPaymentRequest} disabled={sending || !selectedContact || !itemName || itemAmount <= 0 || isPhoneLocked} loading={sending}>
-              {isPhoneLocked ? '🔒 Unlock phone to send' : sending ? 'Sending...' : 'Send Payment'}
+              {isPhoneLocked ? 'Unlock phone to send' : sending ? 'Sending...' : 'Send Payment'}
             </Button>
           </div>
         </div>
