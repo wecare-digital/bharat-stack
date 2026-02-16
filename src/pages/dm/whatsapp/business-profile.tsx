@@ -87,7 +87,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                   <div><span style={{ color: '#666' }}>Phone:</span> {phoneSettings.display_phone_number}</div>
                   <div><span style={{ color: '#666' }}>Name:</span> {phoneSettings.verified_name}</div>
-                  <div><span style={{ color: '#666' }}>Quality:</span> <span style={{ color: phoneSettings.quality_rating === 'GREEN' ? '#16a34a' : '#dc2626' }}>{phoneSettings.quality_rating}</span></div>
+                  <div><span style={{ color: '#666' }}>Quality:</span> <span style={{ color: phoneSettings.quality_rating === 'GREEN' ? '#16a34a' : '#059669' }}>{phoneSettings.quality_rating}</span></div>
                   <div><span style={{ color: '#666' }}>Tier:</span> {phoneSettings.messaging_limit_tier}</div>
                   <div><span style={{ color: '#666' }}>Official:</span> {phoneSettings.is_official_business_account ? 'Yes' : 'No'}</div>
                   <div><span style={{ color: '#666' }}>Name Status:</span> {phoneSettings.name_status}</div>

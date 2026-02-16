@@ -43,7 +43,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   APPROVED: '#1a1a1a',
   PENDING: '#6b6b6b',
-  REJECTED: '#dc2626',
+  REJECTED: '#059669',
 };
 
 const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -1310,7 +1310,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-delete:hover {
-          background: #fef2f2;
+          background: #ECFDF5;
         }
 
         .loading-state, .empty-state {
@@ -1951,8 +1951,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .rate-badge.bad {
-          background: #fef2f2;
-          color: #dc2626;
+          background: #ECFDF5;
+          color: #059669;
         }
 
         /* Scheduled Section Styles */
@@ -2029,8 +2029,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .scheduled-status .status-badge.failed {
-          background: #fef2f2;
-          color: #dc2626;
+          background: #ECFDF5;
+          color: #059669;
         }
 
         .scheduled-status .status-badge.cancelled {

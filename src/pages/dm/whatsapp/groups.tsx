@@ -156,7 +156,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => viewDetails(group)} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>Details</button>
-                    <button onClick={() => handleDelete(group.id)} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#dc2626', color: '#fff', cursor: 'pointer' }}>Delete</button>
+                    <button onClick={() => handleDelete(group.id)} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Delete</button>
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>ID: {group.id}</div>
@@ -189,7 +189,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                   {(groupDetail.participants.data || groupDetail.participants || []).map((p: any, i: number) => (
                     <span key={i} style={{ padding: '4px 10px', background: '#e5e7eb', borderRadius: 16, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                       {p.wa_id || p.phone || p}
-                      <button onClick={() => handleRemoveParticipant(p.wa_id || p.phone || p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, padding: 0 }}>×</button>
+                      <button onClick={() => handleRemoveParticipant(p.wa_id || p.phone || p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#059669', fontSize: 14, padding: 0 }}>×</button>
                     </span>
                   ))}
                 </div>

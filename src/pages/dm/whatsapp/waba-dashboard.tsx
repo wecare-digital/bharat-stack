@@ -32,7 +32,7 @@ interface PageProps {
 const QUALITY_COLORS: Record<string, string> = {
   GREEN: '#000',
   YELLOW: '#4a4a4a',
-  RED: '#dc2626',
+  RED: '#059669',
   UNKNOWN: '#6b6b6b',
 };
 
@@ -524,7 +524,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
         }
 
         .info-item .value.disabled {
-          color: #dc2626;
+          color: #059669;
         }
 
         .phone-numbers-section h3 {

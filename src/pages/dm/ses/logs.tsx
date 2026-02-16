@@ -63,8 +63,8 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
       sent: { bg: '#ECFDF5', color: '#065f46' },
       delivered: { bg: '#D1FAE5', color: '#065f46' },
       opened: { bg: '#D1FAE5', color: '#065f46' },
-      failed: { bg: '#fef2f2', color: '#dc2626' },
-      bounced: { bg: '#fef2f2', color: '#dc2626' },
+      failed: { bg: '#ECFDF5', color: '#059669' },
+      bounced: { bg: '#ECFDF5', color: '#059669' },
       pending: { bg: '#f5f5f5', color: '#6b7280' },
     };
     const s = styles[status] || styles.pending;
@@ -135,7 +135,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               transition: 'all 0.15s ease',
               color: selectedIds.size === 0 ? '#9ca3af' : '#10B981'
             }}
-            onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}}
+            onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#ECFDF5'; e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.color = '#059669'; }}}
             onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#10B981'; }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

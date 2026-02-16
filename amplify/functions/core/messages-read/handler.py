@@ -61,7 +61,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             filter_parts.append('contactId = :cid')
             expression_values[':cid'] = contact_id
         
-        if channel and channel in ['WHATSAPP', 'SMS', 'EMAIL']:
+        if channel and channel in ['WHATSAPP', 'SMS', 'EMAIL', 'RCS']:
             filter_parts.append('channel = :ch')
             expression_values[':ch'] = channel.lower()
         

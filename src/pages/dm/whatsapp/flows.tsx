@@ -20,7 +20,7 @@ const WABAS = [
 const CATEGORIES = ['SIGN_UP', 'SIGN_IN', 'APPOINTMENT_BOOKING', 'LEAD_GENERATION', 'CONTACT_US', 'CUSTOMER_SUPPORT', 'SURVEY', 'OTHER'];
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#f59e0b', PUBLISHED: '#16a34a', DEPRECATED: '#9ca3af', BLOCKED: '#dc2626', THROTTLED: '#f97316',
+  DRAFT: '#f59e0b', PUBLISHED: '#16a34a', DEPRECATED: '#9ca3af', BLOCKED: '#059669', THROTTLED: '#f97316',
 };
 
 const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -154,7 +154,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
                     {flow.status === 'DRAFT' && (
                       <>
                         <button onClick={() => handlePublish(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#16a34a', color: '#fff', cursor: 'pointer' }}>Publish</button>
-                        <button onClick={() => handleDelete(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#dc2626', color: '#fff', cursor: 'pointer' }}>Delete</button>
+                        <button onClick={() => handleDelete(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Delete</button>
                       </>
                     )}
                     {flow.status === 'PUBLISHED' && (
@@ -183,8 +183,8 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
               <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#666' }}>Endpoint URI:</span> {flowDetail.endpoint_uri || 'Not set'}</div>
             </div>
             {flowDetail.validation_errors?.length > 0 && (
-              <div style={{ marginTop: 12, padding: 12, background: '#fef2f2', borderRadius: 6, fontSize: 13 }}>
-                <strong style={{ color: '#dc2626' }}>Validation Errors:</strong>
+              <div style={{ marginTop: 12, padding: 12, background: '#ECFDF5', borderRadius: 6, fontSize: 13 }}>
+                <strong style={{ color: '#059669' }}>Validation Errors:</strong>
                 <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                   {flowDetail.validation_errors.map((e: any, i: number) => <li key={i}>{e.error || JSON.stringify(e)}</li>)}
                 </ul>

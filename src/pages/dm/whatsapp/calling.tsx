@@ -1092,14 +1092,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                                 Answer
                               </button>
                               <button onClick={() => rejectCall(call.callId, call.phoneNumberId)}
-                                style={{ padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                                style={{ padding: '6px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                                 Reject
                               </button>
                             </>
                           )}
                           {call.status === 'connected' && (
                             <button onClick={() => { hangupCall(call.callId, call.phoneNumberId); cleanupWebRTC(); }}
-                              style={{ padding: '6px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                              style={{ padding: '6px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                               Hang Up
                             </button>
                           )}
@@ -1187,7 +1187,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>Ringing — waiting for user to pick up</div>
                   </div>
                   <button onClick={hangupOutbound}
-                    style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                    style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                     Cancel
                   </button>
                 </div>
@@ -1207,7 +1207,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                         {outboundMuted ? 'Unmute' : 'Mute'}
                       </button>
                       <button onClick={hangupOutbound}
-                        style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                         Hang Up
                       </button>
                     </div>
@@ -1219,10 +1219,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '20px' }}>{outboundStep === 'ended' ? 'Done' : 'Failed'}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: outboundStep === 'ended' ? '#065f46' : '#991b1b' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: outboundStep === 'ended' ? '#065f46' : '#065f46' }}>
                       {outboundStep === 'ended' ? 'Call ended' : 'Call failed'}
                     </div>
-                    {outboundError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px', wordBreak: 'break-all' }}>{outboundError}</div>}
+                    {outboundError && <div style={{ fontSize: '12px', color: '#059669', marginTop: '2px', wordBreak: 'break-all' }}>{outboundError}</div>}
                     {outboundCallDuration > 0 && <div style={{ fontSize: '12px', color: '#6b7280' }}>Duration: {fmtDuration(outboundCallDuration)}</div>}
                   </div>
                   <button onClick={resetOutbound}
@@ -1233,7 +1233,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               )}
 
               {outboundError && outboundStep !== 'ended' && outboundStep !== 'failed' && (
-                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', color: '#991b1b', wordBreak: 'break-all' }}>
+                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '8px', fontSize: '12px', color: '#065f46', wordBreak: 'break-all' }}>
                   {outboundError}
                 </div>
               )}
@@ -1246,7 +1246,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             <div style={{ ...s.card, marginTop: '12px' }}>
               <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WebRTC Status</h4>
               <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.8 }}>
-                <div>Browser WebRTC: <span style={{ color: typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                <div>Browser WebRTC: <span style={{ color: typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '#10b981' : '#059669', fontWeight: 600 }}>
                   {typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '✓ Supported' : '✗ Not supported'}
                 </span></div>
                 <div>Microphone: <span style={{ fontWeight: 500 }}>Will request permission when answering a call</span></div>
@@ -1397,7 +1397,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 </p>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {BLOCKED_COUNTRIES.map((c, i) => (
-                    <span key={i} style={{ padding: '2px 10px', background: '#fef2f2', color: '#991b1b', borderRadius: '12px', fontSize: '11px', fontWeight: 500, border: '1px solid #fecaca' }}>{c}</span>
+                    <span key={i} style={{ padding: '2px 10px', background: '#ECFDF5', color: '#065f46', borderRadius: '12px', fontSize: '11px', fontWeight: 500, border: '1px solid #A7F3D0' }}>{c}</span>
                   ))}
                 </div>
                 <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9ca3af' }}>
@@ -1591,7 +1591,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   </div>
                   <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
                     Tier: <strong>{p.tier}</strong> | Quality: <strong>{p.quality}</strong> | Meta ID: <code style={{ fontSize: '11px' }}>{p.metaId}</code>
-                    {!p.callingReady && <span style={{ color: '#dc2626', marginLeft: '8px' }}>Needs TIER_2K+ (currently {p.tier})</span>}
+                    {!p.callingReady && <span style={{ color: '#059669', marginLeft: '8px' }}>Needs TIER_2K+ (currently {p.tier})</span>}
                   </div>
                 </div>
               ))}

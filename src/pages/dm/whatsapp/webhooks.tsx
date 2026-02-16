@@ -138,7 +138,7 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) 
               <button onClick={handleSubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
                 {subscribing ? '...' : 'Subscribe App'}
               </button>
-              <button onClick={handleUnsubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#fff', color: '#dc2626', border: '1px solid #dc2626', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+              <button onClick={handleUnsubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#fff', color: '#059669', border: '1px solid #059669', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
                 Unsubscribe
               </button>
             </div>

@@ -198,13 +198,13 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   onChange={e => { setPasswordInput(e.target.value); setPasswordError(''); }}
                   onKeyDown={e => e.key === 'Enter' && handleUnlockPhone()}
                   placeholder="Enter password to unlock"
-                  style={{ padding: '5px 10px', borderRadius: '8px', border: passwordError ? '1.5px solid #dc2626' : '1.5px solid #e5e7eb', fontSize: '12px', flex: 1 }}
+                  style={{ padding: '5px 10px', borderRadius: '8px', border: passwordError ? '1.5px solid #059669' : '1.5px solid #e5e7eb', fontSize: '12px', flex: 1 }}
                 />
                 <button onClick={handleUnlockPhone} style={{ padding: '5px 12px', borderRadius: '8px', background: '#10B981', color: '#fff', border: 'none', fontSize: '12px', cursor: 'pointer' }}>Unlock</button>
               </div>
             )}
             {isPhoneLocked && passwordError && (
-              <div style={{ color: '#dc2626', fontSize: '11px', marginTop: '4px' }}>{passwordError}</div>
+              <div style={{ color: '#059669', fontSize: '11px', marginTop: '4px' }}>{passwordError}</div>
             )}
             {selectedPhoneConfig?.paymentProtected && phone2Unlocked && (
               <div style={{ color: '#10B981', fontSize: '11px', marginTop: '4px' }}>Unlocked for this session</div>
@@ -311,7 +311,7 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .badge-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; }
         .message-bar { padding: 10px 14px; border-radius: 13px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 13px; border: 1.5px solid #10B981; }
         .message-bar.success { background: #ECFDF5; color: #111827; }
-        .message-bar.error { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
+        .message-bar.error { background: #ECFDF5; color: #059669; border-color: #059669; }
         .message-bar button { background: none; border: none; font-size: 16px; cursor: pointer; }
         .pay-layout { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
         .order-form { background: #fff; border-radius: 13px; padding: 20px; border: 1px solid #e5e5e5; }

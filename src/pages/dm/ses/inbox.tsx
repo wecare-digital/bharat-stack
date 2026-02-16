@@ -67,8 +67,11 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     try {
       const [contactsData, messagesData] = await Promise.all([api.listContacts(), api.listMessages(undefined, 'EMAIL')]);
 
+      // Client-side safety filter: only keep EMAIL messages
+      const emailMessages = messagesData.filter(m => m.channel === 'EMAIL');
+
       const contactMsgMap = new Map<string, { lastMsg: any; unread: number }>();
-      messagesData.forEach(m => {
+      emailMessages.forEach(m => {
         const existing = contactMsgMap.get(m.contactId);
         const msgTime = new Date(m.timestamp).getTime();
         if (!existing || msgTime > new Date(existing.lastMsg.timestamp).getTime()) {
@@ -80,7 +83,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
       });
 
       // Only show contacts that have EMAIL messages
-      const emailContactIds = new Set(messagesData.map(m => m.contactId));
+      const emailContactIds = new Set(emailMessages.map(m => m.contactId));
       const displayContacts: Contact[] = contactsData
         .filter(c => c.email && emailContactIds.has(c.contactId))
         .map(c => {
@@ -101,7 +104,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         });
 
       setContacts(displayContacts);
-      setMessages(messagesData.map(m => ({
+      setMessages(emailMessages.map(m => ({
         id: m.messageId,
         direction: m.direction.toLowerCase() as 'inbound' | 'outbound',
         content: m.content || '',

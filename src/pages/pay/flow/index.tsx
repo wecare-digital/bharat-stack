@@ -496,7 +496,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .crm-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
         .crm-msg { padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         .crm-msg.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-        .crm-msg.error { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+        .crm-msg.error { background: #ECFDF5; color: #059669; border: 1px solid #fca5a5; }
         .crm-msg button { background: none; border: none; font-size: 16px; cursor: pointer; color: inherit; }
         .crm-tab-content { margin-top: 16px; }
         .crm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
@@ -527,7 +527,7 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .badge.pending { background: #fef3c7; color: #92400e; }
         .badge.paid { background: #d1fae5; color: #065f46; }
-        .badge.failed { background: #fee2e2; color: #991b1b; }
+        .badge.failed { background: #ECFDF5; color: #065f46; }
         .crm-config { max-width: 600px; }
         .crm-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .crm-field { margin-bottom: 12px; }

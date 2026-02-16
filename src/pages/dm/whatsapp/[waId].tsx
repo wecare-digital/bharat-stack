@@ -1357,7 +1357,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .marketing-template .template-label { color: #065f46; }
         .marketing-template { background: #f0fdf4; margin: -8px -12px; padding: 8px 12px; border-radius: 8px; }
         .template-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto; }
-        .template-badge.urgent { background: #fef2f2; color: #dc2626; }
+        .template-badge.urgent { background: #ECFDF5; color: #059669; }
         .coupon-code { display: flex; align-items: center; gap: 8px; background: #d1fae5; padding: 8px 12px; border-radius: 6px; margin-top: 8px; cursor: pointer; border: 1px dashed #10B981; }
         .coupon-code:hover { background: #a7f3d0; }
         .coupon-label { font-size: 11px; color: #065f46; }

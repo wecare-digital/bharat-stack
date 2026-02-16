@@ -467,10 +467,10 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         .id-cell { font-family: monospace; font-size: 10px; color: #6b7280; }
         .name-cell { font-weight: 500; color: #065f46; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
         .success-cell { color: #059669; font-weight: 500; }
-        .failed-cell { color: #dc2626; font-weight: 500; }
+        .failed-cell { color: #059669; font-weight: 500; }
         .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #f5f5f5; color: #6b7280; }
         .status-badge.initiated, .status-badge.completed, .status-badge.success, .status-badge.active { background: #d1fae5; color: #059669; }
-        .status-badge.failed, .status-badge.error { background: #fee2e2; color: #dc2626; }
+        .status-badge.failed, .status-badge.error { background: #ECFDF5; color: #059669; }
         .status-badge.pending, .status-badge.in_progress { background: #fef3c7; color: #92400e; }
         .type-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #e0e7ff; color: #4338ca; }
         .recording-link { color: #059669; text-decoration: none; }

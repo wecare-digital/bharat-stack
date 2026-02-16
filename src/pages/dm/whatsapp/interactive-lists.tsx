@@ -211,7 +211,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
                 <input value={section.title} onChange={e => updateSection(si, 'title', e.target.value)} placeholder={`Section ${si + 1} title`}
                   style={{ flex: 1, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontWeight: 500 }} />
                 {sections.length > 1 && (
-                  <button onClick={() => removeSection(si)} style={{ padding: '4px 10px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Remove</button>
+                  <button onClick={() => removeSection(si)} style={{ padding: '4px 10px', background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Remove</button>
                 )}
               </div>
               {section.rows.map((row, ri) => (
@@ -222,7 +222,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
                   <input value={row.description || ''} onChange={e => updateRow(si, ri, 'description', e.target.value)} placeholder="Description (max 72)" maxLength={72}
                     style={{ flex: 2, padding: '5px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
                   {section.rows.length > 1 && (
-                    <button onClick={() => removeRow(si, ri)} style={{ padding: '2px 8px', background: 'none', color: '#dc2626', border: 'none', cursor: 'pointer', fontSize: 14 }}>×</button>
+                    <button onClick={() => removeRow(si, ri)} style={{ padding: '2px 8px', background: 'none', color: '#059669', border: 'none', cursor: 'pointer', fontSize: 14 }}>×</button>
                   )}
                 </div>
               ))}

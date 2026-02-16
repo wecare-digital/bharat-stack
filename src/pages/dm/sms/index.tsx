@@ -334,7 +334,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .tab-header-left { display: flex; align-items: center; gap: 8px; }
         .tab-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
         .provider-badge { background: #059669; color: #fff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-        .provider-badge.airtel { background: #dc2626; }
+        .provider-badge.airtel { background: #059669; }
         .region-badge { background: #f3f4f6; color: #6b7280; padding: 3px 8px; border-radius: 4px; font-size: 10px; }
         .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
         .filter-tabs { display: flex; gap: 4px; }
@@ -353,12 +353,12 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
         .name-cell { font-weight: 500; color: #111827; }
         .success-cell { color: #059669; font-weight: 500; }
-        .failed-cell { color: #dc2626; font-weight: 500; }
+        .failed-cell { color: #059669; font-weight: 500; }
         .dir-in { background: #059669; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .dir-out { background: #6b7280; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .st-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #f1f5f9; color: #6b7280; }
         .st-badge.sent, .st-badge.delivered { background: #ecfdf5; color: #059669; }
-        .st-badge.failed { background: #fef2f2; color: #dc2626; }
+        .st-badge.failed { background: #ECFDF5; color: #059669; }
         .empty-row { text-align: center; color: #6b7280; padding: 30px !important; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
         .modal-content { background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }

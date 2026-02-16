@@ -190,7 +190,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
     )},
     { key: 'stock', header: 'Stock', render: (p: api.WixProduct) => (
-      <span style={{ color: p.inStock ? '#059669' : '#dc2626', fontWeight: 500, fontSize: 13 }}>
+      <span style={{ color: p.inStock ? '#059669' : '#059669', fontWeight: 500, fontSize: 13 }}>
         {p.inStock ? (p.quantityInStock !== undefined ? `${p.quantityInStock} in stock` : 'In Stock') : 'Out of Stock'}
       </span>
     )},
@@ -232,7 +232,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
     }},
     { key: 'payment', header: 'Payment', render: (o: api.WixOrder) => {
       const status = o.paymentStatus || o._summary?.paymentStatus || '';
-      const color = status === 'PAID' ? '#059669' : status === 'NOT_PAID' ? '#dc2626' : '#d97706';
+      const color = status === 'PAID' ? '#059669' : status === 'NOT_PAID' ? '#059669' : '#d97706';
       return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ')}</span>;
     }},
     { key: 'fulfillment', header: 'Fulfillment', render: (o: api.WixOrder) => {
@@ -568,7 +568,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
                     <div><span style={{ fontSize: 12, color: '#6b7280' }}>Price</span><br /><span style={{ fontWeight: 600, fontSize: 18 }}>{selectedProduct.formattedPrice || `₹${selectedProduct.price}`}</span></div>
                     <div><span style={{ fontSize: 12, color: '#6b7280' }}>SKU</span><br /><span style={{ fontWeight: 500 }}>{selectedProduct.sku || '—'}</span></div>
-                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Stock</span><br /><span style={{ fontWeight: 500, color: selectedProduct.inStock ? '#059669' : '#dc2626' }}>{selectedProduct.inStock ? `${selectedProduct.quantityInStock ?? 'Yes'}` : 'Out'}</span></div>
+                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Stock</span><br /><span style={{ fontWeight: 500, color: selectedProduct.inStock ? '#059669' : '#059669' }}>{selectedProduct.inStock ? `${selectedProduct.quantityInStock ?? 'Yes'}` : 'Out'}</span></div>
                     <div><span style={{ fontSize: 12, color: '#6b7280' }}>Type</span><br /><span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{selectedProduct.productType}</span></div>
                   </div>
                 </div>
@@ -630,7 +630,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={statBox}><span style={statLabel}>Order #</span><span style={statValue}>#{selectedOrder.number || s.orderNumber}</span></div>
                   {customNum && <div style={statBox}><span style={statLabel}>Custom #</span><span style={statValue}>{customNum}</span></div>}
                   <div style={statBox}><span style={statLabel}>Total</span><span style={statValue}>{currency === 'INR' ? '₹' : currency + ' '}{total}</span></div>
-                  <div style={statBox}><span style={statLabel}>Payment</span><span style={{ ...statValue, color: (selectedOrder.paymentStatus || s.paymentStatus) === 'PAID' ? '#059669' : '#dc2626' }}>{(selectedOrder.paymentStatus || s.paymentStatus || '').replace(/_/g, ' ')}</span></div>
+                  <div style={statBox}><span style={statLabel}>Payment</span><span style={{ ...statValue, color: (selectedOrder.paymentStatus || s.paymentStatus) === 'PAID' ? '#059669' : '#059669' }}>{(selectedOrder.paymentStatus || s.paymentStatus || '').replace(/_/g, ' ')}</span></div>
                   <div style={statBox}><span style={statLabel}>Fulfillment</span><span style={statValue}>{(selectedOrder.fulfillmentStatus || s.fulfillmentStatus || '—').replace(/_/g, ' ')}</span></div>
                   <div style={statBox}><span style={statLabel}>Date</span><span style={statValue}>{new Date(selectedOrder.dateCreated || (selectedOrder as any).createdDate || s.createdDate || '').toLocaleDateString('en-IN')}</span></div>
                 </div>

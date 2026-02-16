@@ -66,9 +66,12 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     try {
       const [contactsData, messagesData] = await Promise.all([api.listContacts(), api.listMessages(undefined, 'RCS')]);
 
+      // Client-side safety filter: only keep RCS messages
+      const rcsMessages = messagesData.filter(m => m.channel === 'RCS');
+
       // Build map of contacts that have RCS messages
       const contactMsgMap = new Map<string, { lastMsg: any; unread: number }>();
-      messagesData.forEach(m => {
+      rcsMessages.forEach(m => {
         const existing = contactMsgMap.get(m.contactId);
         const msgTime = new Date(m.timestamp).getTime();
         if (!existing || msgTime > new Date(existing.lastMsg.timestamp).getTime()) {
@@ -80,7 +83,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
       });
 
       // Only show contacts that have RCS messages
-      const rcsContactIds = new Set(messagesData.map(m => m.contactId));
+      const rcsContactIds = new Set(rcsMessages.map(m => m.contactId));
       const displayContacts: Contact[] = contactsData
         .filter(c => c.phone && rcsContactIds.has(c.contactId))
         .map(c => {
@@ -101,7 +104,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         });
 
       setContacts(displayContacts);
-      setMessages(messagesData.map(m => ({
+      setMessages(rcsMessages.map(m => ({
         id: m.messageId,
         direction: m.direction.toLowerCase() as 'inbound' | 'outbound',
         content: m.content || '',
