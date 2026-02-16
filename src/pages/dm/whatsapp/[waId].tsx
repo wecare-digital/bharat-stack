@@ -807,7 +807,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const detail = content?.replace(/^\[Referral: ?\w*\]\s*/, '').trim();
       return (
         <div className="referral-message">
-          <span className="referral-icon">📢</span>
+          <span className="referral-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
           <span className="referral-text">{detail || 'Came from an ad or referral'}</span>
         </div>
       );
@@ -817,7 +817,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'ad_click' || content?.startsWith('[Ad Click')) {
       return (
         <div className="referral-message">
-          <span className="referral-icon">📢</span>
+          <span className="referral-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
           <span className="referral-text">Clicked a WhatsApp ad</span>
         </div>
       );
@@ -828,7 +828,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const detail = content?.replace(/[\[\]]/g, '') || 'Product inquiry';
       return (
         <div className="product-message">
-          <span className="product-icon">🛍️</span>
+          <span className="product-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
           <span className="product-text">{detail}</span>
         </div>
       );
@@ -839,7 +839,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const question = content?.match(/\[Poll: (.+?)\]/)?.[1] || 'Poll';
       return (
         <div className="poll-message">
-          <span className="poll-icon">📊</span>
+          <span className="poll-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="3" width="4" height="18"/><rect x="17" y="8" width="4" height="13"/></svg></span>
           <span className="poll-text">{question}</span>
         </div>
       );
