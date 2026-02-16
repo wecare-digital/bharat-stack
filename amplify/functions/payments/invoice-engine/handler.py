@@ -670,7 +670,7 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
 
     # Upload to S3
     inv_num_safe = invoice.get('invoiceNumber', invoice_id).replace('/', '-')
-    s3_key = f"{INVOICE_PREFIX}{invoice_id}/{inv_num_safe}.png"
+    s3_key = f"{INVOICE_PREFIX}{inv_num_safe}.png"
 
     s3.put_object(
         Bucket=MEDIA_BUCKET,
@@ -1079,7 +1079,7 @@ def generate_invoice_pdf(invoice_id: str, request_id: str) -> Dict:
         pdf_bytes = _generate_html_pdf_fallback(html)
 
     inv_num_safe = invoice.get('invoiceNumber', invoice_id).replace('/', '-')
-    s3_key = f"{INVOICE_PREFIX}{invoice_id}/{inv_num_safe}.pdf"
+    s3_key = f"{INVOICE_PREFIX}{inv_num_safe}.pdf"
 
     s3.put_object(
         Bucket=MEDIA_BUCKET,

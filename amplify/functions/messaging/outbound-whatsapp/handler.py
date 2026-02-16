@@ -1486,7 +1486,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
     # Structure:
     # BODY: Your payment is overdue—please tap below to complete it 💳🤝
     # CART ITEMS: from input items array
-    # BREAKDOWN: Subtotal, Discount, Shipping, Handling, Tax (with GSTIN)
+    # BREAKDOWN: Subtotal, Discount, Shipping, Tax (with GSTIN)
     # TOTAL: auto-calculated
     if is_interactive_payment and order_details:
         from decimal import Decimal, ROUND_HALF_UP
