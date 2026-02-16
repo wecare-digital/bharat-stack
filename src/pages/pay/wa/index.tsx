@@ -45,6 +45,9 @@ interface Contact {
   contactId: string;
   name: string;
   phone: string;
+  email?: string;
+  shippingAddress?: string;
+  billingAddress?: string;
 }
 
 const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
@@ -100,7 +103,15 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     setLoading(true);
     try {
       const data = await api.listContacts();
-      const indianContacts = data.filter(c => c.phone?.startsWith('+91'));
+      const indianContacts = data.filter(c => c.phone?.startsWith('+91')).map(c => ({
+        id: c.id,
+        contactId: c.contactId,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        shippingAddress: c.shippingAddress,
+        billingAddress: c.billingAddress,
+      }));
       setContacts(indianContacts);
     } catch (err) {
       setMessage({ type: 'error', text: 'Failed to load contacts' });
@@ -130,6 +141,19 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     if (!referenceId) { setMessage({ type: 'error', text: 'Please generate a Reference ID' }); return; }
     if (!itemName) { setMessage({ type: 'error', text: 'Please enter item name' }); return; }
     if (itemAmount <= 0) { setMessage({ type: 'error', text: 'Please enter item amount' }); return; }
+
+    // Mandatory field enforcement for invoice readiness
+    const contact = contacts.find(c => c.contactId === selectedContact);
+    if (contact) {
+      const missing: string[] = [];
+      if (!contact.email) missing.push('email');
+      if (!contact.shippingAddress) missing.push('shipping address');
+      if (!contact.billingAddress) missing.push('billing address');
+      if (missing.length > 0) {
+        setMessage({ type: 'error', text: `Contact missing: ${missing.join(', ')}. Update at /contacts first.` });
+        return;
+      }
+    }
 
     setSending(true);
     setMessage(null);
@@ -239,6 +263,17 @@ const PayWAPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 <option value="">Select contact (+91 only)</option>
                 {contacts.map(c => <option key={c.contactId} value={c.contactId}>{c.name || c.phone} - {c.phone}</option>)}
               </select>
+              {selectedContactInfo && (() => {
+                const m: string[] = [];
+                if (!selectedContactInfo.email) m.push('email');
+                if (!selectedContactInfo.shippingAddress) m.push('shipping address');
+                if (!selectedContactInfo.billingAddress) m.push('billing address');
+                return m.length > 0 ? (
+                  <div style={{ marginTop: 6, padding: '8px 12px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12, color: '#92400e' }}>
+                    Missing: {m.join(', ')}. <a href="/contacts" style={{ color: '#059669', textDecoration: 'underline' }}>Update contact</a> before sending payment.
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             <div className="form-section">

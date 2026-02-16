@@ -356,6 +356,22 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (!selectedContactId) return;
     if (!paymentForm.itemName || !paymentForm.amount || !paymentForm.referenceId) return;
 
+    // Mandatory field enforcement: check contact has email + addresses
+    try {
+      const contact = await api.getContact(selectedContactId);
+      if (contact) {
+        const missing: string[] = [];
+        if (!contact.email) missing.push('email');
+        if (!contact.shippingAddress) missing.push('shipping address');
+        if (!contact.billingAddress) missing.push('billing address');
+        if (missing.length > 0) {
+          setTemplateMessage(`Contact missing: ${missing.join(', ')}. Update at /contacts first.`);
+          setTimeout(() => setTemplateMessage(null), 5000);
+          return;
+        }
+      }
+    } catch { /* proceed if lookup fails */ }
+
     setSendingPayment(true);
     setTemplateMessage('Sending interactive payment request...');
 

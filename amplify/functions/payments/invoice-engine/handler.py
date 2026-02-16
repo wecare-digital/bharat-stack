@@ -74,25 +74,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         body = {}
 
     try:
-        # POST /invoices — create invoice
-        if method == 'POST' and 'create' not in path and 'generate' not in path and 'send' not in path:
-            return create_invoice(body, request_id)
-
-        # POST /invoices/from-payment — create from payment ID
+        # POST /invoices/from-payment — create from payment ID (check BEFORE generic POST)
         if method == 'POST' and 'from-payment' in path:
             return create_invoice_from_payment(body, request_id)
 
-        # PUT /invoices/{id} — update invoice
-        if method == 'PUT' and path_params.get('invoiceId'):
-            return update_invoice(path_params['invoiceId'], body, request_id)
-
-        # GET /invoices — list
-        if method == 'GET' and not path_params.get('invoiceId'):
-            return list_invoices(params, request_id)
-
-        # GET /invoices/{id} — get single
-        if method == 'GET' and path_params.get('invoiceId'):
-            return get_invoice(path_params['invoiceId'], request_id)
+        # POST /invoices/next-sequence — get next invoice number (admin)
+        if method == 'POST' and 'next-sequence' in path:
+            return get_next_sequence_preview(body, request_id)
 
         # POST /invoices/{id}/generate-image
         if method == 'POST' and 'generate-image' in path:
@@ -111,14 +99,26 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             phone_number_id = body.get('phoneNumberId')
             return send_invoice_whatsapp(inv_id, phone, phone_number_id, request_id)
 
+        # POST /invoices — create invoice (generic, must be LAST POST check)
+        if method == 'POST':
+            return create_invoice(body, request_id)
+
+        # PUT /invoices/{id} — update invoice
+        if method == 'PUT' and path_params.get('invoiceId'):
+            return update_invoice(path_params['invoiceId'], body, request_id)
+
         # GET /invoices/{id}/delivery-log
         if method == 'GET' and 'delivery-log' in path:
             inv_id = path_params.get('invoiceId')
             return get_delivery_log(inv_id, request_id)
 
-        # POST /invoices/next-sequence — get next invoice number (admin)
-        if method == 'POST' and 'next-sequence' in path:
-            return get_next_sequence_preview(body, request_id)
+        # GET /invoices — list
+        if method == 'GET' and not path_params.get('invoiceId'):
+            return list_invoices(params, request_id)
+
+        # GET /invoices/{id} — get single
+        if method == 'GET' and path_params.get('invoiceId'):
+            return get_invoice(path_params['invoiceId'], request_id)
 
         return _resp(405, {'error': 'Method not allowed'})
 
@@ -183,21 +183,25 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     invoice_id = str(uuid.uuid4())
     now = int(time.time())
 
-    # Validate mandatory fields
+    # Validate mandatory fields (relaxed for webhook-originated invoices)
     customer_phone = body.get('customerPhone', '')
     paid_by_phone = body.get('paidByPhone', customer_phone)
     customer_email = body.get('customerEmail', '')
     shipping_address = body.get('shippingAddress', '')
     billing_address = body.get('billingAddress', '')
+    entry_point = body.get('entryPoint', 'manual')
 
-    missing = []
-    if not customer_phone: missing.append('customerPhone')
-    if not paid_by_phone: missing.append('paidByPhone')
-    if not customer_email: missing.append('customerEmail')
-    if not shipping_address: missing.append('shippingAddress')
-    if not billing_address: missing.append('billingAddress')
-    if missing:
-        return _resp(400, {'error': 'Missing mandatory fields', 'missingFields': missing})
+    # Only enforce mandatory fields for non-webhook invoices
+    # Webhook invoices are created AFTER payment — can't block retroactively
+    if entry_point not in ('webhook',):
+        missing = []
+        if not customer_phone: missing.append('customerPhone')
+        if not paid_by_phone: missing.append('paidByPhone')
+        if not customer_email: missing.append('customerEmail')
+        if not shipping_address: missing.append('shippingAddress')
+        if not billing_address: missing.append('billingAddress')
+        if missing:
+            return _resp(400, {'error': 'Missing mandatory fields', 'missingFields': missing})
 
     invoice_number = _get_next_invoice_number(body.get('fy'))
 

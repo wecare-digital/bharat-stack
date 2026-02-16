@@ -140,6 +140,8 @@ export interface Contact {
   name: string;
   phone: string;
   email?: string;
+  shippingAddress?: string;
+  billingAddress?: string;
   // Opt-in fields (Requirement 3.2)
   optInWhatsApp: boolean;
   optInSms: boolean;
@@ -208,6 +210,8 @@ function normalizeContact(item: any): Contact {
     name: item.name || '',
     phone: item.phone || '',
     email: item.email || '',
+    shippingAddress: item.shippingAddress || '',
+    billingAddress: item.billingAddress || '',
     // Opt-in fields
     optInWhatsApp: item.optInWhatsApp || false,
     optInSms: item.optInSms || false,

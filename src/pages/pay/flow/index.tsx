@@ -202,25 +202,41 @@ const PayFlowPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   const handleCustNew = () => { setEditCustId(null); setCustForm(emptyForm); setShowCustForm(true); setMsg(null); };
 
-  // ── Invoice create ──
+  // ── Invoice create (uses new Invoice Engine) ──
   const handleCreateInvoice = async () => {
     if (!invoiceCustomer) return;
     if (!invoiceForm.itemName || !invoiceForm.unitPrice || parseFloat(invoiceForm.unitPrice) <= 0) {
       setMsg({ type: 'error', text: 'Item name and price > 0 required' }); return;
     }
+    // Mandatory field enforcement for invoice readiness
+    const missingFields: string[] = [];
+    if (!invoiceCustomer.email) missingFields.push('email');
+    if (!invoiceCustomer.shippingAddress) missingFields.push('shipping address');
+    if (!invoiceCustomer.billingAddress) missingFields.push('billing address');
+    if (missingFields.length > 0) {
+      setMsg({ type: 'error', text: `Customer missing: ${missingFields.join(', ')}. Edit customer first.` }); return;
+    }
     setInvoiceSaving(true); setMsg(null);
     try {
-      const result = await api.createInvoice({
-        contactId: invoiceCustomer.contactId, itemName: invoiceForm.itemName,
-        unitPrice: parseFloat(invoiceForm.unitPrice), quantity: parseInt(invoiceForm.quantity) || 1,
-        gstRate: parseFloat(invoiceForm.gstRate) || 18, shipping: parseFloat(invoiceForm.shipping) || 49,
-        discount: parseFloat(invoiceForm.discount) || 15, purpose: invoiceForm.purpose,
-        orderId: invoiceForm.orderId || 'Offline', customerName: invoiceCustomer.name,
-        customerPhone: invoiceCustomer.phone, customerEmail: invoiceCustomer.email,
-        shippingAddress: invoiceCustomer.shippingAddress, billingAddress: invoiceCustomer.billingAddress,
+      const up = parseFloat(invoiceForm.unitPrice) || 0;
+      const q = parseInt(invoiceForm.quantity) || 1;
+      const result = await api.createInvoiceEngine({
+        contactId: invoiceCustomer.contactId,
+        customerName: invoiceCustomer.name,
+        customerPhone: invoiceCustomer.phone,
+        customerEmail: invoiceCustomer.email,
+        shippingAddress: invoiceCustomer.shippingAddress,
+        billingAddress: invoiceCustomer.billingAddress,
+        items: [{ name: invoiceForm.itemName, amount: up, quantity: q }],
+        gstRate: parseFloat(invoiceForm.gstRate) || 18,
+        shipping: parseFloat(invoiceForm.shipping) || 49,
+        discount: parseFloat(invoiceForm.discount) || 15,
+        purpose: invoiceForm.purpose,
+        orderId: invoiceForm.orderId || 'Offline',
+        entryPoint: 'pay_flow',
       });
-      if (result?.success) {
-        setMsg({ type: 'success', text: `Invoice sent to ${invoiceCustomer.name} via WhatsApp` });
+      if (result?.invoiceId) {
+        setMsg({ type: 'success', text: `Invoice ${result.invoiceNumber} created (Rs. ${result.total.toLocaleString()})` });
         setInvoiceCustomer(null);
         if (tab === 'invoices') loadInvoices();
       } else { setMsg({ type: 'error', text: 'Failed to create invoice' }); }

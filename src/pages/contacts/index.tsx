@@ -31,6 +31,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
+  const [formShippingAddress, setFormShippingAddress] = useState('');
+  const [formBillingAddress, setFormBillingAddress] = useState('');
   // Opt-in fields
   const [formOptInWA, setFormOptInWA] = useState(false);
   const [formOptInSms, setFormOptInSms] = useState(false);
@@ -80,6 +82,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormName('');
     setFormPhone('');
     setFormEmail('');
+    setFormShippingAddress('');
+    setFormBillingAddress('');
     setFormOptInWA(false);
     setFormOptInSms(false);
     setFormOptInEmail(false);
@@ -100,6 +104,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         name: formName,
         phone: formPhone.startsWith('+') ? formPhone : `+${formPhone}`,
         email: formEmail || undefined,
+        shippingAddress: formShippingAddress || undefined,
+        billingAddress: formBillingAddress || undefined,
         optInWhatsApp: formOptInWA,
         optInSms: formOptInSms,
         optInEmail: formOptInEmail,
@@ -129,6 +135,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormName(contact.name || '');
     setFormPhone(contact.phone || '');
     setFormEmail(contact.email || '');
+    setFormShippingAddress(contact.shippingAddress || '');
+    setFormBillingAddress(contact.billingAddress || '');
     setFormOptInWA(contact.optInWhatsApp || false);
     setFormOptInSms(contact.optInSms || false);
     setFormOptInEmail(contact.optInEmail || false);
@@ -150,6 +158,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         name: formName,
         phone: formPhone.startsWith('+') ? formPhone : `+${formPhone}`,
         email: formEmail || undefined,
+        shippingAddress: formShippingAddress || undefined,
+        billingAddress: formBillingAddress || undefined,
         optInWhatsApp: formOptInWA,
         optInSms: formOptInSms,
         optInEmail: formOptInEmail,
@@ -267,8 +277,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   <th>Name</th>
                   <th>Phone</th>
                   <th>Email</th>
+                  <th>Shipping</th>
+                  <th>Billing</th>
                   <th>Opt-In</th>
-                  <th>Last Message</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -278,6 +289,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     <td><strong>{contact.name || '-'}</strong></td>
                     <td>{contact.phone || '-'}</td>
                     <td>{contact.email || '-'}</td>
+                    <td style={{ maxWidth: 150, fontSize: '0.8rem', color: '#4b5563' }}>{contact.shippingAddress ? (contact.shippingAddress.length > 30 ? contact.shippingAddress.slice(0, 30) + '...' : contact.shippingAddress) : <span style={{ color: '#d1d5db', fontStyle: 'italic' }}>Not set</span>}</td>
+                    <td style={{ maxWidth: 150, fontSize: '0.8rem', color: '#4b5563' }}>{contact.billingAddress ? (contact.billingAddress.length > 30 ? contact.billingAddress.slice(0, 30) + '...' : contact.billingAddress) : <span style={{ color: '#d1d5db', fontStyle: 'italic' }}>Not set</span>}</td>
                     <td>
                       <div className="opt-in-badges">
                         {contact.optInWhatsApp && contact.allowlistWhatsApp && <span className="badge badge-active">WA</span>}
@@ -291,7 +304,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                         )}
                       </div>
                     </td>
-                    <td>{contact.lastInboundMessageAt ? new Date(contact.lastInboundMessageAt).toLocaleDateString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(contact)}>Edit</Button>
@@ -303,7 +315,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 ))}
                 {filteredContacts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="empty-table">
+                    <td colSpan={7} className="empty-table">
                       {searchQuery ? 'No contacts match your search' : 'No contacts yet. Add your first contact!'}
                     </td>
                   </tr>
@@ -331,6 +343,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="form-group">
                 <label>Email</label>
                 <input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="email@example.com" />
+              </div>
+              <div className="form-group">
+                <label>Shipping Address</label>
+                <input type="text" value={formShippingAddress} onChange={(e) => setFormShippingAddress(e.target.value)} placeholder="123 Park Street, Kolkata 700016" />
+              </div>
+              <div className="form-group">
+                <label>Billing Address</label>
+                <input type="text" value={formBillingAddress} onChange={(e) => setFormBillingAddress(e.target.value)} placeholder="Same as shipping or different" />
               </div>
               <div className="form-group">
                 <label>Opt-In Channels</label>
@@ -393,6 +413,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="form-group">
                 <label>Email</label>
                 <input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="email@example.com" />
+              </div>
+              <div className="form-group">
+                <label>Shipping Address</label>
+                <input type="text" value={formShippingAddress} onChange={(e) => setFormShippingAddress(e.target.value)} placeholder="123 Park Street, Kolkata 700016" />
+              </div>
+              <div className="form-group">
+                <label>Billing Address</label>
+                <input type="text" value={formBillingAddress} onChange={(e) => setFormBillingAddress(e.target.value)} placeholder="Same as shipping or different" />
               </div>
               <div className="form-group">
                 <label>Opt-In Channels</label>
