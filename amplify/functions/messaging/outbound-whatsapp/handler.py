@@ -956,6 +956,91 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             payment_amount=payment_amount
         )
         
+        # Store payment_request record for invoice generator lookup
+        # The invoice engine scans for messageType='payment_request' + paymentReferenceId
+        if is_interactive_payment and order_details and payment_ref_id:
+            try:
+                order_data = order_details.get('order', {})
+                items_list = order_data.get('items', [])
+                first_item_name = items_list[0].get('name', 'Service Fee') if items_list else order_details.get('itemName', 'Service Fee')
+                subtotal_val = order_data.get('subtotal', {}).get('value', 0)
+                discount_val = order_data.get('discount', {}).get('value', 0)
+                shipping_val = order_data.get('shipping', {}).get('value', 0)
+                handling_val = order_data.get('handling', {}).get('value', 0)
+                tax_val = order_data.get('tax', {}).get('value', 0)
+                
+                # Calculate per-item GST total for gstRate field
+                total_gst_rate = 0
+                if items_list:
+                    weighted_sum = 0
+                    total_value = 0
+                    for it in items_list:
+                        it_val = int(it.get('amount', {}).get('value', 0)) * int(it.get('quantity', 1))
+                        it_rate = float(it.get('gstRate', 0))
+                        weighted_sum += it_val * it_rate
+                        total_value += it_val
+                    if total_value > 0:
+                        total_gst_rate = weighted_sum / total_value  # Weighted average GST rate
+                
+                # Look up contact for customer details
+                contact_info = _get_contact(contact_id) if contact_id else None
+                c_name = (contact_info or {}).get('name', '')
+                c_phone = (contact_info or {}).get('phone', recipient_phone or '')
+                c_email = (contact_info or {}).get('email', '')
+                c_ship = (contact_info or {}).get('shippingAddress', '')
+                c_bill = (contact_info or {}).get('billingAddress', '')
+                
+                pay_req_record = {
+                    'id': str(uuid.uuid4()),
+                    'messageId': payment_ref_id,
+                    'contactId': contact_id,
+                    'channel': 'whatsapp',
+                    'direction': 'outbound',
+                    'messageType': 'payment_request',
+                    'content': stored_content,
+                    'paymentReferenceId': payment_ref_id,
+                    'paymentAmount': Decimal(str(subtotal_val)),
+                    'paymentOffset': Decimal('100'),
+                    'paymentCurrency': 'INR',
+                    'paymentItemName': first_item_name,
+                    'paymentItemCount': len(items_list),
+                    'paymentQuantity': int(items_list[0].get('quantity', 1)) if items_list else 1,
+                    'paymentSubtotal': Decimal(str(subtotal_val)),
+                    'paymentDiscount': Decimal(str(discount_val)),
+                    'paymentGstRate': Decimal(str(total_gst_rate)),
+                    'paymentGstAmount': Decimal(str(tax_val)),
+                    'paymentShipping': Decimal(str(shipping_val)),
+                    'paymentHandling': Decimal(str(handling_val)),
+                    'paymentTotal': Decimal(str(int((payment_amount or 0) * 100))),
+                    'paymentGstin': order_details.get('gstin', '19AADFW7431N1ZK'),
+                    'paymentSource': 'inbox_ui',
+                    'paymentOrderId': order_details.get('orderId', 'Offline'),
+                    'paymentCustomerName': c_name,
+                    'paymentCustomerPhone': c_phone,
+                    'paymentCustomerEmail': c_email,
+                    'paymentShippingAddress': c_ship,
+                    'paymentBillingAddress': c_bill,
+                    'status': 'pending',
+                    'senderPhone': recipient_phone or '',
+                    'createdAt': Decimal(str(int(time.time()))),
+                    'expiresAt': Decimal(str(int(time.time()) + 86400 * 30)),
+                }
+                messages_table = dynamodb.Table(MESSAGES_TABLE)
+                messages_table.put_item(Item={k: v for k, v in pay_req_record.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping', 'paymentHandling')})
+                logger.info(json.dumps({
+                    'event': 'payment_request_record_stored',
+                    'referenceId': payment_ref_id,
+                    'contactId': contact_id,
+                    'requestId': request_id,
+                }))
+            except Exception as pr_err:
+                logger.warning(json.dumps({
+                    'event': 'payment_request_record_error',
+                    'referenceId': payment_ref_id,
+                    'error': str(pr_err),
+                    'requestId': request_id,
+                }))
+        
         logger.info(json.dumps({
             'event': 'message_sent',
             'messageId': message_id,
