@@ -1479,10 +1479,10 @@
   flex-shrink: 0;
 }
 
-/* Themed Scrollbars */
+/* Themed Scrollbars — hide arrows, emerald thumb */
 .whatsapp-inbox ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-track {
@@ -1490,18 +1490,52 @@
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb {
-  background: #A7F3D0;
-  border-radius: 3px;
+  background: #D1FAE5;
+  border-radius: 10px;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb:hover {
-  background: #059669;
+  background: #10b981;
+}
+
+.whatsapp-inbox ::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+.whatsapp-inbox ::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Firefox scrollbar */
 .whatsapp-inbox * {
   scrollbar-width: thin;
-  scrollbar-color: #A7F3D0 transparent;
+  scrollbar-color: #D1FAE5 transparent;
+}
+
+/* Page-level scrollbar — match theme */
+.page-container ::-webkit-scrollbar {
+  width: 5px;
+}
+
+.page-container ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page-container ::-webkit-scrollbar-thumb {
+  background: #D1FAE5;
+  border-radius: 10px;
+}
+
+.page-container ::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+.page-container ::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 /* Mobile WhatsApp Inbox Styles */
@@ -2423,6 +2457,87 @@
   padding: 4px 0;
   outline: none;
   resize: none;
+}
+
+/* Inbox Action Row — below editor */
+.inbox-action-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 0;
+}
+
+.inbox-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.inbox-action-btn:hover {
+  background: #f0fdf4;
+  border-color: #10b981;
+  color: #059669;
+}
+
+.inbox-action-btn.active {
+  background: #ECFDF5;
+  border-color: #10b981;
+  color: #059669;
+}
+
+.inbox-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Emoji Picker Panel */
+.emoji-picker-panel {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-top: 6px;
+  animation: fadeIn 0.15s ease;
+}
+
+.emoji-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.1s;
+}
+
+.emoji-btn:hover {
+  background: #f0fdf4;
+}
+
+@media (max-width: 768px) {
+  .emoji-picker-panel {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .inbox-action-btn {
+    width: 32px;
+    height: 32px;
+  }
 }
 
 /* Empty Chat State */

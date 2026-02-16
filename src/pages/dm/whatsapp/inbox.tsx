@@ -169,6 +169,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [showDeleteContactModal, setShowDeleteContactModal] = useState<Contact | null>(null);
   const [showDeleteMessageModal, setShowDeleteMessageModal] = useState<Message | null>(null);
   const [showInteractiveComposer, setShowInteractiveComposer] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const CONTACTS_PER_PAGE = 20;
   const MESSAGES_PER_PAGE = 50;
@@ -495,6 +496,34 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       });
     } catch (err) {
       console.error('Reaction failed:', err);
+    }
+  };
+
+  // Send location request via WhatsApp interactive location_request_message
+  // Uses native WhatsApp location picker — no Google Maps needed
+  // User taps "Send location" → WhatsApp opens device GPS picker → sends lat/lng back
+  const handleSendLocationRequest = async () => {
+    if (!selectedContact || sending) return;
+    setSending(true);
+    try {
+      const result = await api.sendWhatsAppInteractive({
+        contactId: selectedContact.id,
+        phoneNumberId: selectedWaba,
+        interactiveType: 'location_request',
+        interactiveData: {
+          body: 'Please share your location so we can assist you better.',
+        },
+      });
+      if (result) {
+        toast.success('Location request sent');
+        await loadData();
+      } else {
+        toast.error('Failed to send location request');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Location request failed');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -1251,17 +1280,53 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                   </div>
                 </div>
                 
-                {/* Interactive Message Button - below editor */}
-                <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 6 }}>
+                {/* Action buttons row — below editor */}
+                <div className="inbox-action-row">
+                  {/* Emoji picker toggle */}
                   <button 
-                    className="interactive-btn" 
-                    onClick={() => setShowInteractiveComposer(true)}
-                    title="Send Interactive Message (List/Buttons)"
-                    style={{ padding: '6px 14px', background: '#ECFDF5', border: '1.5px solid #A7F3D0', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap', color: '#059669', fontWeight: 500, transition: 'all 0.15s' }}
+                    className={`inbox-action-btn ${showEmojiPicker ? 'active' : ''}`}
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    title="Emoji"
                   >
-                    Interactive List
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                  </button>
+                  
+                  {/* Interactive list */}
+                  <button 
+                    className={`inbox-action-btn ${showInteractiveComposer ? 'active' : ''}`}
+                    onClick={() => setShowInteractiveComposer(!showInteractiveComposer)}
+                    title="Interactive Message (List / Buttons)"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                  </button>
+                  
+                  {/* Location request */}
+                  <button 
+                    className="inbox-action-btn"
+                    onClick={handleSendLocationRequest}
+                    disabled={sending}
+                    title="Request Location (WhatsApp native)"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   </button>
                 </div>
+                
+                {/* Emoji picker panel */}
+                {showEmojiPicker && (
+                  <div className="emoji-picker-panel">
+                    {['😀','😂','😊','😍','🥰','😎','🤔','👍','👋','🙏',
+                      '❤️','🔥','✅','⭐','💯','🎉','👏','💪','🤝','📍',
+                      '📞','📧','💬','📦','🛒','💳','🏠','✈️','🚗','⏰'].map(emoji => (
+                      <button 
+                        key={emoji}
+                        className="emoji-btn"
+                        onClick={() => { setMessageText(prev => prev + emoji); setShowEmojiPicker(false); }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 
                 {/* Interactive Message Composer */}
                 {showInteractiveComposer && selectedContact && (
