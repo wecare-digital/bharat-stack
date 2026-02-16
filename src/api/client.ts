@@ -356,20 +356,10 @@ export interface SendReactionRequest {
 }
 
 export async function sendWhatsAppMessage(request: SendMessageRequest): Promise<{ messageId: string; status: string } | null> {
-  // Send typing indicator first (fire and forget)
-  try {
-    await apiCall(`${API_BASE}/whatsapp/send`, {
-      method: 'POST',
-      body: JSON.stringify({
-        contactId: request.contactId,
-        phoneNumberId: request.phoneNumberId,
-        isTypingIndicator: true,
-      }),
-    });
-  } catch (e) {
-    // Typing indicator is best-effort, don't block send
-    console.debug('Typing indicator failed (non-blocking):', e);
-  }
+  // Note: WhatsApp typing indicators require Meta Cloud API direct access
+  // (POST /{PHONE_NUMBER_ID}/messages with status:"read" + typing_indicator object)
+  // AWS EUM Social SDK does not expose this endpoint, so typing indicators
+  // are not supported in this integration. No fake API call needed.
 
   // Ensure mediaFile is properly formatted
   const payload = {

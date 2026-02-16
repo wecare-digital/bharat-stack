@@ -629,15 +629,15 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     return 'document';
   };
 
-  // Get icon for media type - Unicode only
-  const getMediaIcon = (type: string | null): string => {
+  // Get label for media type - text only, no emojis
+  const getMediaLabel = (type: string | null): string => {
     switch (type) {
-      case 'image': return '◫';
-      case 'video': return '▶';
-      case 'audio': return '♪';
-      case 'sticker': return '◉';
-      case 'document': return '⎘';
-      default: return '◰';
+      case 'image': return 'Image';
+      case 'video': return 'Video';
+      case 'audio': return 'Audio';
+      case 'sticker': return 'Sticker';
+      case 'document': return 'File';
+      default: return 'File';
     }
   };
 
@@ -662,7 +662,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             rel="noopener noreferrer"
             className="media-download-link"
           >
-            ↓ Download
+            Download
           </a>
         </span>
       );
@@ -730,45 +730,45 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     
     // Order messages
     if (content === '[Order]') {
-      return <span className="special-msg">🛒 Order</span>;
+      return <span className="special-msg">Order</span>;
     }
     
     // Payment messages (from Pay page / RichTextEditor)
     if (content.startsWith('[Payment:')) {
       const match = content.match(/\[Payment: (.+?)\]/);
       if (match) {
-        return <span className="special-msg">💳 {match[1]}</span>;
+        return <span className="special-msg">{match[1]}</span>;
       }
-      return <span className="special-msg">💳 Payment Request</span>;
+      return <span className="special-msg">Payment Request</span>;
     }
     
     // Order Status messages (payment confirmation/failure)
     if (content.startsWith('Order Status:')) {
       const isSuccess = content.includes('completed') || content.includes('captured');
-      return <span className="special-msg">{isSuccess ? '✅' : '❌'} {content.replace('Order Status: ', '')}</span>;
+      return <span className="special-msg">{isSuccess ? 'Paid' : 'Failed'} — {content.replace('Order Status: ', '')}</span>;
     }
     
     // Referral messages (click-to-WhatsApp ads)
     if (content.startsWith('[Referral:')) {
       const detail = content.replace(/^\[Referral: ?\w*\]\s*/, '').trim();
-      return <span className="special-msg">📢 {detail || 'Ad Referral'}</span>;
+      return <span className="special-msg">{detail || 'Ad Referral'}</span>;
     }
     
     // Ad click messages
     if (content.startsWith('[Ad Click')) {
-      return <span className="special-msg">📢 Ad Click</span>;
+      return <span className="special-msg">Ad Click</span>;
     }
     
     // Product / catalog messages
     if (content.startsWith('[Product')) {
       const detail = content.replace(/[\[\]]/g, '');
-      return <span className="special-msg">🛍️ {detail}</span>;
+      return <span className="special-msg">{detail}</span>;
     }
     
     // Poll messages
     if (content.startsWith('[Poll')) {
       const question = content.match(/\[Poll: (.+?)\]/)?.[1] || 'Poll';
-      return <span className="special-msg">📊 {question}</span>;
+      return <span className="special-msg">{question}</span>;
     }
     
     // System messages
@@ -802,7 +802,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         message={
           <div>
             <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>
-              ⚠️ WARNING: This will permanently delete:
+              WARNING: This will permanently delete:
             </p>
             <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
               <li>All WhatsApp messages (inbound & outbound)</li>
@@ -976,7 +976,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                       disabled={deleting === contact.id}
                       title="Delete contact"
                     >
-                      {deleting === contact.id ? '...' : '✕'}
+                      {deleting === contact.id ? '...' : '×'}
                     </button>
                   </div>
                 </div>
@@ -984,7 +984,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             })}
             
             {!loading && filteredContacts.length === 0 && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#8696a0' }}>
+              <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
                 {searchQuery ? 'No contacts found' : 'No WhatsApp conversations yet'}
               </div>
             )}
@@ -1040,7 +1040,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               {/* Messages */}
               <div className="messages-area">
                 {loading && filteredMessages.length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#8696a0', padding: '20px' }}>
+                  <div style={{ textAlign: 'center', color: '#6b7280', padding: '20px' }}>
                     Loading messages...
                   </div>
                 )}
@@ -1126,7 +1126,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                                     rel="noopener noreferrer"
                                     className="document-link"
                                   >
-                                    {getMediaIcon(mediaType)} View/Download File
+                                    {getMediaLabel(mediaType)} — View/Download
                                   </a>
                                 </div>
                               );
@@ -1153,7 +1153,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                           </span>
                           {msg.direction === 'outbound' && (
                             <span className={`message-status ${msg.status}`}>
-                              {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : msg.status === 'failed' ? '!' : '✓'}
+                              {msg.status === 'read' ? 'Read' : msg.status === 'delivered' ? 'Delivered' : msg.status === 'failed' ? 'Failed' : 'Sent'}
                             </span>
                           )}
                           {msg.mediaUrl && (
@@ -1165,7 +1165,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                               title="Open media in new tab"
                               download
                             >
-                              ↓
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             </a>
                           )}
                         </div>
@@ -1174,7 +1174,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                             <button 
                               className="reaction-btn"
                               onClick={() => handleReaction(msg.whatsappMessageId!, msg.awsPhoneNumberId)}
-                              title="React with thumbs up"
+                              title="React"
                             >
                               +
                             </button>
@@ -1184,7 +1184,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                               disabled={deleting === msg.id}
                               title="Delete message"
                             >
-                              {deleting === msg.id ? '...' : '✕'}
+                              {deleting === msg.id ? '...' : '×'}
                             </button>
                           </div>
                         )}
@@ -1196,7 +1196,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                               disabled={deleting === msg.id}
                               title="Delete message"
                             >
-                              {deleting === msg.id ? '...' : '✕'}
+                              {deleting === msg.id ? '...' : '×'}
                             </button>
                           </div>
                         )}
@@ -1209,14 +1209,6 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
 
               {/* Input Area */}
               <div className="input-area">
-                {/* Typing indicator */}
-                {sending && (
-                  <div className="typing-indicator">
-                    <div className="typing-dots"><span></span><span></span><span></span></div>
-                    <span>Sending...</span>
-                  </div>
-                )}
-                
                 {/* Media Preview */}
                 {mediaPreview && (
                   <div className="media-preview">
@@ -1224,7 +1216,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                       <img src={mediaPreview} alt="Preview" />
                     ) : (
                       <div className="file-preview">
-                        <span>◰</span>
+                        <span>File:</span>
                         <span>{mediaFile?.name}</span>
                       </div>
                     )}
@@ -1267,7 +1259,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     title="Send Interactive Message (List/Buttons)"
                     style={{ padding: '6px 14px', background: '#ECFDF5', border: '1.5px solid #A7F3D0', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap', color: '#059669', fontWeight: 500, transition: 'all 0.15s' }}
                   >
-                    ☰ Interactive List
+                    Interactive List
                   </button>
                 </div>
                 
@@ -1285,10 +1277,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             </>
           ) : (
             <div className="empty-chat">
-              <div className="empty-chat-icon">💬</div>
+              <div className="empty-chat-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </div>
               <h3>WhatsApp Unified Inbox</h3>
               <p>Select a contact to start messaging</p>
-              <p style={{ fontSize: '12px', marginTop: '12px', color: '#9ca3af' }}>
+              <p style={{ fontSize: '12px', marginTop: '12px', color: '#6b7280' }}>
                 Messages from all WABAs appear here · Auto-refreshes every 15s
               </p>
             </div>
