@@ -67,10 +67,10 @@ const AVATAR_COLORS = [
   '#2563eb', '#4f46e5', '#0d9488', '#c026d3', '#d97706',
 ];
 
-// Delete/clear icon — backspace tag with X (emerald themed)
+// Delete/clear icon — trash can (emerald themed)
 const DeleteIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m17 9-6 6m0-6 6 6M2.72 12.96l4.32 5.76c.352.47.528.704.751.873.198.15.421.262.66.33C8.72 20 9.013 20 9.6 20h7.6c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C22 17.72 22 16.88 22 15.2V8.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C19.72 4 18.88 4 17.2 4H9.6c-.587 0-.88 0-1.15.077a2 2 0 0 0-.659.33c-.223.169-.399.404-.751.873l-4.32 5.76c-.258.344-.387.516-.437.705a1 1 0 0 0 0 .51c.05.189.179.36.437.705"/>
+    <path stroke="currentColor" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
   </svg>
 );
 
@@ -1277,39 +1277,13 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                       contactContext={selectedContact?.name}
                       onAttachClick={() => fileInputRef.current?.click()}
                       onSendTTS={handleSendTTS}
+                      onEmojiClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      emojiActive={showEmojiPicker}
+                      onInteractiveClick={() => setShowInteractiveComposer(!showInteractiveComposer)}
+                      interactiveActive={showInteractiveComposer}
+                      onLocationClick={handleSendLocationRequest}
                     />
                   </div>
-                </div>
-                
-                {/* Action buttons row — below editor */}
-                <div className="inbox-action-row">
-                  {/* Emoji picker toggle */}
-                  <button 
-                    className={`inbox-action-btn ${showEmojiPicker ? 'active' : ''}`}
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    title="Emoji"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                  </button>
-                  
-                  {/* Interactive list */}
-                  <button 
-                    className={`inbox-action-btn ${showInteractiveComposer ? 'active' : ''}`}
-                    onClick={() => setShowInteractiveComposer(!showInteractiveComposer)}
-                    title="Interactive Message (List / Buttons)"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                  </button>
-                  
-                  {/* Location request */}
-                  <button 
-                    className="inbox-action-btn"
-                    onClick={handleSendLocationRequest}
-                    disabled={sending}
-                    title="Request Location (WhatsApp native)"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  </button>
                 </div>
                 
                 {/* Emoji picker panel */}

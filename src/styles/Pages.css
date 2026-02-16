@@ -2459,45 +2459,6 @@
   resize: none;
 }
 
-/* Inbox Action Row — below editor */
-.inbox-action-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 0 0;
-}
-
-.inbox-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  background: transparent;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #6b7280;
-  transition: all 0.15s ease;
-}
-
-.inbox-action-btn:hover {
-  background: #f0fdf4;
-  border-color: #10b981;
-  color: #059669;
-}
-
-.inbox-action-btn.active {
-  background: #ECFDF5;
-  border-color: #10b981;
-  color: #059669;
-}
-
-.inbox-action-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* Emoji Picker Panel */
 .emoji-picker-panel {
   display: grid;
@@ -2532,11 +2493,6 @@
 @media (max-width: 768px) {
   .emoji-picker-panel {
     grid-template-columns: repeat(6, 1fr);
-  }
-  
-  .inbox-action-btn {
-    width: 32px;
-    height: 32px;
   }
 }
 
