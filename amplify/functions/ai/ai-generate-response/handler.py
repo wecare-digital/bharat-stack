@@ -2630,7 +2630,7 @@ def _dues_prompt(pending_dues: list) -> str:
         f"\U0001f4cc *You have {len(pending_dues)} pending {'due' if len(pending_dues)==1 else 'dues'}*\n"
         f"Total outstanding: *\u20b9{total_due:,.2f}*\n\n"
         f"{dues_text}{more}\n\n"
-        f" 1 \u2192 Pay ALL (\u20b9{total_due:,.2f})\n"
+        f" 1 \u2192 Pay All (\u20b9{total_due:,.2f})\n"
         f" 2 \u2192 Pay a specific due\n"
         f"Reply 1/2 \u00b7 CANCEL"
     )
