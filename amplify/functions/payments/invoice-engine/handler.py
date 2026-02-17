@@ -1190,7 +1190,7 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
 
     # Scan InvoicesTable for pending invoices matching this phone
     table = dynamodb.Table(INVOICES_TABLE)
-    pending_statuses = ('created', 'pending_payment')
+    pending_statuses = ('created', 'pending_payment', 'sent')
     all_pending = []
 
     try:
@@ -1287,6 +1287,8 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     items = sorted(items_resp.get('Items', []), key=lambda x: int(x.get('itemIndex', 0)))
 
     # Build order items for WhatsApp interactive message (amounts in paise)
+    # NOTE: Do NOT add convenience fee here — the outbound-whatsapp handler
+    # auto-calculates and adds it as a line item (2% + 18% GST).
     order_items = []
     subtotal_paise = 0
     gst_rate = float(invoice.get('gstRate', 18))
@@ -1301,30 +1303,20 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
             'name': item.get('name', 'Item'),
             'amount': {'value': amt_paise, 'offset': 100},
             'quantity': qty,
+            'gstRate': gst_rate,
         })
-
-    # Add convenience fee as line item
-    conv_fee = float(invoice.get('convenienceFee', 0))
-    conv_paise = int(conv_fee * 100)
-    if conv_paise > 0:
-        order_items.append({
-            'retailer_id': 'ITEM_CONV',
-            'name': 'Convenience Fee (Collected by Bank)',
-            'amount': {'value': conv_paise, 'offset': 100},
-            'quantity': 1,
-        })
-        subtotal_paise += conv_paise
 
     discount_paise = int(float(invoice.get('discount', 0)) * 100)
     shipping_paise = int(float(invoice.get('shipping', 0)) * 100)
-    gst_paise = int(float(invoice.get('tax', 0)) * 100)
-    total_paise = subtotal_paise - discount_paise + shipping_paise + gst_paise
+    # Don't pass tax here — outbound handler recalculates GST from per-item gstRate
+    # Don't calculate total here — outbound handler computes it from components
+    gst_paise = 0  # Let outbound handler calculate from item gstRate
 
     order_id = invoice.get('orderId', 'Offline')
 
     # Look up contact
     contact = _lookup_contact_by_phone(customer_phone)
-    contact_id = contact.get('contactId', '') if contact else ''
+    contact_id = (contact.get('contactId') or contact.get('id', '')) if contact else ''
 
     if not phone_number_id:
         phone_number_id = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
@@ -1333,6 +1325,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     wa_payload = {
         'body': json.dumps({
             'contactId': contact_id,
+            'recipientPhone': customer_phone,
             'phoneNumberId': phone_number_id,
             'isInteractivePayment': True,
             'orderDetails': {
@@ -1359,10 +1352,13 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     try:
         wa_response = lambda_client.invoke(
             FunctionName='wecare-outbound-whatsapp',
-            InvocationType='Event',  # Async
+            InvocationType='RequestResponse',
             Payload=json.dumps(wa_payload),
         )
-        wa_status_code = wa_response.get('StatusCode', 0)
+        wa_result = json.loads(wa_response['Payload'].read())
+        wa_status_code = wa_result.get('statusCode', wa_response.get('StatusCode', 0))
+        if wa_status_code >= 400:
+            logger.error(json.dumps({'event': 'payment_link_outbound_error', 'invoiceId': invoice_id, 'statusCode': wa_status_code, 'body': wa_result.get('body', ''), 'requestId': request_id}))
     except Exception as e:
         logger.error(f"Payment link send error: {e}")
         return _resp(500, {'error': f'Failed to send payment link: {e}'})
@@ -1377,6 +1373,31 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
         )
     except Exception:
         pass
+
+    # Also send POS thermal receipt image alongside the payment order
+    try:
+        img_result = generate_invoice_image(invoice_id, request_id)
+        img_body = json.loads(img_result.get('body', '{}'))
+        image_url = img_body.get('imageUrl', '')
+        if image_url:
+            img_payload = {
+                'body': json.dumps({
+                    'contactId': contact_id,
+                    'recipientPhone': customer_phone,
+                    'phoneNumberId': phone_number_id,
+                    'content': f'Invoice {reference_id}',
+                    'mediaFile': img_body.get('s3Key', ''),
+                    'mediaType': 'image',
+                })
+            }
+            lambda_client.invoke(
+                FunctionName='wecare-outbound-whatsapp',
+                InvocationType='Event',
+                Payload=json.dumps(img_payload),
+            )
+            logger.info(json.dumps({'event': 'invoice_image_sent_with_payment', 'invoiceId': invoice_id, 'requestId': request_id}))
+    except Exception as img_err:
+        logger.warning(json.dumps({'event': 'invoice_image_send_error', 'invoiceId': invoice_id, 'error': str(img_err), 'requestId': request_id}))
 
     # Log delivery
     delivery_table = dynamodb.Table(INVOICE_DELIVERY_TABLE)
@@ -1396,7 +1417,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     logger.info(json.dumps({
         'event': 'payment_link_sent', 'invoiceId': invoice_id,
         'referenceId': reference_id, 'toPhone': customer_phone,
-        'total': total_paise / 100, 'requestId': request_id,
+        'total': float(invoice.get('total', 0)), 'requestId': request_id,
     }))
 
     return _resp(200, {
@@ -1404,7 +1425,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
         'referenceId': reference_id,
         'status': 'payment_link_sent',
         'toPhone': customer_phone,
-        'total': total_paise / 100,
+        'total': float(invoice.get('total', 0)),
     })
 
 
@@ -1611,7 +1632,6 @@ def _lookup_contact_by_phone(phone: str) -> Optional[Dict]:
 
         result = table.scan(
             FilterExpression=boto3.dynamodb.conditions.Attr('phone').contains(clean[-10:]),
-            Limit=5,
         )
         items = result.get('Items', [])
         return items[0] if items else None
