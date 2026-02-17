@@ -816,17 +816,17 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         except TypeError:
             return ImageFont.load_default()
 
-    FONT_SZ = 15
+    FONT_SZ = 14
     F    = _mono(FONT_SZ)
     FB   = _mono(FONT_SZ, True)
-    FLG  = _mono(FONT_SZ + 4, True)
+    FLG  = _mono(FONT_SZ + 3, True)
     FSM  = _mono(FONT_SZ - 2)
     FXS  = _mono(FONT_SZ - 4)
 
     CHARS  = 48
-    LINE_H = 21
-    PX     = 18
-    PY     = 14
+    LINE_H = 18
+    PX     = 14
+    PY     = 10
 
     def _tw(draw, text, font):
         try:
@@ -880,19 +880,18 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     # ═══ INVOICE META ═══
     DSEP()
     C("Invoice", FLG)
-    DSEP()
-    LR(f"Date    : {date_str}", time_str)
+    SEP()
+    LR(f"Date: {date_str}", time_str)
     if order_id and order_id != 'Offline':
-        L(f"Order   : {order_id}")
+        L(f"Order: {order_id}")
     if reference_id:
-        L(f"Ref     : {reference_id}")
+        L(f"Ref: {reference_id}")
     if purpose:
-        L(f"Brand   : {purpose}")
+        L(f"Brand: {purpose}")
     SEP()
 
     # ═══ BILL TO / SHIP TO ═══
-    L("Bill To:", FB)
-    L(f"  {cust_name}", FB)
+    L(f"Bill To: {cust_name}", FB)
     contact_line = f"  {cust_phone}"
     if cust_email:
         contact_line += f" | {cust_email}"
@@ -900,12 +899,10 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     if bill_addr:
         for addr_line in _wrap_text(bill_addr, CHARS - 2):
             L(f"  {addr_line}", FSM)
-    L("Ship To:", FB)
-    if ship_addr:
+    if ship_addr and ship_addr != bill_addr:
+        L("Ship To:", FB)
         for addr_line in _wrap_text(ship_addr, CHARS - 2):
             L(f"  {addr_line}", FSM)
-    else:
-        L("  Same as billing", FSM)
     SEP()
 
     # ═══ ITEMS TABLE ═══
@@ -939,32 +936,23 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     # ═══ GST SUMMARY ═══
     if gst_rate > 0:
         taxable = subtotal - discount_val
-        LR(f"CGST @{gst_rate/2:.1f}%  On {taxable:,.2f}", f"{cgst:,.2f}")
-        LR(f"SGST @{gst_rate/2:.1f}%  On {taxable:,.2f}", f"{sgst:,.2f}")
-        SEP()
+        LR(f"CGST @{gst_rate/2:.1f}% on {taxable:,.2f}", f"{cgst:,.2f}", FSM)
+        LR(f"SGST @{gst_rate/2:.1f}% on {taxable:,.2f}", f"{sgst:,.2f}", FSM)
         LR("Total Tax", f"{tax:,.2f}", FB)
-        DSEP()
+        SEP()
 
     # ═══ PAID ICON ═══
     if payment_status == 'CAPTURED':
-        BL()
         lines.append(('__PAID__', F, 'PAID_ICON'))
-        BL()
         if paid_at:
             paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
-            C(f"Paid: {paid_str}")
+            C(f"Paid: {paid_str}", FSM)
     else:
-        BL()
         C(f"Status: {payment_status}", FB)
-        BL()
 
-    DSEP()
-    BL()
-    C("Thank You!", FLG)
-    C("Visit Again!", FLG)
-    BL()
     SEP()
-    C("Support: wecare.digital/selfservice", FSM)
+    C("Thank You! Visit Again!", FB)
+    C("wecare.digital/selfservice", FSM)
     DSEP()
 
     # ══════════════════════════════════
@@ -993,7 +981,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     for content, font, align in lines:
         if align == 'LOGO':
             # Logo on left, company info to the right
-            ls = 44
+            ls = 38
             if logo_bytes:
                 try:
                     logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
@@ -1003,41 +991,40 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
                     pass
             hdr_lines = [
                 (COMPANY['name'], FLG),
-                (f"GSTIN/UIN: {COMPANY['gstin']}", FSM),
+                (f"GSTIN: {COMPANY['gstin']}", FXS),
             ]
-            # Split address into lines
-            for addr_part in _wrap_text(COMPANY['address'], 38):
+            for addr_part in _wrap_text(COMPANY['address'], 40):
                 hdr_lines.append((addr_part, FXS))
             hdr_lines.append((f"{COMPANY['phone']} | {COMPANY['email']}", FXS))
 
-            tx = PX + ls + 10
+            tx = PX + ls + 8
             avail = W - tx - PX
             hy = y
             for txt, hf in hdr_lines:
                 tw = _tw(draw, txt, hf)
                 hx = tx + (avail - tw) // 2
                 draw.text((max(tx, hx), hy), txt, fill=(0, 0, 0), font=hf)
-                hy += LINE_H - 3 if hf == FLG else LINE_H - 6
-            y += max(ls + 4, hy - y + 4)
+                hy += LINE_H - 2 if hf == FLG else LINE_H - 5
+            y += max(ls + 2, hy - y + 2)
             continue
 
         if align == 'PAID_ICON':
             # Paste PAID icon from S3, centered
             if paid_icon:
                 try:
-                    icon_size = 100
+                    icon_size = 72
                     pi = paid_icon.resize((icon_size, icon_size), Image.LANCZOS)
                     ix = (W - icon_size) // 2
                     img.paste(pi, (ix, y), pi)
-                    y += icon_size + 6
+                    y += icon_size + 4
                 except Exception:
                     tw = _tw(draw, "[ PAID ]", FLG)
                     draw.text(((W - tw) // 2, y), "[ PAID ]", fill=(5, 150, 105), font=FLG)
-                    y += LINE_H + 6
+                    y += LINE_H + 4
             else:
                 tw = _tw(draw, "[ PAID ]", FLG)
                 draw.text(((W - tw) // 2, y), "[ PAID ]", fill=(5, 150, 105), font=FLG)
-                y += LINE_H + 6
+                y += LINE_H + 4
             continue
 
         if align == 'LR':

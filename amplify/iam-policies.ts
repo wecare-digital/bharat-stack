@@ -324,11 +324,7 @@ export const IAM_POLICIES = {
 export const FUNCTION_POLICIES: Record<string, string[]> = {
   // === Core ===
   'wecare-auth-middleware': ['common', 'cognito'],
-  'wecare-contacts-create': ['common'],
-  'wecare-contacts-read': ['common'],
-  'wecare-contacts-update': ['common'],
-  'wecare-contacts-delete': ['common'],
-  'wecare-contacts-search': ['common'],
+  'wecare-contacts': ['common'],  // Unified contacts handler
   'wecare-messages-read': ['common'],
   'wecare-messages-delete': ['common'],
 
@@ -380,6 +376,7 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   'wecare-billing': ['common', 'billing'],
 
   // === Payments ===
-  'wecare-razorpay-webhook': ['common'],
+  'wecare-razorpay-webhook': ['common', 'lambdaInvoke'],
   'wecare-payments-read': ['common'],
+  'wecare-invoice-engine': ['common', 'whatsapp', 'lambdaInvoke'],
 };
