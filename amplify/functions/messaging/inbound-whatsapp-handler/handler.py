@@ -1541,66 +1541,45 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
 
 def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
                                   phone_number_id: str, request_id: str) -> None:
-    """After a payment is captured, check if there are remaining pending dues and notify."""
+    """After a payment is captured, check InvoicesTable for remaining pending dues.
+    If found, auto-send the next payment link (sequential pay) and notify user.
+    """
     try:
         clean_phone = recipient_id.replace('+', '').replace(' ', '').replace('-', '')
-        messages_table = dynamodb.Table(MESSAGES_TABLE)
-        # Use GSI senderPhone-status-index (falls back to scan)
-        try:
-            resp = messages_table.query(
-                IndexName='senderPhone-status-index',
-                KeyConditionExpression='senderPhone = :phone AND #s = :pending',
-                FilterExpression='messageType = :mt',
-                ExpressionAttributeNames={'#s': 'status'},
-                ExpressionAttributeValues={
-                    ':phone': clean_phone,
-                    ':mt': 'payment_request',
-                    ':pending': 'pending',
-                },
-                Limit=10,
-            )
-        except Exception:
-            resp = messages_table.scan(
-                FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
-                ExpressionAttributeNames={'#s': 'status'},
-                ExpressionAttributeValues={
-                    ':phone': clean_phone,
-                    ':mt': 'payment_request',
-                    ':pending': 'pending',
-                },
-                Limit=10,
-            )
-        items = resp.get('Items', [])
-        # Exclude the just-paid reference
-        remaining = [i for i in items if i.get('paymentReferenceId', i.get('messageId', '')) != paid_reference_id]
+        last10 = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+
+        # Query InvoicesTable for remaining pending invoices (source of truth)
+        invoices_table = dynamodb.Table(INVOICES_TABLE)
+        pending_statuses = ['created', 'pending_payment', 'sent']
+        remaining = []
+
+        scan_kwargs = {
+            'FilterExpression': boto3.dynamodb.conditions.Attr('status').is_in(pending_statuses),
+        }
+        while True:
+            resp = invoices_table.scan(**scan_kwargs)
+            for item in resp.get('Items', []):
+                inv_phone = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                inv_ref = item.get('referenceId', '')
+                if inv_phone.endswith(last10) and inv_ref != paid_reference_id:
+                    remaining.append(item)
+            if 'LastEvaluatedKey' in resp:
+                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            else:
+                break
+
         if not remaining:
-            return
-        total_bal = 0
-        lines = []
-        for i, item in enumerate(remaining[:5], 1):
-            amt_paise = float(item.get('paymentTotal', item.get('paymentAmount', 0)))
-            amt_rs = amt_paise / 100 if amt_paise > 500 else amt_paise
-            total_bal += amt_rs
-            ref = item.get('paymentReferenceId', item.get('messageId', 'N/A'))
-            name = item.get('paymentItemName', 'Payment')
-            lines.append(f" {i}) {name} — ₹{amt_rs:,.2f} (Ref …{ref[-4:]})")
-        bal_msg = (
-            f"📌 Balance due: {len(remaining)} pending payment(s) — ₹{total_bal:,.2f}\n"
-            + "\n".join(lines)
-            + "\n\nReply PAY to settle remaining dues."
-        )
-        # Resolve contact and send
-        if phone_number_id:
+            # All clear — send congratulations
             contact = _get_contact_by_phone(recipient_id)
             contact_id = contact.get('id', '') if contact else ''
             contact_phone = contact.get('phone', f'+{clean_phone}') if contact else f'+{clean_phone}'
-            sending_phone_id = phone_number_id or PHONE_NUMBER_ID_1
+            clear_msg = "\U0001f389 *All clear!* No more pending dues. Thank you!"
             payload = {
                 'body': json.dumps({
                     'contactId': contact_id if contact_id else None,
                     'recipientPhone': contact_phone,
-                    'content': bal_msg,
-                    'phoneNumberId': sending_phone_id,
+                    'content': clear_msg,
+                    'phoneNumberId': phone_number_id or PHONE_NUMBER_ID_1,
                 })
             }
             lambda_client.invoke(
@@ -1608,6 +1587,77 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
                 InvocationType='Event',
                 Payload=json.dumps(payload)
             )
+            return
+
+        # Sort oldest first
+        remaining.sort(key=lambda x: int(x.get('createdAt', 0)))
+
+        # Build summary
+        total_bal = sum(float(inv.get('total', 0)) for inv in remaining)
+        lines = [f"\U0001f4cc *{len(remaining)} remaining* \u2022 \u20b9{total_bal:,.2f}\n"]
+        for i, inv in enumerate(remaining[:5], 1):
+            purpose = inv.get('purpose', '') or ''
+            if purpose.lower().startswith('menu_'):
+                purpose = ''
+            brand = purpose or 'Invoice'
+            total = float(inv.get('total', 0))
+            ref = inv.get('referenceId', '')
+            masked = f"...{ref[-4:]}" if len(ref) > 4 else ref
+            lines.append(f" {i}. {brand} \u2022 \u20b9{total:,.2f} ({masked})")
+        lines.append(f"\n\U0001f447 Next payment ready below")
+
+        # Send summary text
+        contact = _get_contact_by_phone(recipient_id)
+        contact_id = contact.get('id', '') if contact else ''
+        contact_phone = contact.get('phone', f'+{clean_phone}') if contact else f'+{clean_phone}'
+        sending_phone_id = phone_number_id or PHONE_NUMBER_ID_1
+
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id if contact_id else None,
+                'recipientPhone': contact_phone,
+                'content': "\n".join(lines),
+                'phoneNumberId': sending_phone_id,
+            })
+        }
+        lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+
+        # Auto-send payment link for the next (oldest) pending invoice
+        next_inv = remaining[0]
+        next_id = next_inv.get('invoiceId', '')
+        try:
+            inv_payload = {
+                'rawPath': f'/invoices/{next_id}/send-payment-link',
+                'requestContext': {'http': {'method': 'POST'}},
+                'pathParameters': {'invoiceId': next_id},
+                'body': json.dumps({
+                    'invoiceId': next_id,
+                    'phoneNumberId': sending_phone_id,
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName='wecare-invoice-engine',
+                InvocationType='Event',
+                Payload=json.dumps(inv_payload),
+            )
+            logger.info(json.dumps({
+                'event': 'next_payment_auto_sent',
+                'invoiceId': next_id,
+                'remainingCount': len(remaining),
+                'requestId': request_id,
+            }))
+        except Exception as link_err:
+            logger.warning(json.dumps({
+                'event': 'next_payment_auto_send_error',
+                'invoiceId': next_id,
+                'error': str(link_err),
+                'requestId': request_id,
+            }))
+
         logger.info(json.dumps({
             'event': 'balance_due_notification_sent',
             'recipientId': recipient_id,
@@ -3645,20 +3695,25 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 elif sent_count == 1:
                     inv = invoices_sent[0]
                     brand = inv.get('purpose', '')
+                    if brand.lower().startswith('menu_'):
+                        brand = brand.split('_', 1)[1].title() if '_' in brand else ''
                     total = inv.get('total', 0)
                     brand_text = f" ({brand})" if brand else ""
                     msg = f"\U0001f4b3 *1 pending invoice{brand_text}*\n\u20b9{total:,.2f}\n\n\U0001f447 Tap the payment message below to pay"
                     _send_ai_auto_reply(contact_id, msg, phone_number_id, request_id)
                 else:
                     total_amt = sum(i.get('total', 0) for i in invoices_sent)
-                    lines = [f"\U0001f4b3 *{sent_count} pending invoices* \u2022 Total: \u20b9{total_amt:,.2f}\n"]
+                    lines = [f"\U0001f4cb *{total_count} pending invoices* \u2022 Total: \u20b9{total_amt:,.2f}\n"]
                     for i, inv in enumerate(invoices_sent, 1):
                         brand = inv.get('purpose', 'Invoice')
+                        if brand.lower().startswith('menu_'):
+                            brand = brand.split('_', 1)[1].title() if '_' in brand else 'Invoice'
                         total = inv.get('total', 0)
                         ref = inv.get('referenceId', '')
                         masked = f"...{ref[-4:]}" if len(ref) > 4 else ref
-                        lines.append(f" {i}. {brand} \u2022 \u20b9{total:,.2f} ({masked})")
-                    lines.append(f"\n\U0001f447 Tap each payment message below to pay")
+                        status = "\u2b50" if i == 1 else f" {i}."
+                        lines.append(f"{status} {brand} \u2022 \u20b9{total:,.2f} ({masked})")
+                    lines.append(f"\n\U0001f447 Tap below to pay #1 first")
                     _send_ai_auto_reply(contact_id, "\n".join(lines), phone_number_id, request_id)
 
                 logger.info(json.dumps({

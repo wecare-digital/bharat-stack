@@ -577,7 +577,9 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     conv_fee = float(invoice.get('convenienceFee', 0))
     total = float(invoice.get('total', 0))
     gstin = invoice.get('gstin', COMPANY['gstin'])
-    purpose = invoice.get('purpose', '')
+    purpose = invoice.get('purpose', '') or ''
+    if purpose.lower().startswith('menu_'):
+        purpose = ''
     payment_id = invoice.get('paymentId', '')
     order_id = invoice.get('orderId', '')
     paid_at = invoice.get('paidAt', 0)
@@ -778,17 +780,41 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     """
     from PIL import Image, ImageDraw, ImageFont
 
-    # ── Font setup (monospace, with Lambda fallback) ──
+    # ── Font setup (monospace — download DejaVu Sans Mono from S3 on Lambda) ──
+    _font_cache = getattr(_generate_receipt_png, '_font_cache', {})
+    _generate_receipt_png._font_cache = _font_cache
+
+    def _get_font_bytes(bold=False):
+        key = 'bold' if bold else 'regular'
+        if key not in _font_cache:
+            s3_key = f"stream/media/fonts/DejaVuSansMono{'-Bold' if bold else ''}.ttf"
+            try:
+                obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+                _font_cache[key] = obj['Body'].read()
+            except Exception:
+                _font_cache[key] = None
+        return _font_cache[key]
+
     def _mono(size, bold=False):
-        # Try TrueType monospace fonts (available on Lambda with font layer)
-        names = ['consolab.ttf', 'courbd.ttf', 'DejaVuSansMono-Bold.ttf'] if bold else \
-                ['consola.ttf', 'cour.ttf', 'DejaVuSansMono.ttf']
+        # 1. Try S3-hosted DejaVu Sans Mono
+        fb = _get_font_bytes(bold)
+        if fb:
+            try:
+                return ImageFont.truetype(io.BytesIO(fb), size)
+            except Exception:
+                pass
+        # 2. Try system fonts (Windows dev)
+        names = ['consolab.ttf', 'courbd.ttf'] if bold else ['consola.ttf', 'cour.ttf']
         for n in names:
             try:
                 return ImageFont.truetype(n, size)
             except Exception:
                 continue
-        return ImageFont.load_default()
+        # 3. Pillow 10.1+ built-in default at requested size
+        try:
+            return ImageFont.load_default(size=size)
+        except TypeError:
+            return ImageFont.load_default()
 
     FONT_SZ = 15
     F    = _mono(FONT_SZ)
@@ -827,7 +853,10 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     order_id = invoice.get('orderId', '')
     reference_id = invoice.get('referenceId', '')
     payment_id = invoice.get('paymentId', '')
-    purpose = invoice.get('purpose', '')
+    purpose = invoice.get('purpose', '') or ''
+    # Clean up raw menu action IDs stored as purpose (e.g. "Menu_Pay")
+    if purpose.lower().startswith('menu_'):
+        purpose = ''
     cust_name = invoice.get('customerName', 'Customer')
     cust_phone = invoice.get('customerPhone', '')
     cust_email = invoice.get('customerEmail', '')
@@ -1175,9 +1204,10 @@ startxref
 # ─── Send Pending Invoices by Phone (instant pay flow) ───
 
 def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
-    """Find all pending/created invoices for a customer phone and send payment links for each.
-    Used by the WhatsApp bot when user types 'pay' — no conversational steps needed.
-    Returns list of sent invoices or 'no pending' message.
+    """Find all pending invoices for a customer phone.
+    Sequential pay: sends payment link for the FIRST (oldest) invoice only.
+    Returns the full list so the inbound handler can show a summary.
+    After each payment is captured, _check_and_notify_balance_due auto-sends the next one.
     """
     customer_phone = body.get('customerPhone', '')
     phone_number_id = body.get('phoneNumberId', '')
@@ -1214,40 +1244,43 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
         return _resp(500, {'error': f'Failed to query invoices: {e}'})
 
     if not all_pending:
-        return _resp(200, {'sent': 0, 'message': 'No pending invoices', 'invoices': []})
+        return _resp(200, {'sent': 0, 'total': 0, 'message': 'No pending invoices', 'invoices': []})
 
     # Sort by createdAt ascending (oldest first)
     all_pending.sort(key=lambda x: int(x.get('createdAt', 0)))
 
-    sent_invoices = []
+    # Build invoice list for summary
+    invoice_list = []
     for inv in all_pending:
-        inv_id = inv.get('invoiceId', '')
-        try:
-            result = send_payment_link(inv_id, phone_number_id, request_id)
-            result_body = json.loads(result.get('body', '{}'))
-            sent_invoices.append({
-                'invoiceId': inv_id,
-                'referenceId': inv.get('referenceId', ''),
-                'total': float(inv.get('total', 0)),
-                'purpose': inv.get('purpose', ''),
-                'status': 'sent' if result.get('statusCode') == 200 else 'failed',
-            })
-        except Exception as e:
-            logger.error(json.dumps({'event': 'send_pending_link_error', 'invoiceId': inv_id, 'error': str(e), 'requestId': request_id}))
-            sent_invoices.append({
-                'invoiceId': inv_id,
-                'referenceId': inv.get('referenceId', ''),
-                'total': float(inv.get('total', 0)),
-                'purpose': inv.get('purpose', ''),
-                'status': 'failed',
-            })
+        purpose = inv.get('purpose', '') or ''
+        # Clean up raw menu action IDs stored as purpose
+        if purpose.lower().startswith('menu_'):
+            purpose = ''
+        invoice_list.append({
+            'invoiceId': inv.get('invoiceId', ''),
+            'referenceId': inv.get('referenceId', ''),
+            'total': float(inv.get('total', 0)),
+            'purpose': purpose,
+            'orderId': inv.get('orderId', ''),
+            'status': 'pending',
+        })
 
-    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': customer_phone, 'sent': len(sent_invoices), 'requestId': request_id}))
+    # Send payment link for FIRST invoice only (sequential pay)
+    first = all_pending[0]
+    first_id = first.get('invoiceId', '')
+    try:
+        result = send_payment_link(first_id, phone_number_id, request_id)
+        invoice_list[0]['status'] = 'sent' if result.get('statusCode') == 200 else 'failed'
+    except Exception as e:
+        logger.error(json.dumps({'event': 'send_first_link_error', 'invoiceId': first_id, 'error': str(e), 'requestId': request_id}))
+        invoice_list[0]['status'] = 'failed'
+
+    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': customer_phone, 'total': len(all_pending), 'firstSent': first_id, 'requestId': request_id}))
 
     return _resp(200, {
-        'sent': len([i for i in sent_invoices if i['status'] == 'sent']),
-        'total': len(sent_invoices),
-        'invoices': sent_invoices,
+        'sent': 1 if invoice_list[0]['status'] == 'sent' else 0,
+        'total': len(invoice_list),
+        'invoices': invoice_list,
     })
 
 
@@ -1374,30 +1407,8 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     except Exception:
         pass
 
-    # Also send POS thermal receipt image alongside the payment order
-    try:
-        img_result = generate_invoice_image(invoice_id, request_id)
-        img_body = json.loads(img_result.get('body', '{}'))
-        image_url = img_body.get('imageUrl', '')
-        if image_url:
-            img_payload = {
-                'body': json.dumps({
-                    'contactId': contact_id,
-                    'recipientPhone': customer_phone,
-                    'phoneNumberId': phone_number_id,
-                    'content': f'Invoice {reference_id}',
-                    'mediaFile': img_body.get('s3Key', ''),
-                    'mediaType': 'image',
-                })
-            }
-            lambda_client.invoke(
-                FunctionName='wecare-outbound-whatsapp',
-                InvocationType='Event',
-                Payload=json.dumps(img_payload),
-            )
-            logger.info(json.dumps({'event': 'invoice_image_sent_with_payment', 'invoiceId': invoice_id, 'requestId': request_id}))
-    except Exception as img_err:
-        logger.warning(json.dumps({'event': 'invoice_image_send_error', 'invoiceId': invoice_id, 'error': str(img_err), 'requestId': request_id}))
+    # NOTE: Do NOT send invoice image here — receipt with PAID stamp
+    # is generated and sent AFTER payment is captured (in inbound handler).
 
     # Log delivery
     delivery_table = dynamodb.Table(INVOICE_DELIVERY_TABLE)
@@ -1517,7 +1528,7 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
 
     # Look up contact by phone
     contact = _lookup_contact_by_phone(to_phone)
-    contact_id = contact.get('contactId', '') if contact else ''
+    contact_id = (contact.get('contactId') or contact.get('id', '')) if contact else ''
 
     # Default phone number ID
     if not phone_number_id:
