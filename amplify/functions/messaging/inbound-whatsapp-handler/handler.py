@@ -3615,6 +3615,66 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     billing_address=ai_response.get('paymentBillingAddress', ''),
                     pay_for=ai_response.get('paymentPayFor', 'self'),
                 )
+        elif flow_action == 'sendPendingPayments':
+            # Instant pay flow — invoke invoice-engine to find & send all pending invoices
+            customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
+            try:
+                inv_payload = {
+                    'rawPath': '/invoices/send-pending-by-phone',
+                    'requestContext': {'http': {'method': 'POST'}},
+                    'body': json.dumps({
+                        'customerPhone': customer_phone,
+                        'phoneNumberId': phone_number_id,
+                    }),
+                }
+                inv_response = lambda_client.invoke(
+                    FunctionName='wecare-invoice-engine',
+                    InvocationType='RequestResponse',
+                    Payload=json.dumps(inv_payload),
+                )
+                inv_result = json.loads(inv_response['Payload'].read())
+                inv_body = json.loads(inv_result.get('body', '{}'))
+                sent_count = inv_body.get('sent', 0)
+                total_count = inv_body.get('total', 0)
+                invoices_sent = inv_body.get('invoices', [])
+
+                if sent_count == 0 and total_count == 0:
+                    # No pending invoices
+                    no_due_msg = "\u2705 *No pending dues!*\nYour account is all clear. \U0001f389"
+                    _send_ai_auto_reply(contact_id, no_due_msg, phone_number_id, request_id)
+                elif sent_count == 1:
+                    inv = invoices_sent[0]
+                    brand = inv.get('purpose', '')
+                    total = inv.get('total', 0)
+                    brand_text = f" ({brand})" if brand else ""
+                    msg = f"\U0001f4b3 *1 pending invoice{brand_text}*\n\u20b9{total:,.2f}\n\n\U0001f447 Tap the payment message below to pay"
+                    _send_ai_auto_reply(contact_id, msg, phone_number_id, request_id)
+                else:
+                    total_amt = sum(i.get('total', 0) for i in invoices_sent)
+                    lines = [f"\U0001f4b3 *{sent_count} pending invoices* \u2022 Total: \u20b9{total_amt:,.2f}\n"]
+                    for i, inv in enumerate(invoices_sent, 1):
+                        brand = inv.get('purpose', 'Invoice')
+                        total = inv.get('total', 0)
+                        ref = inv.get('referenceId', '')
+                        masked = f"...{ref[-4:]}" if len(ref) > 4 else ref
+                        lines.append(f" {i}. {brand} \u2022 \u20b9{total:,.2f} ({masked})")
+                    lines.append(f"\n\U0001f447 Tap each payment message below to pay")
+                    _send_ai_auto_reply(contact_id, "\n".join(lines), phone_number_id, request_id)
+
+                logger.info(json.dumps({
+                    'event': 'send_pending_payments_complete',
+                    'sent': sent_count, 'total': total_count,
+                    'phone': customer_phone, 'requestId': request_id,
+                }))
+            except Exception as e:
+                logger.error(json.dumps({
+                    'event': 'send_pending_payments_error',
+                    'error': str(e), 'requestId': request_id,
+                }))
+                _send_ai_auto_reply(contact_id,
+                    "\u26a0\ufe0f Something went wrong checking your invoices. Please try again.",
+                    phone_number_id, request_id)
+
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM
             try:
@@ -3646,7 +3706,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
         # ── Safety net: if AI returned but nothing was sent to user, send fallback ──
         if ai_response and not ai_response.get('locked') and not ai_response.get('showLanguagePicker'):
             suggestion_sent = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
-            has_flow_action = flow_action in ('showMainMenu', 'showSubMenu', 'showOptions', 'showRating', 'sendPayment', 'humanHandoff', 'end')
+            has_flow_action = flow_action in ('showMainMenu', 'showSubMenu', 'showOptions', 'showRating', 'sendPayment', 'sendPendingPayments', 'humanHandoff', 'end')
             if not suggestion_sent and not has_flow_action and not ai_response.get('sendWelcomeMenu'):
                 fallback_msg = "Hi! 👋 I'm here to help. Type *menu* to see options, or just ask me anything. 😊"
                 logger.warning(json.dumps({

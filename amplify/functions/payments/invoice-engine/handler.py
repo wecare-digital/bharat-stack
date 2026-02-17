@@ -126,6 +126,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if method == 'POST' and 'from-payment' in path:
             return create_invoice_from_payment(body, request_id)
 
+        # POST /invoices/send-pending-by-phone — find & send all pending invoices for a phone
+        if method == 'POST' and 'send-pending-by-phone' in path:
+            return send_pending_by_phone(body, request_id)
+
         # POST /invoices/next-sequence — get next invoice number (admin)
         if method == 'POST' and 'next-sequence' in path:
             return get_next_sequence_preview(body, request_id)
@@ -1166,6 +1170,85 @@ startxref
 %%EOF"""
 
     return pdf_content
+
+
+# ─── Send Pending Invoices by Phone (instant pay flow) ───
+
+def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
+    """Find all pending/created invoices for a customer phone and send payment links for each.
+    Used by the WhatsApp bot when user types 'pay' — no conversational steps needed.
+    Returns list of sent invoices or 'no pending' message.
+    """
+    customer_phone = body.get('customerPhone', '')
+    phone_number_id = body.get('phoneNumberId', '')
+    if not customer_phone:
+        return _resp(400, {'error': 'customerPhone required'})
+
+    # Normalize phone for matching
+    clean = customer_phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    last10 = clean[-10:] if len(clean) >= 10 else clean
+
+    # Scan InvoicesTable for pending invoices matching this phone
+    table = dynamodb.Table(INVOICES_TABLE)
+    pending_statuses = ('created', 'pending_payment')
+    all_pending = []
+
+    try:
+        scan_kwargs = {
+            'FilterExpression': (
+                boto3.dynamodb.conditions.Attr('status').is_in(list(pending_statuses))
+            ),
+        }
+        while True:
+            resp = table.scan(**scan_kwargs)
+            for item in resp.get('Items', []):
+                inv_phone = (item.get('customerPhone', '') or '').replace(' ', '').replace('-', '')
+                if inv_phone.endswith(last10):
+                    all_pending.append(item)
+            if 'LastEvaluatedKey' in resp:
+                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            else:
+                break
+    except Exception as e:
+        logger.error(json.dumps({'event': 'send_pending_scan_error', 'error': str(e), 'requestId': request_id}))
+        return _resp(500, {'error': f'Failed to query invoices: {e}'})
+
+    if not all_pending:
+        return _resp(200, {'sent': 0, 'message': 'No pending invoices', 'invoices': []})
+
+    # Sort by createdAt ascending (oldest first)
+    all_pending.sort(key=lambda x: int(x.get('createdAt', 0)))
+
+    sent_invoices = []
+    for inv in all_pending:
+        inv_id = inv.get('invoiceId', '')
+        try:
+            result = send_payment_link(inv_id, phone_number_id, request_id)
+            result_body = json.loads(result.get('body', '{}'))
+            sent_invoices.append({
+                'invoiceId': inv_id,
+                'referenceId': inv.get('referenceId', ''),
+                'total': float(inv.get('total', 0)),
+                'purpose': inv.get('purpose', ''),
+                'status': 'sent' if result.get('statusCode') == 200 else 'failed',
+            })
+        except Exception as e:
+            logger.error(json.dumps({'event': 'send_pending_link_error', 'invoiceId': inv_id, 'error': str(e), 'requestId': request_id}))
+            sent_invoices.append({
+                'invoiceId': inv_id,
+                'referenceId': inv.get('referenceId', ''),
+                'total': float(inv.get('total', 0)),
+                'purpose': inv.get('purpose', ''),
+                'status': 'failed',
+            })
+
+    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': customer_phone, 'sent': len(sent_invoices), 'requestId': request_id}))
+
+    return _resp(200, {
+        'sent': len([i for i in sent_invoices if i['status'] == 'sent']),
+        'total': len(sent_invoices),
+        'invoices': sent_invoices,
+    })
 
 
 # ─── Send Payment Link (WhatsApp Interactive Payment Message) ───

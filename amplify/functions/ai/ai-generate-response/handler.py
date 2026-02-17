@@ -2434,22 +2434,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         'rupees', 'amount pay', 'pay amount', 'invoice', 'pay invoice',
     }
     if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
-        pending = _check_pending_payments(phone_hash, request_id, sender_phone)
-        if pending:
-            due_msg = _dues_prompt(pending)
-            _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
-            return {
-                'suggestedResponse': due_msg,
-                'suggestion': due_msg,
-            }
-        # No pending dues — inform and offer new payment
-        _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-        no_due_msg = (
-            "\u2705 *No pending dues!*\n"
-            "Your account is all clear.\n\n"
-            "Want to make a new payment? Pick a brand below \U0001f447\n"
-        )
-        return _r(no_due_msg + "\n" + _pay_purpose_prompt())
+        # Instant pay flow — send all pending invoices as WhatsApp Pay orders
+        return {
+            'suggestedResponse': '\U0001f50d Checking your pending invoices\u2026',
+            'suggestion': '\U0001f50d Checking your pending invoices\u2026',
+            'flowAction': 'sendPendingPayments',
+            'paymentCustomerPhone': sender_phone,
+        }
 
     # ── Main menu / store item selected ──
     if content_lower.startswith('menu_') or content_lower.startswith('store_'):
@@ -2501,22 +2492,13 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
             # Start pay flow — check for pending dues first
             if action == 'start_pay_flow':
-                pending = _check_pending_payments(phone_hash, request_id, sender_phone)
-                if pending:
-                    due_msg = _dues_prompt(pending)
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
-                    return {
-                        'suggestedResponse': due_msg,
-                        'suggestion': due_msg,
-                    }
-                # No pending dues — inform and offer new payment
-                _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-                no_due_msg = (
-                    "\u2705 *No pending dues!*\n"
-                    "Your account is all clear.\n\n"
-                    "Want to make a new payment? Pick a brand below \U0001f447\n"
-                )
-                return _r(no_due_msg + "\n" + _pay_purpose_prompt())
+                # Instant pay flow — send all pending invoices as WhatsApp Pay orders
+                return {
+                    'suggestedResponse': '\U0001f50d Checking your pending invoices\u2026',
+                    'suggestion': '\U0001f50d Checking your pending invoices\u2026',
+                    'flowAction': 'sendPendingPayments',
+                    'paymentCustomerPhone': sender_phone,
+                }
 
             # Toggle audio
             if action == 'toggle_audio':
