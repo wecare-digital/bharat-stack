@@ -1823,3 +1823,276 @@
   margin-left: auto;
   flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PAY FLOW — Consolidated styles (replaces inline styles)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Modal overlay */
+.pf-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pf-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.pf-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.pf-modal-header h3 { margin: 0; }
+.pf-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Side panel (invoice detail) */
+.pf-side-panel {
+  width: 340px;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+.pf-side-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.pf-side-panel-header h3 { margin: 0; font-size: 16px; }
+
+/* Detail row (label + value) */
+.pf-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.pf-detail-row .label { color: #6b7280; }
+.pf-detail-row .mono { font-family: monospace; }
+.pf-detail-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Section divider */
+.pf-section-divider {
+  border-top: 1px solid #e5e7eb;
+  margin: 12px 0;
+  padding-top: 12px;
+}
+.pf-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* Customer picker card */
+.pf-cust-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pf-cust-card:hover {
+  border-color: #059669;
+  box-shadow: 0 2px 8px rgba(5,150,105,0.1);
+}
+.pf-cust-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #059669;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.pf-cust-info {
+  flex: 1;
+  min-width: 0;
+}
+.pf-cust-name {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pf-cust-phone {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Customer picker grid */
+.pf-cust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* Flex toolbar */
+.pf-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.pf-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* Stat value + label inside stat-card */
+.pf-stat-value { font-size: 24px; font-weight: 700; }
+.pf-stat-label { font-size: 12px; color: #6b7280; }
+
+/* Delivery log entry */
+.pf-log-entry {
+  font-size: 11px;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+.pf-log-error { color: #ef4444; }
+
+/* Inline input (inside table) */
+.pf-inline-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+}
+.pf-num-input {
+  width: 80px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+.pf-num-input-sm {
+  width: 50px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+/* Close button (ghost) */
+.pf-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #6b7280;
+  padding: 4px;
+  line-height: 1;
+}
+.pf-close-btn:hover { color: #111827; }
+
+/* Remove item button */
+.pf-remove-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Two-column form grid */
+.pf-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+  max-width: 500px;
+}
+
+/* Tab padding */
+.pf-tab-body { padding: 20px; }
+
+/* Truncated cell */
+.pf-cell-truncate {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Invoice list + side panel layout */
+.pf-inv-layout {
+  display: flex;
+  gap: 16px;
+}
+.pf-inv-list {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Selected row highlight */
+.pf-row-selected { background: #ECFDF5; }
+
+/* Preview card */
+.pf-preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.pf-preview-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+/* Action button stack */
+.pf-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Empty state text */
+.pf-empty { color: #9ca3af; padding: 20px; }
+
+/* Config section */
+.pf-config { padding: 20px; max-width: 600px; }

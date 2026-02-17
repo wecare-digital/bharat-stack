@@ -3077,19 +3077,34 @@ def _check_pending_payments(phone_hash: str, request_id: str, sender_phone: str 
             messages_table = dynamodb.Table(MESSAGES_TABLE)
             clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
 
-            # Scan for pending payment_request records for this phone
-            # (In production, a GSI on senderPhone+status would be ideal)
+            # Query GSI senderPhone-status-index (falls back to scan if GSI missing)
             try:
-                resp = messages_table.scan(
-                    FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
-                    ExpressionAttributeNames={'#s': 'status'},
-                    ExpressionAttributeValues={
-                        ':phone': clean_phone,
-                        ':mt': 'payment_request',
-                        ':pending': 'pending',
-                    },
-                    Limit=10,
-                )
+                try:
+                    resp = messages_table.query(
+                        IndexName='senderPhone-status-index',
+                        KeyConditionExpression='senderPhone = :phone AND #s = :pending',
+                        FilterExpression='messageType = :mt',
+                        ExpressionAttributeNames={'#s': 'status'},
+                        ExpressionAttributeValues={
+                            ':phone': clean_phone,
+                            ':mt': 'payment_request',
+                            ':pending': 'pending',
+                        },
+                        Limit=10,
+                        ScanIndexForward=False,
+                    )
+                except Exception:
+                    # Fallback to scan if GSI not yet active
+                    resp = messages_table.scan(
+                        FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
+                        ExpressionAttributeNames={'#s': 'status'},
+                        ExpressionAttributeValues={
+                            ':phone': clean_phone,
+                            ':mt': 'payment_request',
+                            ':pending': 'pending',
+                        },
+                        Limit=10,
+                    )
                 items = resp.get('Items', [])
                 if items:
                     dues = []

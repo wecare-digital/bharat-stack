@@ -1231,26 +1231,35 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
         try:
             OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
             outbound_table = dynamodb.Table(OUTBOUND_TABLE)
-            # NOTE: Do NOT use Limit on scan with FilterExpression!
-            # DynamoDB Limit caps items *evaluated* (not matched), so Limit=1
-            # checks only 1 random item and almost always misses the target.
-            # Use a full scan (table is small) or paginate until found.
+            # Query GSI paymentReferenceId-index (falls back to scan if GSI missing)
             found = False
-            scan_kwargs = {
-                'FilterExpression': 'paymentReferenceId = :ref',
-                'ExpressionAttributeValues': {':ref': reference_id},
-                'ProjectionExpression': 'awsPhoneNumberId, phoneNumberId',
-            }
-            while not found:
-                resp = outbound_table.scan(**scan_kwargs)
+            try:
+                resp = outbound_table.query(
+                    IndexName='paymentReferenceId-index',
+                    KeyConditionExpression='paymentReferenceId = :ref',
+                    Limit=1,
+                )
                 items = resp.get('Items', [])
                 if items:
                     originating_phone_id = items[0].get('awsPhoneNumberId') or items[0].get('phoneNumberId')
                     found = True
-                elif 'LastEvaluatedKey' in resp:
-                    scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
-                else:
-                    break  # No more pages
+            except Exception:
+                # Fallback to paginated scan if GSI not yet active
+                scan_kwargs = {
+                    'FilterExpression': 'paymentReferenceId = :ref',
+                    'ExpressionAttributeValues': {':ref': reference_id},
+                    'ProjectionExpression': 'awsPhoneNumberId, phoneNumberId',
+                }
+                while not found:
+                    resp = outbound_table.scan(**scan_kwargs)
+                    items = resp.get('Items', [])
+                    if items:
+                        originating_phone_id = items[0].get('awsPhoneNumberId') or items[0].get('phoneNumberId')
+                        found = True
+                    elif 'LastEvaluatedKey' in resp:
+                        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                    else:
+                        break
             
             logger.info(json.dumps({
                 'event': 'payment_phone_id_resolved',
@@ -1536,16 +1545,31 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
     try:
         clean_phone = recipient_id.replace('+', '').replace(' ', '').replace('-', '')
         messages_table = dynamodb.Table(MESSAGES_TABLE)
-        resp = messages_table.scan(
-            FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
-            ExpressionAttributeNames={'#s': 'status'},
-            ExpressionAttributeValues={
-                ':phone': clean_phone,
-                ':mt': 'payment_request',
-                ':pending': 'pending',
-            },
-            Limit=10,
-        )
+        # Use GSI senderPhone-status-index (falls back to scan)
+        try:
+            resp = messages_table.query(
+                IndexName='senderPhone-status-index',
+                KeyConditionExpression='senderPhone = :phone AND #s = :pending',
+                FilterExpression='messageType = :mt',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={
+                    ':phone': clean_phone,
+                    ':mt': 'payment_request',
+                    ':pending': 'pending',
+                },
+                Limit=10,
+            )
+        except Exception:
+            resp = messages_table.scan(
+                FilterExpression='senderPhone = :phone AND messageType = :mt AND #s = :pending',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={
+                    ':phone': clean_phone,
+                    ':mt': 'payment_request',
+                    ':pending': 'pending',
+                },
+                Limit=10,
+            )
         items = resp.get('Items', [])
         # Exclude the just-paid reference
         remaining = [i for i in items if i.get('paymentReferenceId', i.get('messageId', '')) != paid_reference_id]

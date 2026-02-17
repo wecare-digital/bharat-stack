@@ -569,11 +569,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [editPayment, setEditPayment] = useState<any>(null);
   const [editSaving, setEditSaving] = useState(false);
 
-  // Create customer state
-  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', shippingAddress: '', billingAddress: '', amount: '' });
-  const [customerSaving, setCustomerSaving] = useState(false);
-
   // Billing expanded rows
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
 
@@ -690,41 +685,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     link.download = `invoice-${refId}.png`;
     link.target = '_blank';
     link.click();
-  };
-
-  const handleCreateCustomer = async () => {
-    if (!newCustomer.name || !newCustomer.phone) {
-      alert('Name and phone are required');
-      return;
-    }
-    setCustomerSaving(true);
-    try {
-      const cleanPhone = newCustomer.phone.replace(/[\s\-]/g, '');
-      const contact = await api.createContact({
-        name: newCustomer.name,
-        phone: cleanPhone,
-        email: newCustomer.email || undefined,
-      } as any);
-      if (contact) {
-        // Also update with shipping/billing via updateContact
-        const updates: any = {};
-        if (newCustomer.shippingAddress) updates.shippingAddress = newCustomer.shippingAddress;
-        if (newCustomer.billingAddress) updates.billingAddress = newCustomer.billingAddress;
-        if (Object.keys(updates).length > 0) {
-          await api.updateContact(contact.id, updates as any);
-        }
-        setShowCreateCustomer(false);
-        setNewCustomer({ name: '', phone: '', email: '', shippingAddress: '', billingAddress: '', amount: '' });
-        await loadData(true);
-      } else {
-        alert('Failed to create customer');
-      }
-    } catch (err) {
-      console.error('Create customer error:', err);
-      alert('Error creating customer');
-    } finally {
-      setCustomerSaving(false);
-    }
   };
 
   const handleHardDelete = async () => {
@@ -1260,7 +1220,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               <div className="section-header">
                 <h3>Payment Records</h3>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setShowCreateCustomer(true)} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #10B981', background: '#ecfdf5', color: '#059669', cursor: 'pointer', fontSize: '0.85rem' }}>+ Customer</button>
+                  <Link href="/contacts"><button style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #10B981', background: '#ecfdf5', color: '#059669', cursor: 'pointer', fontSize: '0.85rem' }}>+ Customer</button></Link>
                   <Link href="/pay"><Button variant="primary">+ New Payment</Button></Link>
                 </div>
               </div>
@@ -1400,37 +1360,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               )}
 
-              {/* Create Customer Modal */}
-              {showCreateCustomer && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowCreateCustomer(false)}>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-                    <h3 style={{ margin: '0 0 16px', fontSize: '1rem' }}>Create Customer</h3>
-                    <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 12 }}>Details will auto-fill in WhatsApp pay flow</p>
-                    {[
-                      { label: 'Full Name *', key: 'name', type: 'text', placeholder: 'Rahul Sharma' },
-                      { label: 'Phone *', key: 'phone', type: 'text', placeholder: '+919876543210' },
-                      { label: 'Email', key: 'email', type: 'email', placeholder: 'rahul@example.com' },
-                      { label: 'Shipping Address', key: 'shippingAddress', type: 'text', placeholder: '123 Park Street, Kolkata' },
-                      { label: 'Billing Address', key: 'billingAddress', type: 'text', placeholder: 'Same or different' },
-                    ].map(f => (
-                      <div key={f.key} style={{ marginBottom: 10 }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: 2 }}>{f.label}</label>
-                        <input
-                          type={f.type}
-                          value={(newCustomer as any)[f.key] ?? ''}
-                          placeholder={f.placeholder}
-                          onChange={e => setNewCustomer(prev => ({ ...prev, [f.key]: e.target.value }))}
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
-                        />
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-                      <button onClick={() => setShowCreateCustomer(false)} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Cancel</button>
-                      <button onClick={handleCreateCustomer} disabled={customerSaving} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#059669', color: '#fff', cursor: 'pointer', opacity: customerSaving ? 0.6 : 1 }}>{customerSaving ? 'Creating...' : 'Create'}</button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
