@@ -1,5 +1,17 @@
 import { defineFunction } from '@aws-amplify/backend';
 
+/**
+ * Invoice Engine Lambda
+ *
+ * DEPLOYMENT NOTE — Pillow Lambda Layer required:
+ * This function uses PIL (Pillow) for PNG/PDF rendering.
+ * Attach the Pillow layer to the Lambda in AWS Console or via CDK:
+ *   ARN: arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:4
+ *   (Klayers community layer for Python 3.12 / us-east-1)
+ *
+ * Without the layer, image generation falls back to PIL's default bitmap
+ * font (no TrueType) and will fail if Pillow is not bundled.
+ */
 export const invoiceEngine = defineFunction({
   name: 'wecare-invoice-engine',
   entry: './handler.py',

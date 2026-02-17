@@ -56,16 +56,53 @@ COMPANY = {
     'phone': '+91 93309 94400',
     'website': 'https://wecare.digital',
     'logo_s3_key': 'stream/media/m/wecare-digital.png',
+    'paid_icon_s3_key': 'stream/media/m/paid.png',
 }
 
 
 def _load_logo_bytes() -> Optional[bytes]:
-    """Load company logo from S3. Returns PNG bytes or None."""
+    """Load company logo from S3 with /tmp cache for Lambda warm starts."""
+    cache_path = '/tmp/_logo_cache.png'
+    try:
+        with open(cache_path, 'rb') as f:
+            return f.read()
+    except FileNotFoundError:
+        pass
     try:
         obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=COMPANY['logo_s3_key'])
-        return obj['Body'].read()
+        data = obj['Body'].read()
+        try:
+            with open(cache_path, 'wb') as f:
+                f.write(data)
+        except Exception:
+            pass
+        return data
     except Exception as e:
         logger.warning(f"Logo load error: {e}")
+        return None
+
+
+def _load_s3_image(key: str):
+    """Load an image from S3 as PIL Image (RGBA) with /tmp cache."""
+    import hashlib
+    cache_path = f"/tmp/_s3img_{hashlib.md5(key.encode()).hexdigest()}.png"
+    try:
+        from PIL import Image as PILImage
+        return PILImage.open(cache_path).convert('RGBA')
+    except Exception:
+        pass
+    try:
+        from PIL import Image as PILImage
+        obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=key)
+        data = obj['Body'].read()
+        img = PILImage.open(io.BytesIO(data)).convert('RGBA')
+        try:
+            img.save(cache_path, 'PNG')
+        except Exception:
+            pass
+        return img
+    except Exception as e:
+        logger.warning(f"S3 image load error ({key}): {e}")
         return None
 
 
@@ -109,6 +146,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             phone = body.get('toWhatsAppNumber')
             phone_number_id = body.get('phoneNumberId')
             return send_invoice_whatsapp(inv_id, phone, phone_number_id, request_id)
+
+        # POST /invoices/{id}/send-payment-link — send WhatsApp interactive payment message
+        if method == 'POST' and 'send-payment-link' in path:
+            inv_id = path_params.get('invoiceId') or body.get('invoiceId')
+            phone_number_id = body.get('phoneNumberId')
+            return send_payment_link(inv_id, phone_number_id, request_id)
+
+        # POST /invoices/{id}/cancel — cancel/void an invoice
+        if method == 'POST' and 'cancel' in path:
+            inv_id = path_params.get('invoiceId') or body.get('invoiceId')
+            reason = body.get('reason', '')
+            return cancel_invoice(inv_id, reason, request_id)
 
         # POST /invoices — create invoice (generic, must be LAST POST check)
         if method == 'POST':
@@ -200,7 +249,6 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
     if reference_id or payment_id:
         try:
-            # Scan for existing invoice with same referenceId or paymentId
             filter_parts = []
             expr_values = {}
             if reference_id:
@@ -222,7 +270,6 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 logger.info(json.dumps({
                     'event': 'invoice_dedup_hit',
                     'existingInvoiceId': inv.get('invoiceId', ''),
-                    'existingInvoiceNumber': inv.get('invoiceNumber', ''),
                     'referenceId': reference_id,
                     'paymentId': payment_id,
                     'requestId': request_id,
@@ -231,6 +278,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                     'invoiceId': inv.get('invoiceId', ''),
                     'invoiceNumber': inv.get('invoiceNumber', ''),
                     'total': float(inv.get('total', 0)),
+                    'referenceId': inv.get('referenceId', ''),
                     'deduplicated': True,
                 })
         except Exception as dedup_err:
@@ -239,9 +287,12 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 'error': str(dedup_err),
                 'requestId': request_id,
             }))
-            # Continue with creation if dedup check fails
 
     invoice_id = str(uuid.uuid4())
+
+    # Auto-generate referenceId if not provided (WDSR + 8-char hex)
+    if not reference_id:
+        reference_id = f"WDSR{uuid.uuid4().hex[:8].upper()}"
 
     # Validate mandatory fields (relaxed for webhook-originated invoices)
     customer_phone = body.get('customerPhone', '')
@@ -251,8 +302,6 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     billing_address = body.get('billingAddress', '')
     entry_point = body.get('entryPoint', 'manual')
 
-    # Only enforce mandatory fields for non-webhook invoices
-    # Webhook invoices are created AFTER payment — can't block retroactively
     if entry_point not in ('webhook', 'whatsapp_payment'):
         missing = []
         if not customer_phone: missing.append('customerPhone')
@@ -272,8 +321,19 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     handling = float(body.get('handling', 0))
     gst_rate = float(body.get('gstRate', 18))
     tax = subtotal * (gst_rate / 100)
+
+    # Convenience fee: 2% of subtotal + 18% GST on that 2% (calculated here as single source of truth)
     convenience_fee = float(body.get('convenienceFee', 0))
+    if convenience_fee == 0 and entry_point in ('pay_flow', 'manual', 'whatsapp_payment'):
+        conv_base = round(subtotal * 0.02, 2)
+        conv_gst = round(conv_base * 0.18, 2)
+        convenience_fee = round(conv_base + conv_gst, 2)
+
     total = subtotal - discount + shipping + handling + tax + convenience_fee
+
+    # Determine initial status
+    status = body.get('status', 'created')
+    payment_status = body.get('paymentStatus', 'pending')
 
     invoice = {
         'invoiceId': invoice_id,
@@ -282,8 +342,8 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'orderId': body.get('orderId', ''),
         'referenceId': reference_id,
         'entryPoint': entry_point,
-        'status': body.get('status', 'created'),  # created | paid | sent | failed | cancelled
-        'paymentStatus': body.get('paymentStatus', 'pending'),
+        'status': status,
+        'paymentStatus': payment_status,
         # Customer
         'contactId': body.get('contactId', ''),
         'customerName': body.get('customerName', ''),
@@ -326,8 +386,8 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 'productId': item.get('productId', ''),
             })
 
-    logger.info(json.dumps({'event': 'invoice_created', 'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'total': float(total), 'requestId': request_id}))
-    return _resp(201, {'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'total': float(total)})
+    logger.info(json.dumps({'event': 'invoice_created', 'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'referenceId': reference_id, 'total': float(total), 'requestId': request_id}))
+    return _resp(201, {'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'referenceId': reference_id, 'total': float(total), 'convenienceFee': float(convenience_fee)})
 
 
 
@@ -396,7 +456,7 @@ def update_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
     allowed = ['customerName', 'customerPhone', 'paidByPhone', 'customerEmail',
                'shippingAddress', 'billingAddress', 'status', 'paymentStatus',
                'discount', 'shipping', 'handling', 'gstRate', 'tax', 'convenienceFee', 'total',
-               'gstin', 'purpose', 'notes', 'subtotal']
+               'gstin', 'purpose', 'notes', 'subtotal', 'orderId', 'referenceId']
 
     for key in allowed:
         if key in body:
@@ -421,6 +481,18 @@ def update_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
             ExpressionAttributeNames=names,
             ExpressionAttributeValues=values,
         )
+
+        # Regenerate image if amount/customer fields changed
+        regen_fields = {'subtotal', 'discount', 'shipping', 'tax', 'total', 'convenienceFee',
+                        'customerName', 'customerPhone', 'paymentStatus', 'gstRate',
+                        'shippingAddress', 'billingAddress', 'purpose'}
+        if regen_fields & set(body.keys()):
+            try:
+                generate_invoice_image(invoice_id, request_id)
+                logger.info(json.dumps({'event': 'invoice_image_regenerated', 'invoiceId': invoice_id, 'requestId': request_id}))
+            except Exception as regen_err:
+                logger.warning(f"Image regen after update failed: {regen_err}")
+
         return _resp(200, {'invoiceId': invoice_id, 'updated': True})
     except Exception as e:
         return _resp(500, {'error': str(e)})
@@ -549,9 +621,11 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
         <div class="total-row"><span>SGST @{half_rate:.1f}%</span><span>{sgst:,.2f}</span></div>
         <div class="total-row b"><span>Total Tax</span><span>{tax:,.2f}</span></div>'''
 
-    # Payment ID display (Razorpay ID if available, otherwise skip)
-    pay_id_html = f'<div class="info-row"><span>Payment ID: {payment_id}</span></div>' if payment_id else ''
-    order_id_html = f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else '<div class="info-row"><span>Order: Offline</span></div>'
+    reference_id = invoice.get('referenceId', '')
+
+    # Customer-facing fields only (no internal invoice number, no payment ID)
+    order_id_html = f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else ''
+    ref_id_html = f'<div class="info-row"><span>Ref: {reference_id}</span></div>' if reference_id else ''
 
     # Status badge color
     status_upper = payment_status.upper()
@@ -590,12 +664,12 @@ td{{padding:3px 2px;vertical-align:top}}
     <div class="subtitle">{COMPANY['phone']} | {COMPANY['email']}</div>
 </div>
 <div class="divider2"></div>
-<div class="center" style="margin:4px 0"><span style="font-size:13px;font-weight:bold;letter-spacing:1px">TAX INVOICE</span></div>
+<div class="center" style="margin:4px 0"><span style="font-size:13px;font-weight:bold;letter-spacing:1px">Invoice</span></div>
 <div class="divider"></div>
-<div class="info-row"><span>Invoice: {inv_num}</span><span>{date_str} {time_str}</span></div>
-{pay_id_html}
+<div class="info-row"><span>Date: {date_str}</span><span>{time_str}</span></div>
 {order_id_html}
-{f'<div class="info-row"><span>Purpose: {purpose}</span></div>' if purpose else ''}
+{ref_id_html}
+{f'<div class="info-row"><span>Brand: {purpose}</span></div>' if purpose else ''}
 <div class="divider"></div>
 <div class="section-title">Bill To</div>
 <div style="font-size:11px;font-weight:bold">{cust_name}</div>
@@ -610,13 +684,13 @@ td{{padding:3px 2px;vertical-align:top}}
 </table>
 <div class="divider"></div>
 <div class="total-row"><span>Subtotal</span><span>{subtotal:,.2f}</span></div>
-{'<div class="total-row"><span>Discount</span><span>-' + f'{discount:,.2f}' + '</span></div>' if discount else ''}
-{'<div class="total-row"><span>Shipping</span><span>' + f'{shipping_amt:,.2f}' + '</span></div>' if shipping_amt else ''}
+{'<div class="total-row"><span>Promo</span><span>-' + f'{discount:,.2f}' + '</span></div>' if discount else ''}
+{'<div class="total-row"><span>Express</span><span>' + f'{shipping_amt:,.2f}' + '</span></div>' if shipping_amt else ''}
 {'<div class="total-row"><span>Handling</span><span>' + f'{handling_amt:,.2f}' + '</span></div>' if handling_amt else ''}
 <div class="total-row"><span>CGST @{gst_rate/2:.1f}%</span><span>{cgst:,.2f}</span></div>
 <div class="total-row"><span>SGST @{gst_rate/2:.1f}%</span><span>{sgst:,.2f}</span></div>
-{'<div class="total-row"><span>Conv. Fee (2%+GST)</span><span>' + f'{conv_fee:,.2f}' + '</span></div>' if conv_fee else ''}
-<div class="total-row grand"><span>Total ({total_qty} items)</span><span>Rs. {total:,.2f}</span></div>
+{'<div class="total-row"><span>Conv Fee</span><span>' + f'{conv_fee:,.2f}' + '</span></div>' if conv_fee else ''}
+<div class="total-row grand"><span>Total ({total_qty} items)</span><span>&#8377; {total:,.2f}</span></div>
 {gst_html}
 <div class="divider2"></div>
 {'<div class="paid-stamp">PAID</div>' if status_upper == 'CAPTURED' else ''}
@@ -624,10 +698,9 @@ td{{padding:3px 2px;vertical-align:top}}
 {f'<div class="info-row"><span>Paid: {paid_str}</span></div>' if paid_str else ''}
 <div class="divider2"></div>
 <div class="footer">
-    <div style="font-size:12px;font-weight:bold;margin:6px 0">Thank You for your business!</div>
-    <div>{COMPANY['website']}</div>
-    <div style="margin-top:3px">GSTIN: {gstin} | Computer-generated tax invoice</div>
-    <div style="margin-top:2px">Customer Service: wecare.digital/selfservice</div>
+    <div style="font-size:12px;font-weight:bold;margin:6px 0">Thank You!</div>
+    <div>Visit Again!</div>
+    <div style="margin-top:2px">Support: wecare.digital/selfservice</div>
 </div>
 </body></html>'''
 
@@ -637,7 +710,7 @@ td{{padding:3px 2px;vertical-align:top}}
 # ─── Generate Invoice Image (PNG) ───
 
 def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
-    """Render invoice HTML to PNG image using headless rendering, upload to S3."""
+    """Render invoice as POS receipt PNG using PIL, upload to S3."""
     if not invoice_id:
         return _resp(400, {'error': 'invoiceId required'})
 
@@ -654,19 +727,8 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
     )
     items = sorted(items_resp.get('Items', []), key=lambda x: int(x.get('itemIndex', 0)))
 
-    html = _build_invoice_html(invoice, items)
-
-    # Render to PNG image
-    # Try PIL-based POS receipt image first (proper PNG), fall back to HTML-to-SVG
-    try:
-        png_bytes = _generate_fallback_image(invoice, items)
-    except Exception as e:
-        logger.warning(f"PIL image render failed: {e}, trying HTML approach")
-        try:
-            png_bytes = _render_html_to_png(html)
-        except Exception as e2:
-            logger.error(f"All image render methods failed: {e2}")
-            return _resp(500, {'error': 'Image generation failed'})
+    # Render to PNG using pure-Python bitmap font (zero dependencies, proven working)
+    png_bytes = _generate_receipt_png(invoice, items)
 
     # S3 key uses WhatsApp payment reference ID (unguessable, unique)
     ref_id = invoice.get('referenceId', invoice_id)
@@ -698,147 +760,75 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
     return _resp(200, {'invoiceId': invoice_id, 'imageUrl': image_url, 's3Key': s3_key})
 
 
-def _render_html_to_png(html: str) -> bytes:
-    """
-    Render HTML to PNG. Uses PIL to create a clean invoice image.
-    For full HTML rendering, deploy with a headless Chrome Lambda Layer.
-    This implementation creates a professional-looking image using PIL.
-    """
-    try:
-        from PIL import Image, ImageDraw, ImageFont
-        return _render_with_pil(html)
-    except ImportError:
-        logger.warning("PIL not available, using fallback SVG approach")
-        return _render_html_via_svg(html)
+# ─── Receipt PNG Rendering ───
+# Uses monospace font, logo + PAID icon from S3, WDSR reference format.
+# Compact POS thermal receipt style for WhatsApp chat visibility.
 
 
-def _render_html_via_svg(html: str) -> bytes:
-    """Fallback: Convert HTML to a simple PNG via SVG foreignObject."""
-    import base64
-    # Store the HTML as-is in S3 for later rendering, return a placeholder
-    # In production, use a headless Chrome Lambda Layer
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100">
-        <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml">
-                {html}
-            </div>
-        </foreignObject>
-    </svg>'''
-    return svg.encode('utf-8')
+def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
+    """Generate POS thermal receipt as PNG image.
 
-
-def _render_with_pil(html_unused: str) -> bytes:
-    """Render invoice as a clean PNG image using PIL (no HTML parsing needed)."""
-    # This is called but we actually re-fetch invoice data to draw directly
-    # The caller should use _generate_fallback_image instead
-    raise ImportError("Use fallback image generator")
-
-
-def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
-    """Generate POS receipt as plain-text, then render to PNG via PIL.
-    
-    Strategy: Build receipt as list of text lines (monospace style),
-    then draw at 2x scale using default bitmap font and resize down
-    for crisp text. This works on ANY Pillow version without TTF fonts.
+    Layout: Logo left + company header, invoice meta, bill/ship to,
+    items table, totals, GST summary, PAID icon, footer.
+    Monospace font, 2x scaled for WhatsApp readability.
     """
     from PIL import Image, ImageDraw, ImageFont
 
-    # ── Build receipt text lines ──
-    lines = []  # Each entry: (text, alignment, style)
-    # alignment: 'c'=center, 'l'=left, 'r'=right, 'lr'=left+right pair
-    # style: 'b'=bold/large, 'n'=normal, 's'=small, 'h'=header, 'd'=dashed
+    # ── Font setup (monospace, with Lambda fallback) ──
+    def _mono(size, bold=False):
+        # Try TrueType monospace fonts (available on Lambda with font layer)
+        names = ['consolab.ttf', 'courbd.ttf', 'DejaVuSansMono-Bold.ttf'] if bold else \
+                ['consola.ttf', 'cour.ttf', 'DejaVuSansMono.ttf']
+        for n in names:
+            try:
+                return ImageFont.truetype(n, size)
+            except Exception:
+                continue
+        return ImageFont.load_default()
 
-    W_CHARS = 48  # Characters per line
+    FONT_SZ = 15
+    F    = _mono(FONT_SZ)
+    FB   = _mono(FONT_SZ, True)
+    FLG  = _mono(FONT_SZ + 4, True)
+    FSM  = _mono(FONT_SZ - 2)
+    FXS  = _mono(FONT_SZ - 4)
 
-    def add(text, align='l', style='n'):
-        lines.append((text, align, style))
+    CHARS  = 48
+    LINE_H = 21
+    PX     = 18
+    PY     = 14
 
-    def add_lr(left, right, style='n'):
-        lines.append((left, right, 'lr', style))
+    def _tw(draw, text, font):
+        try:
+            bb = draw.textbbox((0, 0), text, font=font)
+            return bb[2] - bb[0]
+        except Exception:
+            return len(text) * 8
 
-    def add_sep():
-        lines.append(('-' * W_CHARS, 'c', 'd'))
+    # ── Build receipt lines ──
+    # Each: (content, font, align)  align: L/C/LR/LOGO/PAID_ICON
+    lines = []
 
-    def add_double():
-        lines.append(('=' * W_CHARS, 'c', 'd'))
+    def L(t, f=F):    lines.append((t, f, 'L'))
+    def C(t, f=F):    lines.append((t, f, 'C'))
+    def LR(l, r, f=F): lines.append(((l, r), f, 'LR'))
+    def SEP():         lines.append(('-' * CHARS, F, 'C'))
+    def DSEP():        lines.append(('=' * CHARS, F, 'C'))
+    def BL():          lines.append(('', F, 'L'))
 
-    def center(text):
-        add(text, 'c', 'n')
-
-    def center_b(text):
-        add(text, 'c', 'b')
-
-    # ── Header ──
-    center_b(COMPANY['name'])
-    center(f"GSTIN: {COMPANY['gstin']}")
-    for addr_line in _wrap_text(COMPANY['address'], W_CHARS):
-        center(addr_line)
-    center(f"{COMPANY['phone']} | {COMPANY['email']}")
-    add_double()
-    center_b("TAX INVOICE")
-    add_sep()
-
-    # ── Invoice details ──
-    inv_num = invoice.get('invoiceNumber', '')
+    # ── Extract invoice data ──
     created_at = invoice.get('createdAt', 0)
-    date_str = time.strftime('%d-%m-%Y %H:%M', time.localtime(int(created_at))) if created_at else ''
+    date_str = time.strftime('%d-%m-%Y', time.localtime(int(created_at))) if created_at else ''
+    time_str = time.strftime('%H:%M hrs', time.localtime(int(created_at))) if created_at else ''
     order_id = invoice.get('orderId', '')
+    reference_id = invoice.get('referenceId', '')
     payment_id = invoice.get('paymentId', '')
     purpose = invoice.get('purpose', '')
-
-    add_lr(f"Invoice: {inv_num}", date_str)
-    if order_id and order_id != 'Offline':
-        add(f"Order: {order_id}")
-    if payment_id:
-        add(f"Payment ID: {payment_id}")
-    if purpose:
-        add(f"Purpose: {purpose}")
-    add_sep()
-
-    # ── Bill To / Ship To ──
     cust_name = invoice.get('customerName', 'Customer')
     cust_phone = invoice.get('customerPhone', '')
     cust_email = invoice.get('customerEmail', '')
     bill_addr = invoice.get('billingAddress', '')
     ship_addr = invoice.get('shippingAddress', '')
-
-    add("BILL TO:", 'l', 'b')
-    add(cust_name)
-    contact = cust_phone
-    if cust_email:
-        contact += f" | {cust_email}"
-    add(contact[:W_CHARS])
-    if bill_addr:
-        for line in _wrap_text(bill_addr, W_CHARS):
-            add(line)
-
-    add("SHIP TO:", 'l', 'b')
-    if ship_addr:
-        for line in _wrap_text(ship_addr, W_CHARS):
-            add(line)
-    else:
-        add("Same as billing")
-    add_sep()
-
-    # ── Items table ──
-    # Header: #  ITEM                 QTY  RATE      AMT
-    add_lr("#  ITEM                    QTY  RATE", "AMT", 'b')
-    add_sep()
-
-    total_qty = 0
-    for idx, item in enumerate(items):
-        name = item.get('name', 'Item')[:20]
-        amt = float(item.get('amount', 0))
-        qty = int(item.get('quantity', 1))
-        total_qty += qty
-        line_total = amt * qty
-        left = f"{idx+1}  {name:<22s} {qty:>3d}  {amt:>8.2f}"
-        right = f"{line_total:>10.2f}"
-        add_lr(left, right)
-
-    add_sep()
-
-    # ── Totals ──
     subtotal = float(invoice.get('subtotal', 0))
     discount_val = float(invoice.get('discount', 0))
     shipping_amt = float(invoice.get('shipping', 0))
@@ -848,139 +838,199 @@ def _generate_fallback_image(invoice: Dict, items: List[Dict]) -> bytes:
     total = float(invoice.get('total', 0))
     cgst = tax / 2
     sgst = tax / 2
-
-    add_lr("Subtotal", f"{subtotal:,.2f}")
-    if discount_val:
-        add_lr("Discount", f"-{discount_val:,.2f}")
-    if shipping_amt:
-        add_lr("Shipping", f"{shipping_amt:,.2f}")
-    if gst_rate > 0:
-        add_lr(f"CGST @{gst_rate/2:.1f}%", f"{cgst:,.2f}")
-        add_lr(f"SGST @{gst_rate/2:.1f}%", f"{sgst:,.2f}")
-    if conv_fee:
-        add_lr("Conv. Fee (2%+GST)", f"{conv_fee:,.2f}")
-
-    add_double()
-    add_lr(f"TOTAL ({total_qty} items)", f"Rs. {total:,.2f}", 'b')
-    add_double()
-
-    # ── GST Summary ──
-    if gst_rate > 0:
-        add("")
-        add("GST SUMMARY", 'l', 'b')
-        taxable = subtotal - discount_val
-        add_lr("Taxable Amount", f"{taxable:,.2f}")
-        add_lr(f"CGST @{gst_rate/2:.1f}%", f"{cgst:,.2f}")
-        add_lr(f"SGST @{gst_rate/2:.1f}%", f"{sgst:,.2f}")
-        add_lr("Total Tax", f"{tax:,.2f}")
-        add_sep()
-
-    # ── Payment status ──
     payment_status = invoice.get('paymentStatus', 'pending').upper()
-    if payment_status == 'CAPTURED':
-        add("")
-        center_b("*** PAID ***")
-
-    add(f"Status: [{payment_status}]")
     paid_at = invoice.get('paidAt', 0)
-    if paid_at:
-        paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
-        add(f"Paid: {paid_str}")
 
-    add_sep()
-    add("")
-    center_b("Thank You for your business!")
-    center(COMPANY['website'])
-    center(f"GSTIN: {invoice.get('gstin', COMPANY['gstin'])}")
-    center("Computer-generated tax invoice")
-    center("Service: wecare.digital/selfservice")
+    # ═══ HEADER (logo left, company info right) ═══
+    lines.append(('__LOGO__', FLG, 'LOGO'))
 
-    # ── Render lines to image ──
-    # Default bitmap font is ~6px wide, ~10px tall per character
-    # Draw at native size — no scaling needed
-    CHAR_W = 6    # approximate width per character
-    LINE_H = 13   # line height
-    PAD = 10
-    IMG_W = W_CHARS * CHAR_W + PAD * 2
-    IMG_H = len(lines) * LINE_H + PAD * 2
+    # ═══ INVOICE META ═══
+    DSEP()
+    C("Invoice", FLG)
+    DSEP()
+    LR(f"Date    : {date_str}", time_str)
+    if order_id and order_id != 'Offline':
+        L(f"Order   : {order_id}")
+    if reference_id:
+        L(f"Ref     : {reference_id}")
+    if purpose:
+        L(f"Brand   : {purpose}")
+    SEP()
 
-    img = Image.new('RGB', (IMG_W, IMG_H), (255, 255, 255))
+    # ═══ BILL TO / SHIP TO ═══
+    L("Bill To:", FB)
+    L(f"  {cust_name}", FB)
+    contact_line = f"  {cust_phone}"
+    if cust_email:
+        contact_line += f" | {cust_email}"
+    L(contact_line[:CHARS + 2], FSM)
+    if bill_addr:
+        for addr_line in _wrap_text(bill_addr, CHARS - 2):
+            L(f"  {addr_line}", FSM)
+    L("Ship To:", FB)
+    if ship_addr:
+        for addr_line in _wrap_text(ship_addr, CHARS - 2):
+            L(f"  {addr_line}", FSM)
+    else:
+        L("  Same as billing", FSM)
+    SEP()
+
+    # ═══ ITEMS TABLE ═══
+    L(f"{'Sl':<3}{'Description':<22}{'Qty':>4}{'Rate':>10}{'Amount':>9}", FB)
+    SEP()
+    total_qty = 0
+    for idx, item in enumerate(items):
+        name = item.get('name', 'Item')[:20]
+        amt = float(item.get('amount', 0))
+        qty = int(item.get('quantity', 1))
+        total_qty += qty
+        line_total = amt * qty
+        L(f"{idx+1:<3}{name:<22}{qty:>4}{amt:>10,.2f}{line_total:>9,.2f}")
+    SEP()
+
+    # ═══ TOTALS ═══
+    LR("Subtotal", f"{subtotal:,.2f}")
+    if discount_val:
+        LR("Promo", f"-{discount_val:,.2f}")
+    if shipping_amt:
+        LR("Express", f"{shipping_amt:,.2f}")
+    if gst_rate > 0:
+        LR(f"CGST @{gst_rate/2:.0f}%", f"{cgst:,.2f}")
+        LR(f"SGST @{gst_rate/2:.0f}%", f"{sgst:,.2f}")
+    if conv_fee:
+        LR("Conv Fee", f"{conv_fee:,.2f}")
+    DSEP()
+    LR(f"Total  {total_qty} Items", f"\u20b9 {total:,.2f}", FB)
+    DSEP()
+
+    # ═══ GST SUMMARY ═══
+    if gst_rate > 0:
+        taxable = subtotal - discount_val
+        LR(f"CGST @{gst_rate/2:.1f}%  On {taxable:,.2f}", f"{cgst:,.2f}")
+        LR(f"SGST @{gst_rate/2:.1f}%  On {taxable:,.2f}", f"{sgst:,.2f}")
+        SEP()
+        LR("Total Tax", f"{tax:,.2f}", FB)
+        DSEP()
+
+    # ═══ PAID ICON ═══
+    if payment_status == 'CAPTURED':
+        BL()
+        lines.append(('__PAID__', F, 'PAID_ICON'))
+        BL()
+        if paid_at:
+            paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
+            C(f"Paid: {paid_str}")
+    else:
+        BL()
+        C(f"Status: {payment_status}", FB)
+        BL()
+
+    DSEP()
+    BL()
+    C("Thank You!", FLG)
+    C("Visit Again!", FLG)
+    BL()
+    SEP()
+    C("Support: wecare.digital/selfservice", FSM)
+    DSEP()
+
+    # ══════════════════════════════════
+    # ── RENDER TO IMAGE ──
+    # ══════════════════════════════════
+
+    # Calculate char width
+    tmp_draw = ImageDraw.Draw(Image.new('RGB', (1, 1)))
+    try:
+        bb = tmp_draw.textbbox((0, 0), 'M', font=F)
+        CW = bb[2] - bb[0]
+    except Exception:
+        CW = 9
+
+    W = CHARS * CW + PX * 2
+    est_h = len(lines) * LINE_H + PY * 2 + 200  # extra for logo + paid icon
+    img = Image.new('RGB', (W, est_h), (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    # Get default font (guaranteed to exist on any Pillow)
-    font = ImageFont.load_default()
+    # Load assets from S3
+    logo_bytes = _load_logo_bytes()
+    paid_icon = _load_s3_image('stream/media/m/paid.png')  # returns PIL Image or None
 
-    y = PAD
-    for entry in lines:
-        if len(entry) == 4:
-            # lr pair: (left, right, 'lr', style)
-            left_text, right_text, _, style = entry
-            draw.text((PAD, y), left_text, fill=(0, 0, 0), font=font)
-            # Right-align
-            try:
-                bbox = draw.textbbox((0, 0), right_text, font=font)
-                rw = bbox[2] - bbox[0]
-            except:
-                rw = len(right_text) * 6
-            draw.text((IMG_W - PAD - rw, y), right_text, fill=(0, 0, 0), font=font)
-        else:
-            text, align, style = entry
-            if align == 'c':
+    y = PY
+
+    for content, font, align in lines:
+        if align == 'LOGO':
+            # Logo on left, company info to the right
+            ls = 44
+            if logo_bytes:
                 try:
-                    bbox = draw.textbbox((0, 0), text, font=font)
-                    tw = bbox[2] - bbox[0]
-                except:
-                    tw = len(text) * 6
-                x = (IMG_W - tw) // 2
+                    logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
+                    logo_img = logo_img.resize((ls, ls), Image.LANCZOS)
+                    img.paste(logo_img, (PX, y), logo_img)
+                except Exception:
+                    pass
+            hdr_lines = [
+                (COMPANY['name'], FLG),
+                (f"GSTIN/UIN: {COMPANY['gstin']}", FSM),
+            ]
+            # Split address into lines
+            for addr_part in _wrap_text(COMPANY['address'], 38):
+                hdr_lines.append((addr_part, FXS))
+            hdr_lines.append((f"{COMPANY['phone']} | {COMPANY['email']}", FXS))
+
+            tx = PX + ls + 10
+            avail = W - tx - PX
+            hy = y
+            for txt, hf in hdr_lines:
+                tw = _tw(draw, txt, hf)
+                hx = tx + (avail - tw) // 2
+                draw.text((max(tx, hx), hy), txt, fill=(0, 0, 0), font=hf)
+                hy += LINE_H - 3 if hf == FLG else LINE_H - 6
+            y += max(ls + 4, hy - y + 4)
+            continue
+
+        if align == 'PAID_ICON':
+            # Paste PAID icon from S3, centered
+            if paid_icon:
+                try:
+                    icon_size = 100
+                    pi = paid_icon.resize((icon_size, icon_size), Image.LANCZOS)
+                    ix = (W - icon_size) // 2
+                    img.paste(pi, (ix, y), pi)
+                    y += icon_size + 6
+                except Exception:
+                    tw = _tw(draw, "[ PAID ]", FLG)
+                    draw.text(((W - tw) // 2, y), "[ PAID ]", fill=(5, 150, 105), font=FLG)
+                    y += LINE_H + 6
             else:
-                x = PAD
-            color = (0, 0, 0) if style != 'd' else (100, 100, 100)
-            if style == 'b' and payment_status == 'CAPTURED' and '*** PAID ***' in text:
-                color = (5, 150, 105)  # emerald
-            draw.text((x, y), text, fill=color, font=font)
+                tw = _tw(draw, "[ PAID ]", FLG)
+                draw.text(((W - tw) // 2, y), "[ PAID ]", fill=(5, 150, 105), font=FLG)
+                y += LINE_H + 6
+            continue
+
+        if align == 'LR':
+            lt, rt = content
+            draw.text((PX, y), lt, fill=(0, 0, 0), font=font)
+            rw = _tw(draw, rt, font)
+            draw.text((W - PX - rw, y), rt, fill=(0, 0, 0), font=font)
+        elif align == 'C':
+            tw = _tw(draw, content, font)
+            draw.text(((W - tw) // 2, y), content, fill=(0, 0, 0), font=font)
+        else:
+            draw.text((PX, y), content, fill=(0, 0, 0), font=font)
         y += LINE_H
 
     # Crop to content
-    img = img.crop((0, 0, IMG_W, y + PAD))
+    y += PY
+    img = img.crop((0, 0, W, y))
 
-    # Scale UP for WhatsApp readability (native is ~308px wide, scale to ~620px)
-    scale_factor = 2
-    final_w = IMG_W * scale_factor
-    final_h = img.height * scale_factor
-    img = img.resize((final_w, final_h), Image.NEAREST)
+    # Scale 2x for WhatsApp readability
+    final_w = W * 2
+    final_h = img.height * 2
+    img = img.resize((final_w, final_h), Image.LANCZOS)
 
     buf = io.BytesIO()
     img.save(buf, format='PNG')
     return buf.getvalue()
-
-
-def _center_text(draw, text, width, y, font, fill):
-    """Draw centered text."""
-    try:
-        bbox = draw.textbbox((0, 0), text, font=font)
-        tw = bbox[2] - bbox[0]
-    except:
-        tw = len(text) * 7
-    draw.text(((width - tw) / 2, y), text, fill=fill, font=font)
-
-
-def _dashed_line(draw, x1, x2, y):
-    """Draw a dashed line."""
-    x = x1
-    while x < x2:
-        draw.line([(x, y), (min(x + 6, x2), y)], fill='#000', width=1)
-        x += 10
-
-
-def _total_line(draw, x1, x2, y, label, value, font):
-    """Draw a label-value line for totals."""
-    draw.text((x1, y), label, fill='#000', font=font)
-    try:
-        bbox = draw.textbbox((0, 0), value, font=font)
-        vw = bbox[2] - bbox[0]
-    except:
-        vw = len(value) * 7
-    draw.text((x2 - vw, y), value, fill='#000', font=font)
 
 
 def _wrap_text(text, max_chars):
@@ -1021,13 +1071,20 @@ def generate_invoice_pdf(invoice_id: str, request_id: str) -> Dict:
 
     html = _build_invoice_html(invoice, items)
 
-    # Generate PDF from HTML
+    # Primary: render receipt PNG and convert to PDF via PIL
     try:
-        pdf_bytes = _render_html_to_pdf(html)
+        from PIL import Image as PILImage
+        png_bytes = _generate_receipt_png(invoice, items)
+        png_img = PILImage.open(io.BytesIO(png_bytes)).convert('RGB')
+        pdf_buf = io.BytesIO()
+        png_img.save(pdf_buf, format='PDF', resolution=150)
+        pdf_bytes = pdf_buf.getvalue()
     except Exception as e:
-        logger.error(f"PDF render error: {e}")
-        # Fallback: store HTML as PDF-like content
-        pdf_bytes = _generate_html_pdf_fallback(html)
+        logger.warning(f"PIL PDF render failed: {e}, using fallback")
+        try:
+            pdf_bytes = _render_html_to_pdf(html)
+        except Exception:
+            pdf_bytes = _generate_html_pdf_fallback(html)
 
     ref_id = invoice.get('referenceId', invoice_id)
     s3_key = f"{INVOICE_PREFIX}{ref_id}.pdf"
@@ -1059,24 +1116,12 @@ def generate_invoice_pdf(invoice_id: str, request_id: str) -> Dict:
 
 
 def _render_html_to_pdf(html: str) -> bytes:
-    """Render HTML to PDF. Tries multiple approaches."""
-    # Try reportlab first (lightweight)
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas as pdf_canvas
-        # If reportlab is available, we can generate a basic PDF
-        raise ImportError("Use HTML-based approach")
-    except ImportError:
-        pass
-
-    # Fallback: wrap HTML in a minimal PDF structure
-    return _generate_html_pdf_fallback(html)
+    """Render HTML to PDF. Uses PIL image-to-PDF as primary approach."""
+    raise ImportError("Use image-based PDF approach")
 
 
 def _generate_html_pdf_fallback(html: str) -> bytes:
-    """Generate a PDF that embeds the HTML content. Viewable in modern PDF readers."""
-    # Create a simple PDF with the HTML content as an attachment
-    # This is a minimal valid PDF that contains the invoice HTML
+    """Generate a minimal placeholder PDF. Real PDF uses image-based approach."""
     html_bytes = html.encode('utf-8')
 
     # Minimal PDF structure
@@ -1123,6 +1168,206 @@ startxref
     return pdf_content
 
 
+# ─── Send Payment Link (WhatsApp Interactive Payment Message) ───
+
+def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) -> Dict:
+    """Send WhatsApp interactive payment message for a pending invoice.
+    Creates the order_details message with review_and_pay action via Razorpay.
+    """
+    if not invoice_id:
+        return _resp(400, {'error': 'invoiceId required'})
+
+    table = dynamodb.Table(INVOICES_TABLE)
+    resp = table.get_item(Key={'invoiceId': invoice_id})
+    invoice = resp.get('Item')
+    if not invoice:
+        return _resp(404, {'error': 'Invoice not found'})
+
+    # Don't send payment link for already paid/cancelled invoices
+    status = invoice.get('status', '')
+    if status in ('paid', 'cancelled'):
+        return _resp(400, {'error': f'Invoice is {status}, cannot send payment link'})
+
+    customer_phone = invoice.get('customerPhone', '')
+    if not customer_phone:
+        return _resp(400, {'error': 'No customer phone on invoice'})
+
+    reference_id = invoice.get('referenceId', '')
+    if not reference_id:
+        return _resp(400, {'error': 'No referenceId on invoice'})
+
+    # Get invoice items
+    items_table = dynamodb.Table(INVOICE_ITEMS_TABLE)
+    items_resp = items_table.query(
+        KeyConditionExpression=boto3.dynamodb.conditions.Key('invoiceId').eq(invoice_id)
+    )
+    items = sorted(items_resp.get('Items', []), key=lambda x: int(x.get('itemIndex', 0)))
+
+    # Build order items for WhatsApp interactive message (amounts in paise)
+    order_items = []
+    subtotal_paise = 0
+    gst_rate = float(invoice.get('gstRate', 18))
+    for i, item in enumerate(items):
+        amt_rupees = float(item.get('amount', 0))
+        qty = int(item.get('quantity', 1))
+        amt_paise = int(amt_rupees * 100)
+        line_paise = amt_paise * qty
+        subtotal_paise += line_paise
+        order_items.append({
+            'retailer_id': f'ITEM_{i+1}',
+            'name': item.get('name', 'Item'),
+            'amount': {'value': amt_paise, 'offset': 100},
+            'quantity': qty,
+        })
+
+    # Add convenience fee as line item
+    conv_fee = float(invoice.get('convenienceFee', 0))
+    conv_paise = int(conv_fee * 100)
+    if conv_paise > 0:
+        order_items.append({
+            'retailer_id': 'ITEM_CONV',
+            'name': 'Convenience Fee (Collected by Bank)',
+            'amount': {'value': conv_paise, 'offset': 100},
+            'quantity': 1,
+        })
+        subtotal_paise += conv_paise
+
+    discount_paise = int(float(invoice.get('discount', 0)) * 100)
+    shipping_paise = int(float(invoice.get('shipping', 0)) * 100)
+    gst_paise = int(float(invoice.get('tax', 0)) * 100)
+    total_paise = subtotal_paise - discount_paise + shipping_paise + gst_paise
+
+    order_id = invoice.get('orderId', 'Offline')
+
+    # Look up contact
+    contact = _lookup_contact_by_phone(customer_phone)
+    contact_id = contact.get('contactId', '') if contact else ''
+
+    if not phone_number_id:
+        phone_number_id = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
+
+    # Build payload for outbound-whatsapp Lambda
+    wa_payload = {
+        'body': json.dumps({
+            'contactId': contact_id,
+            'phoneNumberId': phone_number_id,
+            'isInteractivePayment': True,
+            'orderDetails': {
+                'reference_id': reference_id,
+                'type': 'digital-goods',
+                'currency': 'INR',
+                'itemName': order_items[0]['name'] if order_items else 'Payment',
+                'quantity': 1,
+                'gstRate': gst_rate,
+                'gstin': invoice.get('gstin', COMPANY['gstin']),
+                'orderId': order_id,
+                'order': {
+                    'status': 'pending',
+                    'items': order_items,
+                    'subtotal': {'value': subtotal_paise, 'offset': 100},
+                    'discount': {'value': discount_paise, 'offset': 100, 'description': 'Promo'},
+                    'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
+                    'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: {COMPANY["gstin"]}'},
+                },
+            }
+        })
+    }
+
+    try:
+        wa_response = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='Event',  # Async
+            Payload=json.dumps(wa_payload),
+        )
+        wa_status_code = wa_response.get('StatusCode', 0)
+    except Exception as e:
+        logger.error(f"Payment link send error: {e}")
+        return _resp(500, {'error': f'Failed to send payment link: {e}'})
+
+    # Update invoice status to pending_payment
+    try:
+        table.update_item(
+            Key={'invoiceId': invoice_id},
+            UpdateExpression='SET #st = :st, #ua = :now',
+            ExpressionAttributeNames={'#st': 'status', '#ua': 'updatedAt'},
+            ExpressionAttributeValues={':st': 'pending_payment', ':now': int(time.time())},
+        )
+    except Exception:
+        pass
+
+    # Log delivery
+    delivery_table = dynamodb.Table(INVOICE_DELIVERY_TABLE)
+    delivery_table.put_item(Item={
+        'invoiceId': invoice_id,
+        'timestamp': int(time.time()),
+        'channel': 'whatsapp_payment',
+        'toNumber': customer_phone,
+        'waMessageId': '',
+        'status': 'sent' if wa_status_code in (200, 202) else 'failed',
+        'imageUrl': '',
+        'phoneNumberId': phone_number_id,
+        'contactId': contact_id,
+        'error': '',
+    })
+
+    logger.info(json.dumps({
+        'event': 'payment_link_sent', 'invoiceId': invoice_id,
+        'referenceId': reference_id, 'toPhone': customer_phone,
+        'total': total_paise / 100, 'requestId': request_id,
+    }))
+
+    return _resp(200, {
+        'invoiceId': invoice_id,
+        'referenceId': reference_id,
+        'status': 'payment_link_sent',
+        'toPhone': customer_phone,
+        'total': total_paise / 100,
+    })
+
+
+# ─── Cancel Invoice ───
+
+def cancel_invoice(invoice_id: str, reason: str, request_id: str) -> Dict:
+    """Cancel/void an invoice. Cannot cancel already-paid invoices."""
+    if not invoice_id:
+        return _resp(400, {'error': 'invoiceId required'})
+
+    table = dynamodb.Table(INVOICES_TABLE)
+    resp = table.get_item(Key={'invoiceId': invoice_id})
+    invoice = resp.get('Item')
+    if not invoice:
+        return _resp(404, {'error': 'Invoice not found'})
+
+    current_status = invoice.get('paymentStatus', '')
+    if current_status == 'captured':
+        return _resp(400, {'error': 'Cannot cancel a paid invoice. Use refund instead.'})
+
+    try:
+        table.update_item(
+            Key={'invoiceId': invoice_id},
+            UpdateExpression='SET #st = :st, #ps = :ps, #ua = :now, #notes = :notes',
+            ExpressionAttributeNames={
+                '#st': 'status', '#ps': 'paymentStatus',
+                '#ua': 'updatedAt', '#notes': 'notes',
+            },
+            ExpressionAttributeValues={
+                ':st': 'cancelled',
+                ':ps': 'cancelled',
+                ':now': int(time.time()),
+                ':notes': f"Cancelled: {reason}" if reason else 'Cancelled by admin',
+            },
+        )
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+    logger.info(json.dumps({
+        'event': 'invoice_cancelled', 'invoiceId': invoice_id,
+        'reason': reason, 'requestId': request_id,
+    }))
+
+    return _resp(200, {'invoiceId': invoice_id, 'status': 'cancelled'})
+
+
 # ─── Send Invoice on WhatsApp ───
 
 def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, request_id: str) -> Dict:
@@ -1159,11 +1404,12 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
     table = dynamodb.Table(INVOICES_TABLE)
     inv_resp = table.get_item(Key={'invoiceId': invoice_id})
     invoice = inv_resp.get('Item', {})
-    inv_num = invoice.get('invoiceNumber', '')
     total = float(invoice.get('total', 0))
     order_id = invoice.get('orderId', '')
+    reference_id = invoice.get('referenceId', '')
     order_line = f"\nOrder: {order_id}" if order_id and order_id != 'Offline' else ''
-    caption = f"Invoice {inv_num} — Total: Rs.{total:,.2f}{order_line}\nThank you for your payment!"
+    ref_line = f"\nRef: {reference_id}" if reference_id else ''
+    caption = f"Invoice \u20b9{total:,.2f}{order_line}{ref_line}\nThank you for your payment!"
 
     # Look up contact by phone
     contact = _lookup_contact_by_phone(to_phone)

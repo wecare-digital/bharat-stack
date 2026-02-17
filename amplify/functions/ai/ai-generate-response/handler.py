@@ -1,4 +1,4 @@
-"""
+﻿"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
@@ -2044,7 +2044,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     pass
                 return _r(f"Reply 1\u2013{min(len(pending_dues), 5)} \u00b7 BACK \u00b7 CANCEL")
 
-            # ── Purpose ──
+            # ── Brand ──
             if step == 'awaiting_purpose':
                 if content_lower == 'back':
                     # If came from dues, go back to due choice; otherwise show menu
@@ -2064,7 +2064,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     purpose = re.sub(r'\s+', ' ', message_content.strip()).title()[:40]
                 data['payment_purpose'] = purpose
                 _save_flow_state(phone_hash, 'pay', 'awaiting_order_id', data)
-                return _r(f"\u2705 Purpose: *{purpose}*\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
+                return _r(f"\u2705 Brand: *{purpose}*\n\n\U0001f4cb Order ID?\nType SKIP if none \u00b7 BACK \u00b7 CANCEL")
 
             # ── Order ID ──
             if step == 'awaiting_order_id':
@@ -2327,7 +2327,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 if content_lower in ('yes', 'y', 'confirm', 'ok', 'haan', 'ha'):
                     amount = data.get('subtotal', data.get('amount', 0))
                     _clear_flow_state(phone_hash)
-                    sending_msg = "\u2705 Sending payment link\u2026\n\U0001f9fe You\u2019ll receive one link. Invoice follows after payment."
+                    sending_msg = "\u2705 *Payment link on its way!*\n\U0001f517 Check your chat for the secure link.\n\U0001f9fe Invoice will be sent automatically once paid."
                     return {
                         'suggestedResponse': sending_msg,
                         'suggestion': sending_msg,
@@ -2359,7 +2359,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     _save_flow_state(phone_hash, 'pay', 'awaiting_edit_choice', data)
                     return _r(EDIT_MENU)
                 else:
-                    return _r(f"*YES* to pay \u20b9{data.get('total', 0):,.2f} \u00b7 *NO* to cancel \u00b7 *EDIT*")
+                    return _r(f"*YES* to confirm \u20b9{data.get('total', 0):,.2f} \u00b7 *NO* to cancel \u00b7 *EDIT*")
 
             # ── Edit menu ──
 
@@ -2438,7 +2438,6 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
     }
     if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
         pending = _check_pending_payments(phone_hash, request_id, sender_phone)
-        flows_config = flow_config.get('flows', {}).get('pay', {})
         if pending:
             due_msg = _dues_prompt(pending)
             _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
@@ -2446,8 +2445,14 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 'suggestedResponse': due_msg,
                 'suggestion': due_msg,
             }
+        # No pending dues — inform and offer new payment
         _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-        return _r(_pay_purpose_prompt())
+        no_due_msg = (
+            "\u2705 *No pending dues!*\n"
+            "Your account is all clear.\n\n"
+            "Want to make a new payment? Pick a brand below \U0001f447\n"
+        )
+        return _r(no_due_msg + "\n" + _pay_purpose_prompt())
 
     # ── Main menu / store item selected ──
     if content_lower.startswith('menu_') or content_lower.startswith('store_'):
@@ -2500,7 +2505,6 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             # Start pay flow — check for pending dues first
             if action == 'start_pay_flow':
                 pending = _check_pending_payments(phone_hash, request_id, sender_phone)
-                flows_config = flow_config.get('flows', {}).get('pay', {})
                 if pending:
                     due_msg = _dues_prompt(pending)
                     _save_flow_state(phone_hash, 'pay', 'awaiting_due_choice', {'pending_dues': pending})
@@ -2508,8 +2512,14 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                         'suggestedResponse': due_msg,
                         'suggestion': due_msg,
                     }
+                # No pending dues — inform and offer new payment
                 _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-                return _r(_pay_purpose_prompt())
+                no_due_msg = (
+                    "\u2705 *No pending dues!*\n"
+                    "Your account is all clear.\n\n"
+                    "Want to make a new payment? Pick a brand below \U0001f447\n"
+                )
+                return _r(no_due_msg + "\n" + _pay_purpose_prompt())
 
             # Toggle audio
             if action == 'toggle_audio':
@@ -2600,10 +2610,8 @@ def _dues_prompt(pending_dues: list) -> str:
         brand = d.get('item', 'Services/Goods')
         ref = d.get('ref', 'N/A')
         amount = d['amount']
-        # Readable ref: Due #1, #2, etc. + masked original ref
         readable_ref = f"Due #{i}"
         masked_ref = f"...{ref[-4:]}" if len(ref) > 4 else ref
-        # Due date from createdAt (show as DD Mon)
         created = d.get('createdAt', 0)
         due_date = ''
         if created:
@@ -2613,29 +2621,29 @@ def _dues_prompt(pending_dues: list) -> str:
                 due_date = dt.strftime('%d %b')
             except Exception:
                 pass
-        # Format: BNB Club • Due #1 • ₹1,000 • Due: 10 Feb (…a1b2)
-        line_parts = [f" {i}. {brand}"]
-        line_parts.append(f"{readable_ref}")
+        line_parts = [f" {i}. *{brand}*"]
         line_parts.append(f"\u20b9{amount:,.2f}")
         if due_date:
-            line_parts.append(f"Due: {due_date}")
+            line_parts.append(f"{due_date}")
         line_parts.append(f"({masked_ref})")
         dues_lines.append(" \u2022 ".join(line_parts))
     dues_text = "\n".join(dues_lines)
+    more = f"\n_+{len(pending_dues) - 5} more_" if len(pending_dues) > 5 else ""
     return (
-        f"\U0001f4cc *{len(pending_dues)} Pending* \u2014 Total \u20b9{total_due:,.2f}\n\n"
-        f"{dues_text}\n\n"
-        f" 1 \u2192 Pay ALL pending (\u20b9{total_due:,.2f})\n"
+        f"\U0001f4cc *You have {len(pending_dues)} pending {'due' if len(pending_dues)==1 else 'dues'}*\n"
+        f"Total outstanding: *\u20b9{total_due:,.2f}*\n\n"
+        f"{dues_text}{more}\n\n"
+        f" 1 \u2192 Pay ALL (\u20b9{total_due:,.2f})\n"
         f" 2 \u2192 Pay a specific due\n"
-        f" 3 \u2192 Create a new payment\n\n"
+        f" 3 \u2192 New payment (advance/other)\n\n"
         f"Reply 1/2/3 \u00b7 CANCEL"
     )
 
 
 def _pay_purpose_prompt() -> str:
-    """Return the formatted purpose list used in multiple places."""
+    """Return the formatted brand list used in multiple places."""
     return (
-        "\U0001f3af *Select a purpose*\n\n"
+        "\U0001f3af *Select a brand*\n\n"
         "\U0001f3ea *Our Brands*\n"
         " 1. \u2708\ufe0f BNB Club \u2014 Travel\n"
         " 2. \u2696\ufe0f No Fault \u2014 ODR\n"
@@ -2647,10 +2655,10 @@ def _pay_purpose_prompt() -> str:
         "\U0001f4c2 *General*\n"
         " 8. Advance Payment\n"
         " 9. Service Fee\n"
-        " 10. Subscription\n"
-        " 11. Consultation\n\n"
-        "Reply 1\u201311 or type your own \u00b7 BACK \u00b7 CANCEL"
+        " 10. Consultation\n\n"
+        "Reply 1\u201310 or type your own \u00b7 BACK \u00b7 CANCEL"
     )
+
 
 
 PURPOSE_MAP = {
@@ -2663,14 +2671,13 @@ PURPOSE_MAP = {
     '7': 'Gift Card',
     '8': 'Advance Payment',
     '9': 'Service Fee',
-    '10': 'Subscription',
-    '11': 'Consultation',
+    '10': 'Consultation',
 }
 
 
 EDIT_MENU = (
     "\u270f\ufe0f *Edit Payment*\n\n"
-    " 1. Purpose\n"
+    " 1. Brand\n"
     " 2. Order ID\n"
     " 3. Customer details\n"
     " 4. Amount / Qty\n"
@@ -2750,13 +2757,13 @@ def _build_pay_summary(data: Dict, pay_prompts: Dict, default_gst: float,
     lines.append(f"Subtotal  \u20b9{subtotal:,.2f}")
     lines.append(f"Promo     \u2212\u20b9{promo:,.2f}")
     lines.append(f"GST {default_gst:.0f}%   \u20b9{gst_amount:,.2f}")
-    lines.append(f"Shipping  \u20b9{shipping:,.2f}")
+    lines.append(f"Express   \u20b9{shipping:,.2f}")
     lines.append(f"Conv Fee  \u20b9{conv_fee:,.2f}")
     lines.append("\u2500" * 20)
     lines.append(f"\u2705 *Total: \u20b9{total:,.2f}*")
-    lines.append(f"GSTIN: {gstin}")
+    lines.append(f"_GSTIN: {gstin}_")
     lines.append("")
-    lines.append("*YES* to pay \u00b7 *NO* to cancel \u00b7 *EDIT*")
+    lines.append("*YES* to confirm \u00b7 *NO* to cancel \u00b7 *EDIT*")
 
     breakdown = "\n".join(lines)
     _save_flow_state(phone_hash, 'pay', 'awaiting_confirmation', data)

@@ -3577,6 +3577,22 @@ export async function sendInvoiceWhatsApp(invoiceId: string, toWhatsAppNumber: s
   });
 }
 
+// Send WhatsApp interactive payment link for a pending invoice
+export async function sendPaymentLink(invoiceId: string, phoneNumberId?: string): Promise<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number } | null> {
+  return apiCall<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number }>(`${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
+    method: 'POST',
+    body: JSON.stringify({ invoiceId, phoneNumberId }),
+  });
+}
+
+// Cancel/void an invoice
+export async function cancelInvoice(invoiceId: string, reason?: string): Promise<{ invoiceId: string; status: string } | null> {
+  return apiCall<{ invoiceId: string; status: string }>(`${INVOICE_BASE}/${invoiceId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ invoiceId, reason }),
+  });
+}
+
 // Get delivery log for an invoice
 export async function getInvoiceDeliveryLog(invoiceId: string): Promise<{ deliveryLogs: InvoiceDeliveryLog[]; count: number }> {
   const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}/delivery-log`);
