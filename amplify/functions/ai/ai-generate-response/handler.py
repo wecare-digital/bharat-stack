@@ -2012,11 +2012,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['selecting_due'] = True
                     _save_flow_state(phone_hash, 'pay', 'awaiting_due_select', data)
                     return _r("\n".join(lines))
-                elif content_lower in ('3', 'new', 'new payment', 'advance'):
-                    _save_flow_state(phone_hash, 'pay', 'awaiting_purpose', {})
-                    return _r(_pay_purpose_prompt())
                 else:
-                    return _r("Reply 1 (pay all), 2 (pick one), or 3 (new payment) \u00b7 CANCEL")
+                    return _r("Reply 1 (pay all) or 2 (pick one) \u00b7 CANCEL")
 
             # ── Due selection (pick one) ──
             if step == 'awaiting_due_select':
@@ -2635,8 +2632,7 @@ def _dues_prompt(pending_dues: list) -> str:
         f"{dues_text}{more}\n\n"
         f" 1 \u2192 Pay ALL (\u20b9{total_due:,.2f})\n"
         f" 2 \u2192 Pay a specific due\n"
-        f" 3 \u2192 New payment (advance/other)\n\n"
-        f"Reply 1/2/3 \u00b7 CANCEL"
+        f"Reply 1/2 \u00b7 CANCEL"
     )
 
 
