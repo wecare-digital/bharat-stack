@@ -290,30 +290,7 @@ export async function updateMessage(messageId: string, updates: Record<string, a
   return data !== null && data.success === true;
 }
 
-export interface CreateInvoiceRequest {
-  contactId: string;
-  itemName: string;
-  unitPrice: number;
-  quantity?: number;
-  gstRate?: number;
-  shipping?: number;
-  discount?: number;
-  purpose?: string;
-  orderId?: string;
-  customerName?: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  shippingAddress?: string;
-  billingAddress?: string;
-  phoneNumberId?: string;
-}
-
-export async function createInvoice(request: CreateInvoiceRequest): Promise<{ success: boolean; message?: string } | null> {
-  return apiCall<{ success: boolean; message?: string }>(`${API_BASE}/messages/invoice`, {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
-}
+// createInvoice() removed — use createInvoiceEngine() instead
 
 function normalizeMessage(item: any): Message {
   const timestamp = item.timestamp || item.createdAt;
@@ -511,12 +488,7 @@ export async function createCarouselTemplate(
   );
 }
 
-export async function sendSmsMessage(contactId: string, content: string): Promise<{ messageId: string; status: string } | null> {
-  return apiCall<{ messageId: string; status: string }>(`${API_BASE}/sms/send`, {
-    method: 'POST',
-    body: JSON.stringify({ contactId, content }),
-  });
-}
+// sendSmsMessage() removed — use sendSmsAws() instead
 
 export async function sendEmailMessage(contactId: string, subject: string, content: string, htmlContent?: string): Promise<{ messageId: string; status: string } | null> {
   return apiCall<{ messageId: string; status: string }>(`${API_BASE}/email/send`, {
@@ -578,105 +550,8 @@ export async function deleteBulkJob(jobId: string): Promise<boolean> {
 // AI AUTOMATION API
 // ============================================================================
 
-export interface AIConfig {
-  enabled: boolean;
-  autoReplyEnabled: boolean;
-  knowledgeBaseId: string;
-  agentId: string;
-  agentAliasId: string;
-  maxTokens: number;
-  temperature: number;
-  systemPrompt: string;
-}
-
-// Bedrock AI Configuration
-// INTERNAL: For admin tasks (FloatingAgent) - Agent: QIEEHEBTZO, KB: D0JU8Q7IQS
-// EXTERNAL: For WhatsApp auto-reply (customer-facing) - Agent: Z4YAK0ZLBO, KB: LYMQLKZNY7
-const AI_CONFIG: AIConfig = {
-  enabled: true,
-  autoReplyEnabled: true,
-  knowledgeBaseId: 'LYMQLKZNY7',  // External KB ID (for WhatsApp auto-reply)
-  agentId: 'Z4YAK0ZLBO',  // External Agent ID (for WhatsApp auto-reply)
-  agentAliasId: 'WANPKHQGIB',  // External Agent Alias
-  maxTokens: 1024,
-  temperature: 0.7,
-  systemPrompt: 'You are a helpful customer service assistant for WECARE.DIGITAL.',
-};
-
-export async function getAIConfig(): Promise<AIConfig> {
-  // Try to fetch from API first
-  const data = await apiCall<any>(`${API_BASE}/ai/config`);
-  if (data && data.config) {
-    return {
-      enabled: data.config.enabled ?? AI_CONFIG.enabled,
-      autoReplyEnabled: data.config.autoReplyEnabled ?? AI_CONFIG.autoReplyEnabled,
-      knowledgeBaseId: data.config.knowledgeBaseId || AI_CONFIG.knowledgeBaseId,
-      agentId: data.config.agentId || AI_CONFIG.agentId,
-      agentAliasId: data.config.agentAliasId || AI_CONFIG.agentAliasId,
-      maxTokens: data.config.maxTokens || AI_CONFIG.maxTokens,
-      temperature: data.config.temperature ?? AI_CONFIG.temperature,
-      systemPrompt: data.config.systemPrompt || AI_CONFIG.systemPrompt,
-    };
-  }
-  return AI_CONFIG;
-}
-
-export async function updateAIConfig(updates: Partial<AIConfig>): Promise<AIConfig> {
-  // Try to update via API first
-  const data = await apiCall<any>(`${API_BASE}/ai/config`, {
-    method: 'PUT',
-    body: JSON.stringify(updates),
-  });
-  if (data && data.config) {
-    Object.assign(AI_CONFIG, data.config);
-    return AI_CONFIG;
-  }
-  // Fallback to local update
-  Object.assign(AI_CONFIG, updates);
-  return AI_CONFIG;
-}
-
-export async function testAIResponse(message: string): Promise<{ response: string; sources?: string[] }> {
-  const data = await apiCall<any>(`${API_BASE}/ai/generate`, {
-    method: 'POST',
-    body: JSON.stringify({ messageContent: message }),
-  });
-  
-  if (data) {
-    return {
-      response: data.suggestedResponse || data.suggestion || 'No response generated',
-      sources: data.sources || ['Knowledge Base'],
-    };
-  }
-  return { response: 'AI service unavailable', sources: [] };
-}
-
-// Get AI suggestions for message replies
-export async function getAISuggestions(message: string, channel?: string, context?: string): Promise<string[]> {
-  // First try the AI generate endpoint
-  const data = await apiCall<any>(`${API_BASE}/ai/generate`, {
-    method: 'POST',
-    body: JSON.stringify({ 
-      messageContent: message,
-      context: {
-        channel: channel || 'whatsapp',
-        contactName: context,
-      },
-    }),
-  });
-  
-  if (data && data.suggestedResponse) {
-    // Return the AI-generated response as a suggestion
-    return [data.suggestedResponse];
-  }
-  
-  // Fallback suggestions if API fails
-  return [
-    'Thank you for reaching out! How can I help you today?',
-    'I\'ll look into this and get back to you shortly.',
-    'Is there anything else I can assist you with?',
-  ];
-}
+// Old AIConfig, getAIConfig(), updateAIConfig(), testAIResponse(), getAISuggestions() removed
+// Use getBedrockAIConfig(), updateBedrockAIConfig(), testBedrockAIResponse() instead
 
 // ============================================================================
 // DASHBOARD STATS API
@@ -1331,102 +1206,7 @@ const WABA_IDS = {
   'Manish Agarwal': 'waba-dbe343f210204752b74c80a0a59631a6',
 };
 
-/**
- * List WhatsApp message templates from AWS EUM Social API
- * Uses: GET /v1/whatsapp/templates via our API Gateway
- * 
- * If API endpoint not available, returns sample templates
- */
-export async function listWhatsAppTemplates(wabaId?: string): Promise<WhatsAppTemplate[]> {
-  // Try to fetch from our API Gateway endpoint
-  let url = `${API_BASE}/whatsapp/templates`;
-  if (wabaId) url += `?wabaId=${wabaId}`;
-  
-  const data = await apiCall<any>(url);
-  
-  if (data && data.templates && Array.isArray(data.templates)) {
-    return data.templates.map(normalizeTemplate);
-  }
-  
-  // If API returns error or no templates, try direct AWS SDK call via Lambda
-  // For now, return sample templates that match AWS EUM Social format
-  // These should be replaced with actual templates from your WABA
-  console.log('Templates API not available, using sample templates');
-  
-  return [
-    {
-      id: 'hello_world',
-      name: 'hello_world',
-      language: 'en_US',
-      category: 'UTILITY',
-      status: 'APPROVED',
-      components: [
-        { type: 'BODY', text: 'Hello {{1}}! Welcome to WECARE.DIGITAL.' }
-      ]
-    },
-    {
-      id: 'order_confirmation',
-      name: 'order_confirmation',
-      language: 'en_US',
-      category: 'UTILITY',
-      status: 'APPROVED',
-      components: [
-        { type: 'HEADER', format: 'TEXT', text: 'Order Confirmed' },
-        { type: 'BODY', text: 'Hi {{1}}, your order #{{2}} has been confirmed. Total: {{3}}' },
-        { type: 'FOOTER', text: 'Thank you for choosing us!' }
-      ]
-    },
-    {
-      id: 'appointment_reminder',
-      name: 'appointment_reminder',
-      language: 'en_US',
-      category: 'UTILITY',
-      status: 'APPROVED',
-      components: [
-        { type: 'BODY', text: 'Hi {{1}}, this is a reminder for your appointment on {{2}} at {{3}}.' }
-      ]
-    },
-    {
-      id: 'payment_received',
-      name: 'payment_received',
-      language: 'en_US',
-      category: 'UTILITY',
-      status: 'APPROVED',
-      components: [
-        { type: 'BODY', text: 'Payment of {{1}} received. Transaction ID: {{2}}. Thank you!' }
-      ]
-    },
-    {
-      id: 'welcome_message',
-      name: 'welcome_message',
-      language: 'en_US',
-      category: 'MARKETING',
-      status: 'APPROVED',
-      components: [
-        { type: 'HEADER', format: 'TEXT', text: 'Welcome to WECARE.DIGITAL' },
-        { type: 'BODY', text: 'Hi {{1}}! Thank you for connecting with us. How can we help you today?' },
-        { type: 'BUTTONS', buttons: [
-          { type: 'QUICK_REPLY', text: 'Get Started' },
-          { type: 'QUICK_REPLY', text: 'Learn More' }
-        ]}
-      ]
-    }
-  ];
-}
-
-/**
- * Get a specific WhatsApp template
- */
-export async function getWhatsAppTemplate(templateName: string, language: string = 'en_US'): Promise<WhatsAppTemplate | null> {
-  const data = await apiCall<any>(`${API_BASE}/whatsapp/templates/${templateName}?language=${language}`);
-  if (data && data.template) {
-    return normalizeTemplate(data.template);
-  }
-  
-  // Fallback: search in cached templates
-  const templates = await listWhatsAppTemplates();
-  return templates.find(t => t.name === templateName && t.language === language) || null;
-}
+// listWhatsAppTemplates() and getWhatsAppTemplate() removed — use listTemplates() and getTemplateDetails() instead
 
 /**
  * Send a template message via WhatsApp

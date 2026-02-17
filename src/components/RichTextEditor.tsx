@@ -133,7 +133,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const loadTemplates = async () => {
     setTemplatesLoading(true);
     try {
-      const data = await api.listWhatsAppTemplates();
+      const data = await api.listTemplates();
       setTemplates(data);
     } catch (error) {
       console.error('Failed to load templates:', error);
