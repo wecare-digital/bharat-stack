@@ -52,6 +52,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [remarkModal, setRemarkModal] = useState<{inv:Invoice;type:'remark'|'refund'|'credit_note'}|null>(null);
   const [remarkText, setRemarkText] = useState('');
   const [remarkAmount, setRemarkAmount] = useState('');
+  const [editModal, setEditModal] = useState<Invoice|null>(null);
+  const [editForm, setEditForm] = useState<{customerName:string;customerPhone:string;customerEmail:string;shipping:string;discount:string;purpose:string;orderId:string;notes:string}>({customerName:'',customerPhone:'',customerEmail:'',shipping:'0',discount:'0',purpose:'',orderId:'',notes:''});
   const [config, setConfig] = useState<FC>(DEF_CFG);
   const [configSaving, setConfigSaving] = useState(false);
   const [msg, setMsg] = useState<{text:string;type:'success'|'error'}|null>(null);
@@ -162,6 +164,38 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
       if(r) { showMsg(`${remarkModal.type==='remark'?'Remark':remarkModal.type==='refund'?'Refund':'Credit note'} added`); setRemarkModal(null); loadInvoices(); }
       else showMsg('Failed','error');
     } catch(e) { showMsg('Failed','error'); }
+    setActionLoading('');
+  };
+  const openEditModal = (inv:Invoice) => {
+    setEditModal(inv);
+    setEditForm({
+      customerName: inv.customerName||'',
+      customerPhone: inv.customerPhone||'',
+      customerEmail: inv.customerEmail||'',
+      shipping: String(inv.shipping||0),
+      discount: String(inv.discount||0),
+      purpose: inv.purpose||'',
+      orderId: inv.orderId||'',
+      notes: inv.notes||'',
+    });
+  };
+  const submitEdit = async () => {
+    if(!editModal) return;
+    setActionLoading('edit');
+    try {
+      const r = await api.updateInvoiceEngine(editModal.invoiceId, {
+        customerName: editForm.customerName,
+        customerPhone: editForm.customerPhone,
+        customerEmail: editForm.customerEmail,
+        shipping: parseFloat(editForm.shipping)||0,
+        discount: parseFloat(editForm.discount)||0,
+        purpose: editForm.purpose,
+        orderId: editForm.orderId,
+        notes: editForm.notes,
+      });
+      if(r) { showMsg('Invoice updated'); setEditModal(null); setSelInvoice(null); loadInvoices(); }
+      else showMsg('Update failed','error');
+    } catch(e) { showMsg('Update failed','error'); }
     setActionLoading('');
   };
   const selectInvoice = (inv:Invoice) => { setSelInvoice(inv); loadDeliveryLogs(inv.invoiceId); };
@@ -399,6 +433,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                       )}
                       <Button variant="secondary" size="sm" loading={actionLoading==='img'} onClick={()=>doGenerateImage(selInvoice)}>Generate Image</Button>
                       <Button variant="secondary" size="sm" loading={actionLoading==='pdf'} onClick={()=>doGeneratePdf(selInvoice)}>Generate PDF</Button>
+                      {selInvoice.status!=='paid'&&selInvoice.status!=='cancelled' && (
+                        <Button variant="secondary" size="sm" loading={actionLoading==='edit'} onClick={()=>openEditModal(selInvoice)}>Edit Invoice</Button>
+                      )}
                       <Button variant="secondary" size="sm" onClick={()=>openRemarkModal(selInvoice,'remark')}>Add Remark</Button>
                       {(selInvoice.status==='paid'||selInvoice.paymentStatus==='captured') && (
                         <>
@@ -484,6 +521,41 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                 <textarea rows={6} value={config.purposes.join('\n')} onChange={e=>setConfig({...config,purposes:e.target.value.split('\n').filter(Boolean)})} />
               </div>
               <Button variant="primary" size="sm" loading={configSaving} onClick={()=>{setConfigSaving(true);setTimeout(()=>{setConfigSaving(false);showMsg('Config saved');},500);}}>Save Config</Button>
+            </div>
+          )}
+
+          {/* EDIT INVOICE MODAL */}
+          {editModal && (
+            <div className="pf-modal-overlay" onClick={()=>setEditModal(null)}>
+              <div className="pf-modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:520}}>
+                <div className="pf-modal-header">
+                  <h3>Edit Invoice</h3>
+                  <Button variant="ghost" size="sm" onClick={()=>setEditModal(null)}>{'✕'}</Button>
+                </div>
+                <div className="pf-detail-row" style={{marginBottom:12}}>
+                  <span className="label">Ref</span>
+                  <span className="mono">{editModal.referenceId||editModal.invoiceNumber}</span>
+                </div>
+                <div className="pf-form-grid">
+                  <div className="form-group"><label>Customer Name</label><input type="text" value={editForm.customerName} onChange={e=>setEditForm({...editForm,customerName:e.target.value})} /></div>
+                  <div className="form-group"><label>Phone</label><input type="tel" value={editForm.customerPhone} onChange={e=>setEditForm({...editForm,customerPhone:e.target.value})} /></div>
+                  <div className="form-group"><label>Email</label><input type="email" value={editForm.customerEmail} onChange={e=>setEditForm({...editForm,customerEmail:e.target.value})} /></div>
+                  <div className="form-group"><label>Brand</label>
+                    <select value={editForm.purpose} onChange={e=>setEditForm({...editForm,purpose:e.target.value})}>
+                      <option value="">{'—'} Select {'—'}</option>
+                      {config.purposes.map(p=><option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group"><label>Express / Shipping ({'₹'})</label><input type="number" value={editForm.shipping} onChange={e=>setEditForm({...editForm,shipping:e.target.value})} /></div>
+                  <div className="form-group"><label>Promo / Discount ({'₹'})</label><input type="number" value={editForm.discount} onChange={e=>setEditForm({...editForm,discount:e.target.value})} /></div>
+                  <div className="form-group"><label>Order ID</label><input type="text" value={editForm.orderId} onChange={e=>setEditForm({...editForm,orderId:e.target.value})} /></div>
+                  <div className="form-group"><label>Notes</label><textarea rows={2} value={editForm.notes} onChange={e=>setEditForm({...editForm,notes:e.target.value})} /></div>
+                </div>
+                <div className="pf-modal-actions">
+                  <Button variant="secondary" size="sm" onClick={()=>setEditModal(null)}>Cancel</Button>
+                  <Button variant="primary" size="sm" loading={actionLoading==='edit'} onClick={submitEdit}>Save Changes</Button>
+                </div>
+              </div>
             </div>
           )}
 
