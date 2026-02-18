@@ -446,6 +446,38 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
             </div>
           )}
 
+          {/* REMARK / REFUND / CREDIT NOTE MODAL */}
+          {remarkModal && (
+            <div className="pf-modal-overlay" onClick={()=>setRemarkModal(null)}>
+              <div className="pf-modal-box" onClick={e=>e.stopPropagation()}>
+                <div className="pf-modal-header">
+                  <h3>{remarkModal.type==='remark'?'Add Remark':remarkModal.type==='refund'?'Record Refund':'Credit Note'}</h3>
+                  <Button variant="ghost" size="sm" onClick={()=>setRemarkModal(null)}>{'\u2715'}</Button>
+                </div>
+                <div className="pf-detail-row" style={{marginBottom:12}}>
+                  <span className="label">Invoice</span>
+                  <span className="mono">{remarkModal.inv.referenceId||remarkModal.inv.invoiceNumber}</span>
+                </div>
+                {(remarkModal.type==='refund'||remarkModal.type==='credit_note') && (
+                  <div className="form-group">
+                    <label>Amount ({'\u20B9'})</label>
+                    <input type="number" value={remarkAmount} onChange={e=>setRemarkAmount(e.target.value)} placeholder="0" />
+                  </div>
+                )}
+                <div className="form-group">
+                  <label>{remarkModal.type==='remark'?'Note':'Reason'}</label>
+                  <textarea rows={3} value={remarkText} onChange={e=>setRemarkText(e.target.value)} placeholder={remarkModal.type==='remark'?'Enter remark...':'Reason for '+remarkModal.type.replace('_',' ')+'...'} />
+                </div>
+                <div className="pf-modal-actions">
+                  <Button variant="secondary" size="sm" onClick={()=>setRemarkModal(null)}>Cancel</Button>
+                  <Button variant={remarkModal.type==='refund'?'danger':'primary'} size="sm" loading={actionLoading==='remark'} onClick={submitRemark}>
+                    {remarkModal.type==='remark'?'Save Remark':remarkModal.type==='refund'?'Confirm Refund':'Issue Credit Note'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
     </PageShell>

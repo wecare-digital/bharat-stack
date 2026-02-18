@@ -3264,6 +3264,7 @@ export interface Invoice {
   createdAt: number;
   updatedAt: number;
   paidAt: number;
+  remarks?: string | InvoiceRemark[];
   items?: InvoiceItem[];
   assets?: InvoiceAsset[];
 }
@@ -3384,5 +3385,30 @@ export async function previewNextInvoiceNumber(fy?: string): Promise<{ nextInvoi
   return apiCall<{ nextInvoiceNumber: string; fy: string; lastSeq: number }>(`${INVOICE_BASE}/next-sequence`, {
     method: 'POST',
     body: JSON.stringify({ fy }),
+  });
+}
+
+// Delete invoice (hard delete + optional sequence adjustment)
+export async function deleteInvoice(invoiceId: string, adjustSequence = false): Promise<{ invoiceId: string; deleted: boolean; invoiceNumber: string } | null> {
+  return apiCall<{ invoiceId: string; deleted: boolean; invoiceNumber: string }>(`${INVOICE_BASE}/${invoiceId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ adjustSequence }),
+  });
+}
+
+// Add remark / refund / credit note to an invoice
+export interface InvoiceRemark {
+  id: string;
+  type: 'remark' | 'refund' | 'credit_note';
+  text: string;
+  amount: number;
+  author: string;
+  createdAt: number;
+}
+
+export async function addInvoiceRemark(invoiceId: string, remarkType: 'remark' | 'refund' | 'credit_note', text: string, amount = 0, author = 'admin'): Promise<{ invoiceId: string; remark: InvoiceRemark; totalRemarks: number } | null> {
+  return apiCall<{ invoiceId: string; remark: InvoiceRemark; totalRemarks: number }>(`${INVOICE_BASE}/${invoiceId}/remark`, {
+    method: 'POST',
+    body: JSON.stringify({ type: remarkType, text, amount, author }),
   });
 }

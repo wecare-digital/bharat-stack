@@ -163,6 +163,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             reason = body.get('reason', '')
             return cancel_invoice(inv_id, reason, request_id)
 
+        # POST /invoices/{id}/remark — add remark/refund/credit note
+        if method == 'POST' and 'remark' in path:
+            inv_id = path_params.get('invoiceId') or body.get('invoiceId')
+            return add_remark(inv_id, body, request_id)
+
+        # DELETE /invoices/{id} — hard delete invoice + adjust sequence
+        if method == 'DELETE' and path_params.get('invoiceId'):
+            return delete_invoice(path_params['invoiceId'], body, request_id)
+
         # POST /invoices — create invoice (generic, must be LAST POST check)
         if method == 'POST':
             return create_invoice(body, request_id)
@@ -888,6 +897,15 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         L(f"Ref: {reference_id}")
     if purpose:
         L(f"Brand: {purpose}")
+    # ═══ PAID STATUS (text-based, below ref) ═══
+    if payment_status == 'CAPTURED':
+        if paid_at:
+            paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
+            L(f"PAID: {paid_str}", FB)
+        else:
+            L("PAID", FB)
+    elif payment_status not in ('PENDING', ''):
+        L(f"Status: {payment_status}", FB)
     SEP()
 
     # ═══ BILL TO / SHIP TO ═══
@@ -941,15 +959,6 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         LR("Total Tax", f"{tax:,.2f}", FB)
         SEP()
 
-    # ═══ PAID ICON ═══
-    if payment_status == 'CAPTURED':
-        lines.append(('__PAID__', F, 'PAID_ICON'))
-        if paid_at:
-            paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
-            C(f"Paid: {paid_str}", FSM)
-    else:
-        C(f"Status: {payment_status}", FB)
-
     SEP()
     C("Thank You! Visit Again!", FB)
     C("wecare.digital/selfservice", FSM)
@@ -974,7 +983,6 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
 
     # Load assets from S3
     logo_bytes = _load_logo_bytes()
-    paid_icon = _load_s3_image('stream/media/m/paid.png')  # returns PIL Image or None
 
     y = PY
 
@@ -1006,25 +1014,6 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
                 draw.text((max(tx, hx), hy), txt, fill=(0, 0, 0), font=hf)
                 hy += LINE_H - 2 if hf == FLG else LINE_H - 5
             y += max(ls + 2, hy - y + 2)
-            continue
-
-        if align == 'PAID_ICON':
-            # Paste PAID icon from S3, centered
-            if paid_icon:
-                try:
-                    icon_size = 72
-                    pi = paid_icon.resize((icon_size, icon_size), Image.LANCZOS)
-                    ix = (W - icon_size) // 2
-                    img.paste(pi, (ix, y), pi)
-                    y += icon_size + 4
-                except Exception:
-                    tw = _tw(draw, "[ PAID ]", FLG)
-                    draw.text(((W - tw) // 2, y), "[ PAID ]", fill=(5, 150, 105), font=FLG)
-                    y += LINE_H + 4
-            else:
-                tw = _tw(draw, "[ PAID ]", FLG)
-                draw.text(((W - tw) // 2, y), "[ PAID ]", fill=(5, 150, 105), font=FLG)
-                y += LINE_H + 4
             continue
 
         if align == 'LR':
@@ -1468,6 +1457,148 @@ def cancel_invoice(invoice_id: str, reason: str, request_id: str) -> Dict:
     }))
 
     return _resp(200, {'invoiceId': invoice_id, 'status': 'cancelled'})
+
+
+# ─── Delete Invoice (hard delete + sequence adjustment) ───
+
+def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
+    """Hard delete an invoice and optionally adjust the sequence counter."""
+    if not invoice_id:
+        return _resp(400, {'error': 'invoiceId required'})
+
+    table = dynamodb.Table(INVOICES_TABLE)
+    resp = table.get_item(Key={'invoiceId': invoice_id})
+    invoice = resp.get('Item')
+    if not invoice:
+        return _resp(404, {'error': 'Invoice not found'})
+
+    inv_number = invoice.get('invoiceNumber', '')
+    ref_id = invoice.get('referenceId', '')
+
+    # Delete associated S3 assets (images, PDFs)
+    try:
+        assets_resp = table.query(
+            IndexName='invoiceId-index',
+            KeyConditionExpression=boto3.dynamodb.conditions.Key('invoiceId').eq(invoice_id),
+        ) if False else {'Items': []}  # Assets are in same table as nested or separate
+    except Exception:
+        pass
+
+    # Try to delete S3 files for this invoice
+    try:
+        prefix = f'invoices/{ref_id or invoice_id}'
+        s3_resp = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix, MaxKeys=20)
+        for obj in s3_resp.get('Contents', []):
+            s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
+            logger.info(json.dumps({'event': 'invoice_s3_deleted', 'key': obj['Key']}))
+    except Exception as s3_err:
+        logger.warning(json.dumps({'event': 'invoice_s3_delete_error', 'error': str(s3_err)}))
+
+    # Delete the invoice record
+    try:
+        table.delete_item(Key={'invoiceId': invoice_id})
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+    # Adjust sequence counter if requested
+    adjust_seq = body.get('adjustSequence', False)
+    if adjust_seq and inv_number:
+        try:
+            # Extract FY and sequence from invoice number (format: WD/25-26/000042)
+            parts = inv_number.split('/')
+            if len(parts) == 3:
+                fy = parts[1]
+                seq_table = dynamodb.Table(INVOICES_TABLE.replace('InvoicesTable', 'SystemConfigTable'))
+                seq_table.update_item(
+                    Key={'configKey': f'invoice_seq_{fy}'},
+                    UpdateExpression='SET lastSeq = lastSeq - :one',
+                    ConditionExpression='lastSeq > :zero',
+                    ExpressionAttributeValues={':one': 1, ':zero': 0},
+                )
+        except Exception as seq_err:
+            logger.warning(json.dumps({'event': 'seq_adjust_error', 'error': str(seq_err)}))
+
+    logger.info(json.dumps({
+        'event': 'invoice_deleted', 'invoiceId': invoice_id,
+        'invoiceNumber': inv_number, 'requestId': request_id,
+    }))
+
+    return _resp(200, {'invoiceId': invoice_id, 'deleted': True, 'invoiceNumber': inv_number})
+
+
+# ─── Add Remark / Refund / Credit Note ───
+
+def add_remark(invoice_id: str, body: Dict, request_id: str) -> Dict:
+    """Add a remark, refund note, or credit note to an invoice."""
+    if not invoice_id:
+        return _resp(400, {'error': 'invoiceId required'})
+
+    remark_type = body.get('type', 'remark')  # remark | refund | credit_note
+    text = body.get('text', '')
+    amount = float(body.get('amount', 0))
+    author = body.get('author', 'admin')
+
+    if not text and remark_type == 'remark':
+        return _resp(400, {'error': 'text required for remarks'})
+
+    table = dynamodb.Table(INVOICES_TABLE)
+    resp = table.get_item(Key={'invoiceId': invoice_id})
+    invoice = resp.get('Item')
+    if not invoice:
+        return _resp(404, {'error': 'Invoice not found'})
+
+    now = int(time.time())
+    remark_entry = {
+        'id': str(uuid.uuid4())[:8],
+        'type': remark_type,
+        'text': text,
+        'amount': amount,
+        'author': author,
+        'createdAt': now,
+    }
+
+    # Append to remarks list
+    existing_remarks = invoice.get('remarks', [])
+    if isinstance(existing_remarks, str):
+        existing_remarks = json.loads(existing_remarks) if existing_remarks else []
+    existing_remarks.append(remark_entry)
+
+    update_expr = 'SET remarks = :r, updatedAt = :now'
+    expr_values = {
+        ':r': json.dumps(existing_remarks),
+        ':now': now,
+    }
+
+    # For refund/credit note, also update status
+    if remark_type == 'refund':
+        update_expr += ', refundAmount = :ra, refundAt = :rat, paymentStatus = :ps'
+        expr_values[':ra'] = _dec(amount)
+        expr_values[':rat'] = now
+        expr_values[':ps'] = 'refunded'
+    elif remark_type == 'credit_note':
+        update_expr += ', creditNoteAmount = :cna, creditNoteAt = :cnt'
+        expr_values[':cna'] = _dec(amount)
+        expr_values[':cnt'] = now
+
+    try:
+        table.update_item(
+            Key={'invoiceId': invoice_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeValues=expr_values,
+        )
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+    logger.info(json.dumps({
+        'event': f'invoice_{remark_type}_added', 'invoiceId': invoice_id,
+        'remarkType': remark_type, 'amount': amount, 'requestId': request_id,
+    }))
+
+    return _resp(200, {
+        'invoiceId': invoice_id,
+        'remark': remark_entry,
+        'totalRemarks': len(existing_remarks),
+    })
 
 
 # ─── Send Invoice on WhatsApp ───
