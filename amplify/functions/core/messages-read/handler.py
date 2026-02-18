@@ -33,8 +33,8 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
 
 # Pagination defaults
-DEFAULT_LIMIT = 50
-MAX_LIMIT = 100
+DEFAULT_LIMIT = 200
+MAX_LIMIT = 500
 PRESIGNED_URL_EXPIRY = 3600  # 1 hour
 
 
@@ -133,31 +133,52 @@ def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int,
     for dir_type, table_name in tables_to_scan:
         try:
             table = dynamodb.Table(table_name)
-            scan_kwargs = {'Limit': limit * 2}  # Get more to allow for filtering
             
             # Build filter expression (exclude direction since we're scanning specific tables)
             table_filter_parts = [p for p in filter_parts if 'direction' not in p]
-            table_expression_values = {k: v for k, v in expression_values.items() if k != ':dir'}
+            # Also exclude channel filter — these are already WhatsApp-specific tables
+            table_filter_parts = [p for p in table_filter_parts if 'channel' not in p]
+            table_expression_values = {k: v for k, v in expression_values.items() if k not in (':dir', ':ch')}
             
+            scan_kwargs = {}
             if table_filter_parts:
                 scan_kwargs['FilterExpression'] = ' AND '.join(table_filter_parts)
                 scan_kwargs['ExpressionAttributeValues'] = table_expression_values
             
-            response = table.scan(**scan_kwargs)
-            items = response.get('Items', [])
+            # Paginate through ALL items — DynamoDB Limit is items evaluated, not returned
+            table_items = []
+            last_key = None
+            pages = 0
+            max_pages = 20  # safety cap
             
-            # Ensure direction is set correctly based on table
-            for item in items:
-                if 'direction' not in item:
-                    item['direction'] = dir_type
+            while pages < max_pages:
+                if last_key:
+                    scan_kwargs['ExclusiveStartKey'] = last_key
+                elif 'ExclusiveStartKey' in scan_kwargs:
+                    del scan_kwargs['ExclusiveStartKey']
+                
+                response = table.scan(**scan_kwargs)
+                items = response.get('Items', [])
+                
+                for item in items:
+                    if 'direction' not in item:
+                        item['direction'] = dir_type
+                
+                table_items.extend(items)
+                pages += 1
+                
+                last_key = response.get('LastEvaluatedKey')
+                if not last_key or len(table_items) >= limit * 3:
+                    break
             
-            all_messages.extend(items)
+            all_messages.extend(table_items)
             
             logger.info(json.dumps({
                 'event': 'messages_scanned',
-                'count': len(items),
+                'count': len(table_items),
                 'table': table_name,
-                'direction': dir_type
+                'direction': dir_type,
+                'pages': pages,
             }))
             
         except Exception as e:
