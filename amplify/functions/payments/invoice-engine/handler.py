@@ -352,7 +352,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         conv_gst = round(conv_base * 0.18, 2)
         convenience_fee = round(conv_base + conv_gst, 2)
 
-    total = subtotal - discount + shipping + handling + tax + convenience_fee
+    total = subtotal - discount + shipping + green_packing + notification_fee + handling + tax + convenience_fee
 
     # Determine initial status
     status = body.get('status', 'created')
@@ -700,7 +700,6 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="center" style="margin:4px 0"><span style="font-size:13px;font-weight:bold;letter-spacing:1px">Invoice</span></div>
 <div class="divider"></div>
 <div class="info-row"><span>Date: {date_str}</span><span>{time_str}</span></div>
-{order_id_html}
 {ref_id_html}
 {f'<div class="info-row"><span>Brand: {purpose}</span></div>' if purpose else ''}
 {f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else ''}
@@ -910,12 +909,12 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     C("Invoice", FLG)
     SEP()
     LR(f"Date: {date_str}", time_str)
-    if order_id and order_id != 'Offline':
-        L(f"Order: {order_id}")
     if reference_id:
         L(f"Ref: {reference_id}")
     if purpose:
         L(f"Brand: {purpose}")
+    if order_id and order_id != 'Offline':
+        L(f"Order: {order_id}")
     # ═══ PAID STATUS (text-based, below ref) ═══
     if payment_status == 'CAPTURED':
         if paid_at:
