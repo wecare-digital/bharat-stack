@@ -49,6 +49,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [selInvoice, setSelInvoice] = useState<Invoice|null>(null);
   const [deliveryLogs, setDeliveryLogs] = useState<InvoiceDeliveryLog[]>([]);
   const [actionLoading, setActionLoading] = useState('');
+  const [remarkModal, setRemarkModal] = useState<{inv:Invoice;type:'remark'|'refund'|'credit_note'}|null>(null);
+  const [remarkText, setRemarkText] = useState('');
+  const [remarkAmount, setRemarkAmount] = useState('');
   const [config, setConfig] = useState<FC>(DEF_CFG);
   const [configSaving, setConfigSaving] = useState(false);
   const [msg, setMsg] = useState<{text:string;type:'success'|'error'}|null>(null);
@@ -141,6 +144,24 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const doGeneratePdf = async (inv:Invoice) => {
     setActionLoading('pdf');
     try { await api.generateInvoicePdf(inv.invoiceId); showMsg('PDF generated'); } catch(e) { showMsg('Failed','error'); }
+    setActionLoading('');
+  };
+  const doDeleteInvoice = async (inv:Invoice) => {
+    const adjustSeq = confirm('Delete this invoice?\n\nClick OK to also adjust sequence.\nClick Cancel to keep sequence.');
+    if(!confirm(`CONFIRM: Permanently delete invoice ${inv.invoiceNumber||inv.referenceId}?`)) return;
+    setActionLoading('delete');
+    try { const r = await api.deleteInvoice(inv.invoiceId, adjustSeq); if(r?.deleted) { showMsg('Invoice deleted'); setSelInvoice(null); loadInvoices(); } else showMsg('Delete failed','error'); } catch(e) { showMsg('Delete failed','error'); }
+    setActionLoading('');
+  };
+  const openRemarkModal = (inv:Invoice, type:'remark'|'refund'|'credit_note') => { setRemarkModal({inv,type}); setRemarkText(''); setRemarkAmount(''); };
+  const submitRemark = async () => {
+    if(!remarkModal) return;
+    setActionLoading('remark');
+    try {
+      const r = await api.addInvoiceRemark(remarkModal.inv.invoiceId, remarkModal.type, remarkText, parseFloat(remarkAmount)||0);
+      if(r) { showMsg(`${remarkModal.type==='remark'?'Remark':remarkModal.type==='refund'?'Refund':'Credit note'} added`); setRemarkModal(null); loadInvoices(); }
+      else showMsg('Failed','error');
+    } catch(e) { showMsg('Failed','error'); }
     setActionLoading('');
   };
   const selectInvoice = (inv:Invoice) => { setSelInvoice(inv); loadDeliveryLogs(inv.invoiceId); };
@@ -378,9 +399,17 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                       )}
                       <Button variant="secondary" size="sm" loading={actionLoading==='img'} onClick={()=>doGenerateImage(selInvoice)}>Generate Image</Button>
                       <Button variant="secondary" size="sm" loading={actionLoading==='pdf'} onClick={()=>doGeneratePdf(selInvoice)}>Generate PDF</Button>
+                      <Button variant="secondary" size="sm" onClick={()=>openRemarkModal(selInvoice,'remark')}>Add Remark</Button>
+                      {(selInvoice.status==='paid'||selInvoice.paymentStatus==='captured') && (
+                        <>
+                          <Button variant="secondary" size="sm" onClick={()=>openRemarkModal(selInvoice,'refund')}>Refund</Button>
+                          <Button variant="secondary" size="sm" onClick={()=>openRemarkModal(selInvoice,'credit_note')}>Credit Note</Button>
+                        </>
+                      )}
                       {selInvoice.status!=='paid'&&selInvoice.status!=='cancelled' && (
                         <Button variant="danger" size="sm" loading={actionLoading==='cancel'} onClick={()=>doCancelInvoice(selInvoice)}>Cancel Invoice</Button>
                       )}
+                      <Button variant="danger" size="sm" loading={actionLoading==='delete'} onClick={()=>doDeleteInvoice(selInvoice)}>Delete</Button>
                     </div>
                     {deliveryLogs.length>0 && (
                       <div className="pf-section-divider">
@@ -394,6 +423,18 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                         ))}
                       </div>
                     )}
+                    {selInvoice.remarks && (() => { try { const remarks = typeof selInvoice.remarks === 'string' ? JSON.parse(selInvoice.remarks) : selInvoice.remarks; return remarks.length > 0 ? (
+                      <div className="pf-section-divider">
+                        <div className="pf-section-title">Remarks / Notes</div>
+                        {remarks.map((r:any,i:number)=>(
+                          <div key={i} className="pf-log-entry">
+                            <div><span className={`status-badge ${r.type==='refund'?'danger':r.type==='credit_note'?'warning':'muted'}`}>{r.type}</span> {r.amount>0 && <span>{fmtMoney(r.amount)}</span>}</div>
+                            <div style={{fontSize:12,marginTop:2}}>{r.text}</div>
+                            <div style={{fontSize:11,color:'#888'}}>{r.author} {'\u00B7'} {fmtDate(r.createdAt)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null; } catch { return null; } })()}
                   </div>
                 )}
               </div>
