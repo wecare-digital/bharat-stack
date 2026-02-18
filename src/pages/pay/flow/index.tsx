@@ -116,6 +116,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         shippingAddress: selCustomer.shippingAddress||'', billingAddress: selCustomer.billingAddress||'',
         items: invForm.items.map(it=>({ name:it.name||config.default_item_name, amount:parseFloat(it.unitPrice)||0, quantity:parseInt(it.quantity)||1, gstRate:parseFloat(it.gstRate)||config.default_gst_rate })),
         shipping: (parseFloat(invForm.shipping)||0) + (parseFloat(invForm.greenPacking)||0) + (parseFloat(invForm.notificationFee)||0),
+        greenPacking: parseFloat(invForm.greenPacking)||0,
+        notificationFee: parseFloat(invForm.notificationFee)||0,
         discount: parseFloat(invForm.discount)||0, gstRate: config.default_gst_rate,
         purpose: invForm.purpose, orderId: invForm.orderId, gstin: config.gstin,
       };
@@ -403,10 +405,10 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     </div>
                     <div className={`status-badge ${badgeClass(selInvoice)}`} style={{marginBottom:12}}>{selInvoice.status}</div>
                     <div className="pf-detail-row"><span className="label">Ref</span><span className="mono">{selInvoice.referenceId||'\u2014'}</span></div>
-                    <div className="pf-detail-row"><span className="label">Order</span><span>{selInvoice.orderId||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Customer</span><span>{selInvoice.customerName||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Phone</span><span>{selInvoice.customerPhone||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Brand</span><span>{selInvoice.purpose||'\u2014'}</span></div>
+                    <div className="pf-detail-row"><span className="label">Order</span><span>{selInvoice.orderId||'\u2014'}</span></div>
                     <div className="pf-section-divider">
                       <div className="pf-detail-row"><span className="label">Subtotal</span><span>{fmtMoney(selInvoice.subtotal)}</span></div>
                       <div className="pf-detail-row"><span className="label">Tax</span><span>{fmtMoney(selInvoice.tax)}</span></div>

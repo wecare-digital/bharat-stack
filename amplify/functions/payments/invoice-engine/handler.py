@@ -31,6 +31,12 @@ from decimal import Decimal
 logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
+IST_OFFSET = 5 * 3600 + 30 * 60  # UTC+5:30
+
+def _ist_strftime(fmt: str, epoch) -> str:
+    """Format epoch timestamp in IST (UTC+5:30)."""
+    return time.strftime(fmt, time.gmtime(int(epoch) + IST_OFFSET))
+
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 s3 = boto3.client('s3', region_name='us-east-1')
 lambda_client = boto3.client('lambda', region_name='us-east-1')
@@ -330,7 +336,11 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     items = body.get('items', [])
     subtotal = sum(float(i.get('amount', 0)) * int(i.get('quantity', 1)) for i in items)
     discount = float(body.get('discount', 0))
-    shipping = float(body.get('shipping', 0))
+    green_packing = float(body.get('greenPacking', 0))
+    notification_fee = float(body.get('notificationFee', 0))
+    # shipping field = express only (greenPacking + notificationFee stored as line items)
+    shipping = float(body.get('shipping', 0)) - green_packing - notification_fee
+    if shipping < 0: shipping = 0.0
     handling = float(body.get('handling', 0))
     gst_rate = float(body.get('gstRate', 18))
     tax = subtotal * (gst_rate / 100)
@@ -386,10 +396,17 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
     table.put_item(Item={k: v for k, v in invoice.items() if v is not None and v != ''})
 
-    # Store invoice items
-    if items:
-        items_table = dynamodb.Table(INVOICE_ITEMS_TABLE)
-        for idx, item in enumerate(items):
+    # Store invoice items (including greenPacking + notificationFee as line items)
+    items_table = dynamodb.Table(INVOICE_ITEMS_TABLE)
+    all_items = list(items)
+    green_packing = float(body.get('greenPacking', 0))
+    notification_fee = float(body.get('notificationFee', 0))
+    if green_packing > 0:
+        all_items.append({'name': 'Green Packing', 'amount': green_packing, 'quantity': 1, 'isCharge': True})
+    if notification_fee > 0:
+        all_items.append({'name': 'Notification Fee', 'amount': notification_fee, 'quantity': 1, 'isCharge': True})
+    if all_items:
+        for idx, item in enumerate(all_items):
             items_table.put_item(Item={
                 'invoiceId': invoice_id,
                 'itemIndex': idx,
@@ -397,6 +414,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 'amount': _dec(float(item.get('amount', 0))),
                 'quantity': int(item.get('quantity', 1)),
                 'productId': item.get('productId', ''),
+                'isCharge': item.get('isCharge', False),
             })
 
     logger.info(json.dumps({'event': 'invoice_created', 'invoiceId': invoice_id, 'invoiceNumber': invoice_number, 'referenceId': reference_id, 'total': float(total), 'requestId': request_id}))
@@ -595,9 +613,9 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     created_at = invoice.get('createdAt', 0)
     payment_status = invoice.get('paymentStatus', 'pending')
 
-    date_str = time.strftime('%d-%m-%Y', time.localtime(int(created_at))) if created_at else ''
-    time_str = time.strftime('%H:%M', time.localtime(int(created_at))) if created_at else ''
-    paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at))) if paid_at else ''
+    date_str = _ist_strftime('%d-%m-%Y', int(created_at)) if created_at else ''
+    time_str = _ist_strftime('%H:%M IST', int(created_at)) if created_at else ''
+    paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at)) if paid_at else ''
 
     cgst = tax / 2
     sgst = tax / 2
@@ -685,6 +703,7 @@ td{{padding:3px 2px;vertical-align:top}}
 {order_id_html}
 {ref_id_html}
 {f'<div class="info-row"><span>Brand: {purpose}</span></div>' if purpose else ''}
+{f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else ''}
 <div class="divider"></div>
 <div class="section-title">Bill To</div>
 <div style="font-size:11px;font-weight:bold">{cust_name}</div>
@@ -857,8 +876,8 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
 
     # ── Extract invoice data ──
     created_at = invoice.get('createdAt', 0)
-    date_str = time.strftime('%d-%m-%Y', time.localtime(int(created_at))) if created_at else ''
-    time_str = time.strftime('%H:%M hrs', time.localtime(int(created_at))) if created_at else ''
+    date_str = _ist_strftime('%d-%m-%Y', int(created_at)) if created_at else ''
+    time_str = _ist_strftime('%H:%M IST', int(created_at)) if created_at else ''
     order_id = invoice.get('orderId', '')
     reference_id = invoice.get('referenceId', '')
     payment_id = invoice.get('paymentId', '')
@@ -900,7 +919,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     # ═══ PAID STATUS (text-based, below ref) ═══
     if payment_status == 'CAPTURED':
         if paid_at:
-            paid_str = time.strftime('%d-%m-%Y %H:%M IST', time.localtime(int(paid_at)))
+            paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at))
             L(f"PAID: {paid_str}", FB)
         else:
             L("PAID", FB)
