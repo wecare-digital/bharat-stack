@@ -57,7 +57,7 @@ COMPANY = {
     'name': 'WECARE.DIGITAL',
     'gstin': '19AADFW7431N1ZK',
     'pan': 'AADFW7431N',
-    'address': 'The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7 Phears Ln, Kolkata, WB 700012',
+    'address': 'The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7, Phears Ln, Kolkata, WB 700012',
     'email': 'one@wecare.digital',
     'phone': '+91 93309 94400',
     'website': 'https://wecare.digital',
