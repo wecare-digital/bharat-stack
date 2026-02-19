@@ -49,17 +49,16 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
-# WhatsApp Payment Configurations
-# +91 9330994400 (WABA 1912405516040025): WECARE-DIGITAL (Razorpay Gateway + UPI)
-# +91 9903300044 (WABA 1633959101297902): ManishAgarwal_Pay (Razorpay Gateway + UPI)
+# WhatsApp Payment Configurations (WABA 1728153881476046)
+# Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
+# WECARE_PAY = Razorpay Gateway | WECARE_UPI = UPI Direct
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
-# Razorpay MID: acc_HDfub6wOfQybuH | UPI ID: wecaredigital83.rzp@icici
-VALID_PAYMENT_CONFIGS = {'WECARE-DIGITAL', 'ManishAgarwal_Pay'}
-DEFAULT_PAYMENT_CONFIG = 'WECARE-DIGITAL'
+VALID_PAYMENT_CONFIGS = {'WECARE_PAY', 'WECARE_UPI'}
+DEFAULT_PAYMENT_CONFIG = 'WECARE_PAY'
 # Map phone number ID to its payment config name
 PHONE_PAYMENT_CONFIG = {
-    PHONE_NUMBER_ID_1: 'WECARE-DIGITAL',       # +919330994400
-    PHONE_NUMBER_ID_2: 'ManishAgarwal_Pay',     # +919903300044
+    PHONE_NUMBER_ID_1: 'WECARE_PAY',       # +919330994400
+    PHONE_NUMBER_ID_2: 'WECARE_PAY',       # +919903300044
 }
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 

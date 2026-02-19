@@ -130,9 +130,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # Internal AI config (FloatingAgent - admin tasks)
             if '/ai/internal/config' in path:
                 return _get_internal_config(request_id)
-            # External AI config (WhatsApp auto-reply)
+            # External AI config (WhatsApp auto-reply) — supports ?key= for arbitrary config
             elif '/ai/config' in path:
-                return _get_config(request_id)
+                cfg_key = query_params.get('key', 'ai_config')
+                return _get_config(request_id, config_key=cfg_key)
             elif '/ai/prompts' in path:
                 lang = path_params.get('lang')
                 return _get_prompts(lang, request_id)
@@ -152,9 +153,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # Internal AI config
             if '/ai/internal/config' in path:
                 return _update_internal_config(body, request_id)
-            # External AI config
+            # External AI config — supports body.key for arbitrary config
             elif '/ai/config' in path:
-                return _update_config(body, request_id)
+                cfg_key = body.pop('key', 'ai_config') if isinstance(body, dict) else 'ai_config'
+                return _update_config(body, request_id, config_key=cfg_key)
             elif '/ai/prompts' in path:
                 lang = path_params.get('lang') or body.get('language')
                 return _update_prompt(lang, body, request_id)
@@ -185,69 +187,98 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _error_response(500, str(e))
 
 
-def _get_config(request_id: str) -> Dict[str, Any]:
-    """Get AI configuration."""
+def _get_config(request_id: str, config_key: str = 'ai_config') -> Dict[str, Any]:
+    """Get AI configuration — or any SystemConfig entry by key."""
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'configKey': 'ai_config'})
-        
+        response = config_table.get_item(Key={'id': config_key})
+
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            try:
+                config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            except (json.JSONDecodeError, TypeError):
+                config = config_value
         else:
-            config = DEFAULT_AI_CONFIG.copy()
-            # Store default config
-            config_table.put_item(Item={
-                'configKey': 'ai_config',
-                'configValue': json.dumps(config),
-                'updatedAt': Decimal(str(int(time.time())))
-            })
-        
+            if config_key == 'ai_config':
+                config = DEFAULT_AI_CONFIG.copy()
+                config_table.put_item(Item={
+                    'id': 'ai_config',
+                    'configValue': json.dumps(config),
+                    'updatedAt': Decimal(str(int(time.time())))
+                })
+            else:
+                return {
+                    'statusCode': 200,
+                    'headers': CORS_HEADERS,
+                    'body': json.dumps({'config': None, 'configKey': config_key})
+                }
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
-            'body': json.dumps({'config': config})
+            'body': json.dumps({'config': config, 'configKey': config_key})
         }
     except Exception as e:
-        logger.error(f'Failed to get AI config: {str(e)}')
-        return {
-            'statusCode': 200,
-            'headers': CORS_HEADERS,
-            'body': json.dumps({'config': DEFAULT_AI_CONFIG})
-        }
+        logger.error(f'Failed to get config [{config_key}]: {str(e)}')
+        if config_key == 'ai_config':
+            return {
+                'statusCode': 200,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'config': DEFAULT_AI_CONFIG})
+            }
+        return _error_response(500, f'Failed to get config: {str(e)}')
 
 
-def _update_config(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Update AI configuration."""
+def _update_config(body: Dict, request_id: str, config_key: str = 'ai_config') -> Dict[str, Any]:
+    """Update AI configuration — or any SystemConfig entry by key."""
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        
-        # Get existing config
-        response = config_table.get_item(Key={'configKey': 'ai_config'})
+
+        # If a specific key is provided (non-ai_config), do a raw put
+        if config_key != 'ai_config':
+            config_value = body.get('config', body.get('configValue', body))
+            store_val = json.dumps(config_value) if not isinstance(config_value, str) else config_value
+            config_table.put_item(Item={
+                'id': config_key,
+                'configValue': store_val,
+                'updatedAt': Decimal(str(int(time.time())))
+            })
+            logger.info(json.dumps({
+                'event': 'system_config_updated',
+                'configKey': config_key,
+                'requestId': request_id
+            }))
+            return {
+                'statusCode': 200,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'success': True, 'configKey': config_key})
+            }
+
+        # AI config: merge with existing
+        response = config_table.get_item(Key={'id': 'ai_config'})
         if 'Item' in response:
             existing = json.loads(response['Item'].get('configValue', '{}'))
         else:
             existing = DEFAULT_AI_CONFIG.copy()
-        
-        # Merge updates
+
         for key, value in body.items():
             if key in DEFAULT_AI_CONFIG:
                 existing[key] = value
-        
-        # Save updated config
+
         config_table.put_item(Item={
-            'configKey': 'ai_config',
+            'id': 'ai_config',
             'configValue': json.dumps(existing),
             'updatedAt': Decimal(str(int(time.time())))
         })
-        
+
         logger.info(json.dumps({
             'event': 'ai_config_updated',
             'enabled': existing.get('enabled'),
             'autoReplyEnabled': existing.get('autoReplyEnabled'),
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -261,10 +292,9 @@ def _get_prompts(lang: str, request_id: str) -> Dict[str, Any]:
     """Get language-specific prompts."""
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        
+
         if lang:
-            # Get specific language prompt
-            response = config_table.get_item(Key={'configKey': f'ai_prompt_{lang}'})
+            response = config_table.get_item(Key={'id': f'ai_prompt_{lang}'})
             if 'Item' in response:
                 prompt = response['Item'].get('configValue', '')
                 return {
@@ -277,16 +307,15 @@ def _get_prompts(lang: str, request_id: str) -> Dict[str, Any]:
                 'headers': CORS_HEADERS,
                 'body': json.dumps({'language': lang, 'prompt': _get_default_prompt(lang)})
             }
-        
-        # Get all prompts
+
         prompts = {}
         for lang_code in SUPPORTED_LANGUAGES.keys():
-            response = config_table.get_item(Key={'configKey': f'ai_prompt_{lang_code}'})
+            response = config_table.get_item(Key={'id': f'ai_prompt_{lang_code}'})
             if 'Item' in response:
                 prompts[lang_code] = response['Item'].get('configValue', '')
             else:
                 prompts[lang_code] = _get_default_prompt(lang_code)
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -300,19 +329,19 @@ def _update_prompt(lang: str, body: Dict, request_id: str) -> Dict[str, Any]:
     """Update language-specific prompt."""
     if not lang:
         return _error_response(400, 'Language code is required')
-    
+
     prompt = body.get('prompt', '')
     if not prompt:
         return _error_response(400, 'Prompt text is required')
-    
+
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         config_table.put_item(Item={
-            'configKey': f'ai_prompt_{lang}',
+            'id': f'ai_prompt_{lang}',
             'configValue': prompt,
             'updatedAt': Decimal(str(int(time.time())))
         })
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -326,9 +355,9 @@ def _get_fallbacks(lang: str, request_id: str) -> Dict[str, Any]:
     """Get language-specific fallback messages."""
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        
+
         if lang:
-            response = config_table.get_item(Key={'configKey': f'ai_fallback_{lang}'})
+            response = config_table.get_item(Key={'id': f'ai_fallback_{lang}'})
             if 'Item' in response:
                 fallback = response['Item'].get('configValue', '')
                 return {
@@ -341,16 +370,15 @@ def _get_fallbacks(lang: str, request_id: str) -> Dict[str, Any]:
                 'headers': CORS_HEADERS,
                 'body': json.dumps({'language': lang, 'fallback': _get_default_fallback(lang)})
             }
-        
-        # Get all fallbacks
+
         fallbacks = {}
         for lang_code in SUPPORTED_LANGUAGES.keys():
-            response = config_table.get_item(Key={'configKey': f'ai_fallback_{lang_code}'})
+            response = config_table.get_item(Key={'id': f'ai_fallback_{lang_code}'})
             if 'Item' in response:
                 fallbacks[lang_code] = response['Item'].get('configValue', '')
             else:
                 fallbacks[lang_code] = _get_default_fallback(lang_code)
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -364,19 +392,19 @@ def _update_fallback(lang: str, body: Dict, request_id: str) -> Dict[str, Any]:
     """Update language-specific fallback message."""
     if not lang:
         return _error_response(400, 'Language code is required')
-    
+
     fallback = body.get('fallback', '')
     if not fallback:
         return _error_response(400, 'Fallback message is required')
-    
+
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         config_table.put_item(Item={
-            'configKey': f'ai_fallback_{lang}',
+            'id': f'ai_fallback_{lang}',
             'configValue': fallback,
             'updatedAt': Decimal(str(int(time.time())))
         })
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -560,20 +588,19 @@ def _get_internal_config(request_id: str) -> Dict[str, Any]:
     """Get Internal AI configuration (FloatingAgent)."""
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'configKey': 'ai_internal_config'})
-        
+        response = config_table.get_item(Key={'id': 'ai_internal_config'})
+
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
             config = json.loads(config_value) if isinstance(config_value, str) else config_value
         else:
             config = DEFAULT_INTERNAL_AI_CONFIG.copy()
-            # Store default config
             config_table.put_item(Item={
-                'configKey': 'ai_internal_config',
+                'id': 'ai_internal_config',
                 'configValue': json.dumps(config),
                 'updatedAt': Decimal(str(int(time.time())))
             })
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -592,32 +619,29 @@ def _update_internal_config(body: Dict, request_id: str) -> Dict[str, Any]:
     """Update Internal AI configuration (FloatingAgent)."""
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        
-        # Get existing config
-        response = config_table.get_item(Key={'configKey': 'ai_internal_config'})
+
+        response = config_table.get_item(Key={'id': 'ai_internal_config'})
         if 'Item' in response:
             existing = json.loads(response['Item'].get('configValue', '{}'))
         else:
             existing = DEFAULT_INTERNAL_AI_CONFIG.copy()
-        
-        # Merge updates
+
         for key, value in body.items():
             if key in DEFAULT_INTERNAL_AI_CONFIG:
                 existing[key] = value
-        
-        # Save updated config
+
         config_table.put_item(Item={
-            'configKey': 'ai_internal_config',
+            'id': 'ai_internal_config',
             'configValue': json.dumps(existing),
             'updatedAt': Decimal(str(int(time.time())))
         })
-        
+
         logger.info(json.dumps({
             'event': 'internal_ai_config_updated',
             'enabled': existing.get('enabled'),
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
@@ -644,16 +668,13 @@ def _get_botflow_config(request_id: str) -> Dict[str, Any]:
         configs = {}
 
         for key in BOT_FLOW_CONFIG_KEYS:
-            # Try 'id' key first (inbound handler pattern), then 'configKey'
-            for pk_name in ('id', 'configKey'):
-                try:
-                    response = config_table.get_item(Key={pk_name: key})
-                    if 'Item' in response:
-                        raw = response['Item'].get('configValue', '{}')
-                        configs[key] = json.loads(raw) if isinstance(raw, str) else raw
-                        break
-                except Exception:
-                    continue
+            try:
+                response = config_table.get_item(Key={'id': key})
+                if 'Item' in response:
+                    raw = response['Item'].get('configValue', '{}')
+                    configs[key] = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception:
+                continue
 
         return {
             'statusCode': 200,

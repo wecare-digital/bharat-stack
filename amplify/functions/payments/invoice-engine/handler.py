@@ -48,6 +48,7 @@ INVOICE_ASSETS_TABLE = os.environ.get('INVOICE_ASSETS_TABLE', 'base-wecare-digit
 INVOICE_DELIVERY_TABLE = os.environ.get('INVOICE_DELIVERY_TABLE', 'base-wecare-digital-InvoiceDeliveryLogTable')
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 INVOICE_PREFIX = 'invoices/'
 CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
@@ -1457,13 +1458,32 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     if not customer_phone:
         return _resp(400, {'error': 'No customer phone on invoice'})
 
-    # ── Phone whitelist: only allowed numbers can receive payment links (testing) ──
-    ALLOWED_PAYMENT_PHONES = {'919330994400', '9330994400', '+919330994400',
-                              '918100640044', '8100640044', '+918100640044'}
-    clean_cust = customer_phone.replace('+', '').replace(' ', '').replace('-', '')
-    if clean_cust not in ALLOWED_PAYMENT_PHONES and customer_phone not in ALLOWED_PAYMENT_PHONES:
-        logger.warning(json.dumps({'event': 'payment_phone_blocked', 'phone': customer_phone, 'clean': clean_cust, 'requestId': request_id}))
-        return _resp(403, {'error': f'Payment flow restricted: {customer_phone} is not in the allowed list'})
+    # ── Phone whitelist: read from SystemConfig (id=payment_allowed_phones) ──
+    # Fallback to allow-all if config not found (remove whitelist friction once testing done)
+    try:
+        cfg_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        cfg_resp = cfg_table.get_item(Key={'id': 'payment_allowed_phones'})
+        cfg_item = cfg_resp.get('Item')
+        if cfg_item:
+            import json as _json
+            raw_val = cfg_item.get('configValue', '[]')
+            allowed_raw = _json.loads(raw_val) if isinstance(raw_val, str) else raw_val
+            # Build normalized set (strip +, spaces, dashes)
+            allowed_set = set()
+            for p in allowed_raw:
+                clean = str(p).replace('+', '').replace(' ', '').replace('-', '')
+                allowed_set.add(clean)
+                allowed_set.add(f'+{clean}')
+                if len(clean) > 10:
+                    allowed_set.add(clean[-10:])
+            clean_cust = customer_phone.replace('+', '').replace(' ', '').replace('-', '')
+            if clean_cust not in allowed_set and customer_phone not in allowed_set and clean_cust[-10:] not in allowed_set:
+                logger.warning(json.dumps({'event': 'payment_phone_blocked', 'phone': customer_phone, 'clean': clean_cust, 'requestId': request_id}))
+                return _resp(403, {'error': f'Payment flow restricted: {customer_phone} is not in the allowed list'})
+        # If no config entry exists → allow all phones (whitelist disabled)
+    except Exception as wl_err:
+        logger.warning(json.dumps({'event': 'whitelist_check_error', 'error': str(wl_err), 'requestId': request_id}))
+        # On error, allow through (don't block payments due to config issue)
 
     reference_id = invoice.get('referenceId', '')
     if not reference_id:

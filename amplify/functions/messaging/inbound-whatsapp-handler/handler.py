@@ -1652,6 +1652,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
 
         scan_kwargs = {
             'FilterExpression': boto3.dynamodb.conditions.Attr('status').is_in(pending_statuses),
+            'ConsistentRead': True,
         }
         while True:
             resp = invoices_table.scan(**scan_kwargs)

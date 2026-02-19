@@ -2726,7 +2726,7 @@ export async function getSystemConfig(configKey: string): Promise<SystemConfig |
  * Update system configuration
  * Lambda: wecare-ai-config-management
  */
-export async function updateSystemConfig(configKey: string, config: SystemConfig): Promise<boolean> {
+export async function updateSystemConfig(configKey: string, config: any): Promise<boolean> {
   const data = await apiCall<any>(`${API_BASE}/ai/config`, {
     method: 'PUT',
     body: JSON.stringify({ key: configKey, config }),

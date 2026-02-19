@@ -455,18 +455,20 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {
         'phone': '+91 9330994400',
-        'wabaId': WABA1_ID,
+        'wabaId': '1728153881476046',
         'configs': [
-            {'name': 'WECARE-DIGITAL', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
         ],
         'mcc': '4722',
         'purposeCode': '03',
     },
     PHONE2_META_ID: {
         'phone': '+91 9903300044',
-        'wabaId': WABA2_ID,
+        'wabaId': '1728153881476046',
         'configs': [
-            {'name': 'ManishAgarwal_Pay', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
         ],
         'mcc': '4722',
         'purposeCode': '03',

@@ -576,6 +576,11 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                 <textarea rows={6} value={config.purposes.join('\n')} onChange={e=>setConfig({...config,purposes:e.target.value.split('\n').filter(Boolean)})} />
               </div>
               <Button variant="primary" size="sm" loading={configSaving} onClick={()=>{setConfigSaving(true);try{localStorage.setItem(CFG_KEY,JSON.stringify(config));}catch{}setTimeout(()=>{setConfigSaving(false);showMsg('Config saved');},300);}}>Save Config</Button>
+
+              <hr style={{margin:'24px 0',border:'none',borderTop:'1px solid #e5e7eb'}} />
+              <h3 style={{margin:'0 0 12px',fontSize:18}}>Payment Whitelist</h3>
+              <p style={{fontSize:13,color:'#666',margin:'0 0 12px'}}>Phones allowed to receive WhatsApp payment links. One per line. Leave empty to allow all.</p>
+              <PaymentWhitelist showMsg={showMsg} />
             </div>
           )}
 
@@ -653,6 +658,44 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
 
   if (embedded) return shellContent;
   return <Layout user={user} onSignOut={signOut}>{shellContent}</Layout>;
+};
+
+/* ── Payment Whitelist sub-component ── */
+const PaymentWhitelist: React.FC<{showMsg:(t:string,ty?:'success'|'error')=>void}> = ({showMsg}) => {
+  const [phones, setPhones] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await api.getSystemConfig('payment_allowed_phones');
+        if (cfg) {
+          const arr = Array.isArray(cfg) ? cfg : (typeof cfg === 'string' ? JSON.parse(cfg) : []);
+          setPhones(arr.join('\n'));
+        }
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const arr = phones.split('\n').map(p=>p.trim().replace(/[^0-9+]/g,'')).filter(Boolean);
+      await api.updateSystemConfig('payment_allowed_phones', JSON.stringify(arr));
+      showMsg('Whitelist saved');
+    } catch { showMsg('Save failed','error'); }
+    setSaving(false);
+  };
+  if (loading) return <div style={{color:'#888',fontSize:13}}>Loading...</div>;
+  return (
+    <div>
+      <div className="form-group">
+        <textarea rows={5} value={phones} onChange={e=>setPhones(e.target.value)} placeholder="919330994400&#10;918100640044&#10;919903300044" style={{fontFamily:'monospace',fontSize:13}} />
+      </div>
+      <Button variant="primary" size="sm" loading={saving} onClick={save}>Save Whitelist</Button>
+      <span style={{fontSize:12,color:'#888',marginLeft:12}}>Leave empty to allow all phones</span>
+    </div>
+  );
 };
 
 export default PayFlowPage;

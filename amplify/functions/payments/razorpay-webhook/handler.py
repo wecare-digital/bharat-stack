@@ -35,6 +35,7 @@ lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 
 
 WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
+INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
 WEBHOOK_LOG_TABLE = os.environ.get('WEBHOOK_LOG_TABLE', 'base-wecare-digital-RazorpayWebhookLogTable')
 
@@ -198,7 +199,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════════
 
 def _verify_signature(body: str, signature: str) -> bool:
-    if not signature or not WEBHOOK_SECRET:
+    if not WEBHOOK_SECRET:
+        # No secret configured — allow through but log warning
+        logger.warning('RAZORPAY_WEBHOOK_SECRET not set — skipping signature verification')
+        return True
+    if not signature:
         return False
     try:
         expected = hmac.new(
@@ -240,7 +245,7 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str) -> No
 # ═══════════════════════════════════════════════════════════════════
 
 def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
-    """Handle payment.captured — the main success event. Store payment + trigger invoice."""
+    """Handle payment.captured — the main success event. Store payment + mark invoice paid + trigger invoice."""
     payment = event_data.get('payment', {}).get('entity', {})
     payment_id = payment.get('id', '')
     amount_paise = int(payment.get('amount', 0))
@@ -253,13 +258,36 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     description = payment.get('description', '')
     notes = payment.get('notes', {})
 
+    # Try to find referenceId from multiple locations
+    reference_id = (
+        notes.get('referenceId', '')
+        or notes.get('reference_id', '')
+        or payment.get('description', '')
+        or ''
+    )
+    # If description looks like a WDSR reference, use it
+    if reference_id and not reference_id.startswith('WDSR'):
+        reference_id = ''
+
     logger.info(json.dumps({
         'event': 'payment_captured', 'paymentId': payment_id,
-        'amount': amount_rupees, 'contact': contact, 'requestId': request_id,
+        'amount': amount_rupees, 'contact': contact,
+        'referenceId': reference_id, 'notes': notes,
+        'orderId': order_id, 'description': description,
+        'requestId': request_id,
     }))
 
     # Store payment record in DynamoDB
     _store_payment_record(payment, 'captured', request_id)
+
+    # ── Direct invoice status update by referenceId ──
+    if reference_id:
+        _mark_invoice_paid_by_reference(reference_id, request_id)
+    else:
+        # Fallback: try to find invoice by customer phone
+        clean_phone = (contact or '').replace('+', '').replace(' ', '').replace('-', '')
+        if clean_phone:
+            _mark_invoice_paid_by_phone_and_amount(clean_phone, amount_rupees, request_id)
 
     # Post-payment: create invoice, generate image, send on WhatsApp
     _post_payment_handler(payment_id, amount_rupees, currency, contact, email, description, notes, request_id)
@@ -383,6 +411,132 @@ def _store_payment_record(payment: Dict, status: str, request_id: str) -> None:
         logger.info(json.dumps({'event': 'payment_stored', 'paymentId': payment_id, 'status': status, 'requestId': request_id}))
     except Exception as e:
         logger.error(json.dumps({'event': 'payment_store_error', 'paymentId': payment_id, 'error': str(e), 'requestId': request_id}))
+
+def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
+    """Directly update InvoicesTable: set status=paid for the given referenceId."""
+    if not reference_id:
+        return
+    try:
+        import time as _time
+        import datetime
+        table = dynamodb.Table(INVOICES_TABLE)
+        now = int(_time.time())
+        now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        paid_at_ts = int(now_ist.timestamp())
+
+        # Scan for invoice with this referenceId
+        scan_kwargs = {
+            'FilterExpression': 'referenceId = :ref',
+            'ExpressionAttributeValues': {':ref': reference_id},
+        }
+        found = []
+        while True:
+            resp = table.scan(**scan_kwargs)
+            found.extend(resp.get('Items', []))
+            if found or 'LastEvaluatedKey' not in resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+
+        for inv in found:
+            if inv.get('status') != 'paid':
+                table.update_item(
+                    Key={'invoiceId': inv['invoiceId']},
+                    UpdateExpression='SET #st = :st, #ps = :ps, #pa = :pa, #ua = :now',
+                    ExpressionAttributeNames={
+                        '#st': 'status', '#ps': 'paymentStatus',
+                        '#pa': 'paidAt', '#ua': 'updatedAt',
+                    },
+                    ExpressionAttributeValues={
+                        ':st': 'paid', ':ps': 'captured',
+                        ':pa': paid_at_ts, ':now': now,
+                    },
+                )
+                logger.info(json.dumps({
+                    'event': 'invoice_marked_paid_by_webhook',
+                    'invoiceId': inv['invoiceId'],
+                    'referenceId': reference_id,
+                    'requestId': request_id,
+                }))
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'mark_invoice_paid_error',
+            'referenceId': reference_id,
+            'error': str(e),
+            'requestId': request_id,
+        }))
+
+def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, request_id: str) -> None:
+    """Fallback: find pending invoice by customer phone + amount and mark paid."""
+    if not phone:
+        return
+    try:
+        import time as _time
+        import datetime
+        table = dynamodb.Table(INVOICES_TABLE)
+        last10 = phone[-10:] if len(phone) >= 10 else phone
+        now = int(_time.time())
+        now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        paid_at_ts = int(now_ist.timestamp())
+
+        pending_statuses = ['created', 'pending_payment', 'sent']
+        scan_kwargs = {
+            'FilterExpression': 'attribute_exists(customerPhone) AND #st IN (:s1, :s2, :s3)',
+            'ExpressionAttributeNames': {'#st': 'status'},
+            'ExpressionAttributeValues': {':s1': 'created', ':s2': 'pending_payment', ':s3': 'sent'},
+        }
+        candidates = []
+        while True:
+            resp = table.scan(**scan_kwargs)
+            for item in resp.get('Items', []):
+                inv_phone = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                inv_total = float(item.get('total', 0))
+                if inv_phone.endswith(last10) and abs(inv_total - amount_rupees) < 0.50:
+                    candidates.append(item)
+            if 'LastEvaluatedKey' in resp:
+                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            else:
+                break
+
+        if len(candidates) == 1:
+            inv = candidates[0]
+            table.update_item(
+                Key={'invoiceId': inv['invoiceId']},
+                UpdateExpression='SET #st = :st, #ps = :ps, #pa = :pa, #ua = :now',
+                ExpressionAttributeNames={
+                    '#st': 'status', '#ps': 'paymentStatus',
+                    '#pa': 'paidAt', '#ua': 'updatedAt',
+                },
+                ExpressionAttributeValues={
+                    ':st': 'paid', ':ps': 'captured',
+                    ':pa': paid_at_ts, ':now': now,
+                },
+            )
+            logger.info(json.dumps({
+                'event': 'invoice_marked_paid_by_phone_amount',
+                'invoiceId': inv['invoiceId'],
+                'phone': phone,
+                'amount': amount_rupees,
+                'requestId': request_id,
+            }))
+        elif len(candidates) > 1:
+            logger.warning(json.dumps({
+                'event': 'multiple_invoices_match_phone_amount',
+                'phone': phone, 'amount': amount_rupees,
+                'count': len(candidates),
+                'requestId': request_id,
+            }))
+        else:
+            logger.warning(json.dumps({
+                'event': 'no_invoice_match_phone_amount',
+                'phone': phone, 'amount': amount_rupees,
+                'requestId': request_id,
+            }))
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'mark_invoice_paid_by_phone_error',
+            'phone': phone, 'error': str(e),
+            'requestId': request_id,
+        }))
 
 
 # ═══════════════════════════════════════════════════════════════════
