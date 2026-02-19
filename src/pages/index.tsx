@@ -277,13 +277,13 @@ response = requests.post(
         <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
           <div className="explore-grid">
             <a href="/nocode" className="explore-card">
-              <div className="explore-icon">⚡</div>
+              <div className="explore-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23664FC2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m17 17 5-5-5-5M7 7l-5 5 5 5m7-14-4 18'/%3e%3c/svg%3e" alt="NoCode" /></div>
               <h3>NoCode</h3>
               <p>Build workflows, automations and integrations without writing a single line of code</p>
               <span className="explore-link">Explore →</span>
             </a>
             <a href="/carbon" className="explore-card">
-              <div className="explore-icon">🌱</div>
+              <div className="explore-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23664FC2' stroke-miterlimit='10' stroke-width='1.5' d='M16.64 19.09a5.43 5.43 0 0 1-4.16 2.08h-1a7.4 7.4 0 0 1-5.07-2.08C1 12 12 2 12 2l5 7.45a8.29 8.29 0 0 1-.36 9.64ZM11.97 9.3V23m-3.65-8.22 3.65 3.65m2.74-6.39-2.74 2.74'/%3e%3c/svg%3e" alt="Carbon" /></div>
               <h3>Carbon</h3>
               <p>Track, reduce and offset your digital carbon footprint with every message you send</p>
               <span className="explore-link">Explore →</span>
@@ -320,7 +320,8 @@ response = requests.post(
           .hero-left h1{font-size:48px;font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
           .hero-left p{font-size:21px;color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
-          .stat{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px}
+          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px;transition:all .25s;cursor:default}
+          .stat:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
           .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
           
@@ -386,8 +387,8 @@ response = requests.post(
           .capabilities{padding:60px 24px;background:#fff}
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
-          .capability-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s}
-          .capability-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.04)}
+          .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
+          .capability-card:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:20px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
@@ -400,9 +401,10 @@ response = requests.post(
           /* Explore Section */
           .explore-section{padding:40px 24px 60px;background:#fff}
           .explore-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1100px;margin:0 auto}
-          .explore-card{display:block;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px 28px;text-decoration:none;color:inherit;transition:all .25s}
-          .explore-card:hover{border-color:#10b981;box-shadow:0 8px 24px rgba(16,185,129,.12);transform:translateY(-2px)}
-          .explore-icon{font-size:36px;margin-bottom:16px}
+          .explore-card{display:block;background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:32px 28px;text-decoration:none;color:inherit;transition:all .25s}
+          .explore-card:hover,.explore-card:active,.explore-card:focus{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .explore-icon{width:52px;height:52px;background:#fff;border:2px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
+          .explore-icon img{width:100%;height:100%;object-fit:contain}
           .explore-card h3{font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px}
           .explore-card p{font-size:17px;color:#6b7280;margin:0 0 16px;line-height:1.6}
           .explore-link{font-size:15px;font-weight:600;color:#059669}
@@ -477,7 +479,7 @@ response = requests.post(
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
             .hero-left p{font-size:24px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{display:flex;flex-direction:column;gap:12px;width:100%}
-            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px}
+            .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px;transition:all .25s;cursor:default}
             .stat span{font-size:28px;font-weight:800;min-width:70px}
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
@@ -532,7 +534,7 @@ response = requests.post(
             .explore-section{padding:24px 20px 44px}
             .explore-grid{grid-template-columns:1fr;gap:14px}
             .explore-card{padding:24px 20px}
-            .explore-icon{font-size:32px;margin-bottom:12px}
+            .explore-icon{width:50px;height:50px;margin-bottom:16px;padding:10px}
             .explore-card h3{font-size:22px}
             .explore-card p{font-size:20px}
             
