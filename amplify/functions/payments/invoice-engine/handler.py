@@ -356,15 +356,8 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     billing_address = body.get('billingAddress', '')
     entry_point = body.get('entryPoint', 'manual')
 
-    if entry_point not in ('webhook', 'whatsapp_payment'):
-        missing = []
-        if not customer_phone: missing.append('customerPhone')
-        if not paid_by_phone: missing.append('paidByPhone')
-        if not customer_email: missing.append('customerEmail')
-        if not shipping_address: missing.append('shippingAddress')
-        if not billing_address: missing.append('billingAddress')
-        if missing:
-            return _resp(400, {'error': 'Missing mandatory fields', 'missingFields': missing})
+    if not customer_phone:
+        return _resp(400, {'error': 'Missing mandatory field: customerPhone'})
 
     invoice_number = _get_next_invoice_number(body.get('fy'))
 
@@ -1541,6 +1534,8 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     contact = _lookup_contact_by_phone(customer_phone)
     contact_id = (contact.get('contactId') or contact.get('id', '')) if contact else ''
 
+    # ── Payment messages go from the SAME phone the customer is chatting with ──
+    # If no phoneNumberId passed, default to Phone 1 (+919330994400)
     if not phone_number_id:
         phone_number_id = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
 
