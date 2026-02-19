@@ -295,7 +295,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 # If caller says this is now paid, update the existing invoice status
                 incoming_status = body.get('status', '')
                 incoming_ps = body.get('paymentStatus', '')
-                if incoming_status == 'paid' and incoming_ps == 'captured' and inv.get('paymentStatus') != 'captured':
+                if incoming_status == 'paid' and incoming_ps == 'captured' and inv.get('status') != 'paid':
                     try:
                         table.update_item(
                             Key={'invoiceId': existing_id},
