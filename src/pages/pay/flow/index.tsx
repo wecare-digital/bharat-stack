@@ -12,7 +12,7 @@ interface IR { name:string; unitPrice:string; quantity:string; gstRate:string; }
 
 const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'' };
 const NEW_ITEM = ():IR => ({ name:'', unitPrice:'', quantity:'1', gstRate:'18' });
-const EMPTY_INV = { items:[NEW_ITEM(), { name:'Green Packing', unitPrice:'49', quantity:'1', gstRate:'18' }, { name:'Notification Fee', unitPrice:'19', quantity:'1', gstRate:'18' }] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'' };
+const EMPTY_INV = { items:[NEW_ITEM()] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'' };
 const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Gift Card','Service Fee','Consultation'] };
 const TABS:ShellTab[] = [
   { id:'customers', label:'Customers', icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#664FC2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3.468a4.5 4.5 0 0 1 0 8.064m2 5.234c1.512.684 2.872 1.799 4 3.234M2 20c1.946-2.477 4.59-4 7.5-4s5.553 1.523 7.5 4M14 7.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0"/></svg>' },
@@ -102,7 +102,18 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const updateItem = (idx:number, field:keyof IR, val:string) => {
     const items = [...invForm.items]; items[idx] = {...items[idx],[field]:val}; setInvForm({...invForm, items});
   };
-  const addItem = () => setInvForm({...invForm, items:[...invForm.items, NEW_ITEM()]});
+  const addItem = () => {
+    const items = [...invForm.items];
+    // Insert new item before charge items (Green Packing, Notification Fee) at the end
+    const chargeNames = ['green packing', 'notification fee'];
+    let insertIdx = items.length;
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (chargeNames.some(cn => items[i].name.toLowerCase().includes(cn.split(' ')[0]))) insertIdx = i;
+      else break;
+    }
+    items.splice(insertIdx, 0, NEW_ITEM());
+    setInvForm({...invForm, items});
+  };
   const removeItem = (idx:number) => { if(invForm.items.length<=1) return; setInvForm({...invForm, items:invForm.items.filter((_,i)=>i!==idx)}); };
   const calcSubtotal = () => invForm.items.reduce((s,it) => s + (parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0), 0);
   const calcTax = () => invForm.items.reduce((s,it) => { const line=(parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0); return s + line*(parseFloat(it.gstRate)||0)/100; }, 0);
@@ -125,7 +136,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         purpose: invForm.purpose, orderId: invForm.orderId, gstin: config.gstin,
       };
       const r = await api.createInvoiceEngine(req);
-      if(r) { showMsg(`Invoice ${r.invoiceNumber} created \u2014 \u20B9${r.total}`); setInvForm({...EMPTY_INV}); setSelCustomer(null); loadInvoices(); }
+      if(r) { showMsg(`Invoice ${r.invoiceNumber} created \u2014 \u20B9${r.total}`); setInvForm({...EMPTY_INV, items:[NEW_ITEM()]}); setSelCustomer(null); loadInvoices(); }
       else showMsg('Create failed','error');
     } catch(e) { showMsg('Create failed','error'); }
     setCreating(false);
@@ -287,7 +298,17 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                   <input className="search-input" placeholder="Search\u2026" value={custSearch} onChange={e=>setCustSearch(e.target.value)} style={{marginBottom:16,maxWidth:400}} />
                   <div className="pf-cust-grid">
                     {filteredCust.map(c=>(
-                      <div key={c.id} onClick={()=>setSelCustomer(c)} className="pf-cust-card">
+                      <div key={c.id} onClick={()=>{
+                        setSelCustomer(c);
+                        // Auto-append Green Packing + Notification Fee as last items
+                        setInvForm(prev => {
+                          const items = [...prev.items];
+                          const names = items.map(it => it.name.toLowerCase());
+                          if (!names.some(n => n.includes('green') && n.includes('pack'))) items.push({ name:'Green Packing', unitPrice:'49', quantity:'1', gstRate:'18' });
+                          if (!names.some(n => n.includes('notification') || n.includes('alert'))) items.push({ name:'Notification Fee', unitPrice:'19', quantity:'1', gstRate:'18' });
+                          return {...prev, items};
+                        });
+                      }} className="pf-cust-card">
                         <div className="pf-cust-avatar">{(c.name||'?')[0].toUpperCase()}</div>
                         <div className="pf-cust-info">
                           <div className="pf-cust-name">{c.name||'Unknown'}</div>
