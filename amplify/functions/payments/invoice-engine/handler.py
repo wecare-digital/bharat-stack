@@ -715,7 +715,12 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
 
     date_str = _ist_strftime('%d-%m-%Y', int(created_at)) if created_at else ''
     time_str = _ist_strftime('%H:%M IST', int(created_at)) if created_at else ''
-    paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at)) if paid_at else ''
+    if paid_at and int(paid_at) > 0:
+        paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at))
+    elif payment_status == 'captured':
+        paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(time.time()))
+    else:
+        paid_str = ''
 
     cgst = tax / 2
     sgst = tax / 2
@@ -769,7 +774,6 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     reference_id = invoice.get('referenceId', '')
 
     # Customer-facing fields only (no internal invoice number, no payment ID)
-    order_id_html = f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else ''
     ref_id_html = f'<div class="info-row"><span>Ref: {reference_id}</span></div>' if reference_id else ''
 
     # Status badge color
@@ -814,14 +818,14 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="info-row"><span>Date: {date_str}</span><span>{time_str}</span></div>
 {ref_id_html}
 {f'<div class="info-row"><span>Brand: {purpose}</span></div>' if purpose else ''}
-{f'<div class="info-row"><span>Order: {order_id}</span></div>' if order_id and order_id != 'Offline' else ''}
+<div class="info-row"><span>Order: {order_id or 'Offline'}</span></div>
 <div class="divider"></div>
 <div class="section-title">Bill To</div>
 <div style="font-size:11px;font-weight:bold">{cust_name}</div>
 <div class="addr">{cust_phone}{(' | ' + cust_email) if cust_email else ''}</div>
 <div class="addr">{bill_addr if bill_addr else '-'}</div>
 <div class="section-title">Ship To</div>
-<div class="addr">{ship_addr if ship_addr else 'Same as billing'}</div>
+<div class="addr">{ship_addr if ship_addr else '-'}</div>
 <div class="divider"></div>
 <table>
     <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
@@ -1039,15 +1043,15 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         L(f"Ref: {reference_id}")
     if purpose:
         L(f"Brand: {purpose}")
-    if order_id and order_id != 'Offline':
-        L(f"Order: {order_id}")
-    # ═══ PAID STATUS (text-based, below ref) ═══
+    L(f"Order: {order_id or 'Offline'}")
+    # ═══ PAID STATUS (text-based, real-time IST) ═══
     if payment_status == 'CAPTURED':
-        if paid_at:
+        if paid_at and int(paid_at) > 0:
             paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at))
-            L(f"PAID: {paid_str}", FB)
         else:
-            L("PAID", FB)
+            # Fallback: use current IST time
+            paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(time.time()))
+        L(f"PAID: {paid_str}", FB)
     elif payment_status not in ('PENDING', ''):
         L(f"Status: {payment_status}", FB)
     SEP()
@@ -1061,7 +1065,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     if bill_addr:
         for addr_line in _wrap_text(bill_addr, CHARS - 2):
             L(f"  {addr_line}", FSM)
-    if ship_addr and ship_addr != bill_addr:
+    if ship_addr:
         L("Ship To:", FB)
         for addr_line in _wrap_text(ship_addr, CHARS - 2):
             L(f"  {addr_line}", FSM)
