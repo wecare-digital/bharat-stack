@@ -77,7 +77,11 @@ PAY_MSG = {
     'send_failed':  '\u274c Could not send payment link. Please try again.',
     'error':        '\u26a0\ufe0f Something went wrong. Please try again.',
     'wa_body':      'Your payment is ready \u2014 tap below to complete it \U0001f4b3',
+    'redirect':     '\U0001f4b3 To make a payment, please send *pay* to +91 9330994400',
 }
+
+# Phone number ID that handles payments (Phone 1: +919330994400 / WECARE.DIGITAL)
+PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -3758,52 +3762,62 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             # ── Payment flow (hardcoded, LLM-independent — edit PAY_MSG at top of file) ──
             customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
 
-            # Step 1: Send "pulling" message immediately
-            _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
-
-            try:
-                inv_payload = {
-                    'rawPath': '/invoices/send-pending-by-phone',
-                    'requestContext': {'http': {'method': 'POST'}},
-                    'body': json.dumps({
-                        'customerPhone': customer_phone,
-                        'phoneNumberId': phone_number_id,
-                    }),
-                }
-                inv_response = lambda_client.invoke(
-                    FunctionName='wecare-invoice-engine',
-                    InvocationType='RequestResponse',
-                    Payload=json.dumps(inv_payload),
-                )
-                inv_result = json.loads(inv_response['Payload'].read())
-                inv_body = json.loads(inv_result.get('body', '{}'))
-                sent_count = inv_body.get('sent', 0)
-                total_count = inv_body.get('total', 0)
-                invoices_sent = inv_body.get('invoices', [])
-                send_error = inv_body.get('error', '')
-
-                if total_count == 0:
-                    _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
-                elif sent_count == 0:
-                    _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], phone_number_id, request_id)
-                    logger.warning(json.dumps({
-                        'event': 'send_pending_payment_link_failed',
-                        'sent': 0, 'total': total_count,
-                        'error': send_error, 'phone': customer_phone,
-                        'requestId': request_id,
-                    }))
-
+            # If customer messaged Phone 2, redirect them to Phone 1 for payments
+            if phone_number_id != PAYMENT_PHONE_NUMBER_ID:
+                _send_ai_auto_reply(contact_id, PAY_MSG['redirect'], phone_number_id, request_id)
                 logger.info(json.dumps({
-                    'event': 'send_pending_payments_complete',
-                    'sent': sent_count, 'total': total_count,
-                    'phone': customer_phone, 'requestId': request_id,
+                    'event': 'payment_redirected_to_phone1',
+                    'phone': customer_phone,
+                    'fromPhoneId': phone_number_id,
+                    'requestId': request_id,
                 }))
-            except Exception as e:
-                logger.error(json.dumps({
-                    'event': 'send_pending_payments_error',
-                    'error': str(e), 'requestId': request_id,
-                }))
-                _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
+            else:
+                # Step 1: Send "pulling" message immediately
+                _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
+
+                try:
+                    inv_payload = {
+                        'rawPath': '/invoices/send-pending-by-phone',
+                        'requestContext': {'http': {'method': 'POST'}},
+                        'body': json.dumps({
+                            'customerPhone': customer_phone,
+                            'phoneNumberId': phone_number_id,
+                        }),
+                    }
+                    inv_response = lambda_client.invoke(
+                        FunctionName='wecare-invoice-engine',
+                        InvocationType='RequestResponse',
+                        Payload=json.dumps(inv_payload),
+                    )
+                    inv_result = json.loads(inv_response['Payload'].read())
+                    inv_body = json.loads(inv_result.get('body', '{}'))
+                    sent_count = inv_body.get('sent', 0)
+                    total_count = inv_body.get('total', 0)
+                    invoices_sent = inv_body.get('invoices', [])
+                    send_error = inv_body.get('error', '')
+
+                    if total_count == 0:
+                        _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
+                    elif sent_count == 0:
+                        _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], phone_number_id, request_id)
+                        logger.warning(json.dumps({
+                            'event': 'send_pending_payment_link_failed',
+                            'sent': 0, 'total': total_count,
+                            'error': send_error, 'phone': customer_phone,
+                            'requestId': request_id,
+                        }))
+
+                    logger.info(json.dumps({
+                        'event': 'send_pending_payments_complete',
+                        'sent': sent_count, 'total': total_count,
+                        'phone': customer_phone, 'requestId': request_id,
+                    }))
+                except Exception as e:
+                    logger.error(json.dumps({
+                        'event': 'send_pending_payments_error',
+                        'error': str(e), 'requestId': request_id,
+                    }))
+                    _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
 
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM

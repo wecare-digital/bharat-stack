@@ -51,8 +51,8 @@ RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations (WABA 1728153881476046)
 # Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
-# WECARE_PAY = Razorpay Gateway | WECARE_UPI = UPI Direct
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
+# NOTE: 'WECARE-DIGITAL' was removed from Meta WABA — using WECARE_PAY for Phone 1 now
 VALID_PAYMENT_CONFIGS = {'WECARE_PAY', 'WECARE_UPI'}
 DEFAULT_PAYMENT_CONFIG = 'WECARE_PAY'
 # Map phone number ID to its payment config name

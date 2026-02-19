@@ -48,7 +48,28 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         headers = event.get('headers', {})
         body = event.get('body', '')
+        
+        # API Gateway / Function URL may base64-encode the body
+        import base64 as _b64
+        if event.get('isBase64Encoded') and body:
+            try:
+                body = _b64.b64decode(body).decode('utf-8')
+            except Exception:
+                pass  # keep original if decode fails
+        
         signature = headers.get('x-razorpay-signature') or headers.get('X-Razorpay-Signature', '')
+        
+        logger.info(json.dumps({
+            'event': 'webhook_debug',
+            'hasBody': bool(body),
+            'bodyLen': len(body) if body else 0,
+            'bodyFirst100': (body or '')[:100],
+            'hasSignature': bool(signature),
+            'signatureFirst20': (signature or '')[:20],
+            'isBase64Encoded': event.get('isBase64Encoded', False),
+            'headerKeys': list(headers.keys()) if headers else [],
+            'requestId': request_id,
+        }))
 
         if not _verify_signature(body, signature):
             logger.warning(json.dumps({'event': 'webhook_signature_invalid', 'requestId': request_id}))
@@ -200,18 +221,28 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def _verify_signature(body: str, signature: str) -> bool:
     if not WEBHOOK_SECRET:
-        # No secret configured — allow through but log warning
         logger.warning('RAZORPAY_WEBHOOK_SECRET not set — skipping signature verification')
         return True
     if not signature:
+        logger.warning('No signature header received')
         return False
     try:
+        body_bytes = body.encode('utf-8') if isinstance(body, str) else body
         expected = hmac.new(
             WEBHOOK_SECRET.encode('utf-8'),
-            body.encode('utf-8') if isinstance(body, str) else body,
+            body_bytes,
             hashlib.sha256
         ).hexdigest()
-        return hmac.compare_digest(expected, signature)
+        match = hmac.compare_digest(expected, signature)
+        if not match:
+            logger.warning(json.dumps({
+                'event': 'signature_mismatch_debug',
+                'expectedFirst20': expected[:20],
+                'receivedFirst20': signature[:20],
+                'secretLen': len(WEBHOOK_SECRET),
+                'bodyLen': len(body_bytes),
+            }))
+        return match
     except Exception as e:
         logger.error(f"Signature verification error: {str(e)}")
         return False
@@ -367,36 +398,46 @@ def _store_payment_record(payment: Dict, status: str, request_id: str) -> None:
     if not payment_id:
         return
 
-    amount_paise = int(payment.get('amount', 0))
+    amount_paise = int(payment.get('amount') or 0)
     amount_rupees = amount_paise / 100
 
+    def _safe_int(val):
+        """Safely convert to int, handling None."""
+        if val is None:
+            return 0
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
+
     record = {
+        'id': payment_id,
         'paymentId': payment_id,
-        'orderId': payment.get('order_id', ''),
-        'referenceId': payment.get('notes', {}).get('referenceId', ''),
+        'orderId': payment.get('order_id') or '',
+        'referenceId': (payment.get('notes') or {}).get('referenceId', ''),
         'status': status,
         'amount': Decimal(str(amount_paise)),
         'amountInRupees': Decimal(str(amount_rupees)),
-        'currency': payment.get('currency', 'INR'),
-        'method': payment.get('method', ''),
-        'contact': payment.get('contact', ''),
-        'email': payment.get('email', ''),
-        'description': payment.get('description', ''),
-        'notes': json.dumps(payment.get('notes', {}), default=str),
-        'vpa': payment.get('vpa', ''),
-        'bank': payment.get('bank', ''),
-        'wallet': payment.get('wallet', ''),
-        'cardId': payment.get('card_id', ''),
-        'fee': Decimal(str(int(payment.get('fee', 0)))),
-        'tax': Decimal(str(int(payment.get('tax', 0)))),
-        'errorCode': payment.get('error_code', ''),
-        'errorDescription': payment.get('error_description', ''),
-        'errorSource': payment.get('error_source', ''),
-        'errorStep': payment.get('error_step', ''),
-        'errorReason': payment.get('error_reason', ''),
+        'currency': payment.get('currency') or 'INR',
+        'method': payment.get('method') or '',
+        'contact': payment.get('contact') or '',
+        'email': payment.get('email') or '',
+        'description': payment.get('description') or '',
+        'notes': json.dumps(payment.get('notes') or {}, default=str),
+        'vpa': payment.get('vpa') or '',
+        'bank': payment.get('bank') or '',
+        'wallet': payment.get('wallet') or '',
+        'cardId': payment.get('card_id') or '',
+        'fee': Decimal(str(_safe_int(payment.get('fee')))),
+        'tax': Decimal(str(_safe_int(payment.get('tax')))),
+        'errorCode': payment.get('error_code') or '',
+        'errorDescription': payment.get('error_description') or '',
+        'errorSource': payment.get('error_source') or '',
+        'errorStep': payment.get('error_step') or '',
+        'errorReason': payment.get('error_reason') or '',
         'international': payment.get('international', False),
         'captured': payment.get('captured', False),
-        'razorpayCreatedAt': Decimal(str(int(payment.get('created_at', 0)))),
+        'razorpayCreatedAt': Decimal(str(_safe_int(payment.get('created_at')))),
         'createdAt': Decimal(str(int(_time.time()))),
         'updatedAt': Decimal(str(int(_time.time()))),
         'requestId': request_id,
