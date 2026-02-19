@@ -1719,6 +1719,12 @@
   font-weight: 600;
 }
 
+.ps-tab.active .ps-tab-icon svg,
+.ps-tab.active .ps-tab-icon svg path,
+.ps-tab.active .ps-tab-icon svg circle {
+  stroke: #fff;
+}
+
 /* Tab Content */
 .ps-content {
   flex: 1;
