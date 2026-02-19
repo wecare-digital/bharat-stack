@@ -65,6 +65,21 @@ PHONE_NUMBER_MAP = {
 # TTL: 30 days in seconds
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60
 
+# ── Payment flow messages (hardcoded, LLM-independent, edit here to change) ──
+PAY_MSG = {
+    'pulling':      '\U0001f440 Pulling your pending invoice...',
+    'no_dues':      '\u2705 No pending dues!',
+    'single':       '\U0001f514 You have {count} unpaid invoice of \u20b9{total}.',
+    'multiple':     '\U0001f514 You have {count} unpaid invoices totalling \u20b9{total}.',
+    'send_failed':  '\u274c Could not send payment link. Please try again.',
+    'error':        '\u26a0\ufe0f Something went wrong. Please try again.',
+    'paid':         '\u2705 Paid successfully.',
+    'pay_failed':   '\u274c Payment failed. Please try again.',
+    'all_clear':    '\U0001f389 All clear! No more pending dues.',
+    'next_due':     '\U0001f514 You have {count} more pending. Next payment ready below.',
+    'wa_body':      'Your payment is ready \u2014 tap below to complete it \U0001f4b3',
+}
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -1282,8 +1297,8 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             recipient_id=recipient_id,
             reference_id=reference_id,
             order_status='completed',
-            amount=actual_amount,  # Pass amount in rupees
-            description=f'Payment of ₹{actual_amount:.2f} received successfully! Thank you ✅',
+            amount=actual_amount,
+            description=PAY_MSG['paid'],
             request_id=request_id,
             phone_number_id=originating_phone_id
         )
@@ -1308,7 +1323,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             reference_id=reference_id,
             order_status='canceled',
             amount=0,
-            description='Payment failed. Please try again ❌',
+            description=PAY_MSG['pay_failed'],
             request_id=request_id,
             phone_number_id=originating_phone_id
         )
@@ -1575,12 +1590,11 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
             contact = _get_contact_by_phone(recipient_id)
             contact_id = contact.get('id', '') if contact else ''
             contact_phone = contact.get('phone', f'+{clean_phone}') if contact else f'+{clean_phone}'
-            clear_msg = "\U0001f389 *All clear!* No more pending dues. Thank you!"
             payload = {
                 'body': json.dumps({
                     'contactId': contact_id if contact_id else None,
                     'recipientPhone': contact_phone,
-                    'content': clear_msg,
+                    'content': PAY_MSG['all_clear'],
                     'phoneNumberId': phone_number_id or PHONE_NUMBER_ID_1,
                 })
             }
@@ -1596,17 +1610,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
 
         # Build summary
         total_bal = sum(float(inv.get('total', 0)) for inv in remaining)
-        lines = [f"\U0001f4cc *{len(remaining)} remaining* \u2022 \u20b9{total_bal:,.2f}\n"]
-        for i, inv in enumerate(remaining[:5], 1):
-            purpose = inv.get('purpose', '') or ''
-            if purpose.lower().startswith('menu_'):
-                purpose = ''
-            brand = purpose or 'Invoice'
-            total = float(inv.get('total', 0))
-            ref = inv.get('referenceId', '')
-            masked = f"...{ref[-4:]}" if len(ref) > 4 else ref
-            lines.append(f" {i}. {brand} \u2022 \u20b9{total:,.2f} ({masked})")
-        lines.append(f"\n\U0001f447 Next payment ready below")
+        summary_msg = PAY_MSG['next_due'].format(count=len(remaining), total=f'{total_bal:,.2f}')
 
         # Send summary text
         contact = _get_contact_by_phone(recipient_id)
@@ -1618,7 +1622,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
             'body': json.dumps({
                 'contactId': contact_id if contact_id else None,
                 'recipientPhone': contact_phone,
-                'content': "\n".join(lines),
+                'content': summary_msg,
                 'phoneNumberId': sending_phone_id,
             })
         }
@@ -3668,8 +3672,12 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     pay_for=ai_response.get('paymentPayFor', 'self'),
                 )
         elif flow_action == 'sendPendingPayments':
-            # Instant pay flow — invoke invoice-engine to find & send all pending invoices
+            # ── Payment flow (hardcoded, LLM-independent — edit PAY_MSG at top of file) ──
             customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
+
+            # Step 1: Send "pulling" message immediately
+            _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
+
             try:
                 inv_payload = {
                     'rawPath': '/invoices/send-pending-by-phone',
@@ -3691,52 +3699,22 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 invoices_sent = inv_body.get('invoices', [])
                 send_error = inv_body.get('error', '')
 
-                if sent_count == 0 and total_count == 0:
-                    # No pending invoices
-                    no_due_msg = "\u2705 *No pending dues!*\nYour account is all clear. \U0001f389"
-                    _send_ai_auto_reply(contact_id, no_due_msg, phone_number_id, request_id)
-                elif sent_count == 0 and total_count > 0:
-                    # Pending invoices exist but payment link failed to send
-                    total_amt = sum(i.get('total', 0) for i in invoices_sent)
-                    err_hint = f"\n\n\u26a0\ufe0f _{send_error}_" if send_error else ""
-                    fail_msg = f"\U0001f4cb *{total_count} pending invoice(s)* \u2022 \u20b9{total_amt:,.2f}\n\n\u274c Payment link could not be sent right now. Please try again or contact support.{err_hint}"
-                    _send_ai_auto_reply(contact_id, fail_msg, phone_number_id, request_id)
+                if total_count == 0:
+                    _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
+                elif sent_count == 0:
+                    _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], phone_number_id, request_id)
                     logger.warning(json.dumps({
                         'event': 'send_pending_payment_link_failed',
-                        'sent': sent_count, 'total': total_count,
+                        'sent': 0, 'total': total_count,
                         'error': send_error, 'phone': customer_phone,
                         'requestId': request_id,
                     }))
                 elif total_count == 1:
-                    inv = invoices_sent[0] if invoices_sent else {}
-                    brand = inv.get('purpose', '')
-                    if brand.lower().startswith('menu_'):
-                        brand = brand.split('_', 1)[1].title() if '_' in brand else ''
-                    total = inv.get('total', 0)
-                    order_id = inv.get('orderId', '')
-                    ref = inv.get('referenceId', '')
-                    masked_ref = f"...{ref[-4:]}" if len(ref) > 4 else ref
-                    # Build compact summary
-                    brand_line = f"\U0001f3f7\ufe0f {brand}" if brand else ""
-                    order_line = f"\n\U0001f4e6 Order: {order_id}" if order_id and order_id != 'Offline' else ""
-                    msg = f"\U0001f514 You have 1 unpaid invoice of \u20b9{total:,.2f}."
-                    _send_ai_auto_reply(contact_id, msg, phone_number_id, request_id)
+                    total = invoices_sent[0].get('total', 0) if invoices_sent else 0
+                    _send_ai_auto_reply(contact_id, PAY_MSG['single'].format(count=1, total=f'{total:,.2f}'), phone_number_id, request_id)
                 else:
                     total_amt = sum(i.get('total', 0) for i in invoices_sent)
-                    lines = [f"\U0001f4cb *{total_count} pending invoices* \u2022 \u20b9{total_amt:,.2f}\n"]
-                    for i, inv in enumerate(invoices_sent, 1):
-                        brand = inv.get('purpose', 'Invoice')
-                        if brand.lower().startswith('menu_'):
-                            brand = brand.split('_', 1)[1].title() if '_' in brand else 'Invoice'
-                        total = inv.get('total', 0)
-                        order_id = inv.get('orderId', '')
-                        ref = inv.get('referenceId', '')
-                        masked = f"...{ref[-4:]}" if len(ref) > 4 else ref
-                        icon = "\u2b50" if i == 1 else f" {i}."
-                        order_tag = f" \u2022 #{order_id}" if order_id and order_id != 'Offline' else ""
-                        lines.append(f"{icon} {brand}{order_tag} \u2022 \u20b9{total:,.2f} ({masked})")
-                    lines.append(f"\n\u2b07\ufe0f Payment for #1 is sent below \u2014 tap *Review & Pay*")
-                    _send_ai_auto_reply(contact_id, "\n".join(lines), phone_number_id, request_id)
+                    _send_ai_auto_reply(contact_id, PAY_MSG['multiple'].format(count=total_count, total=f'{total_amt:,.2f}'), phone_number_id, request_id)
 
                 logger.info(json.dumps({
                     'event': 'send_pending_payments_complete',
@@ -3748,9 +3726,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     'event': 'send_pending_payments_error',
                     'error': str(e), 'requestId': request_id,
                 }))
-                _send_ai_auto_reply(contact_id,
-                    "\u26a0\ufe0f Something went wrong checking your invoices. Please try again.",
-                    phone_number_id, request_id)
+                _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
 
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM

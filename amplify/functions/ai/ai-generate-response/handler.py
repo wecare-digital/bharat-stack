@@ -1958,9 +1958,10 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         if flow_name == 'pay':
             _clear_flow_state(phone_hash)
             return {
-                'suggestedResponse': "Use *pay* to check and pay your pending invoices.",
-                'suggestion': "Use *pay* to check and pay your pending invoices.",
+                'suggestedResponse': '',
+                'suggestion': '',
                 'flowAction': 'sendPendingPayments',
+                'paymentCustomerPhone': sender_phone,
             }
 
         # ── Toggle flows (audio/notifications) ──
@@ -2014,8 +2015,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
     if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
         # Instant pay flow — send all pending invoices as WhatsApp Pay orders
         return {
-            'suggestedResponse': '\U0001f50d Checking your pending invoices\u2026',
-            'suggestion': '\U0001f50d Checking your pending invoices\u2026',
+            'suggestedResponse': '',
+            'suggestion': '',
             'flowAction': 'sendPendingPayments',
             'paymentCustomerPhone': sender_phone,
         }
@@ -2072,8 +2073,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             if action == 'start_pay_flow':
                 # Instant pay flow — send all pending invoices as WhatsApp Pay orders
                 return {
-                    'suggestedResponse': '\U0001f50d Checking your pending invoices\u2026',
-                    'suggestion': '\U0001f50d Checking your pending invoices\u2026',
+                    'suggestedResponse': '',
+                    'suggestion': '',
                     'flowAction': 'sendPendingPayments',
                     'paymentCustomerPhone': sender_phone,
                 }

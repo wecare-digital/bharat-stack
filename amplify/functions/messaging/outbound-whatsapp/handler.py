@@ -1602,7 +1602,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'image': {'link': payment_header_image}
             },
             'body': {
-                'text': 'Your payment is overdue—please tap below to complete it 💳🤝'
+                'text': 'Your payment is ready \u2014 tap below to complete it \U0001f4b3'
             },
             'footer': {
                 'text': order_details.get('footer_text', 'WECARE.DIGITAL')
