@@ -36,6 +36,7 @@ MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppI
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'base-wecare-digital-MediaFilesTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'base-wecare-digital-AIInteractionsTable')
+INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'whatsapp-media/whatsapp-media-incoming/')
@@ -1289,8 +1290,21 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                 'requestId': request_id
             }))
 
+    # Detect effective failure: WhatsApp may send status="pending" but
+    # transaction.status="failed" (e.g. insufficient funds / gateway error).
+    transaction_status = transaction.get('status', '')
+    effective_failed = (
+        payment_status == 'failed'
+        or (payment_status == 'pending' and transaction_status in ('failed', 'error'))
+    )
+
     # Send order_status message based on payment status
     if payment_status == 'captured':
+        # ── Direct invoice status update in InvoicesTable ──
+        # Ensures the invoice is marked paid even if the dedup path in
+        # create_invoice is skipped (e.g. invoice was created from dashboard).
+        _mark_invoice_paid_by_reference(reference_id, request_id)
+
         _send_order_status_message(
             recipient_id=recipient_id,
             reference_id=reference_id,
@@ -1315,7 +1329,14 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             phone_number_id=originating_phone_id,
             request_id=request_id,
         )
-    elif payment_status == 'failed':
+    elif effective_failed:
+        logger.info(json.dumps({
+            'event': 'payment_effective_failure',
+            'paymentStatus': payment_status,
+            'transactionStatus': transaction_status,
+            'referenceId': reference_id,
+            'requestId': request_id,
+        }))
         _send_order_status_message(
             recipient_id=recipient_id,
             reference_id=reference_id,
@@ -1325,6 +1346,69 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             request_id=request_id,
             phone_number_id=originating_phone_id
         )
+    elif payment_status == 'pending':
+        # Genuine pending (transaction still in progress) — log and wait
+        logger.info(json.dumps({
+            'event': 'payment_pending_waiting',
+            'referenceId': reference_id,
+            'transactionStatus': transaction_status,
+            'requestId': request_id,
+        }))
+
+
+def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
+    """Directly update InvoicesTable: set status=paid for the given referenceId.
+    This is a safety net so the invoice is always marked paid on capture,
+    regardless of whether the dedup path in create_invoice runs later."""
+    if not reference_id:
+        return
+    try:
+        import datetime
+        table = dynamodb.Table(INVOICES_TABLE)
+        now = int(time.time())
+        now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
+        paid_at_ts = int(now_ist.timestamp())
+
+        # Scan for invoice with this referenceId
+        scan_kwargs = {
+            'FilterExpression': 'referenceId = :ref',
+            'ExpressionAttributeValues': {':ref': reference_id},
+        }
+        found = []
+        while True:
+            resp = table.scan(**scan_kwargs)
+            found.extend(resp.get('Items', []))
+            if found or 'LastEvaluatedKey' not in resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+
+        for inv in found:
+            if inv.get('status') != 'paid':
+                table.update_item(
+                    Key={'invoiceId': inv['invoiceId']},
+                    UpdateExpression='SET #st = :st, #ps = :ps, #pa = :pa, #ua = :now',
+                    ExpressionAttributeNames={
+                        '#st': 'status', '#ps': 'paymentStatus',
+                        '#pa': 'paidAt', '#ua': 'updatedAt',
+                    },
+                    ExpressionAttributeValues={
+                        ':st': 'paid', ':ps': 'captured',
+                        ':pa': paid_at_ts, ':now': now,
+                    },
+                )
+                logger.info(json.dumps({
+                    'event': 'invoice_marked_paid_direct',
+                    'invoiceId': inv['invoiceId'],
+                    'referenceId': reference_id,
+                    'requestId': request_id,
+                }))
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'mark_invoice_paid_error',
+            'referenceId': reference_id,
+            'error': str(e),
+            'requestId': request_id,
+        }))
 
 
 def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,

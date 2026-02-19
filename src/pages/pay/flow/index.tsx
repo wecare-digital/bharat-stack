@@ -34,7 +34,12 @@ const STATUS_FILTERS = [
   { id:'cancelled', label:'Cancelled' },
 ];
 const badgeClass = (inv:Invoice) => inv.status==='paid'||inv.paymentStatus==='captured'?'success':inv.status==='cancelled'?'danger':'muted';
-const fmtDate = (ts:number) => ts ? new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '\u2014';
+const fmtDate = (ts:number) => {
+  if (!ts) return '\u2014';
+  // createdAt is epoch seconds — convert to ms; if already ms (>1e12) use as-is
+  const ms = ts > 1e12 ? ts : ts * 1000;
+  return new Date(ms).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+};
 const fmtMoney = (n:number) => `\u20B9${(n||0).toLocaleString('en-IN',{minimumFractionDigits:2})}`;
 
 /* ── Component ── */
