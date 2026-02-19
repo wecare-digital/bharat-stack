@@ -1392,19 +1392,33 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
     # Send payment link for FIRST invoice only (sequential pay)
     first = all_pending[0]
     first_id = first.get('invoiceId', '')
+    send_error = ''
     try:
         result = send_payment_link(first_id, phone_number_id, request_id)
-        invoice_list[0]['status'] = 'sent' if result.get('statusCode') == 200 else 'failed'
+        result_code = result.get('statusCode', 0)
+        if result_code == 200:
+            invoice_list[0]['status'] = 'sent'
+        else:
+            invoice_list[0]['status'] = 'failed'
+            # Extract error from response body for debugging
+            try:
+                err_body = json.loads(result.get('body', '{}'))
+                send_error = err_body.get('error', f'statusCode={result_code}')
+            except Exception:
+                send_error = f'statusCode={result_code}'
+            logger.error(json.dumps({'event': 'send_first_link_failed', 'invoiceId': first_id, 'statusCode': result_code, 'error': send_error, 'requestId': request_id}))
     except Exception as e:
         logger.error(json.dumps({'event': 'send_first_link_error', 'invoiceId': first_id, 'error': str(e), 'requestId': request_id}))
         invoice_list[0]['status'] = 'failed'
+        send_error = str(e)
 
-    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': customer_phone, 'total': len(all_pending), 'firstSent': first_id, 'requestId': request_id}))
+    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': customer_phone, 'total': len(all_pending), 'firstSent': first_id, 'sendError': send_error, 'requestId': request_id}))
 
     return _resp(200, {
         'sent': 1 if invoice_list[0]['status'] == 'sent' else 0,
         'total': len(invoice_list),
         'invoices': invoice_list,
+        'error': send_error,
     })
 
 
@@ -1433,9 +1447,11 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
         return _resp(400, {'error': 'No customer phone on invoice'})
 
     # ── Phone whitelist: only allowed numbers can receive payment links (testing) ──
-    ALLOWED_PAYMENT_PHONES = {'919330994400', '9330994400', '+919330994400'}
+    ALLOWED_PAYMENT_PHONES = {'919330994400', '9330994400', '+919330994400',
+                              '918100640044', '8100640044', '+918100640044'}
     clean_cust = customer_phone.replace('+', '').replace(' ', '').replace('-', '')
     if clean_cust not in ALLOWED_PAYMENT_PHONES and customer_phone not in ALLOWED_PAYMENT_PHONES:
+        logger.warning(json.dumps({'event': 'payment_phone_blocked', 'phone': customer_phone, 'clean': clean_cust, 'requestId': request_id}))
         return _resp(403, {'error': f'Payment flow restricted: {customer_phone} is not in the allowed list'})
 
     reference_id = invoice.get('referenceId', '')

@@ -3689,13 +3689,26 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 sent_count = inv_body.get('sent', 0)
                 total_count = inv_body.get('total', 0)
                 invoices_sent = inv_body.get('invoices', [])
+                send_error = inv_body.get('error', '')
 
                 if sent_count == 0 and total_count == 0:
                     # No pending invoices
                     no_due_msg = "\u2705 *No pending dues!*\nYour account is all clear. \U0001f389"
                     _send_ai_auto_reply(contact_id, no_due_msg, phone_number_id, request_id)
-                elif sent_count == 1:
-                    inv = invoices_sent[0]
+                elif sent_count == 0 and total_count > 0:
+                    # Pending invoices exist but payment link failed to send
+                    total_amt = sum(i.get('total', 0) for i in invoices_sent)
+                    err_hint = f"\n\n⚠️ _{send_error}_" if send_error else ""
+                    fail_msg = f"\U0001f4cb *{total_count} pending invoice(s)* \u2022 Total: \u20b9{total_amt:,.2f}\n\n\u274c Payment link could not be sent right now. Please try again or contact support.{err_hint}"
+                    _send_ai_auto_reply(contact_id, fail_msg, phone_number_id, request_id)
+                    logger.warning(json.dumps({
+                        'event': 'send_pending_payment_link_failed',
+                        'sent': sent_count, 'total': total_count,
+                        'error': send_error, 'phone': customer_phone,
+                        'requestId': request_id,
+                    }))
+                elif total_count == 1:
+                    inv = invoices_sent[0] if invoices_sent else {}
                     brand = inv.get('purpose', '')
                     if brand.lower().startswith('menu_'):
                         brand = brand.split('_', 1)[1].title() if '_' in brand else ''
