@@ -1695,8 +1695,15 @@
 }
 
 .ps-tab-icon {
-  margin-right: 4px;
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.ps-tab-icon svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .ps-tab:hover {
