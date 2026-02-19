@@ -15,11 +15,11 @@ const NEW_ITEM = ():IR => ({ name:'', unitPrice:'', quantity:'1', gstRate:'18' }
 const EMPTY_INV = { items:[NEW_ITEM()] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'', greenPacking:'', notificationFee:'' };
 const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Gift Card','Service Fee','Consultation'] };
 const TABS:ShellTab[] = [
-  { id:'customers', label:'Customers' },
-  { id:'create', label:'Create Invoice' },
-  { id:'invoices', label:'Invoices' },
-  { id:'dues', label:'Pending Dues' },
-  { id:'config', label:'Flow Config' },
+  { id:'customers', label:'Customers', icon:'\u{1F465}' },
+  { id:'create', label:'Create', icon:'\u{2795}' },
+  { id:'invoices', label:'Invoices', icon:'\u{1F4CB}' },
+  { id:'dues', label:'Dues', icon:'\u{23F3}' },
+  { id:'config', label:'Config', icon:'\u{2699}\uFE0F' },
 ];
 const STATUS_FILTERS = [
   { id:'all', label:'All' },
@@ -116,6 +116,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         shippingAddress: selCustomer.shippingAddress||'', billingAddress: selCustomer.billingAddress||'',
         items: invForm.items.map(it=>({ name:it.name||config.default_item_name, amount:parseFloat(it.unitPrice)||0, quantity:parseInt(it.quantity)||1, gstRate:parseFloat(it.gstRate)||config.default_gst_rate })),
         shipping: (parseFloat(invForm.shipping)||0) + (parseFloat(invForm.greenPacking)||0) + (parseFloat(invForm.notificationFee)||0),
+        greenPacking: parseFloat(invForm.greenPacking)||0,
+        notificationFee: parseFloat(invForm.notificationFee)||0,
         greenPacking: parseFloat(invForm.greenPacking)||0,
         notificationFee: parseFloat(invForm.notificationFee)||0,
         discount: parseFloat(invForm.discount)||0, gstRate: config.default_gst_rate,
@@ -217,7 +219,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
 
   /* ═══ RENDER ═══ */
   const shellContent = (
-    <PageShell title="Flow CRM" subtitle="Customers, Invoices & Payments" tabs={TABS} defaultTab="customers">
+    <PageShell title="Flow" subtitle="Customers, Invoices & Payments" tabs={TABS} defaultTab="customers">
       {(activeTab) => (
         <div className="inner-page">
           {msg && <div className={`msg-bar ${msg.type}`} style={{margin:'0 0 16px'}}>{msg.text}<button onClick={()=>setMsg(null)} style={{background:'none',border:'none',cursor:'pointer',marginLeft:8}}>{'\u2715'}</button></div>}

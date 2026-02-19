@@ -14,16 +14,16 @@ import PayLinkPage from './link';
 interface PageProps { signOut?: () => void; user?: any; }
 
 const TABS: ShellTab[] = [
-  { id: 'flow', label: 'Flow CRM' },
-  { id: 'wa', label: 'WhatsApp Pay' },
-  { id: 'link', label: 'Pay Link' },
+  { id: 'flow', label: 'Flow', icon: '⚡' },
+  { id: 'wa', label: 'WhatsApp', icon: '💬' },
+  { id: 'link', label: 'Link', icon: '🔗' },
 ];
 
 const PayPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO title="Pay | WECARE.DIGITAL" description="Payments — Flow CRM, WhatsApp Pay & Pay Links" />
-      <PageShell title="Pay" subtitle="Flow CRM, WhatsApp Pay & Payment Links" tabs={TABS} defaultTab="flow">
+      <PageShell title="Pay" subtitle="Invoices, WhatsApp Pay & Payment Links" tabs={TABS} defaultTab="flow">
         {(activeTab) => (
           <>
             {activeTab === 'flow' && <PayFlowPage signOut={signOut} user={user} embedded />}
