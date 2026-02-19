@@ -69,14 +69,12 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60
 PAY_MSG = {
     'pulling':      '\U0001f440 Pulling your pending invoice...',
     'no_dues':      '\u2705 No pending dues!',
-    'single':       '\U0001f514 You have {count} unpaid invoice of \u20b9{total}.',
-    'multiple':     '\U0001f514 You have {count} unpaid invoices totalling \u20b9{total}.',
-    'send_failed':  '\u274c Could not send payment link. Please try again.',
-    'error':        '\u26a0\ufe0f Something went wrong. Please try again.',
     'paid':         '\u2705 Paid successfully.',
     'pay_failed':   '\u274c Payment failed. Please try again.',
-    'all_clear':    '\U0001f389 All clear! No more pending dues.',
-    'next_due':     '\U0001f514 You have {count} more pending. Next payment ready below.',
+    'all_clear':    '\u2705 No pending dues!',
+    'next_due':     '\u26a0\ufe0f You have unpaid invoice of \u20b9{total}.',
+    'send_failed':  '\u274c Could not send payment link. Please try again.',
+    'error':        '\u26a0\ufe0f Something went wrong. Please try again.',
     'wa_body':      'Your payment is ready \u2014 tap below to complete it \U0001f4b3',
 }
 
@@ -1610,7 +1608,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
 
         # Build summary
         total_bal = sum(float(inv.get('total', 0)) for inv in remaining)
-        summary_msg = PAY_MSG['next_due'].format(count=len(remaining), total=f'{total_bal:,.2f}')
+        summary_msg = PAY_MSG['next_due'].format(total=f'{total_bal:,.2f}')
 
         # Send summary text
         contact = _get_contact_by_phone(recipient_id)
@@ -3709,12 +3707,6 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                         'error': send_error, 'phone': customer_phone,
                         'requestId': request_id,
                     }))
-                elif total_count == 1:
-                    total = invoices_sent[0].get('total', 0) if invoices_sent else 0
-                    _send_ai_auto_reply(contact_id, PAY_MSG['single'].format(count=1, total=f'{total:,.2f}'), phone_number_id, request_id)
-                else:
-                    total_amt = sum(i.get('total', 0) for i in invoices_sent)
-                    _send_ai_auto_reply(contact_id, PAY_MSG['multiple'].format(count=total_count, total=f'{total_amt:,.2f}'), phone_number_id, request_id)
 
                 logger.info(json.dumps({
                     'event': 'send_pending_payments_complete',
