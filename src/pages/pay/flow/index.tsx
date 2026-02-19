@@ -123,7 +123,21 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const calcSubtotal = () => invForm.items.reduce((s,it) => s + (parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0), 0);
   const calcTax = () => invForm.items.reduce((s,it) => { const line=(parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0); return s + line*(parseFloat(it.gstRate)||0)/100; }, 0);
   const calcTotal = () => {
-    return calcSubtotal() + calcTax() + (parseFloat(invForm.shipping)||0) - (parseFloat(invForm.discount)||0);
+    const sub = calcSubtotal();
+    const tax = calcTax();
+    const ship = parseFloat(invForm.shipping)||0;
+    const disc = parseFloat(invForm.discount)||0;
+    const collection = sub + tax + ship - disc;
+    const convBase = Math.round(collection * 0.02 * 100) / 100;
+    const convGst = Math.round(convBase * 0.18 * 100) / 100;
+    const convFee = convBase + convGst;
+    return collection + convFee;
+  };
+  const calcConvFee = () => {
+    const collection = calcSubtotal() + calcTax() + (parseFloat(invForm.shipping)||0) - (parseFloat(invForm.discount)||0);
+    const base = Math.round(collection * 0.02 * 100) / 100;
+    const gst = Math.round(base * 0.18 * 100) / 100;
+    return base + gst;
   };
 
   const submitInvoice = async () => {
@@ -388,6 +402,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="pf-preview-row"><span>Tax (GST)</span><span>{fmtMoney(calcTax())}</span></div>
                     <div className="pf-preview-row"><span>Express</span><span>{fmtMoney(parseFloat(invForm.shipping)||0)}</span></div>
                     <div className="pf-preview-row"><span>Promo</span><span>{'\u2212'}{fmtMoney(parseFloat(invForm.discount)||0)}</span></div>
+                    <div className="pf-preview-row"><span>Conv Fee</span><span>{fmtMoney(calcConvFee())}</span></div>
                     <div className="pf-preview-total"><span>Total</span><span>{fmtMoney(calcTotal())}</span></div>
                   </div>
                   <Button variant="primary" size="md" loading={creating} onClick={submitInvoice}>Create Invoice</Button>

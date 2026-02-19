@@ -1550,8 +1550,9 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             # Use tax value from order_data as fallback
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
-        # Convenience Fee: 2% of total item value + 18% GST on that 2%
-        conv_base = round_paise(Decimal(item_total_paise) * Decimal("0.02"))
+        # Convenience Fee: 2% of total collection (items + GST) + 18% GST on that 2%
+        collection_paise = item_total_paise + gst_paise
+        conv_base = round_paise(Decimal(collection_paise) * Decimal("0.02"))
         conv_gst = round_paise(Decimal(conv_base) * Decimal("0.18"))
         conv_total = conv_base + conv_gst
         

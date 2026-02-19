@@ -408,12 +408,18 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         if int(it_v.get('quantity', 1)) < 1:
             return _resp(400, {'error': f'Item {idx_v+1} quantity must be at least 1'})
 
-    tax = subtotal * (gst_rate / 100)
+    tax = sum(
+        float(i.get('amount', 0)) * int(i.get('quantity', 1)) * float(i.get('gstRate', gst_rate)) / 100
+        for i in items
+    )
+    tax = round(tax, 2)
 
-    # Convenience fee: 2% of subtotal + 18% GST on that 2% (calculated here as single source of truth)
+    # Convenience fee: 2% of total collection + 18% GST on that 2%
+    # "Total collection" = subtotal - discount + shipping + handling + tax + GP + NF
     convenience_fee = float(body.get('convenienceFee', 0))
     if convenience_fee == 0 and entry_point in ('pay_flow', 'manual', 'whatsapp_payment'):
-        conv_base = round(subtotal * 0.02, 2)
+        collection = subtotal - discount + shipping + effective_gp + effective_nf + handling + tax
+        conv_base = round(collection * 0.02, 2)
         conv_gst = round(conv_base * 0.18, 2)
         convenience_fee = round(conv_base + conv_gst, 2)
 
@@ -488,6 +494,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 'name': item.get('name', 'Item'),
                 'amount': _dec(float(item.get('amount', 0))),
                 'quantity': int(item.get('quantity', 1)),
+                'gstRate': _dec(float(item.get('gstRate', gst_rate))),
                 'productId': item.get('productId', ''),
                 'isCharge': item.get('isCharge', False),
             })
@@ -1481,11 +1488,12 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
         amt_rupees = float(item.get('amount', 0))
         qty = int(item.get('quantity', 1))
         amt_paise = int(amt_rupees * 100)
+        item_gst = float(item.get('gstRate', gst_rate))
         entry = {
             'name': item.get('name', 'Item'),
             'amount': {'value': amt_paise, 'offset': 100},
             'quantity': qty,
-            'gstRate': gst_rate,
+            'gstRate': item_gst,
         }
         if item.get('name', '').strip().lower() in CHARGE_ITEM_NAMES:
             charge_items.append(entry)
