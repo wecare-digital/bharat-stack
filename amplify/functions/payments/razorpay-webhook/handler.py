@@ -3,7 +3,6 @@ Razorpay Webhook Handler Lambda Function
 
 Purpose: Process ALL Razorpay webhook events
 Webhook URL: https://api.wecare.digital/razorpay-webhook
-Webhook Secret: b@c4mk9t9Z8qLq3
 
 Supported Event Categories:
 - payment.* (authorized, pending, failed, captured, dispute.*, downtime.*)
@@ -34,7 +33,7 @@ logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', 'b@c4mk9t9Z8qLq3')
+WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
 WEBHOOK_LOG_TABLE = os.environ.get('WEBHOOK_LOG_TABLE', 'base-wecare-digital-RazorpayWebhookLogTable')
@@ -283,16 +282,43 @@ def _handle_payment_pending(event_data: Dict, request_id: str) -> None:
 
 
 def _handle_payment_failed(event_data: Dict, request_id: str) -> None:
-    """Handle payment.failed — payment attempt failed."""
+    """Handle payment.failed — payment attempt failed. Update linked invoice status."""
     payment = event_data.get('payment', {}).get('entity', {})
     payment_id = payment.get('id', '')
     error_code = payment.get('error_code', '')
     error_desc = payment.get('error_description', '')
+    notes = payment.get('notes', {})
     logger.warning(json.dumps({
         'event': 'payment_failed', 'paymentId': payment_id,
         'errorCode': error_code, 'errorDesc': error_desc, 'requestId': request_id,
     }))
     _store_payment_record(payment, 'failed', request_id)
+
+    # Update linked invoice status to payment_failed (if referenceId exists)
+    reference_id = notes.get('referenceId', '')
+    if reference_id:
+        try:
+            import time as _time
+            # Invoke invoice-engine to find and update the invoice
+            inv_table = dynamodb.Table(os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable'))
+            result = inv_table.scan(
+                FilterExpression='referenceId = :ref AND (paymentStatus = :ps1 OR paymentStatus = :ps2)',
+                ExpressionAttributeValues={':ref': reference_id, ':ps1': 'pending', ':ps2': 'pending_payment'},
+                Limit=10,
+            )
+            for inv in result.get('Items', []):
+                inv_table.update_item(
+                    Key={'invoiceId': inv['invoiceId']},
+                    UpdateExpression='SET paymentStatus = :ps, updatedAt = :now, notes = if_not_exists(notes, :empty)',
+                    ExpressionAttributeValues={
+                        ':ps': 'failed',
+                        ':now': Decimal(str(int(_time.time()))),
+                        ':empty': '',
+                    },
+                )
+                logger.info(json.dumps({'event': 'invoice_payment_failed', 'invoiceId': inv['invoiceId'], 'referenceId': reference_id, 'requestId': request_id}))
+        except Exception as e:
+            logger.error(json.dumps({'event': 'invoice_fail_update_error', 'referenceId': reference_id, 'error': str(e), 'requestId': request_id}))
 
 
 # ═══════════════════════════════════════════════════════════════════

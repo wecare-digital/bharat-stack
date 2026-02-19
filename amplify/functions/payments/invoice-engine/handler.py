@@ -278,12 +278,16 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 expr_values[':pid'] = payment_id
 
             filter_expr = ' OR '.join(filter_parts)
-            result = table.scan(
-                FilterExpression=filter_expr,
-                ExpressionAttributeValues=expr_values,
-                Limit=1,
-            )
-            existing = result.get('Items', [])
+            # Full pagination to avoid DynamoDB Limit bug (Limit = items evaluated, not returned)
+            existing = []
+            scan_kwargs = {'FilterExpression': filter_expr, 'ExpressionAttributeValues': expr_values}
+            while True:
+                result = table.scan(**scan_kwargs)
+                existing.extend(result.get('Items', []))
+                if existing or 'LastEvaluatedKey' not in result:
+                    break
+                scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
+
             if existing:
                 inv = existing[0]
                 logger.info(json.dumps({
@@ -343,6 +347,20 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     if shipping < 0: shipping = 0.0
     handling = float(body.get('handling', 0))
     gst_rate = float(body.get('gstRate', 18))
+
+    # ── Validate: no negative amounts ──
+    if subtotal < 0:
+        return _resp(400, {'error': 'Subtotal cannot be negative'})
+    if discount < 0:
+        return _resp(400, {'error': 'Discount cannot be negative'})
+    if gst_rate < 0 or gst_rate > 100:
+        return _resp(400, {'error': 'GST rate must be between 0 and 100'})
+    for idx_v, it_v in enumerate(items):
+        if float(it_v.get('amount', 0)) < 0:
+            return _resp(400, {'error': f'Item {idx_v+1} amount cannot be negative'})
+        if int(it_v.get('quantity', 1)) < 1:
+            return _resp(400, {'error': f'Item {idx_v+1} quantity must be at least 1'})
+
     tax = subtotal * (gst_rate / 100)
 
     # Convenience fee: 2% of subtotal + 18% GST on that 2% (calculated here as single source of truth)
@@ -394,7 +412,10 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'paidAt': body.get('paidAt', 0),
     }
 
-    table.put_item(Item={k: v for k, v in invoice.items() if v is not None and v != ''})
+    table.put_item(
+        Item={k: v for k, v in invoice.items() if v is not None and v != ''},
+        ConditionExpression='attribute_not_exists(invoiceId)',
+    )
 
     # Store invoice items (including greenPacking + notificationFee as line items)
     items_table = dynamodb.Table(INVOICE_ITEMS_TABLE)
@@ -428,14 +449,19 @@ def create_invoice_from_payment(body: Dict, request_id: str) -> Dict:
     if not payment_id:
         return _resp(400, {'error': 'paymentId required'})
 
-    # Fetch payment record
+    # Fetch payment record (full pagination to avoid DynamoDB Limit bug)
     payments_table = dynamodb.Table(PAYMENTS_TABLE)
     try:
-        result = payments_table.scan(
-            FilterExpression=boto3.dynamodb.conditions.Attr('paymentId').eq(payment_id),
-            Limit=1,
-        )
-        items = result.get('Items', [])
+        items = []
+        scan_kwargs = {
+            'FilterExpression': boto3.dynamodb.conditions.Attr('paymentId').eq(payment_id),
+        }
+        while True:
+            result = payments_table.scan(**scan_kwargs)
+            items.extend(result.get('Items', []))
+            if items or 'LastEvaluatedKey' not in result:
+                break
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         if not items:
             return _resp(404, {'error': f'Payment {payment_id} not found'})
         payment = items[0]
@@ -1452,6 +1478,11 @@ def cancel_invoice(invoice_id: str, reason: str, request_id: str) -> Dict:
         return _resp(400, {'error': 'Cannot cancel a paid invoice. Use refund instead.'})
 
     try:
+        # Preserve existing notes, append cancellation reason
+        existing_notes = invoice.get('notes', '')
+        cancel_note = f"Cancelled: {reason}" if reason else 'Cancelled by admin'
+        new_notes = f"{existing_notes}\n{cancel_note}".strip() if existing_notes else cancel_note
+
         table.update_item(
             Key={'invoiceId': invoice_id},
             UpdateExpression='SET #st = :st, #ps = :ps, #ua = :now, #notes = :notes',
@@ -1463,7 +1494,7 @@ def cancel_invoice(invoice_id: str, reason: str, request_id: str) -> Dict:
                 ':st': 'cancelled',
                 ':ps': 'cancelled',
                 ':now': int(time.time()),
-                ':notes': f"Cancelled: {reason}" if reason else 'Cancelled by admin',
+                ':notes': new_notes,
             },
         )
     except Exception as e:
