@@ -3698,8 +3698,8 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 elif sent_count == 0 and total_count > 0:
                     # Pending invoices exist but payment link failed to send
                     total_amt = sum(i.get('total', 0) for i in invoices_sent)
-                    err_hint = f"\n\n⚠️ _{send_error}_" if send_error else ""
-                    fail_msg = f"\U0001f4cb *{total_count} pending invoice(s)* \u2022 Total: \u20b9{total_amt:,.2f}\n\n\u274c Payment link could not be sent right now. Please try again or contact support.{err_hint}"
+                    err_hint = f"\n\n\u26a0\ufe0f _{send_error}_" if send_error else ""
+                    fail_msg = f"\U0001f4cb *{total_count} pending invoice(s)* \u2022 \u20b9{total_amt:,.2f}\n\n\u274c Payment link could not be sent right now. Please try again or contact support.{err_hint}"
                     _send_ai_auto_reply(contact_id, fail_msg, phone_number_id, request_id)
                     logger.warning(json.dumps({
                         'event': 'send_pending_payment_link_failed',
@@ -3713,22 +3713,29 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     if brand.lower().startswith('menu_'):
                         brand = brand.split('_', 1)[1].title() if '_' in brand else ''
                     total = inv.get('total', 0)
-                    brand_text = f" ({brand})" if brand else ""
-                    msg = f"\U0001f4b3 *1 pending invoice{brand_text}*\n\u20b9{total:,.2f}\n\n\U0001f447 Tap the payment message below to pay"
+                    order_id = inv.get('orderId', '')
+                    ref = inv.get('referenceId', '')
+                    masked_ref = f"...{ref[-4:]}" if len(ref) > 4 else ref
+                    # Build compact summary
+                    brand_line = f"\U0001f3f7\ufe0f {brand}" if brand else ""
+                    order_line = f"\n\U0001f4e6 Order: {order_id}" if order_id and order_id != 'Offline' else ""
+                    msg = f"\U0001f4b3 *Payment Due* \u2022 \u20b9{total:,.2f}\n{brand_line}{order_line}\n\nRef: {masked_ref}\n\n\u2b07\ufe0f A payment message is sent below \u2014 tap *Review & Pay* to complete."
                     _send_ai_auto_reply(contact_id, msg, phone_number_id, request_id)
                 else:
                     total_amt = sum(i.get('total', 0) for i in invoices_sent)
-                    lines = [f"\U0001f4cb *{total_count} pending invoices* \u2022 Total: \u20b9{total_amt:,.2f}\n"]
+                    lines = [f"\U0001f4cb *{total_count} pending invoices* \u2022 \u20b9{total_amt:,.2f}\n"]
                     for i, inv in enumerate(invoices_sent, 1):
                         brand = inv.get('purpose', 'Invoice')
                         if brand.lower().startswith('menu_'):
                             brand = brand.split('_', 1)[1].title() if '_' in brand else 'Invoice'
                         total = inv.get('total', 0)
+                        order_id = inv.get('orderId', '')
                         ref = inv.get('referenceId', '')
                         masked = f"...{ref[-4:]}" if len(ref) > 4 else ref
-                        status = "\u2b50" if i == 1 else f" {i}."
-                        lines.append(f"{status} {brand} \u2022 \u20b9{total:,.2f} ({masked})")
-                    lines.append(f"\n\U0001f447 Tap below to pay #1 first")
+                        icon = "\u2b50" if i == 1 else f" {i}."
+                        order_tag = f" \u2022 #{order_id}" if order_id and order_id != 'Offline' else ""
+                        lines.append(f"{icon} {brand}{order_tag} \u2022 \u20b9{total:,.2f} ({masked})")
+                    lines.append(f"\n\u2b07\ufe0f Payment for #1 is sent below \u2014 tap *Review & Pay*")
                     _send_ai_auto_reply(contact_id, "\n".join(lines), phone_number_id, request_id)
 
                 logger.info(json.dumps({

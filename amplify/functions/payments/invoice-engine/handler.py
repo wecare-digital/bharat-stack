@@ -1468,22 +1468,34 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     # Build order items for WhatsApp interactive message (amounts in paise)
     # NOTE: Do NOT add convenience fee here — the outbound-whatsapp handler
     # auto-calculates and adds it as a line item (2% + 18% GST).
-    order_items = []
-    subtotal_paise = 0
+    # Green Packing & Notification Fee are pushed to the end of the items list.
+    CHARGE_ITEM_NAMES = {'green packing', 'notification fee', 'notification/alert fee'}
+    regular_items = []
+    charge_items = []
     gst_rate = float(invoice.get('gstRate', 18))
-    for i, item in enumerate(items):
+    for item in items:
         amt_rupees = float(item.get('amount', 0))
         qty = int(item.get('quantity', 1))
         amt_paise = int(amt_rupees * 100)
-        line_paise = amt_paise * qty
-        subtotal_paise += line_paise
-        order_items.append({
-            'retailer_id': f'ITEM_{i+1}',
+        entry = {
             'name': item.get('name', 'Item'),
             'amount': {'value': amt_paise, 'offset': 100},
             'quantity': qty,
             'gstRate': gst_rate,
-        })
+        }
+        if item.get('name', '').strip().lower() in CHARGE_ITEM_NAMES:
+            charge_items.append(entry)
+        else:
+            regular_items.append(entry)
+    # Merge: regular items first, then charge items (Green Packing, Notification Fee) last
+    merged_items = regular_items + charge_items
+    order_items = []
+    subtotal_paise = 0
+    for i, entry in enumerate(merged_items):
+        entry['retailer_id'] = f'ITEM_{i+1}'
+        line_paise = entry['amount']['value'] * entry['quantity']
+        subtotal_paise += line_paise
+        order_items.append(entry)
 
     discount_paise = int(float(invoice.get('discount', 0)) * 100)
     shipping_paise = int(float(invoice.get('shipping', 0)) * 100)
