@@ -372,6 +372,23 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     discount = float(body.get('discount', 0))
     green_packing = float(body.get('greenPacking', 0))
     notification_fee = float(body.get('notificationFee', 0))
+
+    # Detect if Green Packing / Notification Fee are already in items (new frontend sends them inline)
+    gp_in_items = 0.0
+    nf_in_items = 0.0
+    for it in items:
+        nm = (it.get('name', '') or '').lower()
+        it_total = float(it.get('amount', 0)) * int(it.get('quantity', 1))
+        if 'green' in nm and 'pack' in nm:
+            gp_in_items = it_total
+        elif 'notification' in nm or 'alert' in nm:
+            nf_in_items = it_total
+
+    # If charge items are in the items array, they're already in subtotal — don't add again
+    # If sent as separate fields (legacy), add them to total
+    effective_gp = green_packing if gp_in_items == 0 else 0.0
+    effective_nf = notification_fee if nf_in_items == 0 else 0.0
+
     # shipping field = express only (greenPacking + notificationFee stored as line items)
     shipping = float(body.get('shipping', 0)) - green_packing - notification_fee
     if shipping < 0: shipping = 0.0
@@ -400,7 +417,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         conv_gst = round(conv_base * 0.18, 2)
         convenience_fee = round(conv_base + conv_gst, 2)
 
-    total = subtotal - discount + shipping + green_packing + notification_fee + handling + tax + convenience_fee
+    total = subtotal - discount + shipping + effective_gp + effective_nf + handling + tax + convenience_fee
 
     # Determine initial status
     status = body.get('status', 'created')
@@ -450,11 +467,18 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     # Store invoice items (including greenPacking + notificationFee as line items)
     items_table = dynamodb.Table(INVOICE_ITEMS_TABLE)
     all_items = list(items)
+
+    # Check if Green Packing / Notification Fee already exist as items (new frontend sends them inline)
+    existing_names = {(it.get('name', '') or '').lower() for it in all_items}
+    has_green = any('green' in n and 'pack' in n for n in existing_names)
+    has_notif = any('notification' in n or 'alert' in n for n in existing_names)
+
+    # Legacy support: if sent as separate fields and NOT already in items, append them
     green_packing = float(body.get('greenPacking', 0))
     notification_fee = float(body.get('notificationFee', 0))
-    if green_packing > 0:
+    if green_packing > 0 and not has_green:
         all_items.append({'name': 'Green Packing', 'amount': green_packing, 'quantity': 1, 'isCharge': True})
-    if notification_fee > 0:
+    if notification_fee > 0 and not has_notif:
         all_items.append({'name': 'Notification Fee', 'amount': notification_fee, 'quantity': 1, 'isCharge': True})
     if all_items:
         for idx, item in enumerate(all_items):
@@ -1407,6 +1431,12 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     customer_phone = invoice.get('customerPhone', '')
     if not customer_phone:
         return _resp(400, {'error': 'No customer phone on invoice'})
+
+    # ── Phone whitelist: only allowed numbers can receive payment links (testing) ──
+    ALLOWED_PAYMENT_PHONES = {'919330994400', '9330994400', '+919330994400'}
+    clean_cust = customer_phone.replace('+', '').replace(' ', '').replace('-', '')
+    if clean_cust not in ALLOWED_PAYMENT_PHONES and customer_phone not in ALLOWED_PAYMENT_PHONES:
+        return _resp(403, {'error': f'Payment flow restricted: {customer_phone} is not in the allowed list'})
 
     reference_id = invoice.get('referenceId', '')
     if not reference_id:

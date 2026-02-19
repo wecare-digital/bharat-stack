@@ -3280,8 +3280,6 @@ export interface CreateInvoiceEngineRequest {
   items: { name: string; amount: number; quantity: number; productId?: string; gstRate?: number }[];
   discount?: number;
   shipping?: number;
-  greenPacking?: number;
-  notificationFee?: number;
   gstRate?: number;       // Fallback global GST rate (used if items don't have per-item rates)
   convenienceFee?: number;
   purpose?: string;
