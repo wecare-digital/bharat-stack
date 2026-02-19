@@ -277,13 +277,13 @@ response = requests.post(
         <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
           <div className="explore-grid">
             <a href="/nocode" className="explore-card">
-              <div className="cap-icon"><img src="https://img.icons8.com/ios/250/000000/source-code.png" alt="NoCode" loading="lazy" /></div>
+              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23664FC2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m14 17 3-3-3-3m-4-4-3 3 3 3m-2.2 8h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C21 18.72 21 17.88 21 16.2V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C18.72 3 17.88 3 16.2 3H7.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C3 5.28 3 6.12 3 7.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C5.28 21 6.12 21 7.8 21'/%3e%3c/svg%3e" alt="NoCode" loading="lazy" /></div>
               <h3>NoCode</h3>
               <p>Build workflows, automations and integrations without writing a single line of code</p>
               <span className="explore-link">Explore →</span>
             </a>
             <a href="/carbon" className="explore-card">
-              <div className="cap-icon"><img src="https://img.icons8.com/ios/250/000000/leaf.png" alt="Carbon" loading="lazy" /></div>
+              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23664FC2' stroke-miterlimit='10' stroke-width='1.5' d='M18.68 14.86h-2.24a5.72 5.72 0 0 0-10.35-.95H5.8a4.3 4.3 0 1 0 0 8.59h12.88a3.82 3.82 0 0 0 0-7.64ZM9.14 1.5H11a4.77 4.77 0 0 1 4.77 4.77h-1.86A4.77 4.77 0 0 1 9.14 1.5Zm8.59 4.77h-1.91a4.77 4.77 0 0 1 4.77-4.77h1.91a4.77 4.77 0 0 1-4.77 4.77Zm-1.91 7.64V6.27'/%3e%3c/svg%3e" alt="Carbon" loading="lazy" /></div>
               <h3>Carbon</h3>
               <p>Track, reduce and offset your digital carbon footprint with every message you send</p>
               <span className="explore-link">Explore →</span>
