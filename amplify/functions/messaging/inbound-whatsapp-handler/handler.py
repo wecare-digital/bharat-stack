@@ -3719,7 +3719,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     # Build compact summary
                     brand_line = f"\U0001f3f7\ufe0f {brand}" if brand else ""
                     order_line = f"\n\U0001f4e6 Order: {order_id}" if order_id and order_id != 'Offline' else ""
-                    msg = f"\U0001f4b3 *Payment Due* \u2022 \u20b9{total:,.2f}\n{brand_line}{order_line}\n\nRef: {masked_ref}\n\n\u2b07\ufe0f A payment message is sent below \u2014 tap *Review & Pay* to complete."
+                    msg = f"\U0001f514 You have 1 unpaid invoice of \u20b9{total:,.2f}."
                     _send_ai_auto_reply(contact_id, msg, phone_number_id, request_id)
                 else:
                     total_amt = sum(i.get('total', 0) for i in invoices_sent)
