@@ -534,8 +534,21 @@ def create_invoice_from_payment(body: Dict, request_id: str) -> Dict:
 # ─── Update / Read / List ───
 
 def update_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
-    """Update an existing invoice (admin)."""
+    """Update an existing invoice (admin). Blocks amount changes on paid/cancelled invoices."""
     table = dynamodb.Table(INVOICES_TABLE)
+
+    # Status guard: block amount changes on paid/cancelled invoices
+    amount_fields = {'subtotal', 'discount', 'shipping', 'handling', 'gstRate', 'tax', 'convenienceFee', 'total'}
+    if amount_fields & set(body.keys()):
+        try:
+            existing = table.get_item(Key={'invoiceId': invoice_id}).get('Item', {})
+            ex_status = existing.get('status', '')
+            ex_ps = existing.get('paymentStatus', '')
+            if ex_status in ('paid', 'cancelled') or ex_ps in ('captured', 'refunded'):
+                return _resp(400, {'error': f'Cannot modify amounts on {ex_status} invoice (paymentStatus={ex_ps})'})
+        except Exception:
+            pass
+
     update_parts = []
     values = {}
     names = {}
@@ -615,9 +628,9 @@ def get_invoice(invoice_id: str, request_id: str) -> Dict:
 
 
 def list_invoices(params: Dict, request_id: str) -> Dict:
-    """List invoices with optional filters."""
+    """List invoices with optional filters. Full pagination to avoid DynamoDB Limit bug."""
     table = dynamodb.Table(INVOICES_TABLE)
-    scan_kwargs = {'Limit': int(params.get('limit', 100))}
+    scan_kwargs = {}
 
     filters = []
     if params.get('status'):
@@ -633,8 +646,15 @@ def list_invoices(params: Dict, request_id: str) -> Dict:
             combined = combined & f
         scan_kwargs['FilterExpression'] = combined
 
-    result = table.scan(**scan_kwargs)
-    invoices = result.get('Items', [])
+    invoices = []
+    while True:
+        result = table.scan(**scan_kwargs)
+        invoices.extend(result.get('Items', []))
+        if 'LastEvaluatedKey' in result:
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
+        else:
+            break
+
     invoices.sort(key=lambda x: int(x.get('createdAt', 0)), reverse=True)
 
     return _resp(200, {'invoices': [_normalize_invoice(i) for i in invoices], 'count': len(invoices)})
@@ -686,6 +706,18 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
             logo_html = f'<img src="data:image/png;base64,{b64}" style="width:60px;height:60px;object-fit:contain;margin-bottom:6px" alt="Logo">'
     except Exception:
         pass
+
+    # Extract Green Packing and Notification Fee from items (stored as charge line items)
+    green_packing_amt = 0.0
+    notification_fee_amt = 0.0
+    for it in items:
+        if it.get('isCharge'):
+            nm = (it.get('name', '') or '').lower()
+            amt_val = float(it.get('amount', 0)) * int(it.get('quantity', 1))
+            if 'green' in nm and 'pack' in nm:
+                green_packing_amt = amt_val
+            elif 'notification' in nm or 'alert' in nm:
+                notification_fee_amt = amt_val
 
     # Items rows
     items_html = ''
@@ -775,6 +807,8 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="total-row"><span>Subtotal</span><span>{subtotal:,.2f}</span></div>
 {'<div class="total-row"><span>Promo</span><span>-' + f'{discount:,.2f}' + '</span></div>' if discount else ''}
 {'<div class="total-row"><span>Express</span><span>' + f'{shipping_amt:,.2f}' + '</span></div>' if shipping_amt else ''}
+{'<div class="total-row"><span>Green Packing</span><span>' + f'{green_packing_amt:,.2f}' + '</span></div>' if green_packing_amt else ''}
+{'<div class="total-row"><span>Notification Fee</span><span>' + f'{notification_fee_amt:,.2f}' + '</span></div>' if notification_fee_amt else ''}
 {'<div class="total-row"><span>Handling</span><span>' + f'{handling_amt:,.2f}' + '</span></div>' if handling_amt else ''}
 <div class="total-row"><span>CGST @{gst_rate/2:.1f}%</span><span>{cgst:,.2f}</span></div>
 <div class="total-row"><span>SGST @{gst_rate/2:.1f}%</span><span>{sgst:,.2f}</span></div>
@@ -957,6 +991,18 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     payment_status = invoice.get('paymentStatus', 'pending').upper()
     paid_at = invoice.get('paidAt', 0)
 
+    # Extract Green Packing and Notification Fee from items (stored as charge line items)
+    green_packing_amt = 0.0
+    notification_fee_amt = 0.0
+    for it in items:
+        if it.get('isCharge'):
+            nm = (it.get('name', '') or '').lower()
+            amt_val = float(it.get('amount', 0)) * int(it.get('quantity', 1))
+            if 'green' in nm and 'pack' in nm:
+                green_packing_amt = amt_val
+            elif 'notification' in nm or 'alert' in nm:
+                notification_fee_amt = amt_val
+
     # ═══ HEADER (logo left, company info right) ═══
     lines.append(('__LOGO__', FLG, 'LOGO'))
 
@@ -1016,6 +1062,10 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         LR("Promo", f"-{discount_val:,.2f}")
     if shipping_amt:
         LR("Express", f"{shipping_amt:,.2f}")
+    if green_packing_amt:
+        LR("Green Packing", f"{green_packing_amt:,.2f}")
+    if notification_fee_amt:
+        LR("Notification Fee", f"{notification_fee_amt:,.2f}")
     if gst_rate > 0:
         LR(f"CGST @{gst_rate/2:.0f}%", f"{cgst:,.2f}")
         LR(f"SGST @{gst_rate/2:.0f}%", f"{sgst:,.2f}")

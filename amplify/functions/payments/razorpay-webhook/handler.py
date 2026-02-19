@@ -299,14 +299,21 @@ def _handle_payment_failed(event_data: Dict, request_id: str) -> None:
     if reference_id:
         try:
             import time as _time
-            # Invoke invoice-engine to find and update the invoice
+            # Full pagination to avoid DynamoDB Limit bug
             inv_table = dynamodb.Table(os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable'))
-            result = inv_table.scan(
-                FilterExpression='referenceId = :ref AND (paymentStatus = :ps1 OR paymentStatus = :ps2)',
-                ExpressionAttributeValues={':ref': reference_id, ':ps1': 'pending', ':ps2': 'pending_payment'},
-                Limit=10,
-            )
-            for inv in result.get('Items', []):
+            matched = []
+            scan_kwargs = {
+                'FilterExpression': 'referenceId = :ref AND (paymentStatus = :ps1 OR paymentStatus = :ps2)',
+                'ExpressionAttributeValues': {':ref': reference_id, ':ps1': 'pending', ':ps2': 'pending_payment'},
+            }
+            while True:
+                result = inv_table.scan(**scan_kwargs)
+                matched.extend(result.get('Items', []))
+                if 'LastEvaluatedKey' in result:
+                    scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
+                else:
+                    break
+            for inv in matched:
                 inv_table.update_item(
                     Key={'invoiceId': inv['invoiceId']},
                     UpdateExpression='SET paymentStatus = :ps, updatedAt = :now, notes = if_not_exists(notes, :empty)',
