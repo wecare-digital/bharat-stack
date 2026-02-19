@@ -12,7 +12,7 @@ interface IR { name:string; unitPrice:string; quantity:string; gstRate:string; }
 
 const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'' };
 const NEW_ITEM = ():IR => ({ name:'', unitPrice:'', quantity:'1', gstRate:'18' });
-const EMPTY_INV = { items:[NEW_ITEM()] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'', greenPacking:'', notificationFee:'' };
+const EMPTY_INV = { items:[NEW_ITEM(), { name:'Green Packing', unitPrice:'49', quantity:'1', gstRate:'18' }, { name:'Notification Fee', unitPrice:'19', quantity:'1', gstRate:'18' }] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'' };
 const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Gift Card','Service Fee','Consultation'] };
 const TABS:ShellTab[] = [
   { id:'customers', label:'Customers', icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#664FC2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3.468a4.5 4.5 0 0 1 0 8.064m2 5.234c1.512.684 2.872 1.799 4 3.234M2 20c1.946-2.477 4.59-4 7.5-4s5.553 1.523 7.5 4M14 7.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0"/></svg>' },
@@ -21,6 +21,11 @@ const TABS:ShellTab[] = [
   { id:'dues', label:'Dues', icon:'<svg width="16" height="16" viewBox="0 0 24 24"><g fill="none" stroke="#664FC2" stroke-miterlimit="10" stroke-width="1.5"><path stroke-linecap="square" d="M4.36 1.5h15.27v21H4.36zm11.46 15.27z"/><path stroke-linecap="square" d="M8.18 5.32h7.64v3.82H8.18z"/><path d="M12 12v1.91M8.18 12v1.91m3.82.95v1.91m-3.82-1.91v1.91m3.82.96v1.91m-3.82-1.91v1.91M15.82 12v1.91"/></g></svg>' },
   { id:'config', label:'Config', icon:'<svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="#664FC2" stroke-miterlimit="10" stroke-width="1.5" d="M20.59 12a8 8 0 0 0-.15-1.57l2.09-1.2-2.87-5-2.08 1.2a8.7 8.7 0 0 0-2.72-1.56V1.5H9.14v2.41a8.7 8.7 0 0 0-2.72 1.56l-2.08-1.2-2.87 5 2.09 1.2a8.3 8.3 0 0 0 0 3.14l-2.09 1.2 2.87 5 2.08-1.2a8.7 8.7 0 0 0 2.72 1.56v2.33h5.72v-2.41a8.7 8.7 0 0 0 2.72-1.56l2.08 1.2 2.87-5-2.09-1.2a8 8 0 0 0 .15-1.53Z"/><circle cx="12" cy="12" r="3.82" fill="none" stroke="#664FC2" stroke-miterlimit="10" stroke-width="1.5"/></svg>' },
 ];
+const CFG_KEY = 'wecare_flow_config';
+const loadSavedConfig = (): FC => {
+  try { const s = localStorage.getItem(CFG_KEY); if (s) return { ...DEF_CFG, ...JSON.parse(s) }; } catch {}
+  return DEF_CFG;
+};
 const STATUS_FILTERS = [
   { id:'all', label:'All' },
   { id:'created', label:'Created' },
@@ -54,7 +59,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [remarkAmount, setRemarkAmount] = useState('');
   const [editModal, setEditModal] = useState<Invoice|null>(null);
   const [editForm, setEditForm] = useState<{customerName:string;customerPhone:string;customerEmail:string;shipping:string;discount:string;purpose:string;orderId:string;notes:string}>({customerName:'',customerPhone:'',customerEmail:'',shipping:'0',discount:'0',purpose:'',orderId:'',notes:''});
-  const [config, setConfig] = useState<FC>(DEF_CFG);
+  const [config, setConfig] = useState<FC>(() => loadSavedConfig());
   const [configSaving, setConfigSaving] = useState(false);
   const [msg, setMsg] = useState<{text:string;type:'success'|'error'}|null>(null);
   const showMsg = (text:string, type:'success'|'error'='success') => { setMsg({text,type}); setTimeout(()=>setMsg(null),4000); };
@@ -102,7 +107,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const calcSubtotal = () => invForm.items.reduce((s,it) => s + (parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0), 0);
   const calcTax = () => invForm.items.reduce((s,it) => { const line=(parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0); return s + line*(parseFloat(it.gstRate)||0)/100; }, 0);
   const calcTotal = () => {
-    return calcSubtotal() + calcTax() + (parseFloat(invForm.shipping)||0) - (parseFloat(invForm.discount)||0) + (parseFloat(invForm.greenPacking)||0) + (parseFloat(invForm.notificationFee)||0);
+    return calcSubtotal() + calcTax() + (parseFloat(invForm.shipping)||0) - (parseFloat(invForm.discount)||0);
   };
 
   const submitInvoice = async () => {
@@ -115,16 +120,12 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         customerName: selCustomer.name, contactId: selCustomer.id,
         shippingAddress: selCustomer.shippingAddress||'', billingAddress: selCustomer.billingAddress||'',
         items: invForm.items.map(it=>({ name:it.name||config.default_item_name, amount:parseFloat(it.unitPrice)||0, quantity:parseInt(it.quantity)||1, gstRate:parseFloat(it.gstRate)||config.default_gst_rate })),
-        shipping: (parseFloat(invForm.shipping)||0) + (parseFloat(invForm.greenPacking)||0) + (parseFloat(invForm.notificationFee)||0),
-        greenPacking: parseFloat(invForm.greenPacking)||0,
-        notificationFee: parseFloat(invForm.notificationFee)||0,
-        greenPacking: parseFloat(invForm.greenPacking)||0,
-        notificationFee: parseFloat(invForm.notificationFee)||0,
+        shipping: parseFloat(invForm.shipping)||0,
         discount: parseFloat(invForm.discount)||0, gstRate: config.default_gst_rate,
         purpose: invForm.purpose, orderId: invForm.orderId, gstin: config.gstin,
       };
       const r = await api.createInvoiceEngine(req);
-      if(r) { showMsg(`Invoice ${r.invoiceNumber} created \u2014 \u20B9${r.total}`); setInvForm({...EMPTY_INV, items:[NEW_ITEM()]}); setSelCustomer(null); loadInvoices(); }
+      if(r) { showMsg(`Invoice ${r.invoiceNumber} created \u2014 \u20B9${r.total}`); setInvForm({...EMPTY_INV}); setSelCustomer(null); loadInvoices(); }
       else showMsg('Create failed','error');
     } catch(e) { showMsg('Create failed','error'); }
     setCreating(false);
@@ -326,13 +327,20 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                       </tbody>
                     </table>
                   </div>
-                  <Button variant="secondary" size="sm" onClick={addItem} style={{marginBottom:20}}>+ Add Item</Button>
-                  <h4 style={{margin:'0 0 8px',fontSize:15}}>Additional Charges</h4>
+                  <Button variant="secondary" size="sm" onClick={addItem} style={{marginBottom:4}}>+ Add Item</Button>
+                  {' '}
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    const items = [...invForm.items];
+                    const names = items.map(it => it.name.toLowerCase());
+                    if (!names.some(n => n.includes('green') && n.includes('pack'))) items.push({ name:'Green Packing', unitPrice:'49', quantity:'1', gstRate:'18' });
+                    if (!names.some(n => n.includes('notification') || n.includes('alert'))) items.push({ name:'Notification Fee', unitPrice:'19', quantity:'1', gstRate:'18' });
+                    setInvForm({...invForm, items});
+                  }} style={{marginBottom:4,fontSize:12,color:'#059669'}}>+ Green Packing & Notification Fee</Button>
+                  <h4 style={{margin:'12px 0 8px',fontSize:15}}>Additional Charges</h4>
                   <div className="pf-form-grid">
                     <div className="form-group"><label>Express / Shipping ({'\u20B9'})</label><input type="number" value={invForm.shipping} onChange={e=>setInvForm({...invForm,shipping:e.target.value})} /></div>
                     <div className="form-group"><label>Promo / Discount ({'\u20B9'})</label><input type="number" value={invForm.discount} onChange={e=>setInvForm({...invForm,discount:e.target.value})} /></div>
-                    <div className="form-group"><label>Green Packing ({'\u20B9'})</label><input type="number" value={invForm.greenPacking} onChange={e=>setInvForm({...invForm,greenPacking:e.target.value})} placeholder="0" /></div>
-                    <div className="form-group"><label>Notification / Alert Fee ({'\u20B9'})</label><input type="number" value={invForm.notificationFee} onChange={e=>setInvForm({...invForm,notificationFee:e.target.value})} placeholder="0" /></div>
+
                   </div>
                   <div className="pf-form-grid">
                     <div className="form-group">
@@ -347,10 +355,12 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                   <div className="inner-card" style={{marginBottom:20,maxWidth:500}}>
                     <h4 style={{margin:'0 0 8px',fontSize:14}}>Preview</h4>
                     <div className="pf-preview-row"><span>Subtotal</span><span>{fmtMoney(calcSubtotal())}</span></div>
+                    {invForm.items.map((it,i) => {
+                      const line = (parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0);
+                      return line > 0 ? <div key={i} className="pf-preview-row" style={{fontSize:12,color:'#666'}}><span>{'\u00A0\u00A0'}{it.name||`Item ${i+1}`} {'\u00D7'}{it.quantity||1}</span><span>{fmtMoney(line)}</span></div> : null;
+                    })}
                     <div className="pf-preview-row"><span>Tax (GST)</span><span>{fmtMoney(calcTax())}</span></div>
                     <div className="pf-preview-row"><span>Express</span><span>{fmtMoney(parseFloat(invForm.shipping)||0)}</span></div>
-                    {(parseFloat(invForm.greenPacking)||0)>0 && <div className="pf-preview-row"><span>Green Packing</span><span>{fmtMoney(parseFloat(invForm.greenPacking)||0)}</span></div>}
-                    {(parseFloat(invForm.notificationFee)||0)>0 && <div className="pf-preview-row"><span>Notification Fee</span><span>{fmtMoney(parseFloat(invForm.notificationFee)||0)}</span></div>}
                     <div className="pf-preview-row"><span>Promo</span><span>{'\u2212'}{fmtMoney(parseFloat(invForm.discount)||0)}</span></div>
                     <div className="pf-preview-total"><span>Total</span><span>{fmtMoney(calcTotal())}</span></div>
                   </div>
@@ -524,7 +534,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                 <label>Brands (one per line)</label>
                 <textarea rows={6} value={config.purposes.join('\n')} onChange={e=>setConfig({...config,purposes:e.target.value.split('\n').filter(Boolean)})} />
               </div>
-              <Button variant="primary" size="sm" loading={configSaving} onClick={()=>{setConfigSaving(true);setTimeout(()=>{setConfigSaving(false);showMsg('Config saved');},500);}}>Save Config</Button>
+              <Button variant="primary" size="sm" loading={configSaving} onClick={()=>{setConfigSaving(true);try{localStorage.setItem(CFG_KEY,JSON.stringify(config));}catch{}setTimeout(()=>{setConfigSaving(false);showMsg('Config saved');},300);}}>Save Config</Button>
             </div>
           )}
 
