@@ -277,13 +277,13 @@ response = requests.post(
         <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
           <div className="explore-grid">
             <a href="/nocode" className="explore-card">
-              <div className="explore-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23664FC2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m17 17 5-5-5-5M7 7l-5 5 5 5m7-14-4 18'/%3e%3c/svg%3e" alt="NoCode" /></div>
+              <div className="cap-icon"><img src="https://img.icons8.com/ios/250/000000/source-code.png" alt="NoCode" loading="lazy" /></div>
               <h3>NoCode</h3>
               <p>Build workflows, automations and integrations without writing a single line of code</p>
               <span className="explore-link">Explore →</span>
             </a>
             <a href="/carbon" className="explore-card">
-              <div className="explore-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23664FC2' stroke-miterlimit='10' stroke-width='1.5' d='M16.64 19.09a5.43 5.43 0 0 1-4.16 2.08h-1a7.4 7.4 0 0 1-5.07-2.08C1 12 12 2 12 2l5 7.45a8.29 8.29 0 0 1-.36 9.64ZM11.97 9.3V23m-3.65-8.22 3.65 3.65m2.74-6.39-2.74 2.74'/%3e%3c/svg%3e" alt="Carbon" /></div>
+              <div className="cap-icon"><img src="https://img.icons8.com/ios/250/000000/leaf.png" alt="Carbon" loading="lazy" /></div>
               <h3>Carbon</h3>
               <p>Track, reduce and offset your digital carbon footprint with every message you send</p>
               <span className="explore-link">Explore →</span>
@@ -403,8 +403,6 @@ response = requests.post(
           .explore-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1100px;margin:0 auto}
           .explore-card{display:block;background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:32px 28px;text-decoration:none;color:inherit;transition:all .25s}
           .explore-card:hover,.explore-card:active,.explore-card:focus{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
-          .explore-icon{width:52px;height:52px;background:#fff;border:2px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
-          .explore-icon img{width:100%;height:100%;object-fit:contain}
           .explore-card h3{font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px}
           .explore-card p{font-size:17px;color:#6b7280;margin:0 0 16px;line-height:1.6}
           .explore-link{font-size:15px;font-weight:600;color:#059669}
@@ -534,7 +532,6 @@ response = requests.post(
             .explore-section{padding:24px 20px 44px}
             .explore-grid{grid-template-columns:1fr;gap:14px}
             .explore-card{padding:24px 20px}
-            .explore-icon{width:50px;height:50px;margin-bottom:16px;padding:10px}
             .explore-card h3{font-size:22px}
             .explore-card p{font-size:20px}
             
