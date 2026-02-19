@@ -1561,7 +1561,9 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
             for item in resp.get('Items', []):
                 inv_phone = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
                 inv_ref = item.get('referenceId', '')
-                if inv_phone.endswith(last10) and inv_ref != paid_reference_id:
+                inv_ps = item.get('paymentStatus', '')
+                # Skip the just-paid invoice AND any invoice already captured/paid
+                if inv_phone.endswith(last10) and inv_ref != paid_reference_id and inv_ps not in ('captured', 'paid', 'refunded'):
                     remaining.append(item)
             if 'LastEvaluatedKey' in resp:
                 scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']

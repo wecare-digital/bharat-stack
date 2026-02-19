@@ -290,15 +290,45 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
             if existing:
                 inv = existing[0]
+                existing_id = inv.get('invoiceId', '')
+
+                # If caller says this is now paid, update the existing invoice status
+                incoming_status = body.get('status', '')
+                incoming_ps = body.get('paymentStatus', '')
+                if incoming_status == 'paid' and incoming_ps == 'captured' and inv.get('paymentStatus') != 'captured':
+                    try:
+                        table.update_item(
+                            Key={'invoiceId': existing_id},
+                            UpdateExpression='SET #st = :st, #ps = :ps, #pa = :pa, #ua = :now',
+                            ExpressionAttributeNames={'#st': 'status', '#ps': 'paymentStatus', '#pa': 'paidAt', '#ua': 'updatedAt'},
+                            ExpressionAttributeValues={
+                                ':st': 'paid', ':ps': 'captured',
+                                ':pa': body.get('paidAt', now), ':now': now,
+                            },
+                        )
+                        logger.info(json.dumps({
+                            'event': 'invoice_dedup_status_updated',
+                            'invoiceId': existing_id,
+                            'newStatus': 'paid',
+                            'requestId': request_id,
+                        }))
+                    except Exception as upd_err:
+                        logger.warning(json.dumps({
+                            'event': 'invoice_dedup_status_update_error',
+                            'invoiceId': existing_id,
+                            'error': str(upd_err),
+                            'requestId': request_id,
+                        }))
+
                 logger.info(json.dumps({
                     'event': 'invoice_dedup_hit',
-                    'existingInvoiceId': inv.get('invoiceId', ''),
+                    'existingInvoiceId': existing_id,
                     'referenceId': reference_id,
                     'paymentId': payment_id,
                     'requestId': request_id,
                 }))
                 return _resp(200, {
-                    'invoiceId': inv.get('invoiceId', ''),
+                    'invoiceId': existing_id,
                     'invoiceNumber': inv.get('invoiceNumber', ''),
                     'total': float(inv.get('total', 0)),
                     'referenceId': inv.get('referenceId', ''),
