@@ -274,6 +274,23 @@ response = requests.post(
           <h2>Transform your customer<br/>experience with<br/>Base CRM</h2>
         </section>
 
+        <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
+          <div className="explore-grid">
+            <a href="/nocode" className="explore-card">
+              <div className="explore-icon">⚡</div>
+              <h3>NoCode</h3>
+              <p>Build workflows, automations and integrations without writing a single line of code</p>
+              <span className="explore-link">Explore →</span>
+            </a>
+            <a href="/carbon" className="explore-card">
+              <div className="explore-icon">🌱</div>
+              <h3>Carbon</h3>
+              <p>Track, reduce and offset your digital carbon footprint with every message you send</p>
+              <span className="explore-link">Explore →</span>
+            </a>
+          </div>
+        </section>
+
         <footer className="ftr">
           <div className="ftr-in">
             <a href="https://www.wecare.digital/contact" className="ftr-contact">Contact us</a>
@@ -380,6 +397,16 @@ response = requests.post(
           .cta-section{padding:60px 24px;text-align:center;background:#fff}
           .cta-section h2{font-size:42px;font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           
+          /* Explore Section */
+          .explore-section{padding:40px 24px 60px;background:#fff}
+          .explore-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1100px;margin:0 auto}
+          .explore-card{display:block;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px 28px;text-decoration:none;color:inherit;transition:all .25s}
+          .explore-card:hover{border-color:#10b981;box-shadow:0 8px 24px rgba(16,185,129,.12);transform:translateY(-2px)}
+          .explore-icon{font-size:36px;margin-bottom:16px}
+          .explore-card h3{font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px}
+          .explore-card p{font-size:17px;color:#6b7280;margin:0 0 16px;line-height:1.6}
+          .explore-link{font-size:15px;font-weight:600;color:#059669}
+          
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
@@ -428,6 +455,11 @@ response = requests.post(
             
             .cta-section{padding:50px 20px}
             .cta-section h2{font-size:34px}
+            .explore-section{padding:30px 20px 50px}
+            .explore-grid{gap:16px}
+            .explore-card{padding:24px 20px}
+            .explore-card h3{font-size:20px}
+            .explore-card p{font-size:15px}
           }
 
           /* ========== MOBILE (up to 767px) ========== */
@@ -497,6 +529,12 @@ response = requests.post(
             
             .cta-section{padding:44px 20px}
             .cta-section h2{font-size:34px;line-height:1.2;max-width:100%}
+            .explore-section{padding:24px 20px 44px}
+            .explore-grid{grid-template-columns:1fr;gap:14px}
+            .explore-card{padding:24px 20px}
+            .explore-icon{font-size:32px;margin-bottom:12px}
+            .explore-card h3{font-size:22px}
+            .explore-card p{font-size:20px}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
             .ftr-contact{font-size:24px}

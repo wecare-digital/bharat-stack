@@ -380,7 +380,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   
-  const isPublic = router.pathname === '/';
+  const isPublic = router.pathname === '/' || router.pathname === '/nocode' || router.pathname === '/carbon';
 
   useEffect(() => {
     setMounted(true);
