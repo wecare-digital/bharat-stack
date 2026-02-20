@@ -169,7 +169,7 @@ response = requests.post(
           <div className="hdr-in">
             <div className="logo">
               <img src="https://app.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="logo-img" />
-              <div className="logo-text"><span className="logo-main">Base CRM</span><span className="logo-sub">by WECARE.DIGITAL</span></div>
+              <div className="logo-text"><span className="logo-main">Base CRM</span><a href="https://www.wecare.digital" className="logo-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a></div>
             </div>
           </div>
         </header>
@@ -276,18 +276,18 @@ response = requests.post(
 
         <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
           <div className="explore-grid">
-            <a href="/nocode" className="explore-card">
-              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23664FC2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m14 17 3-3-3-3m-4-4-3 3 3 3m-2.2 8h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C21 18.72 21 17.88 21 16.2V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C18.72 3 17.88 3 16.2 3H7.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C3 5.28 3 6.12 3 7.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C5.28 21 6.12 21 7.8 21'/%3e%3c/svg%3e" alt="NoCode" loading="lazy" /></div>
+            <div className="capability-card">
+              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23000000' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m14 17 3-3-3-3m-4-4-3 3 3 3m-2.2 8h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C21 18.72 21 17.88 21 16.2V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C18.72 3 17.88 3 16.2 3H7.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C3 5.28 3 6.12 3 7.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C5.28 21 6.12 21 7.8 21'/%3e%3c/svg%3e" alt="NoCode" loading="lazy" /></div>
               <h3>NoCode</h3>
-              <p>Build workflows, automations and integrations without writing a single line of code</p>
-              <span className="explore-link">Explore →</span>
-            </a>
-            <a href="/carbon" className="explore-card">
-              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23664FC2' stroke-miterlimit='10' stroke-width='1.5' d='M18.68 14.86h-2.24a5.72 5.72 0 0 0-10.35-.95H5.8a4.3 4.3 0 1 0 0 8.59h12.88a3.82 3.82 0 0 0 0-7.64ZM9.14 1.5H11a4.77 4.77 0 0 1 4.77 4.77h-1.86A4.77 4.77 0 0 1 9.14 1.5Zm8.59 4.77h-1.91a4.77 4.77 0 0 1 4.77-4.77h1.91a4.77 4.77 0 0 1-4.77 4.77Zm-1.91 7.64V6.27'/%3e%3c/svg%3e" alt="Carbon" loading="lazy" /></div>
+              <p>To extend human reach by giving everyone the code to leverage their life, built on Base CRM.</p>
+              <a href="/nocode" className="explore-link">Explore →</a>
+            </div>
+            <div className="capability-card">
+              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23000000' stroke-miterlimit='10' stroke-width='1.5' d='M18.68 14.86h-2.24a5.72 5.72 0 0 0-10.35-.95H5.8a4.3 4.3 0 1 0 0 8.59h12.88a3.82 3.82 0 0 0 0-7.64ZM9.14 1.5H11a4.77 4.77 0 0 1 4.77 4.77h-1.86A4.77 4.77 0 0 1 9.14 1.5Zm8.59 4.77h-1.91a4.77 4.77 0 0 1 4.77-4.77h1.91a4.77 4.77 0 0 1-4.77 4.77Zm-1.91 7.64V6.27'/%3e%3c/svg%3e" alt="Carbon" loading="lazy" /></div>
               <h3>Carbon</h3>
-              <p>Track, reduce and offset your digital carbon footprint with every message you send</p>
-              <span className="explore-link">Explore →</span>
-            </a>
+              <p>Turn decarbonisation into business results. Transform sustainability data with Base CRM.</p>
+              <a href="/carbon" className="explore-link">Explore →</a>
+            </div>
           </div>
         </section>
 
@@ -307,7 +307,8 @@ response = requests.post(
           .logo{display:flex;align-items:center;gap:3px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
           .logo-main{font-size:32px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.1}
-          .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px}
+          .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px;text-decoration:none;transition:color .25s}
+          .logo-sub:hover{color:#10b981}
           .logo-img{width:74px;height:74px;border-radius:14px}
           
           /* Animations */
@@ -399,13 +400,10 @@ response = requests.post(
           .cta-section h2{font-size:42px;font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           
           /* Explore Section */
-          .explore-section{padding:40px 24px 60px;background:#fff}
-          .explore-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1100px;margin:0 auto}
-          .explore-card{display:block;background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:32px 28px;text-decoration:none;color:inherit;transition:all .25s}
-          .explore-card:hover,.explore-card:active,.explore-card:focus{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
-          .explore-card h3{font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px}
-          .explore-card p{font-size:17px;color:#6b7280;margin:0 0 16px;line-height:1.6}
-          .explore-link{font-size:15px;font-weight:600;color:#059669}
+          .explore-section{padding:60px 24px;background:#fff}
+          .explore-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:1100px;margin:0 auto}
+          .explore-link{display:block;margin-top:12px;font-size:21px;font-weight:500;color:#10b981;text-decoration:none;transition:color .2s}
+          .explore-link:hover{color:#059669}
           
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
@@ -455,11 +453,7 @@ response = requests.post(
             
             .cta-section{padding:50px 20px}
             .cta-section h2{font-size:34px}
-            .explore-section{padding:30px 20px 50px}
-            .explore-grid{gap:16px}
-            .explore-card{padding:24px 20px}
-            .explore-card h3{font-size:20px}
-            .explore-card p{font-size:15px}
+            .explore-section{padding:50px 20px}
           }
 
           /* ========== MOBILE (up to 767px) ========== */
@@ -481,7 +475,7 @@ response = requests.post(
             .stat span{font-size:28px;font-weight:800;min-width:70px}
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
-            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:20px;border:1px solid #e5e7eb;align-items:flex-start}
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}
@@ -529,11 +523,9 @@ response = requests.post(
             
             .cta-section{padding:44px 20px}
             .cta-section h2{font-size:34px;line-height:1.2;max-width:100%}
-            .explore-section{padding:24px 20px 44px}
+            .explore-section{padding:44px 20px}
             .explore-grid{grid-template-columns:1fr;gap:14px}
-            .explore-card{padding:24px 20px}
-            .explore-card h3{font-size:22px}
-            .explore-card p{font-size:20px}
+            .explore-link{font-size:21px}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
             .ftr-contact{font-size:24px}
@@ -553,7 +545,7 @@ response = requests.post(
             .stat span{font-size:26px;min-width:65px}
             .stat small{font-size:18px}
             
-            .mockup-wrapper{padding:14px;border-radius:18px;gap:12px;max-width:100%}
+            .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
             .phone-header{padding:12px 14px}
             .avatar{width:38px;height:38px;font-size:16px}
@@ -587,6 +579,7 @@ response = requests.post(
             
             .cta-section{padding:36px 16px}
             .cta-section h2{font-size:32px;line-height:1.2;max-width:100%}
+            .explore-link{font-size:21px}
             
             .ftr-contact{font-size:22px}
           }
@@ -600,7 +593,7 @@ response = requests.post(
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{font-size:32px}
-            .hero-left p{font-size:19px}
+            .hero-left p{font-size:20px}
             .hero-stats{gap:8px}
             .stat{padding:14px 16px;min-width:85px}
             .stat span{font-size:22px}
@@ -620,8 +613,6 @@ response = requests.post(
             .cta-section h2{font-size:28px}
             
             .ftr-contact{font-size:19px}
-            
-            .ftr-contact{font-size:17px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
