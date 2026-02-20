@@ -470,7 +470,7 @@ response = requests.post(
             .logo-main{font-size:32px}
             .logo-sub{font-size:17px}
             
-            .hero{padding:calc(140px + env(safe-area-inset-top)) 20px 50px}
+            .hero{padding:calc(115px + env(safe-area-inset-top)) 20px 50px}
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
@@ -495,12 +495,11 @@ response = requests.post(
             .typing-indicator span{width:8px;height:8px}
             
             .code-box{position:relative;right:auto;bottom:auto;width:100%;max-width:100%;margin:0;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.1);align-self:flex-start}
-            .code-body{text-align:left}
             .code-header{padding:14px 16px}
             .dots{gap:6px}
             .dot-red,.dot-yellow,.dot-green{width:12px;height:12px}
             .file-name{font-size:15px}
-            .code-body{font-size:15px;padding:16px;line-height:1.6}
+            .code-body{font-size:15px;padding:16px;line-height:1.6;text-align:left}
             
             .section-header{margin-bottom:28px;padding:0 20px;text-align:center}
             .section-header h2{font-size:38px;margin-bottom:12px;line-height:1.15;text-align:center}
@@ -508,7 +507,7 @@ response = requests.post(
             
             .touchpoint{padding:44px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:16px 28px;font-size:24px}
+            .pill{padding:14px 26px;font-size:20px}
             
             .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
@@ -568,7 +567,7 @@ response = requests.post(
             
             .touchpoint{padding:36px 16px}
             .usecase-pills{gap:10px}
-            .pill{padding:14px 22px;font-size:22px}
+            .pill{padding:12px 20px;font-size:18px}
             
             .api{padding:36px 16px}
             .api-info h2{font-size:36px;text-align:left}
