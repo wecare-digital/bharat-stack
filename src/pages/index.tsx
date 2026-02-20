@@ -258,6 +258,7 @@ response = requests.post(
           <div className="section-header">
             <h2>Everything you need<br/>to grow customer relationships</h2>
             <p>AI-powered lifecycle management that delivers results</p>
+            <div className="section-divider"><span /></div>
           </div>
           <div className="capabilities-grid">
             {capabilities.map((cap, i) => (
@@ -273,6 +274,8 @@ response = requests.post(
         <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
           <h2>Transform your customer<br/>experience with<br/>Base CRM</h2>
         </section>
+
+        <div className="section-divider"><span /></div>
 
         <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
           <div className="explore-grid">
@@ -400,6 +403,9 @@ response = requests.post(
           .cta-section h2{font-size:42px;font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           
           /* Explore Section */
+          .section-divider{display:flex;justify-content:center;padding:0 24px}
+          .section-divider span{display:block;width:60px;height:3px;border-radius:3px;background:#10b981}
+          .section-header .section-divider{margin-top:16px;padding:0}
           .explore-section{padding:60px 24px;background:#fff}
           .explore-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .explore-link{display:block;margin-top:12px;font-size:21px;font-weight:500;color:#10b981;text-decoration:none;transition:color .2s}
