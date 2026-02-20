@@ -48,10 +48,10 @@ const CarbonPage: React.FC = () => {
         <header className="hdr">
           <div className="hdr-in">
             <a href="/" className="logo">
-              <img src={LOGO_URL} alt="WECARE.DIGITAL" className="logo-img" />
+              <img src={LOGO_URL} alt="Base CRM" className="logo-img" />
               <div className="logo-text">
-                <span className="logo-main">WECARE</span>
-                <span className="logo-sub">.DIGITAL</span>
+                <span className="logo-main">Base CRM</span>
+                <a href="https://www.wecare.digital" className="logo-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
               </div>
             </a>
           </div>
@@ -105,10 +105,11 @@ const CarbonPage: React.FC = () => {
           .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
           .hdr-in{max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
           .logo{display:flex;align-items:center;gap:3px;text-decoration:none}
-          .logo-img{width:74px;height:74px;border-radius:14px}
+          .logo-img{width:74px;height:74px;border-radius:14px;position:relative;top:-2px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
           .logo-main{font-size:32px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.1}
-          .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px}
+          .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px;text-decoration:none;transition:color .25s}
+          .logo-sub:hover{color:#10b981}
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
           .anim.show{opacity:1;transform:translateY(0)}
           .hero{padding:140px 24px 60px;max-width:700px;margin:0 auto;text-align:center}
@@ -164,9 +165,9 @@ const CarbonPage: React.FC = () => {
 
           @media(max-width:767px){
             .hdr-in{padding:12px 16px}
-            .logo-img{width:66px;height:66px;border-radius:14px}
-            .logo-main{font-size:28px}
-            .logo-sub{font-size:16px}
+            .logo-img{width:74px;height:74px;border-radius:14px}
+            .logo-main{font-size:32px}
+            .logo-sub{font-size:17px}
             .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 44px}
             .badge-icon{width:56px;height:56px;padding:12px}
             .hero h1{font-size:42px;letter-spacing:-0.5px;line-height:1.12}
@@ -185,13 +186,14 @@ const CarbonPage: React.FC = () => {
             .cta{padding:44px 20px}
             .cta h2{font-size:34px;line-height:1.2}
             .cta p{font-size:24px}
+            .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
             .ftr a{font-size:24px}
           }
 
           @media(max-width:480px){
-            .logo-img{width:58px;height:58px;border-radius:12px}
-            .logo-main{font-size:26px}
-            .logo-sub{font-size:14px}
+            .logo-img{width:66px;height:66px;border-radius:12px}
+            .logo-main{font-size:28px}
+            .logo-sub{font-size:15px}
             .hero h1{font-size:38px;line-height:1.15}
             .hero p{font-size:22px}
             .stat span{font-size:26px;min-width:65px}

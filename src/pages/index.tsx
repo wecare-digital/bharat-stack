@@ -309,7 +309,7 @@ response = requests.post(
           .logo-main{font-size:32px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.1}
           .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px;text-decoration:none;transition:color .25s}
           .logo-sub:hover{color:#10b981}
-          .logo-img{width:74px;height:74px;border-radius:14px}
+          .logo-img{width:74px;height:74px;border-radius:14px;position:relative;top:-2px}
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
