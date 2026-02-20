@@ -59,12 +59,12 @@ response = requests.post(
   ];
 
   const capabilities = [
-    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: 'https://img.icons8.com/ios/250/000000/database.png' },
-    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: 'https://img.icons8.com/ios/250/000000/layers.png' },
-    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: 'https://img.icons8.com/ios/250/000000/source-code.png' },
-    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: 'https://img.icons8.com/ios/250/000000/conference-background-selected.png' },
-    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: 'https://img.icons8.com/ios/250/000000/lightning-bolt.png' },
-    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: 'https://img.icons8.com/ios/250/000000/area-chart.png' },
+    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3e%3cg fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' data-name='roll brush'%3e%3cpath d='M22.51 4.36c0 .87-1.38 1.63-3.58 2.16a30.8 30.8 0 0 1-7 .72 31 31 0 0 1-7-.72C2.79 6 1.41 5.23 1.41 4.36c0-1.59 4.73-2.87 10.59-2.87s10.51 1.28 10.51 2.87Z'/%3e%3cpath d='M22.51 4.36V12c0 .86-1.38 1.63-3.58 2.15a30.2 30.2 0 0 1-7 .72 30.3 30.3 0 0 1-7-.72C2.79 13.67 1.41 12.9 1.41 12V4.36C1.41 5.23 2.79 6 5 6.52a31 31 0 0 0 7 .72 30.8 30.8 0 0 0 7-.72c2.13-.52 3.51-1.29 3.51-2.16Z'/%3e%3cpath d='M22.51 12v7.67c0 .86-1.38 1.63-3.58 2.16a30.8 30.8 0 0 1-7 .72 31 31 0 0 1-7-.72c-2.19-.53-3.57-1.3-3.57-2.16V12c0 .86 1.38 1.63 3.57 2.15a30.3 30.3 0 0 0 7 .72 30.2 30.2 0 0 0 7-.72c2.2-.48 3.58-1.25 3.58-2.15ZM11 11.08h1.92m1.91 0h1.92m-9.59 0h1.92M11 18.75h1.92m1.91 0h1.92m-9.59 0h1.92'/%3e%3c/g%3e%3c/svg%3e" },
+    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M14 20a2 2 0 1 1-4 0m4 0a2 2 0 0 0-2-2m2 2h7m-11 0a2 2 0 0 1 2-2m-2 2H3m9-2v-4m9-9c0 1.657-4.03 3-9 3S3 6.657 3 5m18 0c0-1.657-4.03-3-9-3S3 3.343 3 5m18 0v6c0 1.66-4 3-9 3M3 5v6c0 1.66 4 3 9 3'/%3e%3c/svg%3e" },
+    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M7.23 10.14H1.5v5.72m14.32-9.54L12 2.5 8.18 6.32M12 2.5v21'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m1.5 10.14 5.56 5.56a3.82 3.82 0 0 1 1.12 2.7v5.1m8.59-13.36h5.73v5.72'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m22.5 10.14-5.56 5.56a3.82 3.82 0 0 0-1.12 2.7v5.1'/%3e%3c/svg%3e" },
+    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='%23333333' viewBox='0 0 16 16'%3e%3cpath d='M9 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m-9 8c0 1 1 1 1 1h10s1 0 1-1-1-4-6-4-6 3-6 4m13.5-8.09c1.387-1.425 4.855 1.07 0 4.277-4.854-3.207-1.387-5.702 0-4.276Z'/%3e%3c/svg%3e" },
+    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M13 2 3 14h9l-1 8 10-12h-9l1-8Z'/%3e%3c/svg%3e" },
+    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' stroke-width='1.5' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' d='m21 19.452-9-6.61m0 0V3m0 9.843-9 6.609m17.438-2.742L21 19.452 18.188 20M9.75 5.194 12 3l2.25 2.194M5.813 20 3 19.452l.563-2.742'/%3e%3c/svg%3e" },
   ];
 
   return (
@@ -277,13 +277,13 @@ response = requests.post(
         <section className={`explore-section anim ${show('explore') ? 'show' : ''}`} id="explore">
           <div className="explore-grid">
             <div className="capability-card">
-              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23000000' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m14 17 3-3-3-3m-4-4-3 3 3 3m-2.2 8h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C21 18.72 21 17.88 21 16.2V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C18.72 3 17.88 3 16.2 3H7.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C3 5.28 3 6.12 3 7.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C5.28 21 6.12 21 7.8 21'/%3e%3c/svg%3e" alt="NoCode" loading="lazy" /></div>
+              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M19 9V7a2 2 0 0 0-2-2h-2m4 4v6m0-6h2m-2 6v2a2 2 0 0 1-2 2h-2m4-4h2m-6 4H9m6 0v2m-6-2H7a2 2 0 0 1-2-2v-2m4 4v2M9 5H7a2 2 0 0 0-2 2v2m4-4V3m0 2h6m0 0V3M5 15H3m2 0V9m0 0H3m8 1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1'/%3e%3cpath fill='%23333333' fill-rule='evenodd' d='M19 7v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2m-8 3h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1' clip-rule='evenodd' opacity='.25'/%3e%3c/svg%3e" alt="NoCode" loading="lazy" /></div>
               <h3>NoCode</h3>
               <p>To extend human reach by giving everyone the code to leverage their life, built on Base CRM.</p>
               <a href="/nocode" className="explore-link">Explore →</a>
             </div>
             <div className="capability-card">
-              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23000000' stroke-miterlimit='10' stroke-width='1.5' d='M18.68 14.86h-2.24a5.72 5.72 0 0 0-10.35-.95H5.8a4.3 4.3 0 1 0 0 8.59h12.88a3.82 3.82 0 0 0 0-7.64ZM9.14 1.5H11a4.77 4.77 0 0 1 4.77 4.77h-1.86A4.77 4.77 0 0 1 9.14 1.5Zm8.59 4.77h-1.91a4.77 4.77 0 0 1 4.77-4.77h1.91a4.77 4.77 0 0 1-4.77 4.77Zm-1.91 7.64V6.27'/%3e%3c/svg%3e" alt="Carbon" loading="lazy" /></div>
+              <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m15 1-3 3-3-3m0 22 3-3 3 3M12 4v16'/%3e%3ccircle cx='12' cy='7' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3ccircle cx='12' cy='17' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M3.97 3.9 5.07 8 .97 9.1m19.06 11-1.1-4.1 4.1-1.1M5.07 8l13.86 8'/%3e%3ccircle cx='7.67' cy='9.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3ccircle cx='16.33' cy='14.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M20.03 3.9 18.93 8l4.1 1.1m-19.06 11 1.1-4.1-4.1-1.1M18.93 8 5.07 16'/%3e%3ccircle cx='16.33' cy='9.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3ccircle cx='7.67' cy='14.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M2 12h2m16 0h2M7 20.66l1-1.73m8-13.86 1-1.73m0 17.32-1-1.73M8 5.07 7 3.34'/%3e%3c/svg%3e" alt="Carbon" loading="lazy" /></div>
               <h3>Carbon</h3>
               <p>Turn decarbonisation into business results. Transform sustainability data with Base CRM.</p>
               <a href="/carbon" className="explore-link">Explore →</a>
@@ -460,11 +460,11 @@ response = requests.post(
           @media(max-width:767px){
             .hdr-in{padding:12px 16px}
             .logo{gap:3px}
-            .logo-img{width:66px;height:66px;border-radius:14px}
-            .logo-main{font-size:28px}
-            .logo-sub{font-size:16px}
+            .logo-img{width:74px;height:74px;border-radius:14px}
+            .logo-main{font-size:32px}
+            .logo-sub{font-size:17px}
             
-            .hero{padding:calc(130px + env(safe-area-inset-top)) 20px 50px}
+            .hero{padding:calc(140px + env(safe-area-inset-top)) 20px 50px}
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
@@ -534,9 +534,9 @@ response = requests.post(
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
-            .logo-img{width:58px;height:58px;border-radius:12px}
-            .logo-main{font-size:26px}
-            .logo-sub{font-size:14px}
+            .logo-img{width:66px;height:66px;border-radius:12px}
+            .logo-main{font-size:28px}
+            .logo-sub{font-size:15px}
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
             .hero-left h1{font-size:38px;line-height:1.15}
@@ -588,9 +588,9 @@ response = requests.post(
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             .hdr-in{padding:10px 12px}
-            .logo-img{width:54px;height:54px;border-radius:11px}
-            .logo-main{font-size:24px}
-            .logo-sub{font-size:13px}
+            .logo-img{width:58px;height:58px;border-radius:11px}
+            .logo-main{font-size:26px}
+            .logo-sub{font-size:14px}
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{font-size:32px}
