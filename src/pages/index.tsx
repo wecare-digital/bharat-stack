@@ -562,7 +562,7 @@ response = requests.post(
             
             .touchpoint{padding:36px 16px}
             .usecase-pills{gap:10px}
-            .pill{padding:14px 22px;font-size:19px}
+            .pill{padding:14px 22px;font-size:22px}
             
             .api{padding:36px 16px}
             .api-info h2{font-size:36px;text-align:left}
@@ -575,12 +575,12 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
-            .capability-card h3{font-size:20px;text-align:left}
-            .capability-card p{font-size:20px;text-align:left}
+            .capability-card h3{font-size:22px;text-align:left}
+            .capability-card p{font-size:22px;text-align:left}
             
             .cta-section{padding:36px 16px}
-            .cta-section h2{font-size:32px;line-height:1.2;max-width:100%}
-            .explore-link{font-size:24px}
+            .cta-section h2{font-size:36px;line-height:1.2;max-width:100%}
+            .explore-link{font-size:22px}
             
             .ftr-contact{font-size:22px}
           }
@@ -611,7 +611,8 @@ response = requests.post(
             .capability-card h3{font-size:18px}
             .capability-card p{font-size:18px}
             
-            .cta-section h2{font-size:28px}
+            .cta-section h2{font-size:30px}
+            .explore-link{font-size:19px}
             
             .ftr-contact{font-size:19px}
           }
