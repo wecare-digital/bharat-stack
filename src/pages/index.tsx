@@ -464,9 +464,9 @@ response = requests.post(
             .logo-main{font-size:28px}
             .logo-sub{font-size:16px}
             
-            .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 50px}
+            .hero{padding:calc(130px + env(safe-area-inset-top)) 20px 50px}
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
-            .hero-right{order:-1;width:100%;display:flex;justify-content:flex-start}
+            .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
             .hero-left p{font-size:24px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
@@ -475,7 +475,8 @@ response = requests.post(
             .stat span{font-size:28px;font-weight:800;min-width:70px}
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
-            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start}
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
+            .mockup-wrapper:hover{border-color:#10b981;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}
@@ -501,7 +502,7 @@ response = requests.post(
             
             .touchpoint{padding:44px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:16px 28px;font-size:20px}
+            .pill{padding:16px 28px;font-size:24px}
             
             .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
@@ -518,14 +519,14 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
-            .capability-card h3{font-size:20px;margin-bottom:8px;text-align:left}
-            .capability-card p{font-size:20px;text-align:left;line-height:1.5}
+            .capability-card h3{font-size:24px;margin-bottom:8px;text-align:left}
+            .capability-card p{font-size:24px;text-align:left;line-height:1.5}
             
             .cta-section{padding:44px 20px}
-            .cta-section h2{font-size:34px;line-height:1.2;max-width:100%}
+            .cta-section h2{font-size:38px;line-height:1.2;max-width:100%}
             .explore-section{padding:44px 20px}
             .explore-grid{grid-template-columns:1fr;gap:14px}
-            .explore-link{font-size:21px}
+            .explore-link{font-size:24px}
             
             .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
             .ftr-contact{font-size:24px}
@@ -579,7 +580,7 @@ response = requests.post(
             
             .cta-section{padding:36px 16px}
             .cta-section h2{font-size:32px;line-height:1.2;max-width:100%}
-            .explore-link{font-size:21px}
+            .explore-link{font-size:24px}
             
             .ftr-contact{font-size:22px}
           }
