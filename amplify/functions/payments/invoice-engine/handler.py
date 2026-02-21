@@ -129,6 +129,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         body = {}
 
     try:
+        # POST /invoices with _action=clear-all — body-based trigger for cleanup via existing route
+        if method == 'POST' and body.get('_action') == 'clear-all':
+            return clear_all_invoice_data(request_id)
+
         # POST /invoices/from-payment — create from payment ID (check BEFORE generic POST)
         if method == 'POST' and 'from-payment' in path:
             return create_invoice_from_payment(body, request_id)
@@ -177,6 +181,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # DELETE /invoices/clear-all — wipe all invoice-related tables (admin cleanup)
         if method == 'DELETE' and 'clear-all' in path:
+            return clear_all_invoice_data(request_id)
+
+        # POST /invoices/clear-all — alternative POST route for clear-all (when DELETE not in API GW)
+        if method == 'POST' and 'clear-all' in path:
             return clear_all_invoice_data(request_id)
 
         # DELETE /invoices/{id} — hard delete invoice + adjust sequence

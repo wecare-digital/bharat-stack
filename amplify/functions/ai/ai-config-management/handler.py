@@ -151,6 +151,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _get_botflow_config(request_id)
         
         elif http_method == 'PUT':
+            # Body-based clear-logs trigger via existing PUT route
+            if body.get('_action') == 'clear-logs':
+                return _clear_ai_logs(request_id)
             # Internal AI config
             if '/ai/internal/config' in path:
                 return _update_internal_config(body, request_id)
@@ -168,8 +171,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _update_botflow_config(body, request_id)
         
         elif http_method == 'POST':
-            if '/ai/test' in path:
+            if body.get('_action') == 'clear-logs':
+                return _clear_ai_logs(request_id)
+            elif '/ai/test' in path:
                 return _test_ai_response(body, request_id)
+            elif '/ai/clear-logs' in path:
+                return _clear_ai_logs(request_id)
         
         elif http_method == 'DELETE':
             if '/ai/botflow' in path:

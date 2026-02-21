@@ -883,10 +883,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       return data.totalDeleted ?? data.deletedCount ?? data.deleted ?? 0;
     };
 
-    // Helper: try bulk clear, return -1 if endpoint not found (404)
+    // Helper: try bulk clear, return -1 if endpoint not found (404). Tries POST as fallback.
     const tryBulkClear = async (url: string, method: string = 'DELETE', body?: any): Promise<number> => {
       try { return await bulkClear(url, method, body); } catch (e: any) {
-        if (e.message?.includes('404')) return -1; // endpoint not deployed
+        if (e.message?.includes('404') && method === 'DELETE') {
+          // API Gateway may not have DELETE configured — try POST as fallback
+          try { return await bulkClear(url, 'POST', body || { clearAll: true }); } catch (e2: any) {
+            if (e2.message?.includes('404')) return -1;
+            throw e2;
+          }
+        }
+        if (e.message?.includes('404')) return -1;
         throw e;
       }
     };
@@ -957,8 +964,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy voice-in/c2c Lambda' }); continue;
           }
         } else if (id === 'voice_cdr' || id === 'voice_calls') {
-          // Try DELETE first, then POST with clearAll
-          let bulk = await tryBulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
+          // Try voice-in/cdr first (POST with clearAll works), then voice-cdr-webhook
+          let bulk = await tryBulkClear(`${API_BASE}/voice-in/cdr`, 'POST', { clearAll: true });
+          if (bulk < 0) bulk = await tryBulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
           if (bulk < 0) bulk = await tryBulkClear(`${API_BASE}/voice-cdr-webhook`, 'POST', { clearAll: true, _action: 'clear-logs' });
           if (bulk >= 0) { deleted = bulk; } else {
             results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy voice-cdr Lambda' }); continue;
@@ -968,7 +976,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           const alreadyDone = results.some(r => invoiceIds.includes(r.id) && !r.error);
           if (alreadyDone) { results.push({ id, label, deleted: 0, elapsed: 0 }); continue; }
           // Try bulk clear-all, fall back to one-by-one for invoices only
-          const bulk = await tryBulkClear(`${API_BASE}/invoices/clear-all`);
+          let bulk = await tryBulkClear(`${API_BASE}/invoices/clear-all`);
+          // If route not configured, try POST to /invoices with _action body param
+          if (bulk < 0) bulk = await tryBulkClear(`${API_BASE}/invoices`, 'POST', { _action: 'clear-all' });
           if (bulk >= 0) { deleted = bulk; } else if (id === 'invoices') {
             for (let pass = 0; pass < 20; pass++) {
               const inv = await api.listInvoicesEngine();
@@ -982,7 +992,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           const aiIds = ['conversation_history', 'ai_interactions'];
           const alreadyDone = results.some(r => aiIds.includes(r.id) && !r.error);
           if (alreadyDone) { results.push({ id, label, deleted: 0, elapsed: 0 }); continue; }
-          const bulk = await tryBulkClear(`${API_BASE}/ai/clear-logs`);
+          let bulk = await tryBulkClear(`${API_BASE}/ai/clear-logs`);
+          // If route not configured, try PUT to existing AI config endpoint with _action body param
+          if (bulk < 0) bulk = await tryBulkClear(`${API_BASE}/ai/internal/config`, 'PUT', { _action: 'clear-logs' });
           if (bulk >= 0) { deleted = bulk; } else {
             results.push({ id, label, deleted: 0, error: 'Redeploy ai-config Lambda for clear-logs' }); continue;
           }

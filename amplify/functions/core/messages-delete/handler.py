@@ -85,6 +85,10 @@ def handler(event, context):
     # ── DELETE /messages/clear-all — bulk wipe both tables ──
     if http_method == 'DELETE' and 'clear-all' in path:
         return _handle_clear_all(headers)
+
+    # ── POST /messages/clear-all — alternative POST route ──
+    if http_method == 'POST' and 'clear-all' in path:
+        return _handle_clear_all(headers)
     
     try:
         # Get message ID from path
