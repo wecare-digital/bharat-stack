@@ -833,6 +833,20 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       // Lambda not deployed — fall back to existing APIs
     }
 
+    // Helper: delete messages in a loop until API returns empty (handles pagination)
+    const deleteAllMessages = async (channel?: string, dirFilter?: string): Promise<number> => {
+      let totalDeleted = 0;
+      for (let pass = 0; pass < 20; pass++) { // max 20 passes to avoid infinite loop
+        const msgs = await api.listMessages(undefined, channel);
+        const filtered = dirFilter ? msgs.filter(m => m.direction === dirFilter) : msgs;
+        if (filtered.length === 0) break;
+        for (const m of filtered) {
+          try { await api.deleteMessage(m.id, m.direction); totalDeleted++; } catch { /* skip */ }
+        }
+      }
+      return totalDeleted;
+    };
+
     // Fallback: use existing client-side delete functions
     for (const id of selected) {
       const t0 = Date.now();
@@ -841,59 +855,60 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       try {
         let deleted = 0;
         if (id === 'whatsapp_inbox') {
-          const msgs = await api.listMessages(undefined, 'WHATSAPP');
-          for (const m of msgs.filter(m => m.direction === 'INBOUND')) {
-            if (await api.deleteMessage(m.id, 'INBOUND')) deleted++;
-          }
+          deleted = await deleteAllMessages('WHATSAPP', 'INBOUND');
         } else if (id === 'whatsapp_outbox') {
-          const msgs = await api.listMessages(undefined, 'WHATSAPP');
-          for (const m of msgs.filter(m => m.direction === 'OUTBOUND')) {
-            if (await api.deleteMessage(m.id, 'OUTBOUND')) deleted++;
-          }
+          deleted = await deleteAllMessages('WHATSAPP', 'OUTBOUND');
         } else if (id === 'contacts') {
-          const allContacts = await api.listContacts();
-          for (const c of allContacts) {
-            try { await api.hardDeleteContact(c.contactId); deleted++; } catch { /* skip */ }
+          for (let pass = 0; pass < 20; pass++) {
+            const allContacts = await api.listContacts();
+            if (allContacts.length === 0) break;
+            for (const c of allContacts) {
+              try { await api.hardDeleteContact(c.contactId); deleted++; } catch { /* skip */ }
+            }
           }
         } else if (id === 'sms_aws') {
-          const msgs = await api.listSmsAwsMessages();
-          for (const m of msgs) {
-            try { await api.deleteMessage(m.messageId, (m.direction as any) || 'OUTBOUND'); deleted++; } catch { /* skip */ }
+          for (let pass = 0; pass < 20; pass++) {
+            const msgs = await api.listSmsAwsMessages();
+            if (msgs.length === 0) break;
+            for (const m of msgs) {
+              try { await api.deleteMessage(m.messageId, (m.direction as any) || 'OUTBOUND'); deleted++; } catch { /* skip */ }
+            }
           }
         } else if (id === 'voice_cdr' || id === 'voice_calls') {
-          const calls = await api.listVoiceCalls();
-          for (const c of calls) {
-            try {
-              await fetch(`${API_BASE}/voice/calls/${c.id}`, { method: 'DELETE' });
-              deleted++;
-            } catch { /* skip */ }
+          for (let pass = 0; pass < 20; pass++) {
+            const calls = await api.listVoiceCalls();
+            if (calls.length === 0) break;
+            for (const c of calls) {
+              try { await fetch(`${API_BASE}/voice/calls/${c.id}`, { method: 'DELETE' }); deleted++; } catch { /* skip */ }
+            }
           }
         } else if (id === 'voice_aws') {
-          const calls = await api.listVoiceAwsCalls();
-          for (const c of calls) {
-            try {
-              await fetch(`${API_BASE}/voice-aws/calls/${c.id}`, { method: 'DELETE' });
-              deleted++;
-            } catch { /* skip */ }
+          for (let pass = 0; pass < 20; pass++) {
+            const calls = await api.listVoiceAwsCalls();
+            if (calls.length === 0) break;
+            for (const c of calls) {
+              try { await fetch(`${API_BASE}/voice-aws/calls/${c.id}`, { method: 'DELETE' }); deleted++; } catch { /* skip */ }
+            }
           }
         } else if (id === 'invoices') {
-          const inv = await api.listInvoicesEngine();
-          for (const i of inv.invoices) {
-            try { await api.deleteInvoice(i.invoiceId); deleted++; } catch { /* skip */ }
+          for (let pass = 0; pass < 20; pass++) {
+            const inv = await api.listInvoicesEngine();
+            if (inv.invoices.length === 0) break;
+            for (const i of inv.invoices) {
+              try { await api.deleteInvoice(i.invoiceId); deleted++; } catch { /* skip */ }
+            }
           }
         } else if (id === 'bulk_jobs') {
-          const jobs = await api.listBulkJobs();
-          for (const j of jobs) {
-            try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ }
+          for (let pass = 0; pass < 20; pass++) {
+            const jobs = await api.listBulkJobs();
+            if (jobs.length === 0) break;
+            for (const j of jobs) {
+              try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ }
+            }
           }
         } else if (id === 'scheduled_messages') {
-          // Scheduled messages — delete via messages API
-          const msgs = await api.listMessages();
-          for (const m of msgs.filter(m => (m as any).scheduled)) {
-            try { await api.deleteMessage(m.id, m.direction); deleted++; } catch { /* skip */ }
-          }
+          deleted = await deleteAllMessages();
         } else {
-          // Resources that need the Lambda (S3, AI tables, etc.)
           results.push({ id, label, deleted: 0, error: 'Requires backend Lambda (not yet deployed)' });
           continue;
         }
