@@ -840,27 +840,41 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       const label = res?.label || id;
       try {
         let deleted = 0;
-        if (id === 'whatsapp_inbox' || id === 'whatsapp_outbox') {
+        if (id === 'whatsapp_inbox') {
           const msgs = await api.listMessages(undefined, 'WHATSAPP');
-          const dir = id === 'whatsapp_inbox' ? 'INBOUND' : 'OUTBOUND';
-          const filtered = msgs.filter(m => m.direction === dir);
-          for (const m of filtered) {
-            if (await api.deleteMessage(m.id, m.direction)) deleted++;
+          for (const m of msgs.filter(m => m.direction === 'INBOUND')) {
+            if (await api.deleteMessage(m.id, 'INBOUND')) deleted++;
+          }
+        } else if (id === 'whatsapp_outbox') {
+          const msgs = await api.listMessages(undefined, 'WHATSAPP');
+          for (const m of msgs.filter(m => m.direction === 'OUTBOUND')) {
+            if (await api.deleteMessage(m.id, 'OUTBOUND')) deleted++;
           }
         } else if (id === 'contacts') {
-          const contacts = await api.listContacts();
-          for (const c of contacts) {
-            if (await api.deleteContact(c.contactId)) deleted++;
+          const allContacts = await api.listContacts();
+          for (const c of allContacts) {
+            try { await api.hardDeleteContact(c.contactId); deleted++; } catch { /* skip */ }
           }
         } else if (id === 'sms_aws') {
-          const msgs = await api.listMessages(undefined, 'SMS');
+          const msgs = await api.listSmsAwsMessages();
           for (const m of msgs) {
-            if (await api.deleteMessage(m.id, m.direction)) deleted++;
+            try { await api.deleteMessage(m.messageId, (m.direction as any) || 'OUTBOUND'); deleted++; } catch { /* skip */ }
           }
-        } else if (id === 'voice_cdr' || id === 'voice_calls' || id === 'voice_aws') {
+        } else if (id === 'voice_cdr' || id === 'voice_calls') {
           const calls = await api.listVoiceCalls();
           for (const c of calls) {
-            try { await api.deleteMessage(c.id, 'INBOUND'); deleted++; } catch { /* skip */ }
+            try {
+              await fetch(`${API_BASE}/voice/calls/${c.id}`, { method: 'DELETE' });
+              deleted++;
+            } catch { /* skip */ }
+          }
+        } else if (id === 'voice_aws') {
+          const calls = await api.listVoiceAwsCalls();
+          for (const c of calls) {
+            try {
+              await fetch(`${API_BASE}/voice-aws/calls/${c.id}`, { method: 'DELETE' });
+              deleted++;
+            } catch { /* skip */ }
           }
         } else if (id === 'invoices') {
           const inv = await api.listInvoicesEngine();
@@ -871,6 +885,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           const jobs = await api.listBulkJobs();
           for (const j of jobs) {
             try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ }
+          }
+        } else if (id === 'scheduled_messages') {
+          // Scheduled messages — delete via messages API
+          const msgs = await api.listMessages();
+          for (const m of msgs.filter(m => (m as any).scheduled)) {
+            try { await api.deleteMessage(m.id, m.direction); deleted++; } catch { /* skip */ }
           }
         } else {
           // Resources that need the Lambda (S3, AI tables, etc.)
