@@ -847,7 +847,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       return totalDeleted;
     };
 
-    // Fallback: use existing client-side delete functions
+    // Helper: call a bulk clear-logs endpoint and parse the result
+    const bulkClear = async (url: string, method: string = 'DELETE', body?: any): Promise<number> => {
+      const opts: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.totalDeleted ?? data.deletedCount ?? data.deleted ?? 0;
+    };
+
+    // Fallback: use existing client-side delete functions + bulk clear-logs where available
     for (const id of selected) {
       const t0 = Date.now();
       const res = CLEANUP_FALLBACK.find(r => r.id === id);
@@ -867,36 +877,48 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             }
           }
         } else if (id === 'sms_aws') {
-          for (let pass = 0; pass < 20; pass++) {
-            const msgs = await api.listSmsAwsMessages();
-            if (msgs.length === 0) break;
-            for (const m of msgs) {
-              try { await api.deleteMessage(m.messageId, (m.direction as any) || 'OUTBOUND'); deleted++; } catch { /* skip */ }
-            }
-          }
-        } else if (id === 'voice_cdr' || id === 'voice_calls') {
-          for (let pass = 0; pass < 20; pass++) {
-            const calls = await api.listVoiceCalls();
-            if (calls.length === 0) break;
-            for (const c of calls) {
-              try { await fetch(`${API_BASE}/voice/calls/${c.id}`, { method: 'DELETE' }); deleted++; } catch { /* skip */ }
-            }
-          }
+          // Bulk clear-logs endpoint
+          deleted = await bulkClear(`${API_BASE}/sms-aws/clear-logs`);
         } else if (id === 'voice_aws') {
-          for (let pass = 0; pass < 20; pass++) {
-            const calls = await api.listVoiceAwsCalls();
-            if (calls.length === 0) break;
-            for (const c of calls) {
-              try { await fetch(`${API_BASE}/voice-aws/calls/${c.id}`, { method: 'DELETE' }); deleted++; } catch { /* skip */ }
-            }
+          // Bulk clear-logs endpoint
+          deleted = await bulkClear(`${API_BASE}/voice-aws/clear-logs`);
+        } else if (id === 'whatsapp_calling') {
+          // Bulk clear-logs endpoint
+          deleted = await bulkClear(`${API_BASE}/whatsapp-calling`);
+        } else if (id === 'obd_campaigns') {
+          // Bulk clear via POST with clearAll flag
+          deleted = await bulkClear(`${API_BASE}/voice-in/obd`, 'POST', { clearAll: true });
+        } else if (id === 'airtel_sms') {
+          // Bulk clear-logs endpoint
+          deleted = await bulkClear(`${API_BASE}/sms-in/airtel/clear-logs`);
+        } else if (id === 'airtel_c2c') {
+          // Bulk clear via DELETE with clearAll body
+          deleted = await bulkClear(`${API_BASE}/voice-in/c2c`, 'DELETE', { clearAll: true });
+        } else if (id === 'voice_cdr') {
+          // Bulk clear via DELETE with clearAll body
+          deleted = await bulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
+        } else if (id === 'voice_calls') {
+          // Same CDR table — use the webhook clear endpoint
+          deleted = await bulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
+        } else if (id === 'invoices' || id === 'invoice_items' || id === 'invoice_assets' || id === 'invoice_delivery_log' || id === 'invoice_sequence' || id === 'payments' || id === 'razorpay_webhook_log' || id === 's3_invoices') {
+          // Invoice engine clear-all wipes ALL invoice sub-tables + S3 invoices in one call
+          const invoiceIds = ['invoices', 'invoice_items', 'invoice_assets', 'invoice_delivery_log', 'invoice_sequence', 'payments', 'razorpay_webhook_log', 's3_invoices'];
+          const alreadyDone = results.some(r => invoiceIds.includes(r.id) && !r.error);
+          if (alreadyDone) {
+            results.push({ id, label, deleted: 0, elapsed: 0 });
+            continue;
+          } else {
+            deleted = await bulkClear(`${API_BASE}/invoices/clear-all`);
           }
-        } else if (id === 'invoices') {
-          for (let pass = 0; pass < 20; pass++) {
-            const inv = await api.listInvoicesEngine();
-            if (inv.invoices.length === 0) break;
-            for (const i of inv.invoices) {
-              try { await api.deleteInvoice(i.invoiceId); deleted++; } catch { /* skip */ }
-            }
+        } else if (id === 'conversation_history' || id === 'ai_interactions') {
+          // AI clear-logs wipes both AI tables in one call
+          const aiIds = ['conversation_history', 'ai_interactions'];
+          const alreadyDone = results.some(r => aiIds.includes(r.id) && !r.error);
+          if (alreadyDone) {
+            results.push({ id, label, deleted: 0, elapsed: 0 });
+            continue;
+          } else {
+            deleted = await bulkClear(`${API_BASE}/ai/clear-logs`);
           }
         } else if (id === 'bulk_jobs') {
           for (let pass = 0; pass < 20; pass++) {
@@ -906,10 +928,16 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ }
             }
           }
+        } else if (id === 'whatsapp_voice_log') {
+          deleted = await bulkClear(`${API_BASE}/whatsapp-voice/clear-logs`);
         } else if (id === 'scheduled_messages') {
           deleted = await deleteAllMessages();
+        } else if (id === 'media_files' || id === 'bulk_recipients' || id === 's3_whatsapp_media' || id === 's3_voice_recordings' || id === 's3_whatsapp_voice') {
+          // These require direct DynamoDB/S3 access — try system-cleanup Lambda
+          try { deleted = await bulkClear(`${API_BASE}/system-cleanup`, 'POST', { selected: [id] }); }
+          catch { results.push({ id, label, deleted: 0, error: 'Deploy system-cleanup Lambda to clear this' }); continue; }
         } else {
-          results.push({ id, label, deleted: 0, error: 'Requires backend Lambda (not yet deployed)' });
+          results.push({ id, label, deleted: 0, error: 'No cleanup endpoint available' });
           continue;
         }
         results.push({ id, label, deleted, elapsed: Math.round((Date.now() - t0) / 1000 * 10) / 10 });

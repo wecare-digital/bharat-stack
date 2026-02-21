@@ -175,6 +175,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             inv_id = path_params.get('invoiceId') or body.get('invoiceId')
             return add_remark(inv_id, body, request_id)
 
+        # DELETE /invoices/clear-all — wipe all invoice-related tables (admin cleanup)
+        if method == 'DELETE' and 'clear-all' in path:
+            return clear_all_invoice_data(request_id)
+
         # DELETE /invoices/{id} — hard delete invoice + adjust sequence
         if method == 'DELETE' and path_params.get('invoiceId'):
             return delete_invoice(path_params['invoiceId'], body, request_id)
@@ -1738,6 +1742,69 @@ def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
     }))
 
     return _resp(200, {'invoiceId': invoice_id, 'deleted': True, 'invoiceNumber': inv_number})
+
+
+# ─── Clear All Invoice Data (admin cleanup) ───
+
+def clear_all_invoice_data(request_id: str) -> Dict:
+    """Wipe all invoice-related tables: Invoices, InvoiceItems, InvoiceAssets, InvoiceDeliveryLog, InvoiceSequence, Payments, RazorpayWebhookLog. Also clears S3 invoices/ prefix."""
+    tables_to_clear = {
+        'invoices': (INVOICES_TABLE, 'invoiceId'),
+        'invoice_items': (INVOICE_ITEMS_TABLE, None),
+        'invoice_assets': (INVOICE_ASSETS_TABLE, None),
+        'invoice_delivery_log': (INVOICE_DELIVERY_TABLE, None),
+        'invoice_sequence': (INVOICE_SEQ_TABLE, None),
+        'payments': (PAYMENTS_TABLE, 'id'),
+        'razorpay_webhook_log': ('base-wecare-digital-RazorpayWebhookLogTable', 'id'),
+    }
+    results = {}
+    total = 0
+    ddb_client = boto3.client('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+    for key, (table_name, known_pk) in tables_to_clear.items():
+        try:
+            # Discover key schema
+            desc = ddb_client.describe_table(TableName=table_name)
+            key_names = [k['AttributeName'] for k in desc['Table']['KeySchema']]
+            table = dynamodb.Table(table_name)
+            deleted = 0
+            scan_kwargs = {'ProjectionExpression': ', '.join([f'#{chr(97+i)}' for i in range(len(key_names))]),
+                           'ExpressionAttributeNames': {f'#{chr(97+i)}': n for i, n in enumerate(key_names)}}
+            while True:
+                resp = table.scan(**scan_kwargs)
+                items = resp.get('Items', [])
+                if not items:
+                    break
+                with table.batch_writer() as batch:
+                    for item in items:
+                        batch.delete_item(Key={k: item[k] for k in key_names})
+                        deleted += 1
+                if 'LastEvaluatedKey' not in resp:
+                    break
+                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            results[key] = deleted
+            total += deleted
+        except Exception as e:
+            logger.warning(f"Clear {key} error: {e}")
+            results[key] = 0
+
+    # Clear S3 invoices/ prefix
+    s3_deleted = 0
+    try:
+        paginator = s3.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix='invoices/'):
+            objects = page.get('Contents', [])
+            if objects:
+                s3.delete_objects(Bucket=MEDIA_BUCKET, Delete={'Objects': [{'Key': o['Key']} for o in objects]})
+                s3_deleted += len(objects)
+        results['s3_invoices'] = s3_deleted
+        total += s3_deleted
+    except Exception as e:
+        logger.warning(f"Clear S3 invoices error: {e}")
+        results['s3_invoices'] = 0
+
+    logger.info(json.dumps({'event': 'clear_all_invoice_data', 'results': results, 'total': total, 'requestId': request_id}))
+    return _resp(200, {'success': True, 'results': results, 'totalDeleted': total})
 
 
 # ─── Add Remark / Refund / Credit Note ───

@@ -33,6 +33,7 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 # Environment variables
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'base-wecare-digital-AIInteractionsTable')
+CONVERSATION_HISTORY_TABLE = os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable')
 
 # CORS headers
 CORS_HEADERS = {
@@ -173,6 +174,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif http_method == 'DELETE':
             if '/ai/botflow' in path:
                 return _delete_botflow_configs(request_id)
+            elif '/ai/clear-logs' in path:
+                return _clear_ai_logs(request_id)
         
         return _error_response(400, 'Invalid request')
         
@@ -745,3 +748,45 @@ def _delete_botflow_configs(request_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         return _error_response(500, f'Failed to reset bot flow configs: {str(e)}')
+
+
+def _clear_ai_logs(request_id: str) -> Dict[str, Any]:
+    """Clear AI Interactions and Conversation History tables."""
+    ddb_client = boto3.client('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+    results = {}
+    total = 0
+
+    for label, table_name in [('ai_interactions', AI_INTERACTIONS_TABLE), ('conversation_history', CONVERSATION_HISTORY_TABLE)]:
+        try:
+            desc = ddb_client.describe_table(TableName=table_name)
+            key_names = [k['AttributeName'] for k in desc['Table']['KeySchema']]
+            table = dynamodb.Table(table_name)
+            deleted = 0
+            scan_kwargs = {
+                'ProjectionExpression': ', '.join([f'#{chr(97+i)}' for i in range(len(key_names))]),
+                'ExpressionAttributeNames': {f'#{chr(97+i)}': n for i, n in enumerate(key_names)}
+            }
+            while True:
+                resp = table.scan(**scan_kwargs)
+                items = resp.get('Items', [])
+                if not items:
+                    break
+                with table.batch_writer() as batch:
+                    for item in items:
+                        batch.delete_item(Key={k: item[k] for k in key_names})
+                        deleted += 1
+                if 'LastEvaluatedKey' not in resp:
+                    break
+                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            results[label] = deleted
+            total += deleted
+        except Exception as e:
+            logger.warning(f"Clear {label} error: {e}")
+            results[label] = 0
+
+    logger.info(json.dumps({'event': 'clear_ai_logs', 'results': results, 'total': total, 'requestId': request_id}))
+    return {
+        'statusCode': 200,
+        'headers': CORS_HEADERS,
+        'body': json.dumps({'success': True, 'results': results, 'totalDeleted': total})
+    }
