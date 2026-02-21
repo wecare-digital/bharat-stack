@@ -816,17 +816,77 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     setShowCleanupConfirm(false);
     setCleanupConfirmText('');
     setCleanupRunning(true);
+    const selected = Array.from(cleanupSelected);
+    const results: api.CleanupResult[] = [];
+
     try {
-      const { results, totalDeleted } = await api.executeCleanup(Array.from(cleanupSelected));
-      setCleanupResults(results);
-      setCleanupSelected(new Set());
-      await loadCleanupPreview();
-      await loadData();
-    } catch (err) {
-      // silent
-    } finally {
-      setCleanupRunning(false);
+      // Try the dedicated Lambda endpoint first
+      const response = await api.executeCleanup(selected);
+      if (response.results && response.results.length > 0) {
+        setCleanupResults(response.results);
+        setCleanupSelected(new Set());
+        await loadCleanupPreview();
+        await loadData();
+        return;
+      }
+    } catch {
+      // Lambda not deployed — fall back to existing APIs
     }
+
+    // Fallback: use existing client-side delete functions
+    for (const id of selected) {
+      const t0 = Date.now();
+      const res = CLEANUP_FALLBACK.find(r => r.id === id);
+      const label = res?.label || id;
+      try {
+        let deleted = 0;
+        if (id === 'whatsapp_inbox' || id === 'whatsapp_outbox') {
+          const msgs = await api.listMessages(undefined, 'WHATSAPP');
+          const dir = id === 'whatsapp_inbox' ? 'INBOUND' : 'OUTBOUND';
+          const filtered = msgs.filter(m => m.direction === dir);
+          for (const m of filtered) {
+            if (await api.deleteMessage(m.id, m.direction)) deleted++;
+          }
+        } else if (id === 'contacts') {
+          const contacts = await api.listContacts();
+          for (const c of contacts) {
+            if (await api.deleteContact(c.contactId)) deleted++;
+          }
+        } else if (id === 'sms_aws') {
+          const msgs = await api.listMessages(undefined, 'SMS');
+          for (const m of msgs) {
+            if (await api.deleteMessage(m.id, m.direction)) deleted++;
+          }
+        } else if (id === 'voice_cdr' || id === 'voice_calls' || id === 'voice_aws') {
+          const calls = await api.listVoiceCalls();
+          for (const c of calls) {
+            try { await api.deleteMessage(c.id, 'INBOUND'); deleted++; } catch { /* skip */ }
+          }
+        } else if (id === 'invoices') {
+          const inv = await api.listInvoicesEngine();
+          for (const i of inv.invoices) {
+            try { await api.deleteInvoice(i.invoiceId); deleted++; } catch { /* skip */ }
+          }
+        } else if (id === 'bulk_jobs') {
+          const jobs = await api.listBulkJobs();
+          for (const j of jobs) {
+            try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ }
+          }
+        } else {
+          // Resources that need the Lambda (S3, AI tables, etc.)
+          results.push({ id, label, deleted: 0, error: 'Requires backend Lambda (not yet deployed)' });
+          continue;
+        }
+        results.push({ id, label, deleted, elapsed: Math.round((Date.now() - t0) / 1000 * 10) / 10 });
+      } catch (err: any) {
+        results.push({ id, label, deleted: 0, error: err?.message || 'Failed' });
+      }
+    }
+
+    setCleanupResults(results);
+    setCleanupSelected(new Set());
+    await loadData();
+    setCleanupRunning(false);
   };
 
   const toggleServiceExpand = (service: string) => {
