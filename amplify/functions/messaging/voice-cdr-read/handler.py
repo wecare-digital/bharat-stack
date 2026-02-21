@@ -96,6 +96,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', ''))
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
+
+        path = event.get('path', event.get('rawPath', ''))
+
+        # DELETE /voice-cdr-webhook/clear-logs or DELETE with clearAll body
+        if http_method == 'DELETE' or (http_method == 'POST' and 'clear' in str(event.get('body', ''))):
+            body = {}
+            try:
+                body = json.loads(event.get('body', '{}') or '{}')
+            except Exception:
+                pass
+            if 'clear' in path or body.get('clearAll') or body.get('_action') == 'clear-logs':
+                return _clear_cdr_logs(request_id)
         
         params = event.get('queryStringParameters') or {}
         call_type = params.get('callType', '')
@@ -488,6 +500,41 @@ def _calculate_dashboard(records: List[Dict]) -> Dict:
         'avgConversationDurationSec': round(avg_conv_ms / 1000, 2) if avg_conv_ms else 0,
         'callVolumeByCli': call_volume_by_cli,
     }
+
+
+def _clear_cdr_logs(request_id: str) -> Dict[str, Any]:
+    """Clear all CDR records from VoiceCDRTable."""
+    ddb_client = boto3.client('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+    try:
+        desc = ddb_client.describe_table(TableName=VOICE_CDR_TABLE)
+        key_names = [k['AttributeName'] for k in desc['Table']['KeySchema']]
+    except Exception:
+        key_names = ['id']
+
+    table = dynamodb.Table(VOICE_CDR_TABLE)
+    deleted = 0
+    proj_aliases = {f'#k{i}': name for i, name in enumerate(key_names)}
+    scan_kwargs = {
+        'ProjectionExpression': ', '.join(proj_aliases.keys()),
+        'ExpressionAttributeNames': proj_aliases,
+    }
+    while True:
+        resp = table.scan(**scan_kwargs)
+        items = resp.get('Items', [])
+        if not items:
+            break
+        with table.batch_writer() as batch:
+            for item in items:
+                key = {k: item[k] for k in key_names if k in item}
+                if key:
+                    batch.delete_item(Key=key)
+                    deleted += 1
+        if 'LastEvaluatedKey' not in resp:
+            break
+        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+
+    logger.info(json.dumps({'event': 'cdr_logs_cleared', 'deleted': deleted, 'requestId': request_id}))
+    return _response(200, {'success': True, 'totalDeleted': deleted})
 
 
 def _response(status_code: int, body: Dict) -> Dict[str, Any]:

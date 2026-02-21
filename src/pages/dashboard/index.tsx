@@ -833,13 +833,39 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       // Lambda not deployed — fall back to existing APIs
     }
 
-    // Helper: delete messages in a loop until API returns empty (handles pagination)
+    // Helper: delete messages in a loop with stale-detection
+    // If the same count comes back after a pass, messages aren't actually being deleted
     const deleteAllMessages = async (channel?: string, dirFilter?: string): Promise<number> => {
       let totalDeleted = 0;
-      for (let pass = 0; pass < 20; pass++) { // max 20 passes to avoid infinite loop
+      let prevCount = -1;
+      let staleRuns = 0;
+      for (let pass = 0; pass < 30; pass++) {
         const msgs = await api.listMessages(undefined, channel);
         const filtered = dirFilter ? msgs.filter(m => m.direction === dirFilter) : msgs;
         if (filtered.length === 0) break;
+        // Detect stale loop: if count didn't decrease after a full pass, deletes aren't working
+        if (filtered.length === prevCount) {
+          staleRuns++;
+          if (staleRuns >= 2) {
+            console.warn(`deleteAllMessages stale after ${pass} passes (${filtered.length} msgs remain). Trying both directions...`);
+            // Last resort: try deleting each message from BOTH tables
+            for (const m of filtered) {
+              try { await api.deleteMessage(m.id, 'INBOUND'); } catch { /* skip */ }
+              try { await api.deleteMessage(m.id, 'OUTBOUND'); } catch { /* skip */ }
+              totalDeleted++;
+            }
+            // Check if that worked
+            const check = await api.listMessages(undefined, channel);
+            const checkFiltered = dirFilter ? check.filter(m => m.direction === dirFilter) : check;
+            if (checkFiltered.length >= filtered.length) break; // truly stuck, bail out
+            prevCount = checkFiltered.length;
+            staleRuns = 0;
+            continue;
+          }
+        } else {
+          staleRuns = 0;
+        }
+        prevCount = filtered.length;
         for (const m of filtered) {
           try { await api.deleteMessage(m.id, m.direction); totalDeleted++; } catch { /* skip */ }
         }
@@ -865,18 +891,22 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       }
     };
 
+    // Reorder: process contacts FIRST so hardDeleteContact clears their messages + media
+    const contactsFirst = ['contacts'];
+    const orderedSelected = [
+      ...selected.filter(id => contactsFirst.includes(id)),
+      ...selected.filter(id => !contactsFirst.includes(id)),
+    ];
+
     // Fallback: use existing client-side delete functions + bulk clear-logs where available
-    for (const id of selected) {
+    for (const id of orderedSelected) {
       const t0 = Date.now();
       const res = CLEANUP_FALLBACK.find(r => r.id === id);
       const label = res?.label || id;
       try {
         let deleted = 0;
-        if (id === 'whatsapp_inbox') {
-          deleted = await deleteAllMessages('WHATSAPP', 'INBOUND');
-        } else if (id === 'whatsapp_outbox') {
-          deleted = await deleteAllMessages('WHATSAPP', 'OUTBOUND');
-        } else if (id === 'contacts') {
+        if (id === 'contacts') {
+          // Hard delete contacts FIRST — this also deletes their messages + media from S3
           for (let pass = 0; pass < 20; pass++) {
             const allContacts = await api.listContacts();
             if (allContacts.length === 0) break;
@@ -884,6 +914,22 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               try { await api.hardDeleteContact(c.contactId); deleted++; } catch { /* skip */ }
             }
           }
+        } else if (id === 'whatsapp_inbox') {
+          // Try bulk clear-all first (wipes both inbound + outbound tables at once)
+          const bulk = await tryBulkClear(`${API_BASE}/messages/clear-all`);
+          if (bulk >= 0) {
+            deleted = bulk;
+            // Mark outbox as done too since clear-all wipes both tables
+            if (orderedSelected.includes('whatsapp_outbox')) {
+              results.push({ id: 'whatsapp_outbox', label: 'WhatsApp Outbox (Outbound)', deleted: 0, elapsed: 0 });
+            }
+          } else {
+            deleted = await deleteAllMessages('WHATSAPP', 'INBOUND');
+          }
+        } else if (id === 'whatsapp_outbox') {
+          // Skip if already cleared by whatsapp_inbox's clear-all
+          if (results.some(r => r.id === 'whatsapp_outbox')) continue;
+          deleted = await deleteAllMessages('WHATSAPP', 'OUTBOUND');
         } else if (id === 'sms_aws') {
           // Try bulk clear-logs, fall back to one-by-one
           const bulk = await tryBulkClear(`${API_BASE}/sms-aws/clear-logs`);
@@ -952,7 +998,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy whatsapp-voice Lambda' }); continue;
           }
         } else if (id === 'scheduled_messages') {
-          deleted = await deleteAllMessages();
+          // Use the scheduled messages API, not the WhatsApp messages API
+          for (let pass = 0; pass < 20; pass++) {
+            const scheduled = await api.listScheduledMessages();
+            if (scheduled.length === 0) break;
+            for (const s of scheduled) {
+              try { await api.cancelScheduledMessage(s.scheduledId); deleted++; } catch { /* skip */ }
+            }
+          }
         } else if (id === 'media_files' || id === 'bulk_recipients' || id === 's3_whatsapp_media' || id === 's3_voice_recordings' || id === 's3_whatsapp_voice') {
           const bulk = await tryBulkClear(`${API_BASE}/system-cleanup`, 'POST', { selected: [id] });
           if (bulk >= 0) { deleted = bulk; } else {

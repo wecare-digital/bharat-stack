@@ -7,11 +7,16 @@ ONLY deletes messages - does NOT delete contacts
 
 import json
 import os
+import logging
 import boto3
 from botocore.exceptions import ClientError
 
+logger = logging.getLogger()
+logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+
 # Initialize clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+dynamodb_client = boto3.client('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
@@ -20,6 +25,33 @@ INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInb
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 INBOUND_WHATSAPP_FUNCTION = os.environ.get('INBOUND_WHATSAPP_FUNCTION', 'wecare-inbound-whatsapp')
+
+# Cache key schemas to avoid repeated describe_table calls
+_key_schema_cache = {}
+
+def _get_key_schema(table_name):
+    """Get the key schema for a DynamoDB table (cached)."""
+    if table_name not in _key_schema_cache:
+        try:
+            desc = dynamodb_client.describe_table(TableName=table_name)
+            _key_schema_cache[table_name] = desc['Table']['KeySchema']
+        except Exception:
+            _key_schema_cache[table_name] = [{'AttributeName': 'id', 'KeyType': 'HASH'}]
+    return _key_schema_cache[table_name]
+
+def _build_delete_key(table_name, item):
+    """Build the correct Key dict for delete_item based on actual table key schema."""
+    schema = _get_key_schema(table_name)
+    key = {}
+    for ks in schema:
+        attr = ks['AttributeName']
+        if attr in item:
+            key[attr] = item[attr]
+        elif attr == 'id' and 'messageId' in item:
+            key[attr] = item['messageId']
+        elif attr == 'messageId' and 'id' in item:
+            key[attr] = item['id']
+    return key
 
 def handler(event, context):
     """
@@ -41,12 +73,18 @@ def handler(event, context):
 
     # ── POST: Create invoice ──
     http_method = event.get('httpMethod', 'DELETE').upper()
+    path = event.get('path', '')
+
     if http_method == 'POST':
         return _handle_create_invoice(event, headers)
 
     # ── PATCH/PUT: Update payment/invoice fields ──
     if http_method in ('PUT', 'PATCH'):
         return _handle_update(event, headers)
+
+    # ── DELETE /messages/clear-all — bulk wipe both tables ──
+    if http_method == 'DELETE' and 'clear-all' in path:
+        return _handle_clear_all(headers)
     
     try:
         # Get message ID from path
@@ -75,26 +113,38 @@ def handler(event, context):
         
         table = dynamodb.Table(table_name)
         
-        # First, get the message to check for s3Key
+        # First, get the message to check for s3Key (and get all key attributes)
         s3_key = None
+        item = None
         try:
             response = table.get_item(Key={'id': message_id})
             item = response.get('Item')
             if item:
                 s3_key = item.get('s3Key')
-
         except ClientError as e:
-            # Try with 'messageId' key if 'id' fails
+            # Table might use 'messageId' as key instead of 'id'
             if 'ValidationException' in str(e):
                 try:
                     response = table.get_item(Key={'messageId': message_id})
                     item = response.get('Item')
                     if item:
                         s3_key = item.get('s3Key')
-                except ClientError as inner_e:
-                    logger.warning(f"Failed to get message with messageId key: {str(inner_e)}")
-                except Exception as inner_e:
-                    logger.warning(f"Unexpected error getting message: {str(inner_e)}")
+                except Exception:
+                    pass
+            # If still no item, try scanning by id field
+            if not item:
+                try:
+                    resp = table.scan(
+                        FilterExpression='id = :mid OR messageId = :mid',
+                        ExpressionAttributeValues={':mid': message_id},
+                        Limit=1
+                    )
+                    items = resp.get('Items', [])
+                    if items:
+                        item = items[0]
+                        s3_key = item.get('s3Key')
+                except Exception:
+                    pass
         
         # Delete media from S3 if exists
         media_deleted = False
@@ -110,13 +160,18 @@ def handler(event, context):
 
                 # Continue with DynamoDB deletion even if S3 fails
         
-        # Delete the message from DynamoDB
+        # Delete the message from DynamoDB using proper key schema
         try:
-            table.delete_item(Key={'id': message_id})
-        except ClientError as e:
-            # Try with 'messageId' key if 'id' fails
-            if 'ValidationException' in str(e):
-                table.delete_item(Key={'messageId': message_id})
+            if item:
+                # Use the actual item to build the correct composite key
+                delete_key = _build_delete_key(table_name, item)
+                table.delete_item(Key=delete_key)
+            else:
+                # Fallback: try common key patterns
+                try:
+                    table.delete_item(Key={'id': message_id})
+                except ClientError:
+                    table.delete_item(Key={'messageId': message_id})
 
         
         return {
@@ -144,6 +199,45 @@ def handler(event, context):
             'headers': headers,
             'body': json.dumps({'error': str(e)})
         }
+
+
+def _handle_clear_all(headers):
+    """Bulk wipe ALL messages from both Inbound and Outbound tables."""
+    total = 0
+    details = {}
+    for tbl_name in (INBOUND_TABLE, OUTBOUND_TABLE):
+        try:
+            schema = _get_key_schema(tbl_name)
+            key_names = [k['AttributeName'] for k in schema]
+            table = dynamodb.Table(tbl_name)
+            tbl_deleted = 0
+            while True:
+                # Only project key attributes for efficiency
+                proj_aliases = {f'#k{i}': name for i, name in enumerate(key_names)}
+                resp = table.scan(
+                    ProjectionExpression=', '.join(proj_aliases.keys()),
+                    ExpressionAttributeNames=proj_aliases,
+                )
+                items = resp.get('Items', [])
+                if not items:
+                    break
+                with table.batch_writer() as batch:
+                    for item in items:
+                        key = {k: item[k] for k in key_names if k in item}
+                        if key:
+                            batch.delete_item(Key=key)
+                            tbl_deleted += 1
+                if 'LastEvaluatedKey' not in resp:
+                    break
+            details[tbl_name.split('-')[-1]] = tbl_deleted
+            total += tbl_deleted
+        except Exception as e:
+            details[tbl_name] = f'error: {str(e)}'
+    return {
+        'statusCode': 200,
+        'headers': headers,
+        'body': json.dumps({'success': True, 'totalDeleted': total, 'details': details}),
+    }
 
 
 def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
