@@ -3412,3 +3412,38 @@ export async function addInvoiceRemark(invoiceId: string, remarkType: 'remark' |
     body: JSON.stringify({ type: remarkType, text, amount, author }),
   });
 }
+
+// ============================================================================
+// SYSTEM CLEANUP API
+// ============================================================================
+
+export interface CleanupResource {
+  id: string;
+  label: string;
+  category: string;
+  type: 'dynamodb' | 's3';
+  table?: string;
+  prefix?: string;
+  count: number;
+}
+
+export interface CleanupResult {
+  id: string;
+  label: string;
+  deleted: number;
+  elapsed?: number;
+  error?: string;
+}
+
+export async function getCleanupPreview(): Promise<CleanupResource[]> {
+  const data = await apiCall<any>(`${API_BASE}/system-cleanup`);
+  return data?.resources || [];
+}
+
+export async function executeCleanup(selected: string[]): Promise<{ results: CleanupResult[]; totalDeleted: number }> {
+  const data = await apiCall<any>(`${API_BASE}/system-cleanup`, {
+    method: 'POST',
+    body: JSON.stringify({ selected }),
+  });
+  return { results: data?.results || [], totalDeleted: data?.totalDeleted || 0 };
+}

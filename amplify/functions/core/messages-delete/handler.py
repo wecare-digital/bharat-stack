@@ -27,8 +27,6 @@ def handler(event, context):
     Also deletes associated media files from S3.
     ONLY deletes the message - does NOT affect contacts.
     """
-    print(f"Event: {json.dumps(event)}")
-    
     # CORS headers
     headers = {
         'Content-Type': 'application/json',
@@ -84,7 +82,7 @@ def handler(event, context):
             item = response.get('Item')
             if item:
                 s3_key = item.get('s3Key')
-                print(f"Found message {message_id}, s3Key: {s3_key}")
+
         except ClientError as e:
             # Try with 'messageId' key if 'id' fails
             if 'ValidationException' in str(e):
@@ -107,20 +105,19 @@ def handler(event, context):
                 actual_key = _find_and_delete_s3_file(s3_key, message_id)
                 if actual_key:
                     media_deleted = True
-                    print(f"Deleted S3 file: {actual_key}")
+
             except Exception as e:
-                print(f"Warning: Failed to delete S3 file {s3_key}: {e}")
+
                 # Continue with DynamoDB deletion even if S3 fails
         
         # Delete the message from DynamoDB
         try:
             table.delete_item(Key={'id': message_id})
-            print(f"Deleted message {message_id} from {table_name}")
         except ClientError as e:
             # Try with 'messageId' key if 'id' fails
             if 'ValidationException' in str(e):
                 table.delete_item(Key={'messageId': message_id})
-                print(f"Deleted message {message_id} from {table_name} using messageId key")
+
         
         return {
             'statusCode': 200,
@@ -136,14 +133,12 @@ def handler(event, context):
         }
         
     except ClientError as e:
-        print(f"DynamoDB error: {e}")
         return {
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': f'Database error: {str(e)}'})
         }
     except Exception as e:
-        print(f"Error: {e}")
         return {
             'statusCode': 500,
             'headers': headers,
@@ -184,7 +179,7 @@ def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
         if contents:
             actual_key = contents[0]['Key']
             s3_client.delete_object(Bucket=MEDIA_BUCKET, Key=actual_key)
-            print(f"Deleted S3 file with prefix match: {actual_key}")
+
             return actual_key
         
         # Try with full stored key as prefix
@@ -200,11 +195,10 @@ def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
             s3_client.delete_object(Bucket=MEDIA_BUCKET, Key=actual_key)
             return actual_key
         
-        print(f"S3 file not found for key: {stored_key}")
         return None
         
     except Exception as e:
-        print(f"Error finding/deleting S3 file: {e}")
+
         raise
 
 
@@ -254,7 +248,7 @@ def _handle_update(event, headers):
             'body': json.dumps({'success': True, 'messageId': message_id, 'updated': list(updates.keys())})
         }
     except Exception as e:
-        print(f"Update error: {e}")
+
         return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
 
 
@@ -317,7 +311,7 @@ def _handle_create_invoice(event, headers):
         )
 
         result_payload = json.loads(response['Payload'].read().decode('utf-8'))
-        print(f"Invoice creation result: {json.dumps(result_payload)}")
+
 
         return {
             'statusCode': 200,
@@ -330,7 +324,7 @@ def _handle_create_invoice(event, headers):
         }
 
     except Exception as e:
-        print(f"Create invoice error: {e}")
+
         return {
             'statusCode': 500,
             'headers': headers,
