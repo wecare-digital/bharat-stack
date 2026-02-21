@@ -857,6 +857,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       return data.totalDeleted ?? data.deletedCount ?? data.deleted ?? 0;
     };
 
+    // Helper: try bulk clear, return -1 if endpoint not found (404)
+    const tryBulkClear = async (url: string, method: string = 'DELETE', body?: any): Promise<number> => {
+      try { return await bulkClear(url, method, body); } catch (e: any) {
+        if (e.message?.includes('404')) return -1; // endpoint not deployed
+        throw e;
+      }
+    };
+
     // Fallback: use existing client-side delete functions + bulk clear-logs where available
     for (const id of selected) {
       const t0 = Date.now();
@@ -877,65 +885,79 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             }
           }
         } else if (id === 'sms_aws') {
-          // Bulk clear-logs endpoint
-          deleted = await bulkClear(`${API_BASE}/sms-aws/clear-logs`);
+          // Try bulk clear-logs, fall back to one-by-one
+          const bulk = await tryBulkClear(`${API_BASE}/sms-aws/clear-logs`);
+          if (bulk >= 0) { deleted = bulk; } else {
+            for (let pass = 0; pass < 20; pass++) {
+              const msgs = await api.listSmsAwsMessages();
+              if (msgs.length === 0) break;
+              for (const m of msgs) { try { await fetch(`${API_BASE}/sms-aws/messages/${m.messageId}`, { method: 'DELETE' }); deleted++; } catch { /* skip */ } }
+            }
+          }
         } else if (id === 'voice_aws') {
-          // Bulk clear-logs endpoint
           deleted = await bulkClear(`${API_BASE}/voice-aws/clear-logs`);
         } else if (id === 'whatsapp_calling') {
-          // Bulk clear-logs endpoint
           deleted = await bulkClear(`${API_BASE}/whatsapp-calling`);
         } else if (id === 'obd_campaigns') {
-          // Bulk clear via POST with clearAll flag
           deleted = await bulkClear(`${API_BASE}/voice-in/obd`, 'POST', { clearAll: true });
         } else if (id === 'airtel_sms') {
-          // Bulk clear-logs endpoint
-          deleted = await bulkClear(`${API_BASE}/sms-in/airtel/clear-logs`);
+          const bulk = await tryBulkClear(`${API_BASE}/sms-in/airtel/clear-logs`);
+          if (bulk >= 0) { deleted = bulk; } else {
+            results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy sms-in/airtel Lambda' }); continue;
+          }
         } else if (id === 'airtel_c2c') {
-          // Bulk clear via DELETE with clearAll body
-          deleted = await bulkClear(`${API_BASE}/voice-in/c2c`, 'DELETE', { clearAll: true });
-        } else if (id === 'voice_cdr') {
-          // Bulk clear via DELETE with clearAll body
-          deleted = await bulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
-        } else if (id === 'voice_calls') {
-          // Same CDR table — use the webhook clear endpoint
-          deleted = await bulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
+          const bulk = await tryBulkClear(`${API_BASE}/voice-in/c2c`, 'DELETE', { clearAll: true });
+          if (bulk >= 0) { deleted = bulk; } else {
+            results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy voice-in/c2c Lambda' }); continue;
+          }
+        } else if (id === 'voice_cdr' || id === 'voice_calls') {
+          // Try DELETE first, then POST with clearAll
+          let bulk = await tryBulkClear(`${API_BASE}/voice-cdr-webhook`, 'DELETE', { clearAll: true });
+          if (bulk < 0) bulk = await tryBulkClear(`${API_BASE}/voice-cdr-webhook`, 'POST', { clearAll: true, _action: 'clear-logs' });
+          if (bulk >= 0) { deleted = bulk; } else {
+            results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy voice-cdr Lambda' }); continue;
+          }
         } else if (id === 'invoices' || id === 'invoice_items' || id === 'invoice_assets' || id === 'invoice_delivery_log' || id === 'invoice_sequence' || id === 'payments' || id === 'razorpay_webhook_log' || id === 's3_invoices') {
-          // Invoice engine clear-all wipes ALL invoice sub-tables + S3 invoices in one call
           const invoiceIds = ['invoices', 'invoice_items', 'invoice_assets', 'invoice_delivery_log', 'invoice_sequence', 'payments', 'razorpay_webhook_log', 's3_invoices'];
           const alreadyDone = results.some(r => invoiceIds.includes(r.id) && !r.error);
-          if (alreadyDone) {
-            results.push({ id, label, deleted: 0, elapsed: 0 });
-            continue;
+          if (alreadyDone) { results.push({ id, label, deleted: 0, elapsed: 0 }); continue; }
+          // Try bulk clear-all, fall back to one-by-one for invoices only
+          const bulk = await tryBulkClear(`${API_BASE}/invoices/clear-all`);
+          if (bulk >= 0) { deleted = bulk; } else if (id === 'invoices') {
+            for (let pass = 0; pass < 20; pass++) {
+              const inv = await api.listInvoicesEngine();
+              if (inv.invoices.length === 0) break;
+              for (const i of inv.invoices) { try { await api.deleteInvoice(i.invoiceId); deleted++; } catch { /* skip */ } }
+            }
           } else {
-            deleted = await bulkClear(`${API_BASE}/invoices/clear-all`);
+            results.push({ id, label, deleted: 0, error: 'Redeploy invoice-engine Lambda for clear-all' }); continue;
           }
         } else if (id === 'conversation_history' || id === 'ai_interactions') {
-          // AI clear-logs wipes both AI tables in one call
           const aiIds = ['conversation_history', 'ai_interactions'];
           const alreadyDone = results.some(r => aiIds.includes(r.id) && !r.error);
-          if (alreadyDone) {
-            results.push({ id, label, deleted: 0, elapsed: 0 });
-            continue;
-          } else {
-            deleted = await bulkClear(`${API_BASE}/ai/clear-logs`);
+          if (alreadyDone) { results.push({ id, label, deleted: 0, elapsed: 0 }); continue; }
+          const bulk = await tryBulkClear(`${API_BASE}/ai/clear-logs`);
+          if (bulk >= 0) { deleted = bulk; } else {
+            results.push({ id, label, deleted: 0, error: 'Redeploy ai-config Lambda for clear-logs' }); continue;
           }
         } else if (id === 'bulk_jobs') {
           for (let pass = 0; pass < 20; pass++) {
             const jobs = await api.listBulkJobs();
             if (jobs.length === 0) break;
-            for (const j of jobs) {
-              try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ }
-            }
+            for (const j of jobs) { try { await api.deleteBulkJob(j.id); deleted++; } catch { /* skip */ } }
           }
         } else if (id === 'whatsapp_voice_log') {
-          deleted = await bulkClear(`${API_BASE}/whatsapp-voice/clear-logs`);
+          const bulk = await tryBulkClear(`${API_BASE}/whatsapp-voice/clear-logs`);
+          if (bulk >= 0) { deleted = bulk; } else {
+            results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy whatsapp-voice Lambda' }); continue;
+          }
         } else if (id === 'scheduled_messages') {
           deleted = await deleteAllMessages();
         } else if (id === 'media_files' || id === 'bulk_recipients' || id === 's3_whatsapp_media' || id === 's3_voice_recordings' || id === 's3_whatsapp_voice') {
-          // These require direct DynamoDB/S3 access — try system-cleanup Lambda
-          try { deleted = await bulkClear(`${API_BASE}/system-cleanup`, 'POST', { selected: [id] }); }
-          catch { results.push({ id, label, deleted: 0, error: 'Deploy system-cleanup Lambda to clear this' }); continue; }
+          const bulk = await tryBulkClear(`${API_BASE}/system-cleanup`, 'POST', { selected: [id] });
+          if (bulk >= 0) { deleted = bulk; } else {
+            results.push({ id, label, deleted: 0, error: 'Deploy system-cleanup Lambda to clear this' }); continue;
+          }
         } else {
           results.push({ id, label, deleted: 0, error: 'No cleanup endpoint available' });
           continue;
