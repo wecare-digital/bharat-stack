@@ -75,3 +75,10 @@ secrets.json
 .aws/
 aws-credentials.json
 credentials.json
+
+# Utility scripts (local only)
+_cleanup.py
+_deploy_lambdas.py
+_setup_api_routes.py
+_add_delete_routes.py
+_test_endpoints.py

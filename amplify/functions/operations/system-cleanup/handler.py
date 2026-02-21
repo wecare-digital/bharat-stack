@@ -211,10 +211,12 @@ CLEANUP_RESOURCES = {
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """System cleanup handler — preview counts or delete selected resources."""
-    if event.get('httpMethod') == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS, 'body': ''}
+    # Support both API Gateway v1 (REST) and v2 (HTTP) event formats
+    rc = event.get('requestContext', {})
+    method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
 
-    method = event.get('httpMethod', 'GET').upper()
+    if method == 'OPTIONS':
+        return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
     if method == 'GET':
         return _preview()
@@ -222,6 +224,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _cleanup(event)
     else:
         return {'statusCode': 405, 'headers': CORS, 'body': json.dumps({'error': 'Method not allowed'})}
+
 
 
 def _get_table_count(table_name: str) -> int:

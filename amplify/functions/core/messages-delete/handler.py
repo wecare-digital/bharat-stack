@@ -68,19 +68,21 @@ def handler(event, context):
     }
     
     # Handle OPTIONS preflight
-    if event.get('httpMethod') == 'OPTIONS':
+    rc = event.get('requestContext', {})
+    evt_method = rc.get('http', {}).get('method', event.get('httpMethod', ''))
+    if evt_method == 'OPTIONS':
         return {'statusCode': 200, 'headers': headers, 'body': ''}
 
-    # ── POST: Create invoice ──
-    http_method = event.get('httpMethod', 'DELETE').upper()
-    path = event.get('path', '')
-
-    if http_method == 'POST':
-        return _handle_create_invoice(event, headers)
-
-    # ── PATCH/PUT: Update payment/invoice fields ──
-    if http_method in ('PUT', 'PATCH'):
-        return _handle_update(event, headers)
+    # Support both API Gateway v1 (REST) and v2 (HTTP) event formats
+    request_context = event.get('requestContext', {})
+    if 'http' in request_context:
+        http_method = request_context['http'].get('method', 'DELETE').upper()
+        path = request_context['http'].get('path', '')
+    else:
+        http_method = event.get('httpMethod', 'DELETE').upper()
+        path = event.get('path', '')
+    if not path:
+        path = event.get('rawPath', '')
 
     # ── DELETE /messages/clear-all — bulk wipe both tables ──
     if http_method == 'DELETE' and 'clear-all' in path:
@@ -89,6 +91,13 @@ def handler(event, context):
     # ── POST /messages/clear-all — alternative POST route ──
     if http_method == 'POST' and 'clear-all' in path:
         return _handle_clear_all(headers)
+
+    # ── PATCH/PUT: Update payment/invoice fields ──
+    if http_method in ('PUT', 'PATCH'):
+        return _handle_update(event, headers)
+
+    if http_method == 'POST':
+        return _handle_create_invoice(event, headers)
     
     try:
         # Get message ID from path
@@ -161,8 +170,7 @@ def handler(event, context):
                     media_deleted = True
 
             except Exception as e:
-
-                # Continue with DynamoDB deletion even if S3 fails
+                pass  # Continue with DynamoDB deletion even if S3 fails
         
         # Delete the message from DynamoDB using proper key schema
         try:
@@ -176,8 +184,8 @@ def handler(event, context):
                     table.delete_item(Key={'id': message_id})
                 except ClientError:
                     table.delete_item(Key={'messageId': message_id})
-
-        
+        except Exception:
+            pass  # Best effort delete
         return {
             'statusCode': 200,
             'headers': headers,
@@ -296,7 +304,6 @@ def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
         return None
         
     except Exception as e:
-
         raise
 
 
@@ -346,7 +353,6 @@ def _handle_update(event, headers):
             'body': json.dumps({'success': True, 'messageId': message_id, 'updated': list(updates.keys())})
         }
     except Exception as e:
-
         return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
 
 
@@ -422,7 +428,6 @@ def _handle_create_invoice(event, headers):
         }
 
     except Exception as e:
-
         return {
             'statusCode': 500,
             'headers': headers,
