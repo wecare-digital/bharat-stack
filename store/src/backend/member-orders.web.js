@@ -138,3 +138,83 @@ export const getMyOrderCount = webMethod(
       .count({ suppressAuth: true });
   }
 );
+
+/**
+ * Get just the WD-ORD IDs for a member (for dropdown/select).
+ * Returns array of { value, label } for easy binding.
+ *
+ * @param {string} memberId
+ * @returns {Array<{ value: string, label: string }>}
+ */
+export const getMyOrderIdList = webMethod(
+  Permissions.SiteMember,
+  async (memberId) => {
+    if (!memberId) return [];
+
+    let all = [];
+    let res = await wixData.query(ORDER_IDS_COLLECTION)
+      .eq('memberId', memberId)
+      .descending('_createdDate')
+      .limit(50)
+      .find({ suppressAuth: true });
+    all = all.concat(res.items);
+    while (res.hasNext()) {
+      res = await res.next();
+      all = all.concat(res.items);
+    }
+
+    return all.map(item => ({
+      value: item.customOrderNumber,
+      label: item.customOrderNumber,
+    }));
+  }
+);
+
+/**
+ * Submit a support/return/exchange request for an order.
+ * Writes to the "OrderRequests" Wix collection.
+ *
+ * Collection schema (create in Wix Editor → CMS):
+ *   - orderId (Text): WD-ORD number
+ *   - memberId (Text): Wix member ID
+ *   - memberEmail (Text): buyer email
+ *   - requestType (Text): return | exchange | support | other
+ *   - subject (Text): short subject
+ *   - description (Text): detailed description
+ *   - status (Text): pending | in_progress | resolved | closed
+ *
+ * @param {{ orderId: string, memberId: string, memberEmail: string, requestType: string, subject: string, description: string }} payload
+ * @returns {{ success: boolean, requestId: string }}
+ */
+export const submitOrderRequest = webMethod(
+  Permissions.SiteMember,
+  async (payload) => {
+    const { orderId, memberId, memberEmail, requestType, subject, description } = payload || {};
+    if (!orderId || !memberId) throw new Error('orderId and memberId are required');
+    if (!requestType) throw new Error('requestType is required');
+    if (!subject || !subject.trim()) throw new Error('subject is required');
+
+    // Verify this order belongs to the member
+    const check = await wixData.query(ORDER_IDS_COLLECTION)
+      .eq('customOrderNumber', orderId)
+      .eq('memberId', memberId)
+      .limit(1)
+      .find({ suppressAuth: true });
+
+    if (check.items.length === 0) {
+      throw new Error('Order not found or does not belong to you');
+    }
+
+    const item = await wixData.insert('OrderRequests', {
+      orderId,
+      memberId,
+      memberEmail: memberEmail || '',
+      requestType: requestType || 'support',
+      subject: (subject || '').trim(),
+      description: (description || '').trim(),
+      status: 'pending',
+    }, { suppressAuth: true });
+
+    return { success: true, requestId: item._id };
+  }
+);
