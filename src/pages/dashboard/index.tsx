@@ -123,10 +123,17 @@ API Base: https://api.wecare.digital
    POST /wix-store/create-product (create product)
    POST /wix-store/sync/products  (sync to DynamoDB cache)
    POST /wix-store/sync/orders    (sync to DynamoDB cache)
+   POST /wix-store/backfill-order-ids (backfill WD-ORD numbers)
    Full URL: https://api.wecare.digital/wix-store/*
    Auth: API Key (X-Api-Key header in Velo mode)
    Lambda: wecare-wix-store
    Modes: api (Wix REST API) | velo (Velo HTTP Functions)
+   Order ID Format: WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST
+   TWO REPOS:
+     Base CRM: github.com/wecaredigital/base.wecare.digital (branch: base)
+     Wix Velo: github.com/wecaredigital/store.wecare.digital (branch: main) ← LIVE on Wix
+   DynamoDB: base-wecare-digital-WixOrderIds, WixProductsCache, WixOrdersCache
+   Wix Collections: OrderIDs (Velo writes), OrderCustomIds (Lambda+Velo writes), Stores/Orders (native)
 
 IP WHITELIST:
 ━━━━━━━━━━━━
@@ -3181,12 +3188,53 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>Dual (REST API + Velo HTTP Functions)</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-YYYYMMDD-XXXX</code>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID Format</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-{'{'}<span style={{ color: '#7C3AED' }}>UUID8</span>{'}'}-DD-MM-YYYY-HH:MM:SS-IST</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Table</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WixStoreTable</code>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Tables</label>
+                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>WixOrderIds, WixProductsCache, WixOrdersCache</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#EDE7F6', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #B39DDB' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#4527A0' }}>⚠️ TWO REPOS — IMPORTANT</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
+                    <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
+                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>🔧 Base CRM Repo</div>
+                      <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
+                      <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>base</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
+                    </div>
+                    <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
+                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>🌐 Wix Velo Repo (LIVE)</div>
+                      <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
+                      <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#4527A0', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                    📌 Shared code lives in <code>shared/wix-velo/</code> — sync script copies to both repos. Wix page files need internal IDs (e.g. <code>HOME.c1dmp.js</code>) — only the Wix Editor can create page files.
+                  </div>
+                </div>
+
+                <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1565C0' }}>🗄 Wix Data Collections</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
+                    <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                      <code style={{ color: '#1565C0', fontWeight: 600 }}>OrderIDs</code>
+                      <div style={{ fontSize: '0.7rem', color: '#666' }}>Written by Velo (Thank You page). Fields: orderId (WD-ORD), wixOrderId, orderNumber, buyerEmail, buyerPhone, totalAmount, orderDate</div>
+                    </div>
+                    <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                      <code style={{ color: '#1565C0', fontWeight: 600 }}>OrderCustomIds</code>
+                      <div style={{ fontSize: '0.7rem', color: '#666' }}>Written by Velo + Lambda. Fields: orderId (Wix UUID), customOrderNumber (WD-ORD), memberId, buyerEmail</div>
+                    </div>
+                    <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                      <code style={{ color: '#1565C0', fontWeight: 600 }}>Stores/Products</code>
+                      <div style={{ fontSize: '0.7rem', color: '#666' }}>Wix native. Read-only from REST API. SKU prefix: WD-</div>
+                    </div>
+                    <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                      <code style={{ color: '#1565C0', fontWeight: 600 }}>Stores/Orders</code>
+                      <div style={{ fontSize: '0.7rem', color: '#666' }}>Wix native. customField writable via Velo only. Native # hidden everywhere.</div>
                     </div>
                   </div>
                 </div>
@@ -3214,7 +3262,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17' }}>
-                  ⚠ Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collection <code>OrderCustomIds</code> must exist with fields: orderId, customOrderNumber, memberId, buyerEmail.
+                  ⚠ Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>base-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT base repo.
                 </div>
               </div>
 
