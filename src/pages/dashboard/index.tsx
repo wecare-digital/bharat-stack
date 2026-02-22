@@ -290,7 +290,8 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'wecare-waba-management',
       'wecare-ai-config-management',
       'wecare-ai-agent-action-group',
-      'wecare-wix-store (Wix Stores + Velo bridge)'
+      'wecare-wix-store (Wix Stores + Velo bridge)',
+      'wecare-product-image-gen (Product image generator)'
     ]
   },
   'Amazon EC2': { 
@@ -3109,11 +3110,30 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </div>
                 </div>
 
+                {/* Quick Links */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                  <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#7C3AED', color: '#fff', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
+                    🌐 Live Store
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
+                    📦 Wix Products
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
+                    🧾 Wix Orders
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
+                    🖼 Media Manager
+                  </a>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
+                    ⚙ Wix Dashboard
+                  </a>
+                </div>
+
                 <div style={{ background: '#F5F3FF', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C4B5FD' }}>
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#7C3AED' }}>📌 API Endpoints (Lambda: wecare-wix-store)</h4>
                   {[
                     { label: 'List Products', method: 'GET', path: '/wix-store/products' },
-                    { label: 'Get Product', method: 'GET', path: '/wix-store/products/{id}' },
+                    { label: 'Get Product (full)', method: 'GET', path: '/wix-store/products/{id}' },
                     { label: 'List Collections', method: 'GET', path: '/wix-store/collections' },
                     { label: 'Get Collection', method: 'GET', path: '/wix-store/collections/{id}' },
                     { label: 'Collection Products', method: 'GET', path: '/wix-store/collections/{id}/products' },
@@ -3123,8 +3143,14 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     { label: 'Get Order', method: 'GET', path: '/wix-store/orders/{id}' },
                     { label: 'Order Fulfillments', method: 'GET', path: '/wix-store/orders/{id}/fulfillments' },
                     { label: 'Order Transactions', method: 'GET', path: '/wix-store/orders/{id}/transactions' },
+                    { label: 'Create Product', method: 'POST', path: '/wix-store/create-product' },
+                    { label: 'Add Product Image', method: 'POST', path: '/wix-store/add-product-image' },
+                    { label: 'Upload Product Image', method: 'POST', path: '/wix-store/upload-product-image' },
                     { label: 'Sync Products → DynamoDB', method: 'POST', path: '/wix-store/sync/products' },
                     { label: 'Sync Orders → DynamoDB', method: 'POST', path: '/wix-store/sync/orders' },
+                    { label: 'Generate Product Image', method: 'POST', path: '/store/generate-product-image' },
+                    { label: 'Preview Product Image', method: 'GET', path: '/store/preview-product-image' },
+                    { label: 'Convert Flag → PNG', method: 'POST', path: '/store/convert-flag' },
                   ].map(({ label, method, path }) => (
                     <div key={path} style={{ marginBottom: '0.5rem' }}>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
@@ -3173,9 +3199,10 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                       { file: 'backend/events.js', desc: 'Order created → WD assignment' },
                       { file: 'backend/orderId.web.js', desc: 'WD ID generator' },
                       { file: 'backend/member-orders.web.js', desc: 'Member order queries' },
-                      { file: 'backend/hide-native-order-number.js', desc: 'Hide Wix native order #' },
+                      { file: 'backend/product-manager.web.js', desc: 'Product CRUD (in-stock default)' },
+                      { file: 'backend/hide-native-order-number.js', desc: 'Hide Wix native order # + branding' },
                       { file: 'backend/pinger.js', desc: 'Health check (hourly)' },
-                      { file: 'public/global-apply.js', desc: 'CSS injection for native # hide' },
+                      { file: 'public/global-apply.js', desc: 'CSS + DOM injection for native # hide' },
                       { file: 'pages/', desc: 'Store, Product, Collection, My Orders, Thank You' },
                     ].map(({ file, desc }) => (
                       <div key={file} style={{ background: '#fff', padding: '0.35rem 0.5rem', borderRadius: '4px' }}>

@@ -32,16 +32,46 @@ $w.onReady(function () {
 function injectCustomCSS() {
   try {
     const css = getHideNativeOrderCSS();
-    wixWindow.copyToClipboard(''); // no-op to ensure wixWindow is loaded
-    // Inject CSS via custom element or head tag
-    $w('#customCssElement')?.postMessage({ type: 'injectCSS', css });
-    // Fallback: use Wix's built-in custom CSS if available
-    if (typeof wixWindow.openLightbox === 'function') {
-      // CSS is also applied via site-level custom CSS in Wix Editor:
-      // Settings > Custom Code > Head > paste the CSS
-      // This code is a runtime fallback
-    }
+    // Inject CSS via custom element
+    try { $w('#customCssElement')?.postMessage({ type: 'injectCSS', css }); } catch {}
+
+    // Also inject via Wix's CustomElement API if available
+    try {
+      const styleEl = $w('#hiddenStyleInjector');
+      if (styleEl) styleEl.postMessage({ type: 'style', css });
+    } catch {}
   } catch { /* CSS injection may not be supported in all contexts */ }
+
+  // DOM-based: hide any element containing only a native order number pattern (#XXXXX)
+  // and replace with WD custom order ID if available
+  try {
+    hideNativeOrderNumbersOnPage();
+  } catch {}
+}
+
+/**
+ * Scan page for native Wix order number patterns and hide them.
+ * Looks for text matching #XXXXX (5+ digit native order number).
+ */
+function hideNativeOrderNumbersOnPage() {
+  // Wix native order numbers are typically 5+ digit numbers prefixed with #
+  // We hide any text element that shows only a native order number
+  const selectors = [
+    '#orderNumber', '#nativeOrderNumber', '#orderRef',
+    '#orderConfirmationNumber', '#thankYouOrderId',
+  ];
+  for (const sel of selectors) {
+    try {
+      const el = $w(sel);
+      if (el && el.text) {
+        // If it looks like a native Wix order number (just digits or #digits), hide it
+        const text = el.text.trim();
+        if (/^#?\d{4,}$/.test(text)) {
+          el.hide();
+        }
+      }
+    } catch {}
+  }
 }
 
 // ---------------------------------------------------------------------------

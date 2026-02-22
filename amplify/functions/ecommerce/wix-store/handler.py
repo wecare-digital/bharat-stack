@@ -308,15 +308,24 @@ def _list_products(params: dict, request_id: str) -> Dict[str, Any]:
     result = _wix_request('/stores/v1/products/query', method='POST', body=query_body)
     products = result.get('products', [])
 
+    # Enrich each product with site URL and stock summary
+    for p in products:
+        slug = p.get('slug', '')
+        p['_siteUrl'] = f'https://www.wecare.digital/product-page/{slug}' if slug else ''
+        p['_mainImage'] = _get_main_media(p)
+        p['_mediaCount'] = len(p.get('media', {}).get('items', []))
+
     return _response(200, {
         'products': products,
         'totalResults': result.get('totalResults', len(products)),
+        'siteUrl': 'https://www.wecare.digital',
+        'dashboardUrl': f'https://manage.wix.com/dashboard/{WIX_SITE_ID}/store/products',
         'requestId': request_id,
     })
 
 
 def _get_product(product_id: str, request_id: str) -> Dict[str, Any]:
-    """Get full product detail including variants, options, media."""
+    """Get full product detail including variants, options, media, collections, and site URL."""
     result = _wix_request(f'/stores/v1/products/{product_id}')
     product = result.get('product', {})
 
@@ -330,6 +339,31 @@ def _get_product(product_id: str, request_id: str) -> Dict[str, Any]:
         product['_inventory'] = inv.get('inventoryItem', {})
     except Exception as e:
         product['_inventory'] = {'error': str(e)}
+
+    # Add computed fields for convenience
+    slug = product.get('slug', '')
+    product['_siteUrl'] = f'https://www.wecare.digital/product-page/{slug}' if slug else ''
+    product['_dashboardUrl'] = f'https://manage.wix.com/dashboard/{WIX_SITE_ID}/store/products'
+    product['_mediaCount'] = len(product.get('media', {}).get('items', []))
+    product['_mainImage'] = _get_main_media(product)
+
+    # Stock summary
+    stock = product.get('stock', {})
+    product['_stockSummary'] = {
+        'inStock': stock.get('inStock', False),
+        'trackInventory': stock.get('trackInventory', False),
+        'inventoryStatus': stock.get('inventoryStatus', 'UNKNOWN'),
+        'quantity': stock.get('quantity', None),
+    }
+
+    # Price summary
+    price = product.get('price', {})
+    product['_priceSummary'] = {
+        'amount': price.get('price', 0),
+        'currency': price.get('currency', 'INR'),
+        'formatted': price.get('formatted', {}).get('price', ''),
+        'discounted': price.get('formatted', {}).get('discountedPrice', ''),
+    }
 
     return _response(200, {'product': product, 'requestId': request_id})
 
@@ -654,6 +688,10 @@ def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
     if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
         product_data['sku'] = _generate_sku(product_data['name'])
 
+    # Ensure all products are in stock by default
+    if 'stock' not in product_data:
+        product_data['stock'] = {'trackInventory': False, 'inStock': True}
+
     # Extract image URLs/keys for post-creation attachment (don't pass to create)
     image_urls = product_data.pop('imageUrls', [])
     s3_keys = product_data.pop('s3Keys', [])
@@ -702,6 +740,9 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
         # Auto-generate SKU if not provided
         if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
             product_data['sku'] = _generate_sku(product_data.get('name', ''))
+        # Ensure in stock by default
+        if 'stock' not in product_data:
+            product_data['stock'] = {'trackInventory': False, 'inStock': True}
         try:
             result = _wix_request(
                 '/stores/v1/products',

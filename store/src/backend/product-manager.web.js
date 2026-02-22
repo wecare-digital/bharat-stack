@@ -22,6 +22,10 @@ export const createProduct = webMethod(
   Permissions.Admin,
   async (productData) => {
     try {
+      // Ensure all products are in stock by default
+      if (!productData.stock) {
+        productData.stock = { inStock: true, trackInventory: false, inventoryStatus: 'IN_STOCK' };
+      }
       const product = await wixStoresBackend.createProduct(productData);
       return { success: true, product };
     } catch (err) {
