@@ -641,10 +641,10 @@ def _base36(num: int) -> str:
 def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
     """Create a single product via Wix REST API. Auto-generates WD SKU if not provided.
     
-    Accepts media in multiple formats:
-      - product.media.items[].image.url  (standard Wix format, passed through)
+    Accepts media in multiple formats (imported via Wix Media Manager):
       - product.imageUrls[]              (shorthand — list of public URLs)
       - product.s3Keys[]                 (S3 keys in app.wecare.digital bucket)
+      - product.folder                   (Wix Media Manager folder: 'flags'|'products'|'bnb-club')
     """
     product_data = body.get('product', {})
     if not product_data.get('name'):
@@ -654,17 +654,10 @@ def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
     if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
         product_data['sku'] = _generate_sku(product_data['name'])
 
-    # Build media from shorthand formats if standard media not provided
-    if not product_data.get('media', {}).get('items'):
-        media_items = []
-        # From imageUrls (public URLs)
-        for url in product_data.pop('imageUrls', []):
-            media_items.append({'image': {'url': url}})
-        # From s3Keys (keys in app.wecare.digital bucket)
-        for key in product_data.pop('s3Keys', []):
-            media_items.append({'image': {'url': _s3_public_url(key)}})
-        if media_items:
-            product_data['media'] = {'items': media_items}
+    # Extract image URLs/keys for post-creation attachment (don't pass to create)
+    image_urls = product_data.pop('imageUrls', [])
+    s3_keys = product_data.pop('s3Keys', [])
+    media_folder = product_data.pop('folder', 'products')
 
     try:
         result = _wix_request(
@@ -672,8 +665,25 @@ def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
             method='POST',
             body={'product': product_data}
         )
+        created_product = result.get('product', {})
+        pid = created_product.get('id', '')
+
+        # Attach images via Media Manager import flow (if any provided)
+        if pid and (image_urls or s3_keys):
+            try:
+                _add_product_image({
+                    'productId': pid,
+                    'imageUrls': image_urls,
+                    's3Keys': s3_keys,
+                    'folder': media_folder,
+                }, request_id)
+                # Re-fetch product to get updated media
+                created_product = _wix_request(f'/stores/v1/products/{pid}').get('product', {})
+            except Exception as img_err:
+                created_product['_imageAttachError'] = str(img_err)
+
         return _response(200, {
-            'product': result.get('product', {}),
+            'product': created_product,
             'created': True,
             'requestId': request_id,
         })
@@ -723,52 +733,147 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
 S3_BUCKET = 'app.wecare.digital'
 S3_PRODUCT_PREFIX = 'store/products'
 
+# Wix Media Manager folder IDs (WECARE Store structure)
+WIX_MEDIA_FOLDERS = {
+    'root': '1380adfd536841efa2557823f0e3f46f',       # WECARE Store
+    'flags': '207cd45424d34ebb9652011e7a17b2a4',       # WECARE Store > Flags
+    'products': '347f7383033f4838af6c3d52c267ac1c',    # WECARE Store > Products
+    'bnb-club': 'f6f39ae4b1be412390a77588b0731f9c',   # WECARE Store > Products > BNB Club
+}
+
 
 def _s3_public_url(key: str) -> str:
     """Convert an S3 key to a public HTTPS URL."""
     return f'https://{S3_BUCKET}/{key}'
 
 
+def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') -> Dict[str, Any]:
+    """
+    Import an external image URL into Wix Media Manager.
+    Returns the Wix-hosted media file descriptor.
+
+    Uses POST https://www.wixapis.com/site-media/v1/files/import
+
+    Args:
+        url: Public URL of the image to import
+        display_name: File name in Wix Media Manager (include extension)
+        folder: Folder key from WIX_MEDIA_FOLDERS (default: 'products')
+    """
+    folder_id = WIX_MEDIA_FOLDERS.get(folder, WIX_MEDIA_FOLDERS['products'])
+
+    # Detect mime type from extension
+    ext = display_name.rsplit('.', 1)[-1].lower() if '.' in display_name else 'png'
+    mime_map = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}
+    mime_type = mime_map.get(ext, 'image/png')
+
+    import_body = {
+        'url': url,
+        'displayName': display_name,
+        'mediaType': 'IMAGE',
+        'mimeType': mime_type,
+        'parentFolderId': folder_id,
+    }
+
+    # Use site-media API (different from stores API)
+    api_url = f'{WIX_API_BASE}/site-media/v1/files/import'
+    headers = {
+        'Authorization': WIX_API_KEY,
+        'Content-Type': 'application/json',
+        'wix-site-id': WIX_SITE_ID,
+    }
+    data = json.dumps(import_body).encode('utf-8')
+    req = urllib.request.Request(api_url, data=data, headers=headers, method='POST')
+
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        result = json.loads(resp.read().decode('utf-8'))
+
+    return result.get('file', {})
+
+
+def _add_product_media_api(product_id: str, wix_media_urls: list) -> Dict[str, Any]:
+    """
+    Attach images to a product using the dedicated Add Product Media endpoint.
+    POST https://www.wixapis.com/stores/v1/products/{id}/media
+
+    Args:
+        product_id: Wix product ID
+        wix_media_urls: List of Wix-hosted media URLs (from Media Manager)
+    """
+    media_items = [{'url': u, 'mediaType': 'IMAGE'} for u in wix_media_urls]
+    api_url = f'{WIX_API_BASE}/stores/v1/products/{product_id}/media'
+    headers = {
+        'Authorization': WIX_API_KEY,
+        'Content-Type': 'application/json',
+        'wix-site-id': WIX_SITE_ID,
+    }
+    data = json.dumps({'media': media_items}).encode('utf-8')
+    req = urllib.request.Request(api_url, data=data, headers=headers, method='POST')
+
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode('utf-8') or '{}')
+
+
 def _add_product_image(body: dict, request_id: str) -> Dict[str, Any]:
     """
     Add image(s) to an existing product by URL or S3 key.
 
+    Flow:
+      1. Import each image into Wix Media Manager (WECARE Store folder)
+      2. Attach to product via dedicated Add Product Media endpoint
+
     Body:
       productId: required
-      imageUrls: [url, ...]       — public URLs
-      s3Keys: [key, ...]          — S3 keys in app.wecare.digital
-      replace: false              — if true, replaces all existing media; otherwise appends
+      imageUrls: [url, ...]       — public URLs (S3, CDN, etc.)
+      s3Keys: [key, ...]          — S3 keys in app.wecare.digital bucket
+      folder: 'flags'|'products'|'bnb-club' — Wix Media Manager folder (default: 'products')
     """
     pid = body.get('productId', '')
     if not pid:
         return _response(400, {'error': 'Missing productId', 'requestId': request_id})
 
-    media_items = []
-    for url in body.get('imageUrls', []):
-        media_items.append({'image': {'url': url}})
-    for key in body.get('s3Keys', []):
-        media_items.append({'image': {'url': _s3_public_url(key)}})
+    folder = body.get('folder', 'products')
+    urls_to_import = []
 
-    if not media_items:
+    for url in body.get('imageUrls', []):
+        urls_to_import.append(url)
+    for key in body.get('s3Keys', []):
+        urls_to_import.append(_s3_public_url(key))
+
+    if not urls_to_import:
         return _response(400, {'error': 'No imageUrls or s3Keys provided', 'requestId': request_id})
 
     try:
-        # If not replacing, fetch existing media first and append
-        if not body.get('replace', False):
-            existing = _wix_request(f'/stores/v1/products/{pid}')
-            existing_items = existing.get('product', {}).get('media', {}).get('items', [])
-            media_items = existing_items + media_items
+        # Step 1: Import each image into Wix Media Manager
+        wix_media_urls = []
+        imported_files = []
+        for url in urls_to_import:
+            # Extract filename from URL
+            file_name = url.rstrip('/').split('/')[-1].split('?')[0] or 'image.png'
+            wix_file = _import_to_wix_media(url, file_name, folder)
+            wix_url = wix_file.get('url', '')
+            if wix_url:
+                wix_media_urls.append(wix_url)
+                imported_files.append({
+                    'wixId': wix_file.get('id', ''),
+                    'wixUrl': wix_url,
+                    'sourceUrl': url,
+                    'displayName': wix_file.get('displayName', ''),
+                })
 
-        result = _wix_request(
-            f'/stores/v1/products/{pid}',
-            method='PATCH',
-            body={'product': {'media': {'items': media_items}}}
-        )
-        product = result.get('product', {})
+        if not wix_media_urls:
+            return _response(500, {'error': 'Failed to import images to Wix Media Manager', 'requestId': request_id})
+
+        # Step 2: Attach to product via dedicated endpoint
+        _add_product_media_api(pid, wix_media_urls)
+
+        # Step 3: Verify by fetching product
+        product = _wix_request(f'/stores/v1/products/{pid}').get('product', {})
+
         return _response(200, {
             'productId': pid,
             'mediaCount': len(product.get('media', {}).get('items', [])),
             'mainImage': _get_main_media(product),
+            'importedFiles': imported_files,
             'updated': True,
             'requestId': request_id,
         })
@@ -823,13 +928,14 @@ def _upload_product_image(event: dict, body: dict, request_id: str) -> Dict[str,
             'requestId': request_id,
         }
 
-        # Optionally attach to product
+        # Optionally attach to product via Wix Media Manager import flow
         pid = body.get('productId', '')
         if pid:
+            folder = body.get('folder', 'products')
             attach_result = _add_product_image({
                 'productId': pid,
                 'imageUrls': [public_url],
-                'replace': body.get('replace', False),
+                'folder': folder,
             }, request_id)
             result['productAttached'] = True
             result['productId'] = pid

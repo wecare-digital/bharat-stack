@@ -93,6 +93,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = json.loads(event.get('body', '{}') or '{}')
             return _generate_and_upload(body, request_id)
 
+        if http_method == 'POST' and '/convert-flag' in path:
+            body = json.loads(event.get('body', '{}') or '{}')
+            return _convert_flag_to_png(body, request_id)
+
         if '/preview-product-image' in path:
             return _preview_svg(params, request_id)
 
@@ -361,28 +365,59 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id,
         }
 
-        # Optionally attach to Wix product
+        # Optionally attach to Wix product via Media Manager import flow
         pid = body.get('productId', '')
         if pid:
             try:
                 WIX_API_KEY = os.environ.get('WIX_API_KEY', '')
                 WIX_SITE_ID = os.environ.get('WIX_SITE_ID', '')
+                WIX_API_BASE = 'https://www.wixapis.com'
                 headers = {
                     'Authorization': WIX_API_KEY,
                     'Content-Type': 'application/json',
                     'wix-site-id': WIX_SITE_ID,
                 }
-                patch_body = json.dumps({
-                    'product': {'media': {'items': [{'image': {'url': public_url}}]}}
+
+                # Wix Media Manager folder IDs
+                MEDIA_FOLDERS = {
+                    'flags': '207cd45424d34ebb9652011e7a17b2a4',
+                    'products': '347f7383033f4838af6c3d52c267ac1c',
+                    'bnb-club': 'f6f39ae4b1be412390a77588b0731f9c',
+                }
+                folder = body.get('folder', 'bnb-club')
+                folder_id = MEDIA_FOLDERS.get(folder, MEDIA_FOLDERS['bnb-club'])
+
+                # Step 1: Import image into Wix Media Manager
+                import_body = json.dumps({
+                    'url': public_url,
+                    'displayName': file_name,
+                    'mediaType': 'IMAGE',
+                    'mimeType': 'image/png',
+                    'parentFolderId': folder_id,
                 }).encode('utf-8')
-                req = urllib.request.Request(
-                    f'https://www.wixapis.com/stores/v1/products/{pid}',
-                    data=patch_body, headers=headers, method='PATCH'
+                import_req = urllib.request.Request(
+                    f'{WIX_API_BASE}/site-media/v1/files/import',
+                    data=import_body, headers=headers, method='POST'
                 )
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    json.loads(resp.read().decode('utf-8'))
+                with urllib.request.urlopen(import_req, timeout=30) as resp:
+                    wix_file = json.loads(resp.read().decode('utf-8')).get('file', {})
+                wix_media_url = wix_file.get('url', '')
+
+                # Step 2: Attach to product via dedicated endpoint
+                if wix_media_url:
+                    media_body = json.dumps({
+                        'media': [{'url': wix_media_url, 'mediaType': 'IMAGE'}]
+                    }).encode('utf-8')
+                    media_req = urllib.request.Request(
+                        f'{WIX_API_BASE}/stores/v1/products/{pid}/media',
+                        data=media_body, headers=headers, method='POST'
+                    )
+                    with urllib.request.urlopen(media_req, timeout=30) as resp:
+                        resp.read()
+
                 result['productAttached'] = True
                 result['productId'] = pid
+                result['wixMediaUrl'] = wix_media_url
             except Exception as e:
                 result['productAttachError'] = str(e)
 
@@ -447,6 +482,81 @@ def _preview_svg(params: dict, request_id: str) -> Dict[str, Any]:
         'headers': {'Content-Type': 'image/svg+xml', 'Access-Control-Allow-Origin': '*'},
         'body': svg,
     }
+
+
+def _convert_flag_to_png(body: dict, request_id: str) -> Dict[str, Any]:
+    """
+    Fetch flag PNG from flagcdn.com, render onto 3000x3000 white canvas, upload to S3.
+
+    Body:
+      country: 'in' (ISO code, required)
+      size: 3000 (optional, default 3000)
+      background: 'white' or 'transparent' (optional, default 'white')
+    """
+    cc = body.get('country', '').lower()
+    if not cc:
+        return _resp(400, {'error': 'Missing country code', 'requestId': request_id})
+
+    size = int(body.get('size', 3000))
+    bg = body.get('background', 'white')
+
+    try:
+        # Fetch highest res flag from flagcdn (640px wide)
+        flag_img = _fetch_flag(cc, 640)
+
+        # Create square canvas
+        if bg == 'transparent':
+            canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        else:
+            canvas = Image.new('RGBA', (size, size), (255, 255, 255, 255))
+
+        # Scale flag to fit canvas with padding (80% of canvas)
+        flag_w, flag_h = flag_img.size
+        aspect = flag_w / flag_h
+        target_w = int(size * 0.85)
+        target_h = int(target_w / aspect)
+        if target_h > int(size * 0.85):
+            target_h = int(size * 0.85)
+            target_w = int(target_h * aspect)
+
+        flag_resized = flag_img.resize((target_w, target_h), Image.LANCZOS)
+
+        # Center on canvas
+        x = (size - target_w) // 2
+        y = (size - target_h) // 2
+        canvas.paste(flag_resized, (x, y), flag_resized if flag_resized.mode == 'RGBA' else None)
+
+        # Save as PNG
+        buf = io.BytesIO()
+        if bg == 'transparent':
+            canvas.save(buf, format='PNG', optimize=True)
+        else:
+            canvas.convert('RGB').save(buf, format='PNG', optimize=True)
+        buf.seek(0)
+        png_bytes = buf.getvalue()
+
+        # Upload to S3
+        s3_key = f'store/flags/png/{cc}.png'
+        s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=s3_key,
+            Body=png_bytes,
+            ContentType='image/png',
+            CacheControl='public, max-age=31536000',
+        )
+
+        return _resp(200, {
+            's3Key': s3_key,
+            'publicUrl': f'https://{S3_BUCKET}/{s3_key}',
+            'country': cc,
+            'dimensions': f'{size}x{size}',
+            'sizeKB': round(len(png_bytes) / 1024, 1),
+            'uploaded': True,
+            'requestId': request_id,
+        })
+    except Exception as e:
+        return _resp(500, {'error': str(e), 'requestId': request_id})
 
 
 def _resp(status_code: int, body: dict) -> Dict[str, Any]:
