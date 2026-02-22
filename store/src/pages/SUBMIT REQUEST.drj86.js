@@ -1,57 +1,60 @@
 /**
  * SUBMIT REQUEST Page — WECARE.DIGITAL
  *
- * Auto-populates the Order ID dropdown with the logged-in
- * member's WD-ORD numbers. Uses Wix Form (#form1).
+ * Wix Form (#form1) with input field "order_id_1" inside it.
+ * On page load, auto-populates the input with the logged-in
+ * member's WD-ORD IDs so they can pick one.
  *
- * Dropdown field key: dropdown_f78d
+ * The form handles its own submission natively.
  */
 
 import { currentMember } from 'wix-members-frontend';
 import { getMyOrderIdList } from 'backend/member-orders.web.js';
 
-$w.onReady(async () => {
-  const dd = $w('#dropdown_f78d');
+let _orderIds = [];
 
+$w.onReady(async () => {
   let email = null;
   try {
     const member = await currentMember.getMember({ fieldsets: ['FULL'] });
     email = member?.loginEmail
       || (member?.contactDetails?.emails && member.contactDetails.emails[0])
       || null;
-    console.log('[submitRequest] member email:', email);
   } catch (e) {
-    console.error('[submitRequest] getMember failed:', e);
+    console.error('[submitRequest] getMember error:', e);
   }
 
-  if (!email) {
-    dd.options = [{ value: '', label: 'Please log in to see your orders' }];
-    dd.selectedIndex = 0;
-    dd.disable();
+  if (!email) return;
+
+  try {
+    _orderIds = await getMyOrderIdList(email);
+  } catch (e) {
+    console.error('[submitRequest] getMyOrderIdList error:', e);
     return;
   }
 
-  // Loading state
-  dd.options = [{ value: '', label: 'Loading your orders...' }];
-  dd.selectedIndex = 0;
+  if (!_orderIds || _orderIds.length === 0) return;
 
+  // Pre-fill with most recent order ID
   try {
-    const orderIds = await getMyOrderIdList(email);
-    console.log('[submitRequest] orderIds:', JSON.stringify(orderIds));
+    $w('#order_id_1').value = _orderIds[0].value;
+  } catch (e) {
+    console.error('[submitRequest] Could not set order_id_1:', e);
+  }
 
-    if (orderIds && orderIds.length > 0) {
-      dd.options = [
-        { value: '', label: 'Select your order...' },
-        ...orderIds,
-      ];
-    } else {
-      dd.options = [{ value: '', label: 'No orders found' }];
-    }
-    dd.selectedIndex = 0;
-    dd.enable();
-  } catch (err) {
-    console.error('[submitRequest] getMyOrderIdList error:', err);
-    dd.options = [{ value: '', label: 'Error loading orders' }];
-    dd.enable();
+  // As user types, filter and suggest matching order IDs
+  try {
+    $w('#order_id_1').onInput((event) => {
+      const typed = (event.target.value || '').toUpperCase();
+      if (typed.length < 2) return;
+
+      const match = _orderIds.find(o => o.value.toUpperCase().includes(typed));
+      if (match && match.value.toUpperCase() !== typed) {
+        // Don't override while they're still typing — just log suggestion
+        console.log('[submitRequest] Suggestion:', match.value);
+      }
+    });
+  } catch (e) {
+    // onInput may not be available on all field types
   }
 });
