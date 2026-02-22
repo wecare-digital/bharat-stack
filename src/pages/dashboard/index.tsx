@@ -3081,6 +3081,100 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
               </div>
 
+              {/* Wix Store Webhook Section */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #7C3AED' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#F5F3FF', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #C4B5FD' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="#7C3AED" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WECARE.DIGITAL Wix Store</h3>
+                    <span className="badge" style={{ background: '#F5F3FF', color: '#7C3AED', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F5F3FF', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C4B5FD' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#7C3AED' }}>📌 API Endpoints (Lambda: wecare-wix-store)</h4>
+                  {[
+                    { label: 'List Products', method: 'GET', path: '/wix-store/products' },
+                    { label: 'Get Product', method: 'GET', path: '/wix-store/products/{id}' },
+                    { label: 'List Collections', method: 'GET', path: '/wix-store/collections' },
+                    { label: 'Get Collection', method: 'GET', path: '/wix-store/collections/{id}' },
+                    { label: 'Collection Products', method: 'GET', path: '/wix-store/collections/{id}/products' },
+                    { label: 'Query Inventory', method: 'GET', path: '/wix-store/inventory' },
+                    { label: 'Product Inventory', method: 'GET', path: '/wix-store/inventory/{productId}' },
+                    { label: 'Search Orders (WDSR)', method: 'GET', path: '/wix-store/orders' },
+                    { label: 'Get Order', method: 'GET', path: '/wix-store/orders/{id}' },
+                    { label: 'Order Fulfillments', method: 'GET', path: '/wix-store/orders/{id}/fulfillments' },
+                    { label: 'Order Transactions', method: 'GET', path: '/wix-store/orders/{id}/transactions' },
+                    { label: 'Sync Products → DynamoDB', method: 'POST', path: '/wix-store/sync/products' },
+                    { label: 'Sync Orders → DynamoDB', method: 'POST', path: '/wix-store/sync/orders' },
+                  ].map(({ label, method, path }) => (
+                    <div key={path} style={{ marginBottom: '0.5rem' }}>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
+                      <code style={{ fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>
+                        <span style={{ color: method === 'POST' ? '#059669' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>🔧 Configuration</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Wix Site ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>461dece3-613a-42b3-a30c-ed9256898e78</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Wix Account ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>6b2d7a93-ef14-45ab-a04e-d445f599e9f4</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Wix Site URL</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>https://www.wecare.digital</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Mode</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>Dual (REST API + Velo HTTP Functions)</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WDSR-YYYYMMDD-XXXX</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Table</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WixStoreTable</code>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>📂 Velo Code (store/src/)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' }}>
+                    {[
+                      { file: 'backend/http-functions.js', desc: 'HTTP API endpoints' },
+                      { file: 'backend/events.js', desc: 'Order created → WDSR assignment' },
+                      { file: 'backend/orderId.web.js', desc: 'WDSR ID generator' },
+                      { file: 'backend/member-orders.web.js', desc: 'Member order queries' },
+                      { file: 'backend/hide-native-order-number.js', desc: 'Hide Wix native order #' },
+                      { file: 'backend/pinger.js', desc: 'Health check (hourly)' },
+                      { file: 'public/global-apply.js', desc: 'CSS injection for native # hide' },
+                      { file: 'pages/', desc: 'Store, Product, Collection, My Orders, Thank You' },
+                    ].map(({ file, desc }) => (
+                      <div key={file} style={{ background: '#fff', padding: '0.35rem 0.5rem', borderRadius: '4px' }}>
+                        <code style={{ fontSize: '0.75rem', color: '#2E7D32' }}>{file}</code>
+                        <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: '4px' }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17' }}>
+                  ⚠ Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collection <code>OrderCustomIds</code> must exist with fields: orderId, customOrderNumber, memberId, buyerEmail.
+                </div>
+              </div>
+
               {/* Custom Webhooks Section */}
               <div className="section-header" style={{ marginTop: '2rem' }}>
                 <h3>Custom Webhooks</h3>

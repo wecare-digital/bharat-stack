@@ -38,6 +38,7 @@ const EXISTING_WEBHOOKS = [
   { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: ['CDR'], lambda: 'wecare-voice-in-c2c', status: 'active', verifyToken: 'N/A (HMAC-SHA256)' },
   { name: 'Voice OBD', url: 'https://api.wecare.digital/voice-in/obd', fields: ['CDR'], lambda: 'wecare-voice-in-obd', status: 'active', verifyToken: 'N/A' },
   { name: 'SMS Airtel', url: 'https://api.wecare.digital/sms-in/airtel', fields: ['SMS'], lambda: 'wecare-sms-in-airtel', status: 'active', verifyToken: 'N/A (Basic Auth)' },
+  { name: 'Wix Store', url: 'https://api.wecare.digital/wix-store/*', fields: ['orders', 'products', 'inventory', 'collections'], lambda: 'wecare-wix-store', status: 'active', verifyToken: 'N/A (API Key)' },
 ];
 
 const META_WEBHOOK_CONFIG = {

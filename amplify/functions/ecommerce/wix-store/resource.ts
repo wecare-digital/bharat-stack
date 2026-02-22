@@ -12,6 +12,8 @@ import { defineFunction } from '@aws-amplify/backend';
  * 
  * Velo mode is useful for accessing custom order numbers and custom fields
  * that are only available through Wix Data collections.
+ * 
+ * Velo source code: store/src/ (sync to Wix via Git integration)
  */
 export const wixStore = defineFunction({
   name: 'wecare-wix-store',
@@ -29,8 +31,8 @@ export const wixStore = defineFunction({
     WIX_SITE_ID: process.env.WIX_SITE_ID || '',
     WIX_ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '6b2d7a93-ef14-45ab-a04e-d445f599e9f4',
     WIX_API_BASE_URL: 'https://www.wixapis.com',
-    // Velo HTTP Functions config — set to your published Wix site URL
-    WIX_VELO_BASE_URL: process.env.WIX_VELO_BASE_URL || '',  // e.g. https://www.yoursite.com
+    // Velo HTTP Functions config — Velo source code is in store/src/
+    WIX_VELO_BASE_URL: process.env.WIX_VELO_BASE_URL || 'https://www.wecare.digital',
     WIX_VELO_API_KEY: process.env.WIX_VELO_API_KEY || '',     // Optional: shared secret for Velo auth
     // DynamoDB cache
     WIX_PRODUCTS_CACHE_TABLE: 'base-wecare-digital-WixProductsCache',

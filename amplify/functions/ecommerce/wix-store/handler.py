@@ -394,6 +394,8 @@ def _search_orders(params: dict, request_id: str) -> Dict[str, Any]:
       - paymentStatus: PAID, NOT_PAID, PARTIALLY_PAID, PARTIALLY_REFUNDED, FULLY_REFUNDED
       - fulfillmentStatus: NOT_FULFILLED, PARTIALLY_FULFILLED, FULFILLED
       - email: filter by buyer email
+      - memberId: filter by Wix member ID (logged-in user)
+      - customOrderNumber: filter by WDSR custom order number
       - dateFrom / dateTo: ISO date range on createdDate
       - limit / cursor: pagination
     """
@@ -417,6 +419,8 @@ def _search_orders(params: dict, request_id: str) -> Dict[str, Any]:
         filt['fulfillmentStatus'] = {'$eq': params['fulfillmentStatus'].upper()}
     if params.get('email'):
         filt['buyerInfo.email'] = {'$eq': params['email']}
+    if params.get('memberId'):
+        filt['buyerInfo.memberId'] = {'$eq': params['memberId']}
     if params.get('orderNumber'):
         filt['number'] = {'$eq': int(params['orderNumber'])}
 
@@ -707,7 +711,7 @@ def _response(status_code: int, body: dict) -> Dict[str, Any]:
 # - Any custom fields you've added
 #
 # Required Velo code on Wix side: backend/http-functions.js
-# See resource.ts comments for the Velo code template.
+# Velo source code is in store/src/ — sync to Wix via Git integration.
 # ===================================================================
 
 def _velo_request(endpoint: str, params: dict = None) -> Dict[str, Any]:
@@ -774,6 +778,7 @@ def _velo_route(path: str, params: dict, request_id: str) -> Dict[str, Any]:
             'limit': params.get('limit', '50'),
             'status': params.get('status', ''),
             'email': params.get('email', ''),
+            'memberId': params.get('memberId', ''),
             'customOrderNumber': params.get('customOrderNumber', ''),
         })
         return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})

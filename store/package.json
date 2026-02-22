@@ -1,0 +1,16 @@
+{
+  "name": "wecare-digital-wix-store",
+  "version": "1.0.0",
+  "description": "WECARE.DIGITAL — Wix Velo code for store, orders, SEO, and automations",
+  "private": true,
+  "scripts": {
+    "dev": "wix dev",
+    "build": "wix build",
+    "preview": "wix preview",
+    "publish": "wix publish"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@wix/cli": "^1.0.0"
+  }
+}

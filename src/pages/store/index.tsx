@@ -77,9 +77,9 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
       const params: any = { limit: 50 };
       if (orderStatusFilter) params.paymentStatus = orderStatusFilter;
       if (orderSearch) {
-        // Try as order number first, then as email
-        if (/^\d+$/.test(orderSearch)) {
-          params.orderNumber = orderSearch;
+        // Search: try as WDSR custom order number first, then email
+        if (orderSearch.startsWith('WDSR')) {
+          params.customOrderNumber = orderSearch;
         } else if (orderSearch.includes('@')) {
           params.email = orderSearch;
         } else {
@@ -206,10 +206,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
   const orderColumns = [
     { key: 'number', header: 'Order #', width: '100px', render: (o: api.WixOrder) => (
       <div>
-        <div style={{ fontWeight: 600 }}>#{o.number || o._summary?.orderNumber || '—'}</div>
-        {(o.customField?.value || o._summary?.externalOrderId) && (
-          <div style={{ fontSize: 11, color: '#6b7280' }}>{o.customField?.value || o._summary?.externalOrderId}</div>
-        )}
+        <div style={{ fontWeight: 600 }}>{(o as any).customOrderNumber || o.customField?.value || o._summary?.externalOrderId || `#${o.number || '—'}`}</div>
       </div>
     )},
     { key: 'buyer', header: 'Buyer', render: (o: api.WixOrder) => {
@@ -303,7 +300,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="text"
-                  placeholder="Search by order #, email, or custom order number..."
+                  placeholder="Search by WDSR order number or email..."
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && fetchOrders()}
@@ -493,7 +490,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
                 <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 600 }}>Git Integration</h3>
                 <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>
-                  Velo code is managed in <code>wix-store/src/</code> — sync with Wix via GitHub integration.
+                  Velo code is managed in <code>store/src/</code> — sync with Wix via GitHub integration.
                 </p>
                 <div style={{ fontSize: 13, background: '#f9fafb', padding: 12, borderRadius: 8, fontFamily: 'monospace', lineHeight: 1.8 }}>
                   <span style={{ color: '#6b7280' }}># Pull code from Wix</span><br />
@@ -612,7 +609,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
         </Modal>
 
         {/* ---- ORDER DETAIL MODAL ---- */}
-        <Modal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} title={`Order #${selectedOrder?.number || selectedOrder?._summary?.orderNumber || '—'}`} size="lg">
+        <Modal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} title={`Order ${(selectedOrder as any)?.customOrderNumber || selectedOrder?.customField?.value || selectedOrder?._summary?.externalOrderId || '#' + (selectedOrder?.number || '—')}`} size="lg">
           {selectedOrder && (() => {
             const s = selectedOrder._summary || {};
             const buyerEmail = (selectedOrder as any).buyerEmail || s.buyerEmail || selectedOrder.buyerInfo?.email || '';
@@ -620,15 +617,14 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
             const buyerPhone = (selectedOrder as any).buyerPhone || s.billingPhone || '';
             const total = selectedOrder.totals?.total || s.totalAmount || '0';
             const currency = selectedOrder.currency || s.currency || 'INR';
-            const customNum = selectedOrder.customField?.value || (selectedOrder as any).customOrderNumber || s.externalOrderId || '';
+            const customNum = (selectedOrder as any).customOrderNumber || selectedOrder.customField?.value || s.externalOrderId || '';
             const items = (selectedOrder as any).lineItemsSummary || s.lineItems || selectedOrder.lineItems || [];
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {/* Order summary */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                  <div style={statBox}><span style={statLabel}>Order #</span><span style={statValue}>#{selectedOrder.number || s.orderNumber}</span></div>
-                  {customNum && <div style={statBox}><span style={statLabel}>Custom #</span><span style={statValue}>{customNum}</span></div>}
+                  <div style={statBox}><span style={statLabel}>Order ID</span><span style={statValue}>{customNum || `#${selectedOrder.number || s.orderNumber || '—'}`}</span></div>
                   <div style={statBox}><span style={statLabel}>Total</span><span style={statValue}>{currency === 'INR' ? '₹' : currency + ' '}{total}</span></div>
                   <div style={statBox}><span style={statLabel}>Payment</span><span style={{ ...statValue, color: (selectedOrder.paymentStatus || s.paymentStatus) === 'PAID' ? '#059669' : '#059669' }}>{(selectedOrder.paymentStatus || s.paymentStatus || '').replace(/_/g, ' ')}</span></div>
                   <div style={statBox}><span style={statLabel}>Fulfillment</span><span style={statValue}>{(selectedOrder.fulfillmentStatus || s.fulfillmentStatus || '—').replace(/_/g, ' ')}</span></div>

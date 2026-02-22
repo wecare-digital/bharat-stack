@@ -1,0 +1,380 @@
+/**
+ * Wix Velo HTTP Functions — WECARE.DIGITAL Store API
+ *
+ * Exposes store data via /_functions/* endpoints so the AWS Lambda
+ * (handler.py in velo mode) can query products, orders, collections
+ * and inventory through the published Wix site.
+ *
+ * Endpoints served (Velo maps get_<name> → GET /_functions/<name>):
+ *   GET /_functions/products?limit=&search=&collectionId=
+ *   GET /_functions/product?id=
+ *   GET /_functions/orders?limit=&status=&email=&customOrderNumber=&memberId=
+ *   GET /_functions/order?id=
+ *   GET /_functions/member-orders?memberId=&limit=
+ *   GET /_functions/collections?limit=
+ *   GET /_functions/inventory?productId=
+ *   GET /_functions/inventory-all?limit=
+ *   GET /_functions/health
+ *
+ * IMPORTANT: Velo converts function names to kebab-case URLs.
+ *   get_inventoryAll  → /_functions/inventory-all  ✓
+ *   get_inventory_all → /_functions/inventory_all  ✗ (underscore, not hyphen)
+ *
+ * Auth: Optional X-Api-Key header checked against Secrets Manager.
+ *
+ * Docs: https://dev.wix.com/docs/velo/apis/wix-http-functions
+ */
+
+import { ok, notFound, serverError, forbidden, response as rawResponse } from 'wix-http-functions';
+import wixData from 'wix-data';
+import { getSecret } from 'wix-secrets-backend';
+
+// ---------------------------------------------------------------------------
+// Auth helper — caches secret for the lifetime of the backend instance
+// ---------------------------------------------------------------------------
+
+let _cachedSecret = undefined;
+
+async function authenticate(request) {
+  try {
+    if (_cachedSecret === undefined) {
+      _cachedSecret = await getSecret('WECARE_API_KEY').catch(() => null);
+    }
+    if (!_cachedSecret) return true; // no secret configured = open
+    const provided = request.headers['x-api-key'];
+    return provided === _cachedSecret;
+  } catch {
+    return true;
+  }
+}
+
+function jsonOk(body) {
+  return ok({
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function jsonError(body, statusCode = 500) {
+  return rawResponse({
+    status: statusCode,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function jsonForbidden() {
+  return forbidden({
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: JSON.stringify({ error: 'Unauthorized' }),
+  });
+}
+
+function jsonNotFound(body) {
+  return notFound({
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Shared: enrich orders with custom order number from OrderCustomIds
+// ---------------------------------------------------------------------------
+
+async function enrichOrderWithCustomId(order) {
+  if (!order?._id) return order;
+  try {
+    const customId = await wixData.query('OrderCustomIds')
+      .eq('orderId', order._id)
+      .limit(1)
+      .find({ suppressAuth: true });
+    if (customId.items.length > 0) {
+      order.customOrderNumber = customId.items[0].customOrderNumber;
+    }
+  } catch { /* OrderCustomIds collection may not exist yet */ }
+  return order;
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/products
+// ---------------------------------------------------------------------------
+
+export async function get_products(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { limit = '100', search = '', collectionId = '' } = request.query;
+    const parsedLimit = Math.min(parseInt(limit, 10) || 100, 1000);
+
+    let query = wixData.query('Stores/Products').limit(parsedLimit);
+
+    if (search) {
+      query = query.contains('name', search);
+    }
+    if (collectionId) {
+      query = query.hasSome('collections._id', [collectionId]);
+    }
+
+    const result = await query.find({ suppressAuth: true });
+
+    return jsonOk({
+      products: result.items,
+      totalResults: result.totalCount,
+    });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/product?id=
+// ---------------------------------------------------------------------------
+
+export async function get_product(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { id } = request.query;
+    if (!id) return jsonNotFound({ error: 'Missing id parameter' });
+
+    const product = await wixData.get('Stores/Products', id, { suppressAuth: true });
+    if (!product) return jsonNotFound({ error: 'Product not found' });
+
+    // Fetch inventory for this product
+    let inventory = null;
+    try {
+      const invResult = await wixData.query('Stores/InventoryItems')
+        .eq('productId', id)
+        .find({ suppressAuth: true });
+      inventory = invResult.items;
+    } catch { /* inventory collection may not exist */ }
+
+    return jsonOk({
+      product: { ...product, _inventory: inventory },
+    });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/orders
+// ---------------------------------------------------------------------------
+
+export async function get_orders(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { limit = '50', status = '', email = '', customOrderNumber = '', memberId = '' } = request.query;
+    const parsedLimit = Math.min(parseInt(limit, 10) || 50, 500);
+
+    // If searching by custom order number, look up the real orderId first
+    if (customOrderNumber) {
+      try {
+        const mapping = await wixData.query('OrderCustomIds')
+          .eq('customOrderNumber', customOrderNumber)
+          .limit(1)
+          .find({ suppressAuth: true });
+
+        if (mapping.items.length > 0) {
+          const order = await wixData.get('Stores/Orders', mapping.items[0].orderId, { suppressAuth: true });
+          if (order) {
+            order.customOrderNumber = customOrderNumber;
+            // Strip Wix native order number — only WDSR is used
+            delete order.number;
+            return jsonOk({ orders: [order], totalResults: 1 });
+          }
+        }
+        return jsonOk({ orders: [], totalResults: 0 });
+      } catch {
+        return jsonOk({ orders: [], totalResults: 0 });
+      }
+    }
+
+    // If searching by memberId, query through OrderCustomIds
+    if (memberId) {
+      try {
+        const mappings = await wixData.query('OrderCustomIds')
+          .eq('memberId', memberId)
+          .descending('_createdDate')
+          .limit(parsedLimit)
+          .find({ suppressAuth: true });
+
+        const orders = [];
+        for (const m of mappings.items) {
+          try {
+            const order = await wixData.get('Stores/Orders', m.orderId, { suppressAuth: true });
+            if (order) {
+              order.customOrderNumber = m.customOrderNumber;
+              delete order.number; // Strip Wix native
+              orders.push(order);
+            }
+          } catch { /* skip missing orders */ }
+        }
+        return jsonOk({ orders, totalResults: mappings.totalCount });
+      } catch {
+        return jsonOk({ orders: [], totalResults: 0 });
+      }
+    }
+
+    let query = wixData.query('Stores/Orders')
+      .limit(parsedLimit)
+      .descending('_dateCreated');
+
+    if (status) {
+      query = query.eq('paymentStatus', status);
+    }
+    if (email) {
+      query = query.eq('buyerEmail', email);
+    }
+
+    const result = await query.find({ suppressAuth: true });
+
+    // Enrich with custom order numbers (batch — limit concurrency)
+    const batchSize = 10;
+    const enriched = [];
+    for (let i = 0; i < result.items.length; i += batchSize) {
+      const batch = result.items.slice(i, i + batchSize);
+      const enrichedBatch = await Promise.all(batch.map(async (order) => {
+        await enrichOrderWithCustomId(order);
+        delete order.number; // Strip Wix native
+        return order;
+      }));
+      enriched.push(...enrichedBatch);
+    }
+
+    return jsonOk({
+      orders: enriched,
+      totalResults: result.totalCount,
+    });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/order?id=
+// ---------------------------------------------------------------------------
+
+export async function get_order(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { id } = request.query;
+    if (!id) return jsonNotFound({ error: 'Missing id parameter' });
+
+    const order = await wixData.get('Stores/Orders', id, { suppressAuth: true });
+    if (!order) return jsonNotFound({ error: 'Order not found' });
+
+    await enrichOrderWithCustomId(order);
+    delete order.number; // Strip Wix native order number — only WDSR is used
+
+    return jsonOk({ order });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/collections
+// ---------------------------------------------------------------------------
+
+export async function get_collections(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { limit = '100' } = request.query;
+    const parsedLimit = Math.min(parseInt(limit, 10) || 100, 1000);
+
+    const result = await wixData.query('Stores/Collections')
+      .limit(parsedLimit)
+      .find({ suppressAuth: true });
+
+    return jsonOk({
+      collections: result.items,
+      totalResults: result.totalCount,
+    });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/inventory?productId=
+// ---------------------------------------------------------------------------
+
+export async function get_inventory(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { productId } = request.query;
+    if (!productId) return jsonNotFound({ error: 'Missing productId parameter' });
+
+    const result = await wixData.query('Stores/InventoryItems')
+      .eq('productId', productId)
+      .find({ suppressAuth: true });
+
+    return jsonOk({
+      productId,
+      inventoryItems: result.items,
+    });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/inventory-all
+// Velo maps get_inventoryAll → /_functions/inventory-all (camelCase → kebab)
+// ---------------------------------------------------------------------------
+
+export async function get_inventoryAll(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { limit = '100' } = request.query;
+    const parsedLimit = Math.min(parseInt(limit, 10) || 100, 1000);
+
+    const result = await wixData.query('Stores/InventoryItems')
+      .limit(parsedLimit)
+      .find({ suppressAuth: true });
+
+    return jsonOk({
+      inventoryItems: result.items,
+      totalResults: result.totalCount,
+    });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/health
+// ---------------------------------------------------------------------------
+
+export async function get_health(request) {
+  // Health endpoint is open — no auth required
+  let productCount = 0;
+  try {
+    productCount = await wixData.query('Stores/Products').count({ suppressAuth: true });
+  } catch { /* ignore */ }
+
+  return jsonOk({
+    status: 'ok',
+    service: 'wecare-digital-velo',
+    productCount,
+    timestamp: new Date().toISOString(),
+  });
+}
