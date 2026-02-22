@@ -1,25 +1,26 @@
 """
 Product Image Generator — WECARE.DIGITAL
 
-Auto-generates branded product card images for the Wix Store.
-Uses SVG → PNG conversion via Pillow + cairosvg (or pure SVG for Wix).
+Auto-generates branded 3000x3000 PNG product card images for the Wix Store.
+Uses Pillow (PIL) for high-quality raster image generation.
 
 Wix product image specs:
-  - 1:1 square ratio (1000×1000px minimum, 3000×3000 ideal)
-  - JPG or PNG
+  - 1:1 square ratio, 3000x3000px for zoom quality
+  - PNG format
   - Max 8MB
 
-Design approach:
-  - Dark gradient background (brand colors)
-  - Country flag from flagcdn.com (free, no API key)
-  - Country name + visa type
+Design:
+  - Dark gradient background (brand navy)
+  - Country flag from flagcdn.com (free CDN)
+  - Visa type badge with accent color
+  - Country name, tagline, price
   - WECARE.DIGITAL branding + BNB CLUB ribbon
-  - Tagline: "We optimize for approval, not just submission"
-  - Price display
 
 Routes:
-  POST /generate-product-image   — Generate + upload to S3
-  GET  /preview-product-image    — Return SVG preview (no S3 upload)
+  POST /generate-product-image   — Generate PNG, upload to S3, optionally attach to Wix product
+  GET  /preview-product-image    — Return SVG preview (lightweight browser preview)
+
+Lambda Layer: Klayers-p312-Pillow:10 (Pillow 12.1.1)
 """
 
 import os
@@ -27,16 +28,21 @@ import json
 import logging
 import urllib.request
 import urllib.error
+import io
 import base64
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 import boto3
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 S3_BUCKET = 'app.wecare.digital'
 S3_PREFIX = 'store/products'
+
+# Image dimensions (Wix ideal: 3000x3000 for zoom)
+IMG_SIZE = 3000
 
 # Country code → name mapping (ISO 3166-1 alpha-2)
 COUNTRIES = {
@@ -57,15 +63,22 @@ COUNTRIES = {
 }
 
 VISA_TYPES = {
-    'tourist': {'label': 'TOURIST VISA', 'color': '#00C9A7'},
-    'schengen': {'label': 'SCHENGEN VISA', 'color': '#4A90D9'},
-    'business': {'label': 'BUSINESS VISA', 'color': '#F5A623'},
-    'conference': {'label': 'CONFERENCE VISA', 'color': '#F5A623'},
-    'transit': {'label': 'TRANSIT VISA', 'color': '#9B59B6'},
-    'student': {'label': 'STUDENT VISA', 'color': '#E74C3C'},
-    'work': {'label': 'WORK VISA', 'color': '#E67E22'},
-    'medical': {'label': 'MEDICAL VISA', 'color': '#1ABC9C'},
+    'tourist':    {'label': 'TOURIST VISA',    'color': (0, 201, 167)},    # teal
+    'schengen':   {'label': 'SCHENGEN VISA',   'color': (74, 144, 217)},   # blue
+    'business':   {'label': 'BUSINESS VISA',   'color': (245, 166, 35)},   # gold
+    'conference': {'label': 'CONFERENCE VISA', 'color': (245, 166, 35)},   # gold
+    'transit':    {'label': 'TRANSIT VISA',    'color': (155, 89, 182)},    # purple
+    'student':    {'label': 'STUDENT VISA',    'color': (231, 76, 60)},     # red
+    'work':       {'label': 'WORK VISA',       'color': (230, 126, 34)},    # orange
+    'medical':    {'label': 'MEDICAL VISA',    'color': (26, 188, 156)},    # green
 }
+
+# Brand colors
+BG_TOP = (10, 22, 40)       # #0A1628
+BG_BOTTOM = (26, 39, 68)    # #1A2744
+WHITE = (255, 255, 255)
+WHITE_DIM = (255, 255, 255, 150)
+WHITE_FAINT = (255, 255, 255, 60)
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -83,151 +96,220 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if '/preview-product-image' in path:
             return _preview_svg(params, request_id)
 
-        return _response(404, {'error': 'Not found', 'path': path})
+        return _resp(404, {'error': 'Not found', 'path': path})
     except Exception as e:
         logger.error(json.dumps({'action': 'image_gen_error', 'error': str(e), 'requestId': request_id}))
-        return _response(500, {'error': str(e), 'requestId': request_id})
+        return _resp(500, {'error': str(e), 'requestId': request_id})
 
 
-def _generate_svg(country_code: str, visa_type: str, price: str = '',
-                  custom_tagline: str = '', country_name: str = '') -> str:
+# ===================================================================
+# PNG IMAGE GENERATION (Pillow)
+# ===================================================================
+
+def _draw_gradient(img: Image.Image, top: Tuple, bottom: Tuple):
+    """Draw a vertical gradient on the image."""
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    for y in range(h):
+        ratio = y / h
+        r = int(top[0] + (bottom[0] - top[0]) * ratio)
+        g = int(top[1] + (bottom[1] - top[1]) * ratio)
+        b = int(top[2] + (bottom[2] - top[2]) * ratio)
+        draw.line([(0, y), (w, y)], fill=(r, g, b))
+
+
+def _draw_rounded_rect(draw: ImageDraw.Draw, xy, radius, fill=None, outline=None, width=1):
+    """Draw a rounded rectangle."""
+    x1, y1, x2, y2 = xy
+    draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+
+
+def _fetch_flag(country_code: str, size: int = 640) -> Image.Image:
+    """Download country flag from flagcdn.com and return as PIL Image."""
+    cc = country_code.lower()
+    if cc == 'schengen':
+        cc = 'eu'
+    url = f'https://flagcdn.com/w{size}/{cc}.png'
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'WECARE-ImageGen/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return Image.open(io.BytesIO(resp.read())).convert('RGBA')
+    except Exception as e:
+        logger.warning(f'Flag fetch failed for {cc}: {e}')
+        # Return a placeholder gray circle
+        placeholder = Image.new('RGBA', (size, int(size * 0.66)), (100, 100, 100, 200))
+        return placeholder
+
+
+def _get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    """Get a font. Lambda has DejaVu Sans available."""
+    font_paths = [
+        '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    ]
+    for fp in font_paths:
+        try:
+            return ImageFont.truetype(fp, size)
+        except (OSError, IOError):
+            continue
+    return ImageFont.load_default()
+
+
+def _generate_png(country_code: str, visa_type: str, price: str = '',
+                  custom_tagline: str = '', country_name: str = '') -> bytes:
     """
-    Generate a 1000x1000 SVG product card.
-
-    Design:
-    - Dark gradient background (#0A1628 → #1A2744)
-    - Country flag (circular, centered)
-    - Visa type badge with accent color
-    - Country name (large)
-    - WECARE.DIGITAL branding
-    - BNB CLUB ribbon
-    - Tagline + price
+    Generate a 3000x3000 PNG product card image.
+    Returns PNG bytes.
     """
+    S = IMG_SIZE  # 3000
     cc = country_code.lower()
     vt = visa_type.lower()
 
     c_name = country_name or COUNTRIES.get(cc, cc.upper())
-    v_info = VISA_TYPES.get(vt, {'label': f'{vt.upper()} VISA', 'color': '#00C9A7'})
+    v_info = VISA_TYPES.get(vt, {'label': f'{vt.upper()} VISA', 'color': (0, 201, 167)})
     v_label = v_info['label']
     v_color = v_info['color']
+    v_color_alpha = v_color + (255,)
     tagline = custom_tagline or 'We optimize for approval, not just submission'
-    flag_url = f'https://flagcdn.com/w320/{cc}.png' if cc != 'schengen' else ''
 
-    # For Schengen, use EU flag
-    if cc == 'schengen':
-        flag_url = 'https://flagcdn.com/w320/eu.png'
+    # Create base image with gradient
+    img = Image.new('RGB', (S, S))
+    _draw_gradient(img, BG_TOP, BG_BOTTOM)
 
-    price_text = f'From {price}' if price else ''
+    # Convert to RGBA for compositing
+    img = img.convert('RGBA')
+    overlay = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
 
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
-  <defs>
-    <!-- Background gradient -->
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0A1628"/>
-      <stop offset="50%" style="stop-color:#12203A"/>
-      <stop offset="100%" style="stop-color:#1A2744"/>
-    </linearGradient>
-    <!-- Accent glow -->
-    <radialGradient id="glow" cx="50%" cy="45%" r="40%">
-      <stop offset="0%" style="stop-color:{v_color};stop-opacity:0.15"/>
-      <stop offset="100%" style="stop-color:{v_color};stop-opacity:0"/>
-    </radialGradient>
-    <!-- Flag circle clip -->
-    <clipPath id="flagClip">
-      <circle cx="500" cy="380" r="120"/>
-    </clipPath>
-    <!-- Subtle pattern overlay -->
-    <pattern id="dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
-      <circle cx="15" cy="15" r="0.8" fill="white" opacity="0.05"/>
-    </pattern>
-  </defs>
+    # ---- Accent glow (radial, centered at flag area) ----
+    glow = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow)
+    cx, cy = S // 2, int(S * 0.38)
+    for r in range(800, 0, -2):
+        alpha = int(25 * (1 - r / 800))
+        glow_draw.ellipse([cx - r, cy - r, cx + r, cy + r],
+                          fill=v_color + (alpha,))
+    img = Image.alpha_composite(img, glow)
 
-  <!-- Background -->
-  <rect width="1000" height="1000" fill="url(#bg)"/>
-  <rect width="1000" height="1000" fill="url(#dots)"/>
-  <rect width="1000" height="1000" fill="url(#glow)"/>
+    draw = ImageDraw.Draw(img)
 
-  <!-- Top decorative line -->
-  <rect x="0" y="0" width="1000" height="4" fill="{v_color}" opacity="0.8"/>
+    # ---- Top accent line ----
+    draw.rectangle([0, 0, S, 12], fill=v_color_alpha)
 
-  <!-- BNB CLUB ribbon (top-right) -->
-  <rect x="740" y="40" width="220" height="44" rx="22" fill="{v_color}" opacity="0.9"/>
-  <text x="850" y="68" font-family="Arial, Helvetica, sans-serif" font-size="18"
-        font-weight="700" fill="white" text-anchor="middle" letter-spacing="2">BNB CLUB</text>
+    # ---- WECARE.DIGITAL logo (top-left) ----
+    font_logo = _get_font(60, bold=True)
+    draw.text((150, 150), 'WECARE.DIGITAL', fill=WHITE, font=font_logo)
 
-  <!-- WECARE.DIGITAL logo (top-left) -->
-  <text x="50" y="70" font-family="Arial, Helvetica, sans-serif" font-size="20"
-        font-weight="700" fill="white" opacity="0.9" letter-spacing="1.5">WECARE.DIGITAL</text>
+    # ---- BNB CLUB ribbon (top-right) ----
+    ribbon_w, ribbon_h = 660, 132
+    ribbon_x = S - ribbon_w - 120
+    ribbon_y = 120
+    _draw_rounded_rect(draw, [ribbon_x, ribbon_y, ribbon_x + ribbon_w, ribbon_y + ribbon_h],
+                       radius=66, fill=v_color_alpha)
+    font_ribbon = _get_font(54, bold=True)
+    bbox = draw.textbbox((0, 0), 'BNB CLUB', font=font_ribbon)
+    tw = bbox[2] - bbox[0]
+    draw.text((ribbon_x + (ribbon_w - tw) // 2, ribbon_y + 30), 'BNB CLUB',
+              fill=WHITE, font=font_ribbon)
 
-  <!-- Subtle divider -->
-  <line x1="50" y1="100" x2="950" y2="100" stroke="white" stroke-opacity="0.08" stroke-width="1"/>
+    # ---- Divider line ----
+    draw.line([(150, 310), (S - 150, 310)], fill=(255, 255, 255, 20), width=3)
 
-  <!-- Flag circle background -->
-  <circle cx="500" cy="380" r="125" fill="white" opacity="0.08"/>
-  <circle cx="500" cy="380" r="122" fill="none" stroke="{v_color}" stroke-width="2" opacity="0.4"/>
+    # ---- Country flag (circular, centered) ----
+    flag_img = _fetch_flag(cc, 640)
+    flag_size = 720  # diameter of circular flag
+    flag_center_y = int(S * 0.38)
 
-  <!-- Country flag (circular) -->
-  <image href="{flag_url}" x="380" y="310" width="240" height="140"
-         clip-path="url(#flagClip)" preserveAspectRatio="xMidYMid slice"/>
+    # Create circular mask
+    mask = Image.new('L', (flag_size, flag_size), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.ellipse([0, 0, flag_size, flag_size], fill=255)
 
-  <!-- Visa type badge -->
-  <rect x="350" y="530" width="300" height="46" rx="23" fill="{v_color}" opacity="0.2"/>
-  <rect x="350" y="530" width="300" height="46" rx="23" fill="none" stroke="{v_color}"
-        stroke-width="1.5" opacity="0.6"/>
-  <text x="500" y="560" font-family="Arial, Helvetica, sans-serif" font-size="20"
-        font-weight="700" fill="{v_color}" text-anchor="middle" letter-spacing="3">{v_label}</text>
+    # Resize flag to fill circle
+    flag_resized = flag_img.resize((flag_size, flag_size), Image.LANCZOS)
 
-  <!-- Country name -->
-  <text x="500" y="640" font-family="Arial, Helvetica, sans-serif" font-size="52"
-        font-weight="800" fill="white" text-anchor="middle" letter-spacing="2">{c_name.upper()}</text>
+    # Draw circle background (subtle glow ring)
+    ring_size = flag_size + 30
+    ring_x = (S - ring_size) // 2
+    ring_y = flag_center_y - ring_size // 2
+    draw.ellipse([ring_x, ring_y, ring_x + ring_size, ring_y + ring_size],
+                 fill=(255, 255, 255, 15), outline=v_color + (100,), width=6)
 
-  <!-- Tagline -->
-  <text x="500" y="710" font-family="Arial, Helvetica, sans-serif" font-size="16"
-        fill="white" opacity="0.6" text-anchor="middle" font-style="italic">"{tagline}"</text>
+    # Paste flag with circular mask
+    flag_x = (S - flag_size) // 2
+    flag_y = flag_center_y - flag_size // 2
+    img.paste(flag_resized, (flag_x, flag_y), mask)
 
-  <!-- Price -->
-  <text x="500" y="780" font-family="Arial, Helvetica, sans-serif" font-size="28"
-        font-weight="700" fill="{v_color}" text-anchor="middle">{price_text}</text>
+    # Redraw on composited image
+    draw = ImageDraw.Draw(img)
 
-  <!-- Bottom bar -->
-  <rect x="0" y="920" width="1000" height="80" fill="white" opacity="0.03"/>
-  <line x1="0" y1="920" x2="1000" y2="920" stroke="white" stroke-opacity="0.08" stroke-width="1"/>
+    # ---- Visa type badge ----
+    badge_w, badge_h = 900, 138
+    badge_x = (S - badge_w) // 2
+    badge_y = flag_center_y + flag_size // 2 + 100
+    _draw_rounded_rect(draw, [badge_x, badge_y, badge_x + badge_w, badge_y + badge_h],
+                       radius=69, fill=v_color + (40,), outline=v_color + (120,), width=5)
+    font_badge = _get_font(60, bold=True)
+    bbox = draw.textbbox((0, 0), v_label, font=font_badge)
+    tw = bbox[2] - bbox[0]
+    draw.text(((S - tw) // 2, badge_y + 30), v_label, fill=v_color_alpha, font=font_badge)
 
-  <!-- Bottom: WhatsApp + contact -->
-  <text x="500" y="958" font-family="Arial, Helvetica, sans-serif" font-size="14"
-        fill="white" opacity="0.4" text-anchor="middle">WhatsApp: +91 93309 94400  ·  visa@wecare.digital</text>
+    # ---- Country name ----
+    font_country = _get_font(156, bold=True)
+    country_upper = c_name.upper()
+    bbox = draw.textbbox((0, 0), country_upper, font=font_country)
+    tw = bbox[2] - bbox[0]
+    country_y = badge_y + badge_h + 80
+    draw.text(((S - tw) // 2, country_y), country_upper, fill=WHITE, font=font_country)
 
-  <!-- Bottom accent line -->
-  <rect x="0" y="996" width="1000" height="4" fill="{v_color}" opacity="0.8"/>
-</svg>'''
+    # ---- Tagline ----
+    font_tagline = _get_font(48)
+    tagline_text = f'"{tagline}"'
+    bbox = draw.textbbox((0, 0), tagline_text, font=font_tagline)
+    tw = bbox[2] - bbox[0]
+    tagline_y = country_y + 200
+    draw.text(((S - tw) // 2, tagline_y), tagline_text, fill=(255, 255, 255, 130), font=font_tagline)
 
-    return svg
+    # ---- Price ----
+    if price:
+        font_price = _get_font(84, bold=True)
+        price_text = f'From {price}'
+        bbox = draw.textbbox((0, 0), price_text, font=font_price)
+        tw = bbox[2] - bbox[0]
+        price_y = tagline_y + 120
+        draw.text(((S - tw) // 2, price_y), price_text, fill=v_color_alpha, font=font_price)
+
+    # ---- Bottom bar ----
+    draw.rectangle([0, S - 240, S, S], fill=(255, 255, 255, 8))
+    draw.line([(0, S - 240), (S, S - 240)], fill=(255, 255, 255, 20), width=3)
+
+    # ---- Bottom contact ----
+    font_contact = _get_font(42)
+    contact = 'WhatsApp: +91 93309 94400  |  visa@wecare.digital'
+    bbox = draw.textbbox((0, 0), contact, font=font_contact)
+    tw = bbox[2] - bbox[0]
+    draw.text(((S - tw) // 2, S - 160), contact, fill=(255, 255, 255, 80), font=font_contact)
+
+    # ---- Bottom accent line ----
+    draw.rectangle([0, S - 12, S, S], fill=v_color_alpha)
+
+    # Convert to RGB for PNG (no alpha needed in final)
+    final = img.convert('RGB')
+
+    # Save to bytes
+    buf = io.BytesIO()
+    final.save(buf, format='PNG', optimize=True)
+    buf.seek(0)
+    return buf.getvalue()
 
 
-def _preview_svg(params: dict, request_id: str) -> Dict[str, Any]:
-    """Return SVG directly for browser preview."""
-    country = params.get('country', 'fr')
-    visa_type = params.get('visaType', 'tourist')
-    price = params.get('price', '₹2,999')
-    tagline = params.get('tagline', '')
-    country_name = params.get('countryName', '')
-
-    svg = _generate_svg(country, visa_type, price, tagline, country_name)
-
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'image/svg+xml',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=3600',
-        },
-        'body': svg,
-    }
-
+# ===================================================================
+# ROUTES
+# ===================================================================
 
 def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
     """
-    Generate product image and upload to S3.
+    Generate 3000x3000 PNG product image and upload to S3.
 
     Body:
       country: 'fr' (ISO code, required)
@@ -241,17 +323,16 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
     country = body.get('country', '')
     visa_type = body.get('visaType', '')
     if not country or not visa_type:
-        return _response(400, {'error': 'Missing country or visaType', 'requestId': request_id})
+        return _resp(400, {'error': 'Missing country or visaType', 'requestId': request_id})
 
     price = body.get('price', '')
     tagline = body.get('tagline', '')
     country_name = body.get('countryName', '')
     category = body.get('category', 'bnb-club').strip('/')
 
-    svg = _generate_svg(country, visa_type, price, tagline, country_name)
-
-    # Upload SVG to S3
-    file_name = f'{country}-{visa_type}.svg'
+    # Generate PNG
+    png_bytes = _generate_png(country, visa_type, price, tagline, country_name)
+    file_name = f'{country}-{visa_type}.png'
     s3_key = f'{S3_PREFIX}/{category}/{file_name}'
 
     try:
@@ -259,12 +340,13 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
         s3_client.put_object(
             Bucket=S3_BUCKET,
             Key=s3_key,
-            Body=svg.encode('utf-8'),
-            ContentType='image/svg+xml',
+            Body=png_bytes,
+            ContentType='image/png',
             CacheControl='public, max-age=31536000',
         )
 
         public_url = f'https://{S3_BUCKET}/{s3_key}'
+        size_kb = len(png_bytes) / 1024
 
         result = {
             's3Key': s3_key,
@@ -272,6 +354,9 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
             'fileName': file_name,
             'country': country,
             'visaType': visa_type,
+            'sizeKB': round(size_kb, 1),
+            'dimensions': f'{IMG_SIZE}x{IMG_SIZE}',
+            'format': 'PNG',
             'uploaded': True,
             'requestId': request_id,
         }
@@ -295,18 +380,76 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
                     data=patch_body, headers=headers, method='PATCH'
                 )
                 with urllib.request.urlopen(req, timeout=30) as resp:
-                    wix_result = json.loads(resp.read().decode('utf-8'))
+                    json.loads(resp.read().decode('utf-8'))
                 result['productAttached'] = True
                 result['productId'] = pid
             except Exception as e:
                 result['productAttachError'] = str(e)
 
-        return _response(200, result)
+        return _resp(200, result)
     except Exception as e:
-        return _response(500, {'error': str(e), 'requestId': request_id})
+        return _resp(500, {'error': str(e), 'requestId': request_id})
 
 
-def _response(status_code: int, body: dict) -> Dict[str, Any]:
+def _preview_svg(params: dict, request_id: str) -> Dict[str, Any]:
+    """Return lightweight SVG preview for browser (no S3 upload)."""
+    country = params.get('country', 'fr')
+    visa_type = params.get('visaType', 'tourist')
+    price = params.get('price', '')
+    tagline = params.get('tagline', '')
+    country_name = params.get('countryName', '')
+
+    cc = country.lower()
+    vt = visa_type.lower()
+    c_name = country_name or COUNTRIES.get(cc, cc.upper())
+    v_info = VISA_TYPES.get(vt, {'label': f'{vt.upper()} VISA', 'color': (0, 201, 167)})
+    v_label = v_info['label']
+    vc = v_info['color']
+    v_hex = f'#{vc[0]:02x}{vc[1]:02x}{vc[2]:02x}'
+    flag_cc = 'eu' if cc == 'schengen' else cc
+    flag_url = f'https://flagcdn.com/w320/{flag_cc}.png'
+    price_text = f'From {price}' if price else ''
+    tl = tagline or 'We optimize for approval, not just submission'
+
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A1628"/><stop offset="100%" style="stop-color:#1A2744"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="38%" r="35%">
+      <stop offset="0%" style="stop-color:{v_hex};stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:{v_hex};stop-opacity:0"/>
+    </radialGradient>
+    <clipPath id="fc"><circle cx="500" cy="380" r="120"/></clipPath>
+  </defs>
+  <rect width="1000" height="1000" fill="url(#bg)"/>
+  <rect width="1000" height="1000" fill="url(#glow)"/>
+  <rect x="0" y="0" width="1000" height="4" fill="{v_hex}" opacity="0.8"/>
+  <text x="50" y="70" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="white" opacity="0.9">WECARE.DIGITAL</text>
+  <rect x="740" y="40" width="220" height="44" rx="22" fill="{v_hex}" opacity="0.9"/>
+  <text x="850" y="68" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">BNB CLUB</text>
+  <circle cx="500" cy="380" r="125" fill="white" opacity="0.06"/>
+  <circle cx="500" cy="380" r="122" fill="none" stroke="{v_hex}" stroke-width="2" opacity="0.4"/>
+  <image href="{flag_url}" x="380" y="310" width="240" height="140" clip-path="url(#fc)" preserveAspectRatio="xMidYMid slice"/>
+  <rect x="350" y="530" width="300" height="46" rx="23" fill="{v_hex}" opacity="0.15"/>
+  <rect x="350" y="530" width="300" height="46" rx="23" fill="none" stroke="{v_hex}" stroke-width="1.5" opacity="0.5"/>
+  <text x="500" y="560" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="{v_hex}" text-anchor="middle" letter-spacing="3">{v_label}</text>
+  <text x="500" y="640" font-family="Arial,sans-serif" font-size="52" font-weight="800" fill="white" text-anchor="middle">{c_name.upper()}</text>
+  <text x="500" y="710" font-family="Arial,sans-serif" font-size="16" fill="white" opacity="0.5" text-anchor="middle" font-style="italic">"{tl}"</text>
+  <text x="500" y="780" font-family="Arial,sans-serif" font-size="28" font-weight="700" fill="{v_hex}" text-anchor="middle">{price_text}</text>
+  <rect x="0" y="920" width="1000" height="80" fill="white" opacity="0.03"/>
+  <text x="500" y="958" font-family="Arial,sans-serif" font-size="14" fill="white" opacity="0.35" text-anchor="middle">WhatsApp: +91 93309 94400  |  visa@wecare.digital</text>
+  <rect x="0" y="996" width="1000" height="4" fill="{v_hex}" opacity="0.8"/>
+</svg>'''
+
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'image/svg+xml', 'Access-Control-Allow-Origin': '*'},
+        'body': svg,
+    }
+
+
+def _resp(status_code: int, body: dict) -> Dict[str, Any]:
     return {
         'statusCode': status_code,
         'headers': {
