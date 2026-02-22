@@ -501,3 +501,49 @@ export async function get_sampleProducts(request) {
     return jsonError({ error: err.message });
   }
 }
+
+// ---------------------------------------------------------------------------
+// POST /_functions/reprefix-skus
+// Body: { oldPrefix: "OLDPREFIX", newPrefix: "WD", dryRun: true }
+// Re-prefixes all product SKUs from oldPrefix to newPrefix.
+// Use dryRun: true first to preview, then dryRun: false to commit.
+// ---------------------------------------------------------------------------
+
+export async function post_reprefixSkus(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const body = await request.body.json();
+    const { reprefixSKUs } = await import('./sku-batch.web');
+    const result = await reprefixSKUs({
+      oldPrefix: body.oldPrefix || '',
+      newPrefix: body.newPrefix || 'WD',
+      dryRun: body.dryRun !== false,
+    });
+    return jsonOk(result);
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /_functions/assign-skus
+// Body: { prefix: "WD", dryRun: true }
+// Assigns WD-prefixed SKUs to all products missing one.
+// ---------------------------------------------------------------------------
+
+export async function post_assignSkus(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const body = await request.body.json();
+    const { assignMissingSKUs } = await import('./sku-batch.web');
+    const result = await assignMissingSKUs({
+      prefix: body.prefix || 'WD',
+      dryRun: body.dryRun !== false,
+    });
+    return jsonOk(result);
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
