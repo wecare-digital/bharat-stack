@@ -547,3 +547,51 @@ export async function post_assignSkus(request) {
     return jsonError({ error: err.message });
   }
 }
+
+// ---------------------------------------------------------------------------
+// POST /_functions/backfill-order-custom-fields
+// Reads OrderCustomIds collection and sets customField on each Wix order
+// so the WD-ORD number appears in Wix native order views (Owner App, emails).
+// ---------------------------------------------------------------------------
+
+export async function post_backfillOrderCustomFields(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const allMappings = await wixData.query('OrderCustomIds')
+      .limit(100)
+      .find({ suppressAuth: true });
+
+    let updated = 0;
+    let skipped = 0;
+    let errors = [];
+
+    for (const mapping of allMappings.items) {
+      const { orderId, customOrderNumber } = mapping;
+      if (!orderId || !customOrderNumber) { skipped++; continue; }
+
+      try {
+        const order = await wixData.get('Stores/Orders', orderId, { suppressAuth: true });
+        if (!order) { skipped++; continue; }
+
+        // Skip if customField already has the correct WD number
+        if (order.customField?.value === customOrderNumber) { skipped++; continue; }
+
+        await wixData.update('Stores/Orders', {
+          ...order,
+          customField: {
+            title: 'Order ID',
+            value: customOrderNumber,
+          },
+        }, { suppressAuth: true });
+        updated++;
+      } catch (err) {
+        errors.push({ orderId, error: err.message });
+      }
+    }
+
+    return jsonOk({ updated, skipped, errors: errors.slice(0, 10), total: allMappings.items.length });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}

@@ -650,10 +650,13 @@ def _get_or_create_wd_order_number(order_id: str, order_date: str = '',
 def _backfill_order_ids(request_id: str) -> Dict[str, Any]:
     """
     Backfill WD-ORD numbers for ALL existing Wix orders.
-    Fetches all orders from Wix, generates WD numbers, stores in DynamoDB.
+    1. Fetches all orders from Wix
+    2. Generates WD numbers, stores in DynamoDB
+    3. Pushes WD number to Wix order via PATCH (extendedFields)
     POST /backfill-order-ids
     """
     backfilled = 0
+    wix_updated = 0
     skipped = 0
     errors = []
     cursor = None
@@ -682,6 +685,28 @@ def _backfill_order_ids(request_id: str) -> Dict[str, Any]:
             try:
                 wd_num = _get_or_create_wd_order_number(oid, order_date, native_num)
                 backfilled += 1
+
+                # Push WD number to Wix order via PATCH extendedFields
+                try:
+                    _wix_request(f'/ecom/v1/orders/{oid}', method='PATCH', body={
+                        'order': {
+                            'extendedFields': {
+                                'namespaces': {
+                                    '_user_fields': {
+                                        'customOrderNumber': wd_num,
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    wix_updated += 1
+                except Exception as we:
+                    logger.warning(json.dumps({
+                        'action': 'backfill_wix_update_failed',
+                        'orderId': oid,
+                        'error': str(we),
+                    }))
+
                 logger.info(json.dumps({
                     'action': 'backfill_order',
                     'orderId': oid,
@@ -700,6 +725,7 @@ def _backfill_order_ids(request_id: str) -> Dict[str, Any]:
 
     return _response(200, {
         'backfilled': backfilled,
+        'wixUpdated': wix_updated,
         'skipped': skipped,
         'errors': errors[:10],
         'requestId': request_id,
