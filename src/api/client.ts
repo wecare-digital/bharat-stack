@@ -3093,6 +3093,7 @@ export interface WixProduct {
 export interface WixOrder {
   _id: string;
   number: number;
+  customOrderNumber?: string;
   customField?: { title: string; value: string };
   channelInfo: any;
   buyerInfo: { email: string; firstName?: string; lastName?: string; phone?: string };

@@ -298,7 +298,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
   const orderColumns = [
     { key: 'number', header: 'Order #', width: '100px', render: (o: api.WixOrder) => (
       <div>
-        <div style={{ fontWeight: 600 }}>{(o as any).customOrderNumber || o.customField?.value || o._summary?.externalOrderId || `#${o.number || '—'}`}</div>
+        <div style={{ fontWeight: 600 }}>{o.customOrderNumber || o._summary?.customOrderNumber || o.customField?.value || o._summary?.externalOrderId || `#${o.number || '—'}`}</div>
       </div>
     )},
     { key: 'buyer', header: 'Buyer', render: (o: api.WixOrder) => {
@@ -841,7 +841,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
         </Modal>
 
         {/* ---- ORDER DETAIL MODAL ---- */}
-        <Modal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} title={`Order ${(selectedOrder as any)?.customOrderNumber || selectedOrder?.customField?.value || selectedOrder?._summary?.externalOrderId || '#' + (selectedOrder?.number || '—')}`} size="lg">
+        <Modal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} title={`Order ${selectedOrder?.customOrderNumber || selectedOrder?._summary?.customOrderNumber || selectedOrder?.customField?.value || selectedOrder?._summary?.externalOrderId || '#' + (selectedOrder?.number || '—')}`} size="lg">
           {selectedOrder && (() => {
             const s = selectedOrder._summary || {};
             const buyerEmail = (selectedOrder as any).buyerEmail || s.buyerEmail || selectedOrder.buyerInfo?.email || '';
@@ -849,7 +849,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
             const buyerPhone = (selectedOrder as any).buyerPhone || s.billingPhone || '';
             const total = selectedOrder.totals?.total || s.totalAmount || '0';
             const currency = selectedOrder.currency || s.currency || 'INR';
-            const customNum = (selectedOrder as any).customOrderNumber || selectedOrder.customField?.value || s.externalOrderId || '';
+            const customNum = selectedOrder.customOrderNumber || s.customOrderNumber || selectedOrder.customField?.value || s.externalOrderId || '';
             const items = (selectedOrder as any).lineItemsSummary || s.lineItems || selectedOrder.lineItems || [];
 
             return (

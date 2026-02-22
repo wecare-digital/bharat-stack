@@ -44,6 +44,7 @@ WIX_VELO_API_KEY = os.environ.get('WIX_VELO_API_KEY', '')  # shared secret for a
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'base-wecare-digital-WixProductsCache')
 ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'base-wecare-digital-WixOrdersCache')
+ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'base-wecare-digital-WixOrderIds')
 
 
 # ===================================================================
@@ -76,6 +77,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
       POST /upload-product-image         - Upload base64 image to S3 + attach to product
       POST /sync/products                - Sync products → DynamoDB
       POST /sync/orders                  - Sync orders → DynamoDB
+      POST /backfill-order-ids           - Backfill WD-ORD numbers for all existing orders
     """
     request_id = context.aws_request_id if context else 'local'
 
@@ -133,6 +135,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if '/upload-product-image' in path:
                 body = _parse_body(event)
                 return _upload_product_image(event, body, request_id)
+            if '/backfill-order-ids' in path:
+                return _backfill_order_ids(request_id)
 
         # ---- Account-level ----
         if '/sites' in path:
@@ -585,16 +589,159 @@ def _order_transactions(order_id: str, request_id: str) -> Dict[str, Any]:
     })
 
 
+# ===================================================================
+# WD ORDER NUMBER GENERATION + DYNAMO MAPPING
+# ===================================================================
+
+def _generate_wd_order_number(order_date: str) -> str:
+    """
+    Generate a WD-ORD-YYYYMMDD-XXXX order number.
+    Uses the order's creation date for the date part and a random 4-digit suffix.
+    """
+    import random
+    try:
+        dt = datetime.fromisoformat(order_date.replace('Z', '+00:00'))
+    except Exception:
+        dt = datetime.now(timezone.utc)
+    date_str = dt.strftime('%Y%m%d')
+    suffix = f'{random.randint(1000, 9999)}'
+    return f'WD-ORD-{date_str}-{suffix}'
+
+
+def _get_or_create_wd_order_number(order_id: str, order_date: str = '',
+                                    native_number: str = '') -> str:
+    """
+    Look up or create a WD-ORD number for a Wix order.
+    Stores the mapping in DynamoDB (WixOrderIds table).
+    Returns the WD-ORD number.
+    """
+    try:
+        table = dynamodb.Table(ORDER_IDS_TABLE)
+        # Check if mapping already exists
+        resp = table.get_item(Key={'orderId': order_id})
+        item = resp.get('Item')
+        if item and item.get('wdOrderNumber', '').startswith('WD-ORD-'):
+            return item['wdOrderNumber']
+
+        # Generate new WD order number
+        wd_num = _generate_wd_order_number(order_date)
+
+        # Store mapping
+        table.put_item(Item={
+            'orderId': order_id,
+            'wdOrderNumber': wd_num,
+            'nativeNumber': str(native_number),
+            'orderDate': order_date,
+            'createdAt': datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info(json.dumps({
+            'action': 'wd_order_number_created',
+            'orderId': order_id,
+            'wdOrderNumber': wd_num,
+            'nativeNumber': native_number,
+        }))
+        return wd_num
+    except Exception as e:
+        logger.error(json.dumps({'action': 'wd_order_number_error', 'orderId': order_id, 'error': str(e)}))
+        # Fallback: generate without storing (will be retried next time)
+        return _generate_wd_order_number(order_date)
+
+
+def _backfill_order_ids(request_id: str) -> Dict[str, Any]:
+    """
+    Backfill WD-ORD numbers for ALL existing Wix orders.
+    Fetches all orders from Wix, generates WD numbers, stores in DynamoDB.
+    POST /backfill-order-ids
+    """
+    backfilled = 0
+    skipped = 0
+    errors = []
+    cursor = None
+
+    while True:
+        body: Dict[str, Any] = {
+            'search': {
+                'cursorPaging': {'limit': 100},
+                'sort': [{'fieldName': 'createdDate', 'order': 'ASC'}],
+            }
+        }
+        if cursor:
+            body['search']['cursorPaging']['cursor'] = cursor
+
+        result = _wix_request('/ecom/v1/orders/search', method='POST', body=body)
+        orders = result.get('orders', [])
+        if not orders:
+            break
+
+        for o in orders:
+            oid = o.get('id', '')
+            if not oid:
+                continue
+            order_date = o.get('createdDate', '')
+            native_num = str(o.get('number', ''))
+            try:
+                wd_num = _get_or_create_wd_order_number(oid, order_date, native_num)
+                backfilled += 1
+                logger.info(json.dumps({
+                    'action': 'backfill_order',
+                    'orderId': oid,
+                    'native': native_num,
+                    'wd': wd_num,
+                }))
+            except Exception as e:
+                skipped += 1
+                errors.append({'orderId': oid, 'error': str(e)})
+
+        paging = result.get('pagingMetadata', {})
+        if paging.get('hasNext') and paging.get('cursors', {}).get('next'):
+            cursor = paging['cursors']['next']
+        else:
+            break
+
+    return _response(200, {
+        'backfilled': backfilled,
+        'skipped': skipped,
+        'errors': errors[:10],
+        'requestId': request_id,
+    })
+
+
 def _enrich_order(order: dict) -> dict:
     """
     Add a clean _summary to the raw order for easy consumption.
     Includes custom order number, buyer details, line items summary, totals.
+    Auto-generates WD-ORD number if one doesn't exist.
     """
     buyer = order.get('buyerInfo', {})
     price = order.get('priceSummary', {})
     channel = order.get('channelInfo', {})
     billing = order.get('billingInfo', {}).get('contactDetails', {})
     shipping_info = order.get('shippingInfo', {})
+
+    # Auto-generate WD order number if not already set
+    order_id = order.get('id', '')
+    order_date = order.get('createdDate', '')
+    native_number = str(order.get('number', ''))
+    existing_external = channel.get('externalOrderId', '')
+    existing_custom_fields = order.get('customFields', [])
+
+    # Check if a WD number already exists in customFields or externalOrderId
+    wd_order_number = ''
+    if existing_external and existing_external.startswith('WD-ORD-'):
+        wd_order_number = existing_external
+    else:
+        for cf in existing_custom_fields:
+            val = cf.get('value', '')
+            if val.startswith('WD-ORD-'):
+                wd_order_number = val
+                break
+
+    # If no WD number found, generate one via DynamoDB mapping
+    if not wd_order_number and order_id:
+        wd_order_number = _get_or_create_wd_order_number(order_id, order_date, native_number)
+
+    # Inject into order for frontend consumption
+    order['customOrderNumber'] = wd_order_number
 
     line_items_summary = []
     for item in order.get('lineItems', []):
@@ -609,6 +756,7 @@ def _enrich_order(order: dict) -> dict:
 
     order['_summary'] = {
         'orderNumber': order.get('number'),
+        'customOrderNumber': wd_order_number,
         'externalOrderId': channel.get('externalOrderId', ''),
         'status': order.get('status', ''),
         'paymentStatus': order.get('paymentStatus', ''),
