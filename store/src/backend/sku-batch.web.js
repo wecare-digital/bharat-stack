@@ -3,11 +3,11 @@
  *
  * Web module for bulk SKU management:
  *   - Assign SKUs to products missing them
- *   - Re-prefix SKUs (e.g. WD-001 → WDSR-001)
+ *   - Re-prefix SKUs (e.g. OLD-001 → WD-001)
  *   - Dry-run mode to preview changes before committing
  *
  * SKU format: {PREFIX}-{CATEGORY_CODE}-{SEQ}
- *   e.g. WDSR-EL-001, WDSR-CL-042
+ *   e.g. WD-EL-001, WD-CL-042
  *
  * Uses bulkUpdate for batch writes instead of sequential updates.
  *
@@ -17,7 +17,7 @@
 import { Permissions, webMethod } from 'wix-web-module';
 import wixData from 'wix-data';
 
-const DEFAULT_PREFIX = 'WDSR';
+const DEFAULT_PREFIX = 'WD';
 const PRODUCTS_COLLECTION = 'Stores/Products';
 const BATCH_SIZE = 50; // Wix bulkUpdate limit
 
@@ -38,7 +38,7 @@ function nameToCode(name) {
  * Assign SKUs to all products that don't have one.
  *
  * The sequence counter is global across the batch (not per-page),
- * so SKUs are sequential: WDSR-BL-001, WDSR-RD-002, etc.
+ * so SKUs are sequential: WD-BL-001, WD-RD-002, etc.
  *
  * @param {{ prefix?: string, dryRun?: boolean }} options
  * @returns {{ processed: number, skipped: number, dryRun: boolean, assignments: Array }}

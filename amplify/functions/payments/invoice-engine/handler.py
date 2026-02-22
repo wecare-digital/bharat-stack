@@ -356,9 +356,9 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
     invoice_id = str(uuid.uuid4())
 
-    # Auto-generate referenceId if not provided (WDSR + 8-char hex)
+    # Auto-generate referenceId if not provided (WD + 8-char hex)
     if not reference_id:
-        reference_id = f"WDSR{uuid.uuid4().hex[:8].upper()}"
+        reference_id = f"WD{uuid.uuid4().hex[:8].upper()}"
 
     # Validate mandatory fields (relaxed for webhook-originated invoices)
     customer_phone = body.get('customerPhone', '')
@@ -925,7 +925,7 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
 
 
 # ─── Receipt PNG Rendering ───
-# Uses monospace font, logo + PAID icon from S3, WDSR reference format.
+# Uses monospace font, logo + PAID icon from S3, WD reference format.
 # Compact POS thermal receipt style for WhatsApp chat visibility.
 
 

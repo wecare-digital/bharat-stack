@@ -399,7 +399,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
     """
     try:
         raw_reference_id = order_status_details.get('reference_id', '')
-        # Sanitize reference_id to remove duplicate WDSR prefixes
+        # Sanitize reference_id to remove duplicate WD prefixes
         reference_id = _sanitize_reference_id(raw_reference_id)
         order_status = order_status_details.get('order_status', 'completed')
         amount = order_status_details.get('amount', 0)  # Amount in rupees
@@ -1408,20 +1408,20 @@ def _sanitize_reference_id(reference_id: str) -> str:
     UPI requires: only A-Z, a-z, 0-9, _, - (max 35 chars)
     Must be unique for each transaction.
     
-    Format: WDSR<ID> (no underscore for cleaner display)
+    Format: WD<ID> (no underscore for cleaner display)
     
     Examples:
-    - "WDSR_ABC12345" -> "WDSRABC12345" (remove underscore)
-    - "WDSRABC12345" -> "WDSRABC12345" (keep as-is)
-    - "WDSRWDSR41BA3534" -> "WDSR41BA3534" (remove duplicate prefix)
-    - "" -> "WDSRXXXXXXXX" (auto-generated)
+    - "WD_ABC12345" -> "WDABC12345" (remove underscore)
+    - "WDABC12345" -> "WDABC12345" (keep as-is)
+    - "WDWD41BA3534" -> "WD41BA3534" (remove duplicate prefix)
+    - "" -> "WDXXXXXXXX" (auto-generated)
     """
     import re
     
     if not reference_id or not reference_id.strip():
         # Generate unique reference if empty
         unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
-        return f"WDSR{unique_id}"
+        return f"WD{unique_id}"
     
     # Remove all non-alphanumeric characters (including underscores and plus signs)
     sanitized = re.sub(r'[^A-Za-z0-9]', '', reference_id)
@@ -1432,18 +1432,18 @@ def _sanitize_reference_id(reference_id: str) -> str:
     # If empty after sanitization, generate new
     if not sanitized:
         unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
-        return f"WDSR{unique_id}"
+        return f"WD{unique_id}"
     
-    # Remove ALL duplicate WDSR prefixes (handle WDSRWDSRWDSR... cases)
-    while 'WDSRWDSR' in sanitized:
-        sanitized = sanitized.replace('WDSRWDSR', 'WDSR')
+    # Remove ALL duplicate WD prefixes (handle WDWDWD... cases)
+    while 'WDWD' in sanitized:
+        sanitized = sanitized.replace('WDWD', 'WD')
     
-    # Keep as-is if already has WDSR prefix (without underscore)
-    if sanitized.startswith('WDSR'):
+    # Keep as-is if already has WD prefix (without underscore)
+    if sanitized.startswith('WD'):
         result = sanitized
     else:
-        # Add WDSR prefix (no underscore)
-        result = f"WDSR{sanitized}"
+        # Add WD prefix (no underscore)
+        result = f"WD{sanitized}"
     
     # Truncate to max 35 chars (UPI limit)
     if len(result) > 35:

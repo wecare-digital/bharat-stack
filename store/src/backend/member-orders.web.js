@@ -3,14 +3,14 @@
  *
  * Web module for logged-in members to fetch their own orders.
  * Used by the "My Orders" Wix Form / page to display order history
- * using only the WDSR custom order ID (Wix native order number is hidden).
+ * using only the WD custom order ID (Wix native order number is hidden).
  *
  * Flow:
  *   1. Logged-in user opens "My Orders" page/form
  *   2. Page code calls getMyOrders() with the current member's ID
  *   3. This module queries OrderCustomIds by memberId
  *   4. For each match, fetches the full order from Stores/Orders
- *   5. Returns enriched orders with WDSR number as the primary ID
+ *   5. Returns enriched orders with WD number as the primary ID
  *
  * The Wix native order number (order.number) is stripped from the response
  * so it never reaches the frontend.
@@ -26,7 +26,7 @@ const ORDERS_COLLECTION = 'Stores/Orders';
 
 /**
  * Strip Wix native order number from an order object.
- * We only expose the WDSR custom order ID.
+ * We only expose the WD custom order ID.
  */
 function stripNativeOrderNumber(order) {
   if (!order) return order;
@@ -37,7 +37,7 @@ function stripNativeOrderNumber(order) {
 
 /**
  * Get all orders for the currently logged-in member.
- * Returns orders with WDSR custom order ID as the primary identifier.
+ * Returns orders with WD custom order ID as the primary identifier.
  * Wix native order number is stripped.
  *
  * @param {string} memberId - The Wix member ID (from currentMember.getMember())
@@ -88,12 +88,12 @@ export const getMyOrders = webMethod(
 );
 
 /**
- * Get a single order by WDSR custom order number.
+ * Get a single order by WD custom order number.
  * Only returns the order if it belongs to the requesting member.
  * Wix native order number is stripped.
  *
  * @param {string} memberId - The Wix member ID
- * @param {string} customOrderNumber - e.g. "WDSR-20260222-0042"
+ * @param {string} customOrderNumber - e.g. "WD-20260222-0042"
  * @returns {object|null}
  */
 export const getMyOrderByNumber = webMethod(

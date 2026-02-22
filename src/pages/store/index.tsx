@@ -96,8 +96,8 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
       const params: any = { limit: 50 };
       if (orderStatusFilter) params.paymentStatus = orderStatusFilter;
       if (orderSearch) {
-        // Search: try as WDSR custom order number first, then email
-        if (orderSearch.startsWith('WDSR')) {
+        // Search: try as WD custom order number first, then email
+        if (orderSearch.startsWith('WD')) {
           params.customOrderNumber = orderSearch;
         } else if (orderSearch.includes('@')) {
           params.email = orderSearch;
@@ -392,7 +392,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="text"
-                  placeholder="Search by WDSR order number or email..."
+                  placeholder="Search by WD order number or email..."
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && fetchOrders()}
@@ -623,7 +623,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Backend</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {[
-                      { name: 'orderId.web.js', desc: 'Custom order ID (WDSR prefix)', type: 'web-module', status: 'active' },
+                      { name: 'orderId.web.js', desc: 'Custom order ID (WD prefix)', type: 'web-module', status: 'active' },
                       { name: 'convenience-fee.js', desc: 'Checkout convenience fee (2% + 18% GST)', type: 'backend', status: 'active' },
                       { name: 'pinger.js', desc: 'SEO + Store API health checks', type: 'backend', status: 'active' },
                       { name: 'sku-batch.web.js', desc: 'Batch SKU ops (dryRun, prefix)', type: 'web-module', status: 'active' },

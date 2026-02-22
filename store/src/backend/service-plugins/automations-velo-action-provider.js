@@ -7,7 +7,7 @@
  *
  * Actions:
  *   - sendWhatsAppNotification: Send order notification via WhatsApp
- *   - assignCustomOrderId: Generate WDSR order number
+ *   - assignCustomOrderId: Generate WD order number
  *   - syncOrderToAWS: Push order data to AWS backend
  *
  * Docs: https://dev.wix.com/docs/velo/apis/wix-automations/service-provider
@@ -42,7 +42,7 @@ export function getActions() {
       {
         id: 'assign-custom-order-id',
         name: 'Assign Custom Order ID',
-        description: 'Generate a WDSR-prefixed custom order number',
+        description: 'Generate a WD-prefixed custom order number',
         inputSchema: {
           type: 'object',
           properties: {

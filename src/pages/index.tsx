@@ -198,7 +198,7 @@ response = requests.post(
                     <div className="verified-badge"></div>
                   </div>
                   <div className="chat-area">
-                    <div className="msg sent"><p>Hi! Your order #WDSR87A6G has been shipped </p><span className="msg-time">10:30</span></div>
+                    <div className="msg sent"><p>Hi! Your order #WD87A6G has been shipped </p><span className="msg-time">10:30</span></div>
                     <div className="msg received"><p>When will it arrive?</p><span className="msg-time">10:31</span></div>
                     <div className="msg sent left-msg"><p>Tomorrow by 6 PM</p><span className="msg-time">10:31</span></div>
                     <div className="msg sent left-msg"><p>Track here: wecare.digital/track</p><span className="msg-time">10:32</span></div>

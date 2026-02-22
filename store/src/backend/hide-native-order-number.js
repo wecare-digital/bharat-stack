@@ -2,7 +2,7 @@
  * Hide Wix Native Order Number — WECARE.DIGITAL
  *
  * Strategies to permanently suppress the Wix native sequential order number
- * (e.g. #10001) and only show the WDSR custom order ID everywhere.
+ * (e.g. #10001) and only show the WD custom order ID everywhere.
  *
  * Wix shows the native order number in:
  *   1. Thank You page (post-checkout)
@@ -17,15 +17,15 @@
  *   ✓ Order confirmation emails — use Triggered Emails with custom fields
  *   ✓ Site pages — CSS injection hides native number elements
  *   ✗ Wix Dashboard — native number always visible to admin (acceptable)
- *   ✗ Wix Owner App — limited control, but customField shows WDSR
+ *   ✗ Wix Owner App — limited control, but customField shows WD
  *
  * This module provides:
  *   1. CSS injection to hide native order number elements on all pages
- *   2. DOM replacement to swap native number with WDSR where CSS can't reach
- *   3. Email template helper to format WDSR for Triggered Emails
+ *   2. DOM replacement to swap native number with WD where CSS can't reach
+ *   3. Email template helper to format WD for Triggered Emails
  *
  * IMPORTANT: The Wix eCommerce "customField" on orders is the key mechanism.
- * When we set customField.title = "Order ID" and customField.value = "WDSR-...",
+ * When we set customField.title = "Order ID" and customField.value = "WD-...",
  * Wix shows this in the Owner App and some native UI elements.
  *
  * Docs: https://dev.wix.com/docs/velo/apis/wix-ecom/orders
@@ -59,7 +59,7 @@ export function getHideNativeOrderCSS() {
       overflow: hidden !important;
     }
 
-    /* Make the custom field (WDSR) more prominent where Wix shows it */
+    /* Make the custom field (WD) more prominent where Wix shows it */
     [data-hook="order-custom-field"],
     [data-hook="custom-field-value"] {
       font-weight: 700 !important;
@@ -73,10 +73,10 @@ export function getHideNativeOrderCSS() {
  * Use this when sending order confirmation emails via Wix Triggered Emails.
  *
  * In Wix Dashboard > Triggered Emails, create a template with variable:
- *   {{orderNumber}} — will receive the WDSR number, NOT the native number
+ *   {{orderNumber}} — will receive the WD number, NOT the native number
  *
  * @param {object} order - The order object
- * @param {string} customOrderNumber - The WDSR number
+ * @param {string} customOrderNumber - The WD number
  * @returns {object} Variables for triggeredEmails.emailMember()
  */
 export function buildEmailVariables(order, customOrderNumber) {
@@ -85,7 +85,7 @@ export function buildEmailVariables(order, customOrderNumber) {
   const billing = order.billingInfo?.contactDetails || {};
 
   return {
-    orderNumber: customOrderNumber, // WDSR — NOT the native number
+    orderNumber: customOrderNumber, // WD — NOT the native number
     buyerName: `${billing.firstName || ''} ${billing.lastName || ''}`.trim() || buyer.email || 'Customer',
     buyerEmail: buyer.email || '',
     totalAmount: totals.total?.amount || totals.total || '0',

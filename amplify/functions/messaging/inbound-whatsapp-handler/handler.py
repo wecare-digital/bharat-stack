@@ -1107,16 +1107,16 @@ def _process_status(status: Dict, request_id: str) -> None:
 
 def _sanitize_reference_id(reference_id: str) -> str:
     """
-    Sanitize reference_id - remove duplicate WDSR prefix and underscores.
+    Sanitize reference_id - remove duplicate WD prefix and underscores.
     
     WhatsApp/Razorpay may return reference_id with extra prefixes or underscores.
-    This ensures clean WDSR<ID> format for display.
+    This ensures clean WD<ID> format for display.
     
     Examples:
-    - "WDSR_WDSR41BA3534" -> "WDSR41BA3534" (remove duplicate prefix)
-    - "WDSR_41BA3534" -> "WDSR41BA3534" (remove underscore)
-    - "WDSR41BA3534" -> "WDSR41BA3534" (keep as-is)
-    - "WDSR+41BA3534" -> "WDSR41BA3534" (remove plus sign)
+    - "WD_WD41BA3534" -> "WD41BA3534" (remove duplicate prefix)
+    - "WD_41BA3534" -> "WD41BA3534" (remove underscore)
+    - "WD41BA3534" -> "WD41BA3534" (keep as-is)
+    - "WD+41BA3534" -> "WD41BA3534" (remove plus sign)
     """
     import re
     
@@ -1126,13 +1126,13 @@ def _sanitize_reference_id(reference_id: str) -> str:
     # Remove all underscores and non-alphanumeric characters
     cleaned = re.sub(r'[^A-Za-z0-9]', '', reference_id).upper()
     
-    # Remove ALL duplicate WDSR prefixes (handle WDSRWDSRWDSR... cases)
-    while 'WDSRWDSR' in cleaned:
-        cleaned = cleaned.replace('WDSRWDSR', 'WDSR')
+    # Remove ALL duplicate WD prefixes (handle WDWDWD... cases)
+    while 'WDWD' in cleaned:
+        cleaned = cleaned.replace('WDWD', 'WD')
     
-    # Ensure single WDSR prefix
-    if not cleaned.startswith('WDSR'):
-        cleaned = f'WDSR{cleaned}'
+    # Ensure single WD prefix
+    if not cleaned.startswith('WD'):
+        cleaned = f'WD{cleaned}'
     
     return cleaned
 
@@ -1169,7 +1169,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
     
     payment_data = status.get('payment', {})
     raw_reference_id = payment_data.get('reference_id', '')
-    # Sanitize reference_id - remove duplicate WDSR prefix and underscores
+    # Sanitize reference_id - remove duplicate WD prefix and underscores
     reference_id = _sanitize_reference_id(raw_reference_id)
     payment_status = status.get('status', '')
     recipient_id = status.get('recipient_id', '')
@@ -1915,8 +1915,8 @@ def _lookup_payment_amount(reference_id: str, request_id: str) -> float:
         # Sanitize reference_id for lookup
         sanitized_ref = _sanitize_reference_id(reference_id)
         
-        # Extract just the ID part (without WDSR prefix) for broader search
-        id_part = sanitized_ref.replace('WDSR', '') if sanitized_ref.startswith('WDSR') else sanitized_ref
+        # Extract just the ID part (without WD prefix) for broader search
+        id_part = sanitized_ref.replace('WD', '') if sanitized_ref.startswith('WD') else sanitized_ref
         
         # Look for the original payment request message by reference_id
         # Search with multiple variations to handle format differences
@@ -2466,7 +2466,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
         return
 
     try:
-        reference_id = f"WDSR{uuid.uuid4().hex[:12].upper()}"
+        reference_id = f"WD{uuid.uuid4().hex[:12].upper()}"
         qty = max(1, int(quantity))
         
         # Build items array for order_details with per-item GST
@@ -3080,7 +3080,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                                pay_for: str = 'self') -> None:
     """Generate POS invoice image with logo, upload to S3, send via WhatsApp."""
     try:
-        inv_ref = f"WDSR{uuid.uuid4().hex[:12].upper()}"
+        inv_ref = f"WD{uuid.uuid4().hex[:12].upper()}"
 
         if not paid_at:
             import datetime

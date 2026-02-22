@@ -115,6 +115,19 @@ API Base: https://api.wecare.digital
    Subscribed Fields: calls
    Lambda: wecare-whatsapp-calling
 
+7. Wix Store (Wix Stores + Velo bridge):
+   GET  /wix-store/products       (list/search products)
+   GET  /wix-store/orders         (search orders, supports WD custom order number)
+   GET  /wix-store/collections    (list collections)
+   GET  /wix-store/inventory      (inventory items)
+   POST /wix-store/create-product (create product)
+   POST /wix-store/sync/products  (sync to DynamoDB cache)
+   POST /wix-store/sync/orders    (sync to DynamoDB cache)
+   Full URL: https://api.wecare.digital/wix-store/*
+   Auth: API Key (X-Api-Key header in Velo mode)
+   Lambda: wecare-wix-store
+   Modes: api (Wix REST API) | velo (Velo HTTP Functions)
+
 IP WHITELIST:
 ━━━━━━━━━━━━
 We do NOT need to whitelist IPs for sending SMS traffic.
@@ -276,7 +289,8 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'wecare-template-analytics',
       'wecare-waba-management',
       'wecare-ai-config-management',
-      'wecare-ai-agent-action-group'
+      'wecare-ai-agent-action-group',
+      'wecare-wix-store (Wix Stores + Velo bridge)'
     ]
   },
   'Amazon EC2': { 
@@ -311,7 +325,9 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'base-wecare-digital-VoiceCDRTable (Airtel CDR)',
       'base-wecare-digital-SmsInAirtelTable (Airtel SMS)',
       'base-wecare-digital-ScheduledMessagesTable',
-      'base-wecare-digital-TemplateAnalyticsTable'
+      'base-wecare-digital-TemplateAnalyticsTable',
+      'base-wecare-digital-WixProductsCache (Wix Store)',
+      'base-wecare-digital-WixOrdersCache (Wix Store)'
     ]
   },
   'Amazon RDS': { 
@@ -373,7 +389,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon API Gateway': { 
     arn: `arn:aws:apigateway:${AWS_REGION}::/restapis/*`, 
     accountId: AWS_ACCOUNT_ID,
-    details: ['api.wecare.digital - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*']
+    details: ['api.wecare.digital - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*, /wix-store/*']
   },
   'AWS AppSync': { 
     arn: `arn:aws:appsync:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
@@ -3103,7 +3119,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     { label: 'Collection Products', method: 'GET', path: '/wix-store/collections/{id}/products' },
                     { label: 'Query Inventory', method: 'GET', path: '/wix-store/inventory' },
                     { label: 'Product Inventory', method: 'GET', path: '/wix-store/inventory/{productId}' },
-                    { label: 'Search Orders (WDSR)', method: 'GET', path: '/wix-store/orders' },
+                    { label: 'Search Orders (WD)', method: 'GET', path: '/wix-store/orders' },
                     { label: 'Get Order', method: 'GET', path: '/wix-store/orders/{id}' },
                     { label: 'Order Fulfillments', method: 'GET', path: '/wix-store/orders/{id}/fulfillments' },
                     { label: 'Order Transactions', method: 'GET', path: '/wix-store/orders/{id}/transactions' },
@@ -3140,7 +3156,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WDSR-YYYYMMDD-XXXX</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-YYYYMMDD-XXXX</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Table</label>
@@ -3154,8 +3170,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' }}>
                     {[
                       { file: 'backend/http-functions.js', desc: 'HTTP API endpoints' },
-                      { file: 'backend/events.js', desc: 'Order created → WDSR assignment' },
-                      { file: 'backend/orderId.web.js', desc: 'WDSR ID generator' },
+                      { file: 'backend/events.js', desc: 'Order created → WD assignment' },
+                      { file: 'backend/orderId.web.js', desc: 'WD ID generator' },
                       { file: 'backend/member-orders.web.js', desc: 'Member order queries' },
                       { file: 'backend/hide-native-order-number.js', desc: 'Hide Wix native order #' },
                       { file: 'backend/pinger.js', desc: 'Health check (hourly)' },

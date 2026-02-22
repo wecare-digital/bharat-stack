@@ -95,6 +95,37 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = _parse_body(event) if http_method == 'POST' else {}
             return _velo_route(path, params, request_id, http_method, body)
 
+        # ---- POST: Product management (check before resource routes) ----
+        if http_method == 'POST':
+            if '/create-product' in path:
+                body = _parse_body(event)
+                return _create_product_rest(body, request_id)
+            if '/bulk-create-products' in path:
+                body = _parse_body(event)
+                return _bulk_create_products_rest(body, request_id)
+            if '/update-product' in path:
+                body = _parse_body(event)
+                product_data = body.get('product', body)
+                pid = body.get('productId', product_data.get('id', ''))
+                updates = body.get('updates', product_data)
+                if not pid:
+                    return _response(400, {'error': 'Missing productId', 'requestId': request_id})
+                try:
+                    result = _wix_request(f'/stores/v1/products/{pid}', method='PATCH', body={'product': updates})
+                    return _response(200, {'product': result.get('product', {}), 'updated': True, 'requestId': request_id})
+                except Exception as e:
+                    return _response(500, {'error': str(e), 'requestId': request_id})
+            if '/delete-product' in path:
+                body = _parse_body(event)
+                pid = body.get('productId', '')
+                if not pid:
+                    return _response(400, {'error': 'Missing productId', 'requestId': request_id})
+                try:
+                    _wix_request(f'/stores/v1/products/{pid}', method='DELETE')
+                    return _response(200, {'deleted': True, 'requestId': request_id})
+                except Exception as e:
+                    return _response(500, {'error': str(e), 'requestId': request_id})
+
         # ---- Account-level ----
         if '/sites' in path:
             return _list_sites(params, request_id)
@@ -113,12 +144,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             product_id = _extract_id(path, 'products')
             if product_id:
                 return _get_product(product_id, request_id)
-            if http_method == 'POST' and '/create-product' in path:
-                body = _parse_body(event)
-                return _create_product_rest(body, request_id)
-            if http_method == 'POST' and '/bulk-create-products' in path:
-                body = _parse_body(event)
-                return _bulk_create_products_rest(body, request_id)
             return _list_products(params, request_id)
 
         # ---- Inventory ----
@@ -411,7 +436,7 @@ def _search_orders(params: dict, request_id: str) -> Dict[str, Any]:
       - fulfillmentStatus: NOT_FULFILLED, PARTIALLY_FULFILLED, FULFILLED
       - email: filter by buyer email
       - memberId: filter by Wix member ID (logged-in user)
-      - customOrderNumber: filter by WDSR custom order number
+      - customOrderNumber: filter by WD custom order number
       - dateFrom / dateTo: ISO date range on createdDate
       - limit / cursor: pagination
     """
@@ -573,11 +598,47 @@ def _enrich_order(order: dict) -> dict:
 # PRODUCT CREATION (REST API MODE)
 # ===================================================================
 
+SKU_PREFIX = 'WD'
+
+
+def _generate_sku(product_name: str) -> str:
+    """
+    Auto-generate SKU in format WD-XX-XXXX.
+    XX = first letter of first two words (split on spaces, dashes, em-dashes).
+    XXXX = last 4 chars of base36 timestamp for uniqueness.
+    """
+    import re
+    import time
+    words = [w for w in re.split(r'[\s\-—–]+', product_name or '') if len(w) > 1]
+    if len(words) >= 2:
+        code = (words[0][0] + words[1][0]).upper()
+    else:
+        code = (product_name or 'XX')[:2].upper().ljust(2, 'X')
+    suffix = _base36(int(time.time() * 1000))[-4:].upper()
+    return f'{SKU_PREFIX}-{code}-{suffix}'
+
+
+def _base36(num: int) -> str:
+    """Convert integer to base36 string."""
+    chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if num == 0:
+        return '0'
+    result = ''
+    while num:
+        result = chars[num % 36] + result
+        num //= 36
+    return result
+
+
 def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
-    """Create a single product via Wix REST API."""
+    """Create a single product via Wix REST API. Auto-generates WD SKU if not provided."""
     product_data = body.get('product', {})
     if not product_data.get('name'):
         return _response(400, {'error': 'Missing product.name', 'requestId': request_id})
+
+    # Auto-generate SKU if not provided or doesn't have our prefix
+    if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
+        product_data['sku'] = _generate_sku(product_data['name'])
 
     try:
         result = _wix_request(
@@ -602,6 +663,9 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
 
     results = []
     for product_data in products_array:
+        # Auto-generate SKU if not provided
+        if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
+            product_data['sku'] = _generate_sku(product_data.get('name', ''))
         try:
             result = _wix_request(
                 '/stores/v1/products',

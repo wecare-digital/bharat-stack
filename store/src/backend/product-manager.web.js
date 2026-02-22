@@ -101,6 +101,8 @@ export const addToCollection = webMethod(
 
 // ---------------------------------------------------------------------------
 // Sample product templates — BNB CLUB category
+// Description = tagline only. Detailed info in additionalInfoSections.
+// SKU is NOT set here — events.js auto-generates WD-XX-XXXX on creation.
 // ---------------------------------------------------------------------------
 export const getSampleProducts = webMethod(
   Permissions.Anyone,
@@ -110,38 +112,38 @@ export const getSampleProducts = webMethod(
       products: [
         {
           name: 'Visa Assistance — Tourist Visa (Single Country)',
-          productType: 'digital',
-          description: `<p><strong>WECARE.DIGITAL BNB CLUB — Visa Assistance</strong></p>
-<p>End-to-end visa application support for a single destination country. Our dedicated visa specialists handle everything from document preparation to appointment scheduling.</p>
-<h4>What's Included</h4>
-<ul>
-  <li>Document checklist tailored to your destination & nationality</li>
-  <li>Application form filling & review</li>
-  <li>Appointment booking at VFS / Embassy</li>
-  <li>Cover letter & travel itinerary preparation</li>
-  <li>Pre-submission document audit</li>
-  <li>Real-time status tracking via WhatsApp</li>
-  <li>Post-approval travel advisory</li>
-</ul>
-<h4>Processing Time</h4>
-<p>Standard: 7–15 business days (varies by country)<br/>Express: 3–5 business days (where available, additional charges apply)</p>
-<h4>Supported Destinations</h4>
-<p>USA, UK, Canada, Australia, Schengen (all 27), UAE, Singapore, Thailand, Japan, South Korea, New Zealand, and 50+ more countries.</p>`,
-          priceData: {
-            currency: 'INR',
-            price: 2999,
-          },
-          sku: 'BNB-VISA-SINGLE-001',
+          productType: 'physical',
+          description: '<p><strong>End-to-end visa application support for a single destination.</strong></p>',
           weight: 0,
           ribbon: 'BNB CLUB',
           brand: 'WECARE.DIGITAL',
           manageVariants: false,
+          priceData: { currency: 'INR', price: 2999 },
+          costAndProfitData: { itemCost: 0 },
           customTextFields: [
             { title: 'Destination Country', maxLength: 100, mandatory: true },
             { title: 'Passport Number', maxLength: 20, mandatory: true },
             { title: 'Travel Date (approx)', maxLength: 30, mandatory: true },
           ],
           additionalInfoSections: [
+            {
+              title: 'Overview',
+              description: `<p><strong>WECARE.DIGITAL BNB CLUB — Visa Assistance</strong></p>
+<p>Our dedicated visa specialists handle everything from document preparation to appointment scheduling for a single destination country.</p>`,
+            },
+            {
+              title: "What's Included",
+              description: `<ul>
+<li>Document checklist tailored to your destination & nationality</li>
+<li>Application form filling & review</li>
+<li>Appointment booking at VFS / Embassy</li>
+<li>Cover letter & travel itinerary preparation</li>
+<li>Pre-submission document audit</li>
+<li>Real-time status tracking via WhatsApp</li>
+<li>Post-approval travel advisory</li>
+</ul>
+<p><strong>Processing Time</strong><br/>Standard: 7–15 business days (varies by country)<br/>Express: 3–5 business days (where available, additional charges apply)</p>`,
+            },
             {
               title: 'Requirements',
               description: `<ul>
@@ -155,8 +157,9 @@ export const getSampleProducts = webMethod(
 </ul>`,
             },
             {
-              title: 'Refund Policy',
-              description: `<p>Service fee is non-refundable once document processing begins. If visa is rejected, a 50% credit is issued toward your next application. Embassy/VFS fees are non-refundable as per their policy.</p>`,
+              title: 'Cancellations, Refunds & Shipping',
+              description: `<p>Service fee is non-refundable once document processing begins. If visa is rejected, a 50% credit is issued toward your next application. Embassy/VFS fees are non-refundable as per their policy.</p>
+<p><strong>Delivery:</strong> Digital delivery via WhatsApp and email. Nothing physical is shipped.</p>`,
             },
             {
               title: 'Contact',
@@ -166,32 +169,36 @@ export const getSampleProducts = webMethod(
         },
         {
           name: 'Visa Assistance — Schengen Multi-Country',
-          productType: 'digital',
-          description: `<p><strong>WECARE.DIGITAL BNB CLUB — Schengen Visa</strong></p>
-<p>Complete Schengen visa application service covering all 27 member states. Ideal for multi-city European trips.</p>
-<ul>
-  <li>Schengen-specific document preparation</li>
-  <li>Multi-country itinerary planning</li>
-  <li>VFS appointment booking</li>
-  <li>Travel insurance arrangement (Schengen-compliant)</li>
-  <li>Cover letter with detailed travel plan</li>
-  <li>WhatsApp status updates</li>
-</ul>`,
-          priceData: {
-            currency: 'INR',
-            price: 4999,
-          },
-          sku: 'BNB-VISA-SCHENGEN-001',
+          productType: 'physical',
+          description: '<p><strong>Complete Schengen visa service covering all 27 member states.</strong></p>',
           weight: 0,
           ribbon: 'BNB CLUB',
           brand: 'WECARE.DIGITAL',
           manageVariants: false,
+          priceData: { currency: 'INR', price: 4999 },
+          costAndProfitData: { itemCost: 0 },
           customTextFields: [
             { title: 'Countries to Visit', maxLength: 200, mandatory: true },
             { title: 'Passport Number', maxLength: 20, mandatory: true },
             { title: 'Travel Dates', maxLength: 50, mandatory: true },
           ],
           additionalInfoSections: [
+            {
+              title: 'Overview',
+              description: `<p><strong>WECARE.DIGITAL BNB CLUB — Schengen Visa</strong></p>
+<p>Ideal for multi-city European trips. We handle Schengen-specific documentation, VFS appointments, and compliant travel insurance.</p>`,
+            },
+            {
+              title: "What's Included",
+              description: `<ul>
+<li>Schengen-specific document preparation</li>
+<li>Multi-country itinerary planning</li>
+<li>VFS appointment booking</li>
+<li>Travel insurance arrangement (Schengen-compliant, min €30,000)</li>
+<li>Cover letter with detailed travel plan</li>
+<li>WhatsApp status updates</li>
+</ul>`,
+            },
             {
               title: 'Requirements',
               description: `<ul>
@@ -204,33 +211,69 @@ export const getSampleProducts = webMethod(
 <li>Passport-size photos (35×45mm, white background)</li>
 </ul>`,
             },
+            {
+              title: 'Cancellations, Refunds & Shipping',
+              description: `<p>Service fee is non-refundable once document processing begins. If visa is rejected, a 50% credit is issued toward your next application. Embassy/VFS fees are non-refundable as per their policy.</p>
+<p><strong>Delivery:</strong> Digital delivery via WhatsApp and email. Nothing physical is shipped.</p>`,
+            },
+            {
+              title: 'Contact',
+              description: `<p>WhatsApp: +91 93309 94400<br/>Email: visa@wecare.digital<br/>Hours: Mon–Sat, 10 AM – 7 PM IST</p>`,
+            },
           ],
         },
         {
           name: 'Visa Assistance — Business / Conference Visa',
-          productType: 'digital',
-          description: `<p><strong>WECARE.DIGITAL BNB CLUB — Business Visa</strong></p>
-<p>Specialized visa support for business travelers, conference attendees, and corporate delegations.</p>
-<ul>
-  <li>Business invitation letter guidance</li>
-  <li>Company registration & GST documentation</li>
-  <li>Conference/event registration support</li>
-  <li>Priority appointment booking</li>
-  <li>Express processing (where available)</li>
-</ul>`,
-          priceData: {
-            currency: 'INR',
-            price: 3999,
-          },
-          sku: 'BNB-VISA-BUSINESS-001',
+          productType: 'physical',
+          description: '<p><strong>Specialized visa support for business travelers and conference attendees.</strong></p>',
           weight: 0,
           ribbon: 'BNB CLUB',
           brand: 'WECARE.DIGITAL',
           manageVariants: false,
+          priceData: { currency: 'INR', price: 3999 },
+          costAndProfitData: { itemCost: 0 },
           customTextFields: [
             { title: 'Destination Country', maxLength: 100, mandatory: true },
             { title: 'Purpose of Visit', maxLength: 200, mandatory: true },
             { title: 'Company Name', maxLength: 100, mandatory: true },
+          ],
+          additionalInfoSections: [
+            {
+              title: 'Overview',
+              description: `<p><strong>WECARE.DIGITAL BNB CLUB — Business Visa</strong></p>
+<p>Priority support for business travelers, conference attendees, and corporate delegations with express processing where available.</p>`,
+            },
+            {
+              title: "What's Included",
+              description: `<ul>
+<li>Business invitation letter guidance</li>
+<li>Company registration & GST documentation</li>
+<li>Conference/event registration support</li>
+<li>Priority appointment booking</li>
+<li>Express processing (where available)</li>
+<li>WhatsApp status updates</li>
+</ul>`,
+            },
+            {
+              title: 'Requirements',
+              description: `<ul>
+<li>Valid passport (min 6 months validity)</li>
+<li>Business invitation letter from host company</li>
+<li>Company registration / GST certificate</li>
+<li>Bank statements (last 6 months)</li>
+<li>Conference registration (if applicable)</li>
+<li>Passport-size photographs</li>
+</ul>`,
+            },
+            {
+              title: 'Cancellations, Refunds & Shipping',
+              description: `<p>Service fee is non-refundable once document processing begins. If visa is rejected, a 50% credit is issued toward your next application. Embassy/VFS fees are non-refundable as per their policy.</p>
+<p><strong>Delivery:</strong> Digital delivery via WhatsApp and email. Nothing physical is shipped.</p>`,
+            },
+            {
+              title: 'Contact',
+              description: `<p>WhatsApp: +91 93309 94400<br/>Email: visa@wecare.digital<br/>Hours: Mon–Sat, 10 AM – 7 PM IST</p>`,
+            },
           ],
         },
       ],

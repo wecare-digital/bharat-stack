@@ -2,7 +2,7 @@
  * Thank You / Order Confirmation Page — WECARE.DIGITAL
  *
  * Velo page code for the post-checkout thank you page.
- * Displays ONLY the WDSR custom order number.
+ * Displays ONLY the WD custom order number.
  * Wix native order number is hidden via CSS + DOM replacement.
  *
  * Wix Editor: Pages > Thank You Page
@@ -24,20 +24,20 @@ $w.onReady(async function () {
   const orderId = wixLocation.query?.orderId;
   if (!orderId) return;
 
-  // Fetch and display WDSR custom order number
+  // Fetch and display WD custom order number
   try {
-    const wdsrNumber = await getCustomOrderNumber(orderId);
+    const wdNumber = await getCustomOrderNumber(orderId);
 
-    // Show WDSR in our custom element
+    // Show WD in our custom element
     const orderNumEl = $w('#customOrderNumber');
-    if (orderNumEl && wdsrNumber) {
-      orderNumEl.text = wdsrNumber;
+    if (orderNumEl && wdNumber) {
+      orderNumEl.text = wdNumber;
       orderNumEl.show();
     }
 
     // Also try to replace any native order number text on the page
-    // with the WDSR number (for Wix's built-in thank you components)
-    replaceNativeWithWDSR(wdsrNumber);
+    // with the WD number (for Wix's built-in thank you components)
+    replaceNativeWithWD(wdNumber);
 
   } catch { /* custom order number may not be available yet */ }
 
@@ -62,8 +62,8 @@ function hideNativeOrderNumber() {
   } catch { /* ignore */ }
 }
 
-function replaceNativeWithWDSR(wdsrNumber) {
-  if (!wdsrNumber) return;
+function replaceNativeWithWD(wdNumber) {
+  if (!wdNumber) return;
   try {
     // Try to find and replace text in Wix's built-in order confirmation elements
     const possibleElements = ['#orderConfirmationNumber', '#orderRef', '#thankYouOrderId'];
@@ -71,7 +71,7 @@ function replaceNativeWithWDSR(wdsrNumber) {
       try {
         const el = $w(sel);
         if (el && el.text) {
-          el.text = wdsrNumber;
+          el.text = wdNumber;
         }
       } catch { /* element may not exist */ }
     }

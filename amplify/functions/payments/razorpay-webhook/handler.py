@@ -296,8 +296,8 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
         or payment.get('description', '')
         or ''
     )
-    # If description looks like a WDSR reference, use it
-    if reference_id and not reference_id.startswith('WDSR'):
+    # If description looks like a WD reference, use it
+    if reference_id and not reference_id.startswith('WD'):
         reference_id = ''
 
     logger.info(json.dumps({

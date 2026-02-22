@@ -2,18 +2,18 @@
  * My Orders Page — WECARE.DIGITAL
  *
  * Velo page code for the member "My Orders" page.
- * Logged-in users can view their order history using WDSR custom order IDs.
+ * Logged-in users can view their order history using WD custom order IDs.
  * Wix native order numbers are never shown.
  *
  * Features:
  *   - Auto-fetches orders for the logged-in member
- *   - Search by WDSR order number
+ *   - Search by WD order number
  *   - Order detail expand
  *   - Works with Wix Forms (order lookup input)
  *
  * Required elements in Wix Editor:
  *   #ordersRepeater  — Repeater for order list
- *   #orderSearch     — Text input for WDSR search
+ *   #orderSearch     — Text input for WD search
  *   #searchButton    — Search button
  *   #noOrdersText    — Text shown when no orders found
  *   #loadingIndicator — Loading spinner
@@ -86,7 +86,7 @@ async function loadOrders() {
       repeater.data = orders.map(o => ({ ...o, _id: o._id || o.customOrderNumber }));
 
       repeater.onItemReady(($item, itemData) => {
-        // WDSR order number (primary — Wix native is never shown)
+        // WD order number (primary — Wix native is never shown)
         const orderIdEl = $item('#orderDisplayId');
         if (orderIdEl) orderIdEl.text = itemData.customOrderNumber || itemData.orderDisplayId || '—';
 
@@ -139,7 +139,7 @@ async function loadOrders() {
 }
 
 // ---------------------------------------------------------------------------
-// Search by WDSR order number
+// Search by WD order number
 // ---------------------------------------------------------------------------
 
 function setupSearch() {

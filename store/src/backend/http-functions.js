@@ -192,7 +192,7 @@ export async function get_orders(request) {
           const order = await wixData.get('Stores/Orders', mapping.items[0].orderId, { suppressAuth: true });
           if (order) {
             order.customOrderNumber = customOrderNumber;
-            // Strip Wix native order number — only WDSR is used
+            // Strip Wix native order number — only WD is used
             delete order.number;
             return jsonOk({ orders: [order], totalResults: 1 });
           }
@@ -279,7 +279,7 @@ export async function get_order(request) {
     if (!order) return jsonNotFound({ error: 'Order not found' });
 
     await enrichOrderWithCustomId(order);
-    delete order.number; // Strip Wix native order number — only WDSR is used
+    delete order.number; // Strip Wix native order number — only WD is used
 
     return jsonOk({ order });
   } catch (err) {
