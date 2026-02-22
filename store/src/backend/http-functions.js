@@ -378,3 +378,126 @@ export async function get_health(request) {
     timestamp: new Date().toISOString(),
   });
 }
+
+// ---------------------------------------------------------------------------
+// POST /_functions/create-product
+// Body: { product: { name, description, priceData, sku, ... } }
+// ---------------------------------------------------------------------------
+
+export async function post_createProduct(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const body = await request.body.json();
+    const productData = body.product;
+    if (!productData || !productData.name) {
+      return jsonError({ error: 'Missing product.name' }, 400);
+    }
+
+    const { createProduct } = await import('./product-manager.web');
+    const result = await createProduct(productData);
+
+    if (!result.success) {
+      return jsonError({ error: result.error }, 400);
+    }
+
+    return jsonOk({ product: result.product, created: true });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /_functions/bulk-create-products
+// Body: { products: [ { name, description, priceData, sku, ... }, ... ] }
+// ---------------------------------------------------------------------------
+
+export async function post_bulkCreateProducts(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const body = await request.body.json();
+    const productsArray = body.products;
+    if (!Array.isArray(productsArray) || productsArray.length === 0) {
+      return jsonError({ error: 'Missing or empty products array' }, 400);
+    }
+
+    const { bulkCreateProducts } = await import('./product-manager.web');
+    const result = await bulkCreateProducts(productsArray);
+
+    return jsonOk(result);
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /_functions/update-product
+// Body: { productId: "...", updates: { name, description, ... } }
+// ---------------------------------------------------------------------------
+
+export async function post_updateProduct(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const body = await request.body.json();
+    if (!body.productId) {
+      return jsonError({ error: 'Missing productId' }, 400);
+    }
+
+    const { updateProduct } = await import('./product-manager.web');
+    const result = await updateProduct(body.productId, body.updates || {});
+
+    if (!result.success) {
+      return jsonError({ error: result.error }, 400);
+    }
+
+    return jsonOk({ product: result.product, updated: true });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /_functions/delete-product
+// Body: { productId: "..." }
+// ---------------------------------------------------------------------------
+
+export async function post_deleteProduct(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const body = await request.body.json();
+    if (!body.productId) {
+      return jsonError({ error: 'Missing productId' }, 400);
+    }
+
+    const { deleteProduct } = await import('./product-manager.web');
+    const result = await deleteProduct(body.productId);
+
+    if (!result.success) {
+      return jsonError({ error: result.error }, 400);
+    }
+
+    return jsonOk({ deleted: true });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /_functions/sample-products
+// Returns BNB CLUB sample product templates
+// ---------------------------------------------------------------------------
+
+export async function get_sampleProducts(request) {
+  if (!(await authenticate(request))) return jsonForbidden();
+
+  try {
+    const { getSampleProducts } = await import('./product-manager.web');
+    const samples = await getSampleProducts();
+    return jsonOk(samples);
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}

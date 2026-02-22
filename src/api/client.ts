@@ -3198,6 +3198,44 @@ export async function syncWixOrders(): Promise<{ message: string }> {
   return data || { message: 'Sync failed' };
 }
 
+// Product creation / management
+export async function createWixProduct(product: Record<string, any>): Promise<{ product: any; created: boolean }> {
+  const data = await apiCall<any>(`${WIX_STORE_BASE}/create-product`, {
+    method: 'POST',
+    body: JSON.stringify({ product }),
+  });
+  return data || { product: null, created: false };
+}
+
+export async function bulkCreateWixProducts(products: Record<string, any>[]): Promise<{ total: number; succeeded: number; failed: number; results: any[] }> {
+  const data = await apiCall<any>(`${WIX_STORE_BASE}/bulk-create-products`, {
+    method: 'POST',
+    body: JSON.stringify({ products }),
+  });
+  return data || { total: 0, succeeded: 0, failed: 0, results: [] };
+}
+
+export async function updateWixProduct(productId: string, updates: Record<string, any>): Promise<{ product: any; updated: boolean }> {
+  const data = await apiCall<any>(`${WIX_STORE_BASE}/update-product`, {
+    method: 'POST',
+    body: JSON.stringify({ productId, updates }),
+  });
+  return data || { product: null, updated: false };
+}
+
+export async function deleteWixProduct(productId: string): Promise<{ deleted: boolean }> {
+  const data = await apiCall<any>(`${WIX_STORE_BASE}/delete-product`, {
+    method: 'POST',
+    body: JSON.stringify({ productId }),
+  });
+  return data || { deleted: false };
+}
+
+export async function getWixSampleProducts(): Promise<{ category: string; products: any[] }> {
+  const data = await apiCall<any>(`${WIX_STORE_BASE}/sample-products`);
+  return data || { category: '', products: [] };
+}
+
 // ============================================================================
 // INVOICE ENGINE API (Unified Invoice System)
 // Lambda: wecare-invoice-engine

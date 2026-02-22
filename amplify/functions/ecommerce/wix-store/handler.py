@@ -67,6 +67,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
       GET  /orders/:id                   - Get single order (full detail)
       GET  /orders/:id/fulfillments      - Fulfillments for an order
       GET  /orders/:id/transactions      - Transactions for an order
+      GET  /sample-products              - BNB CLUB sample product templates
+      POST /create-product               - Create a single product
+      POST /bulk-create-products         - Bulk create products
+      POST /update-product               - Update a product
+      POST /delete-product               - Delete a product
       POST /sync/products                - Sync products → DynamoDB
       POST /sync/orders                  - Sync orders → DynamoDB
     """
@@ -87,7 +92,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # ---- Velo mode: route through Velo HTTP Functions ----
         if WIX_MODE == 'velo':
-            return _velo_route(path, params, request_id)
+            body = _parse_body(event) if http_method == 'POST' else {}
+            return _velo_route(path, params, request_id, http_method, body)
 
         # ---- Account-level ----
         if '/sites' in path:
@@ -107,6 +113,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             product_id = _extract_id(path, 'products')
             if product_id:
                 return _get_product(product_id, request_id)
+            if http_method == 'POST' and '/create-product' in path:
+                body = _parse_body(event)
+                return _create_product_rest(body, request_id)
+            if http_method == 'POST' and '/bulk-create-products' in path:
+                body = _parse_body(event)
+                return _bulk_create_products_rest(body, request_id)
             return _list_products(params, request_id)
 
         # ---- Inventory ----
@@ -133,6 +145,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _sync_products(request_id)
             if 'orders' in path:
                 return _sync_orders(request_id)
+
+        # ---- Sample products ----
+        if '/sample-products' in path:
+            return _get_sample_products(request_id)
 
         return _response(404, {'error': 'Not found', 'path': path})
 
@@ -554,6 +570,101 @@ def _enrich_order(order: dict) -> dict:
 
 
 # ===================================================================
+# PRODUCT CREATION (REST API MODE)
+# ===================================================================
+
+def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
+    """Create a single product via Wix REST API."""
+    product_data = body.get('product', {})
+    if not product_data.get('name'):
+        return _response(400, {'error': 'Missing product.name', 'requestId': request_id})
+
+    try:
+        result = _wix_request(
+            '/stores/v1/products',
+            method='POST',
+            body={'product': product_data}
+        )
+        return _response(200, {
+            'product': result.get('product', {}),
+            'created': True,
+            'requestId': request_id,
+        })
+    except Exception as e:
+        return _response(500, {'error': str(e), 'requestId': request_id})
+
+
+def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
+    """Bulk create products via Wix REST API (sequential)."""
+    products_array = body.get('products', [])
+    if not products_array:
+        return _response(400, {'error': 'Missing or empty products array', 'requestId': request_id})
+
+    results = []
+    for product_data in products_array:
+        try:
+            result = _wix_request(
+                '/stores/v1/products',
+                method='POST',
+                body={'product': product_data}
+            )
+            created = result.get('product', {})
+            results.append({
+                'success': True,
+                'name': product_data.get('name', ''),
+                'productId': created.get('id', created.get('_id', '')),
+            })
+        except Exception as e:
+            results.append({
+                'success': False,
+                'name': product_data.get('name', ''),
+                'error': str(e),
+            })
+
+    return _response(200, {
+        'total': len(products_array),
+        'succeeded': len([r for r in results if r['success']]),
+        'failed': len([r for r in results if not r['success']]),
+        'results': results,
+        'requestId': request_id,
+    })
+
+
+def _get_sample_products(request_id: str) -> Dict[str, Any]:
+    """Return BNB CLUB sample product templates."""
+    samples = {
+        'category': 'BNB CLUB',
+        'products': [
+            {
+                'name': 'Visa Assistance — Tourist Visa (Single Country)',
+                'productType': 'digital',
+                'priceData': {'currency': 'INR', 'price': 2999},
+                'sku': 'BNB-VISA-SINGLE-001',
+                'ribbon': 'BNB CLUB',
+                'brand': 'WECARE.DIGITAL',
+            },
+            {
+                'name': 'Visa Assistance — Schengen Multi-Country',
+                'productType': 'digital',
+                'priceData': {'currency': 'INR', 'price': 4999},
+                'sku': 'BNB-VISA-SCHENGEN-001',
+                'ribbon': 'BNB CLUB',
+                'brand': 'WECARE.DIGITAL',
+            },
+            {
+                'name': 'Visa Assistance — Business / Conference Visa',
+                'productType': 'digital',
+                'priceData': {'currency': 'INR', 'price': 3999},
+                'sku': 'BNB-VISA-BUSINESS-001',
+                'ribbon': 'BNB CLUB',
+                'brand': 'WECARE.DIGITAL',
+            },
+        ],
+    }
+    return _response(200, {**samples, 'requestId': request_id})
+
+
+# ===================================================================
 # SYNC TO DYNAMODB CACHE
 # ===================================================================
 
@@ -714,16 +825,18 @@ def _response(status_code: int, body: dict) -> Dict[str, Any]:
 # Velo source code is in store/src/ — sync to Wix via Git integration.
 # ===================================================================
 
-def _velo_request(endpoint: str, params: dict = None) -> Dict[str, Any]:
+def _velo_request(endpoint: str, params: dict = None, method: str = 'GET',
+                  body: dict = None) -> Dict[str, Any]:
     """
     Call a Velo HTTP Function on the published Wix site.
-    URL format: {WIX_VELO_BASE}/_functions/{endpoint}?key=val&...
+    GET:  {WIX_VELO_BASE}/_functions/{endpoint}?key=val&...
+    POST: {WIX_VELO_BASE}/_functions/{endpoint}  (body as JSON)
     """
     if not WIX_VELO_BASE:
         raise RuntimeError("WIX_VELO_BASE_URL not configured. Set it to your Wix site URL.")
 
     query_string = ''
-    if params:
+    if params and method == 'GET':
         parts = [f"{k}={urllib.request.quote(str(v))}" for k, v in params.items() if v]
         if parts:
             query_string = '?' + '&'.join(parts)
@@ -736,7 +849,8 @@ def _velo_request(endpoint: str, params: dict = None) -> Dict[str, Any]:
     if WIX_VELO_API_KEY:
         headers['X-Api-Key'] = WIX_VELO_API_KEY
 
-    req = urllib.request.Request(url, headers=headers, method='GET')
+    data = json.dumps(body).encode('utf-8') if body and method == 'POST' else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
 
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -752,8 +866,41 @@ def _velo_request(endpoint: str, params: dict = None) -> Dict[str, Any]:
         raise RuntimeError(f"Velo HTTP error {e.code}: {error_body[:200]}")
 
 
-def _velo_route(path: str, params: dict, request_id: str) -> Dict[str, Any]:
+def _velo_route(path: str, params: dict, request_id: str,
+                http_method: str = 'GET', body: dict = None) -> Dict[str, Any]:
     """Route requests through Velo HTTP Functions."""
+
+    # ---- POST: Product management ----
+    if http_method == 'POST':
+        if '/create-product' in path or (('/products' in path) and '/sync' not in path and not _extract_id(path, 'products')):
+            result = _velo_request('create-product', method='POST', body=body)
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+        if '/bulk-create-products' in path:
+            result = _velo_request('bulk-create-products', method='POST', body=body)
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+        if '/update-product' in path:
+            result = _velo_request('update-product', method='POST', body=body)
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+        if '/delete-product' in path:
+            result = _velo_request('delete-product', method='POST', body=body)
+            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
+
+        # Sync — always uses REST API for bulk operations
+        if '/sync' in path:
+            if 'products' in path:
+                return _sync_products(request_id)
+            if 'orders' in path:
+                return _sync_orders(request_id)
+
+        return _response(404, {'error': 'POST route not found', 'path': path, 'mode': 'velo'})
+
+    # ---- GET: Sample products ----
+    if '/sample-products' in path:
+        result = _velo_request('sample-products')
+        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
 
     # Products
     if '/products' in path:

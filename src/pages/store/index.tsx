@@ -20,12 +20,13 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'products' | 'orders' | 'collections' | 'admin' | 'settings';
+type TabType = 'products' | 'orders' | 'collections' | 'manage' | 'admin' | 'settings';
 
 const TABS: TabItem[] = [
   { id: 'products', label: 'Products' },
   { id: 'orders', label: 'Orders' },
   { id: 'collections', label: 'Collections' },
+  { id: 'manage', label: 'Product Manager' },
   { id: 'admin', label: 'Store Admin' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -54,6 +55,24 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // Sites (settings)
   const [sites, setSites] = useState<any[]>([]);
+
+  // Product Manager
+  const [manageMode, setManageMode] = useState<'single' | 'bulk'>('single');
+  const [creating, setCreating] = useState(false);
+  const [createResult, setCreateResult] = useState<any>(null);
+  const [sampleProducts, setSampleProducts] = useState<any[]>([]);
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    productType: 'digital' as 'digital' | 'physical',
+    description: '',
+    price: '',
+    currency: 'INR',
+    sku: '',
+    ribbon: 'BNB CLUB',
+    brand: 'WECARE.DIGITAL',
+    weight: '0',
+  });
+  const [bulkJson, setBulkJson] = useState('');
 
   // ---- Data fetching ----
   const fetchProducts = useCallback(async () => {
@@ -118,12 +137,22 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
     setLoading(false);
   }, []);
 
+  const fetchSamples = useCallback(async () => {
+    try {
+      const data = await api.getWixSampleProducts();
+      setSampleProducts(data.products || []);
+    } catch (e) {
+      console.error('Failed to fetch samples:', e);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'products') fetchProducts();
     else if (activeTab === 'orders') fetchOrders();
     else if (activeTab === 'collections') fetchCollections();
     else if (activeTab === 'settings') fetchSites();
-  }, [activeTab, fetchProducts, fetchOrders, fetchCollections, fetchSites]);
+    else if (activeTab === 'manage') fetchSamples();
+  }, [activeTab, fetchProducts, fetchOrders, fetchCollections, fetchSites, fetchSamples]);
 
   const handleSync = async (type: 'products' | 'orders') => {
     setSyncing(true);
@@ -148,6 +177,69 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
     } catch {
       setSelectedProduct(product);
     }
+  };
+
+  const handleCreateProduct = async () => {
+    if (!newProduct.name || !newProduct.price) return;
+    setCreating(true);
+    setCreateResult(null);
+    try {
+      const productData: any = {
+        name: newProduct.name,
+        productType: newProduct.productType,
+        description: newProduct.description,
+        priceData: { currency: newProduct.currency, price: parseFloat(newProduct.price) },
+        sku: newProduct.sku,
+        ribbon: newProduct.ribbon,
+        brand: newProduct.brand,
+      };
+      if (newProduct.productType === 'physical') {
+        productData.weight = parseFloat(newProduct.weight) || 0;
+      }
+      const result = await api.createWixProduct(productData);
+      setCreateResult({ success: true, ...result });
+      setNewProduct({ name: '', productType: 'digital', description: '', price: '', currency: 'INR', sku: '', ribbon: 'BNB CLUB', brand: 'WECARE.DIGITAL', weight: '0' });
+    } catch (e: any) {
+      setCreateResult({ success: false, error: e.message });
+    }
+    setCreating(false);
+  };
+
+  const handleBulkCreate = async () => {
+    setCreating(true);
+    setCreateResult(null);
+    try {
+      const products = JSON.parse(bulkJson);
+      if (!Array.isArray(products)) throw new Error('JSON must be an array of products');
+      const result = await api.bulkCreateWixProducts(products);
+      setCreateResult({ success: true, bulk: true, ...result });
+    } catch (e: any) {
+      setCreateResult({ success: false, error: e.message });
+    }
+    setCreating(false);
+  };
+
+  const handleLoadSample = (sample: any) => {
+    if (manageMode === 'single') {
+      setNewProduct({
+        name: sample.name || '',
+        productType: sample.productType || 'digital',
+        description: sample.description || '',
+        price: String(sample.priceData?.price || sample.price || ''),
+        currency: sample.priceData?.currency || 'INR',
+        sku: sample.sku || '',
+        ribbon: sample.ribbon || 'BNB CLUB',
+        brand: sample.brand || 'WECARE.DIGITAL',
+        weight: String(sample.weight || 0),
+      });
+    } else {
+      setBulkJson(JSON.stringify([sample], null, 2));
+    }
+  };
+
+  const handleLoadAllSamples = () => {
+    setBulkJson(JSON.stringify(sampleProducts, null, 2));
+    setManageMode('bulk');
   };
 
   const handleOrderClick = async (order: api.WixOrder) => {
@@ -349,6 +441,146 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                       {c.description && <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>{c.description}</p>}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ---- PRODUCT MANAGER TAB ---- */}
+          {activeTab === 'manage' && (
+            <div style={{ maxWidth: 900 }}>
+              {/* Mode Toggle */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <button
+                  onClick={() => setManageMode('single')}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'single' ? '2px solid #10b981' : '1px solid #d1d5db', background: manageMode === 'single' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'single' ? 600 : 400, fontSize: 13 }}
+                >
+                  Single Product
+                </button>
+                <button
+                  onClick={() => setManageMode('bulk')}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'bulk' ? '2px solid #10b981' : '1px solid #d1d5db', background: manageMode === 'bulk' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'bulk' ? 600 : 400, fontSize: 13 }}
+                >
+                  Bulk Create (JSON)
+                </button>
+              </div>
+
+              {/* Sample Products */}
+              {sampleProducts.length > 0 && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>BNB CLUB Templates</span>
+                    <button onClick={handleLoadAllSamples} style={{ fontSize: 12, padding: '4px 12px', border: '1px solid #86efac', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#059669' }}>
+                      Load All → Bulk
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {sampleProducts.map((s: any, i: number) => (
+                      <button key={i} onClick={() => handleLoadSample(s)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 12, textAlign: 'left', maxWidth: 260 }}>
+                        <div style={{ fontWeight: 500 }}>{s.name}</div>
+                        <div style={{ color: '#6b7280', fontSize: 11 }}>₹{s.priceData?.price || s.price} · {s.sku}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Single Product Form */}
+              {manageMode === 'single' && (
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600 }}>Create Product</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Product Name *</label>
+                      <input type="text" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} placeholder="Visa Assistance — Tourist Visa"
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Price *</label>
+                      <input type="number" value={newProduct.price} onChange={e => setNewProduct({ ...newProduct, price: e.target.value })} placeholder="2999"
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Currency</label>
+                      <select value={newProduct.currency} onChange={e => setNewProduct({ ...newProduct, currency: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, background: '#fff', boxSizing: 'border-box' }}>
+                        <option value="INR">INR (₹)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>SKU</label>
+                      <input type="text" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} placeholder="BNB-VISA-SINGLE-001"
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Type</label>
+                      <select value={newProduct.productType} onChange={e => setNewProduct({ ...newProduct, productType: e.target.value as 'digital' | 'physical' })}
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, background: '#fff', boxSizing: 'border-box' }}>
+                        <option value="digital">Digital</option>
+                        <option value="physical">Physical</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Ribbon</label>
+                      <input type="text" value={newProduct.ribbon} onChange={e => setNewProduct({ ...newProduct, ribbon: e.target.value })} placeholder="BNB CLUB"
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Brand</label>
+                      <input type="text" value={newProduct.brand} onChange={e => setNewProduct({ ...newProduct, brand: e.target.value })} placeholder="WECARE.DIGITAL"
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    {newProduct.productType === 'physical' && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Weight (kg)</label>
+                        <input type="number" value={newProduct.weight} onChange={e => setNewProduct({ ...newProduct, weight: e.target.value })} placeholder="0"
+                          style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                    )}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Description (HTML)</label>
+                      <textarea value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} rows={5} placeholder="<p>Product description...</p>"
+                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 13, outline: 'none', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button onClick={handleCreateProduct} disabled={creating || !newProduct.name || !newProduct.price}
+                      style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !newProduct.name || !newProduct.price ? 0.5 : 1 }}>
+                      {creating ? 'Creating...' : 'Create Product'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bulk Create */}
+              {manageMode === 'bulk' && (
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600 }}>Bulk Create Products</h3>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4, color: '#374151' }}>Products JSON Array</label>
+                  <textarea value={bulkJson} onChange={e => setBulkJson(e.target.value)} rows={14} placeholder='[{"name": "Product 1", "productType": "digital", "priceData": {"currency": "INR", "price": 999}, "sku": "SKU-001"}]'
+                    style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 12, outline: 'none', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+                  <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button onClick={handleBulkCreate} disabled={creating || !bulkJson.trim()}
+                      style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !bulkJson.trim() ? 0.5 : 1 }}>
+                      {creating ? 'Creating...' : 'Bulk Create'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Result */}
+              {createResult && (
+                <div style={{ marginTop: 16, background: createResult.success ? '#f0fdf4' : '#fef2f2', border: `1px solid ${createResult.success ? '#bbf7d0' : '#fecaca'}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: createResult.success ? '#059669' : '#dc2626', marginBottom: 8 }}>
+                    {createResult.success ? (createResult.bulk ? `Bulk: ${createResult.succeeded}/${createResult.total} created` : 'Product Created') : 'Error'}
+                  </div>
+                  <pre style={{ fontSize: 12, margin: 0, whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto', color: '#374151' }}>
+                    {JSON.stringify(createResult, null, 2)}
+                  </pre>
                 </div>
               )}
             </div>
