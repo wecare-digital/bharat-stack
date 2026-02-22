@@ -65,6 +65,7 @@ temp/
 
 # Build artifacts
 *.zip
+tsconfig.tsbuildinfo
 
 # Secrets (never commit)
 *.pem
