@@ -141,19 +141,20 @@ export const getMyOrderCount = webMethod(
 
 /**
  * Get just the WD-ORD IDs for a member (for dropdown/select).
- * Returns array of { value, label } for easy binding.
+ * Queries by buyerEmail because Wix member._id differs from
+ * the buyerInfo.id stored in OrderCustomIds.
  *
- * @param {string} memberId
+ * @param {string} email - The member's login email
  * @returns {Array<{ value: string, label: string }>}
  */
 export const getMyOrderIdList = webMethod(
   Permissions.SiteMember,
-  async (memberId) => {
-    if (!memberId) return [];
+  async (email) => {
+    if (!email) return [];
 
     let all = [];
     let res = await wixData.query(ORDER_IDS_COLLECTION)
-      .eq('memberId', memberId)
+      .eq('buyerEmail', email)
       .descending('_createdDate')
       .limit(50)
       .find({ suppressAuth: true });

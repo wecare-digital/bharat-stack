@@ -11,14 +11,22 @@ import { getMyOrderIdList } from 'backend/member-orders.web.js';
 $w.onReady(async () => {
   const dd = $w('#dropdown_f78d');
 
-  let memberId = null;
+  let member = null;
   try {
-    const member = await currentMember.getMember();
-    memberId = member?._id;
+    member = await currentMember.getMember({ fieldsets: ['FULL'] });
   } catch { /* not logged in */ }
 
-  if (!memberId) {
+  if (!member) {
     dd.options = [{ value: '', label: 'Please log in to see your orders' }];
+    dd.selectedIndex = 0;
+    dd.disable();
+    return;
+  }
+
+  const email = member.loginEmail || member.contactDetails?.emails?.[0] || '';
+
+  if (!email) {
+    dd.options = [{ value: '', label: 'No email found for your account' }];
     dd.selectedIndex = 0;
     dd.disable();
     return;
@@ -29,7 +37,7 @@ $w.onReady(async () => {
   dd.selectedIndex = 0;
 
   try {
-    const orderIds = await getMyOrderIdList(memberId);
+    const orderIds = await getMyOrderIdList(email);
     if (orderIds.length > 0) {
       dd.options = [
         { value: '', label: 'Select your order...' },
