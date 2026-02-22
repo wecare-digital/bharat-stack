@@ -13,7 +13,7 @@
   var NATIVE_ORDER_RE = /^#?\s*\d{4,6}$/;                    // "#10001" or "10001"
   var ORDER_LABEL_RE = /Order\s*#?\s*\d{4,6}/i;              // "Order #10001"
   var ORDER_NUM_RE = /(?:^|\s)#(\d{4,6})(?:\s|$)/;           // " #10001 "
-  var WD_ORDER_RE = /WD-ORD-[A-F0-9]{8}-\d{2}-\d{2}-\d{4}-\d{2}:\d{2}:\d{2}-IST/;  // Our custom format
+  var WD_ORDER_RE = /WD-ORD-\s*[A-F0-9]{8}\s*-\d{2}-\d{2}-\d{4}\s*-\s*\d{2}:\d{2}:\d{2}-IST/i;  // Our custom format (with optional spaces)
 
   function hideNativeOrderNumbers() {
     // Strategy 1: Hide elements with order-number data-hooks (CSS backup)

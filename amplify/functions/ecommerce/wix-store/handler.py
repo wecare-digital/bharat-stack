@@ -596,8 +596,8 @@ def _order_transactions(order_id: str, request_id: str) -> Dict[str, Any]:
 def _generate_wd_order_number(order_date: str) -> str:
     """
     Generate a WD-ORD order number.
-    Format: WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST
-    Example: WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST
+    Format: WD-ORD- {UUID8} -{DD-MM-YYYY} - {HH:MM:SS}-IST
+    Example: WD-ORD- A3F7B2C1 -22-02-2026 - 17:43:01-IST
 
     Uses the order's creation date converted to IST (Asia/Kolkata, UTC+5:30).
     UUID part is 8 uppercase hex chars for uniqueness.
@@ -613,7 +613,7 @@ def _generate_wd_order_number(order_date: str) -> str:
     date_str = dt_ist.strftime('%d-%m-%Y')
     time_str = dt_ist.strftime('%H:%M:%S')
     uid = _uuid.uuid4().hex[:8].upper()
-    return f'WD-ORD-{uid}-{date_str}-{time_str}-IST'
+    return f'WD-ORD- {uid} -{date_str} - {time_str}-IST'
 
 
 def _get_or_create_wd_order_number(order_id: str, order_date: str = '',

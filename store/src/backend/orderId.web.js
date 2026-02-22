@@ -4,7 +4,7 @@
  * Web method wrappers for frontend → backend calls.
  * Delegates to orderId-helpers.js for the actual logic.
  *
- * Format: WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST
+ * Format: WD-ORD- {UUID8} -{DD-MM-YYYY} - {HH:MM:SS}-IST
  *
  * Docs: https://dev.wix.com/docs/velo/apis/wix-web-module
  */
