@@ -1,5 +1,5 @@
 /**
- * Pinger — WECARE.DIGITAL
+ * Pinger â€” WECARE.DIGITAL
  *
  * Health checks for SEO endpoints and Store API availability.
  * Runs on a schedule via jobs.config to keep the site warm
@@ -13,7 +13,7 @@
  *   5. Wix Stores API (product count)
  */
 
-import { fetch } from 'wix-fetch';
+// native fetch() is available globally - wix-fetch is deprecated
 import wixData from 'wix-data';
 
 const SITE_URL = 'https://www.wecare.digital';
@@ -86,7 +86,7 @@ export async function pingAll() {
     });
   }
 
-  // Log to collection (optional — remove if PingLogs collection doesn't exist)
+  // Log to collection (optional â€” remove if PingLogs collection doesn't exist)
   try {
     await wixData.insert(PING_LOG_COLLECTION, {
       results: JSON.stringify(results),
