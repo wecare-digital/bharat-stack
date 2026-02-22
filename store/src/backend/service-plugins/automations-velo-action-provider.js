@@ -14,7 +14,7 @@
  */
 
 import { getSecret } from 'wix-secrets-backend';
-import { fetch } from 'wix-fetch';
+// native fetch() is available globally — wix-fetch is deprecated
 import wixData from 'wix-data';
 import { generateOrderId } from 'backend/orderId.web.js';
 
