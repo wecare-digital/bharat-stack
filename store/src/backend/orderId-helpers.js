@@ -6,8 +6,8 @@
  *
  * The .web.js file delegates to these functions for frontend calls.
  *
- * Format: WD-ORD- {UUID8} -{DD-MM-YYYY} - {HH:MM:SS}-IST
- *   e.g. WD-ORD- A3F7B2C1 -22-02-2026 - 17:43:01-IST
+ * Format: WD-ORD - {UUID8} - {DD-MM-YYYY} - {HH:MM:SS} - IST
+ *   e.g. WD-ORD - A3F7B2C1 - 22-02-2026 - 17:43:01 - IST
  */
 
 import wixData from 'wix-data';
@@ -70,14 +70,14 @@ function formatIstDateTimeParts(isoString) {
 }
 
 /**
- * Generate WD-ORD- {UUID8} -{DD-MM-YYYY} - {HH:MM:SS}-IST
+ * Generate WD-ORD - {UUID8} - {DD-MM-YYYY} - {HH:MM:SS} - IST
  */
 function createOrderId(orderDateIso) {
   const { dateStr, timeStr } = formatIstDateTimeParts(orderDateIso);
   const uid = Array.from({ length: 8 }, () =>
     Math.floor(Math.random() * 16).toString(16)
   ).join('').toUpperCase();
-  return `${ID_PREFIX}- ${uid} -${dateStr} - ${timeStr}-IST`;
+  return `${ID_PREFIX} - ${uid} - ${dateStr} - ${timeStr} - IST`;
 }
 
 async function generateUniqueOrderId(orderDateIso) {

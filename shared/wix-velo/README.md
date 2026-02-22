@@ -22,8 +22,8 @@ This folder contains the **source of truth** for Wix Velo backend code shared be
 ## Order ID Format
 
 ```
-WD-ORD- {UUID8} -{DD-MM-YYYY} - {HH:MM:SS}-IST
-Example: WD-ORD- A3F7B2C1 -22-02-2026 - 17:43:01-IST
+WD-ORD - {UUID8} - {DD-MM-YYYY} - {HH:MM:SS} - IST
+Example: WD-ORD - A3F7B2C1 - 22-02-2026 - 17:43:01 - IST
 ```
 
 ## Wix Data Collections
