@@ -4,12 +4,11 @@
  * Generates custom order numbers with WD-ORD prefix (WECARE.DIGITAL).
  * Called from frontend, events, or automations to assign a human-readable order ID.
  *
- * Format: WD-ORD-YYYYMMDD-XXXX (e.g. WD-ORD-20260222-0042)
+ * Format: WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST
+ *   e.g. WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST
  *
  * The prefix is configurable — change PREFIX constant to rebrand.
- * Examples:
- *   WD-ORD-20260222-0042  (default — WECARE.DIGITAL Order)
- *   WCDO-20260222-0042  (WECARE.DIGITAL Order)
+ * Example: WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST  (WECARE.DIGITAL Order)
  *
  * Stores mapping in "OrderCustomIds" collection:
  *   { orderId, customOrderNumber, memberId, buyerEmail, _createdDate }
@@ -17,9 +16,10 @@
  * The memberId and buyerEmail fields enable member-based order lookups
  * from the Wix Form / My Orders page without hitting the Wix eCommerce API.
  *
- * Race condition handling: If two concurrent calls generate the same sequence,
- * the insert will fail on the unique orderId. We catch that and retry with
- * an incremented sequence.
+ * Race condition handling: UUID-based IDs eliminate sequence conflicts.
+ * If two concurrent calls happen, each gets a unique UUID.
+ * The insert will only fail if the same orderId is inserted twice,
+ * in which case we return the existing record.
  *
  * Docs: https://dev.wix.com/docs/velo/apis/wix-web-module
  */
@@ -29,35 +29,36 @@ import wixData from 'wix-data';
 
 const PREFIX = 'WD-ORD';
 const COLLECTION = 'OrderCustomIds';
-const MAX_RETRIES = 3;
 
 /**
- * Build a WD-ORD-YYYYMMDD-XXXX order number for a given sequence.
+ * Build a WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST order number.
+ * Uses IST timezone (UTC+5:30).
  */
-function buildOrderNumber(seq) {
+function buildOrderNumber() {
+  // IST = UTC + 5:30
   const now = new Date();
-  const datePart = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('');
-  return `${PREFIX}-${datePart}-${String(seq).padStart(4, '0')}`;
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5h30m in ms
+  const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60 * 1000);
+
+  const dd = String(ist.getDate()).padStart(2, '0');
+  const mm = String(ist.getMonth() + 1).padStart(2, '0');
+  const yyyy = ist.getFullYear();
+  const hh = String(ist.getHours()).padStart(2, '0');
+  const min = String(ist.getMinutes()).padStart(2, '0');
+  const ss = String(ist.getSeconds()).padStart(2, '0');
+
+  // 8-char hex UUID
+  const uid = Array.from({ length: 8 }, () =>
+    Math.floor(Math.random() * 16).toString(16)
+  ).join('').toUpperCase();
+
+  return `${PREFIX}-${uid}-${dd}-${mm}-${yyyy}-${hh}:${min}:${ss}-IST`;
 }
 
 /**
- * Get today's current count from the OrderCustomIds collection.
- */
-async function getTodayCount() {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return wixData.query(COLLECTION)
-    .ge('_createdDate', todayStart)
-    .count({ suppressAuth: true });
-}
-
-/**
+ * Generate UUID-based order number (no sequence conflicts).
  * Generate and persist a custom order number for a given Wix order ID.
- * Handles race conditions by retrying with incremented sequence on duplicate insert.
+ * Uses UUID-based format so no sequence conflicts possible.
  *
  * Also stores memberId and buyerEmail for member-based order lookups.
  *
@@ -97,41 +98,33 @@ export const generateOrderId = webMethod(
       };
     }
 
-    // Generate with retry for race conditions
-    let lastError;
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const count = await getTodayCount();
-      const seq = count + 1 + attempt; // offset by attempt to avoid same seq on retry
-      const customOrderNumber = buildOrderNumber(seq);
+    // Generate UUID-based order number (no sequence conflicts)
+    const customOrderNumber = buildOrderNumber();
 
-      try {
-        await wixData.insert(COLLECTION, {
+    try {
+      await wixData.insert(COLLECTION, {
+        orderId,
+        customOrderNumber,
+        memberId,
+        buyerEmail,
+      }, { suppressAuth: true });
+
+      return { customOrderNumber, orderId };
+    } catch (err) {
+      // If insert fails (duplicate orderId from concurrent call), return existing
+      const recheck = await wixData.query(COLLECTION)
+        .eq('orderId', orderId)
+        .limit(1)
+        .find({ suppressAuth: true });
+      if (recheck.items.length > 0) {
+        return {
+          customOrderNumber: recheck.items[0].customOrderNumber,
           orderId,
-          customOrderNumber,
-          memberId,
-          buyerEmail,
-        }, { suppressAuth: true });
-
-        return { customOrderNumber, orderId };
-      } catch (err) {
-        lastError = err;
-        // If it's a duplicate orderId (already inserted by concurrent call), return that
-        const recheck = await wixData.query(COLLECTION)
-          .eq('orderId', orderId)
-          .limit(1)
-          .find({ suppressAuth: true });
-        if (recheck.items.length > 0) {
-          return {
-            customOrderNumber: recheck.items[0].customOrderNumber,
-            orderId,
-            alreadyExists: true,
-          };
-        }
-        // Otherwise retry with next sequence
+          alreadyExists: true,
+        };
       }
+      throw new Error(`Failed to generate order ID: ${err?.message}`);
     }
-
-    throw new Error(`Failed to generate order ID after ${MAX_RETRIES} attempts: ${lastError?.message}`);
   }
 );
 
@@ -155,7 +148,7 @@ export const getCustomOrderNumber = webMethod(
 
 /**
  * Look up a Wix order ID by custom order number.
- * @param {string} customOrderNumber - e.g. "WD-ORD-20260222-0042"
+ * @param {string} customOrderNumber - e.g. "WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST"
  * @returns {string|null}
  */
 export const getOrderByCustomNumber = webMethod(

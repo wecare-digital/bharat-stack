@@ -19,7 +19,7 @@ import logging
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import boto3
 
@@ -595,17 +595,25 @@ def _order_transactions(order_id: str, request_id: str) -> Dict[str, Any]:
 
 def _generate_wd_order_number(order_date: str) -> str:
     """
-    Generate a WD-ORD-YYYYMMDD-XXXX order number.
-    Uses the order's creation date for the date part and a random 4-digit suffix.
+    Generate a WD-ORD order number.
+    Format: WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST
+    Example: WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST
+
+    Uses the order's creation date converted to IST (Asia/Kolkata, UTC+5:30).
+    UUID part is 8 uppercase hex chars for uniqueness.
     """
-    import random
+    import uuid as _uuid
     try:
         dt = datetime.fromisoformat(order_date.replace('Z', '+00:00'))
     except Exception:
         dt = datetime.now(timezone.utc)
-    date_str = dt.strftime('%Y%m%d')
-    suffix = f'{random.randint(1000, 9999)}'
-    return f'WD-ORD-{date_str}-{suffix}'
+    # Convert to IST (UTC+5:30)
+    ist_offset = timezone(timedelta(hours=5, minutes=30))
+    dt_ist = dt.astimezone(ist_offset)
+    date_str = dt_ist.strftime('%d-%m-%Y')
+    time_str = dt_ist.strftime('%H:%M:%S')
+    uid = _uuid.uuid4().hex[:8].upper()
+    return f'WD-ORD-{uid}-{date_str}-{time_str}-IST'
 
 
 def _get_or_create_wd_order_number(order_id: str, order_date: str = '',

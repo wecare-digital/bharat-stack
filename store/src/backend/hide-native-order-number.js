@@ -130,7 +130,7 @@ export function getHideNativeOrderCSS() {
  *   {{orderNumber}} — will receive the WD number, NOT the native number
  *
  * @param {object} order - The order object
- * @param {string} customOrderNumber - The WD number (e.g. WD-ORD-20260222-0042)
+ * @param {string} customOrderNumber - The WD number (e.g. WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST)
  * @returns {object} Variables for triggeredEmails.emailMember()
  */
 export function buildEmailVariables(order, customOrderNumber) {

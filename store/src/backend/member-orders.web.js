@@ -93,7 +93,7 @@ export const getMyOrders = webMethod(
  * Wix native order number is stripped.
  *
  * @param {string} memberId - The Wix member ID
- * @param {string} customOrderNumber - e.g. "WD-ORD-20260222-0042"
+ * @param {string} customOrderNumber - e.g. "WD-ORD-A3F7B2C1-22-02-2026-17:43:01-IST"
  * @returns {object|null}
  */
 export const getMyOrderByNumber = webMethod(

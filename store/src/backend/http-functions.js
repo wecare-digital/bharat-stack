@@ -25,7 +25,7 @@
  * Docs: https://dev.wix.com/docs/velo/apis/wix-http-functions
  */
 
-import { ok, notFound, serverError, forbidden, response as rawResponse } from 'wix-http-functions';
+import { ok, notFound, forbidden, response as rawResponse } from 'wix-http-functions';
 import wixData from 'wix-data';
 import { getSecret } from 'wix-secrets-backend';
 
@@ -364,7 +364,7 @@ export async function get_inventoryAll(request) {
 // GET /_functions/health
 // ---------------------------------------------------------------------------
 
-export async function get_health(request) {
+export async function get_health(_request) {
   // Health endpoint is open — no auth required
   let productCount = 0;
   try {
