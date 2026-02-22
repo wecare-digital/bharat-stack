@@ -16,7 +16,7 @@
 import { getSecret } from 'wix-secrets-backend';
 // native fetch() is available globally — wix-fetch is deprecated
 import wixData from 'wix-data';
-import { generateOrderId } from 'backend/orderId.web.js';
+import { createOrGetOrderId } from 'backend/orderId-helpers';
 
 /**
  * Provide the list of available automation actions.
@@ -113,11 +113,10 @@ async function handleWhatsAppNotification({ orderId, phone, templateName = 'orde
 
 async function handleAssignCustomOrderId({ orderId }) {
   try {
-    const result = await generateOrderId(orderId);
+    const wdOrderId = await createOrGetOrderId({ wixOrderId: orderId });
     return {
       success: true,
-      customOrderNumber: result.customOrderNumber,
-      alreadyExists: result.alreadyExists || false,
+      customOrderNumber: wdOrderId,
     };
   } catch (err) {
     return { success: false, error: err.message };

@@ -10,7 +10,7 @@
 
 import wixWindow from 'wix-window';
 import wixLocation from 'wix-location';
-import { getCustomOrderNumber } from 'backend/orderId.web.js';
+import { createOrGetOrderId } from 'backend/orderId.web.js';
 import { getHideNativeOrderCSS } from 'backend/hide-native-order-number.js';
 import { cleanConsole } from 'public/site-hygiene.js';
 
@@ -26,7 +26,7 @@ $w.onReady(async function () {
 
   // Fetch and display WD custom order number
   try {
-    const wdNumber = await getCustomOrderNumber(orderId);
+    const wdNumber = await createOrGetOrderId({ wixOrderId: orderId });
 
     // Show WD in our custom element
     const orderNumEl = $w('#customOrderNumber');
