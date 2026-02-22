@@ -1,8 +1,10 @@
 /**
  * SUBMIT REQUEST Page — WECARE.DIGITAL
  *
- * Auto-populates the Order ID dropdown (#dropdown_f78d) with
- * the logged-in member's WD-ORD numbers. No submit button needed.
+ * Auto-populates the Order ID dropdown with the logged-in
+ * member's WD-ORD numbers. Uses Wix Form (#form1).
+ *
+ * Dropdown field key: dropdown_f78d
  */
 
 import { currentMember } from 'wix-members-frontend';
@@ -11,22 +13,19 @@ import { getMyOrderIdList } from 'backend/member-orders.web.js';
 $w.onReady(async () => {
   const dd = $w('#dropdown_f78d');
 
-  let member = null;
+  let email = null;
   try {
-    member = await currentMember.getMember({ fieldsets: ['FULL'] });
-  } catch { /* not logged in */ }
-
-  if (!member) {
-    dd.options = [{ value: '', label: 'Please log in to see your orders' }];
-    dd.selectedIndex = 0;
-    dd.disable();
-    return;
+    const member = await currentMember.getMember({ fieldsets: ['FULL'] });
+    email = member?.loginEmail
+      || (member?.contactDetails?.emails && member.contactDetails.emails[0])
+      || null;
+    console.log('[submitRequest] member email:', email);
+  } catch (e) {
+    console.error('[submitRequest] getMember failed:', e);
   }
 
-  const email = member.loginEmail || member.contactDetails?.emails?.[0] || '';
-
   if (!email) {
-    dd.options = [{ value: '', label: 'No email found for your account' }];
+    dd.options = [{ value: '', label: 'Please log in to see your orders' }];
     dd.selectedIndex = 0;
     dd.disable();
     return;
@@ -38,7 +37,9 @@ $w.onReady(async () => {
 
   try {
     const orderIds = await getMyOrderIdList(email);
-    if (orderIds.length > 0) {
+    console.log('[submitRequest] orderIds:', JSON.stringify(orderIds));
+
+    if (orderIds && orderIds.length > 0) {
       dd.options = [
         { value: '', label: 'Select your order...' },
         ...orderIds,
@@ -49,7 +50,8 @@ $w.onReady(async () => {
     dd.selectedIndex = 0;
     dd.enable();
   } catch (err) {
-    console.error('[submitRequest] Failed to load orders:', err);
-    dd.options = [{ value: '', label: 'Failed to load orders' }];
+    console.error('[submitRequest] getMyOrderIdList error:', err);
+    dd.options = [{ value: '', label: 'Error loading orders' }];
+    dd.enable();
   }
 });

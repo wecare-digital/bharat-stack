@@ -143,6 +143,7 @@ export const getMyOrderCount = webMethod(
  * Get just the WD-ORD IDs for a member (for dropdown/select).
  * Queries by buyerEmail because Wix member._id differs from
  * the buyerInfo.id stored in OrderCustomIds.
+ * Falls back to Stores/Orders if OrderCustomIds has no email matches.
  *
  * @param {string} email - The member's login email
  * @returns {Array<{ value: string, label: string }>}
@@ -152,22 +153,50 @@ export const getMyOrderIdList = webMethod(
   async (email) => {
     if (!email) return [];
 
+    // Primary: query OrderCustomIds by buyerEmail
     let all = [];
-    let res = await wixData.query(ORDER_IDS_COLLECTION)
-      .eq('buyerEmail', email)
-      .descending('_createdDate')
-      .limit(50)
-      .find({ suppressAuth: true });
-    all = all.concat(res.items);
-    while (res.hasNext()) {
-      res = await res.next();
+    try {
+      let res = await wixData.query(ORDER_IDS_COLLECTION)
+        .eq('buyerEmail', email)
+        .descending('_createdDate')
+        .limit(50)
+        .find({ suppressAuth: true });
       all = all.concat(res.items);
+      while (res.hasNext()) {
+        res = await res.next();
+        all = all.concat(res.items);
+      }
+    } catch (e) {
+      console.error('[getMyOrderIdList] OrderCustomIds query failed:', e?.message);
     }
 
-    return all.map(item => ({
-      value: item.customOrderNumber,
-      label: item.customOrderNumber,
-    }));
+    if (all.length > 0) {
+      return all.map(item => ({
+        value: item.customOrderNumber,
+        label: item.customOrderNumber,
+      }));
+    }
+
+    // Fallback: query Stores/Orders by buyerEmail, read customField
+    try {
+      const ordersRes = await wixData.query(ORDERS_COLLECTION)
+        .eq('buyerEmail', email)
+        .descending('_dateCreated')
+        .limit(50)
+        .find({ suppressAuth: true });
+
+      const results = [];
+      for (const order of ordersRes.items) {
+        const wdId = order.customField?.value;
+        if (wdId && wdId.startsWith('WD-ORD')) {
+          results.push({ value: wdId, label: wdId });
+        }
+      }
+      return results;
+    } catch (e) {
+      console.error('[getMyOrderIdList] Stores/Orders fallback failed:', e?.message);
+      return [];
+    }
   }
 );
 
