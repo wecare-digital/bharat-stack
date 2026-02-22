@@ -72,6 +72,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
       POST /bulk-create-products         - Bulk create products
       POST /update-product               - Update a product
       POST /delete-product               - Delete a product
+      POST /add-product-image            - Add image(s) to a product (URL or S3 key)
+      POST /upload-product-image         - Upload base64 image to S3 + attach to product
       POST /sync/products                - Sync products → DynamoDB
       POST /sync/orders                  - Sync orders → DynamoDB
     """
@@ -125,6 +127,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     return _response(200, {'deleted': True, 'requestId': request_id})
                 except Exception as e:
                     return _response(500, {'error': str(e), 'requestId': request_id})
+            if '/add-product-image' in path:
+                body = _parse_body(event)
+                return _add_product_image(body, request_id)
+            if '/upload-product-image' in path:
+                body = _parse_body(event)
+                return _upload_product_image(event, body, request_id)
 
         # ---- Account-level ----
         if '/sites' in path:
@@ -631,7 +639,13 @@ def _base36(num: int) -> str:
 
 
 def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
-    """Create a single product via Wix REST API. Auto-generates WD SKU if not provided."""
+    """Create a single product via Wix REST API. Auto-generates WD SKU if not provided.
+    
+    Accepts media in multiple formats:
+      - product.media.items[].image.url  (standard Wix format, passed through)
+      - product.imageUrls[]              (shorthand — list of public URLs)
+      - product.s3Keys[]                 (S3 keys in app.wecare.digital bucket)
+    """
     product_data = body.get('product', {})
     if not product_data.get('name'):
         return _response(400, {'error': 'Missing product.name', 'requestId': request_id})
@@ -639,6 +653,18 @@ def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
     # Auto-generate SKU if not provided or doesn't have our prefix
     if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
         product_data['sku'] = _generate_sku(product_data['name'])
+
+    # Build media from shorthand formats if standard media not provided
+    if not product_data.get('media', {}).get('items'):
+        media_items = []
+        # From imageUrls (public URLs)
+        for url in product_data.pop('imageUrls', []):
+            media_items.append({'image': {'url': url}})
+        # From s3Keys (keys in app.wecare.digital bucket)
+        for key in product_data.pop('s3Keys', []):
+            media_items.append({'image': {'url': _s3_public_url(key)}})
+        if media_items:
+            product_data['media'] = {'items': media_items}
 
     try:
         result = _wix_request(
@@ -692,6 +718,125 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
         'results': results,
         'requestId': request_id,
     })
+
+
+S3_BUCKET = 'app.wecare.digital'
+S3_PRODUCT_PREFIX = 'store/products'
+
+
+def _s3_public_url(key: str) -> str:
+    """Convert an S3 key to a public HTTPS URL."""
+    return f'https://{S3_BUCKET}/{key}'
+
+
+def _add_product_image(body: dict, request_id: str) -> Dict[str, Any]:
+    """
+    Add image(s) to an existing product by URL or S3 key.
+
+    Body:
+      productId: required
+      imageUrls: [url, ...]       — public URLs
+      s3Keys: [key, ...]          — S3 keys in app.wecare.digital
+      replace: false              — if true, replaces all existing media; otherwise appends
+    """
+    pid = body.get('productId', '')
+    if not pid:
+        return _response(400, {'error': 'Missing productId', 'requestId': request_id})
+
+    media_items = []
+    for url in body.get('imageUrls', []):
+        media_items.append({'image': {'url': url}})
+    for key in body.get('s3Keys', []):
+        media_items.append({'image': {'url': _s3_public_url(key)}})
+
+    if not media_items:
+        return _response(400, {'error': 'No imageUrls or s3Keys provided', 'requestId': request_id})
+
+    try:
+        # If not replacing, fetch existing media first and append
+        if not body.get('replace', False):
+            existing = _wix_request(f'/stores/v1/products/{pid}')
+            existing_items = existing.get('product', {}).get('media', {}).get('items', [])
+            media_items = existing_items + media_items
+
+        result = _wix_request(
+            f'/stores/v1/products/{pid}',
+            method='PATCH',
+            body={'product': {'media': {'items': media_items}}}
+        )
+        product = result.get('product', {})
+        return _response(200, {
+            'productId': pid,
+            'mediaCount': len(product.get('media', {}).get('items', [])),
+            'mainImage': _get_main_media(product),
+            'updated': True,
+            'requestId': request_id,
+        })
+    except Exception as e:
+        return _response(500, {'error': str(e), 'requestId': request_id})
+
+
+def _upload_product_image(event: dict, body: dict, request_id: str) -> Dict[str, Any]:
+    """
+    Upload a base64-encoded image to S3 and optionally attach it to a product.
+
+    Body:
+      imageBase64: required — base64-encoded image data
+      fileName: required — e.g. 'visa-tourist.jpg'
+      category: optional — subfolder under store/products/ (default: 'general')
+      contentType: optional — e.g. 'image/jpeg' (default: auto-detect from extension)
+      productId: optional — if provided, also attaches the image to this product
+    """
+    import base64
+
+    image_b64 = body.get('imageBase64', '')
+    file_name = body.get('fileName', '')
+    if not image_b64 or not file_name:
+        return _response(400, {'error': 'Missing imageBase64 or fileName', 'requestId': request_id})
+
+    category = body.get('category', 'general').strip('/')
+    s3_key = f'{S3_PRODUCT_PREFIX}/{category}/{file_name}'
+
+    # Auto-detect content type
+    ext = file_name.rsplit('.', 1)[-1].lower() if '.' in file_name else 'jpg'
+    content_type = body.get('contentType', {
+        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+        'png': 'image/png', 'webp': 'image/webp',
+        'gif': 'image/gif', 'svg': 'image/svg+xml',
+    }.get(ext, 'image/jpeg'))
+
+    try:
+        s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=s3_key,
+            Body=base64.b64decode(image_b64),
+            ContentType=content_type,
+            CacheControl='public, max-age=31536000',
+        )
+        public_url = _s3_public_url(s3_key)
+
+        result = {
+            's3Key': s3_key,
+            'publicUrl': public_url,
+            'uploaded': True,
+            'requestId': request_id,
+        }
+
+        # Optionally attach to product
+        pid = body.get('productId', '')
+        if pid:
+            attach_result = _add_product_image({
+                'productId': pid,
+                'imageUrls': [public_url],
+                'replace': body.get('replace', False),
+            }, request_id)
+            result['productAttached'] = True
+            result['productId'] = pid
+
+        return _response(200, result)
+    except Exception as e:
+        return _response(500, {'error': str(e), 'requestId': request_id})
 
 
 def _get_sample_products(request_id: str) -> Dict[str, Any]:
