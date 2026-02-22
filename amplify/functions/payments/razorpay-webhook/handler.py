@@ -298,7 +298,9 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     )
     # If description looks like a WD reference, use it
     if reference_id and not reference_id.startswith('WD'):
-        reference_id = ''
+        # Also accept legacy WD prefix without dash
+        if not reference_id.upper().startswith('WD'):
+            reference_id = ''
 
     logger.info(json.dumps({
         'event': 'payment_captured', 'paymentId': payment_id,

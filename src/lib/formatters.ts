@@ -4,10 +4,10 @@
  */
 
 /**
- * Format reference number to WD<ID> format
+ * Format reference number to WD-PAY-<ID> format
  * Removes underscores and plus signs, ensures consistent display
  * @param value - Raw reference number (may contain underscores or plus signs)
- * @returns Formatted reference number in WD<ID> format (no + sign)
+ * @returns Formatted reference number in WD-PAY-<ID> format (no + sign)
  */
 export function formatReferenceNumber(value: string): string {
   if (!value) return '';
@@ -15,22 +15,27 @@ export function formatReferenceNumber(value: string): string {
   // Remove underscores, plus signs, and clean up
   let cleaned = value.replace(/[_+]/g, '').trim();
   
-  // If already has WD prefix, don't duplicate
-  if (cleaned.toUpperCase().startsWith('WD')) {
+  // If already has WD-PAY or WD-ORD or WD-INV prefix, don't duplicate
+  if (cleaned.toUpperCase().startsWith('WD-')) {
     return cleaned.toUpperCase();
   }
   
-  // Add WD prefix (no + sign)
-  return `WD${cleaned.toUpperCase()}`;
+  // If has old WD prefix (no dash after), strip it and re-add with type
+  if (cleaned.toUpperCase().startsWith('WD')) {
+    cleaned = cleaned.slice(2);
+  }
+  
+  // Add WD-PAY prefix
+  return `WD-PAY-${cleaned.toUpperCase()}`;
 }
 
 /**
- * Generate a new reference ID in WD<UUID> format
- * @returns New reference ID (no + sign)
+ * Generate a new payment reference ID in WD-PAY-<UUID> format
+ * @returns New reference ID
  */
 export function generateReferenceId(): string {
   const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 8).toUpperCase();
-  return `WD${uuid}`;
+  return `WD-PAY-${uuid}`;
 }
 
 /**

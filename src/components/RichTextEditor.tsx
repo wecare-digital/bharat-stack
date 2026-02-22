@@ -671,7 +671,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   type="text"
                   value={paymentForm.referenceId}
                   onChange={(e) => setPaymentForm({...paymentForm, referenceId: e.target.value})}
-                  placeholder="WDXXXXXXXX"
+                  placeholder="WD-PAY-XXXXXXXX"
                   readOnly
                 />
               </div>

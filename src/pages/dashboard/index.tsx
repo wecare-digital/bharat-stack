@@ -3156,7 +3156,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-YYYYMMDD-XXXX</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-YYYYMMDD-XXXX</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Table</label>

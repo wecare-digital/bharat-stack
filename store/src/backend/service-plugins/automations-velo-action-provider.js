@@ -42,7 +42,7 @@ export function getActions() {
       {
         id: 'assign-custom-order-id',
         name: 'Assign Custom Order ID',
-        description: 'Generate a WD-prefixed custom order number',
+        description: 'Generate a WD-ORD-prefixed custom order number',
         inputSchema: {
           type: 'object',
           properties: {

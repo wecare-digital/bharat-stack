@@ -30,9 +30,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   }, []);
 
   const handleGenerateReferenceId = () => {
-    // WDPL = WeCare Digital Payment Link (no underscore)
+    // WD-PAY = WECARE.DIGITAL Payment
     const uuid = crypto.randomUUID().replace(/-/g, '').substring(0, 8).toUpperCase();
-    setReferenceId(`WDPL${uuid}`);
+    setReferenceId(`WD-PAY-${uuid}`);
   };
 
   const generatePaymentLink = () => {

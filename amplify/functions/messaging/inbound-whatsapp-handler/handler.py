@@ -1107,34 +1107,43 @@ def _process_status(status: Dict, request_id: str) -> None:
 
 def _sanitize_reference_id(reference_id: str) -> str:
     """
-    Sanitize reference_id - remove duplicate WD prefix and underscores.
+    Sanitize reference_id - remove duplicate prefixes and underscores.
     
     WhatsApp/Razorpay may return reference_id with extra prefixes or underscores.
-    This ensures clean WD<ID> format for display.
+    This ensures clean WD-PAY-<ID> format for display.
     
     Examples:
-    - "WD_WD41BA3534" -> "WD41BA3534" (remove duplicate prefix)
-    - "WD_41BA3534" -> "WD41BA3534" (remove underscore)
-    - "WD41BA3534" -> "WD41BA3534" (keep as-is)
-    - "WD+41BA3534" -> "WD41BA3534" (remove plus sign)
+    - "WD-PAY-ABC12345" -> "WD-PAY-ABC12345" (keep as-is)
+    - "WD-PAY-WD-PAY-ABC" -> "WD-PAY-ABC" (remove duplicate prefix)
+    - "WD_41BA3534" -> "WD-PAY-41BA3534" (upgrade old format)
+    - "WDABC12345" -> "WD-PAY-ABC12345" (upgrade old format)
+    - "WD+41BA3534" -> "WD-PAY-41BA3534" (remove plus sign)
     """
     import re
     
     if not reference_id:
         return reference_id
     
-    # Remove all underscores and non-alphanumeric characters
-    cleaned = re.sub(r'[^A-Za-z0-9]', '', reference_id).upper()
+    stripped = reference_id.strip().upper()
     
-    # Remove ALL duplicate WD prefixes (handle WDWDWD... cases)
-    while 'WDWD' in cleaned:
-        cleaned = cleaned.replace('WDWD', 'WD')
+    # Remove duplicate WD-PAY- prefixes
+    while 'WD-PAY-WD-PAY-' in stripped:
+        stripped = stripped.replace('WD-PAY-WD-PAY-', 'WD-PAY-')
     
-    # Ensure single WD prefix
-    if not cleaned.startswith('WD'):
-        cleaned = f'WD{cleaned}'
+    # Already in new format
+    if stripped.startswith('WD-PAY-'):
+        return stripped
+    if stripped.startswith('WD-INV-') or stripped.startswith('WD-ORD-'):
+        return stripped
     
-    return cleaned
+    # Old format: strip non-alnum, remove legacy WD prefix(es), add WD-PAY-
+    cleaned = re.sub(r'[^A-Za-z0-9]', '', stripped)
+    while cleaned.startswith('WD'):
+        cleaned = cleaned[2:]
+    if not cleaned:
+        return stripped  # Return original if nothing left
+    
+    return f'WD-PAY-{cleaned}'
 
 
 def _process_payment_status(status: Dict, request_id: str) -> None:
@@ -1915,8 +1924,12 @@ def _lookup_payment_amount(reference_id: str, request_id: str) -> float:
         # Sanitize reference_id for lookup
         sanitized_ref = _sanitize_reference_id(reference_id)
         
-        # Extract just the ID part (without WD prefix) for broader search
-        id_part = sanitized_ref.replace('WD', '') if sanitized_ref.startswith('WD') else sanitized_ref
+        # Extract just the ID part (without WD-PAY- or legacy WD prefix) for broader search
+        id_part = sanitized_ref
+        for pfx in ('WD-PAY-', 'WD-INV-', 'WD-ORD-', 'WD'):
+            if id_part.startswith(pfx):
+                id_part = id_part[len(pfx):]
+                break
         
         # Look for the original payment request message by reference_id
         # Search with multiple variations to handle format differences
@@ -2466,7 +2479,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
         return
 
     try:
-        reference_id = f"WD{uuid.uuid4().hex[:12].upper()}"
+        reference_id = f"WD-PAY-{uuid.uuid4().hex[:8].upper()}"
         qty = max(1, int(quantity))
         
         # Build items array for order_details with per-item GST
@@ -3080,7 +3093,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                                pay_for: str = 'self') -> None:
     """Generate POS invoice image with logo, upload to S3, send via WhatsApp."""
     try:
-        inv_ref = f"WD{uuid.uuid4().hex[:12].upper()}"
+        inv_ref = f"WD-INV-{uuid.uuid4().hex[:8].upper()}"
 
         if not paid_at:
             import datetime

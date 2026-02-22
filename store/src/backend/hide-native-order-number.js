@@ -25,7 +25,7 @@
  *   3. Email template helper to format WD for Triggered Emails
  *
  * IMPORTANT: The Wix eCommerce "customField" on orders is the key mechanism.
- * When we set customField.title = "Order ID" and customField.value = "WD-...",
+ * When we set customField.title = "Order ID" and customField.value = "WD-ORD-...",
  * Wix shows this in the Owner App and some native UI elements.
  *
  * Docs: https://dev.wix.com/docs/velo/apis/wix-ecom/orders

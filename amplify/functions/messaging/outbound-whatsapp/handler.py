@@ -1408,42 +1408,44 @@ def _sanitize_reference_id(reference_id: str) -> str:
     UPI requires: only A-Z, a-z, 0-9, _, - (max 35 chars)
     Must be unique for each transaction.
     
-    Format: WD<ID> (no underscore for cleaner display)
+    Format: WD-PAY-<ID> (dash-separated, type-prefixed)
     
     Examples:
-    - "WD_ABC12345" -> "WDABC12345" (remove underscore)
-    - "WDABC12345" -> "WDABC12345" (keep as-is)
-    - "WDWD41BA3534" -> "WD41BA3534" (remove duplicate prefix)
-    - "" -> "WDXXXXXXXX" (auto-generated)
+    - "WD-PAY-ABC12345" -> "WD-PAY-ABC12345" (keep as-is)
+    - "WD_ABC12345" -> "WD-PAY-ABC12345" (upgrade old format)
+    - "WDABC12345" -> "WD-PAY-ABC12345" (upgrade old format)
+    - "WD-PAY-WD-PAY-ABC" -> "WD-PAY-ABC" (remove duplicate prefix)
+    - "" -> "WD-PAY-XXXXXXXX" (auto-generated)
     """
     import re
     
     if not reference_id or not reference_id.strip():
         # Generate unique reference if empty
         unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
-        return f"WD{unique_id}"
+        return f"WD-PAY-{unique_id}"
     
-    # Remove all non-alphanumeric characters (including underscores and plus signs)
-    sanitized = re.sub(r'[^A-Za-z0-9]', '', reference_id)
+    stripped = reference_id.strip().upper()
     
-    # Convert to uppercase for consistency
-    sanitized = sanitized.upper()
+    # Remove duplicate WD-PAY- prefixes
+    while 'WD-PAY-WD-PAY-' in stripped:
+        stripped = stripped.replace('WD-PAY-WD-PAY-', 'WD-PAY-')
     
-    # If empty after sanitization, generate new
-    if not sanitized:
-        unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
-        return f"WD{unique_id}"
-    
-    # Remove ALL duplicate WD prefixes (handle WDWDWD... cases)
-    while 'WDWD' in sanitized:
-        sanitized = sanitized.replace('WDWD', 'WD')
-    
-    # Keep as-is if already has WD prefix (without underscore)
-    if sanitized.startswith('WD'):
-        result = sanitized
+    # Already in new format
+    if stripped.startswith('WD-PAY-'):
+        result = stripped
+    elif stripped.startswith('WD-INV-') or stripped.startswith('WD-ORD-'):
+        # Other WD type prefixes — leave as-is
+        result = stripped
     else:
-        # Add WD prefix (no underscore)
-        result = f"WD{sanitized}"
+        # Old format: strip old WD prefix and non-alnum, then add WD-PAY-
+        cleaned = re.sub(r'[^A-Za-z0-9]', '', stripped)
+        # Remove legacy WD prefix(es)
+        while cleaned.startswith('WD'):
+            cleaned = cleaned[2:]
+        if not cleaned:
+            unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
+            cleaned = unique_id
+        result = f"WD-PAY-{cleaned}"
     
     # Truncate to max 35 chars (UPI limit)
     if len(result) > 35:

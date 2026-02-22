@@ -1,14 +1,14 @@
 /**
  * Custom Order ID Generator — WECARE.DIGITAL
  *
- * Generates custom order numbers with WD prefix (WECARE.DIGITAL).
+ * Generates custom order numbers with WD-ORD prefix (WECARE.DIGITAL).
  * Called from frontend, events, or automations to assign a human-readable order ID.
  *
- * Format: WD-YYYYMMDD-XXXX (e.g. WD-20260222-0042)
+ * Format: WD-ORD-YYYYMMDD-XXXX (e.g. WD-ORD-20260222-0042)
  *
  * The prefix is configurable — change PREFIX constant to rebrand.
  * Examples:
- *   WD-20260222-0042  (default — WECARE.DIGITAL)
+ *   WD-ORD-20260222-0042  (default — WECARE.DIGITAL Order)
  *   WCDO-20260222-0042  (WECARE.DIGITAL Order)
  *
  * Stores mapping in "OrderCustomIds" collection:
@@ -27,12 +27,12 @@
 import { Permissions, webMethod } from 'wix-web-module';
 import wixData from 'wix-data';
 
-const PREFIX = 'WD';
+const PREFIX = 'WD-ORD';
 const COLLECTION = 'OrderCustomIds';
 const MAX_RETRIES = 3;
 
 /**
- * Build a WD-YYYYMMDD-XXXX order number for a given sequence.
+ * Build a WD-ORD-YYYYMMDD-XXXX order number for a given sequence.
  */
 function buildOrderNumber(seq) {
   const now = new Date();
@@ -155,7 +155,7 @@ export const getCustomOrderNumber = webMethod(
 
 /**
  * Look up a Wix order ID by custom order number.
- * @param {string} customOrderNumber - e.g. "WD-20260222-0042"
+ * @param {string} customOrderNumber - e.g. "WD-ORD-20260222-0042"
  * @returns {string|null}
  */
 export const getOrderByCustomNumber = webMethod(
