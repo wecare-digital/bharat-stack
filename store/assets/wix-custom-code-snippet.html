@@ -1,0 +1,66 @@
+<!-- WECARE.DIGITAL — Custom Code for Wix Dashboard -->
+<!-- Go to: Wix Dashboard > Settings > Custom Code > + Add Custom Code -->
+<!-- Place in: Head, Load on: All Pages -->
+
+<link rel="stylesheet" href="https://app.wecare.digital/store/assets/wecare-store.css" />
+
+<script>
+// Hide native Wix order numbers and replace with WD custom order ID
+(function() {
+  'use strict';
+  
+  function hideNativeOrderNumbers() {
+    // Find all text nodes containing native order number pattern (#XXXXX or just 5+ digits)
+    var walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    var node;
+    while (node = walker.nextNode()) {
+      var text = node.textContent.trim();
+      // Match "Order #10001" or "#10001" or just "10001" (5+ digits, likely native order number)
+      if (/^#?\d{5,}$/.test(text) || /Order\s*#?\d{5,}/i.test(text)) {
+        var parent = node.parentElement;
+        if (parent) {
+          // Check if there's a WD order number nearby (sibling or parent)
+          var container = parent.closest('[data-hook]') || parent.parentElement;
+          if (container) {
+            var wdEl = container.querySelector('[data-hook="order-custom-field"], [data-hook="custom-field-value"]');
+            if (wdEl && wdEl.textContent.includes('WD-')) {
+              // WD number exists — hide the native one
+              parent.style.display = 'none';
+            }
+          }
+          // If text is just a bare number, hide it
+          if (/^#?\d{5,}$/.test(text)) {
+            parent.style.display = 'none';
+          }
+        }
+      }
+    }
+  }
+  
+  // Run on page load and after dynamic content loads
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(hideNativeOrderNumbers, 1000);
+      setTimeout(hideNativeOrderNumbers, 3000);
+    });
+  } else {
+    setTimeout(hideNativeOrderNumbers, 1000);
+    setTimeout(hideNativeOrderNumbers, 3000);
+  }
+  
+  // Also observe DOM changes (for SPA navigation)
+  var observer = new MutationObserver(function() {
+    setTimeout(hideNativeOrderNumbers, 500);
+  });
+  observer.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true
+  });
+})();
+</script>

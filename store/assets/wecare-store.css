@@ -1,0 +1,59 @@
+/* WECARE.DIGITAL — Hide Wix Native Order Number + Branding Suppression */
+/* Add to Wix Dashboard > Settings > Custom Code > Head (All Pages) */
+
+/* Hide native order number everywhere */
+[data-hook="thank-you-page-order-number"],
+[data-hook="order-number"],
+[data-hook="thankyou-page-order-number"],
+.thank-you-page__order-number,
+.orderNumber,
+.ThankYouPage__orderNumber,
+[data-hook="order-row-number"],
+[data-hook="order-details-number"],
+[data-hook="order-list-item-number"],
+[data-hook="my-orders-order-number"],
+.order-number-value,
+.OrderHistory__orderNumber,
+[data-hook="order-details-order-number"],
+[data-hook="order-info-number"],
+[data-hook="order-summary-number"],
+[data-hook="order-number-label"],
+.OrderDetails__orderNumber,
+.order-details__number,
+[data-hook="confirmation-order-number"],
+[data-hook="order-confirmation-number"],
+[data-hook="checkout-order-number"],
+.wix-order-number,
+.native-order-number {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+/* Make WD custom order ID prominent */
+[data-hook="order-custom-field"],
+[data-hook="custom-field-value"],
+[data-hook="order-custom-field-value"],
+.custom-order-id,
+.wd-order-number {
+  font-weight: 700 !important;
+  font-size: 1.15em !important;
+  color: #1a1a2e !important;
+}
+
+/* Suppress Wix branding */
+[data-hook="powered-by-wix"],
+.powered-by-wix,
+#WIX_ADS,
+.wix-ads,
+[data-hook="wix-logo"],
+.wix-branding,
+[data-hook="wix-badge"],
+.wix-badge-container {
+  display: none !important;
+  visibility: hidden !important;
+}
