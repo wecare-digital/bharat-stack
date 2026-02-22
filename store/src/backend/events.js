@@ -7,108 +7,150 @@
  *   - wixStores_onProductCreated: Auto-assign SKU to new products
  *   - wixEcom_onOrderApproved: Generate custom order ID (WD-ORD prefix)
  *
- * The order ID generation delegates to orderId.web.js to avoid
- * duplicating the sequence logic and race condition handling.
+ * IMPORTANT: events.js does NOT support dynamic exports or
+ * webMethod() imports. That's why we import from orderId-helpers.js
+ * (plain .js) instead of orderId.web.js.
  *
  * Docs: https://dev.wix.com/docs/velo/apis/wix-stores-backend/events
  */
 
+import wixStoresBackend from 'wix-stores-backend';
 import wixData from 'wix-data';
-import { generateOrderId } from 'backend/orderId.web.js';
+import { createOrGetOrderId } from 'backend/orderId-helpers';
 
 const SKU_PREFIX = 'WD';
+const CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const SKU_LENGTH = 8;
+const MAX_COLLISION_RETRIES = 10;
 
-/**
- * Triggered when a new product is created in Wix Stores.
- * Auto-assigns a SKU if the product doesn't have one.
- *
- * SKU format: WD-{INITIALS}-{BASE36_TIMESTAMP}
- * e.g. WD-BL-K4F2 for "Blue Leather Wallet"
- */
-export async function wixStores_onProductCreated(event) {
-  const product = event.entity || event;
-  const productId = product._id || product.productId;
+function makeRandomSku() {
+  let sku = "";
+  for (let i = 0; i < SKU_LENGTH; i++) {
+    const index = Math.floor(Math.random() * CHARSET.length);
+    sku += CHARSET.charAt(index);
+  }
+  return sku;
+}
 
-  if (!productId) return;
+async function getExistingSkus() {
+  const skus = new Set();
+  let result = await wixData.query("Stores/Products").limit(100).find();
+  result.items.forEach(p => {
+    if (p.sku) skus.add(p.sku.trim().toUpperCase());
+  });
+  while (result.hasNext()) {
+    result = await result.next();
+    result.items.forEach(p => {
+      if (p.sku) skus.add(p.sku.trim().toUpperCase());
+    });
+  }
+  return skus;
+}
 
+function makeUniqueSku(existingSkus) {
+  let attempts = 0;
+  let sku;
+  do {
+    sku = makeRandomSku();
+    attempts++;
+    if (attempts > MAX_COLLISION_RETRIES) {
+      console.error(`[events] Failed to generate unique SKU after ${MAX_COLLISION_RETRIES} attempts`);
+      return sku;
+    }
+  } while (existingSkus.has(sku.toUpperCase()));
+  existingSkus.add(sku.toUpperCase());
+  return sku;
+}
+
+async function updateVariantSkusForProduct(productId, productSku) {
   try {
-    // Re-fetch to get the full product (event payload may be partial)
-    const existing = await wixData.get('Stores/Products', productId, { suppressAuth: true });
-    if (!existing) return;
+    const product = await wixData.get("Stores/Products", productId);
+    if (!product.manageVariants) return;
 
-    // Skip if SKU already has our prefix (manually set or previously auto-assigned)
-    if (existing.sku && existing.sku.startsWith(SKU_PREFIX + '-')) return;
+    const variantsResult = await wixData
+      .query("Stores/Variants")
+      .eq("productId", productId)
+      .limit(100)
+      .find();
 
-    // Generate SKU: PREFIX-INITIALS-TIMESTAMP_SUFFIX
-    // e.g. WD-VA-K4F2 for "Visa Assistance — Tourist Visa"
-    const words = (existing.name || '').split(/[\s—–\-]+/).filter(w => w.length > 1);
-    const nameCode = words.length >= 2
-      ? (words[0][0] + words[1][0]).toUpperCase()
-      : (existing.name || 'XX').slice(0, 2).toUpperCase().padEnd(2, 'X');
+    if (!variantsResult.items.length) return;
 
-    const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
-    const sku = `${SKU_PREFIX}-${nameCode}-${timestamp}`;
+    const variantData = [];
+    let index = 1;
+    for (const variant of variantsResult.items) {
+      const choices = variant.choices;
+      const variantSku = productSku + "-" + String(index).padStart(2, "0");
+      variantData.push({ sku: variantSku, choices });
+      index++;
+    }
 
-    await wixData.update('Stores/Products', {
-      ...existing,
-      sku,
-    }, { suppressAuth: true });
-
-    console.log(`[events] Auto-assigned SKU ${sku} to product ${productId} (${existing.name})`);
+    if (variantData.length) {
+      await wixStoresBackend.updateVariantData(productId, variantData);
+      console.log(`[events] Set ${variantData.length} variant SKUs for product ${productId}`);
+    }
   } catch (err) {
-    console.error(`[events] Failed to assign SKU to product ${productId}:`, err.message);
+    console.error(`[events] Failed to update variant SKUs for product ${productId}:`, err?.message || err);
   }
 }
 
 /**
- * Triggered when a new order is placed.
- * Delegates to the shared generateOrderId() in orderId.web.js
- * which handles sequence numbering and race conditions.
- *
- * Passes memberId and buyerEmail so the OrderCustomIds collection
- * can be queried by member for the "My Orders" form/page.
- *
- * Also sets the Wix order customField to the WD number so it
- * appears in the Wix Owner App and native order emails.
+ * Runs automatically whenever a new product is created in Wix Stores.
+ */
+export async function wixStores_onProductCreated(event) {
+  const productId = event._id;
+  try {
+    const existingSkus = await getExistingSkus();
+    const productSku = makeUniqueSku(existingSkus);
+    await wixStoresBackend.updateProductFields(productId, { sku: productSku });
+    console.log(`[events] Assigned SKU ${productSku} to new product ${productId}`);
+    await updateVariantSkusForProduct(productId, productSku);
+  } catch (err) {
+    console.error(`[events] Failed to assign SKU for product ${productId}:`, err?.message || err);
+  }
+}
+
+/**
+ * Triggered when a new order is approved (paid).
+ * Generates WD-ORD number and stores in OrderIDs + OrderCustomIds.
+ * Also sets the Wix order customField so it shows in Owner App.
  */
 export async function wixEcom_onOrderApproved(event) {
   const order = event.entity || event;
   const orderId = order._id || order.orderId;
-
   if (!orderId) return;
 
-  // Extract buyer metadata for member-based lookups
   const buyer = order.buyerInfo || {};
-  const meta = {
-    memberId: buyer.memberId || buyer.visitorId || '',
-    buyerEmail: buyer.email || '',
-  };
+  const orderDate = order._createdDate || order._dateCreated || new Date();
 
   try {
-    const result = await generateOrderId(orderId, meta);
-    console.log(`[events] Order ${orderId} → ${result.customOrderNumber}${result.alreadyExists ? ' (already existed)' : ''}`);
+    const wdOrderId = await createOrGetOrderId({
+      wixOrderId: orderId,
+      memberId: buyer.memberId || buyer.visitorId || '',
+      orderNumber: order.number ? String(order.number) : '',
+      buyerEmail: buyer.email || '',
+      buyerPhone: buyer.phone || '',
+      totalAmount: '',
+      currency: order.currency || '',
+      productsSummary: '',
+      orderDate,
+    });
 
-    // Set the WD number as the order's customField so it shows
-    // in the Wix Owner App and native order confirmation emails.
-    // This replaces the Wix native order number in customer-facing contexts.
+    console.log(`[events] Order ${orderId} → ${wdOrderId}`);
+
+    // Set customField on the order so WD number shows in Wix Owner App
     try {
       const orderRecord = await wixData.get('Stores/Orders', orderId, { suppressAuth: true });
       if (orderRecord) {
         await wixData.update('Stores/Orders', {
           ...orderRecord,
-          customField: {
-            title: 'Order ID',
-            value: result.customOrderNumber,
-          },
+          customField: { title: 'Order ID', value: wdOrderId },
         }, { suppressAuth: true });
-        console.log(`[events] Set customField on order ${orderId} → ${result.customOrderNumber}`);
+        console.log(`[events] Set customField on order ${orderId} → ${wdOrderId}`);
       }
     } catch (cfErr) {
-      // Non-critical — the WD is still in OrderCustomIds
-      console.error(`[events] Failed to set customField on order ${orderId}:`, cfErr.message);
+      console.error(`[events] Failed to set customField on order ${orderId}:`, cfErr?.message);
     }
-
   } catch (err) {
-    console.error(`[events] Failed to assign custom order number to order ${orderId}:`, err.message);
+    console.error(`[events] Failed to assign WD order number to order ${orderId}:`, err?.message || err);
   }
 }
