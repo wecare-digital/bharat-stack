@@ -1133,7 +1133,7 @@ def _sanitize_reference_id(reference_id: str) -> str:
     # Already in new format
     if stripped.startswith('WD-PAY-'):
         return stripped
-    if stripped.startswith('WD-INV-') or stripped.startswith('WD-ORD-'):
+    if stripped.startswith('WD-ORD-'):
         return stripped
     
     # Old format: strip non-alnum, remove legacy WD prefix(es), add WD-PAY-
@@ -1926,7 +1926,7 @@ def _lookup_payment_amount(reference_id: str, request_id: str) -> float:
         
         # Extract just the ID part (without WD-PAY- or legacy WD prefix) for broader search
         id_part = sanitized_ref
-        for pfx in ('WD-PAY-', 'WD-INV-', 'WD-ORD-', 'WD'):
+        for pfx in ('WD-PAY-', 'WD-ORD-', 'WD'):
             if id_part.startswith(pfx):
                 id_part = id_part[len(pfx):]
                 break
@@ -3093,7 +3093,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
                                pay_for: str = 'self') -> None:
     """Generate POS invoice image with logo, upload to S3, send via WhatsApp."""
     try:
-        inv_ref = f"WD-INV-{uuid.uuid4().hex[:8].upper()}"
+        inv_ref = f"WD-PAY-{uuid.uuid4().hex[:8].upper()}"
 
         if not paid_at:
             import datetime

@@ -15,7 +15,7 @@ export function formatReferenceNumber(value: string): string {
   // Remove underscores, plus signs, and clean up
   let cleaned = value.replace(/[_+]/g, '').trim();
   
-  // If already has WD-PAY or WD-ORD or WD-INV prefix, don't duplicate
+  // If already has WD-PAY or WD-ORD prefix, don't duplicate
   if (cleaned.toUpperCase().startsWith('WD-')) {
     return cleaned.toUpperCase();
   }

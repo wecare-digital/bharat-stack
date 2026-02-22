@@ -5,7 +5,7 @@
  *
  * Events:
  *   - wixStores_onProductCreated: Auto-assign SKU to new products
- *   - wixEcom_onOrderCreated: Generate custom order ID (WD prefix)
+ *   - wixEcom_onOrderCreated: Generate custom order ID (WD-ORD prefix)
  *
  * The order ID generation delegates to orderId.web.js to avoid
  * duplicating the sequence logic and race condition handling.

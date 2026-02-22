@@ -1433,8 +1433,8 @@ def _sanitize_reference_id(reference_id: str) -> str:
     # Already in new format
     if stripped.startswith('WD-PAY-'):
         result = stripped
-    elif stripped.startswith('WD-INV-') or stripped.startswith('WD-ORD-'):
-        # Other WD type prefixes — leave as-is
+    elif stripped.startswith('WD-ORD-'):
+        # Order prefix — leave as-is
         result = stripped
     else:
         # Old format: strip old WD prefix and non-alnum, then add WD-PAY-

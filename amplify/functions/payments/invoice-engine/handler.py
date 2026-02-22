@@ -243,7 +243,7 @@ def _get_next_invoice_number(fy: str = None) -> str:
         return f"{prefix}/{fy_short}/{seq:05d}"
     except Exception as e:
         logger.error(f"Sequence error: {e}")
-        return f"WD-INV-TEMP-{uuid.uuid4().hex[:8].upper()}"
+        return f"WD-PAY-TEMP-{uuid.uuid4().hex[:8].upper()}"
 
 
 def get_next_sequence_preview(body: Dict, request_id: str) -> Dict:
@@ -356,9 +356,9 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
 
     invoice_id = str(uuid.uuid4())
 
-    # Auto-generate referenceId if not provided (WD-INV- + 8-char hex)
+    # Auto-generate referenceId if not provided (WD-PAY- + 8-char hex)
     if not reference_id:
-        reference_id = f"WD-INV-{uuid.uuid4().hex[:8].upper()}"
+        reference_id = f"WD-PAY-{uuid.uuid4().hex[:8].upper()}"
 
     # Validate mandatory fields (relaxed for webhook-originated invoices)
     customer_phone = body.get('customerPhone', '')
