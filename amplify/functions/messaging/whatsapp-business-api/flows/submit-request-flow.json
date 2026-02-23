@@ -111,7 +111,7 @@
           },
           {
             "type": "Footer",
-            "label": "Submit Request",
+            "label": "Submit Request ₹49",
             "on-click-action": {
               "name": "data_exchange",
               "payload": {
@@ -132,7 +132,7 @@
       "data": {
         "message": {
           "type": "string",
-          "__example__": "Your request has been submitted successfully."
+          "__example__": "Your request has been submitted successfully. A payment of ₹49 will be sent shortly."
         }
       },
       "layout": {

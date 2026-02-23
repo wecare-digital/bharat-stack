@@ -64,6 +64,22 @@ WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'base-wecare-digital-WixOrderIds')
 
+# Lambda client for invoking outbound WhatsApp (payment after flow)
+lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'Contact')
+
+# AWS EUM phone number IDs (for outbound Lambda)
+PHONE1_EUM_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+
+# Request type pricing (₹ — all types ₹49)
+REQUEST_TYPE_PRICE = {
+    'return': 4900,     # paise
+    'exchange': 4900,
+    'support': 4900,
+    'other': 4900,
+}
+
 def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
     """Get the correct token based on WABA or phone ID."""
     use_waba2 = (waba_id in WABA2_IDS) or (phone_id in WABA2_IDS)
@@ -636,7 +652,7 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
             }
 
         elif screen == 'REQUEST_FORM':
-            # User filled the form and tapped Submit → show SUCCESS
+            # User filled the form and tapped Submit → show SUCCESS + send payment
             order_id = data.get('order_id', '')
             request_type = data.get('request_type', '')
             subject = data.get('subject', '')
@@ -646,10 +662,20 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
                 'request_type': request_type, 'subject': subject,
                 'requestId': request_id,
             }))
+
+            # Send ₹49 payment message asynchronously after flow completes
+            phone = ''
+            if flow_token and '-ph-' in flow_token:
+                phone = flow_token.split('-ph-', 1)[1]
+            _send_payment_after_flow(
+                phone=phone, order_id=order_id, request_type=request_type,
+                subject=subject, request_id=request_id
+            )
+
             response_payload = {
                 'screen': 'SUCCESS',
                 'data': {
-                    'message': f'Request submitted for {order_id}. We will get back to you shortly.',
+                    'message': f'Request submitted for {order_id}. A payment of ₹49 will be sent to you shortly.',
                     'extension_message_response': {
                         'params': {
                             'flow_token': flow_token,
@@ -678,6 +704,105 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
         logger.error(f'[{request_id}] Flow encryption failed: {e}')
         return _resp(500, {'error': 'Encryption failed'})
 
+
+
+def _send_payment_after_flow(phone: str, order_id: str, request_type: str, subject: str, request_id: str):
+    """
+    Send an order_details payment message (₹49) via the outbound Lambda
+    after the user completes the Submit Request flow.
+    """
+    if not phone:
+        logger.warning(f'[{request_id}] No phone for payment — skipping')
+        return
+
+    amount_paise = REQUEST_TYPE_PRICE.get(request_type, 4900)
+    amount_rupees = amount_paise / 100
+    ref_id = f'SR-{order_id[:20]}-{request_id[:8]}'
+    item_name = f'Service Request ({request_type.title()})'
+
+    # Look up contactId from DynamoDB
+    contact_id = _find_contact_by_phone(phone)
+
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id or '',
+                'recipientPhone': phone if not contact_id else '',
+                'phoneNumberId': PHONE1_EUM_ID,
+                'isInteractivePayment': True,
+                'orderDetails': {
+                    'reference_id': ref_id,
+                    'type': 'digital-goods',
+                    'currency': 'INR',
+                    'itemName': item_name,
+                    'quantity': 1,
+                    'gstRate': 0,
+                    'gstin': '19AADFW7431N1ZK',
+                    'orderId': order_id,
+                    'order': {
+                        'status': 'pending',
+                        'items': [{
+                            'retailer_id': f'SR-{request_type.upper()}',
+                            'name': item_name,
+                            'amount': {'value': amount_paise, 'offset': 100},
+                            'quantity': 1,
+                        }],
+                        'subtotal': {'value': amount_paise, 'offset': 100},
+                        'discount': {'value': 0, 'offset': 100, 'description': 'None'},
+                        'shipping': {'value': 0, 'offset': 100, 'description': 'N/A'},
+                        'tax': {'value': 0, 'offset': 100, 'description': 'Inclusive'},
+                    },
+                }
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'flow_payment_sent',
+            'phone': phone[:6] + '***',
+            'orderId': order_id,
+            'requestType': request_type,
+            'amount': amount_rupees,
+            'referenceId': ref_id,
+            'contactId': contact_id or 'direct_phone',
+            'lambdaStatus': response.get('StatusCode'),
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'flow_payment_error',
+            'phone': phone[:6] + '***',
+            'error': str(e),
+            'requestId': request_id,
+        }))
+
+
+def _find_contact_by_phone(phone: str) -> str:
+    """Look up contactId from DynamoDB Contacts table by phone number."""
+    if not phone:
+        return ''
+    try:
+        # Normalize: strip + and spaces
+        clean = phone.replace('+', '').replace(' ', '').replace('-', '')
+        table = dynamodb.Table(CONTACTS_TABLE)
+        # Scan with phone filter (contacts table uses phone as an attribute)
+        resp = table.scan(
+            FilterExpression='phone = :p',
+            ExpressionAttributeValues={':p': clean},
+            Limit=1,
+            ProjectionExpression='id'
+        )
+        items = resp.get('Items', [])
+        if items:
+            return items[0].get('id', '')
+    except Exception as e:
+        logger.warning(f'Contact lookup failed for {phone[:6]}***: {e}')
+    return ''
 
 
 def _fetch_orders_for_flow(phone: str, email: str) -> list:
