@@ -38,102 +38,77 @@ $w.onReady(function () {
   }
 });
 
-function findForm() {
-  var formIds = ['#form1', '#wixForms1', '#wixForms2', '#submitRequestForm'];
-  for (var i = 0; i < formIds.length; i++) {
-    try {
-      var f = $w(formIds[i]);
-      if (f && typeof f.setFieldValues === 'function') {
-        console.log('[SR] Form found:', formIds[i]);
-        return f;
-      }
-    } catch (e) {}
-  }
-  console.warn('[SR] No form element found');
-  return null;
-}
-
-function findDropdown() {
-  var ddIds = ['#dropdown_sr', '#dropdownSr', '#dropdown1', '#dropdown2'];
-  for (var i = 0; i < ddIds.length; i++) {
-    try {
-      var el = $w(ddIds[i]);
-      if (el && el.options !== undefined) {
-        console.log('[SR] Dropdown found:', ddIds[i]);
-        return el;
-      }
-    } catch (e) {}
-  }
-  console.warn('[SR] No dropdown element found');
-  return null;
-}
-
-function setFormField(form, key, value) {
-  if (!form) return;
-  try {
-    var fields = {};
-    fields[key] = value;
-    form.setFieldValues(fields);
-  } catch (e) { console.error('[SR] setFieldValues failed for', key, ':', e); }
-}
-
-function fillSubmitRequestForm() {
+async function fillSubmitRequestForm() {
   console.log('[SR] fillSubmitRequestForm running');
 
-  var form = findForm();
-  var dropdown = findDropdown();
+  // Find form element (try multiple IDs)
+  var form = null;
+  var formIds = ['#wixForms1', '#form1', '#wixForms2', '#submitRequestForm'];
+  for (var fi = 0; fi < formIds.length; fi++) {
+    try {
+      var f = $w(formIds[fi]);
+      if (f && typeof f.setFieldValues === 'function') { form = f; console.log('[SR] Form:', formIds[fi]); break; }
+    } catch (e) {}
+  }
 
-  currentMember.getMember({ fieldsets: ['FULL'] })
-    .then(function (member) {
-      if (!member) { console.log('[SR] Not logged in'); return null; }
-      var email = member.loginEmail || '';
-      if (!email && member.contactDetails && member.contactDetails.emails) {
-        email = member.contactDetails.emails[0] || '';
-      }
-      if (!email) { console.log('[SR] No email'); return null; }
-      console.log('[SR] Email:', email);
-      return getMyOrderIdList(email);
-    })
-    .then(function (orderIds) {
-      if (!orderIds || orderIds.length === 0) {
-        console.log('[SR] No orders');
-        if (dropdown) try { dropdown.disable(); } catch (e) {}
-        return;
-      }
-      console.log('[SR] Orders:', orderIds.length);
+  try {
+    var member = await currentMember.getMember({ fieldsets: ['FULL'] });
+    if (!member) { console.log('[SR] Not logged in'); showNoOrders(form); return; }
 
-      var opts = orderIds.map(function (o) {
-        return { label: o.label, value: o.value };
-      });
+    var email = member.loginEmail || '';
+    if (!email && member.contactDetails && member.contactDetails.emails) {
+      email = member.contactDetails.emails[0] || '';
+    }
+    if (!email) { console.log('[SR] No email'); showNoOrders(form); return; }
 
-      // URL param pre-selection or default to latest
-      var query = wixLocationFrontend.query || {};
-      var urlOrderId = query.orderId || '';
-      var selectedId = urlOrderId || orderIds[0].value;
+    console.log('[SR] Email:', email);
+    var orderIds = await getMyOrderIdList(email);
 
-      // 1) Populate standalone dropdown with ALL order IDs
-      if (dropdown) {
-        try {
-          dropdown.options = opts;
-          dropdown.value = selectedId;
-          console.log('[SR] Dropdown: ' + opts.length + ' options, selected: ' + selectedId);
-        } catch (e) { console.error('[SR] Dropdown populate error:', e); }
+    if (!orderIds || orderIds.length === 0) {
+      console.log('[SR] No orders');
+      showNoOrders(form);
+      return;
+    }
 
-        // When user picks a different order → push into form field
-        try {
-          dropdown.onChange(function (event) {
-            var picked = event.target.value;
-            console.log('[SR] Picked:', picked);
-            setFormField(form, 'order_id_1', picked);
-          });
-        } catch (e) { console.error('[SR] onChange error:', e); }
-      }
-
-      // 2) Set the form text field (order_id_1) to selected order
-      setFormField(form, 'order_id_1', selectedId);
-      console.log('[SR] Done, selected:', selectedId);
-    })
-    .catch(function (err) {
-      console.error('[SR] Error:', err);
+    var opts = orderIds.map(function (o) {
+      return { label: o.label, value: o.value };
     });
+
+    var query = wixLocationFrontend.query || {};
+    var selectedId = query.orderId || opts[0].value;
+
+    // Populate dropdown
+    try {
+      $w('#dropdown_sr').options = opts;
+      $w('#dropdown_sr').value = selectedId;
+      console.log('[SR] Dropdown:', opts.length, 'opts, selected:', selectedId);
+    } catch (e) { console.error('[SR] Dropdown error:', e); }
+
+    // Sync to form
+    if (form) {
+      try { form.setFieldValues({ order_id_1: selectedId }); console.log('[SR] Form set:', selectedId); } catch (e) {}
+    }
+
+    // Wire dropdown change → form field
+    try {
+      $w('#dropdown_sr').onChange(function (event) {
+        var val = event.target.value;
+        console.log('[SR] Picked:', val);
+        if (form) { try { form.setFieldValues({ order_id_1: val }); } catch (e) {} }
+      });
+    } catch (e) {}
+
+  } catch (err) {
+    console.error('[SR] Error:', err);
+    showNoOrders(form);
+  }
+}
+
+function showNoOrders(form) {
+  try {
+    $w('#dropdown_sr').options = [{ label: 'No orders found', value: '' }];
+    $w('#dropdown_sr').value = '';
+    $w('#dropdown_sr').placeholder = 'No orders found';
+  } catch (e) {}
+  if (form) { try { form.setFieldValues({ order_id_1: '' }); } catch (e) {} }
 }
