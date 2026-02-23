@@ -41,15 +41,30 @@ $w.onReady(function () {
 function fillSubmitRequestForm() {
   console.log('[SR] fillSubmitRequestForm running');
 
+  // Try to find dropdown — could be #dropdown_sr or #dropdownSr
+  var dropdown = null;
+  var dropdownIds = ['#dropdown_sr', '#dropdownSr', '#dropdown1', '#dropdown2'];
+  for (var d = 0; d < dropdownIds.length; d++) {
+    try {
+      var el = $w(dropdownIds[d]);
+      if (el && el.options !== undefined) {
+        dropdown = el;
+        console.log('[SR] Found dropdown:', dropdownIds[d]);
+        break;
+      }
+    } catch (e) { /* not found, try next */ }
+  }
+  if (!dropdown) console.warn('[SR] No dropdown element found');
+
   // Fetch all orders for logged-in member
   currentMember.getMember({ fieldsets: ['FULL'] })
     .then(function (member) {
-      if (!member) { console.log('[SR] No member'); return null; }
+      if (!member) { console.log('[SR] No member logged in'); return null; }
       var email = member.loginEmail || '';
       if (!email && member.contactDetails && member.contactDetails.emails) {
         email = member.contactDetails.emails[0] || '';
       }
-      if (!email) { console.log('[SR] No email'); return null; }
+      if (!email) { console.log('[SR] No email found'); return null; }
       console.log('[SR] Email:', email);
       return getMyOrderIdList(email);
     })
@@ -58,45 +73,49 @@ function fillSubmitRequestForm() {
         console.log('[SR] No orders found');
         return;
       }
-      console.log('[SR] Orders:', orderIds.length);
+      console.log('[SR] Orders found:', orderIds.length);
 
-      // Populate dropdown with all order IDs
-      var dropdownOptions = orderIds.map(function (o) {
+      // Build dropdown options
+      var opts = orderIds.map(function (o) {
         return { label: o.label, value: o.value };
       });
 
-      try {
-        $w('#dropdown_sr').options = dropdownOptions;
-        console.log('[SR] Dropdown populated:', dropdownOptions.length);
-      } catch (e) { console.error('[SR] Dropdown populate failed:', e); }
-
-      // Check URL param — pre-select that order
+      // Check URL param for pre-selection
       var query = wixLocationFrontend.query || {};
       var urlOrderId = query.orderId || '';
       var selectedId = urlOrderId || orderIds[0].value;
 
-      // Set dropdown selection
-      try {
-        $w('#dropdown_sr').value = selectedId;
-        console.log('[SR] Dropdown selected:', selectedId);
-      } catch (e) { console.error('[SR] Dropdown select failed:', e); }
+      // 1) Populate standalone dropdown with ALL orders
+      if (dropdown) {
+        try {
+          dropdown.options = opts;
+          dropdown.value = selectedId;
+          console.log('[SR] Dropdown set:', opts.length, 'options, selected:', selectedId);
+        } catch (e) { console.error('[SR] Dropdown set failed:', e); }
 
-      // Set form field to selected order
+        // Wire: when user picks from dropdown → update form text field
+        try {
+          dropdown.onChange(function (event) {
+            var picked = event.target.value;
+            console.log('[SR] User picked:', picked);
+            try {
+              $w('#form1').setFieldValues({ order_id_1: picked });
+            } catch (e2) { console.error('[SR] Form update on change failed:', e2); }
+          });
+        } catch (e) { console.error('[SR] onChange failed:', e); }
+      }
+
+      // 2) Also set the form text field to the selected/latest order
       try {
         $w('#form1').setFieldValues({ order_id_1: selectedId });
-        console.log('[SR] Form set:', selectedId);
-      } catch (e) { console.error('[SR] Form set failed:', e); }
+        console.log('[SR] Form field set:', selectedId);
+      } catch (e) { console.error('[SR] setFieldValues failed:', e); }
 
-      // Wire dropdown change → update form field
+      // 3) Try setting dropdown_sr as a form field too (in case it's inside the form)
       try {
-        $w('#dropdown_sr').onChange(function (event) {
-          var val = event.target.value;
-          console.log('[SR] Dropdown changed:', val);
-          try {
-            $w('#form1').setFieldValues({ order_id_1: val });
-          } catch (e2) { console.error('[SR] Form update failed:', e2); }
-        });
-      } catch (e) { console.error('[SR] onChange wire failed:', e); }
+        $w('#form1').setFieldValues({ dropdown_sr: selectedId });
+        console.log('[SR] Form dropdown_sr field set:', selectedId);
+      } catch (e) { /* may not exist as form field */ }
     })
     .catch(function (err) {
       console.error('[SR] Error:', err);

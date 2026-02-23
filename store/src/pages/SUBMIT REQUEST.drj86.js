@@ -1,77 +1,52 @@
 /**
  * SUBMIT REQUEST Page (drj86) — WECARE.DIGITAL
- * Fallback: same logic as masterPage.js in case page code runs.
- *
- * - Populates #dropdown_sr with ALL member order IDs
- * - Sets #form1 order_id_1 to latest (or URL param)
- * - Wires dropdown change → form field update
+ * Fallback: same logic as masterPage.js
  */
-
 import wixLocationFrontend from 'wix-location-frontend';
 import { currentMember } from 'wix-members-frontend';
 import { getMyOrderIdList } from 'backend/member-orders.web.js';
 
 $w.onReady(function () {
-  fillSubmitRequestForm();
+  console.log('[SR-drj] Page code running');
+  fillForm();
 });
 
-function fillSubmitRequestForm() {
-  console.log('[SR-page] fillSubmitRequestForm running');
+function fillForm() {
+  var dropdown = null;
+  var ids = ['#dropdown_sr', '#dropdownSr', '#dropdown1', '#dropdown2'];
+  for (var i = 0; i < ids.length; i++) {
+    try {
+      var el = $w(ids[i]);
+      if (el && el.options !== undefined) { dropdown = el; console.log('[SR-drj] Dropdown:', ids[i]); break; }
+    } catch (e) {}
+  }
 
   currentMember.getMember({ fieldsets: ['FULL'] })
     .then(function (member) {
-      if (!member) { console.log('[SR-page] No member'); return null; }
+      if (!member) return null;
       var email = member.loginEmail || '';
       if (!email && member.contactDetails && member.contactDetails.emails) {
         email = member.contactDetails.emails[0] || '';
       }
-      if (!email) { console.log('[SR-page] No email'); return null; }
-      console.log('[SR-page] Email:', email);
+      if (!email) return null;
       return getMyOrderIdList(email);
     })
     .then(function (orderIds) {
-      if (!orderIds || orderIds.length === 0) {
-        console.log('[SR-page] No orders found');
-        return;
-      }
-      console.log('[SR-page] Orders:', orderIds.length);
-
-      // Populate dropdown with all order IDs
-      var dropdownOptions = orderIds.map(function (o) {
-        return { label: o.label, value: o.value };
-      });
-
-      try {
-        $w('#dropdown_sr').options = dropdownOptions;
-        console.log('[SR-page] Dropdown populated:', dropdownOptions.length);
-      } catch (e) { console.error('[SR-page] Dropdown populate failed:', e); }
-
-      // Check URL param — pre-select that order
+      if (!orderIds || orderIds.length === 0) return;
+      var opts = orderIds.map(function (o) { return { label: o.label, value: o.value }; });
       var query = wixLocationFrontend.query || {};
-      var urlOrderId = query.orderId || '';
-      var selectedId = urlOrderId || orderIds[0].value;
+      var selectedId = query.orderId || orderIds[0].value;
 
-      try {
-        $w('#dropdown_sr').value = selectedId;
-      } catch (e) { console.error('[SR-page] Dropdown select failed:', e); }
-
-      try {
-        $w('#form1').setFieldValues({ order_id_1: selectedId });
-        console.log('[SR-page] Form set:', selectedId);
-      } catch (e) { console.error('[SR-page] Form set failed:', e); }
-
-      // Wire dropdown change → update form field
-      try {
-        $w('#dropdown_sr').onChange(function (event) {
-          var val = event.target.value;
-          console.log('[SR-page] Dropdown changed:', val);
-          try {
-            $w('#form1').setFieldValues({ order_id_1: val });
-          } catch (e2) { console.error('[SR-page] Form update failed:', e2); }
-        });
-      } catch (e) { console.error('[SR-page] onChange wire failed:', e); }
+      if (dropdown) {
+        try { dropdown.options = opts; dropdown.value = selectedId; } catch (e) {}
+        try {
+          dropdown.onChange(function (ev) {
+            try { $w('#form1').setFieldValues({ order_id_1: ev.target.value }); } catch (e2) {}
+          });
+        } catch (e) {}
+      }
+      try { $w('#form1').setFieldValues({ order_id_1: selectedId }); } catch (e) {}
+      try { $w('#form1').setFieldValues({ dropdown_sr: selectedId }); } catch (e) {}
     })
-    .catch(function (err) {
-      console.error('[SR-page] Error:', err);
-    });
+    .catch(function (err) { console.error('[SR-drj] Error:', err); });
 }
