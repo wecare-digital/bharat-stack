@@ -41,27 +41,15 @@ $w.onReady(function () {
 function fillSubmitRequestForm() {
   console.log('[SR] fillSubmitRequestForm running');
 
-  // Check URL param first
-  var query = wixLocationFrontend.query || {};
-  var urlOrderId = query.orderId || '';
-
-  if (urlOrderId) {
-    try {
-      $w('#form1').setFieldValues({ order_id_1: urlOrderId });
-      console.log('[SR] Set from URL:', urlOrderId);
-    } catch (e) { console.error('[SR] setFieldValues failed:', e); }
-    return;
-  }
-
-  // Auto-fetch for logged-in member
+  // Fetch all orders for logged-in member
   currentMember.getMember({ fieldsets: ['FULL'] })
     .then(function (member) {
-      if (!member) return null;
+      if (!member) { console.log('[SR] No member'); return null; }
       var email = member.loginEmail || '';
       if (!email && member.contactDetails && member.contactDetails.emails) {
         email = member.contactDetails.emails[0] || '';
       }
-      if (!email) return null;
+      if (!email) { console.log('[SR] No email'); return null; }
       console.log('[SR] Email:', email);
       return getMyOrderIdList(email);
     })
@@ -71,8 +59,44 @@ function fillSubmitRequestForm() {
         return;
       }
       console.log('[SR] Orders:', orderIds.length);
-      $w('#form1').setFieldValues({ order_id_1: orderIds[0].value });
-      console.log('[SR] Set order:', orderIds[0].value);
+
+      // Populate dropdown with all order IDs
+      var dropdownOptions = orderIds.map(function (o) {
+        return { label: o.label, value: o.value };
+      });
+
+      try {
+        $w('#dropdown_sr').options = dropdownOptions;
+        console.log('[SR] Dropdown populated:', dropdownOptions.length);
+      } catch (e) { console.error('[SR] Dropdown populate failed:', e); }
+
+      // Check URL param — pre-select that order
+      var query = wixLocationFrontend.query || {};
+      var urlOrderId = query.orderId || '';
+      var selectedId = urlOrderId || orderIds[0].value;
+
+      // Set dropdown selection
+      try {
+        $w('#dropdown_sr').value = selectedId;
+        console.log('[SR] Dropdown selected:', selectedId);
+      } catch (e) { console.error('[SR] Dropdown select failed:', e); }
+
+      // Set form field to selected order
+      try {
+        $w('#form1').setFieldValues({ order_id_1: selectedId });
+        console.log('[SR] Form set:', selectedId);
+      } catch (e) { console.error('[SR] Form set failed:', e); }
+
+      // Wire dropdown change → update form field
+      try {
+        $w('#dropdown_sr').onChange(function (event) {
+          var val = event.target.value;
+          console.log('[SR] Dropdown changed:', val);
+          try {
+            $w('#form1').setFieldValues({ order_id_1: val });
+          } catch (e2) { console.error('[SR] Form update failed:', e2); }
+        });
+      } catch (e) { console.error('[SR] onChange wire failed:', e); }
     })
     .catch(function (err) {
       console.error('[SR] Error:', err);

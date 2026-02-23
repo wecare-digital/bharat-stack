@@ -1,6 +1,9 @@
 /**
- * SUBMIT REQUEST Page (drj86) — WECARE.DIGITAL
+ * SUBMIT REQUEST Page (a8s2j) — WECARE.DIGITAL
  * Fallback: same logic as masterPage.js in case page code runs.
+ *
+ * NOTE: Wix may not pull this from Git (one-way sync for new pages),
+ * but we keep it in sync as a safety net.
  *
  * - Populates #dropdown_sr with ALL member order IDs
  * - Sets #form1 order_id_1 to latest (or URL param)
@@ -16,25 +19,25 @@ $w.onReady(function () {
 });
 
 function fillSubmitRequestForm() {
-  console.log('[SR-page] fillSubmitRequestForm running');
+  console.log('[SR-a8s] fillSubmitRequestForm running');
 
   currentMember.getMember({ fieldsets: ['FULL'] })
     .then(function (member) {
-      if (!member) { console.log('[SR-page] No member'); return null; }
+      if (!member) { console.log('[SR-a8s] No member'); return null; }
       var email = member.loginEmail || '';
       if (!email && member.contactDetails && member.contactDetails.emails) {
         email = member.contactDetails.emails[0] || '';
       }
-      if (!email) { console.log('[SR-page] No email'); return null; }
-      console.log('[SR-page] Email:', email);
+      if (!email) { console.log('[SR-a8s] No email'); return null; }
+      console.log('[SR-a8s] Email:', email);
       return getMyOrderIdList(email);
     })
     .then(function (orderIds) {
       if (!orderIds || orderIds.length === 0) {
-        console.log('[SR-page] No orders found');
+        console.log('[SR-a8s] No orders found');
         return;
       }
-      console.log('[SR-page] Orders:', orderIds.length);
+      console.log('[SR-a8s] Orders:', orderIds.length);
 
       // Populate dropdown with all order IDs
       var dropdownOptions = orderIds.map(function (o) {
@@ -43,8 +46,8 @@ function fillSubmitRequestForm() {
 
       try {
         $w('#dropdown_sr').options = dropdownOptions;
-        console.log('[SR-page] Dropdown populated:', dropdownOptions.length);
-      } catch (e) { console.error('[SR-page] Dropdown populate failed:', e); }
+        console.log('[SR-a8s] Dropdown populated:', dropdownOptions.length);
+      } catch (e) { console.error('[SR-a8s] Dropdown populate failed:', e); }
 
       // Check URL param — pre-select that order
       var query = wixLocationFrontend.query || {};
@@ -53,25 +56,25 @@ function fillSubmitRequestForm() {
 
       try {
         $w('#dropdown_sr').value = selectedId;
-      } catch (e) { console.error('[SR-page] Dropdown select failed:', e); }
+      } catch (e) { console.error('[SR-a8s] Dropdown select failed:', e); }
 
       try {
         $w('#form1').setFieldValues({ order_id_1: selectedId });
-        console.log('[SR-page] Form set:', selectedId);
-      } catch (e) { console.error('[SR-page] Form set failed:', e); }
+        console.log('[SR-a8s] Form set:', selectedId);
+      } catch (e) { console.error('[SR-a8s] Form set failed:', e); }
 
       // Wire dropdown change → update form field
       try {
         $w('#dropdown_sr').onChange(function (event) {
           var val = event.target.value;
-          console.log('[SR-page] Dropdown changed:', val);
+          console.log('[SR-a8s] Dropdown changed:', val);
           try {
             $w('#form1').setFieldValues({ order_id_1: val });
-          } catch (e2) { console.error('[SR-page] Form update failed:', e2); }
+          } catch (e2) { console.error('[SR-a8s] Form update failed:', e2); }
         });
-      } catch (e) { console.error('[SR-page] onChange wire failed:', e); }
+      } catch (e) { console.error('[SR-a8s] onChange wire failed:', e); }
     })
     .catch(function (err) {
-      console.error('[SR-page] Error:', err);
+      console.error('[SR-a8s] Error:', err);
     });
 }
