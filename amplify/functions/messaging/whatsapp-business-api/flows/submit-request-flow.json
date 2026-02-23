@@ -48,8 +48,7 @@
             "on-click-action": {
               "name": "data_exchange",
               "payload": {
-                "order_id": "${form.order_id}",
-                "screen": "REQUEST_FORM"
+                "order_id": "${form.order_id}"
               }
             }
           }
@@ -119,8 +118,7 @@
                 "order_id": "${data.order_id}",
                 "request_type": "${form.request_type}",
                 "subject": "${form.subject}",
-                "description": "${form.description}",
-                "screen": "SUBMIT"
+                "description": "${form.description}"
               }
             }
           }

@@ -616,9 +616,11 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
         }
 
     elif action == 'data_exchange':
-        next_screen = data.get('screen', '')
+        # `screen` = current screen the user is on (top-level field from Meta).
+        # Meta strips "screen" from payload data — so route by current screen ID.
 
-        if next_screen == 'REQUEST_FORM':
+        if screen == 'ORDER_SELECT':
+            # User selected an order and tapped Continue → show REQUEST_FORM
             selected_order = data.get('order_id', '')
             response_payload = {
                 'screen': 'REQUEST_FORM',
@@ -633,7 +635,8 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
                 }
             }
 
-        elif next_screen == 'SUBMIT':
+        elif screen == 'REQUEST_FORM':
+            # User filled the form and tapped Submit → show SUCCESS
             order_id = data.get('order_id', '')
             request_type = data.get('request_type', '')
             subject = data.get('subject', '')
@@ -647,6 +650,12 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
                 'screen': 'SUCCESS',
                 'data': {
                     'message': f'Request submitted for {order_id}. We will get back to you shortly.',
+                    'extension_message_response': {
+                        'params': {
+                            'flow_token': flow_token,
+                            'status': 'completed',
+                        }
+                    }
                 }
             }
 
