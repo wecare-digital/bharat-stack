@@ -595,3 +595,69 @@ export async function post_backfillOrderCustomFields(request) {
     return jsonError({ error: err.message });
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// POST /_functions/flow-orders
+// WhatsApp Flow data endpoint — returns WD-ORD IDs for a phone/email.
+// Flow sends: { phone: "+91...", email: "..." }
+// Returns: { orders: [{ id: "WD-ORD - ...", label: "WD-ORD - ..." }] }
+// ---------------------------------------------------------------------------
+
+export async function post_flowOrders(request) {
+  // Auth via shared secret header
+  try {
+    if (_cachedSecret === undefined) {
+      _cachedSecret = await getSecret('WECARE_API_KEY').catch(() => null);
+    }
+    if (_cachedSecret) {
+      const provided = request.headers['x-api-key'] || request.headers['x-flow-secret'];
+      if (provided !== _cachedSecret) return jsonForbidden();
+    }
+  } catch {}
+
+  try {
+    const body = await request.body.json();
+    const phone = (body.phone || '').trim();
+    const email = (body.email || '').trim();
+
+    if (!phone && !email) {
+      return jsonError({ error: 'phone or email required' }, 400);
+    }
+
+    // Query OrderCustomIds by email first, then by phone via Stores/Orders
+    let orders = [];
+
+    if (email) {
+      const res = await wixData.query('OrderCustomIds')
+        .eq('buyerEmail', email)
+        .descending('_createdDate')
+        .limit(50)
+        .find({ suppressAuth: true });
+      orders = res.items.map(item => ({
+        id: item.customOrderNumber,
+        label: item.customOrderNumber,
+      }));
+    }
+
+    // Fallback: search by phone in Stores/Orders, then map to custom IDs
+    if (orders.length === 0 && phone) {
+      const ordersRes = await wixData.query('Stores/Orders')
+        .eq('buyerInfo.phone', phone)
+        .descending('_dateCreated')
+        .limit(50)
+        .find({ suppressAuth: true });
+
+      for (const order of ordersRes.items) {
+        const wdId = order.customField?.value;
+        if (wdId && wdId.startsWith('WD-ORD')) {
+          orders.push({ id: wdId, label: wdId });
+        }
+      }
+    }
+
+    return jsonOk({ orders });
+  } catch (err) {
+    return jsonError({ error: err.message });
+  }
+}
