@@ -79,8 +79,8 @@ async function fillSubmitRequestForm() {
 
     // Populate dropdown
     try {
-      $w('#dropdown_sr').options = opts;
-      $w('#dropdown_sr').value = selectedId;
+      $w('#dropdownord').options = opts;
+      $w('#dropdownord').value = selectedId;
       console.log('[SR] Dropdown:', opts.length, 'opts, selected:', selectedId);
     } catch (e) { console.error('[SR] Dropdown error:', e); }
 
@@ -91,7 +91,7 @@ async function fillSubmitRequestForm() {
 
     // Wire dropdown change → form field
     try {
-      $w('#dropdown_sr').onChange(function (event) {
+      $w('#dropdownord').onChange(function (event) {
         var val = event.target.value;
         console.log('[SR] Picked:', val);
         if (form) { try { form.setFieldValues({ order_id_1: val }); } catch (e) {} }
@@ -106,9 +106,9 @@ async function fillSubmitRequestForm() {
 
 function showNoOrders(form) {
   try {
-    $w('#dropdown_sr').options = [{ label: 'No orders found', value: '' }];
-    $w('#dropdown_sr').value = '';
-    $w('#dropdown_sr').placeholder = 'No orders found';
+    $w('#dropdownord').options = [{ label: 'No orders found', value: '' }];
+    $w('#dropdownord').value = '';
+    $w('#dropdownord').placeholder = 'No orders found';
   } catch (e) {}
   if (form) { try { form.setFieldValues({ order_id_1: '' }); } catch (e) {} }
 }

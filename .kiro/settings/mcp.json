@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "wix": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "wix-mcp-server@latest"
+      ],
+      "env": {
+        "WIX_API_KEY": "IST.eyJraWQiOiJQb3pIX2FDMiIsImFsZyI6IlJTMjU2In0.eyJkYXRhIjoie1wiaWRcIjpcIjdkNzI4MzRiLTViNjctNDYyYi1hOTQ0LTliYWZmMTE2Zjg5OFwiLFwiaWRlbnRpdHlcIjp7XCJ0eXBlXCI6XCJhcHBsaWNhdGlvblwiLFwiaWRcIjpcImIyYjExNmJkLWI1N2UtNDc5NS1iZGI3LWZkYTljNzVhMTY5MVwifSxcInRlbmFudFwiOntcInR5cGVcIjpcImFjY291bnRcIixcImlkXCI6XCI2YjJkN2E5My1lZjE0LTQ1YWItYTA0ZS1kNDQ1ZjU5OWU5ZjRcIn19IiwiaWF0IjoxNzcxNzMyNzczfQ.XJT6mQQ5JNUJ87rCYrf2wJ3hVMivSEruL2hdVgu6FgyjCJVUUCFQW84YIF2-r2GlFM6eTpiYZYw500Q0U6koffvgLWEViVwT71V2eV77FIHsF-v_MuULu_BcJRjBPwwlNYqTJsi6__pj58jelFhfYEOpl28y4vfS1xifJcpJW_MM0xbL5bDci1yhXQY7KCtW8hrwCMK_rEEXKB_8kcn4ry94ey0NMukqJOQcYgXtQK3Gyfq3OuTXDU9-058KDS8JTcrKZq5rKCii2DBigqlNb7vflw52G4zoLXNoEGQcCUohXPIZm77WzxX_k-R0nEj1IojFmo-4YI9YOrPAoLEPXA",
+        "WIX_ACCOUNT_ID": "6b2d7a93-ef14-45ab-a04e-d445f599e9f4"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

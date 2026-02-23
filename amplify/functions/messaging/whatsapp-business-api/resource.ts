@@ -11,5 +11,10 @@ export const whatsappBusinessApi = defineFunction({
     LOG_LEVEL: 'INFO',
     META_API_VERSION: 'v20.0',
     META_TOKEN_SECRET: 'wecare/meta-system-user-token',
+    WIX_ORDERS_CACHE_TABLE: 'base-wecare-digital-WixOrdersCache',
+    WIX_ORDER_IDS_TABLE: 'base-wecare-digital-WixOrderIds',
+    FLOW_PRIVATE_KEY_SECRET: 'wecare/flow-private-key',
+    FLOW_PRIVATE_KEY_PASSPHRASE: '',
+    WIX_SITE_URL: 'https://www.wecare.digital',
   },
 });

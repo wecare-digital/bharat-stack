@@ -1,0 +1,165 @@
+{
+  "version": "5.1",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "ORDER_SELECT": ["REQUEST_FORM"],
+    "REQUEST_FORM": ["SUCCESS"]
+  },
+  "screens": [
+    {
+      "id": "ORDER_SELECT",
+      "title": "Submit Request",
+      "data": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST", "title": "WD-ORD - A1B2C3D4" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "WECARE.DIGITAL"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "Select your order to submit a request"
+          },
+          {
+            "type": "Dropdown",
+            "name": "order_id",
+            "label": "Order ID",
+            "required": true,
+            "data-source": "${data.orders}"
+          },
+          {
+            "type": "Footer",
+            "label": "Continue",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "order_id": "${form.order_id}",
+                "screen": "REQUEST_FORM"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "REQUEST_FORM",
+      "title": "Request Details",
+      "data": {
+        "order_id": {
+          "type": "string",
+          "__example__": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST"
+        },
+        "request_types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "return", "title": "Return" },
+            { "id": "exchange", "title": "Exchange" },
+            { "id": "support", "title": "Support" },
+            { "id": "other", "title": "Other" }
+          ]
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextSubheading",
+            "text": "${data.order_id}"
+          },
+          {
+            "type": "Dropdown",
+            "name": "request_type",
+            "label": "Request Type",
+            "required": true,
+            "data-source": "${data.request_types}"
+          },
+          {
+            "type": "TextInput",
+            "name": "subject",
+            "label": "Subject",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Brief summary of your request"
+          },
+          {
+            "type": "TextArea",
+            "name": "description",
+            "label": "Description",
+            "required": false,
+            "helper-text": "Provide details about your request"
+          },
+          {
+            "type": "Footer",
+            "label": "Submit Request",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "order_id": "${data.order_id}",
+                "request_type": "${form.request_type}",
+                "subject": "${form.subject}",
+                "description": "${form.description}",
+                "screen": "SUBMIT"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Request Submitted",
+      "terminal": true,
+      "data": {
+        "message": {
+          "type": "string",
+          "__example__": "Your request has been submitted successfully."
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Success"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.message}"
+          },
+          {
+            "type": "Footer",
+            "label": "Done",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "status": "completed"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

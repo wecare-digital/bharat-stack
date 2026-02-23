@@ -83,6 +83,9 @@ PAY_MSG = {
 # Phone number ID that handles payments (Phone 1: +919330994400 / WECARE.DIGITAL)
 PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
 
+# WhatsApp Flow IDs
+SUBMIT_REQUEST_FLOW_ID = os.environ.get('SUBMIT_REQUEST_FLOW_ID', '1934684610589164')
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -444,6 +447,19 @@ def _process_message(
             request_id=request_id
         )
     
+    # ── Keyword triggers (before AI automation) ──
+    if msg_type == 'text' and content:
+        content_lower = content.strip().lower()
+        # "submit request" / "submit a request" / "raise request" triggers the WhatsApp Flow
+        if content_lower in ('submit request', 'submit a request', 'raise request', 'raise a request', 'sr', 'request'):
+            _send_submit_request_flow(
+                contact_id=contact_id,
+                phone_number_id=aws_phone_number_id,
+                sender_phone=sender_phone,
+                request_id=request_id
+            )
+            return  # Skip AI automation — flow handles the rest
+
     # Process AI automation for supported message types
     # Now includes media types (image, audio, video, document) for multimodal AI
     ai_eligible_types = ['text', 'interactive', 'button', 'location', 'image', 'video', 'audio', 'document']
@@ -2230,6 +2246,58 @@ def _send_ai_auto_reply(contact_id: str, content: str, phone_number_id: str, req
     except Exception as e:
         logger.error(json.dumps({
             'event': 'ai_auto_reply_error',
+            'contactId': contact_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+
+
+def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phone: str, request_id: str) -> None:
+    """
+    Send the Submit Request WhatsApp Flow to the user.
+    Passes sender's phone number so the endpoint can fetch their orders.
+    """
+    try:
+        # Encode phone in flow_token so the flow-data endpoint can extract it
+        # during INIT (data_exchange mode doesn't pass custom data in the message)
+        flow_token = f'sr-{uuid.uuid4()}-ph-{sender_phone}'
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'phoneNumberId': phone_number_id,
+                'isInteractive': True,
+                'interactiveType': 'flow',
+                'interactiveData': {
+                    'header': 'WECARE.DIGITAL',
+                    'body': 'Submit a request for your order — returns, exchanges, or support.',
+                    'footer': 'Powered by WECARE.DIGITAL',
+                    'flowId': SUBMIT_REQUEST_FLOW_ID,
+                    'flowCta': 'Submit Request',
+                    'flowAction': 'data_exchange',
+                    'flowToken': flow_token,
+                },
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'submit_request_flow_sent',
+            'contactId': contact_id,
+            'senderPhone': sender_phone,
+            'flowId': SUBMIT_REQUEST_FLOW_ID,
+            'flowToken': flow_token,
+            'statusCode': response.get('StatusCode'),
+            'requestId': request_id
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'submit_request_flow_error',
             'contactId': contact_id,
             'error': str(e),
             'requestId': request_id

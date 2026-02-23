@@ -755,8 +755,10 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
                 }
             }
             
-            # Add screen and data if provided
-            if screen_id:
+            # flow_action_payload is ONLY valid for "navigate" mode.
+            # For "data_exchange", Meta sends INIT to the endpoint automatically —
+            # do NOT include flow_action_payload or Meta returns error 131009.
+            if flow_action == 'navigate' and screen_id:
                 interactive_payload['action']['parameters']['flow_action_payload'] = {
                     'screen': screen_id
                 }

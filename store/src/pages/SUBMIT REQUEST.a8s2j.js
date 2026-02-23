@@ -1,13 +1,13 @@
 /**
  * SUBMIT REQUEST Page (a8s2j) — WECARE.DIGITAL
  *
- * Populates #dropdown_sr with all WD-ORD IDs for the logged-in member.
+ * Populates #dropdownord with all WD-ORD IDs for the logged-in member.
  * Syncs selection to Wix Forms V2 field key "order_id_1" via setFieldValues.
  * Default: most recent order pre-selected.
  * Fallback: "No orders found" if member has no orders.
  *
  * Elements:
- *   #dropdown_sr  — standalone Dropdown (element ID from Properties panel)
+ *   #dropdownord  — standalone Dropdown (element ID from Properties panel)
  *   #wixForms1    — Wix Forms V2 element (try #form1 as fallback)
  *   order_id_1    — Form field key (from Form Settings > Advanced)
  */
@@ -70,14 +70,14 @@ $w.onReady(async function () {
     });
 
     // Populate dropdown
-    $w('#dropdown_sr').options = options;
+    $w('#dropdownord').options = options;
 
     // Check URL param for pre-selection, else latest
     var query = wixLocationFrontend.query || {};
     var urlOrderId = query.orderId || '';
     var selectedId = urlOrderId || options[0].value;
 
-    $w('#dropdown_sr').value = selectedId;
+    $w('#dropdownord').value = selectedId;
     console.log('[SR-a8s] Dropdown:', options.length, 'opts, selected:', selectedId);
 
     // Sync to form
@@ -87,6 +87,14 @@ $w.onReady(async function () {
       console.log('[SR-a8s] Form set:', selectedId);
     }
 
+    // Wire onChange inline (in case Properties panel binding doesn't work)
+    $w('#dropdownord').onChange(function (event) {
+      var val = event.target.value;
+      console.log('[SR-a8s] Changed:', val);
+      var f = getForm();
+      if (f) { f.setFieldValues({ order_id_1: val }); }
+    });
+
   } catch (err) {
     console.error('[SR-a8s] Error:', err);
     showNoOrders();
@@ -95,9 +103,9 @@ $w.onReady(async function () {
 
 function showNoOrders() {
   try {
-    $w('#dropdown_sr').options = [{ label: 'No orders found', value: '' }];
-    $w('#dropdown_sr').value = '';
-    $w('#dropdown_sr').placeholder = 'No orders found';
+    $w('#dropdownord').options = [{ label: 'No orders found', value: '' }];
+    $w('#dropdownord').value = '';
+    $w('#dropdownord').placeholder = 'No orders found';
   } catch (e) {}
   var form = getForm();
   if (form) {
@@ -106,7 +114,7 @@ function showNoOrders() {
 }
 
 // Wix event handler — connect in Properties & Events panel
-export function dropdown_sr_change(event) {
+export function dropdownord_change(event) {
   var val = event.target.value;
   console.log('[SR-a8s] Changed:', val);
   var form = getForm();

@@ -45,14 +45,22 @@ $w.onReady(async function () {
       return { label: o.label, value: o.value };
     });
 
-    $w('#dropdown_sr').options = options;
+    $w('#dropdownord').options = options;
 
     var query = wixLocationFrontend.query || {};
     var selectedId = query.orderId || options[0].value;
-    $w('#dropdown_sr').value = selectedId;
+    $w('#dropdownord').value = selectedId;
 
     var form = getForm();
     if (form) form.setFieldValues({ order_id_1: selectedId });
+
+    // Wire onChange inline
+    $w('#dropdownord').onChange(function (event) {
+      var val = event.target.value;
+      console.log('[SR-drj] Changed:', val);
+      var f = getForm();
+      if (f) f.setFieldValues({ order_id_1: val });
+    });
 
   } catch (err) {
     console.error('[SR-drj]', err);
@@ -62,15 +70,15 @@ $w.onReady(async function () {
 
 function showNoOrders() {
   try {
-    $w('#dropdown_sr').options = [{ label: 'No orders found', value: '' }];
-    $w('#dropdown_sr').value = '';
-    $w('#dropdown_sr').placeholder = 'No orders found';
+    $w('#dropdownord').options = [{ label: 'No orders found', value: '' }];
+    $w('#dropdownord').value = '';
+    $w('#dropdownord').placeholder = 'No orders found';
   } catch (e) {}
   var form = getForm();
   if (form) { try { form.setFieldValues({ order_id_1: '' }); } catch (e) {} }
 }
 
-export function dropdown_sr_change(event) {
+export function dropdownord_change(event) {
   var val = event.target.value;
   console.log('[SR-drj] Changed:', val);
   var form = getForm();

@@ -24,6 +24,7 @@ Routes:
   POST      /wa-business/groups/participants → Add/remove participants
   POST      /wa-business/groups/send   → Send group message
   GET       /wa-business/payment-config → Get payment configuration for phone
+  POST      /wa-business/flow-data     → WhatsApp Flow data_exchange endpoint
 """
 import os
 import json
@@ -58,6 +59,10 @@ PHONE2_META_ID = '997428863451102'
 
 # All IDs that belong to WABA2
 WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
+
+# DynamoDB tables for order lookups (flow-data endpoint)
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'base-wecare-digital-WixOrderIds')
 
 def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
     """Get the correct token based on WABA or phone ID."""
@@ -487,6 +492,258 @@ def _get_payment_config(phone_id: str) -> Dict:
     return _resp(200, {'paymentConfig': result})
 
 # ============================================================================
+# FLOW ENCRYPTION / DECRYPTION (WhatsApp Flows require E2E encryption)
+# ============================================================================
+from base64 import b64decode, b64encode
+from cryptography.hazmat.primitives.asymmetric.padding import OAEP, MGF1
+from cryptography.hazmat.primitives.asymmetric.padding import hashes as asym_hashes
+from cryptography.hazmat.primitives.ciphers import Cipher as AESCipher, algorithms, modes
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+FLOW_PRIVATE_KEY_SECRET = os.environ.get('FLOW_PRIVATE_KEY_SECRET', 'wecare/flow-private-key')
+FLOW_PRIVATE_KEY_PASSPHRASE = os.environ.get('FLOW_PRIVATE_KEY_PASSPHRASE', '')
+_flow_private_key = None
+
+
+def _get_flow_private_key():
+    """Load RSA private key from Secrets Manager (cached)."""
+    global _flow_private_key
+    if _flow_private_key:
+        return _flow_private_key
+    try:
+        resp = secrets_client.get_secret_value(SecretId=FLOW_PRIVATE_KEY_SECRET)
+        pem = resp['SecretString']
+        passphrase = FLOW_PRIVATE_KEY_PASSPHRASE.encode('utf-8') if FLOW_PRIVATE_KEY_PASSPHRASE else None
+        _flow_private_key = load_pem_private_key(pem.encode('utf-8'), password=passphrase)
+        return _flow_private_key
+    except Exception as e:
+        logger.error(f'Failed to load flow private key: {e}')
+        return None
+
+
+def _decrypt_flow_request(encrypted_flow_data_b64: str, encrypted_aes_key_b64: str, initial_vector_b64: str):
+    """Decrypt WhatsApp Flow data_exchange request."""
+    private_key = _get_flow_private_key()
+    if not private_key:
+        raise ValueError('Flow private key not available')
+
+    flow_data = b64decode(encrypted_flow_data_b64)
+    iv = b64decode(initial_vector_b64)
+    encrypted_aes_key = b64decode(encrypted_aes_key_b64)
+
+    # Decrypt AES key with RSA private key
+    aes_key = private_key.decrypt(
+        encrypted_aes_key,
+        OAEP(mgf=MGF1(algorithm=asym_hashes.SHA256()), algorithm=asym_hashes.SHA256(), label=None)
+    )
+
+    # Decrypt flow data with AES-GCM
+    encrypted_body = flow_data[:-16]
+    tag = flow_data[-16:]
+    decryptor = AESCipher(algorithms.AES(aes_key), modes.GCM(iv, tag)).decryptor()
+    decrypted = decryptor.update(encrypted_body) + decryptor.finalize()
+    return json.loads(decrypted.decode('utf-8')), aes_key, iv
+
+
+def _encrypt_flow_response(response_data: dict, aes_key: bytes, iv: bytes) -> str:
+    """Encrypt WhatsApp Flow response. Returns base64 string."""
+    # Flip IV
+    flipped_iv = bytearray(b ^ 0xFF for b in iv)
+    encryptor = AESCipher(algorithms.AES(aes_key), modes.GCM(bytes(flipped_iv))).encryptor()
+    encrypted = encryptor.update(json.dumps(response_data).encode('utf-8')) + encryptor.finalize()
+    return b64encode(encrypted + encryptor.tag).decode('utf-8')
+
+
+# ============================================================================
+# FLOW DATA EXCHANGE (WhatsApp Flows)
+# ============================================================================
+def _handle_flow_data(body: Dict, request_id: str) -> Dict:
+    """
+    Handle WhatsApp Flow data_exchange requests with E2E encryption.
+    1. Decrypt incoming encrypted payload
+    2. Process the action (INIT, data_exchange, ping)
+    3. Encrypt the response and return as base64 string
+    """
+    # Step 1: Decrypt the incoming request
+    encrypted_flow_data = body.get('encrypted_flow_data', '')
+    encrypted_aes_key = body.get('encrypted_aes_key', '')
+    initial_vector = body.get('initial_vector', '')
+
+    if not encrypted_flow_data or not encrypted_aes_key or not initial_vector:
+        return _resp(400, {'error': 'Missing encrypted flow data fields'})
+
+    try:
+        decrypted_data, aes_key, iv = _decrypt_flow_request(
+            encrypted_flow_data, encrypted_aes_key, initial_vector)
+    except Exception as e:
+        logger.error(f'[{request_id}] Flow decryption failed: {e}')
+        return _resp(421, {'error': 'Decryption failed'})
+
+    action = decrypted_data.get('action', '')
+    screen = decrypted_data.get('screen', '')
+    data = decrypted_data.get('data', {})
+    flow_token = decrypted_data.get('flow_token', '')
+
+    logger.info(json.dumps({
+        'flow_data': True, 'action': action, 'screen': screen,
+        'data_keys': list(data.keys()), 'flow_token': flow_token,
+        'requestId': request_id,
+    }))
+
+    response_payload = None
+
+    # Step 2: Process the action
+    # NOTE: Per Meta docs, encrypted responses must NOT include "version".
+    # Ping → {"data": {"status": "active"}}
+    # Data exchange → {"screen": "...", "data": {...}}
+    # Final → {"screen": "SUCCESS", "data": {"extension_message_response": {...}}}
+
+    if action == 'ping':
+        response_payload = {'data': {'status': 'active'}}
+
+    elif action == 'INIT':
+        # Extract phone from flow_token (format: sr-{uuid}-ph-{phone})
+        phone = data.get('phone', '') or data.get('wa_id', '')
+        if not phone and flow_token and '-ph-' in flow_token:
+            phone = flow_token.split('-ph-', 1)[1]
+        email = data.get('email', '')
+        orders = _fetch_orders_for_flow(phone, email)
+        response_payload = {
+            'screen': 'ORDER_SELECT',
+            'data': {
+                'orders': orders if orders else [{'id': 'none', 'title': 'No orders found'}],
+            }
+        }
+
+    elif action == 'data_exchange':
+        next_screen = data.get('screen', '')
+
+        if next_screen == 'REQUEST_FORM':
+            selected_order = data.get('order_id', '')
+            response_payload = {
+                'screen': 'REQUEST_FORM',
+                'data': {
+                    'order_id': selected_order,
+                    'request_types': [
+                        {'id': 'return', 'title': 'Return'},
+                        {'id': 'exchange', 'title': 'Exchange'},
+                        {'id': 'support', 'title': 'Support'},
+                        {'id': 'other', 'title': 'Other'},
+                    ],
+                }
+            }
+
+        elif next_screen == 'SUBMIT':
+            order_id = data.get('order_id', '')
+            request_type = data.get('request_type', '')
+            subject = data.get('subject', '')
+            description = data.get('description', '')
+            logger.info(json.dumps({
+                'flow_submit': True, 'order_id': order_id,
+                'request_type': request_type, 'subject': subject,
+                'requestId': request_id,
+            }))
+            response_payload = {
+                'screen': 'SUCCESS',
+                'data': {
+                    'message': f'Request submitted for {order_id}. We will get back to you shortly.',
+                }
+            }
+
+    # Error notification acknowledgement
+    if not response_payload and data.get('error'):
+        response_payload = {'data': {'acknowledged': True}}
+
+    if not response_payload:
+        response_payload = {'data': {'error': f'Unknown action: {action}'}}
+
+    # Step 3: Encrypt the response
+    try:
+        encrypted_response = _encrypt_flow_response(response_payload, aes_key, iv)
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': encrypted_response,
+        }
+    except Exception as e:
+        logger.error(f'[{request_id}] Flow encryption failed: {e}')
+        return _resp(500, {'error': 'Encryption failed'})
+
+
+
+def _fetch_orders_for_flow(phone: str, email: str) -> list:
+    """
+    Fetch WD-ORD numbers for a user by phone or email.
+    Queries the Wix /_functions/orders endpoint which returns orders with
+    customOrderNumber (WD-ORD) and buyerPhone/buyerEmail for matching.
+    Returns list of {id, title} for WhatsApp Flow dropdown.
+    """
+    order_ids = []
+
+    try:
+        wix_site_url = os.environ.get('WIX_SITE_URL', 'https://www.wecare.digital')
+
+        # Get API key from env or Secrets Manager for Wix auth
+        api_key = os.environ.get('WIX_API_KEY', '')
+        if not api_key:
+            try:
+                resp = secrets_client.get_secret_value(SecretId='wecare/wix-api-key')
+                api_key = resp.get('SecretString', '').strip()
+            except Exception:
+                pass
+
+        # Normalize phone for matching
+        clean_phone = ''
+        if phone:
+            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
+            # Strip country code if present (91XXXXXXXXXX → XXXXXXXXXX)
+            if len(clean_phone) > 10 and clean_phone.startswith('91'):
+                clean_phone_short = clean_phone[2:]
+            else:
+                clean_phone_short = clean_phone
+
+        # Query by email first (more reliable), then by phone
+        query_param = ''
+        if email:
+            query_param = f'email={urllib.parse.quote(email)}'
+        # Always fetch a reasonable batch
+        url = f'{wix_site_url}/_functions/orders?limit=50&{query_param}'
+
+        headers = {}
+        if api_key:
+            headers['x-api-key'] = api_key
+
+        req = urllib.request.Request(url, headers=headers, method='GET')
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+            orders = result.get('orders', [])
+
+            for order in orders:
+                wd_id = order.get('customOrderNumber', '') or (order.get('customField', {}) or {}).get('value', '')
+                if not wd_id or not wd_id.startswith('WD-ORD'):
+                    continue
+
+                # Match by phone if no email filter was used
+                if not email and clean_phone:
+                    order_phone = (order.get('buyerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                    if clean_phone_short not in order_phone and clean_phone not in order_phone:
+                        continue
+
+                order_ids.append({'id': wd_id, 'title': wd_id})
+
+        logger.info(json.dumps({
+            'action': 'fetch_orders_for_flow', 'source': 'wix',
+            'count': len(order_ids), 'phone': (phone or '')[:6] + '***',
+            'email': (email or '')[:3] + '***',
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({'action': 'fetch_orders_for_flow', 'error': str(e)}))
+
+    return order_ids
+
+
+# ============================================================================
 # HANDLER
 # ============================================================================
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -570,12 +827,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _resp(400, {'error': 'phoneId required'})
             return _send_interactive_list(phone_id, body)
 
-        elif '/interactive-list' in path:
-            phone_id = params.get('phoneId') or body.get('phoneId')
-            if not phone_id:
-                return _resp(400, {'error': 'phoneId required'})
-            return _send_interactive_list(phone_id, body)
-
         elif '/calling-settings' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
             if not phone_id:
@@ -598,6 +849,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'GET':
                 return _get_phone_settings(phone_id)
             return _update_phone_settings(phone_id, body)
+
+        elif '/flow-data' in path:
+            if method == 'POST':
+                return _handle_flow_data(body, request_id)
+            return _resp(405, {'error': 'POST only'})
 
         return _resp(404, {'error': f'Unknown path: {path}'})
     except Exception as e:
