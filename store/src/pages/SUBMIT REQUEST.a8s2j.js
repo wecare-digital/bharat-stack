@@ -1,26 +1,20 @@
 /**
  * SUBMIT REQUEST Page (a8s2j) — WECARE.DIGITAL
- * Fallback: same logic as masterPage.js
- * NOTE: Wix may not pull this (one-way sync), masterPage.js is primary.
+ * Fallback page code (Wix may not pull from Git for this page).
+ * masterPage.js has the same logic as primary.
+ *
+ * - Standalone dropdown #dropdown_sr → populated with ALL order IDs
+ * - Wix Form V2 field key order_id_1 → set to selected order
+ * - onChange wires dropdown selection → form field
  */
 import wixLocationFrontend from 'wix-location-frontend';
 import { currentMember } from 'wix-members-frontend';
 import { getMyOrderIdList } from 'backend/member-orders.web.js';
 
 $w.onReady(function () {
-  console.log('[SR-a8s] Page code running');
-  fillForm();
-});
-
-function fillForm() {
-  var dropdown = null;
-  var ids = ['#dropdown_sr', '#dropdownSr', '#dropdown1', '#dropdown2'];
-  for (var i = 0; i < ids.length; i++) {
-    try {
-      var el = $w(ids[i]);
-      if (el && el.options !== undefined) { dropdown = el; console.log('[SR-a8s] Dropdown:', ids[i]); break; }
-    } catch (e) {}
-  }
+  console.log('[SR-a8s] onReady');
+  var form = findForm();
+  var dropdown = findDropdown();
 
   currentMember.getMember({ fieldsets: ['FULL'] })
     .then(function (member) {
@@ -29,11 +23,13 @@ function fillForm() {
       if (!email && member.contactDetails && member.contactDetails.emails) {
         email = member.contactDetails.emails[0] || '';
       }
-      if (!email) return null;
-      return getMyOrderIdList(email);
+      return email ? getMyOrderIdList(email) : null;
     })
     .then(function (orderIds) {
-      if (!orderIds || orderIds.length === 0) return;
+      if (!orderIds || !orderIds.length) {
+        if (dropdown) try { dropdown.disable(); } catch (e) {}
+        return;
+      }
       var opts = orderIds.map(function (o) { return { label: o.label, value: o.value }; });
       var query = wixLocationFrontend.query || {};
       var selectedId = query.orderId || orderIds[0].value;
@@ -42,12 +38,30 @@ function fillForm() {
         try { dropdown.options = opts; dropdown.value = selectedId; } catch (e) {}
         try {
           dropdown.onChange(function (ev) {
-            try { $w('#form1').setFieldValues({ order_id_1: ev.target.value }); } catch (e2) {}
+            setFormField(form, 'order_id_1', ev.target.value);
           });
         } catch (e) {}
       }
-      try { $w('#form1').setFieldValues({ order_id_1: selectedId }); } catch (e) {}
-      try { $w('#form1').setFieldValues({ dropdown_sr: selectedId }); } catch (e) {}
+      setFormField(form, 'order_id_1', selectedId);
     })
-    .catch(function (err) { console.error('[SR-a8s] Error:', err); });
+    .catch(function (err) { console.error('[SR-a8s]', err); });
+});
+
+function findForm() {
+  var ids = ['#form1', '#wixForms1', '#wixForms2', '#submitRequestForm'];
+  for (var i = 0; i < ids.length; i++) {
+    try { var f = $w(ids[i]); if (f && typeof f.setFieldValues === 'function') return f; } catch (e) {}
+  }
+  return null;
+}
+function findDropdown() {
+  var ids = ['#dropdown_sr', '#dropdownSr', '#dropdown1', '#dropdown2'];
+  for (var i = 0; i < ids.length; i++) {
+    try { var el = $w(ids[i]); if (el && el.options !== undefined) return el; } catch (e) {}
+  }
+  return null;
+}
+function setFormField(form, key, value) {
+  if (!form) return;
+  try { var f = {}; f[key] = value; form.setFieldValues(f); } catch (e) {}
 }
