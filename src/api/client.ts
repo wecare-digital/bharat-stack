@@ -3494,6 +3494,7 @@ export async function executeCleanup(selected: string[]): Promise<{ results: Cle
 export interface SubmitRequest {
   id: string;
   requestId: string;
+  requestNumber?: string;  // WD-SR-XXXXXXXX
   flowToken?: string;
   phone: string;
   senderName?: string;
@@ -3514,4 +3515,23 @@ export async function listSubmitRequests(paymentStatus?: string): Promise<Submit
   if (paymentStatus) url += `?paymentStatus=${paymentStatus}`;
   const data = await apiCall<any>(url);
   return data?.requests || [];
+}
+
+export interface FlowLog {
+  id: string;
+  type: string;
+  flowToken?: string;
+  phone: string;
+  action: string;
+  screen: string;
+  dataKeys?: string[];
+  requestId?: string;
+  createdAt: number;
+}
+
+export async function listFlowLogs(phone?: string): Promise<FlowLog[]> {
+  let url = `${API_BASE}/wa-business/flow-logs`;
+  if (phone) url += `?phone=${encodeURIComponent(phone)}`;
+  const data = await apiCall<any>(url);
+  return data?.logs || [];
 }

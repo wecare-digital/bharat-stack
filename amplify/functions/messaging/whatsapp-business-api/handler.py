@@ -629,6 +629,22 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
 
     response_payload = None
 
+    # Extract phone from flow_token for logging
+    _flow_phone = ''
+    if flow_token and '-ph-' in flow_token:
+        _flow_phone = flow_token.split('-ph-', 1)[1]
+
+    # Log every flow interaction (non-ping) for audit trail
+    if action != 'ping':
+        try:
+            _log_flow_event(
+                flow_token=flow_token, phone=_flow_phone,
+                action=action, screen=screen,
+                data_keys=list(data.keys()), request_id=request_id,
+            )
+        except Exception:
+            pass  # Never block flow for logging failures
+
     # Step 2: Process the action
     # NOTE: Per Meta docs, encrypted responses must NOT include "version".
     # Ping → {"data": {"status": "active"}}
@@ -1117,6 +1133,67 @@ def _list_submit_requests(params: Dict) -> Dict:
         return _resp(500, {'error': str(e)})
 
 
+def _log_flow_event(flow_token: str, phone: str, action: str, screen: str,
+                    data_keys: list, request_id: str):
+    """
+    Log a flow interaction event to SubmitRequestsTable for audit trail.
+    Uses type='flow_log' to distinguish from actual submissions.
+    """
+    try:
+        now = int(time.time())
+        table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
+        item = {
+            'id': f'flog-{uuid.uuid4().hex[:12]}',
+            'type': 'flow_log',
+            'flowToken': flow_token,
+            'phone': phone,
+            'action': action,
+            'screen': screen,
+            'dataKeys': data_keys,
+            'requestId': request_id,
+            'createdAt': Decimal(str(now)),
+        }
+        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
+    except Exception as e:
+        logger.warning(f'Flow log write failed: {e}')
+
+
+def _list_flow_logs(params: Dict) -> Dict:
+    """List flow interaction logs from SubmitRequestsTable (type=flow_log)."""
+    try:
+        table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
+        limit = min(int(params.get('limit', '100')), 500)
+        phone_filter = params.get('phone', '')
+
+        # Scan for flow_log type records
+        filter_expr = '#t = :t'
+        expr_names = {'#t': 'type'}
+        expr_values = {':t': 'flow_log'}
+
+        if phone_filter:
+            filter_expr += ' AND contains(phone, :ph)'
+            expr_values[':ph'] = phone_filter.replace('+', '').replace(' ', '')
+
+        resp = table.scan(
+            FilterExpression=filter_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values,
+            Limit=limit,
+        )
+
+        items = resp.get('Items', [])
+        for item in items:
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    item[k] = int(v) if v == int(v) else float(v)
+
+        items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+        return _resp(200, {'logs': items, 'count': len(items)})
+    except Exception as e:
+        logger.error(f'List flow logs error: {e}')
+        return _resp(500, {'error': str(e)})
+
+
 # ============================================================================
 # HANDLER
 # ============================================================================
@@ -1232,6 +1309,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif '/submit-requests' in path:
             if method == 'GET':
                 return _list_submit_requests(params)
+            return _resp(405, {'error': 'GET only'})
+
+        elif '/flow-logs' in path:
+            if method == 'GET':
+                return _list_flow_logs(params)
             return _resp(405, {'error': 'GET only'})
 
         return _resp(404, {'error': f'Unknown path: {path}'})

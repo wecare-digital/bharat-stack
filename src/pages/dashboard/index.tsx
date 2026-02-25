@@ -628,6 +628,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   // Submit Requests state
   const [submitRequests, setSubmitRequests] = useState<api.SubmitRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  // Flow Logs state
+  const [flowLogs, setFlowLogs] = useState<api.FlowLog[]>([]);
+  const [flowLogsLoading, setFlowLogsLoading] = useState(false);
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     
@@ -669,11 +672,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  // Load submit requests when tab is activated
+  // Load submit requests and flow logs when tab is activated
   useEffect(() => {
     if (activeTab === 'requests' && submitRequests.length === 0) {
       setRequestsLoading(true);
       api.listSubmitRequests().then(setSubmitRequests).catch(console.error).finally(() => setRequestsLoading(false));
+      setFlowLogsLoading(true);
+      api.listFlowLogs().then(setFlowLogs).catch(console.error).finally(() => setFlowLogsLoading(false));
     }
   }, [activeTab]);
 
@@ -2448,7 +2453,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <>
                   {/* Config cards */}
                   {[
-                    { key: 'flow_triggers_config', label: 'Flow Triggers (Keywords + Messages)', desc: 'Keyword-to-flow mapping: keywords, message content (header/body/footer/CTA), flow ID, enable/disable' },
+                    { key: 'flow_triggers_config', label: 'Flow Triggers (Keywords + Messages)', desc: 'Keyword-to-flow mapping: keywords, message body, footer, CTA, flow ID, enable/disable' },
                     { key: 'welcome_message_config', label: 'Welcome / Main Menu', desc: 'Header, body, footer, button text, sections & rows for the main menu' },
                     { key: 'bot_options_config', label: 'Options Menu', desc: 'Do more / Done buttons shown after each action' },
                     { key: 'bot_rating_config', label: 'Rating Menu', desc: 'Feedback buttons shown when user is done' },
@@ -2474,12 +2479,65 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                           </Button>
                         </div>
                       </div>
-                      {botFlowConfigs[item.key] && (
+
+                      {/* Friendly display for flow_triggers_config */}
+                      {item.key === 'flow_triggers_config' && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          {(() => {
+                            const cfg = botFlowConfigs[item.key] || {};
+                            const hasConfig = Object.keys(cfg).length > 0;
+                            return (
+                              <>
+                                {!hasConfig && (
+                                  <div style={{ padding: '0.5rem', color: '#999', fontSize: '0.85rem' }}>
+                                    Not configured — using Lambda defaults (keywords: submit request, sr, raise request | Flow ID: 25854716414220116)
+                                  </div>
+                                )}
+                                {hasConfig && Object.entries(cfg).map(([flowKey, trigger]: [string, any]) => (
+                                  <div key={flowKey} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                      <strong style={{ color: '#1e40af' }}>{flowKey}</strong>
+                                      <span style={{
+                                        padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
+                                        background: trigger?.enabled !== false ? '#dcfce7' : '#fef2f2',
+                                        color: trigger?.enabled !== false ? '#166534' : '#991b1b',
+                                      }}>
+                                        {trigger?.enabled !== false ? '● Enabled' : '○ Disabled'}
+                                      </span>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '4px 12px', fontSize: '0.8rem' }}>
+                                      <span style={{ color: '#888' }}>Flow ID:</span>
+                                      <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{trigger?.flowId || '(default)'}</span>
+                                      <span style={{ color: '#888' }}>Keywords:</span>
+                                      <span>{(trigger?.keywords || []).map((k: string) => `"${k}"`).join(', ') || '(default)'}</span>
+                                      <span style={{ color: '#888' }}>Body:</span>
+                                      <span style={{ maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trigger?.message?.body || '(default)'}</span>
+                                      <span style={{ color: '#888' }}>Footer:</span>
+                                      <span>{trigger?.message?.footer || '(default)'}</span>
+                                      <span style={{ color: '#888' }}>CTA:</span>
+                                      <span>{trigger?.message?.flowCta || '(default)'}</span>
+                                      {trigger?.message?.header && (
+                                        <>
+                                          <span style={{ color: '#888' }}>Header:</span>
+                                          <span>{trigger?.message?.header}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Generic JSON display for other configs */}
+                      {item.key !== 'flow_triggers_config' && botFlowConfigs[item.key] && (
                         <pre style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '0.375rem', fontSize: '0.75rem', maxHeight: '200px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {JSON.stringify(botFlowConfigs[item.key], null, 2)}
                         </pre>
                       )}
-                      {!botFlowConfigs[item.key] && (
+                      {item.key !== 'flow_triggers_config' && !botFlowConfigs[item.key] && (
                         <div style={{ padding: '0.5rem', color: '#999', fontSize: '0.85rem' }}>
                           Not configured — using Lambda defaults
                         </div>
@@ -3627,6 +3685,71 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             </td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                               {req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Flow Interaction Logs */}
+              <div className="section" style={{ marginTop: '2rem' }}>
+                <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3>Flow Interaction Logs</h3>
+                  <button className="refresh-btn" onClick={async () => {
+                    setFlowLogsLoading(true);
+                    try { setFlowLogs(await api.listFlowLogs()); } catch(e) { console.error(e); }
+                    finally { setFlowLogsLoading(false); }
+                  }} disabled={flowLogsLoading}>
+                    {flowLogsLoading ? '...' : <RefreshIcon size={16} />}
+                  </button>
+                </div>
+                <p style={{ color: '#888', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  Every flow screen interaction is logged here — see who opened the flow, which screen they reached, and if they completed or abandoned.
+                </p>
+
+                {flowLogs.length === 0 && !flowLogsLoading && (
+                  <div className="empty-state">
+                    <span className="icon"><DocumentIcon size={32} /></span>
+                    <p>No flow logs yet. Logs appear when users interact with WhatsApp Flows.</p>
+                  </div>
+                )}
+
+                {flowLogs.length > 0 && (
+                  <div className="table-wrapper" style={{ overflowX: 'auto' }}>
+                    <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
+                          <th style={{ padding: '8px 12px' }}>Phone</th>
+                          <th style={{ padding: '8px 12px' }}>Action</th>
+                          <th style={{ padding: '8px 12px' }}>Screen</th>
+                          <th style={{ padding: '8px 12px' }}>Data Keys</th>
+                          <th style={{ padding: '8px 12px' }}>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {flowLogs.map(log => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{log.phone || '—'}</td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
+                                background: log.action === 'INIT' ? '#dbeafe' : log.action === 'data_exchange' ? '#f3e8ff' : '#f1f5f9',
+                                color: log.action === 'INIT' ? '#1e40af' : log.action === 'data_exchange' ? '#6b21a8' : '#475569',
+                              }}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>
+                              {log.screen || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: '#888' }}>
+                              {log.dataKeys?.join(', ') || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                              {log.createdAt ? new Date(log.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
                             </td>
                           </tr>
                         ))}
