@@ -812,20 +812,16 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
     
     Per AWS docs (S3File.key): The key is a PREFIX — AWS appends the WhatsApp
     mediaId to create the final file path. For example:
-      key = "audio/example.ogg"  → final = "audio/example.ogg123.ogg"
-      key = "audio/"             → final = "audio/123.ogg"
+      key = "audio/"             → final = "audio/{mediaId}.ogg"
     
-    Strategy: Use key ending with "/" so the WhatsApp mediaId (which already
-    contains the correct extension) becomes the clean filename.
-    Final path: {MEDIA_PREFIX}wecare-digital-{8chars}/{whatsappMediaId}.{ext}
+    Strategy: Use MEDIA_PREFIX directly (ending with "/") so files land flat
+    under whatsapp-media/whatsapp-media-incoming/{mediaId}.{ext}
     
     Returns the actual S3 key of the downloaded file.
     """
     try:
-        # Build S3 key as a FOLDER prefix — AWS will append the mediaId as filename
-        # Per AWS docs: key ending with "/" means mediaId becomes the filename
-        short_id = message_id[:8]
-        s3_key_prefix = f"{MEDIA_PREFIX}wecare-digital-{short_id}/"
+        # Use MEDIA_PREFIX directly — files land flat, no subfolders
+        s3_key_prefix = MEDIA_PREFIX  # e.g. "whatsapp-media/whatsapp-media-incoming/"
         
         logger.info(json.dumps({
             'event': 'media_download_start',
@@ -860,11 +856,13 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
         }))
         
         # Find the actual file that AWS created in S3
+        # Search using MEDIA_PREFIX + whatsapp_media_id to find the exact file
+        search_prefix = f"{MEDIA_PREFIX}{whatsapp_media_id}"
         actual_s3_key = None
         try:
             s3_response = s3.list_objects_v2(
                 Bucket=MEDIA_BUCKET,
-                Prefix=s3_key_prefix,
+                Prefix=search_prefix,
                 MaxKeys=5
             )
             contents = s3_response.get('Contents', [])
@@ -874,7 +872,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
                 actual_s3_key = real_files[0]['Key']
                 logger.info(json.dumps({
                     'event': 'media_s3_key_found',
-                    'prefix': s3_key_prefix,
+                    'prefix': search_prefix,
                     'actualS3Key': actual_s3_key,
                     'fileSize': real_files[0].get('Size', 0),
                     'requestId': request_id
@@ -882,7 +880,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
         except Exception as list_err:
             logger.warning(json.dumps({
                 'event': 'media_s3_list_failed',
-                'prefix': s3_key_prefix,
+                'prefix': search_prefix,
                 'error': str(list_err),
                 'requestId': request_id
             }))
@@ -890,7 +888,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
         # Fallback: construct expected key from mimeType if list failed
         if not actual_s3_key:
             ext = _get_extension_from_mime(mime_type) if mime_type else _get_extension_from_type(media_type)
-            actual_s3_key = f"{s3_key_prefix}{whatsapp_media_id}{ext}"
+            actual_s3_key = f"{MEDIA_PREFIX}{whatsapp_media_id}{ext}"
             logger.warning(json.dumps({
                 'event': 'media_using_constructed_key',
                 'constructedKey': actual_s3_key,
