@@ -625,6 +625,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [botFlowEditKey, setBotFlowEditKey] = useState('');
   const [botFlowEditValue, setBotFlowEditValue] = useState('');
 
+  // Flow JSON state (inner pages control)
+  const [flowJson, setFlowJson] = useState<any>(null);
+  const [flowJsonLoading, setFlowJsonLoading] = useState(false);
+  const [flowJsonSaving, setFlowJsonSaving] = useState(false);
+  const [flowJsonEditMode, setFlowJsonEditMode] = useState(false);
+  const [flowJsonEditValue, setFlowJsonEditValue] = useState('');
+  const [flowJsonExpandedScreen, setFlowJsonExpandedScreen] = useState<string | null>(null);
+
   // Submit Requests state
   const [submitRequests, setSubmitRequests] = useState<api.SubmitRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -1201,7 +1209,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   useEffect(() => {
     if (activeTab === 'ai') loadAiConfig();
     if (activeTab === 'webhook') loadWebhooks();
-    if (activeTab === 'botflow') loadBotFlowConfigs();
+    if (activeTab === 'botflow') {
+      loadBotFlowConfigs();
+      loadFlowJson();
+    }
   }, [activeTab]);
 
   const loadBotFlowConfigs = async () => {
@@ -1235,6 +1246,33 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       console.error('Failed to save bot flow config');
     }
     setBotFlowSaving(false);
+  };
+
+  const loadFlowJson = async () => {
+    setFlowJsonLoading(true);
+    try {
+      const cfg = await api.getSystemConfig('whatsapp_flow_json');
+      if (cfg) setFlowJson(cfg);
+    } catch (error) {
+      console.log('Failed to load flow JSON');
+    }
+    setFlowJsonLoading(false);
+  };
+
+  const handleSaveFlowJson = async () => {
+    setFlowJsonSaving(true);
+    try {
+      const parsed = JSON.parse(flowJsonEditValue);
+      const ok = await api.updateSystemConfig('whatsapp_flow_json', parsed);
+      if (ok) {
+        setFlowJson(parsed);
+        setFlowJsonEditMode(false);
+        setFlowJsonEditValue('');
+      }
+    } catch {
+      alert('Invalid JSON');
+    }
+    setFlowJsonSaving(false);
   };
 
   // Stats
@@ -2586,6 +2624,165 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <strong>How it works:</strong> Configs stored here override Lambda defaults. The inbound handler reads these on each message.
                 Leave empty to use the hardcoded defaults in the Lambda code.
               </div>
+
+              {/* Flow JSON — Inner Pages Control */}
+              <div style={{ marginTop: '2rem', padding: '1.25rem', border: '1px solid #6366f1', borderRadius: '0.75rem', background: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div>
+                    <h4 style={{ margin: 0, color: '#4338ca' }}>📋 Flow JSON — Inner Pages</h4>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#888' }}>
+                      Full control of WhatsApp Flow screens (ORDER_SELECT, SUBMIT_REQUEST_FORM, TERMS, REVIEW, THANK_YOU). Stored in SystemConfigTable.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {flowJson && !flowJsonEditMode && (
+                      <Button variant="secondary" onClick={() => {
+                        setFlowJsonEditMode(true);
+                        setFlowJsonEditValue(JSON.stringify(flowJson, null, 2));
+                      }}>
+                        Edit JSON
+                      </Button>
+                    )}
+                    {!flowJson && !flowJsonEditMode && (
+                      <Button variant="primary" onClick={() => {
+                        setFlowJsonEditMode(true);
+                        setFlowJsonEditValue('');
+                      }}>
+                        Initialize
+                      </Button>
+                    )}
+                    <Button variant="secondary" onClick={loadFlowJson} loading={flowJsonLoading}>
+                      <RefreshIcon size={14} /> Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                {flowJsonLoading && <SkeletonCard />}
+
+                {!flowJsonLoading && !flowJson && !flowJsonEditMode && (
+                  <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#fefce8', borderRadius: '0.5rem', border: '1px dashed #eab308' }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📋</div>
+                    <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#854d0e' }}>No Flow JSON stored yet</div>
+                    <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v2.json</code> to enable screen-level control.</div>
+                  </div>
+                )}
+
+                {!flowJsonLoading && flowJson && !flowJsonEditMode && (
+                  <>
+                    {/* Routing Model */}
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f0f0ff', borderRadius: '0.375rem' }}>
+                      <strong style={{ fontSize: '0.85rem', color: '#4338ca' }}>Routing Model</strong>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        {flowJson.routing_model && Object.entries(flowJson.routing_model).map(([from, toArr]: [string, any]) => (
+                          <div key={from} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}>
+                            <span style={{ padding: '2px 8px', background: '#e0e7ff', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 600, color: '#3730a3' }}>{from}</span>
+                            {toArr && toArr.length > 0 ? (
+                              <>
+                                <span style={{ color: '#888' }}>→</span>
+                                {toArr.map((t: string) => (
+                                  <span key={t} style={{ padding: '2px 8px', background: '#dbeafe', borderRadius: '8px', fontFamily: 'monospace', color: '#1e40af' }}>{t}</span>
+                                ))}
+                              </>
+                            ) : (
+                              <span style={{ color: '#999', fontSize: '0.75rem' }}>(terminal)</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Screens */}
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: '#333' }}>
+                      Screens ({flowJson.screens?.length || 0})
+                    </div>
+                    {(flowJson.screens || []).map((screen: any, idx: number) => (
+                      <div key={screen.id || idx} style={{ marginBottom: '0.5rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', overflow: 'hidden' }}>
+                        <div
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.75rem', background: '#fafafa', cursor: 'pointer' }}
+                          onClick={() => setFlowJsonExpandedScreen(flowJsonExpandedScreen === screen.id ? null : screen.id)}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#4338ca', fontSize: '0.85rem' }}>{screen.id}</span>
+                            {screen.title && <span style={{ color: '#888', fontSize: '0.8rem' }}>— {screen.title}</span>}
+                            {screen.terminal && <span style={{ padding: '1px 6px', background: '#fef2f2', color: '#991b1b', borderRadius: '8px', fontSize: '10px', fontWeight: 600 }}>TERMINAL</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: '#888' }}>
+                            {screen.data && <span>{Object.keys(screen.data).length} data fields</span>}
+                            {screen.layout?.children && <span>{screen.layout.children.length} components</span>}
+                            <span style={{ fontSize: '14px' }}>{flowJsonExpandedScreen === screen.id ? '▼' : '▶'}</span>
+                          </div>
+                        </div>
+                        {flowJsonExpandedScreen === screen.id && (
+                          <div style={{ padding: '0.75rem', background: '#fff' }}>
+                            {/* Data schema */}
+                            {screen.data && Object.keys(screen.data).length > 0 && (
+                              <div style={{ marginBottom: '0.75rem' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>Data Schema</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                  {Object.entries(screen.data).map(([key, val]: [string, any]) => (
+                                    <span key={key} style={{ padding: '2px 8px', background: '#f3e8ff', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#6b21a8' }}>
+                                      {key}: {val?.type || 'object'}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {/* Layout components */}
+                            {screen.layout?.children && (
+                              <div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', marginBottom: '4px' }}>Layout Components</div>
+                                {screen.layout.children.map((comp: any, ci: number) => (
+                                  <div key={ci} style={{ padding: '4px 8px', marginBottom: '2px', background: '#f8fafc', borderRadius: '4px', fontSize: '0.8rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, color: '#0369a1', minWidth: '100px' }}>{comp.type}</span>
+                                    {comp.text && <span style={{ color: '#666', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{typeof comp.text === 'string' ? comp.text.substring(0, 80) : '(dynamic)'}</span>}
+                                    {comp.label && <span style={{ color: '#666' }}>label: {comp.label}</span>}
+                                    {comp.name && <span style={{ color: '#888', fontFamily: 'monospace', fontSize: '0.75rem' }}>name={comp.name}</span>}
+                                    {comp.src && <span style={{ color: '#888', fontSize: '0.75rem' }}>[image]</span>}
+                                    {comp.children && <span style={{ color: '#888', fontSize: '0.75rem' }}>({comp.children.length} children)</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Meta info */}
+                    <div style={{ marginTop: '0.75rem', display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#888' }}>
+                      {flowJson.version && <span>Flow version: {flowJson.version}</span>}
+                      {flowJson.data_api_version && <span>Data API: {flowJson.data_api_version}</span>}
+                    </div>
+                  </>
+                )}
+
+                {/* Edit modal */}
+                {flowJsonEditMode && (
+                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '1.5rem', width: '90%', maxWidth: '800px', maxHeight: '85vh', overflow: 'auto' }}>
+                      <h4 style={{ marginBottom: '0.5rem', color: '#4338ca' }}>Edit Flow JSON — Inner Pages</h4>
+                      <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1rem' }}>
+                        Paste the full WhatsApp Flow JSON (screens, routing_model, version). Stored in SystemConfigTable under key <code>whatsapp_flow_json</code>.
+                      </p>
+                      <textarea
+                        value={flowJsonEditValue}
+                        onChange={(e) => setFlowJsonEditValue(e.target.value)}
+                        rows={25}
+                        placeholder='Paste the full WhatsApp Flow JSON here (from submit-request-flow-v2.json)...'
+                        style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical' }}
+                      />
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+                        <Button variant="secondary" onClick={() => { setFlowJsonEditMode(false); setFlowJsonEditValue(''); }}>
+                          Cancel
+                        </Button>
+                        <Button variant="primary" loading={flowJsonSaving} onClick={handleSaveFlowJson}>
+                          Save Flow JSON
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -3657,7 +3854,9 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                           <th style={{ padding: '8px 12px' }}>Order ID</th>
                           <th style={{ padding: '8px 12px' }}>Subject</th>
                           <th style={{ padding: '8px 12px' }}>Description</th>
+                          <th style={{ padding: '8px 12px' }}>Amount</th>
                           <th style={{ padding: '8px 12px' }}>Payment</th>
+                          <th style={{ padding: '8px 12px' }}>Txn ID</th>
                           <th style={{ padding: '8px 12px' }}>Date</th>
                         </tr>
                       </thead>
@@ -3671,6 +3870,9 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{req.orderId}</td>
                             <td style={{ padding: '8px 12px' }}>{req.subject || '—'}</td>
                             <td style={{ padding: '8px 12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={req.description}>{req.description || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>
+                              {req.paymentAmount ? `₹${(req.paymentAmount / 100).toFixed(2)}` : '—'}
+                            </td>
                             <td style={{ padding: '8px 12px' }}>
                               <span style={{
                                 padding: '2px 8px',
@@ -3683,6 +3885,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                                 {req.paymentStatus === 'captured' ? '✓ Paid' : req.paymentStatus === 'failed' ? '✗ Failed' : '⏳ Pending'}
                               </span>
                             </td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#059669' }}>{req.transactionId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                               {req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
                             </td>

@@ -890,6 +890,8 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
 
     amount_paise = 4900
     amount_rupees = amount_paise / 100
+    gst_rate = 18
+    gst_paise = round(amount_paise * gst_rate / 100)  # 882 paise = ₹8.82
     ref_id = payment_ref_id or f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
     item_name = 'Service Request'
 
@@ -915,7 +917,7 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
                     'currency': 'INR',
                     'itemName': item_name,
                     'quantity': 1,
-                    'gstRate': 0,
+                    'gstRate': gst_rate,
                     'gstin': '19AADFW7431N1ZK',
                     'orderId': order_id,
                     'order': {
@@ -925,11 +927,12 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
                             'name': item_name,
                             'amount': {'value': amount_paise, 'offset': 100},
                             'quantity': 1,
+                            'gstRate': gst_rate,
                         }],
                         'subtotal': {'value': amount_paise, 'offset': 100},
                         'discount': {'value': 0, 'offset': 100, 'description': 'None'},
                         'shipping': {'value': 0, 'offset': 100, 'description': 'N/A'},
-                        'tax': {'value': 0, 'offset': 100, 'description': 'Inclusive'},
+                        'tax': {'value': gst_paise, 'offset': 100, 'description': f'GST {gst_rate}%'},
                     },
                 }
             })
@@ -973,7 +976,7 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
             f'*Payment Ref:* {payment_ref_id}\n'
             f'*Order:* {order_id}\n'
             f'*Subject:* {subject}\n\n'
-            'A payment request of \u20b949 will be sent shortly. '
+            'Please complete the payment using the payment card sent above \u2b06\ufe0f\n'
             'Our team will review your request within 24 hours.\n\n'
             '_Thank you for choosing WECARE.DIGITAL_'
         )
