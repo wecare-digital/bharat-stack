@@ -4273,6 +4273,7 @@ def _store_ai_interaction(message_id: str, query: str, response: str, request_id
     try:
         ai_table = dynamodb.Table(AI_INTERACTIONS_TABLE)
         ai_table.put_item(Item={
+            'id': str(uuid.uuid4()),
             'interactionId': str(uuid.uuid4()),
             'messageId': message_id,
             'query': query,
