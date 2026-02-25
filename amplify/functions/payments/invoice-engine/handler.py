@@ -1736,7 +1736,7 @@ def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
                 fy = parts[1]
                 seq_table = dynamodb.Table(INVOICES_TABLE.replace('InvoicesTable', 'SystemConfigTable'))
                 seq_table.update_item(
-                    Key={'configKey': f'invoice_seq_{fy}'},
+                    Key={'id': f'invoice_seq_{fy}'},
                     UpdateExpression='SET lastSeq = lastSeq - :one',
                     ConditionExpression='lastSeq > :zero',
                     ExpressionAttributeValues={':one': 1, ':zero': 0},

@@ -388,7 +388,7 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
         # Fetch template status events
         if event_type in ['all', 'template_status']:
             try:
-                response = config_table.get_item(Key={'configKey': 'whatsapp_events_template_status'})
+                response = config_table.get_item(Key={'id': 'whatsapp_events_template_status'})
                 if 'Item' in response:
                     events['templateStatus'] = json.loads(response['Item'].get('configValue', '[]'))
             except Exception as e:
@@ -397,7 +397,7 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
         # Fetch phone quality events
         if event_type in ['all', 'phone_quality']:
             try:
-                response = config_table.get_item(Key={'configKey': 'whatsapp_events_phone_quality'})
+                response = config_table.get_item(Key={'id': 'whatsapp_events_phone_quality'})
                 if 'Item' in response:
                     events['phoneQuality'] = json.loads(response['Item'].get('configValue', '[]'))
             except Exception as e:
@@ -406,7 +406,7 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
         # Fetch account update events
         if event_type in ['all', 'account_update']:
             try:
-                response = config_table.get_item(Key={'configKey': 'whatsapp_events_account_update'})
+                response = config_table.get_item(Key={'id': 'whatsapp_events_account_update'})
                 if 'Item' in response:
                     events['accountUpdates'] = json.loads(response['Item'].get('configValue', '[]'))
             except Exception as e:
