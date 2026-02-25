@@ -664,6 +664,34 @@ const schema = a.schema({
       index('templateName'),
     ])
     .authorization((allow) => [allow.authenticated()]),
+  // Table 27: SubmitRequests - WhatsApp Flow submit request submissions
+  SubmitRequest: a
+    .model({
+      id: a.id().required(),
+      requestId: a.string().required(), // Lambda request ID
+      flowToken: a.string(),
+      phone: a.string().required(),
+      senderName: a.string(),
+      contactId: a.string(),
+      orderId: a.string().required(),
+      subject: a.string(),
+      description: a.string(),
+      paymentStatus: a.string().default('pending'), // pending, captured, failed
+      paymentReferenceId: a.string(), // SR-{orderId}-{requestId}
+      paymentAmount: a.integer().default(4900), // paise
+      transactionId: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('phone'),
+      index('orderId'),
+      index('paymentStatus'),
+      index('paymentReferenceId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
 });
 
 export type Schema = ClientSchema<typeof schema>;

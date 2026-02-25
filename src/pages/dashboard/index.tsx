@@ -25,7 +25,7 @@ interface PageProps {
   user?: any;
 }
 
-type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'botflow' | 'webhook' | 'guide';
+type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'botflow' | 'webhook' | 'guide' | 'requests';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
@@ -625,6 +625,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [botFlowEditKey, setBotFlowEditKey] = useState('');
   const [botFlowEditValue, setBotFlowEditValue] = useState('');
 
+  // Submit Requests state
+  const [submitRequests, setSubmitRequests] = useState<api.SubmitRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     
@@ -665,6 +668,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     const interval = setInterval(() => loadData(true), 30000);
     return () => clearInterval(interval);
   }, [loadData]);
+
+  // Load submit requests when tab is activated
+  useEffect(() => {
+    if (activeTab === 'requests' && submitRequests.length === 0) {
+      setRequestsLoading(true);
+      api.listSubmitRequests().then(setSubmitRequests).catch(console.error).finally(() => setRequestsLoading(false));
+    }
+  }, [activeTab]);
 
   const handleDeleteMessages = async () => {
     if (selectedMessages.length === 0) return;
@@ -1389,7 +1400,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'botflow', 'webhook', 'guide', 'search'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'botflow', 'webhook', 'guide', 'search', 'requests'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -1407,7 +1418,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'webhook' && <LinkIcon size={16} />}
               {tab === 'guide' && <DocumentIcon size={16} />}
               {tab === 'search' && <SearchIcon size={16} />}
-              <span>{tab === 'ai' ? 'AI' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              {tab === 'requests' && <DocumentIcon size={16} />}
+              <span>{tab === 'ai' ? 'AI' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab === 'requests' ? 'Requests' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -2436,6 +2448,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <>
                   {/* Config cards */}
                   {[
+                    { key: 'flow_triggers_config', label: 'Flow Triggers (Keywords + Messages)', desc: 'Keyword-to-flow mapping: keywords, message content (header/body/footer/CTA), flow ID, enable/disable' },
                     { key: 'welcome_message_config', label: 'Welcome / Main Menu', desc: 'Header, body, footer, button text, sections & rows for the main menu' },
                     { key: 'bot_options_config', label: 'Options Menu', desc: 'Do more / Done buttons shown after each action' },
                     { key: 'bot_rating_config', label: 'Rating Menu', desc: 'Feedback buttons shown when user is done' },
@@ -3549,6 +3562,79 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <p>Type to search contacts and messages</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* REQUESTS TAB */}
+          {activeTab === 'requests' && (
+            <div className="requests-tab">
+              <div className="section">
+                <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3>Submit Requests (WhatsApp Flow)</h3>
+                  <button className="refresh-btn" onClick={async () => {
+                    setRequestsLoading(true);
+                    try { setSubmitRequests(await api.listSubmitRequests()); } catch(e) { console.error(e); }
+                    finally { setRequestsLoading(false); }
+                  }} disabled={requestsLoading}>
+                    {requestsLoading ? '...' : <RefreshIcon size={16} />}
+                  </button>
+                </div>
+
+                {submitRequests.length === 0 && !requestsLoading && (
+                  <div className="empty-state">
+                    <span className="icon"><DocumentIcon size={32} /></span>
+                    <p>No submit requests yet. Requests will appear here when users complete the WhatsApp Flow.</p>
+                  </div>
+                )}
+
+                {submitRequests.length > 0 && (
+                  <div className="table-wrapper" style={{ overflowX: 'auto' }}>
+                    <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left' }}>
+                          <th style={{ padding: '8px 12px' }}>Phone</th>
+                          <th style={{ padding: '8px 12px' }}>Name</th>
+                          <th style={{ padding: '8px 12px' }}>Request #</th>
+                          <th style={{ padding: '8px 12px' }}>Payment Ref</th>
+                          <th style={{ padding: '8px 12px' }}>Order ID</th>
+                          <th style={{ padding: '8px 12px' }}>Subject</th>
+                          <th style={{ padding: '8px 12px' }}>Description</th>
+                          <th style={{ padding: '8px 12px' }}>Payment</th>
+                          <th style={{ padding: '8px 12px' }}>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {submitRequests.map(req => (
+                          <tr key={req.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{req.phone}</td>
+                            <td style={{ padding: '8px 12px' }}>{req.senderName || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#2563eb' }}>{req.requestNumber || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#7c3aed' }}>{req.paymentReferenceId || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{req.orderId}</td>
+                            <td style={{ padding: '8px 12px' }}>{req.subject || '—'}</td>
+                            <td style={{ padding: '8px 12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={req.description}>{req.description || '—'}</td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                background: req.paymentStatus === 'captured' ? '#dcfce7' : req.paymentStatus === 'failed' ? '#fef2f2' : '#fef9c3',
+                                color: req.paymentStatus === 'captured' ? '#166534' : req.paymentStatus === 'failed' ? '#991b1b' : '#854d0e',
+                              }}>
+                                {req.paymentStatus === 'captured' ? '✓ Paid' : req.paymentStatus === 'failed' ? '✗ Failed' : '⏳ Pending'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                              {req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

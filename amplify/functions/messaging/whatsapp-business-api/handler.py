@@ -29,9 +29,14 @@ Routes:
 import os
 import json
 import logging
+import hmac
+import hashlib
+import time
+import uuid
 import boto3
 import urllib.request
 import urllib.parse
+from decimal import Decimal
 from typing import Dict, Any
 
 logger = logging.getLogger()
@@ -67,18 +72,12 @@ ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'base-wecare-digital-Wix
 # Lambda client for invoking outbound WhatsApp (payment after flow)
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'Contact')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
+SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable')
 
 # AWS EUM phone number IDs (for outbound Lambda)
 PHONE1_EUM_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
 
-# Request type pricing (₹ — all types ₹49)
-REQUEST_TYPE_PRICE = {
-    'return': 4900,     # paise
-    'exchange': 4900,
-    'support': 4900,
-    'other': 4900,
-}
 
 def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
     """Get the correct token based on WABA or phone ID."""
@@ -96,6 +95,8 @@ def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
             secret = json.loads(raw)
             _token_cache['token1'] = (secret.get('access_token') or '').strip()
             _token_cache['token2'] = (secret.get('access_token_waba2') or secret.get('access_token') or '').strip()
+            _token_cache['app_secret'] = (secret.get('app_secret') or '').strip()
+            _token_cache['app_secret_waba2'] = (secret.get('app_secret_waba2') or secret.get('app_secret') or '').strip()
         except json.JSONDecodeError:
             import re
             m = re.search(r'access_token\s*:\s*([^,}]+)', raw)
@@ -107,13 +108,33 @@ def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
     return _token_cache.get(cache_key, _token_cache.get('token1', ''))
 
 
+def _get_app_secret(waba_id: str = None, phone_id: str = None) -> str:
+    """Get the correct app secret based on WABA or phone ID."""
+    use_waba2 = (waba_id in WABA2_IDS) or (phone_id in WABA2_IDS)
+    cache_key = 'app_secret_waba2' if use_waba2 else 'app_secret'
+    if cache_key in _token_cache:
+        return _token_cache[cache_key]
+    # Secrets are loaded in _get_meta_token — ensure loaded
+    _get_meta_token(waba_id=waba_id, phone_id=phone_id)
+    return _token_cache.get(cache_key, '')
+
+
 def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params: Dict = None, waba_id: str = None, phone_id: str = None) -> Dict:
     token = _get_meta_token(waba_id=waba_id, phone_id=phone_id)
+    app_secret = _get_app_secret(waba_id=waba_id, phone_id=phone_id)
     url = f'{GRAPH_BASE}/{endpoint}'
+    # Compute appsecret_proof
+    proof_params = {}
+    if app_secret:
+        proof = hmac.new(app_secret.encode('utf-8'), token.encode('utf-8'), hashlib.sha256).hexdigest()
+        proof_params['appsecret_proof'] = proof
     if params:
         qs = {k: v for k, v in params.items() if v is not None}
+        qs.update(proof_params)
         if qs:
             url += '?' + urllib.parse.urlencode(qs)
+    elif proof_params:
+        url += '?' + urllib.parse.urlencode(proof_params)
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     data = json.dumps(payload).encode('utf-8') if payload else None
     if method == 'GET':
@@ -636,46 +657,111 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
         # Meta strips "screen" from payload data — so route by current screen ID.
 
         if screen == 'ORDER_SELECT':
-            # User selected an order and tapped Continue → show REQUEST_FORM
+            # User selected an order → show SUBMIT_REQUEST_FORM
             selected_order = data.get('order_id', '')
             response_payload = {
-                'screen': 'REQUEST_FORM',
+                'screen': 'SUBMIT_REQUEST_FORM',
                 'data': {
                     'order_id': selected_order,
-                    'request_types': [
-                        {'id': 'return', 'title': 'Return'},
-                        {'id': 'exchange', 'title': 'Exchange'},
-                        {'id': 'support', 'title': 'Support'},
-                        {'id': 'other', 'title': 'Other'},
-                    ],
                 }
             }
 
-        elif screen == 'REQUEST_FORM':
-            # User filled the form and tapped Submit → show SUCCESS + send payment
+        elif screen == 'SUBMIT_REQUEST_FORM':
+            # User filled subject + description → show TERMS
             order_id = data.get('order_id', '')
-            request_type = data.get('request_type', '')
             subject = data.get('subject', '')
             description = data.get('description', '')
+            response_payload = {
+                'screen': 'TERMS',
+                'data': {
+                    'order_id': order_id,
+                    'subject': subject,
+                    'description': description,
+                }
+            }
+
+        elif screen == 'REVIEW':
+            # User confirmed and tapped Submit Request ₹49 → save, pay, confirm, close flow
+            order_id = data.get('order_id', '')
+            subject = data.get('subject', '')
+            description = data.get('description', '')
+
+            # Generate dynamic request number + separate payment reference
+            request_number = f'WD-SR-{uuid.uuid4().hex[:8].upper()}'
+            payment_ref_id = f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
+
             logger.info(json.dumps({
                 'flow_submit': True, 'order_id': order_id,
-                'request_type': request_type, 'subject': subject,
+                'subject': subject, 'description': description,
+                'request_number': request_number,
+                'payment_ref_id': payment_ref_id,
                 'requestId': request_id,
             }))
 
-            # Send ₹49 payment message asynchronously after flow completes
+            # Save submission to DynamoDB
             phone = ''
             if flow_token and '-ph-' in flow_token:
                 phone = flow_token.split('-ph-', 1)[1]
-            _send_payment_after_flow(
-                phone=phone, order_id=order_id, request_type=request_type,
-                subject=subject, request_id=request_id
-            )
+            try:
+                _save_submit_request(
+                    phone=phone, order_id=order_id,
+                    subject=subject, description=description,
+                    flow_token=flow_token, request_id=request_id,
+                    request_number=request_number,
+                    payment_ref_id=payment_ref_id
+                )
+            except Exception as save_err:
+                logger.error(json.dumps({
+                    'event': 'flow_save_outer_error',
+                    'error': str(save_err),
+                    'requestId': request_id,
+                }))
 
+            # Send ₹49 payment message asynchronously after flow completes
+            try:
+                _send_payment_after_flow(
+                    phone=phone, order_id=order_id,
+                    subject=subject, request_id=request_id,
+                    request_number=request_number,
+                    payment_ref_id=payment_ref_id
+                )
+            except Exception as pay_err:
+                logger.error(json.dumps({
+                    'event': 'flow_payment_outer_error',
+                    'error': str(pay_err),
+                    'phone': phone[:6] + '***' if phone else '',
+                    'requestId': request_id,
+                }))
+
+            # Send confirmation text message
+            try:
+                _send_flow_confirmation(
+                    phone=phone, order_id=order_id, subject=subject,
+                    request_id=request_id, request_number=request_number,
+                    payment_ref_id=payment_ref_id
+                )
+            except Exception as conf_err:
+                logger.error(json.dumps({
+                    'event': 'flow_confirmation_error',
+                    'error': str(conf_err),
+                    'requestId': request_id,
+                }))
+
+            # Navigate to THANK_YOU screen with generated IDs
+            # THANK_YOU is terminal:true — it closes the flow when user taps "Done"
+            response_payload = {
+                'screen': 'THANK_YOU',
+                'data': {
+                    'request_number': request_number,
+                    'payment_ref_id': payment_ref_id,
+                }
+            }
+
+        elif screen == 'THANK_YOU':
+            # User tapped "Done" on the terminal THANK_YOU screen → close flow
             response_payload = {
                 'screen': 'SUCCESS',
                 'data': {
-                    'message': f'Request submitted for {order_id}. A payment of ₹49 will be sent to you shortly.',
                     'extension_message_response': {
                         'params': {
                             'flow_token': flow_token,
@@ -706,22 +792,99 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
 
 
 
-def _send_payment_after_flow(phone: str, order_id: str, request_type: str, subject: str, request_id: str):
+def _save_submit_request(phone: str, order_id: str, subject: str, description: str,
+                         flow_token: str, request_id: str, request_number: str = '',
+                         payment_ref_id: str = '') -> str:
+    """Save flow submission to SubmitRequests DynamoDB table."""
+    try:
+        now = int(time.time())
+        submission_id = str(uuid.uuid4())
+        ref_id = payment_ref_id or f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
+
+        # Look up contact info
+        contact_id = _find_contact_by_phone(phone)
+        sender_name = ''
+        if contact_id:
+            try:
+                table = dynamodb.Table(CONTACTS_TABLE)
+                resp = table.get_item(Key={'id': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
+                sender_name = resp.get('Item', {}).get('name', '')
+            except Exception:
+                pass
+
+        item = {
+            'id': submission_id,
+            'requestId': request_id,
+            'requestNumber': request_number or ref_id,
+            'flowToken': flow_token,
+            'phone': phone,
+            'senderName': sender_name,
+            'contactId': contact_id,
+            'orderId': order_id,
+            'subject': subject,
+            'description': description,
+            'paymentStatus': 'pending',
+            'paymentReferenceId': ref_id,
+            'paymentAmount': 4900,
+            'createdAt': Decimal(str(now)),
+            'updatedAt': Decimal(str(now)),
+        }
+
+        table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
+        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
+
+        logger.info(json.dumps({
+            'event': 'submit_request_saved',
+            'submissionId': submission_id,
+            'orderId': order_id,
+            'phone': phone[:6] + '***' if phone else '',
+            'referenceId': ref_id,
+            'requestId': request_id,
+        }))
+        return submission_id
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'submit_request_save_error',
+            'error': str(e),
+            'orderId': order_id,
+            'requestId': request_id,
+        }))
+        return ''
+
+
+def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id: str,
+                             request_number: str = '', payment_ref_id: str = ''):
     """
     Send an order_details payment message (₹49) via the outbound Lambda
     after the user completes the Submit Request flow.
     """
+    logger.info(json.dumps({
+        'event': 'flow_payment_start',
+        'phone': phone[:6] + '***' if phone else 'none',
+        'orderId': order_id,
+        'subject': subject,
+        'requestNumber': request_number,
+        'paymentRefId': payment_ref_id,
+        'requestId': request_id,
+    }))
+
     if not phone:
         logger.warning(f'[{request_id}] No phone for payment — skipping')
         return
 
-    amount_paise = REQUEST_TYPE_PRICE.get(request_type, 4900)
+    amount_paise = 4900
     amount_rupees = amount_paise / 100
-    ref_id = f'SR-{order_id[:20]}-{request_id[:8]}'
-    item_name = f'Service Request ({request_type.title()})'
+    ref_id = payment_ref_id or f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
+    item_name = 'Service Request'
 
     # Look up contactId from DynamoDB
     contact_id = _find_contact_by_phone(phone)
+    logger.info(json.dumps({
+        'event': 'flow_payment_contact_lookup',
+        'contactId': contact_id or 'not_found',
+        'phone': phone[:6] + '***',
+        'requestId': request_id,
+    }))
 
     try:
         payload = {
@@ -742,7 +905,7 @@ def _send_payment_after_flow(phone: str, order_id: str, request_type: str, subje
                     'order': {
                         'status': 'pending',
                         'items': [{
-                            'retailer_id': f'SR-{request_type.upper()}',
+                            'retailer_id': 'SR-REQUEST',
                             'name': item_name,
                             'amount': {'value': amount_paise, 'offset': 100},
                             'quantity': 1,
@@ -766,7 +929,7 @@ def _send_payment_after_flow(phone: str, order_id: str, request_type: str, subje
             'event': 'flow_payment_sent',
             'phone': phone[:6] + '***',
             'orderId': order_id,
-            'requestType': request_type,
+            'subject': subject,
             'amount': amount_rupees,
             'referenceId': ref_id,
             'contactId': contact_id or 'direct_phone',
@@ -782,6 +945,47 @@ def _send_payment_after_flow(phone: str, order_id: str, request_type: str, subje
         }))
 
 
+def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id: str,
+                            request_number: str = '', payment_ref_id: str = ''):
+    """Send a WhatsApp text confirmation after the Submit Request flow completes."""
+    if not phone:
+        return
+    try:
+        msg = (
+            '\u2705 *Request Submitted Successfully*\n\n'
+            f'*Request No:* {request_number}\n'
+            f'*Payment Ref:* {payment_ref_id}\n'
+            f'*Order:* {order_id}\n'
+            f'*Subject:* {subject}\n\n'
+            'A payment request of \u20b949 will be sent shortly. '
+            'Our team will review your request within 24 hours.\n\n'
+            '_Thank you for choosing WECARE.DIGITAL_'
+        )
+        payload = {
+            'body': json.dumps({
+                'recipientPhone': phone,
+                'phoneNumberId': PHONE1_EUM_ID,
+                'message': msg,
+            })
+        }
+        lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+        logger.info(json.dumps({
+            'event': 'flow_confirmation_sent',
+            'phone': phone[:6] + '***',
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'flow_confirmation_error',
+            'error': str(e),
+            'requestId': request_id,
+        }))
+
+
 def _find_contact_by_phone(phone: str) -> str:
     """Look up contactId from DynamoDB Contacts table by phone number."""
     if not phone:
@@ -789,17 +993,19 @@ def _find_contact_by_phone(phone: str) -> str:
     try:
         # Normalize: strip + and spaces
         clean = phone.replace('+', '').replace(' ', '').replace('-', '')
+        with_plus = f'+{clean}'
         table = dynamodb.Table(CONTACTS_TABLE)
-        # Scan with phone filter (contacts table uses phone as an attribute)
-        resp = table.scan(
-            FilterExpression='phone = :p',
-            ExpressionAttributeValues={':p': clean},
-            Limit=1,
-            ProjectionExpression='id'
-        )
-        items = resp.get('Items', [])
-        if items:
-            return items[0].get('id', '')
+        # Try with + prefix first (contacts are stored as +91XXXXXXXXXX)
+        for variant in [with_plus, clean]:
+            resp = table.scan(
+                FilterExpression='phone = :p',
+                ExpressionAttributeValues={':p': variant},
+                Limit=1,
+                ProjectionExpression='id'
+            )
+            items = resp.get('Items', [])
+            if items:
+                return items[0].get('id', '')
     except Exception as e:
         logger.warning(f'Contact lookup failed for {phone[:6]}***: {e}')
     return ''
@@ -875,6 +1081,40 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
         logger.error(json.dumps({'action': 'fetch_orders_for_flow', 'error': str(e)}))
 
     return order_ids
+
+
+def _list_submit_requests(params: Dict) -> Dict:
+    """List submit request submissions from DynamoDB."""
+    try:
+        table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
+        limit = min(int(params.get('limit', '100')), 500)
+        payment_status = params.get('paymentStatus', '')
+
+        if payment_status:
+            resp = table.query(
+                IndexName='paymentStatus',
+                KeyConditionExpression='paymentStatus = :s',
+                ExpressionAttributeValues={':s': payment_status},
+                ScanIndexForward=False,
+                Limit=limit,
+            )
+        else:
+            resp = table.scan(Limit=limit)
+
+        items = resp.get('Items', [])
+        # Convert Decimal to int/float for JSON
+        for item in items:
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    item[k] = int(v) if v == int(v) else float(v)
+
+        # Sort by createdAt descending
+        items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+
+        return _resp(200, {'requests': items, 'count': len(items)})
+    except Exception as e:
+        logger.error(f'List submit requests error: {e}')
+        return _resp(500, {'error': str(e)})
 
 
 # ============================================================================
@@ -988,6 +1228,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'POST':
                 return _handle_flow_data(body, request_id)
             return _resp(405, {'error': 'POST only'})
+
+        elif '/submit-requests' in path:
+            if method == 'GET':
+                return _list_submit_requests(params)
+            return _resp(405, {'error': 'GET only'})
 
         return _resp(404, {'error': f'Unknown path: {path}'})
     except Exception as e:

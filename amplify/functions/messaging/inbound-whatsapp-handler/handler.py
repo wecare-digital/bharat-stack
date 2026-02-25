@@ -41,6 +41,7 @@ INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'whatsapp-media/whatsapp-media-incoming/')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
+SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable')
 
 # AI Lambda function names
 AI_QUERY_KB_FUNCTION = os.environ.get('AI_QUERY_KB_FUNCTION', 'wecare-ai-query-kb')
@@ -84,7 +85,7 @@ PAY_MSG = {
 PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
 
 # WhatsApp Flow IDs
-SUBMIT_REQUEST_FLOW_ID = os.environ.get('SUBMIT_REQUEST_FLOW_ID', '1934684610589164')
+SUBMIT_REQUEST_FLOW_ID = os.environ.get('SUBMIT_REQUEST_FLOW_ID', '1235100738173254')
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -450,15 +451,22 @@ def _process_message(
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
         content_lower = content.strip().lower()
-        # "submit request" / "submit a request" / "raise request" triggers the WhatsApp Flow
-        if content_lower in ('submit request', 'submit a request', 'raise request', 'raise a request', 'sr', 'request'):
-            _send_submit_request_flow(
-                contact_id=contact_id,
-                phone_number_id=aws_phone_number_id,
-                sender_phone=sender_phone,
-                request_id=request_id
-            )
-            return  # Skip AI automation — flow handles the rest
+        # Load flow triggers from SystemConfigTable (dashboard-configurable)
+        flow_triggers = _get_flow_triggers_config()
+        for flow_key, trigger in flow_triggers.items():
+            if not trigger.get('enabled', True):
+                continue
+            keywords = [k.lower() for k in trigger.get('keywords', [])]
+            if content_lower in keywords:
+                if flow_key == 'submit_request':
+                    _send_submit_request_flow(
+                        contact_id=contact_id,
+                        phone_number_id=aws_phone_number_id,
+                        sender_phone=sender_phone,
+                        request_id=request_id,
+                        flow_config=trigger,
+                    )
+                    return  # Skip AI automation — flow handles the rest
 
     # Process AI automation for supported message types
     # Now includes media types (image, audio, video, document) for multimodal AI
@@ -1834,6 +1842,10 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
         messages_table = dynamodb.Table(MESSAGES_TABLE)
         messages_table.put_item(Item={k: v for k, v in payment_record.items() if v is not None and v != ''})
         
+        # Link payment to SubmitRequest if reference_id starts with WD-PAY- or SR- (legacy)
+        if reference_id and (reference_id.startswith('WD-PAY-') or reference_id.startswith('SR-')):
+            _update_submit_request_payment(reference_id, payment_status, transaction_id, request_id)
+        
         logger.info(json.dumps({
             'event': 'payment_record_stored',
             'paymentId': payment_id,
@@ -1850,6 +1862,53 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
             'referenceId': reference_id,
             'error': str(e),
             'requestId': request_id
+        }))
+
+
+def _update_submit_request_payment(reference_id: str, payment_status: str,
+                                    transaction_id: str, request_id: str) -> None:
+    """Update SubmitRequest record with payment status when payment webhook arrives."""
+    try:
+        table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
+        now = int(time.time())
+        # Query by paymentReferenceId GSI
+        resp = table.query(
+            IndexName='paymentReferenceId',
+            KeyConditionExpression='paymentReferenceId = :ref',
+            ExpressionAttributeValues={':ref': reference_id},
+            Limit=1,
+        )
+        items = resp.get('Items', [])
+        if items:
+            submission_id = items[0]['id']
+            table.update_item(
+                Key={'id': submission_id},
+                UpdateExpression='SET paymentStatus = :s, transactionId = :t, updatedAt = :u',
+                ExpressionAttributeValues={
+                    ':s': payment_status,
+                    ':t': transaction_id,
+                    ':u': Decimal(str(now)),
+                },
+            )
+            logger.info(json.dumps({
+                'event': 'submit_request_payment_linked',
+                'submissionId': submission_id,
+                'referenceId': reference_id,
+                'paymentStatus': payment_status,
+                'requestId': request_id,
+            }))
+        else:
+            logger.warning(json.dumps({
+                'event': 'submit_request_not_found_for_payment',
+                'referenceId': reference_id,
+                'requestId': request_id,
+            }))
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'submit_request_payment_link_error',
+            'referenceId': reference_id,
+            'error': str(e),
+            'requestId': request_id,
         }))
 
 
@@ -2252,30 +2311,40 @@ def _send_ai_auto_reply(contact_id: str, content: str, phone_number_id: str, req
         }))
 
 
-def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phone: str, request_id: str) -> None:
+def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phone: str, request_id: str, flow_config: Dict = None) -> None:
     """
     Send the Submit Request WhatsApp Flow to the user.
     Passes sender's phone number so the endpoint can fetch their orders.
+    Message content is configurable via flow_config (from SystemConfigTable).
     """
     try:
+        # Resolve flow ID: config override > env var
+        flow_id = (flow_config or {}).get('flowId', '') or SUBMIT_REQUEST_FLOW_ID
+        msg = (flow_config or {}).get('message', {})
+
         # Encode phone in flow_token so the flow-data endpoint can extract it
         # during INIT (data_exchange mode doesn't pass custom data in the message)
         flow_token = f'sr-{uuid.uuid4()}-ph-{sender_phone}'
+        interactive_data = {
+            'body': msg.get('body', '\U0001f447Please use the self-service option below. Once we receive it, we\u2019ll review it and follow up if needed.'),
+            'footer': msg.get('footer', 'WECARE.DIGITAL'),
+            'flowId': flow_id,
+            'flowCta': msg.get('flowCta', 'Submit Request'),
+            'flowAction': 'data_exchange',
+            'flowToken': flow_token,
+        }
+        # Only include header if explicitly set in config
+        header_val = msg.get('header', '')
+        if header_val:
+            interactive_data['header'] = header_val
+
         payload = {
             'body': json.dumps({
                 'contactId': contact_id,
                 'phoneNumberId': phone_number_id,
                 'isInteractive': True,
                 'interactiveType': 'flow',
-                'interactiveData': {
-                    'header': 'WECARE.DIGITAL',
-                    'body': 'Submit a request for your order — returns, exchanges, or support.',
-                    'footer': 'Powered by WECARE.DIGITAL',
-                    'flowId': SUBMIT_REQUEST_FLOW_ID,
-                    'flowCta': 'Submit Request',
-                    'flowAction': 'data_exchange',
-                    'flowToken': flow_token,
-                },
+                'interactiveData': interactive_data,
             })
         }
 
@@ -2289,7 +2358,7 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
             'event': 'submit_request_flow_sent',
             'contactId': contact_id,
             'senderPhone': sender_phone,
-            'flowId': SUBMIT_REQUEST_FLOW_ID,
+            'flowId': flow_id,
             'flowToken': flow_token,
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
@@ -3302,6 +3371,49 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 # ============================================================================
 # BOT FLOW CONFIGS (loaded from SystemConfigTable, dashboard-manageable)
 # ============================================================================
+
+# Default flow triggers config — keyword-to-flow mapping
+DEFAULT_FLOW_TRIGGERS = {
+    'submit_request': {
+        'keywords': ['submit request', 'sr', 'raise request'],
+        'flowId': '25854716414220116',
+        'message': {
+            'body': '\U0001f447Please use the self-service option below. Once we receive it, we\u2019ll review it and follow up if needed.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Submit Request',
+        },
+        'enabled': True,
+    }
+}
+
+
+def _get_flow_triggers_config() -> Dict:
+    """Load flow triggers config from SystemConfigTable (id: 'flow_triggers_config')."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = config_table.get_item(Key={'id': 'flow_triggers_config'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            # Merge with defaults — config overrides per flow key
+            merged = {}
+            for key, default in DEFAULT_FLOW_TRIGGERS.items():
+                if key in config:
+                    entry = default.copy()
+                    entry.update(config[key])
+                    if 'message' in config[key]:
+                        entry['message'] = {**default.get('message', {}), **config[key]['message']}
+                    merged[key] = entry
+                else:
+                    merged[key] = default.copy()
+            # Also include any new flows defined in config but not in defaults
+            for key, val in config.items():
+                if key not in merged:
+                    merged[key] = val
+            return merged
+        return {k: v.copy() for k, v in DEFAULT_FLOW_TRIGGERS.items()}
+    except Exception:
+        return {k: v.copy() for k, v in DEFAULT_FLOW_TRIGGERS.items()}
 
 DEFAULT_MAIN_MENU = {
     'header': 'WECARE.DIGITAL',

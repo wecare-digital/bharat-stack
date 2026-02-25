@@ -3486,3 +3486,32 @@ export async function executeCleanup(selected: string[]): Promise<{ results: Cle
   });
   return { results: data?.results || [], totalDeleted: data?.totalDeleted || 0 };
 }
+
+// ============================================================================
+// SUBMIT REQUESTS API (WhatsApp Flow Submissions)
+// ============================================================================
+
+export interface SubmitRequest {
+  id: string;
+  requestId: string;
+  flowToken?: string;
+  phone: string;
+  senderName?: string;
+  contactId?: string;
+  orderId: string;
+  subject?: string;
+  description?: string;
+  paymentStatus: string; // pending, captured, failed
+  paymentReferenceId?: string;
+  paymentAmount?: number;
+  transactionId?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export async function listSubmitRequests(paymentStatus?: string): Promise<SubmitRequest[]> {
+  let url = `${API_BASE}/wa-business/submit-requests`;
+  if (paymentStatus) url += `?paymentStatus=${paymentStatus}`;
+  const data = await apiCall<any>(url);
+  return data?.requests || [];
+}
