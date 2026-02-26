@@ -21,6 +21,8 @@ from lambda_utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+origin = ''
+
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
@@ -28,6 +30,7 @@ OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppO
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler for template analytics."""
+    global origin
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
     
@@ -198,6 +201,7 @@ def _get_template_analytics(template_name: str, query_params: Dict[str, str], re
         
         return cors_response(200, {
                 'templateName': template_name,
+
                 'totalSent': total_sent,
                 'delivered': delivered,
                 'read': read,
@@ -206,7 +210,7 @@ def _get_template_analytics(template_name: str, query_params: Dict[str, str], re
                 'readRate': round(read_rate, 1),
                 'dailyStats': dict(daily_stats),
                 'period': f'Last {days} days'
-            })
+            }, origin)
     except Exception as e:
         logger.error(f'Template analytics error: {str(e)}')
         return _error_response(500, f'Failed to get template analytics: {str(e)}')
@@ -214,4 +218,4 @@ def _get_template_analytics(template_name: str, query_params: Dict[str, str], re
 
 def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response."""
-    return cors_response(status_code, {'error': message})
+    return cors_response(status_code, {'error': message}, origin)
