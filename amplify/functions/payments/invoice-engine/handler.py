@@ -30,7 +30,6 @@ from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -121,11 +120,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
     method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
-
-    # Enforce auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
 
     path = event.get('rawPath', event.get('path', ''))
     params = event.get('queryStringParameters') or {}

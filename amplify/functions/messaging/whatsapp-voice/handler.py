@@ -25,7 +25,6 @@ from decimal import Decimal
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -138,11 +137,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
-
-        # Enforce auth (skips Lambda-to-Lambda invocations automatically)
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
 
         # DELETE /whatsapp-voice/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:

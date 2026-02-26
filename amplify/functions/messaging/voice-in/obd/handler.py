@@ -118,12 +118,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'POST' and _is_airtel_cdr_callback(body):
             return _handle_cdr_callback(body, request_id)
 
-        # Auth check for all non-webhook routes
-        from lambda_utils.middleware import require_auth
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
-
         if '/upload-audio' in path:
             return _upload_audio(body, event, request_id)
         elif '/upload-csv' in path:

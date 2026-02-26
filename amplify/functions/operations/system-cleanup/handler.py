@@ -16,7 +16,6 @@ from botocore.exceptions import ClientError
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -216,11 +215,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     if method == 'OPTIONS':
         return options_response(origin)
-
-    # Enforce auth (Admin only for destructive cleanup)
-    auth_result = require_auth(event, required_role='Admin')
-    if auth_result is not None:
-        return auth_result
 
     if method == 'GET':
         return _preview()

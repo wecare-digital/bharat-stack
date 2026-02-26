@@ -47,12 +47,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if http_method == 'OPTIONS':
         return options_response(origin)
 
-    # Auth check
-    from lambda_utils.middleware import require_auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
-
     try:
         if http_method == 'GET':
             # Check if specific template requested

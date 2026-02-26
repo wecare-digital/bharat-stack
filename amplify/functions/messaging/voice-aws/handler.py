@@ -55,12 +55,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
 
-        # Auth check
-        from lambda_utils.middleware import require_auth
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
-
         # DELETE /voice-aws/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
             return _clear_logs(request_id)

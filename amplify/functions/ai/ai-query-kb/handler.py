@@ -19,7 +19,6 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 # Configure logging
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 

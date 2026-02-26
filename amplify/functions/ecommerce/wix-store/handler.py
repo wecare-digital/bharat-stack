@@ -96,12 +96,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'requestId': request_id,
         }))
 
-        # Auth check
-        from lambda_utils.middleware import require_auth
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
-
         # ---- Velo mode: route through Velo HTTP Functions ----
         if WIX_MODE == 'velo':
             body = _parse_body(event) if http_method == 'POST' else {}

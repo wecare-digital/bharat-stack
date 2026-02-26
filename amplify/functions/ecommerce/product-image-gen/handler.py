@@ -96,12 +96,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'OPTIONS':
             return _resp(200, {'ok': True})
 
-        # Auth check
-        from lambda_utils.middleware import require_auth
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
-
         if http_method == 'POST' and '/generate-product-image' in path:
             body = json.loads(event.get('body', '{}') or '{}')
             return _generate_and_upload(body, request_id)

@@ -20,7 +20,6 @@ from decimal import Decimal
 
 from lambda_utils.response import cors_response, options_response, extract_origin
 from lambda_utils.logging import get_logger, log_event
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -53,11 +52,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
     if method == 'OPTIONS':
         return options_response(origin)
-
-    # Enforce auth on all non-OPTIONS requests
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
     
     try:
         # Extract query parameters

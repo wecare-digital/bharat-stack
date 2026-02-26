@@ -101,12 +101,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'}, origin)
 
-        # Auth check
-        from lambda_utils.middleware import require_auth
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
-
         path = event.get('path', event.get('rawPath', ''))
 
         # DELETE /voice-cdr-webhook/clear-logs or DELETE with clearAll body

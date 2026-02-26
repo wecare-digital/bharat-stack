@@ -28,7 +28,6 @@ from botocore.exceptions import ClientError
 
 from lambda_utils.response import cors_response, options_response, extract_origin
 from lambda_utils.logging import get_logger, log_event
-from lambda_utils.middleware import require_auth
 from lambda_utils.validation import sanitize_html, sanitize_dict
 
 logger = get_logger(__name__)
@@ -65,11 +64,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     if method == 'OPTIONS':
         return options_response(origin)
-
-    # Enforce auth on all non-OPTIONS requests
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
 
     path_params = event.get('pathParameters', {}) or {}
     query_params = event.get('queryStringParameters', {}) or {}

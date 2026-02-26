@@ -20,7 +20,6 @@ from decimal import Decimal
 
 # Configure logging
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -74,11 +73,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
 
-    # Enforce auth (skips Lambda-to-Lambda invocations automatically)
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
-    
     logger.info(json.dumps({
         'event': 'outbound_whatsapp_start',
         'sendMode': SEND_MODE,

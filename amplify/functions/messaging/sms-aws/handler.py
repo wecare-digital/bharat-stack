@@ -40,7 +40,6 @@ MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle AWS SMS operations."""
-    from lambda_utils.middleware import require_auth
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
@@ -56,11 +55,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'}, origin)
-
-        # Auth check
-        auth_result = require_auth(event)
-        if auth_result is not None:
-            return auth_result
 
         # DELETE /sms-aws/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:

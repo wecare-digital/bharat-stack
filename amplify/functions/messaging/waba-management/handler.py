@@ -30,7 +30,6 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 # Configure logging
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -101,11 +100,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         http_method = event.get('httpMethod', 'GET')
         path = event.get('path', '')
 
-    # Enforce auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
-    
     # Also check rawPath for HTTP API
     if not path:
         path = event.get('rawPath', '')

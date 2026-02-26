@@ -20,7 +20,6 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 # Configure logging
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -60,11 +59,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
 
-    # Enforce auth (Admin only for DLQ operations)
-    auth_result = require_auth(event, required_role='Admin')
-    if auth_result is not None:
-        return auth_result
-    
     # Handle both HTTP API v2 and REST API event formats
     http_method = (
         event.get('requestContext', {}).get('http', {}).get('method') or

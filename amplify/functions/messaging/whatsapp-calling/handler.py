@@ -152,12 +152,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not any(x in path for x in ['config', 'active', 'logs']):
                 return _verify_webhook(query_params, request_id)
 
-            # Auth check for dashboard GET routes
-            from lambda_utils.middleware import require_auth
-            auth_result = require_auth(event)
-            if auth_result is not None:
-                return auth_result
-
             if 'config' in path:
                 return _get_config(request_id)
             if 'active' in path:
@@ -175,12 +169,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     body_str = base64.b64decode(body_str).decode('utf-8')
                 return _handle_webhook_event(json.loads(body_str), request_id)
 
-            # Auth check for admin POST routes
-            from lambda_utils.middleware import require_auth
-            auth_result = require_auth(event)
-            if auth_result is not None:
-                return auth_result
-
             if '/config' in path:
                 return _update_config(event, request_id)
             if '/accept' in path:
@@ -194,10 +182,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # DELETE
         if http_method == 'DELETE':
-            from lambda_utils.middleware import require_auth
-            auth_result = require_auth(event)
-            if auth_result is not None:
-                return auth_result
             return _clear_logs(request_id)
 
         return _response(200, {'message': 'OK'})

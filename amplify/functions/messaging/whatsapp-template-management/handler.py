@@ -8,7 +8,6 @@ from typing import Dict, Any
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -36,11 +35,6 @@ def handler(event, context):
     if http_method == 'OPTIONS':
         return options_response(origin)
 
-    # Enforce auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
-    
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
         waba_id = query_params.get('wabaId', DEFAULT_WABA_ID)

@@ -19,7 +19,6 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 # Configure logging
 from lambda_utils.logging import get_logger
-from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -43,11 +42,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
-
-    # Enforce auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
 
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'PUT')
     path_params = event.get('pathParameters') or {}

@@ -55,12 +55,6 @@ def handler(event, context):
     if method == 'OPTIONS':
         return _response(200, {})
 
-    # Auth check
-    from lambda_utils.middleware import require_auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
-
     try:
         if method == 'GET':
             return _list_calls(params, request_id)

@@ -62,12 +62,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if http_method == 'OPTIONS':
         return options_response(origin)
 
-    # Auth check (HTTP API requests only — CloudWatch events already returned above)
-    from lambda_utils.middleware import require_auth
-    auth_result = require_auth(event)
-    if auth_result is not None:
-        return auth_result
-
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
         
