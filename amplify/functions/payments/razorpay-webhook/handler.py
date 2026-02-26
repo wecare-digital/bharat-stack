@@ -576,7 +576,9 @@ def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, req
             else:
                 break
 
-        if len(candidates) == 1:
+        if len(candidates) >= 1:
+            # Sort by createdAt ascending (oldest first) and mark the oldest matching one
+            candidates.sort(key=lambda x: int(x.get('createdAt', 0)))
             inv = candidates[0]
             table.update_item(
                 Key={'invoiceId': inv['invoiceId']},
@@ -595,13 +597,7 @@ def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, req
                 'invoiceId': inv['invoiceId'],
                 'phone': phone,
                 'amount': amount_rupees,
-                'requestId': request_id,
-            }))
-        elif len(candidates) > 1:
-            logger.warning(json.dumps({
-                'event': 'multiple_invoices_match_phone_amount',
-                'phone': phone, 'amount': amount_rupees,
-                'count': len(candidates),
+                'candidateCount': len(candidates),
                 'requestId': request_id,
             }))
         else:

@@ -1884,6 +1884,25 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         }))
         return
     
+    # Determine messageType: image/video/audio/document if media present, else template/text
+    if media_id or s3_key:
+        # Infer media type from s3_key extension
+        ext = (s3_key or '').rsplit('.', 1)[-1].lower() if s3_key else ''
+        if ext in ('jpg', 'jpeg', 'png', 'gif', 'bmp'):
+            msg_type = 'image'
+        elif ext in ('mp4', '3gp', '3gpp', 'mov'):
+            msg_type = 'video'
+        elif ext in ('ogg', 'opus', 'mp3', 'aac', 'amr'):
+            msg_type = 'audio'
+        elif ext == 'webp':
+            msg_type = 'sticker'
+        else:
+            msg_type = 'document'
+    elif is_template:
+        msg_type = 'template'
+    else:
+        msg_type = 'text'
+    
     record = {
         'id': message_id,
         'messageId': message_id,
@@ -1891,7 +1910,7 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         'channel': 'whatsapp',
         'direction': 'outbound',
         'content': content,
-        'messageType': 'template' if is_template else 'text',
+        'messageType': msg_type,
         'timestamp': Decimal(str(now)),
         'status': status,
         'whatsappMessageId': whatsapp_message_id,

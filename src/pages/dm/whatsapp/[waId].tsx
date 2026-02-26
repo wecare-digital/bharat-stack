@@ -433,11 +433,6 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
   const renderMessageContent = (msg: Message) => {
     const { messageType, content, mediaUrl, s3Key } = msg;
     
-    // Text messages
-    if (messageType === 'text' || (!messageType && !mediaUrl && !s3Key)) {
-      return <div className="message-text">{content}</div>;
-    }
-    
     // Reaction messages
     if (messageType === 'reaction') {
       return (
@@ -448,8 +443,8 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       );
     }
     
-    // Image messages
-    if (messageType === 'image' || s3Key?.match(/\.(jpg|jpeg|png)$/i)) {
+    // Image messages (check media BEFORE text to handle mistyped records)
+    if (messageType === 'image' || (mediaUrl && s3Key?.match(/\.(jpg|jpeg|png)$/i))) {
       return (
         <div className="media-message">
           <div className="media-container">

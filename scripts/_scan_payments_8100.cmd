@@ -1,0 +1,2 @@
+@echo off
+aws dynamodb scan --table-name base-wecare-digital-MessagesTable --filter-expression "contains(senderPhone, :p) AND (messageType = :mt1 OR messageType = :mt2)" --expression-attribute-values "{\":p\":{\"S\":\"8100640044\"},\":mt1\":{\"S\":\"payment\"},\":mt2\":{\"S\":\"payment_request\"}}" --projection-expression "id,senderPhone,messageType,paymentStatus,paymentReferenceId,paymentTotal,#s,#ts" --expression-attribute-names "{\"#s\":\"status\",\"#ts\":\"timestamp\"}" --output json

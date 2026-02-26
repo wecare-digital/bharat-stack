@@ -1,0 +1,2 @@
+@echo off
+aws dynamodb scan --table-name base-wecare-digital-MessagesTable --filter-expression "contactId = :c AND (messageType = :mt1 OR messageType = :mt2)" --expression-attribute-values "{\":c\":{\"S\":\"d543cc03-5ec7-4b90-9e06-0306626385b4\"},\":mt1\":{\"S\":\"payment\"},\":mt2\":{\"S\":\"payment_request\"}}" --projection-expression "id,contactId,messageType,paymentStatus,paymentReferenceId,paymentTotal,#s,content" --expression-attribute-names "{\"#s\":\"status\"}" --output json

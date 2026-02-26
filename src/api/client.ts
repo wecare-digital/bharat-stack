@@ -1396,7 +1396,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   const orderDetails: any = {
     reference_id: request.referenceId,
     type: 'digital-goods',
-    payment_configuration: request.paymentConfiguration || 'WECARE-DIGITAL',
+    payment_configuration: request.paymentConfiguration || 'WECARE-RAZOR-PAY',
     currency: request.currency || 'INR',
     // First item name for backward compat
     itemName: firstItem.name || 'Service Fee',
