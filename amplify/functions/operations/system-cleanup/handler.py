@@ -206,9 +206,14 @@ CLEANUP_RESOURCES = {
     },
 }
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """System cleanup handler — preview counts or delete selected resources."""
+    global origin
+    origin = extract_origin(event)
     # Support both API Gateway v1 (REST) and v2 (HTTP) event formats
     rc = event.get('requestContext', {})
     method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()

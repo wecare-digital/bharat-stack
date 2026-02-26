@@ -33,9 +33,14 @@ RATE_LIMIT_PER_SECOND = int(os.environ.get('RATE_LIMIT_PER_SECOND', '80'))
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event, context):
     """Process SQS messages for bulk sending."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     logger.info(f'[{request_id}] Bulk worker invoked')
 

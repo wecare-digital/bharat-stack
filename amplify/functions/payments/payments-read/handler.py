@@ -25,9 +25,14 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle payment read operations."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
 

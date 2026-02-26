@@ -44,8 +44,13 @@ def _get_secrets() -> Dict[str, str]:
         logger.error(f'Failed to get secrets: {e}')
         return {}
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event, context):
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     http = event.get('requestContext', {}).get('http', {})
     method = http.get('method', event.get('httpMethod', 'GET'))

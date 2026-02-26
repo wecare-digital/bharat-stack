@@ -98,9 +98,14 @@ def _get_secrets() -> Dict[str, str]:
         return {}
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle OBD campaign operations."""
     request_id = context.aws_request_id if context else str(uuid.uuid4())
+    global origin
     origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
     path = event.get('rawPath', event.get('path', ''))

@@ -32,9 +32,14 @@ support_client = boto3.client('support', region_name='us-east-1')
 AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '775261844268')
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle billing, health, and trusted advisor requests."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
 
     logger.info(json.dumps({

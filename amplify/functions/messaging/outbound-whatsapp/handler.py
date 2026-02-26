@@ -64,6 +64,9 @@ PHONE_PAYMENT_CONFIG = {
 }
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -71,6 +74,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Requirements: 3.1, 3.2, 5.2-5.11, 16.2-16.6
     Supports: text, media, template, and reaction messages
     """
+    global origin
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
 

@@ -51,12 +51,17 @@ HANDLERS = {
 }
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     DLQ operations: GET to list, POST to replay.
     Requirements: 9.1-9.7
     """
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
 
     # Handle both HTTP API v2 and REST API event formats

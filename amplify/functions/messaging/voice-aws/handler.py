@@ -38,9 +38,14 @@ VOICE_ID = os.environ.get('VOICE_ID', 'RAVEENA')  # Polly voice (RAVEENA = India
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle AWS voice call operations."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
     path = event.get('rawPath', event.get('path', ''))

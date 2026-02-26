@@ -121,9 +121,14 @@ POLLY_VOICES = {
 }
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle WhatsApp voice/TTS operations."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
     path = event.get('rawPath', event.get('path', ''))

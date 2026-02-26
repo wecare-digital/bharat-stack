@@ -190,9 +190,14 @@ def _normalize_airtel_payload(payload: Dict) -> Dict:
     return normalized
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Process Airtel Voice CDR webhook events and list CDRs."""
     request_id = context.aws_request_id if context else str(uuid.uuid4())
+    global origin
     origin = extract_origin(event)
     
     logger.info(json.dumps({

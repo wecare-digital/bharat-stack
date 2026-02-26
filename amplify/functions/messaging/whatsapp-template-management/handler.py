@@ -19,8 +19,13 @@ DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event, context):
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     request_context = event.get('requestContext', {})
     if 'http' in request_context:

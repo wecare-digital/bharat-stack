@@ -128,9 +128,14 @@ def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None, ph
         return {'error': True, 'detail': str(e)}
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler — routes to appropriate function."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     rc = event.get('requestContext', {})
     http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET'))

@@ -31,9 +31,14 @@ REPLY_TO_EMAIL = os.environ.get('REPLY_TO_EMAIL', 'support@wecare.digital')
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Send email message."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     
     logger.info(json.dumps({

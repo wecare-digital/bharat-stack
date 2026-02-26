@@ -31,9 +31,14 @@ BULK_QUEUE_URL = os.environ.get('BULK_QUEUE_URL', '')
 CHUNK_SIZE = 100  # Recipients per SQS message
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle bulk job creation and listing."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
 
     # Handle both HTTP API v2 and REST API event formats

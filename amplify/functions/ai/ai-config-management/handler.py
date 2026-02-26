@@ -72,6 +72,10 @@ SUPPORTED_LANGUAGES = {
 }
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     AI Config Management API Handler
@@ -87,6 +91,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - GET /ai/stats - Get AI usage statistics
     """
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     
     # Handle both API Gateway v1 (REST) and v2 (HTTP) event formats

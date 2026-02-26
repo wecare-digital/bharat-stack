@@ -76,6 +76,10 @@ def _ms_to_mmss(ms_val) -> str:
         return "00:00"
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Read CDR records with filtering, UI-formatted fields, and dashboard statistics.
@@ -89,6 +93,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - email: Contact email
     """
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     
     logger.info(json.dumps({

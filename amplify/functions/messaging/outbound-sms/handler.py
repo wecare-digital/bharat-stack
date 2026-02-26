@@ -56,9 +56,14 @@ AIRTEL_IQ_SOURCE_ADDRESS = os.environ.get('AIRTEL_IQ_SOURCE_ADDRESS', 'WDBEEP') 
 DEFAULT_DLT_TEMPLATE_ID = '1007974344269130859'
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Send SMS message."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
 
     logger.info(json.dumps({

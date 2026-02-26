@@ -35,12 +35,17 @@ REPORT_BUCKET = os.environ.get('REPORT_BUCKET', 'app.wecare.digital')
 REPORT_PREFIX = os.environ.get('REPORT_PREFIX', 'stream/')
 
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Handle bulk job control operations.
     Requirement 8.7: Implement pause, resume, and cancel operations
     """
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
 
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'PUT')
