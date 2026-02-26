@@ -1,0 +1,396 @@
+openapi: 3.0.3
+info:
+  title: WECARE.DIGITAL API
+  version: 1.0.0
+  description: |
+    Admin platform API for WECARE.DIGITAL — WhatsApp Business, SMS, Voice, Email,
+    E-commerce, AI automation, and Payments.
+    
+    Base URL: https://api.wecare.digital
+    Auth: Cognito Bearer token (Authorization header)
+    
+    Lambda functions: 39 Python 3.12 handlers on AWS
+  contact:
+    name: WECARE.DIGITAL
+    url: https://wecare.digital
+
+servers:
+  - url: https://api.wecare.digital
+    description: Production
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito access token
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        statusCode: { type: integer }
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, example: healthy }
+
+paths:
+  # ── Core ──
+  /contacts:
+    get:
+      tags: [Core]
+      summary: List contacts (paginated)
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200': { description: Contact list }
+    post:
+      tags: [Core]
+      summary: Create or update a contact
+      responses:
+        '200': { description: Contact created/updated }
+
+  /contacts/{contactId}:
+    get:
+      tags: [Core]
+      summary: Get contact by ID
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Contact details }
+
+  /messages:
+    get:
+      tags: [Core]
+      summary: Read messages (paginated)
+      parameters:
+        - name: contactId
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Message list }
+
+  /messages/{messageId}:
+    delete:
+      tags: [Core]
+      summary: Delete a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Message deleted }
+
+  # ── WhatsApp Messaging ──
+  /outbound-whatsapp:
+    post:
+      tags: [WhatsApp]
+      summary: Send outbound WhatsApp message (text, template, media)
+      responses:
+        '200': { description: Message sent }
+        '429': { description: Rate limit exceeded }
+
+  /whatsapp-templates:
+    get:
+      tags: [WhatsApp]
+      summary: List WhatsApp message templates
+      responses:
+        '200': { description: Template list }
+    post:
+      tags: [WhatsApp]
+      summary: Create a WhatsApp template
+      responses:
+        '200': { description: Template created }
+
+  /whatsapp-business-api:
+    get:
+      tags: [WhatsApp]
+      summary: WhatsApp Business API webhook verify (Meta)
+      security: []
+      responses:
+        '200': { description: Verification challenge }
+    post:
+      tags: [WhatsApp]
+      summary: WhatsApp Business API webhook events (Meta)
+      security: []
+      responses:
+        '200': { description: Event processed }
+
+  /waba-management:
+    get:
+      tags: [WhatsApp]
+      summary: Get WABA info and phone numbers
+      responses:
+        '200': { description: WABA details }
+
+  /template-analytics:
+    get:
+      tags: [WhatsApp]
+      summary: Get template send/delivery analytics
+      responses:
+        '200': { description: Analytics data }
+
+  /scheduled-messages:
+    get:
+      tags: [WhatsApp]
+      summary: List scheduled messages
+      responses:
+        '200': { description: Scheduled message list }
+    post:
+      tags: [WhatsApp]
+      summary: Schedule a WhatsApp message
+      responses:
+        '200': { description: Message scheduled }
+
+  # ── WhatsApp Calling ──
+  /whatsapp-calling:
+    get:
+      tags: [WhatsApp Calling]
+      summary: Webhook verify / active calls / call logs
+      security: []
+      responses:
+        '200': { description: Verify challenge or call data }
+    post:
+      tags: [WhatsApp Calling]
+      summary: Call events from Meta / accept / reject / hangup / outbound
+      responses:
+        '200': { description: Call action processed }
+
+  # ── SMS ──
+  /outbound-sms:
+    post:
+      tags: [SMS]
+      summary: Send SMS via Airtel or AWS Pinpoint
+      responses:
+        '200': { description: SMS sent }
+
+  /sms-aws:
+    post:
+      tags: [SMS]
+      summary: Send SMS via AWS Pinpoint
+      responses:
+        '200': { description: SMS sent }
+
+  /sms-in/airtel:
+    post:
+      tags: [SMS]
+      summary: Airtel inbound SMS webhook
+      security: []
+      responses:
+        '200': { description: SMS received }
+
+  # ── Voice ──
+  /outbound-voice:
+    post:
+      tags: [Voice]
+      summary: Initiate outbound voice call (TTS or audio)
+      responses:
+        '200': { description: Call initiated }
+
+  /voice-aws:
+    post:
+      tags: [Voice]
+      summary: AWS Pinpoint voice call
+      responses:
+        '200': { description: Call initiated }
+
+  /voice-cdr-read:
+    get:
+      tags: [Voice]
+      summary: Read voice CDR records
+      responses:
+        '200': { description: CDR list }
+
+  /voice-in/c2c:
+    post:
+      tags: [Voice]
+      summary: Airtel Click-to-Call webhook
+      security: []
+      responses:
+        '200': { description: C2C event processed }
+
+  /voice-in/cdr:
+    post:
+      tags: [Voice]
+      summary: Airtel Voice CDR webhook
+      security: []
+      responses:
+        '200': { description: CDR stored }
+
+  /voice-in/obd:
+    post:
+      tags: [Voice]
+      summary: Airtel OBD campaign webhook
+      security: []
+      responses:
+        '200': { description: OBD event processed }
+
+  # ── Email ──
+  /outbound-email:
+    post:
+      tags: [Email]
+      summary: Send email via SES
+      responses:
+        '200': { description: Email sent }
+
+  # ── Payments ──
+  /razorpay-webhook:
+    post:
+      tags: [Payments]
+      summary: Razorpay payment webhook
+      security: []
+      responses:
+        '200': { description: Payment processed }
+
+  /payments:
+    get:
+      tags: [Payments]
+      summary: Read payment records
+      responses:
+        '200': { description: Payment list }
+
+  /invoices:
+    get:
+      tags: [Payments]
+      summary: List invoices
+      responses:
+        '200': { description: Invoice list }
+    post:
+      tags: [Payments]
+      summary: Create and send invoice
+      responses:
+        '200': { description: Invoice created }
+
+  # ── E-commerce ──
+  /wix-store:
+    get:
+      tags: [E-commerce]
+      summary: Wix Store product/order sync
+      responses:
+        '200': { description: Store data }
+    post:
+      tags: [E-commerce]
+      summary: Wix Store webhook events
+      security: []
+      responses:
+        '200': { description: Event processed }
+
+  /product-image-gen:
+    post:
+      tags: [E-commerce]
+      summary: Generate product images via Bedrock
+      responses:
+        '200': { description: Image generated }
+
+  # ── AI ──
+  /ai-config:
+    get:
+      tags: [AI]
+      summary: Get AI automation configuration
+      responses:
+        '200': { description: AI config }
+    post:
+      tags: [AI]
+      summary: Update AI automation configuration (Admin only)
+      responses:
+        '200': { description: Config updated }
+
+  /ai-query-kb:
+    post:
+      tags: [AI]
+      summary: Query Bedrock Knowledge Base
+      responses:
+        '200': { description: KB results }
+
+  /ai-generate-response:
+    post:
+      tags: [AI]
+      summary: Generate AI response (Bedrock Converse API)
+      responses:
+        '200': { description: AI response }
+
+  # ── Operations ──
+  /bulk-jobs:
+    get:
+      tags: [Operations]
+      summary: List bulk messaging jobs
+      responses:
+        '200': { description: Job list }
+    post:
+      tags: [Operations]
+      summary: Create bulk messaging job
+      responses:
+        '200': { description: Job created }
+
+  /bulk-jobs/{jobId}:
+    put:
+      tags: [Operations]
+      summary: Control bulk job (pause, resume, cancel)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Job updated }
+
+  /dlq-replay:
+    post:
+      tags: [Operations]
+      summary: Replay DLQ messages (Admin only)
+      responses:
+        '200': { description: Messages replayed }
+
+  /system-cleanup:
+    post:
+      tags: [Operations]
+      summary: System cleanup (Admin only)
+      responses:
+        '200': { description: Cleanup completed }
+
+  /billing:
+    get:
+      tags: [Operations]
+      summary: Get billing/usage data
+      responses:
+        '200': { description: Billing data }
+
+  /media-cleanup:
+    post:
+      tags: [Operations]
+      summary: Clean up expired media files
+      responses:
+        '200': { description: Cleanup completed }
+
+  # ── Health ──
+  /{any}/health:
+    get:
+      tags: [Health]
+      summary: Health check (available on all endpoints)
+      security: []
+      parameters:
+        - name: any
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'

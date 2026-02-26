@@ -39,8 +39,9 @@ import urllib.parse
 from decimal import Decimal
 from typing import Dict, Any
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
@@ -48,19 +49,14 @@ META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 _token_cache = {}
 
-WABA1_ID = '1912405516040025'
-WABA2_ID = '1633959101297902'
-PHONE1_META_ID = '960395407161423'
-PHONE2_META_ID = '997428863451102'
+WABA1_ID = os.environ.get('WABA1_ID', '1912405516040025')
+WABA2_ID = os.environ.get('WABA2_ID', '1633959101297902')
+PHONE1_META_ID = os.environ.get('PHONE1_META_ID', '960395407161423')
+PHONE2_META_ID = os.environ.get('PHONE2_META_ID', '997428863451102')
 
 # All IDs that belong to WABA2
 WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
@@ -151,11 +147,11 @@ def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params:
         logger.error(f'Graph API error {e.code}: {error_body}')
         try:
             return {'error': json.loads(error_body)}
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return {'error': {'message': error_body, 'code': e.code}}
 
 def _resp(code: int, body: Dict) -> Dict:
-    return {'statusCode': code, 'headers': CORS_HEADERS, 'body': json.dumps(body, default=str)}
+    return {'statusCode': code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}
 
 # ============================================================================
 # BUSINESS PROFILE
@@ -489,28 +485,30 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 
 # ============================================================================
 # PAYMENT CONFIGURATION
-# +91 9330994400 (WABA 1912405516040025): WECARE-DIGITAL (Razorpay Gateway + UPI)
-# +91 9903300044 (WABA 1633959101297902): ManishAgarwal_Pay (Razorpay Gateway + UPI)
-# MCC: 4722 | Purpose Code: 03 | Razorpay MID: acc_HDfub6wOfQybuH
-# UPI ID: wecaredigital83.rzp@icici
+# Razorpay MID and UPI ID loaded from environment variables (not hardcoded).
+# MCC: 4722 | Purpose Code: 03
 # ============================================================================
+_RAZORPAY_MID = os.environ.get('RAZORPAY_MID', '')
+_RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', '')
+_PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '1728153881476046')
+
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {
         'phone': '+91 9330994400',
-        'wabaId': '1728153881476046',
+        'wabaId': _PAYMENT_WABA_ID,
         'configs': [
-            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
-            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
     },
     PHONE2_META_ID: {
         'phone': '+91 9903300044',
-        'wabaId': '1728153881476046',
+        'wabaId': _PAYMENT_WABA_ID,
         'configs': [
-            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
-            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': 'acc_HDfub6wOfQybuH', 'upiId': 'wecaredigital83.rzp@icici'},
+            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
@@ -536,6 +534,8 @@ from cryptography.hazmat.primitives.asymmetric.padding import OAEP, MGF1
 from cryptography.hazmat.primitives.asymmetric.padding import hashes as asym_hashes
 from cryptography.hazmat.primitives.ciphers import Cipher as AESCipher, algorithms, modes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 FLOW_PRIVATE_KEY_SECRET = os.environ.get('FLOW_PRIVATE_KEY_SECRET', 'wecare/flow-private-key')
 FLOW_PRIVATE_KEY_PASSPHRASE = os.environ.get('FLOW_PRIVATE_KEY_PASSPHRASE', '')
@@ -642,8 +642,8 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
                 action=action, screen=screen,
                 data_keys=list(data.keys()), request_id=request_id,
             )
-        except Exception:
-            pass  # Never block flow for logging failures
+        except Exception as e:
+            logger.warning(f'Flow log write failed: {e}')  # Never block flow for logging failures
 
     # Step 2: Process the action
     # NOTE: Per Meta docs, encrypted responses must NOT include "version".
@@ -799,7 +799,7 @@ def _handle_flow_data(body: Dict, request_id: str) -> Dict:
         encrypted_response = _encrypt_flow_response(response_payload, aes_key, iv)
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': encrypted_response,
         }
     except Exception as e:
@@ -825,8 +825,8 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
                 table = dynamodb.Table(CONTACTS_TABLE)
                 resp = table.get_item(Key={'id': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
                 sender_name = resp.get('Item', {}).get('name', '')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f'Contact name lookup failed for {contact_id}: {e}')
 
         item = {
             'id': submission_id,
@@ -984,7 +984,7 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
             'body': json.dumps({
                 'recipientPhone': phone,
                 'phoneNumberId': PHONE1_EUM_ID,
-                'message': msg,
+                'content': msg,
             })
         }
         lambda_client.invoke(
@@ -1049,6 +1049,7 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
                 resp = secrets_client.get_secret_value(SecretId='wecare/wix-api-key')
                 api_key = resp.get('SecretString', '').strip()
             except Exception:
+                logger.warning(f'Wix API key fetch from Secrets Manager failed')
                 pass
 
         # Normalize phone for matching
@@ -1202,6 +1203,7 @@ def _list_flow_logs(params: Dict) -> Dict:
 # ============================================================================
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     rc = event.get('requestContext', {})
     http = rc.get('http', {})
     method = http.get('method', event.get('httpMethod', 'GET'))
@@ -1213,7 +1215,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         body = {}
 
     logger.info(f'[{request_id}] {method} {path}')

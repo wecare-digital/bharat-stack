@@ -40,8 +40,10 @@ from decimal import Decimal
 from botocore.config import Config
 
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 bedrock_agent_runtime = boto3.client(
@@ -661,6 +663,7 @@ Rules for escalate=true:
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Generate AI response — routes to internal agent or external Converse API."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
 
     headers = {
         'Content-Type': 'application/json',
@@ -672,7 +675,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Handle OPTIONS preflight
     http_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', '')
     if http_method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': headers, 'body': ''}
+        return options_response(origin)
+
+    # Enforce auth (skips Lambda-to-Lambda invocations automatically)
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
 
     # Parse body
     body = event

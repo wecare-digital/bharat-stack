@@ -18,9 +18,11 @@ import boto3
 from typing import Dict, Any, List, Optional
 from decimal import Decimal
 
-# Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, options_response, extract_origin
+from lambda_utils.logging import get_logger, log_event
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -44,6 +46,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Supports filtering by contactId, channel, and direction.
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
+    
+    # Handle OPTIONS
+    rc = event.get('requestContext', {})
+    method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
+    if method == 'OPTIONS':
+        return options_response(origin)
+
+    # Enforce auth on all non-OPTIONS requests
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
     
     try:
         # Extract query parameters
@@ -81,42 +95,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Convert for JSON serialization
         messages = [_convert_from_dynamodb(m) for m in messages]
         
-        logger.info(json.dumps({
-            'event': 'messages_read',
-            'count': len(messages),
-            'contactId': contact_id,
-            'channel': channel,
-            'requestId': request_id
-        }))
+        log_event(logger, 'messages_read', count=len(messages), contactId=contact_id, channel=channel, requestId=request_id)
         
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,OPTIONS'
-            },
-            'body': json.dumps({
-                'messages': messages,
-                'count': len(messages)
-            }),
-        }
+        return cors_response(200, {
+            'messages': messages,
+            'count': len(messages)
+        }, origin)
         
     except Exception as e:
-        logger.error(json.dumps({
-            'event': 'messages_read_error',
-            'error': str(e),
-            'requestId': request_id
-        }))
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'error': 'Internal server error'}),
-        }
+        log_event(logger, 'messages_read_error', level='error', error=str(e), requestId=request_id)
+        return cors_response(500, {'error': 'Internal server error'}, origin)
 
 
 def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int, direction: str = '') -> List[Dict]:

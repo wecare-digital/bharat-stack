@@ -23,9 +23,13 @@ from typing import Dict, Any, List
 from decimal import Decimal
 import time
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -36,12 +40,7 @@ AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'base-wecare-dig
 CONVERSATION_HISTORY_TABLE = os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable')
 
 # CORS headers
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 # Default AI configuration
 DEFAULT_AI_CONFIG = {
@@ -89,6 +88,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - GET /ai/stats - Get AI usage statistics
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     # Handle both API Gateway v1 (REST) and v2 (HTTP) event formats
     request_context = event.get('requestContext', {})
@@ -101,6 +101,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # API Gateway v1 (REST API) format
         http_method = event.get('httpMethod', 'GET')
         path = event.get('path', '')
+
+    # Enforce auth (Admin only for AI config changes)
+    auth_result = require_auth(event, required_role='Admin')
+    if auth_result is not None:
+        return auth_result
     
     # Also check rawPath for HTTP API
     if not path:
@@ -119,7 +124,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     # Handle OPTIONS preflight
     if http_method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
+        return options_response(origin)
     
     try:
         body = {}
@@ -220,13 +225,13 @@ def _get_config(request_id: str, config_key: str = 'ai_config') -> Dict[str, Any
             else:
                 return {
                     'statusCode': 200,
-                    'headers': CORS_HEADERS,
+                    'headers': cors_headers(origin),
                     'body': json.dumps({'config': None, 'configKey': config_key})
                 }
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'config': config, 'configKey': config_key})
         }
     except Exception as e:
@@ -234,7 +239,7 @@ def _get_config(request_id: str, config_key: str = 'ai_config') -> Dict[str, Any
         if config_key == 'ai_config':
             return {
                 'statusCode': 200,
-                'headers': CORS_HEADERS,
+                'headers': cors_headers(origin),
                 'body': json.dumps({'config': DEFAULT_AI_CONFIG})
             }
         return _error_response(500, f'Failed to get config: {str(e)}')
@@ -261,7 +266,7 @@ def _update_config(body: Dict, request_id: str, config_key: str = 'ai_config') -
             }))
             return {
                 'statusCode': 200,
-                'headers': CORS_HEADERS,
+                'headers': cors_headers(origin),
                 'body': json.dumps({'success': True, 'configKey': config_key})
             }
 
@@ -291,7 +296,7 @@ def _update_config(body: Dict, request_id: str, config_key: str = 'ai_config') -
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'config': existing})
         }
     except Exception as e:
@@ -309,12 +314,12 @@ def _get_prompts(lang: str, request_id: str) -> Dict[str, Any]:
                 prompt = response['Item'].get('configValue', '')
                 return {
                     'statusCode': 200,
-                    'headers': CORS_HEADERS,
+                    'headers': cors_headers(origin),
                     'body': json.dumps({'language': lang, 'prompt': prompt})
                 }
             return {
                 'statusCode': 200,
-                'headers': CORS_HEADERS,
+                'headers': cors_headers(origin),
                 'body': json.dumps({'language': lang, 'prompt': _get_default_prompt(lang)})
             }
 
@@ -328,7 +333,7 @@ def _get_prompts(lang: str, request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'prompts': prompts})
         }
     except Exception as e:
@@ -354,7 +359,7 @@ def _update_prompt(lang: str, body: Dict, request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'language': lang})
         }
     except Exception as e:
@@ -372,12 +377,12 @@ def _get_fallbacks(lang: str, request_id: str) -> Dict[str, Any]:
                 fallback = response['Item'].get('configValue', '')
                 return {
                     'statusCode': 200,
-                    'headers': CORS_HEADERS,
+                    'headers': cors_headers(origin),
                     'body': json.dumps({'language': lang, 'fallback': fallback})
                 }
             return {
                 'statusCode': 200,
-                'headers': CORS_HEADERS,
+                'headers': cors_headers(origin),
                 'body': json.dumps({'language': lang, 'fallback': _get_default_fallback(lang)})
             }
 
@@ -391,7 +396,7 @@ def _get_fallbacks(lang: str, request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'fallbacks': fallbacks})
         }
     except Exception as e:
@@ -417,7 +422,7 @@ def _update_fallback(lang: str, body: Dict, request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'language': lang})
         }
     except Exception as e:
@@ -443,13 +448,13 @@ def _get_interactions(query_params: Dict, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'interactions': interactions, 'count': len(interactions)})
         }
     except Exception as e:
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'interactions': [], 'count': 0, 'error': str(e)})
         }
 
@@ -474,7 +479,7 @@ def _get_stats(request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'totalInteractions': total,
                 'approvedResponses': approved,
@@ -485,7 +490,7 @@ def _get_stats(request_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'totalInteractions': 0,
                 'approvedResponses': 0,
@@ -500,7 +505,7 @@ def _get_languages(request_id: str) -> Dict[str, Any]:
     """Get supported languages."""
     return {
         'statusCode': 200,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(origin),
         'body': json.dumps({'languages': SUPPORTED_LANGUAGES})
     }
 
@@ -515,7 +520,7 @@ def _test_ai_response(body: Dict, request_id: str) -> Dict[str, Any]:
     # For now, return a placeholder
     return {
         'statusCode': 200,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(origin),
         'body': json.dumps({
             'message': message,
             'response': 'AI test response would appear here',
@@ -567,7 +572,7 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(),
         'body': json.dumps({'error': message})
     }
 
@@ -613,14 +618,14 @@ def _get_internal_config(request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'config': config})
         }
     except Exception as e:
         logger.error(f'Failed to get internal AI config: {str(e)}')
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'config': DEFAULT_INTERNAL_AI_CONFIG})
         }
 
@@ -654,7 +659,7 @@ def _update_internal_config(body: Dict, request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'config': existing})
         }
     except Exception as e:
@@ -688,14 +693,14 @@ def _get_botflow_config(request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'configs': configs})
         }
     except Exception as e:
         logger.error(f'Failed to get bot flow config: {str(e)}')
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'configs': {}})
         }
 
@@ -725,7 +730,7 @@ def _update_botflow_config(body: Dict, request_id: str) -> Dict[str, Any]:
 
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'configKey': config_key})
         }
     except Exception as e:
@@ -750,7 +755,7 @@ def _delete_botflow_configs(request_id: str) -> Dict[str, Any]:
         }))
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'deleted': deleted})
         }
     except Exception as e:
@@ -794,6 +799,6 @@ def _clear_ai_logs(request_id: str) -> Dict[str, Any]:
     logger.info(json.dumps({'event': 'clear_ai_logs', 'results': results, 'total': total, 'requestId': request_id}))
     return {
         'statusCode': 200,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(origin),
         'body': json.dumps({'success': True, 'results': results, 'totalDeleted': total})
     }

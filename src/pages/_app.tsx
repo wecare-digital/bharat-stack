@@ -21,19 +21,25 @@ import FloatingAgent from '../components/FloatingAgent';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { ToastProvider } from '../contexts/ToastContext';
 
-// Configure Amplify
+// Configure Amplify — all secrets from env vars
 Amplify.configure({
   Auth: {
     Cognito: {
-      userPoolId: 'us-east-1_cSx0RHCIR',
-      userPoolClientId: '1j8kbi48m4v2rped3n224rlevb',
-      identityPoolId: 'us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5',
+      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || '',
+      userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || '',
+      identityPoolId: process.env.NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID || '',
       loginWith: {
         oauth: {
-          domain: 'signin.wecare.digital',
+          domain: process.env.NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN || '',
           scopes: ['openid', 'email', 'profile'],
-          redirectSignIn: ['https://base.wecare.digital/', 'http://localhost:3000/'],
-          redirectSignOut: ['https://base.wecare.digital/', 'http://localhost:3000/'],
+          redirectSignIn: [
+            process.env.NEXT_PUBLIC_APP_URL || 'https://base.wecare.digital/',
+            'http://localhost:3000/',
+          ],
+          redirectSignOut: [
+            process.env.NEXT_PUBLIC_APP_URL || 'https://base.wecare.digital/',
+            'http://localhost:3000/',
+          ],
           responseType: 'code' as const
         },
         username: true,
@@ -46,7 +52,7 @@ Amplify.configure({
 const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
 const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.svg';
 const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
-const GA_MEASUREMENT_ID = 'G-S3G6REP6Q7';
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
 
 // Custom Amplify UI Theme - Black buttons with 13px border radius
 const authTheme: Theme = {
@@ -455,7 +461,7 @@ export default function App({ Component, pageProps }: AppProps) {
           {`
             window.fbAsyncInit = function() {
               FB.init({
-                appId: '1623342242027107',
+                appId: '${process.env.NEXT_PUBLIC_FB_APP_ID || ''}',
                 cookie: true,
                 xfbml: true,
                 version: 'v20.0'
@@ -503,7 +509,7 @@ export default function App({ Component, pageProps }: AppProps) {
         {`
           window.fbAsyncInit = function() {
             FB.init({
-              appId: '1623342242027107',
+              appId: '${process.env.NEXT_PUBLIC_FB_APP_ID || ''}',
               cookie: true,
               xfbml: true,
               version: 'v20.0'

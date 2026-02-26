@@ -30,9 +30,12 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 from datetime import datetime
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -68,6 +71,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     }
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     # Get function name or API path
     function_name = event.get('function', '')

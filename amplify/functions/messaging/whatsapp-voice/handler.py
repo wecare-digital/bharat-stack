@@ -22,8 +22,12 @@ import boto3
 from typing import Dict, Any, Optional
 from decimal import Decimal
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
@@ -121,6 +125,7 @@ POLLY_VOICES = {
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle WhatsApp voice/TTS operations."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
     path = event.get('rawPath', event.get('path', ''))
     query_params = event.get('queryStringParameters') or {}
@@ -133,6 +138,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
+
+        # Enforce auth (skips Lambda-to-Lambda invocations automatically)
+        auth_result = require_auth(event)
+        if auth_result is not None:
+            return auth_result
 
         # DELETE /whatsapp-voice/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
@@ -595,11 +605,6 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
     """HTTP response with CORS."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }

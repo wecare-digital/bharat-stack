@@ -52,9 +52,12 @@ import urllib.error
 from typing import Dict, Any, List
 from decimal import Decimal
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 # AWS clients
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
@@ -98,6 +101,7 @@ def _get_secrets() -> Dict[str, str]:
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle OBD campaign operations."""
     request_id = context.aws_request_id if context else str(uuid.uuid4())
+    origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
     path = event.get('rawPath', event.get('path', ''))
     query_params = event.get('queryStringParameters') or {}
@@ -113,7 +117,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Detect Airtel CDR callback (Airtel sends OBD CDR callbacks to this endpoint)
         if http_method == 'POST' and _is_airtel_cdr_callback(body):
             return _handle_cdr_callback(body, request_id)
-        
+
+        # Auth check for all non-webhook routes
+        from lambda_utils.middleware import require_auth
+        auth_result = require_auth(event)
+        if auth_result is not None:
+            return auth_result
+
         if '/upload-audio' in path:
             return _upload_audio(body, event, request_id)
         elif '/upload-csv' in path:
@@ -899,11 +909,6 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }

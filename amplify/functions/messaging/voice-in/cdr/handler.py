@@ -60,8 +60,10 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.response import cors_headers, extract_origin
+
+logger = get_logger(__name__)
 
 # AWS clients
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
@@ -191,6 +193,7 @@ def _normalize_airtel_payload(payload: Dict) -> Dict:
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Process Airtel Voice CDR webhook events and list CDRs."""
     request_id = context.aws_request_id if context else str(uuid.uuid4())
+    origin = extract_origin(event)
     
     logger.info(json.dumps({
         'event': 'voice_cdr_handler',
@@ -820,15 +823,10 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key',
-            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }

@@ -29,14 +29,16 @@ import urllib.error
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
+logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
-VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'wecare_calling_verify_2026')
+VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', '')
 CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'base-wecare-digital-WhatsAppCallingTable')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
@@ -52,12 +54,7 @@ WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
 # Cache Meta tokens (dual)
 _token_cache = {}
 
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 
 def _get_meta_token(phone_number_id: str = None) -> str:
@@ -134,6 +131,7 @@ def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None, ph
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler — routes to appropriate function."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     rc = event.get('requestContext', {})
     http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET'))
     path = rc.get('http', {}).get('path', '') or event.get('rawPath', '') or event.get('path', '')
@@ -150,17 +148,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         # GET routes
         if http_method == 'GET':
+            # Webhook verification (no auth needed — Meta sends this)
+            if not any(x in path for x in ['config', 'active', 'logs']):
+                return _verify_webhook(query_params, request_id)
+
+            # Auth check for dashboard GET routes
+            from lambda_utils.middleware import require_auth
+            auth_result = require_auth(event)
+            if auth_result is not None:
+                return auth_result
+
             if 'config' in path:
                 return _get_config(request_id)
             if 'active' in path:
                 return _get_active_calls(query_params, request_id)
             if 'logs' in path:
                 return _list_logs(query_params, request_id)
-            # Default GET = webhook verification
-            return _verify_webhook(query_params, request_id)
 
         # POST routes
         if http_method == 'POST':
+            # Default POST with no sub-path = webhook event from Meta (no auth)
+            if not any(x in path for x in ['/config', '/accept', '/reject', '/hangup', '/outbound', '/ai-respond']):
+                body_str = event.get('body', '{}')
+                if event.get('isBase64Encoded'):
+                    import base64
+                    body_str = base64.b64decode(body_str).decode('utf-8')
+                return _handle_webhook_event(json.loads(body_str), request_id)
+
+            # Auth check for admin POST routes
+            from lambda_utils.middleware import require_auth
+            auth_result = require_auth(event)
+            if auth_result is not None:
+                return auth_result
+
             if '/config' in path:
                 return _update_config(event, request_id)
             if '/accept' in path:
@@ -171,15 +191,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _outbound_call(event, request_id)
             if '/ai-respond' in path:
                 return _ai_respond(event, request_id)
-            # Default POST = webhook event from Meta
-            body_str = event.get('body', '{}')
-            if event.get('isBase64Encoded'):
-                import base64
-                body_str = base64.b64decode(body_str).decode('utf-8')
-            return _handle_webhook_event(json.loads(body_str), request_id)
 
         # DELETE
         if http_method == 'DELETE':
+            from lambda_utils.middleware import require_auth
+            auth_result = require_auth(event)
+            if auth_result is not None:
+                return auth_result
             return _clear_logs(request_id)
 
         return _response(200, {'message': 'OK'})
@@ -1202,10 +1220,10 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
         return _response(200, {'success': False, 'error': str(e)})
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
     """HTTP response with CORS."""
     return {
         'statusCode': status_code,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str),
     }

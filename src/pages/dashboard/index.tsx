@@ -18,251 +18,20 @@ import {
   ContactsIcon, BulkIcon, SmsIcon, EmailIcon, RefreshIcon,
   DocumentIcon, HealthIcon, AdvisorIcon
 } from '../../lib/icons';
-import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE } from '../../config/constants';
-
-interface PageProps {
-  signOut?: () => void;
-  user?: any;
-}
-
-type TabType = 'overview' | 'messages' | 'pay' | 'data' | 'billing' | 'health' | 'advisor' | 'search' | 'ai' | 'botflow' | 'webhook' | 'guide' | 'requests';
+import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE, WHATSAPP_CALLING_VERIFY_TOKEN } from '../../config/constants';
+import { InternalAIConfig, WebhookConfig, DEFAULT_AI_CONFIG, TabType, PageProps } from '../../types/dashboard';
+import OverviewTab from '../../components/dashboard/tabs/OverviewTab';
+import MessagesTab from '../../components/dashboard/tabs/MessagesTab';
+import PayTab from '../../components/dashboard/tabs/PayTab';
+import DataTab from '../../components/dashboard/tabs/DataTab';
+import TabErrorBoundary from '../../components/dashboard/TabErrorBoundary';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
 
-const AIRTEL_REFERENCE_TEXT = `WECARE.DIGITAL - AIRTEL INTEGRATION DETAILS
-============================================
-
-CUSTOMER DETAILS:
-━━━━━━━━━━━━━━━━━
-Customer ID: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
-Contact Email: voice@wecare.digital
-Inbound Number: +91 9319767034
-
-CALLER IDs:
-━━━━━━━━━━━
-C2C Caller ID: 8047311032
-OBD Caller ID: 8040761117
-
-SMS CONFIGURATION:
-━━━━━━━━━━━━━━━━━━
-Sender ID: WDBEEP
-Entity ID (PE ID): 1201161991108627443
-Default DLT Template ID: 1007974344269130859
-API Host: iqmessaging.airtel.in
-Auth: Basic (base64 of username:password)
-  Kong Username: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-  Kong Password: sN$~|(I@112
-  Base64 Token: V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy
-
-SMS API Versions:
-• v4 Single/Multiple SMS:  POST https://iqmessaging.airtel.in/api/v4/send-sms
-• v5 Content Moderation:   POST https://iqmessaging.airtel.in/api/v5/send-sms-cm
-• v6 Enhanced Response:    POST https://iqmessaging.airtel.in/api/v6/send-sms
-• Bulk SMS (Conduit):      POST https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk
-
-v4/v5/v6 Headers: Authorization: Basic <token>, Content-Type: application/json, customerId
-Bulk/Conduit Headers: Authorization: Basic <token>, Content-Type: application/json (NO customerId)
-
-NOTE: v4 destinationAddress is an array — supports single AND multiple recipients in one call.
-      Bulk (Conduit) is a different format: array of objects with msisdn, content, header, etc.
-
-DLT Requirements (TRAI TCCCPR 2019):
-• PE ID (entityId): 1201161991108627443
-• Sender ID (header): WDBEEP — registered on DLT portal
-• Content Template ID (dltTemplateId): must be registered on DLT portal
-• MSISDN: 10 or 12 digits (India)
-• v5 does NOT require DLT fields (content moderation auto-handles)
-• Promotional messages: No DLR sent back (except NACK from DLT)
-
-Message Types: PROMOTIONAL, TRANSACTIONAL, SERVICE_IMPLICIT, SERVICE_EXPLICIT
-OTP: Set otp=true with SERVICE_IMPLICIT for OTP traffic
-metaData: Optional key-value map, flows end-to-end to IQ reporting and callbacks
-
-ALL WEBHOOK URLs:
-━━━━━━━━━━━━━━━━━
-API Base: https://api.wecare.digital
-
-1. SMS-IN (Send SMS via our API — supports v4/v5/v6 + bulk):
-   POST /sms-in/airtel
-   Full URL: https://api.wecare.digital/sms-in/airtel
-   Also: GET (list), DELETE (delete msg), DELETE /clear-logs
-   Templates: GET/POST/DELETE /sms-in/airtel/templates
-
-2. Voice Click-to-Call (C2C):
-   POST /voice-in/c2c
-   Full URL: https://api.wecare.digital/voice-in/c2c
-
-3. Voice OBD (Outbound Dialer):
-   POST /voice-in/obd
-   Full URL: https://api.wecare.digital/voice-in/obd
-
-4. Voice CDR Webhook (Airtel → Us, for ALL callbacks - inbound & outbound):
-   POST /voice-cdr-webhook
-   Full URL: https://api.wecare.digital/voice-cdr-webhook
-
-5. Voice CDR Read (Dashboard / UI - read CDRs with stats):
-   GET /voice-cdr-read
-   Full URL: https://api.wecare.digital/voice-cdr-read
-   Params: ?callType=INBOUND&status=Answered&dashboard=true&limit=50
-
-6. WhatsApp Calling Webhook (Meta → Us, for call events):
-   GET  /whatsapp-calling  (webhook verification)
-   POST /whatsapp-calling  (call events: connect, terminate, permission)
-   Full URL: https://api.wecare.digital/whatsapp-calling
-   Verify Token: wecare_calling_verify_2026
-   Subscribed Fields: calls
-   Lambda: wecare-whatsapp-calling
-
-7. Wix Store (Wix Stores + Velo bridge):
-   GET  /wix-store/products       (list/search products)
-   GET  /wix-store/orders         (search orders, supports WD custom order number)
-   GET  /wix-store/collections    (list collections)
-   GET  /wix-store/inventory      (inventory items)
-   POST /wix-store/create-product (create product)
-   POST /wix-store/sync/products  (sync to DynamoDB cache)
-   POST /wix-store/sync/orders    (sync to DynamoDB cache)
-   POST /wix-store/backfill-order-ids (backfill WD-ORD numbers)
-   Full URL: https://api.wecare.digital/wix-store/*
-   Auth: API Key (X-Api-Key header in Velo mode)
-   Lambda: wecare-wix-store
-   Modes: api (Wix REST API) | velo (Velo HTTP Functions)
-   Order ID Format: WD-ORD-{UUID8}-{DD-MM-YYYY}-{HH:MM:SS}-IST
-   TWO REPOS:
-     Base CRM: github.com/wecaredigital/base.wecare.digital (branch: base)
-     Wix Velo: github.com/wecaredigital/store.wecare.digital (branch: main) ← LIVE on Wix
-   DynamoDB: base-wecare-digital-WixOrderIds, WixProductsCache, WixOrdersCache
-   Wix Collections: OrderIDs (Velo writes), OrderCustomIds (Lambda+Velo writes), Stores/Orders (native)
-
-IP WHITELIST:
-━━━━━━━━━━━━
-We do NOT need to whitelist IPs for sending SMS traffic.
-However, if encountering 403 errors on API calls, please whitelist
-these Airtel API IPs on your server and retry:
-• 125.19.17.212
-• 125.17.6.54
-• 122.187.47.153
-
-CLICK-TO-CALL (C2C) CALLBACK BODY:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-We accept the DEFAULT Airtel callback body format.
-The callback body is NOT customized from our end.
-No custom callback body configuration needed from Airtel side.
-
-C2C CDR callbacks can be sent to ANY of these URLs (all accept CDR):
-• https://api.wecare.digital/voice-cdr-webhook  (preferred)
-• https://api.wecare.digital/voice-in/c2c       (also accepts CDR callbacks)
-
-OBD CALLBACK BODY:
-━━━━━━━━━━━━━━━━━━
-We accept the DEFAULT Airtel callback body format (both camelCase and Display_Format).
-No custom callback body configuration needed from Airtel side.
-
-OBD CDR callbacks can be sent to ANY of these URLs (all accept CDR):
-• https://api.wecare.digital/voice-cdr-webhook  (preferred)
-• https://api.wecare.digital/voice-in/obd       (also accepts CDR callbacks)
-
-CDR WEBHOOK (INBOUND + OUTBOUND):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The /voice-cdr-webhook handles CDRs for ALL call types:
-• INBOUND calls (direct calls to +91 9319767034)
-• OUTBOUND calls (C2C initiated calls)
-• OUTBOUND calls (OBD campaign calls)
-
-We accept BOTH Airtel CDR formats:
-• Format A (camelCase): vmSessionId, callerNumber, overallCallStatus, etc.
-• Format B (Display): Session_ID, Caller_Number, Overall_Call_Status, etc.
-
-OLD WEBHOOK URL (DEPRECATED - DO NOT USE):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook
-→ REPLACE WITH: https://api.wecare.digital/voice-cdr-webhook
-
-Expected CDR callback fields:
-{
-  "vmSessionId": "unique-session-id",
-  "clientCorrelationId": "xchange-tracking-id",
-  "callType": "INBOUND" | "OUTBOUND",
-  "overallCallStatus": "Answered" | "Missed" | "Busy" | "Disconnected",
-  "callerNumber": "9876543210",
-  "destinationNumber": "9123456789",
-  "duration": 45000,           // milliseconds
-  "conversationDuration": 40000,
-  "billableDuration": 40000,
-  "hangUpStatus": "USER_INITIATED" | "SYSTEM_INITIATED",
-  "recordingURL": "https://...",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-
-SAMPLE callBackURLs FOR C2C/OBD API:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"callBackURLs": [
-  {
-    "eventType": "CDR",
-    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  },
-  {
-    "eventType": "ALL",
-    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  }
-]
-
-ISSUES / NOTES:
-━━━━━━━━━━━━━━━
-• All endpoints return HTTP 200 OK on successful receipt
-• Content-Type: application/json
-• Domain to whitelist: api.wecare.digital
-• Recordings are stored in S3: s3://app.wecare.digital/voice/
-• If 403 errors persist after IP whitelisting, check API Gateway resource policy
-• SMS does NOT require IP whitelisting for sending traffic
-• OLD URL DEPRECATED: k4vqzmi07b.execute-api.us-east-1.amazonaws.com → use api.wecare.digital
-• CDR callbacks accepted on ALL voice endpoints (/voice-cdr-webhook, /voice-in/c2c, /voice-in/obd)
-• Both Airtel CDR formats accepted (camelCase and Display_Format with underscores)
-
-Thank you,
-WECARE.DIGITAL Team`;
-
-interface InternalAIConfig {
-  enabled: boolean;
-  agentId: string;
-  agentAlias: string;
-  knowledgeBaseId: string;
-  modelId: string;
-  maxTokens: number;
-  temperature: number;
-  systemPrompt: string;
-}
-
-const DEFAULT_AI_CONFIG: InternalAIConfig = {
-  enabled: true,
-  agentId: 'QIEEHEBTZO',
-  agentAlias: 'ASCBD7YPUT',
-  knowledgeBaseId: 'D0JU8Q7IQS',
-  modelId: 'amazon.nova-lite-v1:0',
-  maxTokens: 1024,
-  temperature: 0.7,
-  systemPrompt: `You are WECARE.DIGITAL's internal admin assistant.
-Help operators with:
-- Sending WhatsApp messages
-- Finding and managing contacts
-- Checking message statistics
-- Answering questions about the platform`,
-};
-
-interface WebhookConfig {
-  id: string;
-  name: string;
-  url: string;
-  events: string[];
-  enabled: boolean;
-  secret?: string;
-  createdAt: string;
-}
+// Airtel integration reference moved to backend — no longer shipped in browser bundle.
+// See: docs/airtel-integration-reference.md (local only, gitignored)
+const AIRTEL_REFERENCE_NOTICE = 'Airtel integration details are no longer displayed in the dashboard for security. Check your local docs/airtel-integration-reference.md or AWS Secrets Manager.';
 
 // AWS Resource ARNs for billing display - uses centralized AWS_ACCOUNT_ID and AWS_REGION
 // Comprehensive list including used and available services for future updates
@@ -768,7 +537,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     try {
       // Clear all inbox data (messages + contacts)
       const result = await api.clearAllInboxData();
-      console.log('Clear all result:', result);
       setDeleteMode(null);
       setConfirmText('');
       await loadData();
@@ -1108,7 +876,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         }
       }
     } catch (error) {
-      console.log('Using default internal AI config');
+      // Using default internal AI config
     }
     setAiLoading(false);
   };
@@ -1160,7 +928,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         setWebhooks(data.webhooks || []);
       }
     } catch (error) {
-      console.log('No webhooks configured');
+      // No webhooks configured
     }
     setWebhookLoading(false);
   };
@@ -1224,7 +992,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         setBotFlowConfigs(data.configs || {});
       }
     } catch (error) {
-      console.log('Failed to load bot flow configs');
+      // Failed to load bot flow configs
     }
     setBotFlowLoading(false);
   };
@@ -1254,7 +1022,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       const cfg = await api.getSystemConfig('whatsapp_flow_json');
       if (cfg) setFlowJson(cfg);
     } catch (error) {
-      console.log('Failed to load flow JSON');
+      // Failed to load flow JSON
     }
     setFlowJsonLoading(false);
   };
@@ -1471,558 +1239,34 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="tab-content">
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
-            <div className="overview">
-              <div className="section full-width">
-                <h3>Statistics</h3>
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-value">{contacts.length}</div>
-                    <div className="stat-label">Contacts</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-value">{messages.length}</div>
-                    <div className="stat-label">Messages</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-value">{todayMessages.length}</div>
-                    <div className="stat-label">Today</div>
-                  </div>
-                  <div className="stat-card accent">
-                    <div className="stat-value">{inboundCount}</div>
-                    <div className="stat-label">Inbound</div>
-                  </div>
-                  <div className="stat-card accent2">
-                    <div className="stat-value">{outboundCount}</div>
-                    <div className="stat-label">Outbound</div>
-                  </div>
-                  <div className="stat-card success">
-                    <div className="stat-value">{capturedPayments}</div>
-                    <div className="stat-label">Paid</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="section">
-                <h3>Quick Actions</h3>
-                <div className="actions-grid">
-                  <Link href="/dm/whatsapp" className="action-card">
-                    <span className="icon"><WhatsAppIcon size={20} /></span>
-                    <span>WhatsApp</span>
-                  </Link>
-                  <Link href="/pay" className="action-card">
-                    <span className="icon"><PaymentIcon size={20} /></span>
-                    <span>Pay</span>
-                  </Link>
-                  <Link href="/pay" className="action-card">
-                    <span className="icon"><InvoiceIcon size={20} /></span>
-                    <span>Invoice</span>
-                  </Link>
-                  <Link href="/link" className="action-card">
-                    <span className="icon"><LinkIcon size={20} /></span>
-                    <span>Link</span>
-                  </Link>
-                  <Link href="/contacts" className="action-card">
-                    <span className="icon"><ContactsIcon size={20} /></span>
-                    <span>Contacts</span>
-                  </Link>
-                  <Link href="/dm/whatsapp" className="action-card" onClick={() => setActiveTab('overview')}>
-                    <span className="icon"><BulkIcon size={20} /></span>
-                    <span>Campaign</span>
-                  </Link>
-                  <Link href="/dm/sms" className="action-card">
-                    <span className="icon"><SmsIcon size={20} /></span>
-                    <span>SMS</span>
-                  </Link>
-                  <Link href="/dm/ses" className="action-card">
-                    <span className="icon"><EmailIcon size={20} /></span>
-                    <span>Email</span>
-                  </Link>
-                </div>
-              </div>
-
-              <div className="section">
-                <h3>WhatsApp Numbers</h3>
-                <div className="phones-grid">
-                  <div className="phone-card">
-                    <div className="phone-name">WECARE.DIGITAL</div>
-                    <div className="phone-num">+91 93309 94400</div>
-                    <span className="badge">Razorpay</span>
-                  </div>
-                  <div className="phone-card">
-                    <div className="phone-name">Manish Agarwal</div>
-                    <div className="phone-num">+91 99033 00044</div>
-                    <span className="badge">Active</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="section full-width">
-                <div className="section-header">
-                  <h3>Recent Messages</h3>
-                  <Link href="/dm/whatsapp" className="link">View All →</Link>
-                </div>
-                <div className="msg-list">
-                  {messages.slice(0, 5).map(msg => {
-                    const contact = contacts.find(c => c.id === msg.contactId);
-                    return (
-                      <div key={msg.id} className={`msg-item ${msg.direction.toLowerCase()}`}>
-                        <span className="dir">{msg.direction === 'INBOUND' ? '↓' : '↑'}</span>
-                        <span className="name">{contact?.name || contact?.phone || '...'}</span>
-                        <span className="content">{msg.content?.slice(0, 50) || '[Media]'}</span>
-                        <span className="time">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
-                      </div>
-                    );
-                  })}
-                  {messages.length === 0 && <div className="empty">No messages yet</div>}
-                </div>
-              </div>
-            </div>
+            <TabErrorBoundary tabName="Overview">
+              <OverviewTab data={{ contacts, messages, billingData, apiConnected, apiLatency, lastRefresh, loading }} />
+            </TabErrorBoundary>
           )}
 
           {/* MESSAGES TAB */}
           {activeTab === 'messages' && (
-            <div className="messages-tab">
-              <div className="search-bar">
-                <input
-                  type="text"
-                  placeholder="Search messages..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && <button onClick={() => setSearchQuery('')}>×</button>}
-              </div>
-              
-              <div className="msg-list full">
-                {filteredMessages.slice(0, 50).map(msg => {
-                  const contact = contacts.find(c => c.id === msg.contactId);
-                  return (
-                    <div key={msg.id} className={`msg-item ${msg.direction.toLowerCase()}`}>
-                      <span className="dir">{msg.direction === 'INBOUND' ? '↓' : '↑'}</span>
-                      <span className="name">{contact?.name || contact?.phone || '...'}</span>
-                      <span className="content">{msg.content?.slice(0, 60) || '[Media]'}</span>
-                      <span className="time">{new Date(msg.timestamp).toLocaleString()}</span>
-                      <span className="status">{msg.status}</span>
-                    </div>
-                  );
-                })}
-                {filteredMessages.length === 0 && <div className="empty">No messages found</div>}
-              </div>
-            </div>
+            <TabErrorBoundary tabName="Messages">
+              <MessagesTab data={{ contacts, messages, billingData, apiConnected, apiLatency, lastRefresh, loading }} />
+            </TabErrorBoundary>
           )}
 
           {/* PAY TAB */}
           {activeTab === 'pay' && (
-            <div className="pay-tab">
-              <div className="section-header">
-                <h3>Payment Records</h3>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Link href="/contacts"><button style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #10B981', background: '#ecfdf5', color: '#059669', cursor: 'pointer', fontSize: '0.85rem' }}>+ Customer</button></Link>
-                  <Link href="/pay"><Button variant="primary">+ New Payment</Button></Link>
-                </div>
-              </div>
-              
-              <div className="stats-grid small">
-                <div className="stat-card success">
-                  <div className="stat-value">{capturedPayments}</div>
-                  <div className="stat-label">Captured</div>
-                </div>
-                <div className="stat-card error">
-                  <div className="stat-value">{failedPayments}</div>
-                  <div className="stat-label">Failed</div>
-                </div>
-                <div className="stat-card warning">
-                  <div className="stat-value">{pendingPayments}</div>
-                  <div className="stat-label">Pending</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">{paymentMessages.length}</div>
-                  <div className="stat-label">Total</div>
-                </div>
-              </div>
-
-              <div className="payment-info">
-                <span>Payments sent from: <strong>{PAYMENT_PHONE}</strong> ({PAYMENT_NAME})</span>
-              </div>
-
-              <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Reference</th>
-                    <th>Phone</th>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Subtotal</th>
-                    <th>GST</th>
-                    <th>Promo</th>
-                    <th>Ship</th>
-                    <th>Total</th>
-                    <th>Source</th>
-                    <th>Status</th>
-                    <th>Invoice</th>
-                    <th>Time</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paymentMessages.map(p => {
-                    const pa = p as any;
-                    const subtotal = pa.paymentSubtotal ? (pa.paymentSubtotal / 100).toFixed(2) : '-';
-                    const gstAmt = pa.paymentGstAmount ? `₹${(pa.paymentGstAmount / 100).toFixed(2)} (${pa.paymentGstRate || 18}%)` : '-';
-                    const disc = pa.paymentDiscount ? `₹${(pa.paymentDiscount / 100).toFixed(2)}` : '₹0';
-                    const ship = pa.paymentShipping ? `₹${(pa.paymentShipping / 100).toFixed(2)}` : '-';
-                    const total = pa.paymentTotal ? `₹${(pa.paymentTotal / 100).toFixed(2)}` : p.content;
-                    const source = pa.paymentSource || (pa.messageType === 'payment' ? 'webhook' : 'dashboard');
-                    const invoiceUrl = pa.invoiceS3Key
-                      ? `https://app.wecare.digital/${pa.invoiceS3Key}`
-                      : pa.paymentReferenceId ? `https://app.wecare.digital/invoices/${pa.paymentReferenceId}.png` : '';
-                    return (
-                    <tr key={p.id} className={pa.paymentStatus || p.status}>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{pa.paymentReferenceId || '-'}</td>
-                      <td>{p.senderPhone || '-'}</td>
-                      <td>{pa.paymentItemName || '-'}</td>
-                      <td>{pa.paymentQuantity || 1}</td>
-                      <td>₹{subtotal}</td>
-                      <td>{gstAmt}</td>
-                      <td>{disc}</td>
-                      <td>{ship}</td>
-                      <td style={{ fontWeight: 600 }}>{total}</td>
-                      <td><span className={`badge ${source === 'whatsapp_bot' ? 'info' : ''}`}>{source === 'whatsapp_bot' ? 'WA Bot' : source}</span></td>
-                      <td><span className={`badge ${pa.paymentStatus || p.status}`}>{pa.paymentStatus || p.status}</span></td>
-                      <td>
-                        {invoiceUrl ? (
-                          <span style={{ display: 'flex', gap: 4 }}>
-                            <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#10B981', textDecoration: 'none' }}>📄</a>
-                            <button onClick={() => downloadInvoicePdf(invoiceUrl, pa.paymentReferenceId || p.id)} style={{ fontSize: '0.65rem', padding: '1px 4px', borderRadius: 4, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer' }} title="Download">⬇</button>
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td style={{ fontSize: '0.75rem' }}>{new Date(p.timestamp).toLocaleString()}</td>
-                      <td>
-                        <button onClick={() => setEditPayment({ ...pa, id: p.id })} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 6, border: '1px solid #6366f1', background: '#eef2ff', color: '#4f46e5', cursor: 'pointer' }}>✏️ Edit</button>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                  {paymentMessages.length === 0 && (
-                    <tr><td colSpan={14} className="empty">No payment records</td></tr>
-                  )}
-                </tbody>
-              </table>
-              </div>
-
-              {/* Edit Payment Modal */}
-              {editPayment && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditPayment(null)}>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 420, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-                    <h3 style={{ margin: '0 0 16px', fontSize: '1rem' }}>Edit Payment — {editPayment.paymentReferenceId || editPayment.id}</h3>
-                    {[
-                      { label: 'Item Name', key: 'paymentItemName', type: 'text' },
-                      { label: 'Quantity', key: 'paymentQuantity', type: 'number' },
-                      { label: 'GST Rate (%)', key: 'paymentGstRate', type: 'number' },
-                      { label: 'Purpose', key: 'paymentPurpose', type: 'text' },
-                      { label: 'Due Reference', key: 'paymentDueRef', type: 'text' },
-                      { label: 'Discount (paise)', key: 'paymentDiscount', type: 'number' },
-                      { label: 'Shipping (paise)', key: 'paymentShipping', type: 'number' },
-                    ].map(f => (
-                      <div key={f.key} style={{ marginBottom: 10 }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: 2 }}>{f.label}</label>
-                        <input
-                          type={f.type}
-                          value={editPayment[f.key] ?? ''}
-                          onChange={e => setEditPayment((prev: any) => ({ ...prev, [f.key]: f.type === 'number' ? e.target.value : e.target.value }))}
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
-                        />
-                      </div>
-                    ))}
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: 2 }}>Status</label>
-                      <select
-                        value={editPayment.status || editPayment.paymentStatus || 'pending'}
-                        onChange={e => setEditPayment((prev: any) => ({ ...prev, status: e.target.value }))}
-                        style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.85rem' }}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="captured">Captured</option>
-                        <option value="failed">Failed</option>
-                        <option value="refunded">Refunded</option>
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-                      <button onClick={() => setEditPayment(null)} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer' }}>Cancel</button>
-                      <button onClick={handleSavePayment} disabled={editSaving} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', opacity: editSaving ? 0.6 : 1 }}>{editSaving ? 'Saving...' : 'Save'}</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
+            <TabErrorBoundary tabName="Pay">
+              <PayTab data={{ contacts, messages, billingData, apiConnected, apiLatency, lastRefresh, loading }} onRefresh={() => loadData()} />
+            </TabErrorBoundary>
           )}
 
           {/* DATA TAB */}
           {activeTab === 'data' && (
-            <div className="data-tab">
-              <h3>Data Management</h3>
-              
-              <div className="delete-options">
-                <button 
-                  className={deleteMode === 'messages' ? 'active' : ''} 
-                  onClick={() => setDeleteMode(deleteMode === 'messages' ? null : 'messages')}
-                >
-                  ◫ Delete Messages
-                </button>
-                <button 
-                  className={deleteMode === 'hard' ? 'active' : ''}
-                  onClick={() => setDeleteMode(deleteMode === 'hard' ? null : 'hard')}
-                >
-                  ⊗ Hard Delete Contact
-                </button>
-                <button 
-                  className={deleteMode === 'clearAll' ? 'active' : ''}
-                  onClick={() => setDeleteMode(deleteMode === 'clearAll' ? null : 'clearAll')}
-                >
-                  ⊘ Clear All Data
-                </button>
-                <button 
-                  className={deleteMode === 'systemCleanup' ? 'active' : ''}
-                  onClick={() => { setDeleteMode(deleteMode === 'systemCleanup' ? null : 'systemCleanup'); if (deleteMode !== 'systemCleanup') loadCleanupPreview(); }}
-                >
-                  🧹 System Cleanup
-                </button>
-              </div>
-
-              {deleteMode === 'messages' && (
-                <div className="delete-panel">
-                  <div className="form-row">
-                    <label>Filter by Contact</label>
-                    <select value={selectedContact} onChange={e => setSelectedContact(e.target.value)}>
-                      <option value="">All contacts</option>
-                      {contacts.map(c => (
-                        <option key={c.id} value={c.id}>{c.name || c.phone}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="msg-select-list">
-                    <div className="select-header">
-                      <span>{selectedMessages.length} selected</span>
-                      <button onClick={() => setSelectedMessages(
-                        selectedMessages.length === contactMessages.length ? [] : contactMessages.map(m => m.id)
-                      )}>
-                        {selectedMessages.length === contactMessages.length ? 'Deselect All' : 'Select All'}
-                      </button>
-                    </div>
-                    {contactMessages.slice(0, 30).map(msg => (
-                      <label key={msg.id} className="msg-select-row">
-                        <input
-                          type="checkbox"
-                          checked={selectedMessages.includes(msg.id)}
-                          onChange={() => setSelectedMessages(prev =>
-                            prev.includes(msg.id) ? prev.filter(id => id !== msg.id) : [...prev, msg.id]
-                          )}
-                        />
-                        <span className="dir">{msg.direction === 'INBOUND' ? '↓' : '↑'}</span>
-                        <span className="content">{msg.content?.slice(0, 40) || '[Media]'}</span>
-                        <span className="time">{new Date(msg.timestamp).toLocaleDateString()}</span>
-                      </label>
-                    ))}
-                  </div>
-                  
-                  <div className="delete-actions">
-                    <Button variant="secondary" onClick={() => { setDeleteMode(null); setSelectedMessages([]); }}>Cancel</Button>
-                    <Button variant="danger" onClick={handleDeleteMessages} disabled={deleting || selectedMessages.length === 0} loading={deleting}>
-                      Delete {selectedMessages.length}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {deleteMode === 'hard' && (
-                <div className="delete-panel">
-                  <div className="warning">This will permanently delete the contact, all their messages, and media files.</div>
-                  
-                  <div className="form-row">
-                    <label>Select Contact</label>
-                    <select value={selectedContact} onChange={e => setSelectedContact(e.target.value)}>
-                      <option value="">Select...</option>
-                      {contacts.map(c => (
-                        <option key={c.id} value={c.id}>{c.name || c.phone}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {selectedContact && (
-                    <div className="preview">
-                      <p>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</p>
-                      <p>{contactMessages.length} messages, {contactMessages.filter(m => m.s3Key).length} media files</p>
-                    </div>
-                  )}
-                  
-                  <div className="delete-actions">
-                    <Button variant="secondary" onClick={() => { setDeleteMode(null); setSelectedContact(''); }}>Cancel</Button>
-                    <Button variant="danger" onClick={() => setShowHardDeleteModal(true)} disabled={deleting || !selectedContact} loading={deleting}>
-                      Hard Delete
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {deleteMode === 'clearAll' && (
-                <div className="delete-panel">
-                  <div className="warning">
-                    This will permanently delete ALL data including:
-                    <ul style={{ margin: '8px 0 0 16px', fontSize: '12px' }}>
-                      <li>All WhatsApp messages (inbound & outbound)</li>
-                      <li>All SMS messages (inbound & outbound)</li>
-                      <li>All SMS IN messages</li>
-                      <li>All Voice call records (inbound & outbound)</li>
-                      <li>All Voice IN call records</li>
-                      <li>All contacts</li>
-                      <li>All media files from S3</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="preview">
-                    <p>Total Contacts: {contacts.length}</p>
-                    <p>Total Messages: {messages.length}</p>
-                    <p>Media Files: {messages.filter(m => m.s3Key).length}</p>
-                  </div>
-                  
-                  <div className="delete-actions">
-                    <Button variant="secondary" onClick={() => setDeleteMode(null)}>Cancel</Button>
-                    <Button variant="danger" onClick={() => setShowClearAllModal(true)} disabled={deleting} loading={deleting}>
-                      Clear All Data
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {deleteMode === 'systemCleanup' && (
-                <div className="delete-panel">
-                  <div className="warning">
-                    Select specific resources to permanently delete. SystemConfig is always preserved.
-                  </div>
-
-                  {cleanupLoading && <p className="cleanup-loading">Loading resource counts...</p>}
-
-                  {!cleanupLoading && cleanupResources.length > 0 && (
-                    <>
-                      <div className="cleanup-header">
-                        <label className="cleanup-select-all">
-                          <input
-                            type="checkbox"
-                            checked={cleanupSelected.size === cleanupResources.length && cleanupResources.length > 0}
-                            onChange={selectAllCleanup}
-                          />
-                          Select All
-                        </label>
-                        <span className="cleanup-count">{cleanupSelected.size} selected</span>
-                      </div>
-
-                      {Array.from(new Set(cleanupResources.map(r => r.category))).map(category => {
-                        const items = cleanupResources.filter(r => r.category === category);
-                        const allCatSelected = items.every(r => cleanupSelected.has(r.id));
-                        const someCatSelected = items.some(r => cleanupSelected.has(r.id));
-                        return (
-                          <div key={category} className="cleanup-category">
-                            <label className="cleanup-category-label">
-                              <input
-                                type="checkbox"
-                                checked={allCatSelected}
-                                ref={el => { if (el) el.indeterminate = someCatSelected && !allCatSelected; }}
-                                onChange={() => toggleCleanupCategory(category)}
-                              />
-                              {category}
-                            </label>
-                            {items.map(res => (
-                              <label key={res.id} className="cleanup-item">
-                                <input
-                                  type="checkbox"
-                                  checked={cleanupSelected.has(res.id)}
-                                  onChange={() => toggleCleanupItem(res.id)}
-                                />
-                                <span className="cleanup-item-label">{res.label}</span>
-                                <span className={`cleanup-item-count ${res.count > 0 ? 'has-data' : ''}`}>
-                                  {res.count === -1 ? '—' : res.count}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
-
-                  {cleanupResults && (
-                    <div className="cleanup-results">
-                      <p className="cleanup-results-title">Cleanup Complete</p>
-                      {cleanupResults.map(r => (
-                        <div key={r.id} className="cleanup-result-row">
-                          <span>{r.label}</span>
-                          <span className={r.error ? 'cleanup-result-error' : 'cleanup-result-success'}>
-                            {r.error ? `Error: ${r.error}` : `${r.deleted} deleted${r.elapsed ? ` (${r.elapsed}s)` : ''}`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="delete-actions">
-                    <Button variant="secondary" onClick={() => { setDeleteMode(null); setCleanupResults(null); setCleanupSelected(new Set()); }}>Cancel</Button>
-                    <Button variant="secondary" onClick={loadCleanupPreview} disabled={cleanupLoading}>Refresh</Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => setShowCleanupConfirm(true)}
-                      disabled={cleanupRunning || cleanupSelected.size === 0}
-                      loading={cleanupRunning}
-                    >
-                      Delete {cleanupSelected.size} Resource{cleanupSelected.size !== 1 ? 's' : ''}
-                    </Button>
-                  </div>
-
-                  {showCleanupConfirm && (
-                    <div className="cleanup-confirm">
-                      <p className="cleanup-confirm-text">
-                        Type <strong>CONFIRM DELETE</strong> to permanently delete {cleanupSelected.size} resource{cleanupSelected.size !== 1 ? 's' : ''}:
-                      </p>
-                      <ul className="cleanup-confirm-list">
-                        {Array.from(cleanupSelected).map(id => {
-                          const res = cleanupResources.find(r => r.id === id);
-                          return <li key={id}>{res?.label || id}</li>;
-                        })}
-                      </ul>
-                      <input
-                        type="text"
-                        value={cleanupConfirmText}
-                        onChange={e => setCleanupConfirmText(e.target.value)}
-                        placeholder="Type CONFIRM DELETE"
-                      />
-                      <div className="delete-actions">
-                        <Button variant="secondary" onClick={() => { setShowCleanupConfirm(false); setCleanupConfirmText(''); }}>Cancel</Button>
-                        <Button
-                          variant="danger"
-                          onClick={executeSystemCleanup}
-                          disabled={cleanupConfirmText !== 'CONFIRM DELETE'}
-                        >
-                          Permanently Delete
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {!deleteMode && (
-                <div className="stats-grid">
-                  <div className="stat-card"><div className="stat-value">{contacts.length}</div><div className="stat-label">Contacts</div></div>
-                  <div className="stat-card"><div className="stat-value">{messages.length}</div><div className="stat-label">Messages</div></div>
-                  <div className="stat-card"><div className="stat-value">{messages.filter(m => m.s3Key).length}</div><div className="stat-label">Media</div></div>
-                </div>
-              )}
-            </div>
+            <TabErrorBoundary tabName="Data">
+              <DataTab data={{ contacts, messages, billingData, apiConnected, apiLatency, lastRefresh, loading }} onRefresh={() => loadData()} />
+            </TabErrorBoundary>
           )}
           {/* BILLING TAB */}
           {activeTab === 'billing' && (
+            <TabErrorBoundary tabName="Billing">
             <div className="billing-tab">
               <div className="section-header">
                 <h3>AWS Billing & Usage</h3>
@@ -2122,10 +1366,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </>
               )}
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* HEALTH TAB */}
           {activeTab === 'health' && (
+            <TabErrorBoundary tabName="Health">
             <div className="health-tab">
               <div className="section-header">
                 <h3>AWS Health</h3>
@@ -2212,10 +1458,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </p>
               </div>
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* ADVISOR TAB */}
           {activeTab === 'advisor' && (
+            <TabErrorBoundary tabName="Advisor">
             <div className="advisor-tab">
               <div className="section-header">
                 <h3>Trusted Advisor</h3>
@@ -2321,10 +1569,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </p>
               </div>
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* AI ASSISTANT TAB */}
           {activeTab === 'ai' && (
+            <TabErrorBoundary tabName="AI Assistant">
             <div className="ai-tab">
               <div className="section-header">
                 <h3>Internal AI Assistant</h3>
@@ -2455,10 +1705,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
 
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* BOT FLOW TAB */}
           {activeTab === 'botflow' && (
+            <TabErrorBoundary tabName="Bot Flow">
             <div className="botflow-tab">
               <div className="section-header">
                 <h3>WhatsApp Bot Flow Config</h3>
@@ -2784,10 +2036,12 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 )}
               </div>
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* WEBHOOK TAB */}
           {activeTab === 'webhook' && (
+            <TabErrorBoundary tabName="Webhook">
             <div className="webhook-tab">
               {/* Razorpay Webhook Section */}
               <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #10B981' }}>
@@ -2810,7 +2064,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook Secret</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>b@c4mk9t9Z8qLq3</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>••••••••••••••• (stored in env)</code>
                   </div>
                 </div>
 
@@ -2990,23 +2244,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
               </div>
 
-              {/* Message to Share with Airtel */}
-              <div className="section" style={{ background: '#E3F2FD', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #90CAF9' }}>
-                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1565C0' }}>
-                  📋 Complete Airtel Integration Reference
+              {/* Airtel Integration Reference — credentials removed for security */}
+              <div className="section" style={{ background: '#FFF3E0', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #FFB74D' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#E65100' }}>
+                  🔒 Airtel Integration Reference
                 </h4>
-                <div style={{ background: '#fff', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #BBDEFB' }}>
-                  <pre style={{ fontSize: '0.8rem', color: '#111827', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{AIRTEL_REFERENCE_TEXT}</pre>
-                </div>
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(AIRTEL_REFERENCE_TEXT);
-                    alert('Message copied to clipboard!');
-                  }}
-                  style={{ marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#1976D2', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 500 }}
-                >
-                  📋 Copy Full Reference to Clipboard
-                </button>
+                <p style={{ fontSize: '0.9rem', color: '#333', margin: 0 }}>
+                  {AIRTEL_REFERENCE_NOTICE}
+                </p>
               </div>
 
               {/* Voice CDR Data Captured */}
@@ -3311,7 +2556,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 Webhook Configuration (Meta App Dashboard)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Callback URL</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>https://api.wecare.digital/whatsapp-calling</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>wecare_calling_verify_2026</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>{WHATSAPP_CALLING_VERIFY_TOKEN || '(not configured)'}</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>calls</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-whatsapp-calling</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App ID</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
@@ -3362,7 +2607,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     style={{ padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
                     📋 Copy Callback URL
                   </button>
-                  <button onClick={() => { navigator.clipboard.writeText('wecare_calling_verify_2026'); alert('Verify token copied!'); }}
+                  <button onClick={() => { navigator.clipboard.writeText(WHATSAPP_CALLING_VERIFY_TOKEN || ''); alert('Verify token copied!'); }}
                     style={{ padding: '0.5rem 1rem', background: '#065f46', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
                     📋 Copy Verify Token
                   </button>
@@ -3665,10 +2910,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 Each request includes a signature header (X-Razorpay-Signature) for HMAC SHA256 verification.
               </div>
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* USER GUIDE TAB */}
           {activeTab === 'guide' && (
+            <TabErrorBoundary tabName="User Guide">
             <div className="guide-tab">
               <div className="section">
                 <h3>Welcome to WECARE.DIGITAL</h3>
@@ -3738,10 +2985,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </p>
               </div>
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* SEARCH TAB */}
           {activeTab === 'search' && (
+            <TabErrorBoundary tabName="Search">
             <div className="search-tab">
               <div className="search-bar large">
                 <input
@@ -3818,10 +3067,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
               )}
             </div>
+            </TabErrorBoundary>
           )}
 
           {/* REQUESTS TAB */}
           {activeTab === 'requests' && (
+            <TabErrorBoundary tabName="Requests">
             <div className="requests-tab">
               <div className="section">
                 <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3962,6 +3213,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 )}
               </div>
             </div>
+            </TabErrorBoundary>
           )}
         </div>
       </div>

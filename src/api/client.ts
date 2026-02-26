@@ -7,6 +7,7 @@
  */
 
 import { API_BASE, RETRY_CONFIG, DEFAULT_GSTIN } from '../config/constants';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 // Connection status tracking
 let lastConnectionError: string | null = null;
@@ -21,17 +22,32 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Get the current Cognito access token for API calls
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const session = await fetchAuthSession();
+    return session.tokens?.accessToken?.toString() ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Helper function for API calls with retry logic and better error handling
 async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): Promise<T | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    // Inject Cognito auth token
+    const token = await getAuthToken();
+    const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...options?.headers,
       },
     });
@@ -45,7 +61,14 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
     }
     
     // Handle specific HTTP errors
-    if (response.status === 403) {
+    if (response.status === 401) {
+      // Token may have expired — try once with a fresh session
+      if (retryCount === 0) {
+        console.debug('Got 401, retrying with refreshed token...');
+        return apiCall<T>(url, options, retryCount + 1);
+      }
+      lastConnectionError = 'Authentication failed - please sign in again';
+    } else if (response.status === 403) {
       lastConnectionError = 'Access denied - check API Gateway permissions';
     } else if (response.status === 404) {
       lastConnectionError = 'API endpoint not found';
@@ -59,7 +82,7 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
           RETRY_CONFIG.baseDelayMs * Math.pow(2, retryCount),
           RETRY_CONFIG.maxDelayMs
         );
-        console.log(`Retrying API call (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...`);
+        console.debug(`Retrying API call (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...`);
         await delay(delayMs);
         return apiCall<T>(url, options, retryCount + 1);
       }
@@ -70,7 +93,7 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
           RETRY_CONFIG.baseDelayMs * Math.pow(2, retryCount + 1),
           RETRY_CONFIG.maxDelayMs
         );
-        console.log(`Rate limited, retrying after ${delayMs}ms...`);
+        console.debug(`Rate limited, retrying after ${delayMs}ms...`);
         await delay(delayMs);
         return apiCall<T>(url, options, retryCount + 1);
       }
@@ -89,7 +112,7 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
         RETRY_CONFIG.baseDelayMs * Math.pow(2, retryCount),
         RETRY_CONFIG.maxDelayMs
       );
-      console.log(`Network error, retrying (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...`);
+      console.debug(`Network error, retrying (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...`);
       await delay(delayMs);
       return apiCall<T>(url, options, retryCount + 1);
     }
@@ -111,7 +134,11 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
 export async function testConnection(): Promise<{ success: boolean; message: string; latency?: number }> {
   const start = Date.now();
   try {
-    const response = await fetch(`${API_BASE}/contacts`, { method: 'GET' });
+    const token = await getAuthToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE}/contacts`, { method: 'GET', headers });
     const latency = Date.now() - start;
     
     if (response.ok) {
@@ -273,11 +300,9 @@ export async function getMessage(messageId: string): Promise<Message | null> {
 }
 
 export async function deleteMessage(messageId: string, direction: 'INBOUND' | 'OUTBOUND' = 'INBOUND'): Promise<boolean> {
-  console.log(`Deleting message: ${messageId}, direction: ${direction}`);
   const data = await apiCall<any>(`${API_BASE}/messages/${messageId}?direction=${direction}`, {
     method: 'DELETE',
   });
-  console.log(`Delete message response:`, data);
   // Accept success if we got a response (even if success field is missing)
   return data !== null && (data.success === true || data.messageId === messageId || !data.error);
 }
@@ -1079,26 +1104,18 @@ function getEstimatedBilling(): AWSBillingData {
  * Uses the backend ?hard=true parameter to trigger full deletion
  */
 export async function hardDeleteContact(contactId: string): Promise<boolean> {
-  console.log(`Hard deleting contact: ${contactId}`);
   const data = await apiCall<any>(`${API_BASE}/contacts/${contactId}?hard=true`, {
     method: 'DELETE',
   });
-  console.log(`Hard delete response:`, data);
   
   if (data && data.success) {
-    console.log(`Hard delete successful: ${data.messagesDeleted} messages, ${data.mediaDeleted} media files`);
     return true;
   }
   
   // Fallback: delete messages one by one, then soft delete contact
-  console.log('Hard delete endpoint failed, using fallback...');
   try {
     const messagesDeleted = await deleteContactMessages(contactId);
-    console.log(`Fallback: messages deleted = ${messagesDeleted}`);
-    
     const contactDeleted = await deleteContact(contactId);
-    console.log(`Fallback: contact deleted = ${contactDeleted}`);
-    
     return contactDeleted;
   } catch (error) {
     console.error('Hard delete fallback error:', error);
@@ -1114,7 +1131,6 @@ export async function deleteContactMessages(contactId: string): Promise<boolean>
   try {
     // Fetch all messages for this contact
     const messages = await listMessages(contactId);
-    console.log(`Deleting ${messages.length} messages for contact ${contactId}`);
     
     if (messages.length === 0) {
       return true; // No messages to delete
@@ -1132,7 +1148,6 @@ export async function deleteContactMessages(contactId: string): Promise<boolean>
       }
     }
     
-    console.log(`Deleted ${deleted}/${messages.length} messages (${failed} failed)`);
     return deleted > 0 || messages.length === 0;
   } catch (error) {
     console.error('Delete contact messages error:', error);
@@ -1193,11 +1208,12 @@ export interface WhatsAppTemplate {
 }
 
 export interface TemplateComponent {
-  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
+  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | 'CAROUSEL';
   format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
   text?: string;
   example?: { body_text?: string[][] };
   buttons?: { type: string; text: string; url?: string; phone_number?: string }[];
+  cards?: any[];
 }
 
 // WABA IDs for template fetching
@@ -1404,8 +1420,6 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
     },
   };
 
-  console.log('Sending payment message:', { contactId: request.contactId, orderDetails });
-
   // Use interactive mode if specified
   if (request.useInteractive) {
     const result = await apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
@@ -1418,7 +1432,6 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
         headerImageUrl: request.headerImageUrl,
       }),
     });
-    console.log('Payment message result:', result);
     return result;
   }
 
@@ -2745,7 +2758,6 @@ export async function updateSystemConfig(configKey: string, config: any): Promis
 export async function clearAllWhatsAppMessages(): Promise<{ deleted: number; failed: number }> {
   try {
     const messages = await listMessages(undefined, 'WHATSAPP');
-    console.log(`Clearing ${messages.length} WhatsApp messages`);
     
     let deleted = 0;
     let failed = 0;
@@ -2776,7 +2788,6 @@ export async function clearAllWhatsAppMessages(): Promise<{ deleted: number; fai
 export async function clearAllContacts(): Promise<{ deleted: number; failed: number }> {
   try {
     const contacts = await listContacts();
-    console.log(`Clearing ${contacts.length} contacts`);
     
     let deleted = 0;
     let failed = 0;
@@ -2815,16 +2826,13 @@ export async function clearAllInboxData(): Promise<{
   let voiceDeleted = 0;
 
   // 1. Clear WhatsApp messages
-  console.log('Clearing WhatsApp messages...');
   const whatsappResult = await clearAllWhatsAppMessages();
   totalMessagesDeleted += whatsappResult.deleted;
   totalMessagesFailed += whatsappResult.failed;
 
   // 2. Clear SMS messages (both inbound and outbound)
-  console.log('Clearing SMS messages...');
   try {
     const smsMessages = await listMessages(undefined, 'SMS');
-    console.log(`Found ${smsMessages.length} SMS messages to delete`);
     for (const msg of smsMessages) {
       const result = await deleteMessage(msg.id, msg.direction);
       if (result) {
@@ -2839,10 +2847,8 @@ export async function clearAllInboxData(): Promise<{
   }
 
   // 3. Clear Voice call records
-  console.log('Clearing Voice call records...');
   try {
     const voiceCalls = await listVoiceCalls();
-    console.log(`Found ${voiceCalls.length} voice calls to delete`);
     for (const call of voiceCalls) {
       try {
         // Try to delete voice call record via API
@@ -2861,10 +2867,7 @@ export async function clearAllInboxData(): Promise<{
   }
 
   // 4. Clear all contacts (this also triggers media cleanup on backend)
-  console.log('Clearing contacts...');
   const contactResult = await clearAllContacts();
-
-  console.log(`Clear all complete: ${totalMessagesDeleted} messages, ${smsDeleted} SMS, ${voiceDeleted} voice calls, ${contactResult.deleted} contacts`);
 
   return {
     messagesDeleted: totalMessagesDeleted,

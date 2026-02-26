@@ -35,8 +35,11 @@ from typing import Dict, Any, Tuple
 import boto3
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 S3_BUCKET = 'app.wecare.digital'
 S3_PREFIX = 'store/products'
@@ -84,10 +87,20 @@ WHITE_FAINT = (255, 255, 255, 60)
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main Lambda handler."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET'))
         path = event.get('path', event.get('rawPath', '/'))
         params = event.get('queryStringParameters', {}) or {}
+
+        if http_method == 'OPTIONS':
+            return _resp(200, {'ok': True})
+
+        # Auth check
+        from lambda_utils.middleware import require_auth
+        auth_result = require_auth(event)
+        if auth_result is not None:
+            return auth_result
 
         if http_method == 'POST' and '/generate-product-image' in path:
             body = json.loads(event.get('body', '{}') or '{}')

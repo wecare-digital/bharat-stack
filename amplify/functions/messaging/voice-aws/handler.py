@@ -22,8 +22,9 @@ import boto3
 from typing import Dict, Any
 from decimal import Decimal
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 REGION = 'us-east-1'
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
@@ -39,6 +40,7 @@ CALL_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle AWS voice call operations."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
     path = event.get('rawPath', event.get('path', ''))
     path_params = event.get('pathParameters') or {}
@@ -52,6 +54,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
+
+        # Auth check
+        from lambda_utils.middleware import require_auth
+        auth_result = require_auth(event)
+        if auth_result is not None:
+            return auth_result
 
         # DELETE /voice-aws/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
@@ -316,15 +324,10 @@ def _normalize(item: Dict) -> Dict:
     }
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }

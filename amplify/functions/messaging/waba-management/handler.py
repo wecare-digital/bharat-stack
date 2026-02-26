@@ -26,9 +26,13 @@ from typing import Dict, Any, List, Optional
 from decimal import Decimal
 from datetime import datetime
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -40,12 +44,7 @@ SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 
 # CORS headers
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 
 def _serialize_value(val):
@@ -88,6 +87,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - PUT /waba/{wabaId}/events - Configure event destinations
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     # Handle both API Gateway v1 (REST) and v2 (HTTP) event formats
     request_context = event.get('requestContext', {})
@@ -100,6 +100,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # API Gateway v1 (REST API) format
         http_method = event.get('httpMethod', 'GET')
         path = event.get('path', '')
+
+    # Enforce auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
     
     # Also check rawPath for HTTP API
     if not path:
@@ -119,7 +124,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     # Handle OPTIONS preflight
     if http_method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
+        return options_response(origin)
     
     try:
         body = {}
@@ -222,7 +227,7 @@ def _list_wabas(request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'wabas': wabas,
                 'count': len(wabas)
@@ -293,7 +298,7 @@ def _get_waba_details(waba_id: str, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps(waba_details)
         }
         
@@ -351,7 +356,7 @@ def _get_phone_number_details(phone_id: str, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps(phone_details)
         }
         
@@ -422,7 +427,7 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps(events)
         }
         
@@ -435,7 +440,7 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
         # Return empty events on error (table may not exist)
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'templateStatus': [],
                 'phoneQuality': [],
@@ -480,7 +485,7 @@ def _delete_media(media_id: str, phone_number_id: str, request_id: str) -> Dict[
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'success': success,
                 'mediaId': media_id
@@ -503,7 +508,7 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(origin),
         'body': json.dumps({'error': message})
     }
 
@@ -575,7 +580,7 @@ def _get_media(media_id: str, phone_number_id: str, query_params: Dict, request_
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps(result)
         }
         
@@ -633,7 +638,7 @@ def _post_media(body: Dict, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps(result)
         }
         
@@ -687,7 +692,7 @@ def _put_event_destinations(waba_id: str, body: Dict, request_id: str) -> Dict[s
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'success': True,
                 'wabaId': waba_id,
@@ -727,7 +732,7 @@ def _list_tags(resource_arn: str, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'resourceArn': resource_arn,
                 'tags': tags
@@ -782,7 +787,7 @@ def _tag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'success': True,
                 'resourceArn': resource_arn,
@@ -829,7 +834,7 @@ def _untag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'success': True,
                 'resourceArn': resource_arn,

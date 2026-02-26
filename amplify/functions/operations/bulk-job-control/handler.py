@@ -15,9 +15,13 @@ import boto3
 from typing import Dict, Any
 from decimal import Decimal
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -38,6 +42,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Requirement 8.7: Implement pause, resume, and cancel operations
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
+
+    # Enforce auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
+
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'PUT')
     path_params = event.get('pathParameters') or {}
     job_id = path_params.get('jobId')
@@ -51,12 +62,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _error_response(404, 'Job not found')
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'id': job.get('jobId'),
                 'jobId': job.get('jobId'),
@@ -80,12 +86,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         result = _delete_job(job_id, request_id)
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'jobId': job_id,
                 'deleted': result.get('deleted', False),
@@ -148,12 +149,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'jobId': job_id,
                 'action': action,
@@ -403,12 +399,7 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps({'error': message})
     }
 

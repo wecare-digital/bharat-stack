@@ -8,7 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/RichTextEditor.module.css';
 import * as api from '../api/client';
 import { generateReferenceId } from '../lib/formatters';
-import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_DETAILS, PAYMENT_UNLOCK_PASSWORD } from '../config/constants';
+import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_UNLOCK_PASSWORD } from '../config/constants';
 
 // Payment dialog state
 interface PaymentItem {
@@ -294,15 +294,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setShowSuggestions(false);
     
     try {
-      console.log('Fetching AI suggestion for:', value.substring(0, 50));
-      
       // Use the AI generate API with external context for inbox
       const result = await api.generateAIResponse(value, {
         contactName: contactContext,
         channel: channel,
       });
-      
-      console.log('AI response:', result);
       
       if (result && result.response && result.response.trim()) {
         setAiSuggestions([result.response]);
@@ -393,16 +389,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // Calculate total tax = sum of per-item GST
       const totalTaxPaise = itemsInPaise.reduce((sum, i) => sum + Math.round(i.amount * i.quantity * i.gstRate / 100), 0);
 
-      console.log('Sending payment from RichTextEditor:', {
-        contactId: selectedContactId,
-        items: itemsInPaise,
-        discount: promoInPaise,
-        shipping: expressInPaise,
-        totalTax: totalTaxPaise,
-        gstin: paymentForm.gstin,
-        orderId: paymentForm.orderId || 'Offline',
-      });
-
       const result = await api.sendWhatsAppPaymentMessage({
         contactId: selectedContactId,
         phoneNumberId: paymentForm.phoneNumberId,
@@ -416,8 +402,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         useInteractive: true,
         paymentConfiguration: getPayConfigForPhone(paymentForm.phoneNumberId),
       });
-
-      console.log('Payment result:', result);
 
       if (result) {
         setTemplateMessage(`✓ Payment request sent! Ref: ${paymentForm.referenceId}`);

@@ -26,8 +26,9 @@ import boto3
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Mode: 'api' or 'velo'
 WIX_MODE = os.environ.get('WIX_MODE', 'api')
@@ -80,6 +81,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
       POST /backfill-order-ids           - Backfill WD-ORD numbers for all existing orders
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
 
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET'))
@@ -93,6 +95,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'mode': WIX_MODE,
             'requestId': request_id,
         }))
+
+        # Auth check
+        from lambda_utils.middleware import require_auth
+        auth_result = require_auth(event)
+        if auth_result is not None:
+            return auth_result
 
         # ---- Velo mode: route through Velo HTTP Functions ----
         if WIX_MODE == 'velo':
@@ -556,14 +564,16 @@ def _get_order(order_id: str, request_id: str) -> Dict[str, Any]:
     try:
         txn = _wix_request(f'/ecom/v1/transactions/orders/{order_id}')
         order['_transactions'] = txn.get('orderTransactions', {})
-    except Exception:
+    except Exception as e:
+        logger.warning(f'Transactions fetch failed for order {order_id}: {e}')
         order['_transactions'] = []
 
     # Fetch fulfillments
     try:
         ful = _wix_request(f'/ecom/v1/fulfillments/orders/{order_id}')
         order['_fulfillments'] = ful.get('orderFulfillments', {})
-    except Exception:
+    except Exception as e:
+        logger.warning(f'Fulfillments fetch failed for order {order_id}: {e}')
         order['_fulfillments'] = []
 
     return _response(200, {'order': _enrich_order(order), 'requestId': request_id})

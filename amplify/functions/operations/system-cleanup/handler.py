@@ -13,8 +13,12 @@ import boto3
 from typing import Dict, Any, List
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
@@ -23,12 +27,7 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 dynamodb_client = boto3.client('dynamodb', region_name=REGION)
 s3 = boto3.client('s3', region_name=REGION)
 
-CORS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 # All clearable resources grouped by category
 CLEANUP_RESOURCES = {
@@ -216,14 +215,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
 
     if method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS, 'body': ''}
+        return options_response(origin)
+
+    # Enforce auth (Admin only for destructive cleanup)
+    auth_result = require_auth(event, required_role='Admin')
+    if auth_result is not None:
+        return auth_result
 
     if method == 'GET':
         return _preview()
     elif method == 'POST':
         return _cleanup(event)
     else:
-        return {'statusCode': 405, 'headers': CORS, 'body': json.dumps({'error': 'Method not allowed'})}
+        return {'statusCode': 405, 'headers': cors_headers(origin), 'body': json.dumps({'error': 'Method not allowed'})}
 
 
 
@@ -268,7 +272,7 @@ def _preview() -> Dict[str, Any]:
 
     return {
         'statusCode': 200,
-        'headers': CORS,
+        'headers': cors_headers(origin),
         'body': json.dumps({'resources': resources}),
     }
 
@@ -329,11 +333,11 @@ def _cleanup(event: Dict[str, Any]) -> Dict[str, Any]:
     try:
         body = json.loads(event.get('body', '{}'))
     except Exception:
-        return {'statusCode': 400, 'headers': CORS, 'body': json.dumps({'error': 'Invalid JSON body'})}
+        return {'statusCode': 400, 'headers': cors_headers(origin), 'body': json.dumps({'error': 'Invalid JSON body'})}
 
     selected = body.get('selected', [])
     if not selected:
-        return {'statusCode': 400, 'headers': CORS, 'body': json.dumps({'error': 'No resources selected'})}
+        return {'statusCode': 400, 'headers': cors_headers(origin), 'body': json.dumps({'error': 'No resources selected'})}
 
     results = []
     total_deleted = 0
@@ -363,7 +367,7 @@ def _cleanup(event: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         'statusCode': 200,
-        'headers': CORS,
+        'headers': cors_headers(origin),
         'body': json.dumps({
             'success': True,
             'results': results,

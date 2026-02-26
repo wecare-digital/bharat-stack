@@ -27,8 +27,10 @@ import boto3
 from typing import Dict, Any
 from decimal import Decimal
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -43,6 +45,7 @@ WEBHOOK_LOG_TABLE = os.environ.get('WEBHOOK_LOG_TABLE', 'base-wecare-digital-Raz
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Process ALL Razorpay webhook events."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     logger.info(json.dumps({'event': 'razorpay_webhook_received', 'requestId': request_id}))
 
     try:
@@ -79,10 +82,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         event_type = payload.get('event', '')
         event_data = payload.get('payload', {})
 
-        logger.info(json.dumps({'event': 'razorpay_event_received', 'eventType': event_type, 'requestId': request_id}))
+        # Extract Razorpay event ID for idempotency
+        razorpay_event_id = payload.get('account_id', '') + ':' + payload.get('event', '') + ':' + str(payload.get('created_at', ''))
+        # Use payment entity ID if available (more reliable)
+        _entity = event_data.get('payment', {}).get('entity', {})
+        if _entity.get('id'):
+            razorpay_event_id = _entity['id'] + ':' + event_type
+
+        logger.info(json.dumps({'event': 'razorpay_event_received', 'eventType': event_type, 'razorpayEventId': razorpay_event_id, 'requestId': request_id}))
+
+        # Idempotency check — skip if this event was already processed
+        if _is_duplicate_event(razorpay_event_id, request_id):
+            logger.info(json.dumps({'event': 'webhook_duplicate_skipped', 'razorpayEventId': razorpay_event_id, 'requestId': request_id}))
+            return _response(200, {'status': 'already_processed'})
 
         # Log every webhook event to DynamoDB for audit trail
-        _log_webhook_event(event_type, event_data, request_id)
+        _log_webhook_event(event_type, event_data, request_id, razorpay_event_id)
 
         # ═══════════════════════════════════════════════════════════
         # PAYMENT EVENTS
@@ -221,8 +236,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def _verify_signature(body: str, signature: str) -> bool:
     if not WEBHOOK_SECRET:
-        logger.warning('RAZORPAY_WEBHOOK_SECRET not set — skipping signature verification')
-        return True
+        logger.error('RAZORPAY_WEBHOOK_SECRET not set — rejecting webhook (fail closed)')
+        return False
     if not signature:
         logger.warning('No signature header received')
         return False
@@ -252,21 +267,42 @@ def _verify_signature(body: str, signature: str) -> bool:
 # WEBHOOK AUDIT LOG
 # ═══════════════════════════════════════════════════════════════════
 
-def _log_webhook_event(event_type: str, event_data: Dict, request_id: str) -> None:
-    """Log every webhook event to DynamoDB for audit trail."""
+def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razorpay_event_id: str = '') -> None:
+    """Log every webhook event to DynamoDB for audit trail with idempotency key."""
     import time, uuid
     try:
         table = dynamodb.Table(WEBHOOK_LOG_TABLE)
-        table.put_item(Item={
+        item = {
             'id': str(uuid.uuid4()),
             'eventType': event_type,
             'requestId': request_id,
             'payload': json.dumps(event_data, default=str)[:4000],  # Truncate large payloads
             'createdAt': Decimal(str(int(time.time()))),
-        })
+        }
+        if razorpay_event_id:
+            item['razorpayEventId'] = razorpay_event_id
+        table.put_item(Item=item)
     except Exception as e:
         # Don't fail the webhook if logging fails
         logger.warning(json.dumps({'event': 'webhook_log_failed', 'error': str(e), 'requestId': request_id}))
+
+
+def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
+    """Check if a Razorpay webhook event was already processed (idempotency)."""
+    if not razorpay_event_id:
+        return False
+    try:
+        from boto3.dynamodb.conditions import Attr
+        table = dynamodb.Table(WEBHOOK_LOG_TABLE)
+        response = table.scan(
+            FilterExpression=Attr('razorpayEventId').eq(razorpay_event_id),
+            Limit=1,
+            ProjectionExpression='id',
+        )
+        return len(response.get('Items', [])) > 0
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'idempotency_check_failed', 'error': str(e), 'requestId': request_id}))
+        return False  # Fail open on check errors — better to process twice than miss
 
 
 

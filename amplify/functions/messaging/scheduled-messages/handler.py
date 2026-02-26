@@ -20,8 +20,11 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -30,17 +33,13 @@ SCHEDULED_TABLE = os.environ.get('SCHEDULED_TABLE', 'base-wecare-digital-Schedul
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 OUTBOUND_LAMBDA = os.environ.get('OUTBOUND_LAMBDA', 'wecare-outbound-whatsapp')
 
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler for scheduled messages."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     # Check if this is a CloudWatch Events trigger (scheduled execution)
     if event.get('source') == 'aws.events' or event.get('detail-type') == 'Scheduled Event':
@@ -61,7 +60,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(json.dumps({'event': 'scheduled_request', 'method': http_method, 'path': path}))
     
     if http_method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
+        return options_response(origin)
+
+    # Auth check (HTTP API requests only — CloudWatch events already returned above)
+    from lambda_utils.middleware import require_auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
 
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
@@ -114,7 +119,7 @@ def _list_scheduled(query_params: Dict[str, str], request_id: str) -> Dict[str, 
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(),
             'body': json.dumps({
                 'scheduledMessages': scheduled_messages,
                 'count': len(scheduled_messages)
@@ -186,7 +191,7 @@ def _create_scheduled(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 201,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(),
             'body': json.dumps(_normalize_item(item))
         }
     except Exception as e:
@@ -255,7 +260,7 @@ def _update_scheduled(scheduled_id: str, body: Dict[str, Any], request_id: str) 
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(),
             'body': json.dumps(_normalize_item(response['Attributes']))
         }
     except Exception as e:
@@ -293,7 +298,7 @@ def _cancel_scheduled(scheduled_id: str, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': CORS_HEADERS,
+            'headers': cors_headers(),
             'body': json.dumps({'success': True, 'scheduledId': scheduled_id, 'status': 'CANCELLED'})
         }
     except Exception as e:
@@ -437,6 +442,6 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response."""
     return {
         'statusCode': status_code,
-        'headers': CORS_HEADERS,
+        'headers': cors_headers(),
         'body': json.dumps({'error': message})
     }

@@ -15,9 +15,13 @@ import logging
 import boto3
 from typing import Dict, Any, Optional
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 bedrock_agent_runtime = boto3.client('bedrock-agent-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -31,6 +35,7 @@ EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'LYMQLKZNY7')
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Query Knowledge Base for relevant context."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     query = event.get('query', '')
     message_id = event.get('messageId', '')

@@ -19,8 +19,10 @@ from typing import Dict, Any, Optional, Tuple
 from decimal import Decimal
 
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -70,6 +72,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Supports: text, media, template, and reaction messages
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
+
+    # Enforce auth (skips Lambda-to-Lambda invocations automatically)
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
     
     logger.info(json.dumps({
         'event': 'outbound_whatsapp_start',
@@ -146,14 +154,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 _send_typing_indicator(phone_number_id, recipient_phone)
                 return {
                     'statusCode': 200,
-                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'headers': cors_headers(origin),
                     'body': json.dumps({'success': True, 'action': 'typing_indicator'})
                 }
             except Exception as e:
                 logger.warning(f'Typing indicator failed: {e}')
                 return {
                     'statusCode': 200,
-                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'headers': cors_headers(origin),
                     'body': json.dumps({'success': False, 'action': 'typing_indicator', 'error': str(e)})
                 }
         
@@ -245,12 +253,7 @@ def _handle_dry_run(message_id: str, contact_id: str, recipient_phone: str,
     
     return {
         'statusCode': 200,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps({
             'messageId': message_id,
             'status': 'dry_run',
@@ -275,12 +278,7 @@ def _handle_dry_run_reaction(message_id: str, contact_id: str, recipient_phone: 
     
     return {
         'statusCode': 200,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps({
             'messageId': message_id,
             'status': 'dry_run',
@@ -353,12 +351,7 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'messageId': message_id,
                 'whatsappMessageId': whatsapp_message_id,
@@ -510,12 +503,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'messageId': message_id,
                 'whatsappMessageId': whatsapp_message_id,
@@ -820,12 +808,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'messageId': message_id,
                 'whatsappMessageId': whatsapp_message_id,
@@ -1057,12 +1040,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-            },
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'messageId': message_id,
                 'whatsappMessageId': whatsapp_message_id,
@@ -2102,12 +2080,7 @@ def _error_response(status_code: int, error: str, message: str = None) -> Dict[s
         body['message'] = message
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body)
     }
 

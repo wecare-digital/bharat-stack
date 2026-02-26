@@ -15,8 +15,10 @@ from typing import Dict, Any, List
 from decimal import Decimal
 
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -32,6 +34,12 @@ CHUNK_SIZE = 100  # Recipients per SQS message
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle bulk job creation and listing."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
+
+    # Enforce auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
     
     # Handle both HTTP API v2 and REST API event formats
     http_method = (
@@ -336,11 +344,6 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }

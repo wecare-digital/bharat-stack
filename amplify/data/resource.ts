@@ -40,7 +40,7 @@ const schema = a.schema({
     .model({
       messageId: a.id().required(),
       contactId: a.string().required(),
-      channel: a.enum(['WHATSAPP', 'SMS', 'EMAIL']),
+      channel: a.enum(['WHATSAPP', 'SMS', 'EMAIL', 'RCS']),
       direction: a.enum(['INBOUND', 'OUTBOUND']),
       content: a.string(),
       timestamp: a.datetime(),
@@ -68,7 +68,7 @@ const schema = a.schema({
     .model({
       jobId: a.id().required(),
       createdBy: a.string().required(),
-      channel: a.enum(['WHATSAPP', 'SMS', 'EMAIL']),
+      channel: a.enum(['WHATSAPP', 'SMS', 'EMAIL', 'RCS']),
       totalRecipients: a.integer(),
       sentCount: a.integer().default(0),
       failedCount: a.integer().default(0),
@@ -689,6 +689,146 @@ const schema = a.schema({
       index('orderId'),
       index('paymentStatus'),
       index('paymentReferenceId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 28: ConversationHistory - AI conversation context per phone hash
+  ConversationHistory: a
+    .model({
+      phoneHash: a.string().required(),
+      lastMessage: a.string(),
+      lastResponse: a.string(),
+      pendingPaymentRef: a.string(),
+      customerProfile: a.string(), // JSON string
+      languagePreference: a.string(),
+      autoReplyEnabled: a.boolean().default(true),
+      updatedAt: a.integer(),
+    })
+    .identifier(['phoneHash'])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 29: WixOrderIds - Mapping between Wix order IDs and WD-ORD numbers
+  WixOrderId: a
+    .model({
+      wixOrderId: a.string().required(),
+      wdOrderNumber: a.string().required(),
+      createdAt: a.integer(),
+    })
+    .identifier(['wixOrderId'])
+    .secondaryIndexes((index) => [
+      index('wdOrderNumber'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 30: Invoice - Invoice records
+  Invoice: a
+    .model({
+      invoiceId: a.id().required(),
+      invoiceNumber: a.string(),
+      contactId: a.string(),
+      contactName: a.string(),
+      contactPhone: a.string(),
+      contactEmail: a.string(),
+      gstin: a.string(),
+      status: a.string().default('created'), // created, pending_payment, sent, paid, cancelled
+      subtotal: a.integer(), // paise
+      taxAmount: a.integer(),
+      totalAmount: a.integer(),
+      currency: a.string().default('INR'),
+      referenceId: a.string(), // payment reference
+      paymentId: a.string(), // Razorpay payment ID
+      notes: a.string(),
+      imageUrl: a.string(),
+      pdfUrl: a.string(),
+      s3Key: a.string(),
+      fy: a.string(), // financial year
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['invoiceId'])
+    .secondaryIndexes((index) => [
+      index('contactId'),
+      index('referenceId'),
+      index('status'),
+      index('invoiceNumber'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 31: InvoiceItem - Line items per invoice
+  InvoiceItem: a
+    .model({
+      invoiceId: a.string().required(),
+      itemId: a.string().required(),
+      description: a.string(),
+      quantity: a.integer().default(1),
+      unitPrice: a.integer(), // paise
+      amount: a.integer(), // paise
+      hsnCode: a.string(),
+      gstRate: a.float(),
+    })
+    .identifier(['invoiceId', 'itemId'])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 32: InvoiceAsset - Generated invoice images/PDFs
+  InvoiceAsset: a
+    .model({
+      assetId: a.id().required(),
+      invoiceId: a.string().required(),
+      assetType: a.string(), // image, pdf
+      s3Key: a.string(),
+      url: a.string(),
+      createdAt: a.integer(),
+    })
+    .identifier(['assetId'])
+    .secondaryIndexes((index) => [
+      index('invoiceId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 33: InvoiceDeliveryLog - Invoice delivery tracking
+  InvoiceDeliveryLog: a
+    .model({
+      id: a.id().required(),
+      invoiceId: a.string().required(),
+      channel: a.string(), // whatsapp, email
+      status: a.string(), // sent, delivered, failed
+      recipient: a.string(),
+      waMessageId: a.string(),
+      createdAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('invoiceId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 34: InvoiceSequence - Auto-increment invoice number tracking per FY
+  InvoiceSequence: a
+    .model({
+      fy: a.string().required(), // e.g. "2025-26"
+      lastSeq: a.integer().default(0),
+      updatedAt: a.integer(),
+    })
+    .identifier(['fy'])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 35: RazorpayWebhookLog - Raw Razorpay webhook event log
+  RazorpayWebhookLog: a
+    .model({
+      id: a.id().required(),
+      eventType: a.string(), // payment.captured, payment.failed, etc.
+      paymentId: a.string(),
+      orderId: a.string(),
+      amount: a.integer(),
+      status: a.string(),
+      rawPayload: a.string(), // JSON string
+      processedAt: a.integer(),
+      createdAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('paymentId'),
+      index('eventType'),
     ])
     .authorization((allow) => [allow.authenticated()]),
 

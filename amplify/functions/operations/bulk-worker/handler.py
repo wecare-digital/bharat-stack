@@ -11,8 +11,12 @@ import uuid
 import boto3
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.rate_limit import check_rate_limit
+
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sqs = boto3.client('sqs', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -27,16 +31,12 @@ SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 DEFAULT_PHONE_NUMBER_ID = os.environ.get('DEFAULT_PHONE_NUMBER_ID', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
 RATE_LIMIT_PER_SECOND = int(os.environ.get('RATE_LIMIT_PER_SECOND', '80'))
 
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 def handler(event, context):
     """Process SQS messages for bulk sending."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     logger.info(f'[{request_id}] Bulk worker invoked')
 
     # Handle API Gateway HTTP requests (status check)
@@ -123,6 +123,10 @@ def _process_job(body: Dict, request_id: str) -> Dict:
                     raise ValueError('No phone number')
 
                 if SEND_MODE == 'LIVE' and channel == 'WHATSAPP':
+                    # Check DynamoDB-backed rate limit before sending
+                    if not check_rate_limit('whatsapp', phone_number_id, max_per_second=RATE_LIMIT_PER_SECOND):
+                        logger.warning(f'[{request_id}] Rate limit exceeded for {phone_number_id}, throttling')
+                        time.sleep(1.0)
                     _send_whatsapp(phone, phone_number_id, template_name, template_params, content, contact_id, request_id)
 
                 # Update recipient status
@@ -203,5 +207,5 @@ def _send_whatsapp(phone: str, phone_number_id: str, template_name: str,
     logger.info(f'[{request_id}] Sent to {formatted_phone}: {response.get("messageId")}')
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
-    return {'statusCode': status_code, 'headers': CORS_HEADERS, 'body': json.dumps(body, default=str)}
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
+    return {'statusCode': status_code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}

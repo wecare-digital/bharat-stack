@@ -18,7 +18,6 @@ import wixStoresBackend from 'wix-stores-backend';
 import wixData from 'wix-data';
 import { createOrGetOrderId } from 'backend/orderId-helpers';
 
-const SKU_PREFIX = 'WD';
 const CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SKU_LENGTH = 8;
 const MAX_COLLISION_RETRIES = 10;

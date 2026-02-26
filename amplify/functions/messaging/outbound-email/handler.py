@@ -13,9 +13,13 @@ import boto3
 from typing import Dict, Any
 from decimal import Decimal
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -32,12 +36,18 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Send email message."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     logger.info(json.dumps({
         'event': 'outbound_email_start',
         'requestId': request_id
     }))
-    
+
+    # Enforce auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
+
     try:
         # Parse request body
         body = json.loads(event.get('body', '{}'))
@@ -191,15 +201,10 @@ def _store_message(message_id: str, contact_id: str, subject: str, content: str,
         logger.error(f"Store message error: {str(e)}")
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'POST,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body)
     }

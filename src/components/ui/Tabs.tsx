@@ -29,7 +29,6 @@ const Tabs: React.FC<TabsProps> = ({
 }) => {
   const handleClick = (id: string, disabled?: boolean) => {
     if (disabled) return;
-    console.log('Tabs: handleClick called with id:', id);
     onChange(id);
   };
 

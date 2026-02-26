@@ -51,7 +51,7 @@ export const WHATSAPP_PHONES = {
 };
 
 // Password required to send payments from protected phone numbers
-export const PAYMENT_UNLOCK_PASSWORD = 'WeCare@Pay2026';
+export const PAYMENT_UNLOCK_PASSWORD = process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || '';
 
 // GST Rate Options
 export const GST_RATES = [
@@ -70,12 +70,9 @@ export const CONVENIENCE_FEE = {
 };
 
 // WhatsApp Payment Configuration Details
-// +919330994400 (WABA 1912405516040025): config "WECARE-DIGITAL"
-// +919903300044 (WABA 1633959101297902): config "ManishAgarwal_Pay"
-// MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
+// Payment gateway IDs are backend-only — not exposed in the browser bundle.
+// MCC and purpose code are non-sensitive category codes.
 export const PAYMENT_DETAILS = {
-  razorpayMID: 'acc_HDfub6wOfQybuH',
-  upiId: 'wecaredigital83.rzp@icici',
   mcc: '4722',
   purposeCode: '03',
 };
@@ -98,3 +95,6 @@ export const RETRY_CONFIG = {
   baseDelayMs: 1000,
   maxDelayMs: 10000,
 };
+
+// WhatsApp Calling Webhook
+export const WHATSAPP_CALLING_VERIFY_TOKEN = process.env.NEXT_PUBLIC_WHATSAPP_CALLING_VERIFY_TOKEN || '';

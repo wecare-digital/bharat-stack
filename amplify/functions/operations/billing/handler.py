@@ -16,9 +16,13 @@ from typing import Dict, Any, List
 import boto3
 from botocore.exceptions import ClientError
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # AWS clients
 ce_client = boto3.client('ce', region_name='us-east-1')
@@ -32,6 +36,12 @@ AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '775261844268')
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle billing, health, and trusted advisor requests."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
+
+    # Enforce auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
     
     logger.info(json.dumps({
         'event': 'billing_handler',
@@ -572,12 +582,7 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }
 

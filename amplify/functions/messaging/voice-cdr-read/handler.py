@@ -39,9 +39,12 @@ from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 from collections import defaultdict
 
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -86,6 +89,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - email: Contact email
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     
     logger.info(json.dumps({
         'event': 'voice_cdr_read_request',
@@ -95,7 +99,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', ''))
         if http_method == 'OPTIONS':
-            return _response(200, {'message': 'OK'})
+            return _response(200, {'message': 'OK'}, origin)
+
+        # Auth check
+        from lambda_utils.middleware import require_auth
+        auth_result = require_auth(event)
+        if auth_result is not None:
+            return auth_result
 
         path = event.get('path', event.get('rawPath', ''))
 
@@ -537,15 +547,10 @@ def _clear_cdr_logs(request_id: str) -> Dict[str, Any]:
     return _response(200, {'success': True, 'totalDeleted': deleted})
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key',
-            'Access-Control-Allow-Methods': 'GET,OPTIONS'
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, cls=DecimalEncoder)
     }

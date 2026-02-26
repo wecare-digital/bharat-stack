@@ -11,8 +11,11 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, options_response, extract_origin
+from lambda_utils.logging import get_logger, log_event
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 # Initialize clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -59,19 +62,18 @@ def handler(event, context):
     Also deletes associated media files from S3.
     ONLY deletes the message - does NOT affect contacts.
     """
-    # CORS headers
-    headers = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'DELETE,PUT,PATCH,POST,OPTIONS'
-    }
+    origin = extract_origin(event)
     
     # Handle OPTIONS preflight
     rc = event.get('requestContext', {})
     evt_method = rc.get('http', {}).get('method', event.get('httpMethod', ''))
     if evt_method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': headers, 'body': ''}
+        return options_response(origin)
+
+    # Enforce auth on all non-OPTIONS requests
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
 
     # Support both API Gateway v1 (REST) and v2 (HTTP) event formats
     request_context = event.get('requestContext', {})
@@ -86,18 +88,18 @@ def handler(event, context):
 
     # ── DELETE /messages/clear-all — bulk wipe both tables ──
     if http_method == 'DELETE' and 'clear-all' in path:
-        return _handle_clear_all(headers)
+        return _handle_clear_all(origin)
 
     # ── POST /messages/clear-all — alternative POST route ──
     if http_method == 'POST' and 'clear-all' in path:
-        return _handle_clear_all(headers)
+        return _handle_clear_all(origin)
 
     # ── PATCH/PUT: Update payment/invoice fields ──
     if http_method in ('PUT', 'PATCH'):
-        return _handle_update(event, headers)
+        return _handle_update(event, origin)
 
     if http_method == 'POST':
-        return _handle_create_invoice(event, headers)
+        return _handle_create_invoice(event, origin)
     
     try:
         # Get message ID from path
@@ -105,11 +107,7 @@ def handler(event, context):
         message_id = path_params.get('messageId')
         
         if not message_id:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'messageId is required'})
-            }
+            return cors_response(400, {'error': 'messageId is required'}, origin)
         
         # Get direction from query params to determine which table
         query_params = event.get('queryStringParameters', {}) or {}
@@ -135,7 +133,6 @@ def handler(event, context):
             if item:
                 s3_key = item.get('s3Key')
         except ClientError as e:
-            # Table might use 'messageId' as key instead of 'id'
             if 'ValidationException' in str(e):
                 try:
                     response = table.get_item(Key={'messageId': message_id})
@@ -144,7 +141,6 @@ def handler(event, context):
                         s3_key = item.get('s3Key')
                 except Exception:
                     pass
-            # If still no item, try scanning by id field
             if not item:
                 try:
                     resp = table.scan(
@@ -163,57 +159,41 @@ def handler(event, context):
         media_deleted = False
         if delete_media and s3_key:
             try:
-                # The s3Key might have a suffix appended by AWS EUM
-                # Try to find and delete the actual file
                 actual_key = _find_and_delete_s3_file(s3_key, message_id)
                 if actual_key:
                     media_deleted = True
-
-            except Exception as e:
+            except Exception:
                 pass  # Continue with DynamoDB deletion even if S3 fails
         
         # Delete the message from DynamoDB using proper key schema
         try:
             if item:
-                # Use the actual item to build the correct composite key
                 delete_key = _build_delete_key(table_name, item)
                 table.delete_item(Key=delete_key)
             else:
-                # Fallback: try common key patterns
                 try:
                     table.delete_item(Key={'id': message_id})
                 except ClientError:
                     table.delete_item(Key={'messageId': message_id})
         except Exception:
             pass  # Best effort delete
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': json.dumps({
-                'success': True,
-                'messageId': message_id,
-                'table': table_name,
-                'mediaDeleted': media_deleted,
-                's3Key': s3_key,
-                'message': f'Message deleted successfully{" (media also deleted)" if media_deleted else ""}'
-            })
-        }
+
+        return cors_response(200, {
+            'success': True,
+            'messageId': message_id,
+            'table': table_name,
+            'mediaDeleted': media_deleted,
+            's3Key': s3_key,
+            'message': f'Message deleted successfully{" (media also deleted)" if media_deleted else ""}'
+        }, origin)
         
     except ClientError as e:
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': f'Database error: {str(e)}'})
-        }
+        return cors_response(500, {'error': 'Database error'}, origin)
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': str(e)})
-        }
+        return cors_response(500, {'error': 'Internal server error'}, origin)
 
 
-def _handle_clear_all(headers):
+def _handle_clear_all(origin):
     """Bulk wipe ALL messages from both Inbound and Outbound tables."""
     total = 0
     details = {}
@@ -245,11 +225,7 @@ def _handle_clear_all(headers):
             total += tbl_deleted
         except Exception as e:
             details[tbl_name] = f'error: {str(e)}'
-    return {
-        'statusCode': 200,
-        'headers': headers,
-        'body': json.dumps({'success': True, 'totalDeleted': total, 'details': details}),
-    }
+    return cors_response(200, {'success': True, 'totalDeleted': total, 'details': details}, origin)
 
 
 def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
@@ -307,13 +283,13 @@ def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
         raise
 
 
-def _handle_update(event, headers):
+def _handle_update(event, origin):
     """Update editable fields on a payment/invoice record."""
     try:
         path_params = event.get('pathParameters', {}) or {}
         message_id = path_params.get('messageId')
         if not message_id:
-            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'messageId required'})}
+            return cors_response(400, {'error': 'messageId required'}, origin)
 
         body = json.loads(event.get('body', '{}'))
         # Allowed editable fields
@@ -327,7 +303,7 @@ def _handle_update(event, headers):
         }
         updates = {k: v for k, v in body.items() if k in ALLOWED}
         if not updates:
-            return {'statusCode': 400, 'headers': headers, 'body': json.dumps({'error': 'No valid fields to update'})}
+            return cors_response(400, {'error': 'No valid fields to update'}, origin)
 
         table = dynamodb.Table(INBOUND_TABLE)
         expr_parts = []
@@ -347,16 +323,12 @@ def _handle_update(event, headers):
             ExpressionAttributeValues=attr_values,
         )
 
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': json.dumps({'success': True, 'messageId': message_id, 'updated': list(updates.keys())})
-        }
+        return cors_response(200, {'success': True, 'messageId': message_id, 'updated': list(updates.keys())}, origin)
     except Exception as e:
-        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
+        return cors_response(500, {'error': 'Internal server error'}, origin)
 
 
-def _handle_create_invoice(event, headers):
+def _handle_create_invoice(event, origin):
     """Create an invoice from dashboard — invokes inbound-whatsapp handler to generate & send."""
     try:
         body = json.loads(event.get('body', '{}'))
@@ -368,11 +340,7 @@ def _handle_create_invoice(event, headers):
         quantity = int(body.get('quantity', 1))
 
         if not contact_id or not item_name or unit_price <= 0:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'contactId, itemName, and unitPrice > 0 are required'})
-            }
+            return cors_response(400, {'error': 'contactId, itemName, and unitPrice > 0 are required'}, origin)
 
         # Optional fields with defaults
         gst_rate = float(body.get('gstRate', 18))
@@ -417,19 +385,11 @@ def _handle_create_invoice(event, headers):
         result_payload = json.loads(response['Payload'].read().decode('utf-8'))
 
 
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': json.dumps({
-                'success': True,
-                'message': 'Invoice created and sent via WhatsApp',
-                'result': result_payload,
-            })
-        }
+        return cors_response(200, {
+            'success': True,
+            'message': 'Invoice created and sent via WhatsApp',
+            'result': result_payload,
+        }, origin)
 
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': str(e)})
-        }
+        return cors_response(500, {'error': 'Internal server error'}, origin)

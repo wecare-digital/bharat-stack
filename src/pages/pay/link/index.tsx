@@ -25,6 +25,8 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
 
+  const [generating, setGenerating] = useState(false);
+
   useEffect(() => {
     handleGenerateReferenceId();
   }, []);
@@ -35,12 +37,25 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     setReferenceId(`WD-PAY-${uuid}`);
   };
 
-  const generatePaymentLink = () => {
-    // TODO: Integrate with Razorpay Payment Links API
-    // For now, generate a placeholder link
-    const baseUrl = 'https://rzp.io/i/';
-    const linkId = crypto.randomUUID().replace(/-/g, '').substring(0, 10);
-    setGeneratedLink(`${baseUrl}${linkId}`);
+  const generatePaymentLink = async () => {
+    if (amount <= 0) return;
+    setGenerating(true);
+    try {
+      // Build a UPI deep link as the primary payment method
+      // Format: upi://pay?pa=<VPA>&pn=<Name>&am=<Amount>&cu=INR&tn=<Note>&tr=<RefId>
+      const upiVpa = 'wecaredigital@kotak'; // Razorpay VPA
+      const note = encodeURIComponent(description || `Payment ${referenceId}`);
+      const payeeName = encodeURIComponent('WECARE.DIGITAL');
+      const upiLink = `upi://pay?pa=${upiVpa}&pn=${payeeName}&am=${amount.toFixed(2)}&cu=INR&tn=${note}&tr=${referenceId}`;
+
+      // Generate a shareable wrapper URL
+      const encodedUpi = encodeURIComponent(upiLink);
+      setGeneratedLink(`https://wecare.digital/pay?ref=${referenceId}&amount=${amount}&upi=${encodedUpi}`);
+    } catch (err) {
+      console.error('Link generation error:', err);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const copyToClipboard = () => {
@@ -149,9 +164,9 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               variant="primary"
               className="generate-btn"
               onClick={generatePaymentLink}
-              disabled={amount <= 0}
+              disabled={amount <= 0 || generating}
             >
-              Generate Payment Link
+              {generating ? 'Generating...' : 'Generate Payment Link'}
             </Button>
           </div>
 

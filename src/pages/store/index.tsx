@@ -52,6 +52,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
   // Collections
   const [collections, setCollections] = useState<api.WixCollection[]>([]);
   const [collectionCount, setCollectionCount] = useState(0);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>('');
 
   // Sites (settings)
   const [sites, setSites] = useState<any[]>([]);
@@ -81,6 +82,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
       const data = await api.listWixProducts({
         limit: 100,
         search: productSearch || undefined,
+        collectionId: selectedCollectionId || undefined,
       });
       setProducts(data.products);
       setProductCount(data.totalCount);
@@ -88,7 +90,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
       console.error('Failed to fetch products:', e);
     }
     setLoading(false);
-  }, [productSearch]);
+  }, [productSearch, selectedCollectionId]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -375,6 +377,14 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #d1d5db', borderRadius: 12, fontSize: 14, outline: 'none' }}
                 />
                 <button onClick={fetchProducts}>Search</button>
+                {selectedCollectionId && (
+                  <button
+                    onClick={() => { setSelectedCollectionId(''); }}
+                    style={{ padding: '8px 14px', background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', borderRadius: 8, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}
+                  >
+                    ✕ Clear collection filter
+                  </button>
+                )}
               </div>
               {loading ? (
                 <div style={{ textAlign: 'center', padding: 60 }}><Spinner size="lg" /></div>
@@ -433,7 +443,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {collections.map(c => (
                     <div key={c._id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, cursor: 'pointer' }}
-                      onClick={() => { setProductSearch(''); setActiveTab('products'); /* TODO: filter by collection */ }}>
+                      onClick={() => { setProductSearch(''); setSelectedCollectionId(c._id); setActiveTab('products'); }}>
                       {c.mainMedia?.url && (
                         <img src={c.mainMedia.url} alt={c.name} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} />
                       )}

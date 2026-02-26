@@ -48,42 +48,56 @@ async function authenticate(request) {
   }
 }
 
-function jsonOk(body) {
+// ---------------------------------------------------------------------------
+// CORS — reflect allowed origins instead of wildcard
+// ---------------------------------------------------------------------------
+const ALLOWED_ORIGINS = [
+  'https://base.wecare.digital',
+  'https://wecare.digital',
+  'https://app.wecare.digital',
+];
+
+function getAllowedOrigin(request) {
+  const origin = request.headers?.origin || '';
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
+function jsonOk(body, request) {
   return ok({
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': request ? getAllowedOrigin(request) : ALLOWED_ORIGINS[0],
     },
     body: JSON.stringify(body),
   });
 }
 
-function jsonError(body, statusCode = 500) {
+function jsonError(body, statusCode = 500, request) {
   return rawResponse({
     status: statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': request ? getAllowedOrigin(request) : ALLOWED_ORIGINS[0],
     },
     body: JSON.stringify(body),
   });
 }
 
-function jsonForbidden() {
+function jsonForbidden(request) {
   return forbidden({
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': request ? getAllowedOrigin(request) : ALLOWED_ORIGINS[0],
     },
     body: JSON.stringify({ error: 'Unauthorized' }),
   });
 }
 
-function jsonNotFound(body) {
+function jsonNotFound(body, request) {
   return notFound({
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': request ? getAllowedOrigin(request) : ALLOWED_ORIGINS[0],
     },
     body: JSON.stringify(body),
   });

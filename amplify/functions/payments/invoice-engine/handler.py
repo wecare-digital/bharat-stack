@@ -28,8 +28,11 @@ import io
 from typing import Dict, Any, Optional, List
 from decimal import Decimal
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
+
+logger = get_logger(__name__)
 
 IST_OFFSET = 5 * 3600 + 30 * 60  # UTC+5:30
 
@@ -116,7 +119,14 @@ def _load_s3_image(key: str):
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Route invoice engine requests."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+
+    # Enforce auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
+
     path = event.get('rawPath', event.get('path', ''))
     params = event.get('queryStringParameters') or {}
     path_params = event.get('pathParameters') or {}
@@ -125,7 +135,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         body = {}
 
     try:
@@ -1904,7 +1914,7 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
     try:
         asset_resp = assets_table.get_item(Key={'invoiceId': invoice_id, 'assetType': 'image'})
         asset = asset_resp.get('Item')
-    except:
+    except Exception:
         asset = None
 
     if not asset or not asset.get('url'):

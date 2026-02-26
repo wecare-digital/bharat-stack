@@ -14,8 +14,11 @@ import boto3
 import urllib.request
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+
+from lambda_utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -25,12 +28,7 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsT
 SECRET_NAME = os.environ.get('AIRTEL_SECRET', 'wecare/airtel-iq')
 CDR_WEBHOOK_URL = os.environ.get('CDR_WEBHOOK_URL', 'https://api.wecare.digital/voice-cdr-webhook')
 
-CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-}
+# CORS headers provided by lambda_utils.response.cors_headers(origin)
 
 _secrets_cache = None
 
@@ -48,6 +46,7 @@ def _get_secrets() -> Dict[str, str]:
 
 def handler(event, context):
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     http = event.get('requestContext', {}).get('http', {})
     method = http.get('method', event.get('httpMethod', 'GET'))
     path = http.get('path', '') or event.get('rawPath', '')
@@ -55,6 +54,12 @@ def handler(event, context):
 
     if method == 'OPTIONS':
         return _response(200, {})
+
+    # Auth check
+    from lambda_utils.middleware import require_auth
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
 
     try:
         if method == 'GET':
@@ -205,5 +210,5 @@ def _normalize(item: Dict) -> Dict:
     }
 
 
-def _response(status_code: int, body: Dict) -> Dict[str, Any]:
-    return {'statusCode': status_code, 'headers': CORS_HEADERS, 'body': json.dumps(body, default=str)}
+def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
+    return {'statusCode': status_code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}

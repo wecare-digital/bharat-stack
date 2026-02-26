@@ -26,8 +26,12 @@ from decimal import Decimal
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.response import cors_response, options_response, extract_origin
+from lambda_utils.logging import get_logger, log_event
+from lambda_utils.middleware import require_auth
+from lambda_utils.validation import sanitize_html, sanitize_dict
+
+logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -36,13 +40,6 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsT
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-
-CORS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-}
 
 ALLOWED_UPDATE_FIELDS = {
     'name', 'phone', 'email', 'shippingAddress', 'billingAddress',
@@ -63,10 +60,16 @@ MAX_SEARCH_LIMIT = 100
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Route by HTTP method to the appropriate action."""
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET')).upper()
 
     if method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': CORS, 'body': ''}
+        return options_response(origin)
+
+    # Enforce auth on all non-OPTIONS requests
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
 
     path_params = event.get('pathParameters', {}) or {}
     query_params = event.get('queryStringParameters', {}) or {}
@@ -76,54 +79,57 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         # GET /contacts/search?q=...
         if method == 'GET' and ('search' in resource or query_params.get('q')):
-            return _search(query_params, request_id)
+            return _search(query_params, request_id, origin)
 
         # GET /contacts or GET /contacts/{id}
         if method == 'GET':
             if contact_id:
-                return _read_one(contact_id, request_id)
-            return _list_all(request_id)
+                return _read_one(contact_id, request_id, origin)
+            return _list_all(query_params, request_id, origin)
 
         # POST /contacts
         if method == 'POST':
             body = json.loads(event.get('body', '{}'))
-            return _create(body, request_id)
+            return _create(body, request_id, origin)
 
         # PUT /contacts/{id}
         if method == 'PUT':
             if not contact_id:
-                return _err(400, 'contactId is required')
+                return cors_response(400, {'error': 'contactId is required'}, origin)
             body = json.loads(event.get('body', '{}'))
-            return _update(contact_id, body, request_id)
+            return _update(contact_id, body, request_id, origin)
 
         # DELETE /contacts/{id}
         if method == 'DELETE':
             if not contact_id:
-                return _err(400, 'contactId is required')
+                return cors_response(400, {'error': 'contactId is required'}, origin)
             hard = query_params.get('hard', 'false').lower() == 'true'
-            return _delete(contact_id, hard, request_id)
+            return _delete(contact_id, hard, request_id, origin)
 
-        return _err(405, f'Method {method} not allowed')
+        return cors_response(405, {'error': f'Method {method} not allowed'}, origin)
 
     except json.JSONDecodeError:
-        return _err(400, 'Invalid JSON in request body')
+        return cors_response(400, {'error': 'Invalid JSON in request body'}, origin)
     except Exception as e:
-        logger.error(json.dumps({'event': 'contacts_error', 'error': str(e), 'method': method, 'requestId': request_id}))
-        return _err(500, f'Internal server error: {str(e)}')
+        log_event(logger, 'contacts_error', level='error', error=str(e), method=method, requestId=request_id)
+        return cors_response(500, {'error': 'Internal server error'}, origin)
 
 
 # ─── CREATE ─────────────────────────────────────────────────────────────────
 
-def _create(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
+def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str, Any]:
+    # Sanitize user-provided string fields to prevent XSS
+    body = sanitize_dict(body, ['name', 'shippingAddress', 'billingAddress'], max_length=500)
+
     phone = body.get('phone', '').strip() if body.get('phone') else None
     email = body.get('email', '').strip().lower() if body.get('email') else None
 
     if not phone and not email:
-        return _err(400, 'At least one of phone or email is required')
+        return cors_response(400, {'error': 'At least one of phone or email is required'}, origin)
     if phone and not _validate_phone(phone):
-        return _err(400, 'Invalid phone number format')
+        return cors_response(400, {'error': 'Invalid phone number format'}, origin)
     if email and not _validate_email(email):
-        return _err(400, 'Invalid email format')
+        return cors_response(400, {'error': 'Invalid email format'}, origin)
 
     contact_id = str(uuid.uuid4())
     now = int(time.time())
@@ -151,47 +157,66 @@ def _create(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
     table = dynamodb.Table(CONTACTS_TABLE)
     table.put_item(Item=_to_dynamo(contact))
 
-    logger.info(json.dumps({'event': 'contact_created', 'contactId': contact_id, 'requestId': request_id}))
-    return {'statusCode': 201, 'headers': CORS, 'body': json.dumps(_from_dynamo(contact))}
+    log_event(logger, 'contact_created', contactId=contact_id, requestId=request_id)
+    return cors_response(201, _from_dynamo(contact), origin)
 
 
 # ─── READ ONE ───────────────────────────────────────────────────────────────
 
-def _read_one(contact_id: str, request_id: str) -> Dict[str, Any]:
+def _read_one(contact_id: str, request_id: str, origin: str = '') -> Dict[str, Any]:
     table = dynamodb.Table(CONTACTS_TABLE)
     resp = table.get_item(Key={'id': contact_id})
     item = resp.get('Item')
 
     if not item or item.get('deletedAt') is not None:
-        return _err(404, 'Contact not found')
+        return cors_response(404, {'error': 'Contact not found'}, origin)
 
-    logger.info(json.dumps({'event': 'contact_read', 'contactId': contact_id, 'requestId': request_id}))
-    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(_from_dynamo(item))}
+    log_event(logger, 'contact_read', contactId=contact_id, requestId=request_id)
+    return cors_response(200, _from_dynamo(item), origin)
 
 
 # ─── LIST ALL ───────────────────────────────────────────────────────────────
 
-def _list_all(request_id: str) -> Dict[str, Any]:
+def _list_all(params: Dict[str, str], request_id: str, origin: str = '') -> Dict[str, Any]:
     table = dynamodb.Table(CONTACTS_TABLE)
     filt = Attr('deletedAt').not_exists() | Attr('deletedAt').eq(None)
-    all_items: List[Dict] = []
-    kwargs: Dict[str, Any] = {'FilterExpression': filt}
+    limit = min(int(params.get('limit', MAX_SEARCH_LIMIT)), MAX_SEARCH_LIMIT)
+    next_token = params.get('nextToken')
 
-    while True:
-        resp = table.scan(**kwargs)
+    scan_kwargs: Dict[str, Any] = {'FilterExpression': filt, 'Limit': limit}
+    if next_token:
+        try:
+            scan_kwargs['ExclusiveStartKey'] = json.loads(base64.b64decode(next_token).decode())
+        except Exception:
+            return cors_response(400, {'error': 'Invalid nextToken'}, origin)
+
+    all_items: List[Dict] = []
+    # Paginate up to the requested limit
+    while len(all_items) < limit:
+        resp = table.scan(**scan_kwargs)
         all_items.extend(resp.get('Items', []))
         if 'LastEvaluatedKey' not in resp:
             break
-        kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
-    contacts = [_from_dynamo(i) for i in all_items]
-    logger.info(json.dumps({'event': 'contacts_list', 'count': len(contacts), 'requestId': request_id}))
-    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'contacts': contacts, 'count': len(contacts)})}
+    # Trim to limit
+    items = all_items[:limit]
+    contacts = [_from_dynamo(i) for i in items]
+
+    result_token = None
+    if len(all_items) > limit or resp.get('LastEvaluatedKey'):
+        # Use the last item's key as the pagination token
+        last_key = resp.get('LastEvaluatedKey') or {'id': items[-1].get('id', items[-1].get('contactId'))} if items else None
+        if last_key:
+            result_token = base64.b64encode(json.dumps(last_key, default=str).encode()).decode()
+
+    log_event(logger, 'contacts_list', count=len(contacts), requestId=request_id)
+    return cors_response(200, {'contacts': contacts, 'count': len(contacts), 'nextToken': result_token}, origin)
 
 
 # ─── SEARCH ─────────────────────────────────────────────────────────────────
 
-def _search(params: Dict[str, str], request_id: str) -> Dict[str, Any]:
+def _search(params: Dict[str, str], request_id: str, origin: str = '') -> Dict[str, Any]:
     query = (params.get('q') or '').strip().lower()
     limit = min(int(params.get('limit', DEFAULT_SEARCH_LIMIT)), MAX_SEARCH_LIMIT)
     next_token = params.get('nextToken')
@@ -204,7 +229,7 @@ def _search(params: Dict[str, str], request_id: str) -> Dict[str, Any]:
         try:
             scan_kwargs['ExclusiveStartKey'] = json.loads(base64.b64decode(next_token).decode())
         except Exception:
-            return _err(400, 'Invalid nextToken')
+            return cors_response(400, {'error': 'Invalid nextToken'}, origin)
 
     resp = table.scan(**scan_kwargs)
     items = resp.get('Items', [])
@@ -219,27 +244,30 @@ def _search(params: Dict[str, str], request_id: str) -> Dict[str, Any]:
     if resp.get('LastEvaluatedKey'):
         result_token = base64.b64encode(json.dumps(resp['LastEvaluatedKey'], default=str).encode()).decode()
 
-    logger.info(json.dumps({'event': 'contacts_search', 'query': query, 'count': len(contacts), 'requestId': request_id}))
-    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'contacts': contacts, 'count': len(contacts), 'nextToken': result_token})}
+    log_event(logger, 'contacts_search', query=query, count=len(contacts), requestId=request_id)
+    return cors_response(200, {'contacts': contacts, 'count': len(contacts), 'nextToken': result_token}, origin)
 
 
 # ─── UPDATE ─────────────────────────────────────────────────────────────────
 
-def _update(contact_id: str, body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
+def _update(contact_id: str, body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str, Any]:
+    # Sanitize user-provided string fields
+    body = sanitize_dict(body, ['name', 'shippingAddress', 'billingAddress'], max_length=500)
+
     updates = {k: v for k, v in body.items() if k in ALLOWED_UPDATE_FIELDS and k not in ('id', 'contactId')}
     if not updates:
-        return _err(400, 'No valid fields to update')
+        return cors_response(400, {'error': 'No valid fields to update'}, origin)
 
     for f in OPT_IN_FIELDS:
         if f in updates and not isinstance(updates[f], bool):
-            return _err(400, f'{f} must be a boolean value')
+            return cors_response(400, {'error': f'{f} must be a boolean value'}, origin)
 
     if 'phone' in updates and updates['phone'] and not _validate_phone(updates['phone']):
-        return _err(400, 'Invalid phone number format')
+        return cors_response(400, {'error': 'Invalid phone number format'}, origin)
     if 'email' in updates and updates['email']:
         updates['email'] = updates['email'].strip().lower()
         if not _validate_email(updates['email']):
-            return _err(400, 'Invalid email format')
+            return cors_response(400, {'error': 'Invalid email format'}, origin)
 
     updates['updatedAt'] = int(time.time())
 
@@ -260,22 +288,22 @@ def _update(contact_id: str, body: Dict[str, Any], request_id: str) -> Dict[str,
         )
     except Exception as e:
         if 'ConditionalCheckFailedException' in str(e):
-            return _err(404, 'Contact not found')
+            return cors_response(404, {'error': 'Contact not found'}, origin)
         raise
 
-    logger.info(json.dumps({'event': 'contact_updated', 'contactId': contact_id, 'fields': list(updates.keys()), 'requestId': request_id}))
-    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps(_from_dynamo(resp.get('Attributes', {})))}
+    log_event(logger, 'contact_updated', contactId=contact_id, fields=list(updates.keys()), requestId=request_id)
+    return cors_response(200, _from_dynamo(resp.get('Attributes', {})), origin)
 
 
 # ─── DELETE (soft / hard) ───────────────────────────────────────────────────
 
-def _delete(contact_id: str, hard: bool, request_id: str) -> Dict[str, Any]:
+def _delete(contact_id: str, hard: bool, request_id: str, origin: str = '') -> Dict[str, Any]:
     if hard:
-        return _hard_delete(contact_id, request_id)
-    return _soft_delete(contact_id, request_id)
+        return _hard_delete(contact_id, request_id, origin)
+    return _soft_delete(contact_id, request_id, origin)
 
 
-def _soft_delete(contact_id: str, request_id: str) -> Dict[str, Any]:
+def _soft_delete(contact_id: str, request_id: str, origin: str = '') -> Dict[str, Any]:
     table = dynamodb.Table(CONTACTS_TABLE)
     # Check exists
     resp = table.get_item(Key={'id': contact_id})
@@ -288,10 +316,10 @@ def _soft_delete(contact_id: str, request_id: str) -> Dict[str, Any]:
             item = items[0]
             contact_id = item.get('id', contact_id)
         else:
-            return _err(404, 'Contact not found')
+            return cors_response(404, {'error': 'Contact not found'}, origin)
 
     if item.get('deletedAt') is not None:
-        return _err(404, 'Contact already deleted')
+        return cors_response(404, {'error': 'Contact already deleted'}, origin)
 
     now = Decimal(str(int(time.time())))
     table.update_item(
@@ -301,11 +329,11 @@ def _soft_delete(contact_id: str, request_id: str) -> Dict[str, Any]:
         ExpressionAttributeValues={':d': now, ':u': now},
     )
 
-    logger.info(json.dumps({'event': 'contact_soft_deleted', 'contactId': contact_id, 'requestId': request_id}))
-    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'success': True, 'contactId': contact_id, 'deleteType': 'soft'})}
+    log_event(logger, 'contact_soft_deleted', contactId=contact_id, requestId=request_id)
+    return cors_response(200, {'success': True, 'contactId': contact_id, 'deleteType': 'soft'}, origin)
 
 
-def _hard_delete(contact_id: str, request_id: str) -> Dict[str, Any]:
+def _hard_delete(contact_id: str, request_id: str, origin: str = '') -> Dict[str, Any]:
     msgs_deleted = 0
     media_deleted = 0
 
@@ -336,11 +364,11 @@ def _hard_delete(contact_id: str, request_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to delete contact {contact_id}: {e}")
 
-    logger.info(json.dumps({'event': 'contact_hard_deleted', 'contactId': contact_id, 'msgs': msgs_deleted, 'media': media_deleted, 'requestId': request_id}))
-    return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({
+    log_event(logger, 'contact_hard_deleted', contactId=contact_id, msgs=msgs_deleted, media=media_deleted, requestId=request_id)
+    return cors_response(200, {
         'success': True, 'contactId': contact_id, 'deleteType': 'hard',
         'messagesDeleted': msgs_deleted, 'mediaDeleted': media_deleted,
-    })}
+    }, origin)
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
@@ -387,7 +415,3 @@ def _to_dynamo(item: Dict[str, Any]) -> Dict[str, Any]:
 def _from_dynamo(item: Dict[str, Any]) -> Dict[str, Any]:
     return {k: (int(v) if isinstance(v, Decimal) and v % 1 == 0 else float(v) if isinstance(v, Decimal) else v)
             for k, v in item.items()}
-
-
-def _err(code: int, msg: str) -> Dict[str, Any]:
-    return {'statusCode': code, 'headers': CORS, 'body': json.dumps({'error': msg})}

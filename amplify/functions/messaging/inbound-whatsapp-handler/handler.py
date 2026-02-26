@@ -20,8 +20,14 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 
 # Configure logging
-logger = logging.getLogger()
-logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+from lambda_utils.logging import get_logger
+from lambda_utils.response import extract_origin
+
+# Sub-modules (monolith decomposition)
+from modules.content import extract_content as _extract_content_v2
+from modules.content import extract_unsupported_content as _extract_unsupported_content_v2
+
+logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -102,6 +108,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     }
     """
     request_id = context.aws_request_id if context else 'local'
+    origin = extract_origin(event)
     processed_count = 0
     error_count = 0
 
@@ -486,177 +493,13 @@ def _process_message(
 
 
 def _extract_content(message: Dict, msg_type: str) -> str:
-    """Extract message content based on type."""
-    if msg_type == 'text':
-        return message.get('text', {}).get('body', '')
-    elif msg_type == 'image':
-        return message.get('image', {}).get('caption', '[Image]')
-    elif msg_type == 'video':
-        return message.get('video', {}).get('caption', '[Video]')
-    elif msg_type == 'audio':
-        return '[Audio]'
-    elif msg_type == 'document':
-        doc = message.get('document', {})
-        return doc.get('filename', '[Document]')
-    elif msg_type == 'location':
-        loc = message.get('location', {})
-        return f"[Location: {loc.get('latitude')}, {loc.get('longitude')}]"
-    elif msg_type == 'contacts':
-        return '[Contact Card]'
-    elif msg_type == 'sticker':
-        return '[Sticker]'
-    elif msg_type == 'reaction':
-        return message.get('reaction', {}).get('emoji', '[Reaction]')
-    elif msg_type == 'interactive':
-        # Interactive messages (buttons, lists, etc.)
-        interactive = message.get('interactive', {})
-        interactive_type = interactive.get('type', '')
-        if interactive_type == 'button_reply':
-            btn_reply = interactive.get('button_reply', {})
-            btn_id = btn_reply.get('id', '')
-            # If this is a bot flow reply, return the id for reliable matching
-            if btn_id.startswith(('opt_', 'rate_', 'menu_', 'lang_', 'store_')):
-                return btn_id
-            return btn_reply.get('title', '[Button Reply]')
-        elif interactive_type == 'list_reply':
-            list_reply = interactive.get('list_reply', {})
-            reply_id = list_reply.get('id', '')
-            reply_title = list_reply.get('title', '[List Reply]')
-            # If this is a bot flow reply, return the id for reliable matching
-            if reply_id.startswith(('lang_', 'brand_', 'menu_', 'opt_', 'rate_')):
-                return reply_id
-            return reply_title
-        elif interactive_type == 'nfm_reply':
-            # Flow reply (WhatsApp Flows)
-            nfm_reply = interactive.get('nfm_reply', {})
-            response_json = nfm_reply.get('response_json', '')
-            return f'[Flow Response: {response_json[:50]}...]' if len(response_json) > 50 else f'[Flow Response: {response_json}]'
-        elif interactive_type == 'call_permission_reply':
-            # Call permission response — user granted or denied calling permission
-            cpr = interactive.get('call_permission_reply', {})
-            permission = cpr.get('permission', cpr.get('status', ''))
-            if not permission:
-                # Fallback: check top-level fields
-                permission = interactive.get('permission', 'unknown')
-            return f'[Call Permission: {permission}]'
-        return f'[Interactive: {interactive_type}]'
-    elif msg_type == 'button':
-        # Quick reply button
-        return message.get('button', {}).get('text', '[Button]')
-    elif msg_type == 'order':
-        return '[Order]'
-    elif msg_type == 'system':
-        # System messages (group changes, etc.)
-        return message.get('system', {}).get('body', '[System Message]')
-    elif msg_type == 'unsupported':
-        # WhatsApp marks some messages as unsupported - try to extract info
-        return _extract_unsupported_content(message)
-    elif msg_type == 'request_welcome':
-        # User clicked "Message" button on business profile
-        return '[User requested to start conversation]'
-    elif msg_type == 'ephemeral':
-        # Disappearing message
-        return '[Disappearing Message]'
-    elif msg_type == 'referral':
-        # Click-to-WhatsApp ads, social posts, product catalog referrals
-        ref = message.get('referral', {})
-        source = ref.get('source_type', 'unknown')
-        headline = ref.get('headline', '')
-        return f'[Referral: {source}] {headline}'.strip() if headline else f'[Referral: {source}]'
-    elif msg_type == 'ad_click':
-        # Click-to-WhatsApp ad click events
-        ref = message.get('referral', {})
-        return f'[Ad Click: {ref.get("source_url", "")}]' if ref.get('source_url') else '[Ad Click]'
-    elif msg_type in ('product', 'product_inquiry'):
-        # Catalog product messages
-        prod = message.get(msg_type, message.get('product', {}))
-        catalog_id = prod.get('catalog_id', '')
-        product_id = prod.get('product_retailer_id', '')
-        return f'[Product: {catalog_id}/{product_id}]' if catalog_id else f'[{msg_type.replace("_", " ").title()}]'
-    elif msg_type == 'poll':
-        # WhatsApp poll messages
-        poll = message.get('poll', {})
-        question = poll.get('question', '')
-        return f'[Poll: {question[:60]}]' if question else '[Poll]'
-    else:
-        logger.warning(json.dumps({
-            'event': 'unknown_message_type',
-            'messageType': msg_type,
-            'messageKeys': list(message.keys()),
-            'fullMessage': message
-        }))
-        return f'[{msg_type}]'
+    """Extract message content based on type. Delegates to modules.content."""
+    return _extract_content_v2(message, msg_type)
 
 
 def _extract_unsupported_content(message: Dict) -> str:
-    """
-    Extract any available information from unsupported message types.
-    WhatsApp marks certain features as 'unsupported' including:
-    - Live location sharing
-    - Polls
-    - Channels content
-    - View-once messages (after viewed)
-    - Certain sticker types
-    - Product messages from catalogs
-    
-    The 'errors' array may contain hints about what type it was.
-    """
-    # Log the full message for debugging
-    logger.info(json.dumps({
-        'event': 'unsupported_message_received',
-        'messageKeys': list(message.keys()),
-        'fullMessage': message
-    }))
-    
-    # Check for errors array which may contain type hints
-    errors = message.get('errors', [])
-    if errors:
-        for error in errors:
-            error_code = error.get('code', 0)
-            error_title = error.get('title', '')
-            error_details = error.get('details', '')
-            
-            logger.info(json.dumps({
-                'event': 'unsupported_message_error',
-                'errorCode': error_code,
-                'errorTitle': error_title,
-                'errorDetails': error_details
-            }))
-            
-            # Map known error codes to message types
-            # Error code 131051 = "Unsupported message type"
-            if error_details:
-                return f'[Unsupported: {error_details}]'
-            if error_title:
-                return f'[Unsupported: {error_title}]'
-    
-    # Check for referral (from ads, product catalogs)
-    if 'referral' in message:
-        referral = message.get('referral', {})
-        source_type = referral.get('source_type', '')
-        source_id = referral.get('source_id', '')
-        if source_type:
-            return f'[Referral from {source_type}]'
-    
-    # Check for context (reply to another message)
-    if 'context' in message:
-        context = message.get('context', {})
-        if context.get('referred_product'):
-            return '[Product Inquiry]'
-    
-    # Check if there's any text content hidden in the message
-    for key in ['text', 'caption', 'body']:
-        if key in message:
-            text_content = message.get(key, {})
-            if isinstance(text_content, dict):
-                body = text_content.get('body', '')
-                if body:
-                    return body
-            elif isinstance(text_content, str) and text_content:
-                return text_content
-    
-    # Default - show that we received something but can't display it
-    return '[Message type not supported by WhatsApp Business API]'
+    """Extract info from unsupported message types. Delegates to modules.content."""
+    return _extract_unsupported_content_v2(message)
 
 
 def _message_exists(whatsapp_message_id: str) -> bool:

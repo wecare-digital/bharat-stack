@@ -9,6 +9,7 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
+import { WHATSAPP_CALLING_VERIFY_TOKEN } from '../../../config/constants';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -20,7 +21,7 @@ const PHONE_NUMBERS = [
 // Webhook configuration — LIVE
 const WEBHOOK_CONFIG = {
   callbackUrl: 'https://api.wecare.digital/whatsapp-calling',
-  verifyToken: 'wecare_calling_verify_2026',
+  verifyToken: WHATSAPP_CALLING_VERIFY_TOKEN,
   subscribedFields: ['calls'],
   lambda: 'wecare-whatsapp-calling',
   table: 'base-wecare-digital-WhatsAppCallingTable',

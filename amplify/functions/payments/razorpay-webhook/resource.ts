@@ -7,7 +7,7 @@ export const razorpayWebhook = defineFunction({
   timeoutSeconds: 30,
   memoryMB: 256,
   environment: {
-    RAZORPAY_WEBHOOK_SECRET: 'b@c4mk9t9Z8qLq3',
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
     PAYMENTS_TABLE: 'base-wecare-digital-PaymentsTable',
     MESSAGES_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
     LOG_LEVEL: 'INFO',

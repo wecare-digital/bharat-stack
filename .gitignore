@@ -81,7 +81,11 @@ credentials.json
 _*.py
 _*.json
 _*.txt
+tmp-*.py
 flow-*.txt
 flow-*.png
 sr-*.txt
 *-deploy.zip
+
+# Amplify generated outputs (regenerated on deploy)
+amplify_outputs.json
