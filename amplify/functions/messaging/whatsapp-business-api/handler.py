@@ -496,20 +496,19 @@ _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '1728153881476046')
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {
         'phone': '+91 9330994400',
-        'wabaId': _PAYMENT_WABA_ID,
+        'wabaId': WABA1_ID,
         'configs': [
-            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
     },
     PHONE2_META_ID: {
         'phone': '+91 9903300044',
-        'wabaId': _PAYMENT_WABA_ID,
+        'wabaId': WABA2_ID,
         'configs': [
-            {'name': 'WECARE_PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-            {'name': 'WECARE_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-RAZOR-UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
         ],
         'mcc': '4722',
         'purposeCode': '03',

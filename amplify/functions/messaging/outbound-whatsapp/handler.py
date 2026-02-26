@@ -51,16 +51,17 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
-# WhatsApp Payment Configurations (WABA 1728153881476046)
+# WhatsApp Payment Configurations
+# Phone 1 WABA: 1912405516040025 | Phone 2 WABA: 1633959101297902
 # Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
-# NOTE: 'WECARE-DIGITAL' was removed from Meta WABA — using WECARE_PAY for Phone 1 now
-VALID_PAYMENT_CONFIGS = {'WECARE_PAY', 'WECARE_UPI'}
-DEFAULT_PAYMENT_CONFIG = 'WECARE_PAY'
+# Config names MUST match exactly what's in Meta Business Manager
+VALID_PAYMENT_CONFIGS = {'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI'}
+DEFAULT_PAYMENT_CONFIG = 'WECARE-RAZOR-PAY'
 # Map phone number ID to its payment config name
 PHONE_PAYMENT_CONFIG = {
-    PHONE_NUMBER_ID_1: 'WECARE_PAY',       # +919330994400
-    PHONE_NUMBER_ID_2: 'WECARE_PAY',       # +919903300044
+    PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',       # +919330994400
+    PHONE_NUMBER_ID_2: 'WECARE-RAZOR-PAY',       # +919903300044
 }
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
