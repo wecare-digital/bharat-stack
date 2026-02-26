@@ -40,6 +40,7 @@ from decimal import Decimal
 from typing import Dict, Any
 
 from lambda_utils.logging import get_logger
+from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 logger = get_logger(__name__)
 
@@ -150,7 +151,7 @@ def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params:
         except (json.JSONDecodeError, TypeError, ValueError):
             return {'error': {'message': error_body, 'code': e.code}}
 
-def _resp(code: int, body: Dict) -> Dict:
+def _resp(code: int, body: Dict, origin: str = '') -> Dict:
     return {'statusCode': code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}
 
 # ============================================================================
@@ -535,8 +536,6 @@ from cryptography.hazmat.primitives.asymmetric.padding import hashes as asym_has
 from cryptography.hazmat.primitives.ciphers import Cipher as AESCipher, algorithms, modes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
-
 FLOW_PRIVATE_KEY_SECRET = os.environ.get('FLOW_PRIVATE_KEY_SECRET', 'wecare/flow-private-key')
 FLOW_PRIVATE_KEY_PASSPHRASE = os.environ.get('FLOW_PRIVATE_KEY_PASSPHRASE', '')
 _flow_private_key = None
@@ -594,7 +593,7 @@ def _encrypt_flow_response(response_data: dict, aes_key: bytes, iv: bytes) -> st
 # ============================================================================
 # FLOW DATA EXCHANGE (WhatsApp Flows)
 # ============================================================================
-def _handle_flow_data(body: Dict, request_id: str) -> Dict:
+def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
     """
     Handle WhatsApp Flow data_exchange requests with E2E encryption.
     1. Decrypt incoming encrypted payload
@@ -1308,7 +1307,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         elif '/flow-data' in path:
             if method == 'POST':
-                return _handle_flow_data(body, request_id)
+                return _handle_flow_data(body, request_id, origin)
             return _resp(405, {'error': 'POST only'})
 
         elif '/submit-requests' in path:

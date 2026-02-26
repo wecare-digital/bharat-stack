@@ -20,6 +20,7 @@ from decimal import Decimal
 
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils.response import cors_headers, extract_origin
 
 logger = get_logger(__name__)
 
