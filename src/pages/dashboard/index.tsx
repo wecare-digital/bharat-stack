@@ -2203,7 +2203,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
                 {/* Sample callBackURLs Config */}
                 <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>✅ Sample callBackURLs Configuration</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>Sample callBackURLs Configuration</h4>
                   <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`"callBackURLs": [
   {
     "eventType": "CDR",
@@ -2365,14 +2365,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#E65100', marginTop: '0.75rem', lineHeight: '1.5' }}>
-                    ⚠ v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br/>
-                    ⚠ Promotional messages: No DLR sent back (except NACK from DLT).<br/>
-                    ⚠ MSISDN must be 10 or 12 digits (India format).
+                    Note: v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br/>
+                    Note: Promotional messages — No DLR sent back (except NACK from DLT).<br/>
+                    Note: MSISDN must be 10 or 12 digits (India format).
                   </div>
                 </div>
 
                 <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>✅ Sample Send SMS Requests</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>Sample Send SMS Requests</h4>
                   <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`# Single SMS (v4)
 POST /sms-in/airtel
 {
@@ -2613,44 +2613,44 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </button>
                   <a href="https://developers.facebook.com/apps/891766673609917/webhooks/" target="_blank" rel="noopener noreferrer"
                     style={{ padding: '0.5rem 1rem', background: '#1877F2', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none', display: 'inline-block' }}>
-                    🔗 Open Meta App Dashboard
+                    Open Meta App Dashboard
                   </a>
                 </div>
               </div>
 
               {/* Wix Store Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #7C3AED' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#F5F3FF', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #C4B5FD' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="#7C3AED" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <div style={{ width: '40px', height: '40px', background: '#f0fdf4', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #6ee7b7' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="#059669" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WECARE.DIGITAL Wix Store</h3>
-                    <span className="badge" style={{ background: '#F5F3FF', color: '#7C3AED', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
+                    <span className="badge" style={{ background: '#f0fdf4', color: '#059669', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
                   </div>
                 </div>
 
                 {/* Quick Links */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                  <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#7C3AED', color: '#fff', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
+                  <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
                     Live Store
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
-                    📦 Wix Products
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                    Wix Products
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
-                    🧾 Wix Orders
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                    Wix Orders
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
-                    🖼 Media Manager
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                    Media Manager
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
-                    ⚙ Wix Dashboard
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                    Wix Dashboard
                   </a>
                 </div>
 
-                <div style={{ background: '#F5F3FF', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C4B5FD' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#7C3AED' }}>API Endpoints (Lambda: wecare-wix-store)</h4>
+                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #6ee7b7' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#059669' }}>API Endpoints (Lambda: wecare-wix-store)</h4>
                   {[
                     { label: 'List Products', method: 'GET', path: '/wix-store/products' },
                     { label: 'Get Product (full)', method: 'GET', path: '/wix-store/products/{id}' },
@@ -2702,7 +2702,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID Format</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-{'{'}<span style={{ color: '#7C3AED' }}>UUID8</span>{'}'}-DD-MM-YYYY-HH:MM:SS-IST</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-{'{'}<span style={{ color: '#059669' }}>UUID8</span>{'}'}-DD-MM-YYYY-HH:MM:SS-IST</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Tables</label>
@@ -2711,27 +2711,27 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </div>
                 </div>
 
-                <div style={{ background: '#EDE7F6', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #B39DDB' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#4527A0' }}>TWO REPOS — IMPORTANT</h4>
+                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #6ee7b7' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#065f46' }}>TWO REPOS — IMPORTANT</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>Base CRM Repo</div>
+                      <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Base CRM Repo</div>
                       <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>base</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
+                      <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
                       <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
                     </div>
                   </div>
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#4527A0', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#065f46', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
                     Shared code lives in <code>shared/wix-velo/</code> — sync script copies to both repos. Wix page files need internal IDs (e.g. <code>HOME.c1dmp.js</code>) — only the Wix Editor can create page files.
                   </div>
                 </div>
 
                 <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1565C0' }}>🗄 Wix Data Collections</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1565C0' }}>Wix Data Collections</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
                       <code style={{ color: '#1565C0', fontWeight: 600 }}>OrderIDs</code>
@@ -2753,7 +2753,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>📂 Velo Code (store/src/)</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>Velo Code (store/src/)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' }}>
                     {[
                       { file: 'backend/http-functions.js', desc: 'HTTP API endpoints' },
@@ -2775,7 +2775,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17' }}>
-                  ⚠ Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>base-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT base repo.
+                  Note: Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>base-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT base repo.
                 </div>
               </div>
 
@@ -3117,7 +3117,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{req.phone}</td>
                             <td style={{ padding: '8px 12px' }}>{req.senderName || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#2563eb' }}>{req.requestNumber || '—'}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#7c3aed' }}>{req.paymentReferenceId || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.paymentReferenceId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{req.orderId}</td>
                             <td style={{ padding: '8px 12px' }}>{req.subject || '—'}</td>
                             <td style={{ padding: '8px 12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={req.description}>{req.description || '—'}</td>

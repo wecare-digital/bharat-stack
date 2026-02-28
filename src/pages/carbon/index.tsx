@@ -115,7 +115,7 @@ const CarbonPage: React.FC = () => {
           .hero{padding:140px 24px 60px;max-width:700px;margin:0 auto;text-align:center}
           .badge-icon{width:64px;height:64px;margin:0 auto 16px;background:#fff;border:2px solid #e5e7eb;border-radius:14px;display:flex;align-items:center;justify-content:center;padding:14px}
           .badge-icon img{width:100%;height:100%;object-fit:contain}
-          .badge{display:inline-block;padding:6px 16px;background:#f3f0ff;color:#664FC2;border-radius:20px;font-size:14px;font-weight:600;margin-bottom:20px}
+          .badge{display:inline-block;padding:6px 16px;background:#f0fdf4;color:#059669;border-radius:20px;font-size:14px;font-weight:600;margin-bottom:20px}
           .hero h1{font-size:48px;font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px}
           .hero p{font-size:21px;color:#6b7280;line-height:1.6;margin:0}
           .stats-section{padding:0 24px 40px}
