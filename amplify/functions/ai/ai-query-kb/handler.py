@@ -1,51 +1,42 @@
 """
 AI Query Knowledge Base Lambda Function
 
-Purpose: Query Bedrock Knowledge Base for context
-Uses External KB for WhatsApp auto-reply
+Purpose: Query static knowledge base for context (FREE - no OpenSearch!)
+Uses static FAQ database instead of Bedrock Knowledge Base
 
-KB IDs:
-- Internal KB: D0JU8Q7IQS
-- External KB: LYMQLKZNY7
+COST SAVINGS: Eliminates $191.60/month OpenSearch Serverless cost
 """
 
 import os
 import json
 import logging
-import boto3
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
-
-# Configure logging
 from lambda_utils.logging import get_logger
+
+# Import static knowledge base
+import sys
+sys.path.append('/opt/python')
+from static_knowledge_base import search_knowledge_base as static_kb_search
 
 logger = get_logger(__name__)
 
-# AWS clients
-bedrock_agent_runtime = boto3.client('bedrock-agent-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'D0JU8Q7IQS')
-EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'LYMQLKZNY7')
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Query Knowledge Base for relevant context."""
+    """Query static knowledge base for relevant context."""
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
     
     query = event.get('query', '')
     message_id = event.get('messageId', '')
-    kb_type = event.get('kbType', 'external')  # default to external for WhatsApp
-    
-    # Select KB based on type
-    kb_id = INTERNAL_KB_ID if kb_type == 'internal' else EXTERNAL_KB_ID
+    kb_type = event.get('kbType', 'external')  # kept for compatibility
     
     logger.info(json.dumps({
-        'event': 'kb_query_start',
-        'kbId': kb_id,
+        'event': 'static_kb_query_start',
         'kbType': kb_type,
         'queryLength': len(query) if query else 0,
         'messageId': message_id,
@@ -59,33 +50,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 200, 'body': json.dumps({'context': ''})}
     
     try:
-        # Query the knowledge base
-        response = bedrock_agent_runtime.retrieve(
-            knowledgeBaseId=kb_id,
-            retrievalQuery={'text': query},
-            retrievalConfiguration={
-                'vectorSearchConfiguration': {
-                    'numberOfResults': 3
-                }
-            }
-        )
-        
-        # Extract relevant context from results
-        results = response.get('retrievalResults', [])
-        context_parts = []
-        
-        for result in results:
-            content = result.get('content', {}).get('text', '')
-            score = result.get('score', 0)
-            if content and score > 0.5:  # Only include relevant results
-                context_parts.append(content)
-        
-        context_text = '\n\n'.join(context_parts[:3])  # Limit to top 3
+        # Query the static knowledge base (FREE!)
+        context_text = static_kb_search(query, max_results=3)
         
         logger.info(json.dumps({
-            'event': 'kb_query_success',
-            'kbId': kb_id,
-            'resultsCount': len(results),
+            'event': 'static_kb_query_success',
             'contextLength': len(context_text),
             'messageId': message_id,
             'requestId': request_id
@@ -95,15 +64,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'statusCode': 200,
             'body': json.dumps({
                 'context': context_text,
-                'resultsCount': len(results),
-                'kbId': kb_id
+                'source': 'static_kb'
             })
         }
         
     except Exception as e:
         logger.error(json.dumps({
-            'event': 'kb_query_error',
-            'kbId': kb_id,
+            'event': 'static_kb_query_error',
             'error': str(e),
             'messageId': message_id,
             'requestId': request_id

@@ -12,6 +12,7 @@ mkdir scripts\_pkg
 mkdir scripts\_pkg\lambda_utils
 copy %HANDLER% scripts\_pkg\handler.py
 copy amplify\functions\shared\lambda_utils\*.py scripts\_pkg\lambda_utils\
+if exist amplify\functions\shared\static_knowledge_base.py copy amplify\functions\shared\static_knowledge_base.py scripts\_pkg\
 powershell -Command "Compress-Archive -Path 'scripts/_pkg/*' -DestinationPath 'scripts/%FUNC%.zip' -Force"
 aws lambda update-function-code --function-name %FUNC% --zip-file fileb://scripts/%FUNC%.zip --region us-east-1 --output json --query "FunctionName"
 rmdir /s /q scripts\_pkg

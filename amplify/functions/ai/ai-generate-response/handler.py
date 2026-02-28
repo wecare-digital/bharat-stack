@@ -1554,8 +1554,9 @@ def _execute_tool(tool_name: str, tool_input: Dict, sender_phone: str, phone_has
             return _lookup_contact(phone, request_id)
 
         elif tool_name == 'get_brand_info':
-            brand = tool_input.get('brand_name', '')
-            return _get_brand_info(brand)
+            from static_knowledge_base import get_brand_info
+            brand_info = get_brand_info()
+            return json.dumps(brand_info, indent=2)
 
         elif tool_name == 'set_language':
             language = tool_input.get('language', '')
@@ -1678,37 +1679,27 @@ def _get_brand_info(brand_name: str) -> str:
 # KNOWLEDGE BASE RETRIEVAL (for grounding external responses)
 # ============================================================================
 
+# Import static knowledge base (FREE - no OpenSearch costs!)
+import sys
+sys.path.append('/opt/python')
+from static_knowledge_base import search_knowledge_base as static_kb_search
+
 def _retrieve_kb_context(query: str, request_id: str) -> str:
-    """Retrieve relevant context from Knowledge Base for grounded answers."""
-    if not EXTERNAL_KB_ID or not query:
+    """Retrieve relevant context from static knowledge base (FREE - no OpenSearch!)."""
+    if not query:
         return ''
     try:
-        response = bedrock_agent_runtime.retrieve(
-            knowledgeBaseId=EXTERNAL_KB_ID,
-            retrievalQuery={'text': query},
-            retrievalConfiguration={
-                'vectorSearchConfiguration': {'numberOfResults': 3}
-            }
-        )
-        results = response.get('retrievalResults', [])
-        parts = []
-        for r in results:
-            text = r.get('content', {}).get('text', '')
-            score = r.get('score', 0)
-            if text and score > 0.4:
-                parts.append(text)
-        context = '\n\n'.join(parts[:3])
+        # Use static KB instead of OpenSearch
+        context = static_kb_search(query, max_results=3)
         logger.info(json.dumps({
-            'event': 'kb_retrieve_success',
-            'resultsCount': len(results),
-            'usedCount': len(parts),
+            'event': 'static_kb_retrieve_success',
             'contextLength': len(context),
             'requestId': request_id
         }))
         return context
     except Exception as e:
         logger.warning(json.dumps({
-            'event': 'kb_retrieve_error',
+            'event': 'static_kb_retrieve_error',
             'error': str(e),
             'requestId': request_id
         }))
