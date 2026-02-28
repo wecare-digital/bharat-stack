@@ -3,6 +3,8 @@ Static Knowledge Base - Free Alternative to OpenSearch
 
 This module provides a simple, cost-free FAQ/knowledge base using static content.
 No OpenSearch, no vector embeddings, just simple keyword matching.
+
+SYNCED WITH: shared/faq-config.json
 """
 
 BRAND_INFO = {
@@ -24,54 +26,64 @@ BRAND_INFO = {
 
 FAQ_DATABASE = [
     {
-        'keywords': ['hours', 'timing', 'open', 'close', 'available', 'when'],
+        'keywords': ['hours', 'timing', 'open', 'close', 'available', 'when', 'time'],
         'question': 'What are your business hours?',
         'answer': 'We are available 24/7 for online orders and support. For urgent assistance, call us at +91 9330994400 or email one@wecare.digital.'
     },
     {
-        'keywords': ['contact', 'reach', 'call', 'email', 'phone', 'support'],
+        'keywords': ['contact', 'reach', 'call', 'email', 'phone', 'support', 'help'],
         'question': 'How can I contact you?',
-        'answer': 'You can reach us via:\n- Phone/WhatsApp: +91 9330994400\n- Email: one@wecare.digital\n- Website: https://wecare.digital'
+        'answer': 'You can reach us via:\n• Phone/WhatsApp: +91 9330994400\n• Email: one@wecare.digital\n• Website: https://wecare.digital'
     },
     {
-        'keywords': ['order', 'buy', 'purchase', 'shop', 'product'],
+        'keywords': ['order', 'buy', 'purchase', 'shop', 'product', 'cart'],
         'question': 'How do I place an order?',
-        'answer': 'Visit our store at https://store.wecare.digital to browse products and place orders. You can also order via WhatsApp by sending us a message.'
+        'answer': 'Visit our store at https://store.wecare.digital to browse products and place orders. You can also order via WhatsApp by sending us a message at +91 9330994400.'
     },
     {
-        'keywords': ['payment', 'pay', 'price', 'cost', 'fee', 'charge'],
+        'keywords': ['payment', 'pay', 'price', 'cost', 'fee', 'charge', 'upi', 'card'],
         'question': 'What payment methods do you accept?',
-        'answer': 'We accept:\n- UPI (Google Pay, PhonePe, Paytm)\n- Credit/Debit Cards\n- Net Banking\n- Razorpay Payment Gateway\n\nA 2% convenience fee + 18% GST applies to all payments.'
+        'answer': 'We accept:\n• UPI (Google Pay, PhonePe, Paytm)\n• Credit/Debit Cards\n• Net Banking\n• Razorpay Payment Gateway\n\nA 2% convenience fee + 18% GST applies to all payments.'
     },
     {
-        'keywords': ['delivery', 'shipping', 'ship', 'courier', 'dispatch'],
+        'keywords': ['delivery', 'shipping', 'ship', 'courier', 'dispatch', 'send'],
         'question': 'What are your delivery options?',
-        'answer': 'We offer standard shipping across India. Delivery time varies by location. Track your order status in the My Orders section.'
+        'answer': 'We offer standard shipping across India. Delivery time varies by location (typically 3-7 business days). Track your order status in the My Orders section.'
     },
     {
-        'keywords': ['return', 'refund', 'cancel', 'exchange'],
+        'keywords': ['return', 'refund', 'cancel', 'exchange', 'money back'],
         'question': 'What is your return policy?',
-        'answer': 'Returns are accepted within 7 days of delivery for eligible items. Contact us at one@wecare.digital with your order number to initiate a return.'
+        'answer': 'Returns are accepted within 7 days of delivery for eligible items. Contact us at one@wecare.digital with your order number to initiate a return. Refunds are processed within 5-7 business days.'
     },
     {
-        'keywords': ['track', 'status', 'where', 'order status'],
+        'keywords': ['track', 'status', 'where', 'order status', 'tracking'],
         'question': 'How do I track my order?',
-        'answer': 'Log in to your account at https://store.wecare.digital and visit the My Orders page to track your order status.'
+        'answer': 'Log in to your account at https://store.wecare.digital and visit the My Orders page to track your order status in real-time.'
     },
     {
-        'keywords': ['whatsapp', 'message', 'chat', 'wa'],
+        'keywords': ['whatsapp', 'message', 'chat', 'wa', 'messenger'],
         'question': 'Can I order via WhatsApp?',
-        'answer': 'Yes! Send us a message on WhatsApp at +91 9330994400. Our AI assistant will help you browse products and place orders.'
+        'answer': 'Yes! Send us a message on WhatsApp at +91 9330994400. Our AI assistant will help you browse products and place orders directly through chat.'
     },
     {
-        'keywords': ['invoice', 'bill', 'receipt', 'gst'],
+        'keywords': ['invoice', 'bill', 'receipt', 'gst', 'tax'],
         'question': 'How do I get my invoice?',
-        'answer': 'Your invoice is automatically generated after payment and sent to your registered email. You can also download it from the My Orders section.'
+        'answer': 'Your invoice is automatically generated after payment and sent to your registered email. You can also download it from the My Orders section or request it via email.'
     },
     {
-        'keywords': ['account', 'login', 'register', 'signup', 'password'],
+        'keywords': ['account', 'login', 'register', 'signup', 'password', 'profile'],
         'question': 'How do I create an account?',
         'answer': 'Visit https://store.wecare.digital and click on the account icon to register. You can also place orders as a guest without creating an account.'
+    },
+    {
+        'keywords': ['convenience fee', 'extra charge', 'additional fee', 'why charge'],
+        'question': 'What is the convenience fee?',
+        'answer': 'A 2% convenience fee is charged on the cart total, plus 18% GST on that fee. This covers payment gateway and processing costs. Total fee = (Cart × 2%) × 1.18'
+    },
+    {
+        'keywords': ['bulk', 'wholesale', 'large order', 'quantity', 'discount'],
+        'question': 'Do you offer bulk order discounts?',
+        'answer': 'Yes! For bulk orders, please contact us at one@wecare.digital or call +91 9330994400. We offer special pricing for large quantities.'
     }
 ]
 
