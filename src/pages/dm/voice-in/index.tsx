@@ -226,7 +226,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
             <Button variant="primary" onClick={() => setShowC2CModal(true)}>C2C</Button>
             <Button variant="secondary" onClick={() => setShowOBDModal(true)}>OBD</Button>
             <Button variant="secondary" onClick={() => handleClearLogs(activeTab)} disabled={clearing} loading={clearing}>Clear</Button>
-            <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+            <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
           </div>
         </div>
 

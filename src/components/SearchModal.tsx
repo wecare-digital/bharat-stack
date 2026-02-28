@@ -79,7 +79,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
           type: 'contact',
           title: contact.name || contact.phone,
           subtitle: contact.phone,
-          icon: '👤',
+          icon: '◎',
           path: `/dm/whatsapp?contact=${contact.id}`,
         });
       }
@@ -93,7 +93,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
           type: 'message',
           title: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : ''),
           subtitle: `Message`,
-          icon: '💬',
+          icon: '◇',
         });
       }
     });
@@ -139,11 +139,16 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search contacts, messages, pages..."
+            role="combobox"
+            aria-expanded={results.length > 0}
+            aria-controls="search-results-list"
+            aria-activedescendant={results[selectedIndex] ? `search-result-${results[selectedIndex].id}` : undefined}
+            aria-label="Search contacts, messages, and pages"
           />
           <span className="search-hint">ESC to close</span>
         </div>
         
-        <div className="search-results">
+        <div className="search-results" id="search-results-list" role="listbox">
           {results.length === 0 ? (
             <div className="search-empty">
               <span>No results found</span>
@@ -152,6 +157,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
             results.map((result, index) => (
               <div
                 key={result.id}
+                id={`search-result-${result.id}`}
+                role="option"
+                aria-selected={index === selectedIndex}
                 className={`search-result-item ${index === selectedIndex ? 'selected' : ''}`}
                 onClick={() => {
                   if (result.path) {

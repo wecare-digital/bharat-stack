@@ -619,13 +619,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   onChange={(e) => { setPaymentForm({...paymentForm, phoneNumberId: e.target.value}); setPayPasswordError(''); setPayPasswordInput(''); }}
                 >
                   {PAYMENT_PHONES.map(p => (
-                    <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' 🔒' : ''}</option>
+                    <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' [Protected]' : ''}</option>
                   ))}
                 </select>
               </div>
               {isPayPhoneLocked() && (
                 <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
-                  <label>🔒 Password required for this number</label>
+                  <label>Password required for this number</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       type="password"
@@ -642,7 +642,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               )}
               {!isPayPhoneLocked() && PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.paymentProtected && (
                 <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
-                  <span style={{ color: '#10B981', fontSize: '11px' }}>🔓 Unlocked for this session</span>
+                  <span style={{ color: '#10B981', fontSize: '11px' }}>Unlocked for this session</span>
                 </div>
               )}
               <div className={styles['variable-input-row']}>
@@ -822,7 +822,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               onClick={sendPaymentMessage}
               disabled={sendingPayment || paymentForm.items.every(i => !i.name.trim() || !parseFloat(i.amount)) || !paymentForm.referenceId || isPayPhoneLocked()}
             >
-              {isPayPhoneLocked() ? '🔒 Unlock to send' : sendingPayment ? 'Sending...' : 'Send'}
+              {isPayPhoneLocked() ? 'Locked' : sendingPayment ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>

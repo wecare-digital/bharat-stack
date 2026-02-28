@@ -115,7 +115,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '12px' }}>
           <h2 style={{ margin: 0 }}>Email Logs</h2>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+          <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
         </div>
 
         {/* Search and Delete Row */}

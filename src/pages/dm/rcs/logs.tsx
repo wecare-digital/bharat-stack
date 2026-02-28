@@ -55,7 +55,7 @@ export default function RcsLogsPage({ signOut, user, embedded }: PageProps) {
   const content = (
     <>
       <div className="inner-page logs-page">
-        <div className="page-header"><h2>RCS Logs</h2><Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} /></div>
+        <div className="page-header"><h2>RCS Logs</h2><Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button></div>
         <div className="filters-row">
           <div className="filter-tabs">
             <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All ({logs.length})</button>

@@ -465,7 +465,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
             subtitle="Create, edit, and manage WhatsApp message templates"
             icon="whatsapp"
             backLink="/dm/whatsapp"
-            backLabel="← Back"
+            backLabel="Back"
             actions={
               <div className="header-actions">
                 <select

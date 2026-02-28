@@ -928,7 +928,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     <Layout user={user} onSignOut={signOut}>
       <div className="wa-page">
         <div className="wa-header">
-          <button onClick={() => router.push('/dm/whatsapp')} className="back-btn">←</button>
+          <button onClick={() => router.push('/dm/whatsapp')} className="btn btn-sm btn-ghost">Back</button>
           <div className="wa-header-info">
             <span className="wa-icon">WA</span>
             <div>
@@ -936,7 +936,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
               <span className="wa-phone">{wabaInfo.phone}</span>
             </div>
           </div>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+          <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
         </div>
 
         <div className="wa-layout">
@@ -1044,7 +1044,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                         {filteredMessages.length} found
                       </span>
                     )}
-                    <button onClick={() => { setShowMessageSearch(false); setMessageSearchQuery(''); }}>✕</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => { setShowMessageSearch(false); setMessageSearchQuery(''); }}>×</button>
                   </div>
                 )}
 
@@ -1105,7 +1105,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                   {isRecording ? (
                     <div className="voice-recording">
                       <button className="cancel-record-btn" onClick={cancelRecording} title="Cancel">
-                        ✕
+                        ×
                       </button>
                       <div className="recording-indicator">
                         <span className="recording-dot">●</span>
@@ -1118,7 +1118,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                   ) : audioBlob ? (
                     <div className="voice-preview">
                       <button className="cancel-record-btn" onClick={cancelRecording} title="Discard">
-                        ✕
+                        ×
                       </button>
                       <audio src={audioUrl || ''} controls className="preview-audio" />
                       <button 

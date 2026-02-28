@@ -92,7 +92,7 @@ const EmailCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded }) => 
 
   const content = (
       <div className="inner-page campaign-page">
-        <div className="page-header"><h2>Email Campaign</h2><Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} /></div>
+        <div className="page-header"><h2>Email Campaign</h2><Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button></div>
         <Tabs items={tabItems.map(t => ({ ...t, count: t.id === 'logs' ? campaigns.length : undefined }))} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabType)} variant="sub" />
         {message && <div className={'alert alert-' + message.type}>{message.text}<button onClick={() => setMessage(null)}>×</button></div>}
         {activeTab === 'create' && (

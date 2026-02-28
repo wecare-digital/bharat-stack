@@ -21,7 +21,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   subtitle,
   icon,
   backLink,
-  backLabel = '← Back',
+  backLabel = 'Back',
   actions,
 }) => {
   const Icon = icon ? IconMap[icon] : null;

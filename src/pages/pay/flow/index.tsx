@@ -590,7 +590,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
               <div className="pf-modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:520}}>
                 <div className="pf-modal-header">
                   <h3>Edit Invoice</h3>
-                  <Button variant="ghost" size="sm" onClick={()=>setEditModal(null)}>{'✕'}</Button>
+                  <Button variant="ghost" size="sm" onClick={()=>setEditModal(null)}>×</Button>
                 </div>
                 <div className="pf-detail-row" style={{marginBottom:12}}>
                   <span className="label">Ref</span>

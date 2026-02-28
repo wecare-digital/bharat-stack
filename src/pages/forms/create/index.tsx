@@ -17,7 +17,7 @@ const FormsCreatePage: React.FC<PageProps> = ({ signOut, user }) => {
       subtitle="Create custom forms with drag-and-drop builder"
       icon="create"
       backLink="/forms"
-      backLabel="← Forms"
+      backLabel="Forms"
       features={[
         'Drag & Drop Builder',
         'Custom Fields',

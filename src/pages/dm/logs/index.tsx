@@ -153,7 +153,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <option value="failed">Failed</option>
             </select>
           </div>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadMessageLogs} disabled={loading} loading={loading} />
+          <Button variant="secondary" icon="refresh" onClick={loadMessageLogs} disabled={loading} loading={loading}>Refresh</Button>
         </div>
 
         <div className="table-container">

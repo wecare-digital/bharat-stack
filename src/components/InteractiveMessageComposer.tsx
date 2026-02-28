@@ -212,7 +212,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
   return (
     <div className="interactive-composer">
       <div className="composer-header">
-        <h3>📱 Interactive Message</h3>
+        <h3>Interactive Message</h3>
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
 

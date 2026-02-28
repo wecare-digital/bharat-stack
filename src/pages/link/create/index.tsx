@@ -17,7 +17,7 @@ const LinkCreatePage: React.FC<PageProps> = ({ signOut, user }) => {
       subtitle="Create shareable links for payments, forms, and more"
       icon="create"
       backLink="/link"
-      backLabel="← Link"
+      backLabel="Link"
       features={[
         'Short URLs',
         'Payment Links',

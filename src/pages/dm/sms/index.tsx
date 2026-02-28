@@ -226,7 +226,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <div className="tab-header-actions">
                     <Button variant="primary" onClick={() => setShowSendModal(true)}>Send SMS</Button>
                     <Button variant="secondary" onClick={() => handleClearLogs('aws')} disabled={clearing} loading={clearing}>Clear</Button>
-                    <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadAwsData} disabled={loading} loading={loading} />
+                    <Button variant="secondary" icon="refresh" onClick={loadAwsData} disabled={loading} loading={loading}>Refresh</Button>
                   </div>
                 </div>
                 <div className="controls-row">
@@ -255,7 +255,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <div className="tab-header-actions">
                     <Button variant="primary" onClick={() => setShowAirtelSendModal(true)}>Send SMS</Button>
                     <Button variant="secondary" onClick={() => handleClearLogs('airtel')} disabled={clearing} loading={clearing}>Clear</Button>
-                    <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadAirtelData} disabled={airtelLoading} loading={airtelLoading} />
+                    <Button variant="secondary" icon="refresh" onClick={loadAirtelData} disabled={airtelLoading} loading={airtelLoading}>Refresh</Button>
                   </div>
                 </div>
                 <div className="controls-row">

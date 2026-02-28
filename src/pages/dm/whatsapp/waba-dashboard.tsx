@@ -134,9 +134,9 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
             subtitle="WhatsApp Business Account details, phone quality, and system events"
             icon="whatsapp"
             backLink="/dm/whatsapp"
-            backLabel="← Back"
+            backLabel="Back"
             actions={
-              <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+              <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
           }
         />
         )}

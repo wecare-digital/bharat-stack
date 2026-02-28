@@ -17,7 +17,7 @@ const DocsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       subtitle="Track document views, downloads, and signatures"
       icon="logs"
       backLink="/docs"
-      backLabel="← Documents"
+      backLabel="Documents"
       features={[
         'View History',
         'Download Logs',

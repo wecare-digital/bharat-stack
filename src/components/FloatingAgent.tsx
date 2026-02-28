@@ -60,6 +60,18 @@ const FloatingAgent: React.FC = () => {
     }
   }, [input]);
 
+  // Keyboard shortcut: Ctrl+. to toggle
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '.') {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      }
+    };
+    document.addEventListener('keydown', handleGlobalKey);
+    return () => document.removeEventListener('keydown', handleGlobalKey);
+  }, []);
+
 
   const processCommand = async (text: string): Promise<string> => {
     const lowerText = text.toLowerCase();
@@ -267,8 +279,8 @@ const FloatingAgent: React.FC = () => {
 
   if (!isOpen) {
     return (
-      <button className="agent-fab" onClick={() => setIsOpen(true)} title="Open Assistant">
-        <img src={LOGO_URL} alt="Assistant" className="agent-fab-logo" />
+      <button className="agent-fab" onClick={() => setIsOpen(true)} title="Open Assistant (Ctrl+.)" aria-label="Open assistant chat">
+        <img src={LOGO_URL} alt="" className="agent-fab-logo" />
       </button>
     );
   }
@@ -283,10 +295,10 @@ const FloatingAgent: React.FC = () => {
             <span className="agent-subtitle">by WECARE.DIGITAL</span>
           </div>
         </div>
-        <button className="agent-close" onClick={() => setIsOpen(false)}>×</button>
+        <button className="agent-close" onClick={() => setIsOpen(false)} aria-label="Close assistant">×</button>
       </div>
 
-      <div className="agent-messages">
+      <div className="agent-messages" aria-live="polite" aria-relevant="additions">
         {messages.map((msg) => (
           <div key={msg.id} className={`agent-message ${msg.role}`}>
             <div className="agent-message-content">
@@ -314,13 +326,15 @@ const FloatingAgent: React.FC = () => {
           placeholder="Type a message or command..."
           disabled={isLoading}
           rows={1}
+          aria-label="Chat message input"
         />
         <button 
           className="agent-send-btn" 
           onClick={handleSend} 
           disabled={!input.trim() || isLoading}
+          aria-label="Send message"
         >
-          {isLoading ? '...' : '➤'}
+          {isLoading ? '...' : 'Send'}
         </button>
       </div>
     </div>

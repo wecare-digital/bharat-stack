@@ -135,6 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
 
   return (
     <div className="layout">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <button className="mobile-menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu">
         {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
       </button>
@@ -158,6 +159,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
               value={sidebarSearch}
               onChange={e => setSidebarSearch(e.target.value)}
               className="sidebar-search-input"
+              aria-label="Search pages"
             />
             {sidebarSearch && (
               <button className="sidebar-search-clear" onClick={() => setSidebarSearch('')}>×</button>
@@ -193,7 +195,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         </div>
       </aside>
       {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
-      <main className="main-content">
+      <main id="main-content" className="main-content">
         {showBreadcrumbs && <Breadcrumbs />}
         {children}
       </main>

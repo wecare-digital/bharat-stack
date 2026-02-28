@@ -77,7 +77,7 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false
       <div className="inner-page logs-page">
         <div className="page-header">
           <h2>WhatsApp Logs</h2>
-          <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+          <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
         </div>
         <div className="filters-row">
           <div className="filter-tabs">

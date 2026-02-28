@@ -200,7 +200,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button variant="primary" size="sm" onClick={() => setShowCompose(true)}>Compose</Button>
-                  <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" size="sm" onClick={loadData} disabled={loading} loading={loading} />
+                  <Button variant="secondary" icon="refresh" size="sm" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
                 </div>
               </div>
               <div className="messages-area">

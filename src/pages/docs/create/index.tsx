@@ -17,7 +17,7 @@ const DocsCreatePage: React.FC<PageProps> = ({ signOut, user }) => {
       subtitle="Create and manage documents"
       icon="create"
       backLink="/docs"
-      backLabel="← Docs"
+      backLabel="Docs"
       features={[
         'Rich Text Editor',
         'Templates',

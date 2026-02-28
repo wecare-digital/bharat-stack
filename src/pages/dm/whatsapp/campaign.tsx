@@ -122,7 +122,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
     <div className="inner-page campaign-page">
       <div className="page-header">
         <h2>WhatsApp Campaign</h2>
-        <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+        <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
       </div>
 
       <Tabs 

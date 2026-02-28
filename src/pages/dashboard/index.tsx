@@ -1170,7 +1170,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         message={
           <div>
             <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>
-              ⚠️ WARNING: This will permanently delete ALL data:
+              WARNING: This will permanently delete ALL data:
             </p>
             <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
               <li>All WhatsApp messages (inbound & outbound)</li>
@@ -1282,7 +1282,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
               {!loading && !billingData && (
                 <div style={{ background: '#f0fdf4', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #a7f3d0' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>—</div>
                   <h3 style={{ color: '#065f46', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
                   <p style={{ color: '#6b7280', margin: 0 }}>Check API connection or try refreshing.</p>
                 </div>
@@ -1881,7 +1881,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ marginTop: '2rem', padding: '1.25rem', border: '1px solid #6366f1', borderRadius: '0.75rem', background: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <div>
-                    <h4 style={{ margin: 0, color: '#4338ca' }}>📋 Flow JSON — Inner Pages</h4>
+                    <h4 style={{ margin: 0, color: '#4338ca' }}>Flow JSON — Inner Pages</h4>
                     <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#888' }}>
                       Full control of WhatsApp Flow screens (ORDER_SELECT, SUBMIT_REQUEST_FORM, TERMS, REVIEW, THANK_YOU). Stored in SystemConfigTable.
                     </p>
@@ -1913,7 +1913,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
                 {!flowJsonLoading && !flowJson && !flowJsonEditMode && (
                   <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#fefce8', borderRadius: '0.5rem', border: '1px dashed #eab308' }}>
-                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📋</div>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>—</div>
                     <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#854d0e' }}>No Flow JSON stored yet</div>
                     <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v2.json</code> to enable screen-level control.</div>
                   </div>
@@ -2139,10 +2139,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 
                 {/* Webhook URLs */}
                 <div style={{ background: '#FFEBEE', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFCDD2' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#C62828' }}>📌 Webhook URLs for Airtel Configuration</h4>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#C62828' }}>Webhook URLs for Airtel Configuration</h4>
                   
                   <div style={{ marginBottom: '0.75rem', background: '#FFF9C4', padding: '0.75rem', borderRadius: '4px', border: '1px solid #FFF176' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#F57F17', display: 'block', fontWeight: 600 }}>⚠️ OLD URL (DEPRECATED - ask Airtel to replace)</label>
+                    <label style={{ fontSize: '0.75rem', color: '#F57F17', display: 'block', fontWeight: 600 }}>OLD URL (DEPRECATED - ask Airtel to replace)</label>
                     <code style={{ fontSize: '0.8rem', color: '#E65100', textDecoration: 'line-through' }}>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
                   </div>
 
@@ -2180,7 +2180,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
                 {/* Contact Info */}
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 Contact Information</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Contact Information</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Inbound Number</label>
@@ -2247,7 +2247,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {/* Airtel Integration Reference — credentials removed for security */}
               <div className="section" style={{ background: '#FFF3E0', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #FFB74D' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#E65100' }}>
-                  🔒 Airtel Integration Reference
+                  Airtel Integration Reference
                 </h4>
                 <p style={{ fontSize: '0.9rem', color: '#333', margin: 0 }}>
                   {AIRTEL_REFERENCE_NOTICE}
@@ -2300,7 +2300,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
                 
                 <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1565C0' }}>📌 SMS API Endpoints</h4>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1565C0' }}>SMS API Endpoints</h4>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (via our API — supports v4/v5/v6)</label>
@@ -2345,7 +2345,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
 
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 DLT Configuration (TRAI TCCCPR 2019)</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>DLT Configuration (TRAI TCCCPR 2019)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Sender ID (Header)</label>
@@ -2441,7 +2441,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
                 
                 <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 API Endpoints</h4>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>API Endpoints</h4>
                   {[
                     { label: 'Send SMS', method: 'POST', path: '/sms-aws/send' },
                     { label: 'List SMS Messages', method: 'GET', path: '/sms-aws/messages' },
@@ -2462,7 +2462,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 Phone Numbers & Configuration</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Phone Numbers & Configuration</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Voice (Toll-Free, Intl)</label>
@@ -2523,7 +2523,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 Webhook Configuration</h4>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>Webhook Configuration</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Webhook URL</span><code style={{ color: '#111827' }}>https://api.wecare.digital/whatsapp/inbound</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Method</span><code style={{ color: '#111827' }}>POST</code></div>
@@ -2553,7 +2553,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>📌 Webhook Configuration (Meta App Dashboard)</h4>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>Webhook Configuration (Meta App Dashboard)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Callback URL</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>https://api.wecare.digital/whatsapp-calling</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>{WHATSAPP_CALLING_VERIFY_TOKEN || '(not configured)'}</code></div>
@@ -2589,7 +2589,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>📞 Phone Numbers (Calling-Ready)</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Phone Numbers (Calling-Ready)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>+91 93309 94400 (WECARE.DIGITAL)</label>
@@ -2605,11 +2605,11 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button onClick={() => { navigator.clipboard.writeText('https://api.wecare.digital/whatsapp-calling'); alert('Callback URL copied!'); }}
                     style={{ padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
-                    📋 Copy Callback URL
+                    Copy Callback URL
                   </button>
                   <button onClick={() => { navigator.clipboard.writeText(WHATSAPP_CALLING_VERIFY_TOKEN || ''); alert('Verify token copied!'); }}
                     style={{ padding: '0.5rem 1rem', background: '#065f46', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
-                    📋 Copy Verify Token
+                    Copy Verify Token
                   </button>
                   <a href="https://developers.facebook.com/apps/891766673609917/webhooks/" target="_blank" rel="noopener noreferrer"
                     style={{ padding: '0.5rem 1rem', background: '#1877F2', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none', display: 'inline-block' }}>
@@ -2633,7 +2633,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 {/* Quick Links */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                   <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#7C3AED', color: '#fff', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
-                    🌐 Live Store
+                    Live Store
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#F5F3FF', color: '#7C3AED', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #C4B5FD' }}>
                     📦 Wix Products
@@ -2650,7 +2650,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#F5F3FF', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C4B5FD' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#7C3AED' }}>📌 API Endpoints (Lambda: wecare-wix-store)</h4>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#7C3AED' }}>API Endpoints (Lambda: wecare-wix-store)</h4>
                   {[
                     { label: 'List Products', method: 'GET', path: '/wix-store/products' },
                     { label: 'Get Product (full)', method: 'GET', path: '/wix-store/products/{id}' },
@@ -2682,7 +2682,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>🔧 Configuration</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Configuration</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Wix Site ID</label>
@@ -2712,21 +2712,21 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#EDE7F6', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #B39DDB' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#4527A0' }}>⚠️ TWO REPOS — IMPORTANT</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#4527A0' }}>TWO REPOS — IMPORTANT</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>🔧 Base CRM Repo</div>
+                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>Base CRM Repo</div>
                       <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>base</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>🌐 Wix Velo Repo (LIVE)</div>
+                      <div style={{ fontWeight: 600, color: '#4527A0', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
                       <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
                     </div>
                   </div>
                   <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#4527A0', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                    📌 Shared code lives in <code>shared/wix-velo/</code> — sync script copies to both repos. Wix page files need internal IDs (e.g. <code>HOME.c1dmp.js</code>) — only the Wix Editor can create page files.
+                    Shared code lives in <code>shared/wix-velo/</code> — sync script copies to both repos. Wix page files need internal IDs (e.g. <code>HOME.c1dmp.js</code>) — only the Wix Editor can create page files.
                   </div>
                 </div>
 

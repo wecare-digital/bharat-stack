@@ -380,9 +380,9 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 {selectedCollectionId && (
                   <button
                     onClick={() => { setSelectedCollectionId(''); }}
-                    style={{ padding: '8px 14px', background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', borderRadius: 8, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}
+                    className="btn btn-sm btn-secondary"
                   >
-                    ✕ Clear collection filter
+                    Clear filter
                   </button>
                 )}
               </div>

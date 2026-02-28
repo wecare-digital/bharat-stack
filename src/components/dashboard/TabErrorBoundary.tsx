@@ -32,7 +32,7 @@ class TabErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>—</div>
           <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem', color: '#1a1a1a' }}>
             {this.props.tabName} tab encountered an error
           </h3>

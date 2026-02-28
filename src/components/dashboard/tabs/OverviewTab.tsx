@@ -119,7 +119,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
       <div className="section full-width">
         <div className="section-header">
           <h3>Recent Messages</h3>
-          <Link href="/dm/whatsapp" className="link">View All →</Link>
+          <Link href="/dm/whatsapp" className="link">View All</Link>
         </div>
         <div className="msg-list">
           {messages.slice(0, 5).map(msg => {
@@ -135,7 +135,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
               </div>
             );
           })}
-          {messages.length === 0 && <div className="empty">No messages yet</div>}
+          {messages.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-state-title">No messages yet</div>
+              <div className="empty-state-description">Messages will appear here once you start sending or receiving.</div>
+            </div>
+          )}
         </div>
       </div>
     </div>

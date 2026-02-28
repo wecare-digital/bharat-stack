@@ -47,21 +47,21 @@
   --accent-light: #f0fdf4;
   --accent-hover: #047857;
   
-  /* Semantic Colors - Muted versions */
+  /* Semantic Colors - Distinct for each state */
   --success: #059669;
   --success-light: #f0fdf4;
   --success-bg: #ecfdf5;
   
-  --danger: #059669;
-  --danger-light: #ECFDF5;
-  --danger-bg: #ECFDF5;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --danger-bg: #fef2f2;
   
-  --warning: #059669;
-  --warning-light: #ECFDF5;
-  --warning-bg: #ECFDF5;
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  --warning-bg: #fffbeb;
   
-  --info: #059669;
-  --info-light: #ECFDF5;
+  --info: #2563eb;
+  --info-light: #eff6ff;
   
   /* ========================================
    * TYPOGRAPHY - Home Page Style
@@ -76,7 +76,7 @@
   --text-xs: 12px;
   --text-sm: 13px;
   --text-md: 14px;
-  --text-base: 15px;
+  --text-base: 16px;
   --text-lg: 16px;
   --text-xl: 18px;
   --text-2xl: 21px;
@@ -169,12 +169,12 @@
   --notion-accent-light: #f0fdf4;
   --notion-green: #059669;
   --notion-green-light: #ecfdf5;
-  --notion-red: var(--danger);
-  --notion-red-light: var(--danger-light);
-  --notion-orange: var(--warning);
-  --notion-orange-light: var(--warning-light);
-  --notion-purple: var(--info);
-  --notion-purple-light: var(--info-light);
+  --notion-red: #dc2626;
+  --notion-red-light: #fef2f2;
+  --notion-orange: #d97706;
+  --notion-orange-light: #fffbeb;
+  --notion-purple: #2563eb;
+  --notion-purple-light: #eff6ff;
   
   /* Pages.css compatibility */
   --color-primary: #059669;
@@ -184,8 +184,8 @@
   --color-bg: #fff;
   --color-bg-secondary: #f5f5f5;
   --color-success: #059669;
-  --color-warning: #059669;
-  --color-danger: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
 }
 
 /* ========================================

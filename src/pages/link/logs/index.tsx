@@ -17,7 +17,7 @@ const LinkLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       subtitle="Track link clicks, conversions, and engagement"
       icon="logs"
       backLink="/link"
-      backLabel="← Links"
+      backLabel="Links"
       features={[
         'Click Tracking',
         'Geo Analytics',

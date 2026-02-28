@@ -126,8 +126,8 @@ const Button: React.FC<ButtonProps> = ({
       type={type}
       className={classes}
       disabled={isDisabled}
-      aria-label={iconOnly ? ariaLabel : undefined}
-      title={iconOnly ? ariaLabel : undefined}
+      aria-label={ariaLabel || undefined}
+      title={ariaLabel || undefined}
       {...props}
     >
       {loading ? (

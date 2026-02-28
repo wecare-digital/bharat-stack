@@ -4,6 +4,7 @@
 import React, { useState, useCallback } from 'react';
 import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
+import { useToastContext } from '../../../contexts/ToastContext';
 import type { DashboardData } from '../../../types/dashboard';
 
 interface DataTabProps {
@@ -45,6 +46,7 @@ const CLEANUP_FALLBACK: api.CleanupResource[] = [
 
 const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
   const { contacts, messages } = data;
+  const toast = useToastContext();
 
   // Delete mode
   const [deleteMode, setDeleteMode] = useState<'messages' | 'hard' | 'clearAll' | 'systemCleanup' | null>(null);
@@ -83,8 +85,10 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
       setSelectedMessages([]);
       setDeleteMode(null);
       onRefresh();
+      toast.success(`${selectedMessages.length} message(s) deleted`);
     } catch (err) {
       console.error('Delete error:', err);
+      toast.error('Failed to delete messages');
     } finally {
       setDeleting(false);
     }
@@ -99,8 +103,10 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
       setSelectedContact('');
       setDeleteMode(null);
       onRefresh();
+      toast.success('Contact permanently deleted');
     } catch (err) {
       console.error('Delete error:', err);
+      toast.error('Failed to delete contact');
     } finally {
       setDeleting(false);
     }
@@ -113,8 +119,10 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
       await api.clearAllInboxData();
       setDeleteMode(null);
       onRefresh();
+      toast.success('All data cleared');
     } catch (err) {
       console.error('Clear all error:', err);
+      toast.error('Failed to clear data');
     } finally {
       setDeleting(false);
     }
@@ -244,7 +252,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
         title="Clear All Data"
         message={
           <div>
-            <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>⚠️ WARNING: This will permanently delete ALL data</p>
+            <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data</p>
             <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
               <li>All WhatsApp messages (inbound &amp; outbound)</li>
               <li>All SMS messages</li>
@@ -265,10 +273,10 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
         <h3>Data Management</h3>
 
         <div className="delete-options">
-          <button className={deleteMode === 'messages' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'messages' ? null : 'messages')}>◫ Delete Messages</button>
-          <button className={deleteMode === 'hard' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'hard' ? null : 'hard')}>⊗ Hard Delete Contact</button>
-          <button className={deleteMode === 'clearAll' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'clearAll' ? null : 'clearAll')}>⊘ Clear All Data</button>
-          <button className={deleteMode === 'systemCleanup' ? 'active' : ''} onClick={() => { setDeleteMode(deleteMode === 'systemCleanup' ? null : 'systemCleanup'); if (deleteMode !== 'systemCleanup') loadCleanupPreview(); }}>🧹 System Cleanup</button>
+          <button className={deleteMode === 'messages' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'messages' ? null : 'messages')}>Delete Messages</button>
+          <button className={deleteMode === 'hard' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'hard' ? null : 'hard')}>Hard Delete</button>
+          <button className={deleteMode === 'clearAll' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'clearAll' ? null : 'clearAll')}>Clear All</button>
+          <button className={deleteMode === 'systemCleanup' ? 'active' : ''} onClick={() => { setDeleteMode(deleteMode === 'systemCleanup' ? null : 'systemCleanup'); if (deleteMode !== 'systemCleanup') loadCleanupPreview(); }}>Cleanup</button>
         </div>
 
         {/* Delete Messages */}

@@ -223,7 +223,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           icon="contacts"
           actions={
             <>
-              <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadContacts} disabled={loading} loading={loading} />
+              <Button variant="secondary" icon="refresh" onClick={loadContacts} disabled={loading} loading={loading}>Refresh</Button>
               <Button variant="primary" icon="create" onClick={() => { resetForm(); setShowModal(true); }}>Add Contact</Button>
             </>
           }

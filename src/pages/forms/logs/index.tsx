@@ -17,7 +17,7 @@ const FormsLogsPage: React.FC<PageProps> = ({ signOut, user }) => {
       subtitle="View and manage form submissions"
       icon="logs"
       backLink="/forms"
-      backLabel="← Forms"
+      backLabel="Forms"
       features={[
         'View Submissions',
         'Export to CSV',

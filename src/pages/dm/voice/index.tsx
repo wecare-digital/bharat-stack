@@ -173,7 +173,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <div className="tab-header-actions">
                     <Button variant="primary" onClick={() => setShowCallModal(true)}>Make Call</Button>
                     <Button variant="secondary" onClick={handleClearLogs} disabled={clearing} loading={clearing}>Clear</Button>
-                    <Button variant="secondary" icon="refresh" iconOnly ariaLabel="Refresh" onClick={loadData} disabled={loading} loading={loading} />
+                    <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
                   </div>
                 </div>
                 <div className="controls-row">
