@@ -209,7 +209,11 @@
   color: #059669;
 }
 
-/* Ghost button icons - emerald green on hover */
+/* Ghost button icons - emerald green always */
+.btn-ghost svg {
+  color: #059669;
+}
+
 .btn-ghost:hover:not(:disabled) svg {
   color: #059669;
 }

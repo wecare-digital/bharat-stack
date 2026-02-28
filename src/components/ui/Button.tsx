@@ -44,6 +44,16 @@ const Icons: Record<string, React.FC<{ size: number }>> = {
       <polyline points="6 9 12 15 18 9" />
     </svg>
   ),
+  edit: ({ size }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z" />
+    </svg>
+  ),
+  delete: ({ size }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5" />
+    </svg>
+  ),
 };
 
 // Spinner component
@@ -74,7 +84,7 @@ const Spinner: React.FC<{ size: number }> = ({ size }) => (
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
-export type ButtonIcon = 'refresh' | 'create' | 'close' | 'search' | 'chevronRight' | 'chevronDown';
+export type ButtonIcon = 'refresh' | 'create' | 'close' | 'search' | 'chevronRight' | 'chevronDown' | 'edit' | 'delete';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

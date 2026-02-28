@@ -306,9 +306,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(contact)}>Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => window.location.href = '/messaging'}>Msg</Button>
-                        <Button variant="danger" size="sm" onClick={() => openDeleteModal(contact)}>Del</Button>
+                        <Button variant="ghost" size="sm" icon="edit" iconOnly ariaLabel="Edit contact" onClick={() => handleEdit(contact)} />
+                        <Button variant="danger" size="sm" icon="delete" iconOnly ariaLabel="Delete contact" onClick={() => openDeleteModal(contact)} />
                       </div>
                     </td>
                   </tr>

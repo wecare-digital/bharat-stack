@@ -68,23 +68,13 @@
    PAGE TRANSITIONS - Smooth animations
    ======================================== */
 @keyframes pageEnter {
-  from {
-    opacity: 0.85;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes contentFadeIn {
-  from { opacity: 0; }
+  from { opacity: 1; }
   to { opacity: 1; }
 }
 
 /* Page Container */
 .page { 
   padding: 0;
-  animation: pageEnter 0.12s ease-out;
 }
 
 .page-container {
@@ -3430,7 +3420,6 @@ pre code {
   padding: var(--page-padding-desktop);
   max-width: 800px;
   margin: 0 auto;
-  animation: pageEnter var(--transition-page);
 }
 
 .hub-grid {
@@ -3461,7 +3450,6 @@ pre code {
   min-height: 140px;
   position: relative;
   overflow: hidden;
-  animation: contentFadeIn 0.3s ease-out backwards;
 }
 
 .hub-card:nth-child(1) { animation-delay: 0.05s; }
@@ -3590,7 +3578,6 @@ pre code {
   padding: var(--page-padding-desktop);
   max-width: var(--page-max-width);
   margin: 0 auto;
-  animation: pageEnter var(--transition-page);
 }
 
 .dash-header {
@@ -4368,7 +4355,6 @@ pre code {
   justify-content: center;
   z-index: 1000;
   padding: 20px;
-  animation: contentFadeIn 0.15s ease-out;
 }
 
 .modal {
@@ -4380,7 +4366,6 @@ pre code {
   overflow-y: auto;
   padding: 28px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  animation: pageEnter 0.2s ease-out;
 }
 
 .modal h2 {

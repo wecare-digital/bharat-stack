@@ -19,6 +19,14 @@ REM Copy shared utils
 copy amplify\functions\shared\lambda_utils\*.py scripts\_pkg\lambda_utils\
 if errorlevel 1 (echo ERROR: Failed to copy lambda_utils && exit /b 1)
 
+REM Copy modules directory if it exists alongside the handler (e.g. inbound-whatsapp-handler)
+for %%H in (%HANDLER%) do set HANDLER_DIR=%%~dpH
+if exist "%HANDLER_DIR%modules" (
+    echo Copying modules directory...
+    mkdir scripts\_pkg\modules 2>nul
+    copy "%HANDLER_DIR%modules\*.py" scripts\_pkg\modules\
+)
+
 REM Copy static knowledge base if exists
 if exist amplify\functions\shared\static_knowledge_base.py copy amplify\functions\shared\static_knowledge_base.py scripts\_pkg\
 
