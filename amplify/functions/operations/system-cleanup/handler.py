@@ -231,10 +231,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 def _get_table_count(table_name: str) -> int:
-    """Get approximate item count for a DynamoDB table."""
+    """Get actual item count for a DynamoDB table via scan."""
     try:
-        desc = dynamodb_client.describe_table(TableName=table_name)
-        return desc['Table']['ItemCount']
+        table = dynamodb.Table(table_name)
+        count = 0
+        scan_kwargs = {'Select': 'COUNT'}
+        while True:
+            resp = table.scan(**scan_kwargs)
+            count += resp.get('Count', 0)
+            if 'LastEvaluatedKey' not in resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+        return count
     except Exception:
         return -1
 
