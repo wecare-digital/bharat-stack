@@ -34,7 +34,7 @@
  *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c
  *   AI_AGENT_ID: Z4YAK0ZLBO (external Bedrock agent)
  *   AI_AGENT_ALIAS: WANPKHQGIB
- *   AI_KB_ID: LYMQLKZNY7 (external knowledge base)
+ *   AI_KB_ID: static-faq (static knowledge base, free)
  *   AI_VOICE_ID: Kajal (Polly neural voice, en-IN)
  *   AI_LANGUAGE: en-IN
  *   TRANSCRIBE_LANGUAGE: en-IN

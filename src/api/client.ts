@@ -665,7 +665,7 @@ export async function getSystemHealth(): Promise<SystemHealth> {
       internalKbId: 'D0JU8Q7IQS', 
       internalAgentId: 'QIEEHEBTZO',
       internalAgentAlias: 'ASCBD7YPUT',
-      externalKbId: 'LYMQLKZNY7',
+      externalKbId: 'static-faq',
       externalAgentId: 'Z4YAK0ZLBO',
       externalAgentAlias: 'WANPKHQGIB'
     },
@@ -1805,7 +1805,7 @@ export async function getBedrockAIConfig(): Promise<BedrockAIConfig> {
     defaultLanguage: 'en',
     agentId: 'Z4YAK0ZLBO',
     agentAlias: 'WANPKHQGIB',
-    knowledgeBaseId: 'LYMQLKZNY7',
+    knowledgeBaseId: 'static-faq',
     modelId: 'amazon.nova-lite-v1:0',
   };
 }

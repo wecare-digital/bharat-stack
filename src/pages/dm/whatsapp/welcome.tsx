@@ -32,18 +32,31 @@ const defaultConfig: WelcomeConfig = {
 };
 
 const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
-  const [config, setConfig] = useState<WelcomeConfig>(defaultConfig);
+  const [configs, setConfigs] = useState<Record<string, WelcomeConfig>>({
+    [WHATSAPP_PHONES.primary.id]: { ...defaultConfig, phoneNumberId: WHATSAPP_PHONES.primary.id },
+    [WHATSAPP_PHONES.secondary.id]: { ...defaultConfig, phoneNumberId: WHATSAPP_PHONES.secondary.id },
+  });
+  const [activePhone, setActivePhone] = useState(WHATSAPP_PHONES.primary.id);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const toast = useToastContext();
+
+  const config = configs[activePhone];
+  const setConfig = (c: WelcomeConfig) => setConfigs({ ...configs, [activePhone]: c });
 
   useEffect(() => { loadConfig(); }, []);
 
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const data = await api.getSystemConfig('welcome_message');
-      if (data) setConfig({ ...defaultConfig, ...data });
+      const [data1, data2] = await Promise.all([
+        api.getSystemConfig('welcome_message'),
+        api.getSystemConfig('welcome_message_2'),
+      ]);
+      const newConfigs = { ...configs };
+      if (data1) newConfigs[WHATSAPP_PHONES.primary.id] = { ...defaultConfig, ...data1, phoneNumberId: WHATSAPP_PHONES.primary.id };
+      if (data2) newConfigs[WHATSAPP_PHONES.secondary.id] = { ...defaultConfig, ...data2, phoneNumberId: WHATSAPP_PHONES.secondary.id };
+      setConfigs(newConfigs);
     } catch (err) {
       console.error('Failed to load welcome config:', err);
       toast.error('Failed to load welcome config');
@@ -55,7 +68,8 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
   const saveConfig = async () => {
     setSaving(true);
     try {
-      await api.updateSystemConfig('welcome_message', config);
+      const key = activePhone === WHATSAPP_PHONES.primary.id ? 'welcome_message' : 'welcome_message_2';
+      await api.updateSystemConfig(key, config);
       toast.success('Configuration saved!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to save');
@@ -89,6 +103,34 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
           When enabled, these messages override the default bot welcome. Disable to use the Lambda default welcome text.
         </div>
 
+        {/* WABA Tabs */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+          <button
+            onClick={() => setActivePhone(WHATSAPP_PHONES.primary.id)}
+            style={{
+              flex: 1, padding: '12px 16px', border: '2px solid', borderRadius: 8, cursor: 'pointer',
+              borderColor: activePhone === WHATSAPP_PHONES.primary.id ? '#059669' : '#e5e7eb',
+              background: activePhone === WHATSAPP_PHONES.primary.id ? '#f0fdf4' : '#fff',
+              fontWeight: activePhone === WHATSAPP_PHONES.primary.id ? 600 : 400,
+            }}
+          >
+            <div style={{ fontSize: 14 }}>{WHATSAPP_PHONES.primary.name}</div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{WHATSAPP_PHONES.primary.display}</div>
+          </button>
+          <button
+            onClick={() => setActivePhone(WHATSAPP_PHONES.secondary.id)}
+            style={{
+              flex: 1, padding: '12px 16px', border: '2px solid', borderRadius: 8, cursor: 'pointer',
+              borderColor: activePhone === WHATSAPP_PHONES.secondary.id ? '#059669' : '#e5e7eb',
+              background: activePhone === WHATSAPP_PHONES.secondary.id ? '#f0fdf4' : '#fff',
+              fontWeight: activePhone === WHATSAPP_PHONES.secondary.id ? 600 : 400,
+            }}
+          >
+            <div style={{ fontSize: 14 }}>{WHATSAPP_PHONES.secondary.name}</div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{WHATSAPP_PHONES.secondary.display}</div>
+          </button>
+        </div>
+
         <div style={{ marginBottom: 24 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <input
@@ -99,22 +141,6 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
             />
             <span>Enable Welcome Message Override</span>
           </label>
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 14, marginBottom: 12 }}>Phone Number</h3>
-          <select
-            value={config.phoneNumberId}
-            onChange={(e) => setConfig({ ...config, phoneNumberId: e.target.value })}
-            style={{ width: '100%', padding: 10, border: '1px solid #000', borderRadius: 13 }}
-          >
-            <option value={WHATSAPP_PHONES.primary.id}>
-              {WHATSAPP_PHONES.primary.display} ({WHATSAPP_PHONES.primary.name})
-            </option>
-            <option value={WHATSAPP_PHONES.secondary.id}>
-              {WHATSAPP_PHONES.secondary.display} ({WHATSAPP_PHONES.secondary.name})
-            </option>
-          </select>
         </div>
 
         <div style={{ marginBottom: 24 }}>

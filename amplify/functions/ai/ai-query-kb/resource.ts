@@ -17,6 +17,6 @@ export const aiQueryKb = defineFunction({
     LOG_LEVEL: 'INFO',
     SEND_MODE: 'LIVE',
     INTERNAL_KB_ID: 'D0JU8Q7IQS',
-    EXTERNAL_KB_ID: 'LYMQLKZNY7',
+    EXTERNAL_KB_ID: 'static-faq',
   },
 });

@@ -1067,14 +1067,14 @@ def _get_bedrock_response(user_text: str, session_id: str, request_id: str) -> s
             return completion.strip()
 
         # Fallback to KB
-        kb_id = AI_KB_ID or 'LYMQLKZNY7'
+        kb_id = AI_KB_ID or 'static-faq'
         if kb_id:
             return _query_kb_direct(user_text, kb_id, request_id)
         return ''
 
     except Exception as e:
         logger.error(f"[BEDROCK] Error: {e}", exc_info=True)
-        kb_id = AI_KB_ID or 'LYMQLKZNY7'
+        kb_id = AI_KB_ID or 'static-faq'
         if kb_id:
             return _query_kb_direct(user_text, kb_id, request_id)
         return ''

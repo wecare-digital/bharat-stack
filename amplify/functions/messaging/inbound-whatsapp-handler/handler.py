@@ -3491,7 +3491,7 @@ DEFAULT_AI_CONFIG = {
     'defaultLanguage': 'en',
     'agentId': 'Z4YAK0ZLBO',
     'agentAlias': 'WANPKHQGIB',
-    'knowledgeBaseId': 'LYMQLKZNY7',
+    'knowledgeBaseId': 'static-faq',
     'modelId': 'amazon.nova-lite-v1:0',
 }
 

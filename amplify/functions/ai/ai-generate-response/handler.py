@@ -72,7 +72,7 @@ INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'ASCBD7YPUT')
 INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'D0JU8Q7IQS')
 
 # External (WhatsApp auto-reply — Converse API)
-EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'LYMQLKZNY7')
+EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'static-faq')
 MODEL_ID = os.environ.get('MODEL_ID', 'amazon.nova-lite-v1:0')
 GUARDRAIL_ID = os.environ.get('GUARDRAIL_ID', '')
 GUARDRAIL_VERSION = os.environ.get('GUARDRAIL_VERSION', 'DRAFT')

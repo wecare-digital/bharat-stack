@@ -10,7 +10,7 @@
  * External Agent/KB (Customer-Facing):
  * - Agent ID: Z4YAK0ZLBO
  * - Agent Alias: WANPKHQGIB
- * - KB ID: LYMQLKZNY7
+ * - KB ID: static-faq (Free, no OpenSearch)
  * 
  * Note: For Internal AI (FloatingAgent admin tasks), go to Dashboard → AI
  */
@@ -36,6 +36,7 @@ import {
   AIStats,
   SupportedLanguages,
 } from '../../../api/client';
+import { searchFAQs, formatSearchResponse, type FAQSearchResult } from '../../../utils/faqSearch';
 
 interface PageProps {
   signOut?: () => void;
@@ -56,6 +57,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
   const [selectedLang, setSelectedLang] = useState('en');
   const [testMessage, setTestMessage] = useState('');
   const [testResult, setTestResult] = useState<{ response: string; language: string } | null>(null);
+  const [faqResults, setFaqResults] = useState<FAQSearchResult[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
@@ -120,6 +122,10 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
   const handleTestAI = async () => {
     if (!testMessage.trim()) return;
     setSaving(true);
+    // Run FAQ search locally (instant)
+    const localResults = searchFAQs(testMessage, { maxResults: 3 });
+    setFaqResults(localResults);
+    // Run Bedrock test (API call)
     const result = await testBedrockAIResponse(testMessage);
     setTestResult({ response: result.response, language: result.detectedLanguage });
     setSaving(false);
@@ -161,7 +167,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             </span>
           </div>
           <p style={{ color: '#6b6b6b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-            Agent: Z4YAK0ZLBO | KB: LYMQLKZNY7 | For internal admin AI, go to Dashboard → AI
+            Agent: Z4YAK0ZLBO | KB: Static FAQ (Free) | For internal admin AI, go to Dashboard → AI
           </p>
         </div>
 
@@ -458,7 +464,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
           <div className="card" style={{ padding: '1.5rem' }}>
             <h3 style={{ marginBottom: '1rem' }}>Test AI Response</h3>
             <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1rem' }}>
-              Test how the AI responds to different messages. Language is auto-detected.
+              Test how the AI responds. Shows both local FAQ matches (instant, free) and Bedrock AI response.
             </p>
             
             <div style={{ marginBottom: '1rem' }}>
@@ -482,19 +488,44 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
               Test Response
             </Button>
 
+            {/* FAQ Results (instant, local) */}
+            {faqResults.length > 0 && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '13px', border: '1px solid #bbf7d0' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#166534', fontSize: '0.9rem' }}>
+                  📚 Static FAQ Matches (Free, Instant)
+                </div>
+                {faqResults.map((r) => (
+                  <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #dcfce7' }}>
+                    <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{r.question}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '0.25rem', whiteSpace: 'pre-line' }}>{r.answer}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.25rem' }}>
+                      Score: {r.score} | Keywords: {r.matchedKeywords.join(', ')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {faqResults.length === 0 && testMessage.trim() && !saving && (
+              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a', fontSize: '0.85rem', color: '#92400e' }}>
+                No FAQ matches found for this query. The AI will generate a response using Bedrock.
+              </div>
+            )}
+
+            {/* Bedrock AI Result */}
             {testResult && (
               <div style={{ marginTop: '1rem', padding: '1rem', background: '#f5f5f5', borderRadius: '13px', border: '1px solid #e5e5e5' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                  🤖 Bedrock AI Response
+                </div>
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 500 }}>Detected Language:</span>{' '}
-                  <span style={{ padding: '0.25rem 0.5rem', background: '#e5e5e5', borderRadius: '0.25rem' }}>
+                  <span style={{ fontWeight: 500, fontSize: '0.85rem' }}>Detected Language:</span>{' '}
+                  <span style={{ padding: '0.25rem 0.5rem', background: '#e5e5e5', borderRadius: '0.25rem', fontSize: '0.8rem' }}>
                     {testResult.language}
                   </span>
                 </div>
-                <div>
-                  <span style={{ fontWeight: 500 }}>AI Response:</span>
-                  <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'white', borderRadius: '0.375rem', whiteSpace: 'pre-wrap' }}>
-                    {testResult.response}
-                  </div>
+                <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'white', borderRadius: '0.375rem', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>
+                  {testResult.response}
                 </div>
               </div>
             )}
