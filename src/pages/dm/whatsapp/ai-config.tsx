@@ -491,7 +491,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             {faqResults.length > 0 && (
               <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '13px', border: '1px solid #bbf7d0' }}>
                 <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#166534', fontSize: '0.9rem' }}>
-                  📚 Static FAQ Matches (Free, Instant)
+                  Static FAQ Matches (Free, Instant)
                 </div>
                 {faqResults.map((r) => (
                   <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #dcfce7' }}>
@@ -515,7 +515,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             {testResult && (
               <div style={{ marginTop: '1rem', padding: '1rem', background: '#f5f5f5', borderRadius: '13px', border: '1px solid #e5e5e5' }}>
                 <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                  🤖 Bedrock AI Response
+                  Bedrock AI Response
                 </div>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 500, fontSize: '0.85rem' }}>Detected Language:</span>{' '}

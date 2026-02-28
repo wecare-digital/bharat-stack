@@ -300,7 +300,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
                         {template.category}
                       </span>
                       {template.components?.some(c => c.type === 'CAROUSEL') && (
-                        <span className="carousel-badge">🎠 Carousel</span>
+                        <span className="carousel-badge">Carousel</span>
                       )}
                     </div>
                     <div className="template-preview">
@@ -324,7 +324,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
                 <span className={`category-badge ${selectedTemplate.category.toLowerCase()}`}>
                   {selectedTemplate.category}
                 </span>
-                {isCarouselTemplate && <span className="carousel-badge">🎠 Carousel</span>}
+                {isCarouselTemplate && <span className="carousel-badge">Carousel</span>}
               </div>
             </div>
 
@@ -379,7 +379,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
                 <div className="preview-content">{getPreviewText()}</div>
                 {isCarouselTemplate && (
                   <div className="carousel-indicator">
-                    🎠 + {cardVariables.length} carousel cards
+                    + {cardVariables.length} carousel cards
                   </div>
                 )}
               </div>
@@ -423,7 +423,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
           onClick={handleSend}
           disabled={!selectedTemplate || sending}
         >
-          {sending ? 'Sending...' : scheduleMode ? '📅 Schedule' : '📤 Send Now'}
+          {sending ? 'Sending...' : scheduleMode ? 'Schedule' : 'Send Now'}
         </button>
       </div>
 
