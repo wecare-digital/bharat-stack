@@ -17,8 +17,8 @@ export const productImageGenFunction = {
   name: 'wecare-product-image-gen',
   runtime: 'python3.12',
   handler: 'handler.handler',
-  timeout: 30,
-  memorySize: 256,
+  timeout: 60,
+  memorySize: 512,
   environment: {
     LOG_LEVEL: 'INFO',
     WIX_API_KEY: '${WIX_API_KEY}',

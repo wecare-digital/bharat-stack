@@ -16,7 +16,7 @@ export const invoiceEngine = defineFunction({
   name: 'wecare-invoice-engine',
   entry: './handler.py',
   runtime: 20, // Python 3.12
-  timeoutSeconds: 30,
+  timeoutSeconds: 60, // Pillow image/PDF rendering needs time
   memoryMB: 512,
   environment: {
     AWS_REGION: 'us-east-1',

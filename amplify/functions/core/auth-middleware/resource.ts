@@ -4,7 +4,7 @@ export const authMiddleware = defineFunction({
   name: 'wecare-auth-middleware',
   entry: './handler.py',
   runtime: 20, // Python 3.12
-  timeoutSeconds: 10,
+  timeoutSeconds: 30, // Cognito API calls can be slow
   memoryMB: 256,
   environment: {
     AWS_REGION: 'us-east-1',
