@@ -59,6 +59,12 @@ OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecar
 # WhatsApp Voice Lambda function name (TTS via Amazon Polly)
 WHATSAPP_VOICE_FUNCTION = os.environ.get('WHATSAPP_VOICE_FUNCTION', 'wecare-whatsapp-voice')
 
+# Fix #6: Circuit breaker for AI failures — skip AI if too many consecutive failures
+_ai_fail_count = 0
+_ai_fail_reset_time = 0
+AI_CIRCUIT_BREAKER_THRESHOLD = 5   # failures before tripping
+AI_CIRCUIT_BREAKER_COOLDOWN = 300  # seconds (5 min) before retrying
+
 # WhatsApp Phone Number IDs - Map Meta phone number IDs to AWS phone number IDs
 # Format: Meta phone number ID -> AWS EUM phone-number-id
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
@@ -3578,6 +3584,20 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
     
     if not ai_enabled or not should_respond:
         return None
+
+    # Fix #6: Circuit breaker — skip AI if too many recent failures
+    global _ai_fail_count, _ai_fail_reset_time
+    if _ai_fail_count >= AI_CIRCUIT_BREAKER_THRESHOLD:
+        if time.time() < _ai_fail_reset_time:
+            logger.warning(json.dumps({
+                'event': 'ai_circuit_breaker_open',
+                'failCount': _ai_fail_count,
+                'resetAt': _ai_fail_reset_time,
+                'requestId': request_id
+            }))
+            return None
+        # Cooldown expired — reset and retry
+        _ai_fail_count = 0
     
     try:
         # Send typing indicator before AI processing
@@ -3603,6 +3623,9 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
         )
         
         # Check if processing was locked (another message being processed)
+        # Fix #6: Reset circuit breaker on success
+        if ai_response and not ai_response.get('locked'):
+            _ai_fail_count = 0
         if ai_response and ai_response.get('locked'):
             _send_ai_auto_reply(
                 contact_id=contact_id,
@@ -3942,6 +3965,19 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             'error': str(e),
             'requestId': request_id
         }))
+        # Fix #5: Send fallback message so customer doesn't get silence
+        # Fix #6: Increment circuit breaker
+        _ai_fail_count += 1
+        _ai_fail_reset_time = time.time() + AI_CIRCUIT_BREAKER_COOLDOWN
+        try:
+            _send_ai_auto_reply(
+                contact_id=contact_id,
+                content="Thanks for your message! 🙏 We're experiencing a brief delay. Please try again in a moment, or call us at +91 9330994400.",
+                phone_number_id=phone_number_id,
+                request_id=request_id
+            )
+        except Exception:
+            pass
         return None
 
 

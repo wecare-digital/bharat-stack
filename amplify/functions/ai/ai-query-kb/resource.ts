@@ -16,7 +16,7 @@ export const aiQueryKb = defineFunction({
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
     SEND_MODE: 'LIVE',
-    INTERNAL_KB_ID: 'D0JU8Q7IQS',
+    INTERNAL_KB_ID: 'static-faq',
     EXTERNAL_KB_ID: 'static-faq',
   },
 });

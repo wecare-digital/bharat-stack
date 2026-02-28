@@ -7,10 +7,8 @@
  * - Set language-specific prompts and fallbacks
  * - View AI interaction logs and statistics
  * 
- * External Agent/KB (Customer-Facing):
- * - Agent ID: Z4YAK0ZLBO
- * - Agent Alias: WANPKHQGIB
- * - KB ID: static-faq (Free, no OpenSearch)
+ * External Agent: Z4YAK0ZLBO / Alias: WANPKHQGIB
+ * KB: Static FAQ (Free, no OpenSearch)
  * 
  * Note: For Internal AI (FloatingAgent admin tasks), go to Dashboard → AI
  */
@@ -36,7 +34,7 @@ import {
   AIStats,
   SupportedLanguages,
 } from '../../../api/client';
-import { searchFAQs, formatSearchResponse, type FAQSearchResult } from '../../../utils/faqSearch';
+import { searchFAQs, formatSearchResponse, getAllFAQs, getCategoryName, type FAQSearchResult } from '../../../utils/faqSearch';
 
 interface PageProps {
   signOut?: () => void;
@@ -53,7 +51,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
   const [languages, setLanguages] = useState<SupportedLanguages>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'config' | 'prompts' | 'fallbacks' | 'logs' | 'test'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'prompts' | 'fallbacks' | 'logs' | 'test' | 'faqs'>('config');
   const [selectedLang, setSelectedLang] = useState('en');
   const [testMessage, setTestMessage] = useState('');
   const [testResult, setTestResult] = useState<{ response: string; language: string } | null>(null);
@@ -203,6 +201,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             { id: 'fallbacks', label: 'Fallbacks' },
             { id: 'logs', label: 'Logs' },
             { id: 'test', label: 'Test' },
+            { id: 'faqs', label: 'FAQs' },
           ]}
           activeTab={activeTab}
           onChange={(id) => setActiveTab(id as typeof activeTab)}
@@ -529,6 +528,37 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* FAQs Tab */}
+        {activeTab === 'faqs' && (
+          <div className="card" style={{ padding: '1.5rem' }}>
+            <h3 style={{ marginBottom: '0.5rem' }}>FAQ Knowledge Base</h3>
+            <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              These FAQs power the AI auto-reply. Edit <code>shared/faq-config.json</code> and run <code>python scripts/sync_faq.py</code> to update.
+            </p>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {(() => {
+                const allFaqs = getAllFAQs();
+                return Object.entries(allFaqs).map(([category, faqs]) => (
+                  <div key={category}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#059669', borderBottom: '2px solid #059669', paddingBottom: '0.25rem' }}>
+                      {getCategoryName(category)} ({faqs.length})
+                    </div>
+                    {faqs.map((faq) => (
+                      <div key={faq.id} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', marginBottom: '0.5rem', border: '1px solid #e5e7eb' }}>
+                        <div style={{ fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.25rem' }}>{faq.question}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#555', whiteSpace: 'pre-line' }}>{faq.answer}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#999', marginTop: '0.25rem' }}>
+                          Keywords: {faq.keywords.join(', ')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         )}
 

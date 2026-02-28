@@ -58,7 +58,7 @@ export const DEFAULT_AI_CONFIG: InternalAIConfig = {
   enabled: true,
   agentId: process.env.NEXT_PUBLIC_BEDROCK_AGENT_ID || 'QIEEHEBTZO',
   agentAlias: process.env.NEXT_PUBLIC_BEDROCK_AGENT_ALIAS || 'ASCBD7YPUT',
-  knowledgeBaseId: process.env.NEXT_PUBLIC_BEDROCK_KB_ID || 'D0JU8Q7IQS',
+  knowledgeBaseId: process.env.NEXT_PUBLIC_BEDROCK_KB_ID || 'static-faq',
   modelId: 'amazon.nova-lite-v1:0',
   maxTokens: 1024,
   temperature: 0.7,

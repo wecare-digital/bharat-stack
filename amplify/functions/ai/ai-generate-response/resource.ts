@@ -27,7 +27,7 @@ export const aiGenerateResponse = defineFunction({
     // Internal Agent (FloatingAgent — admin tasks, unchanged)
     INTERNAL_AGENT_ID: 'QIEEHEBTZO',
     INTERNAL_AGENT_ALIAS: 'ASCBD7YPUT',
-    INTERNAL_KB_ID: 'D0JU8Q7IQS',
+    INTERNAL_KB_ID: 'static-faq',
     // External (WhatsApp — Converse API)
     EXTERNAL_KB_ID: 'static-faq',
     MODEL_ID: 'amazon.nova-lite-v1:0',

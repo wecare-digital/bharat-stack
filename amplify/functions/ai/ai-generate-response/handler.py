@@ -5,7 +5,7 @@ Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
 
 Architecture:
 - INTERNAL: Bedrock Agent (FloatingAgent) for admin tasks — unchanged
-  - Agent ID: QIEEHEBTZO / Alias: ASCBD7YPUT / KB: D0JU8Q7IQS
+  - Agent ID: QIEEHEBTZO / Alias: ASCBD7YPUT / KB: static-faq
 - EXTERNAL: Bedrock Converse API (Amazon Nova Lite) for WhatsApp auto-reply
   - Multimodal: text, images, audio, video, documents
   - Conversation history via DynamoDB (per-contact session)
@@ -69,7 +69,7 @@ MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppI
 # Internal Agent (FloatingAgent — admin tasks, unchanged)
 INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'QIEEHEBTZO')
 INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'ASCBD7YPUT')
-INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'D0JU8Q7IQS')
+INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'static-faq')
 
 # External (WhatsApp auto-reply — Converse API)
 EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'static-faq')

@@ -74,8 +74,8 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
       lastConnectionError = 'API endpoint not found';
     } else if (response.status === 500) {
       lastConnectionError = 'Server error - check Lambda logs';
-    } else if (response.status === 502 || response.status === 503) {
-      lastConnectionError = 'API Gateway error - service unavailable';
+    } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+      lastConnectionError = response.status === 504 ? 'Lambda timeout - function took too long' : 'API Gateway error - service unavailable';
       // Retry on 502/503 errors
       if (retryCount < RETRY_CONFIG.maxRetries) {
         const delayMs = Math.min(
@@ -662,7 +662,7 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     email: { status: 'active', verified: true },
     ai: { 
       status: 'active', 
-      internalKbId: 'D0JU8Q7IQS', 
+      internalKbId: 'static-faq', 
       internalAgentId: 'QIEEHEBTZO',
       internalAgentAlias: 'ASCBD7YPUT',
       externalKbId: 'static-faq',

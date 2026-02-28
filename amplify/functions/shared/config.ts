@@ -80,7 +80,7 @@ export const BEDROCK_CONFIG = {
   // Internal Agent (FloatingAgent - admin tasks)
   INTERNAL_AGENT_ID: process.env.INTERNAL_AGENT_ID || 'QIEEHEBTZO',
   INTERNAL_AGENT_ALIAS: process.env.INTERNAL_AGENT_ALIAS || 'ASCBD7YPUT',
-  INTERNAL_KB_ID: process.env.INTERNAL_KB_ID || 'D0JU8Q7IQS',
+  INTERNAL_KB_ID: process.env.INTERNAL_KB_ID || 'static-faq',
   
   // External Agent (WhatsApp auto-reply - customer facing)
   EXTERNAL_AGENT_ID: process.env.EXTERNAL_AGENT_ID || 'Z4YAK0ZLBO',

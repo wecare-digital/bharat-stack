@@ -1081,19 +1081,17 @@ def _get_bedrock_response(user_text: str, session_id: str, request_id: str) -> s
 
 
 def _query_kb_direct(user_text: str, kb_id: str, request_id: str) -> str:
-    """Direct Knowledge Base query as fallback."""
+    """Query static knowledge base as fallback (FREE — no OpenSearch/Bedrock KB)."""
     try:
-        response = bedrock_runtime.retrieve_and_generate(
-            input={'text': user_text},
-            retrieveAndGenerateConfiguration={
-                'type': 'KNOWLEDGE_BASE',
-                'knowledgeBaseConfiguration': {
-                    'knowledgeBaseId': kb_id,
-                    'modelArn': 'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0',
-                },
-            },
-        )
-        return (response.get('output', {}).get('text', '') or '').strip()
+        from static_knowledge_base import search_knowledge_base as static_kb_search
+        result = static_kb_search(user_text, max_results=2)
+        if result:
+            logger.info(f"[KB] Static FAQ match ({len(result)} chars)")
+            return result
+        return ''
+    except ImportError:
+        logger.warning("[KB] static_knowledge_base not available")
+        return ''
     except Exception as e:
         logger.error(f"[KB] Error: {e}")
         return ''

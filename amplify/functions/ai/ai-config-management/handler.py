@@ -585,7 +585,7 @@ DEFAULT_INTERNAL_AI_CONFIG = {
     'enabled': True,
     'agentId': 'QIEEHEBTZO',
     'agentAlias': 'ASCBD7YPUT',
-    'knowledgeBaseId': 'D0JU8Q7IQS',
+    'knowledgeBaseId': 'static-faq',
     'modelId': 'amazon.nova-lite-v1:0',
     'maxTokens': 1024,
     'temperature': 0.7,

@@ -3,19 +3,15 @@
  * WECARE.DIGITAL Admin Platform
  * 
  * AI-powered assistant for internal task automation
- * Uses Amazon Bedrock Agent with Nova Lite
+ * Uses local FAQ search + Bedrock AI fallback via API
  * 
  * Model: Amazon Nova Lite (~$0.06/1M input tokens)
  * 
- * Bedrock Resources (INTERNAL - Admin Tasks):
- * - Agent ID: QIEEHEBTZO
- * - Agent Alias: ASCBD7YPUT
- * - KB ID: D0JU8Q7IQS
- * 
- * Note: External (WhatsApp auto-reply) uses separate Agent/KB
+ * Note: External (WhatsApp auto-reply) uses separate AI pipeline
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { searchFAQs, formatSearchResponse } from '../utils/faqSearch';
 
 interface ChatMessage {
   id: string;
@@ -26,11 +22,6 @@ interface ChatMessage {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
-
-// Internal Agent Configuration (for admin tasks)
-const INTERNAL_AGENT_ID = 'QIEEHEBTZO';
-const INTERNAL_AGENT_ALIAS = 'ASCBD7YPUT';
-const INTERNAL_KB_ID = 'D0JU8Q7IQS';
 
 const FloatingAgent: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -183,14 +174,19 @@ const FloatingAgent: React.FC = () => {
         return `I can help you with:\n\n• Send WhatsApp to +91... saying Hello\n• Find contact +91... or named John\n• Show today's stats\n• Check recent messages\n\nJust type naturally!`;
       }
       
-      // AI fallback - use /ai/generate endpoint for conversational AI
+      // AI fallback — try local FAQ first (instant, free), then API
+      const faqResults = searchFAQs(text, { maxResults: 1 });
+      if (faqResults.length > 0 && faqResults[0].score >= 2) {
+        return faqResults[0].answer;
+      }
+
       try {
         const aiRes = await fetch(`${API_BASE}/ai/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messageContent: text,
-            context: 'internal',  // Use internal agent for admin tasks
+            context: 'internal',
           }),
         });
         
@@ -214,6 +210,11 @@ const FloatingAgent: React.FC = () => {
         }
       } catch (aiError) {
         console.error('AI fallback error:', aiError);
+      }
+
+      // Final fallback — return FAQ result even with low score, or default
+      if (faqResults.length > 0) {
+        return faqResults[0].answer;
       }
       
       return 'I can help you send messages, find contacts, or check stats. Try "help" for examples.';
