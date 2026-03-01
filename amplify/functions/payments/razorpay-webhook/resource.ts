@@ -9,7 +9,9 @@ export const razorpayWebhook = defineFunction({
   environment: {
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
     PAYMENTS_TABLE: 'base-wecare-digital-PaymentsTable',
+    INVOICES_TABLE: 'base-wecare-digital-InvoicesTable',
     MESSAGES_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
+    WEBHOOK_LOG_TABLE: 'base-wecare-digital-RazorpayWebhookLogTable',
     LOG_LEVEL: 'INFO',
   },
 });

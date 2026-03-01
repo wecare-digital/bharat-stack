@@ -155,7 +155,9 @@ def _verify_payu_hash(payload: Dict) -> bool:
     try:
         received_hash = payload.get('hash', '')
         if not received_hash:
-            return True  # No hash to verify (test mode)
+            # PayU always sends hash in production S2S callbacks
+            logger.warning('PayU payload missing hash field — rejecting')
+            return False
 
         # PayU reverse hash formula
         status = payload.get('status', '')
@@ -180,7 +182,7 @@ def _verify_payu_hash(payload: Dict) -> bool:
         return computed == received_hash.lower()
     except Exception as e:
         logger.warning(json.dumps({'event': 'payu_hash_verify_error', 'error': str(e)}))
-        return True  # Fail open
+        return False  # Fail closed on verification errors
 
 
 def _is_duplicate(event_id: str, request_id: str) -> bool:
