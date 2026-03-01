@@ -1598,7 +1598,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                         {
                             'type': 'payment_gateway',
                             'payment_gateway': {
-                                'type': 'razorpay',
+                                'type': (
+                                    'payu' if (order_details.get('payment_configuration') or '').upper() == 'WECARE-PAYU'
+                                    else 'razorpay'
+                                ),
                                 'configuration_name': (
                                     order_details.get('payment_configuration')
                                     if order_details.get('payment_configuration') in VALID_PAYMENT_CONFIGS
