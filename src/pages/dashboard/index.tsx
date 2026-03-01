@@ -573,6 +573,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     { id: 'invoice_sequence', label: 'Invoice Sequence Counter', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceSequenceTable', count: -1 },
     { id: 'payments', label: 'Payments', category: 'Invoices & Payments', type: 'dynamodb', table: 'PaymentsTable', count: -1 },
     { id: 'razorpay_webhook_log', label: 'Razorpay Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'RazorpayWebhookLogTable', count: -1 },
+    { id: 'payu_webhook_log', label: 'PayU Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'PayUWebhookLogTable', count: -1 },
     { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
     { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
     { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'invoices/', count: -1 },
@@ -787,8 +788,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
           if (bulk >= 0) { deleted = bulk; } else {
             results.push({ id, label, deleted: 0, error: 'API route not deployed — redeploy voice-cdr Lambda' }); continue;
           }
-        } else if (id === 'invoices' || id === 'invoice_items' || id === 'invoice_assets' || id === 'invoice_delivery_log' || id === 'invoice_sequence' || id === 'payments' || id === 'razorpay_webhook_log' || id === 's3_invoices') {
-          const invoiceIds = ['invoices', 'invoice_items', 'invoice_assets', 'invoice_delivery_log', 'invoice_sequence', 'payments', 'razorpay_webhook_log', 's3_invoices'];
+        } else if (id === 'invoices' || id === 'invoice_items' || id === 'invoice_assets' || id === 'invoice_delivery_log' || id === 'invoice_sequence' || id === 'payments' || id === 'razorpay_webhook_log' || id === 'payu_webhook_log' || id === 's3_invoices') {
+          const invoiceIds = ['invoices', 'invoice_items', 'invoice_assets', 'invoice_delivery_log', 'invoice_sequence', 'payments', 'razorpay_webhook_log', 'payu_webhook_log', 's3_invoices'];
           const alreadyDone = results.some(r => invoiceIds.includes(r.id) && !r.error);
           if (alreadyDone) { results.push({ id, label, deleted: 0, elapsed: 0 }); continue; }
           // Try bulk clear-all, fall back to one-by-one for invoices only
@@ -2062,9 +2063,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://api.wecare.digital/razorpay-webhook</code>
                   </div>
-                  <div>
+                  <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook Secret</label>
                     <code style={{ fontSize: '0.85rem', color: '#111827' }}>••••••••••••••• (stored in env)</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Live API Key</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>rzp_live_SM1ozNck4LJ3VN</code>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Live Key Secret</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>xFoPD2DiVV••••••••••C3g</code>
                   </div>
                 </div>
 
@@ -2091,6 +2100,82 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              {/* Razorpay API Reference */}
+              <div className="section" style={{ background: '#E8F5E9', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #C8E6C9' }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: '#2E7D32' }}>Razorpay API Reference</h4>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>Authentication: Basic Auth</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>All Razorpay APIs use HTTP Basic Auth with key_id:key_secret (base64 encoded).</div>
+                  <pre style={{ fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' }}>{`# Basic Auth header
+Authorization: Basic base64(rzp_live_SM1ozNck4LJ3VN:xFoPD2Di...C3g)
+
+# curl example
+curl -u rzp_live_SM1ozNck4LJ3VN:YOUR_KEY_SECRET \\
+  https://api.razorpay.com/v1/payments/pay_XXXXX`}</pre>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>Base URL</div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <code style={{ fontSize: '0.75rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>v1: https://api.razorpay.com/v1</code>
+                    <code style={{ fontSize: '0.75rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>v2: https://api.razorpay.com/v2 (Route/Linked Accounts)</code>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>Key API Endpoints</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.5rem' }}>
+                    {[
+                      { method: 'POST', path: '/v1/orders', desc: 'Create Order' },
+                      { method: 'GET', path: '/v1/orders/{id}', desc: 'Fetch Order' },
+                      { method: 'GET', path: '/v1/orders/{id}/payments', desc: 'Fetch Payments for Order' },
+                      { method: 'GET', path: '/v1/payments/{id}', desc: 'Fetch Payment' },
+                      { method: 'POST', path: '/v1/payments/{id}/capture', desc: 'Capture Payment' },
+                      { method: 'GET', path: '/v1/payments', desc: 'Fetch All Payments' },
+                      { method: 'POST', path: '/v1/payments/{id}/refund', desc: 'Create Refund' },
+                      { method: 'GET', path: '/v1/refunds/{id}', desc: 'Fetch Refund' },
+                      { method: 'POST', path: '/v1/payment_links', desc: 'Create Payment Link' },
+                      { method: 'GET', path: '/v1/payment_links/{id}', desc: 'Fetch Payment Link' },
+                      { method: 'POST', path: '/v1/invoices', desc: 'Create Invoice' },
+                      { method: 'GET', path: '/v1/settlements', desc: 'Fetch Settlements' },
+                    ].map(({ method, path, desc }) => (
+                      <div key={`${method}${path}`} style={{ background: '#fff', padding: '0.35rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color: method === 'POST' ? '#059669' : '#1d4ed8', fontWeight: 600, fontSize: '0.65rem', fontFamily: 'monospace', minWidth: '32px' }}>{method}</span>
+                        <code style={{ fontSize: '0.7rem', color: '#111827' }}>{path}</code>
+                        <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: 'auto' }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>Webhook Verification</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Razorpay signs webhooks with HMAC SHA-256 using your webhook secret.</div>
+                  <pre style={{ fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' }}>{`# Verify webhook signature
+expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
+# Compare with X-Razorpay-Signature header`}</pre>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>Webhook payloads are JSON. Retries on non-200 response. Use ports 80/443 only.</div>
+                </div>
+
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>Rate Limiting</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Watch for HTTP 429. Use exponential backoff with jitter. Pagination: <code style={{ fontSize: '0.7rem' }}>count</code> (default 10) + <code style={{ fontSize: '0.7rem' }}>skip</code> params.</div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                  <a href="https://razorpay.com/docs/api" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#1565C0', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
+                    API Docs
+                  </a>
+                  <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
+                    Razorpay Dashboard
+                  </a>
+                  <a href="https://www.postman.com/razorpaydev" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#E65100', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
+                    Postman Workspace
+                  </a>
                 </div>
               </div>
 
@@ -2121,6 +2206,201 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* PayU Webhook Section */}
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #1565C0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#E3F2FD', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #90CAF9' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#1565C0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>PayU Webhook</h3>
+                    <span className="badge" style={{ background: '#E3F2FD', color: '#1565C0', marginTop: '4px' }}>Active — MID: 8629516</span>
+                  </div>
+                </div>
+
+                <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://api.wecare.digital/payu-webhook</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>HTTP Method</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>POST (form-encoded or JSON)</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Hash Verification</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>SHA-512 reverse hash (SALT|status|...|key)</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Merchant Key / Salt</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>Stored in Lambda env (PAYU_MERCHANT_KEY, PAYU_MERCHANT_SALT)</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>API Key</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>Ghgoh6</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Salt</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>LtQP3Bo4sX••••••••••••••••••vzl</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Client ID (Payment Links / Split Payment APIs)</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827', wordBreak: 'break-all' }}>c066d621f07a••••••••••••c634d75</code>
+                  </div>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Client Secret</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>9b5c14bd86••••••••••••c38287f</code>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Lambda Function</label>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>wecare-payu-webhook</code>
+                  </div>
+                </div>
+
+                {/* PayU API Reference */}
+                <div style={{ background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#2E7D32' }}>PayU API Reference</h4>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>1. Payment Gateway APIs (key + salt hash)</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '2px' }}>No OAuth needed. Use merchant key as param + SHA-512 hash.</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Hash: <code style={{ fontSize: '0.7rem' }}>sha512(key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||SALT)</code></div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>General APIs: <code style={{ fontSize: '0.7rem' }}>sha512(key|command|var1|salt)</code></div>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '4px', flexWrap: 'wrap' }}>
+                      <code style={{ fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>Production: info.payu.in/merchant/postservice.php</code>
+                      <code style={{ fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>Test: test.payu.in/merchant/postservice.php</code>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>2. Payment Links / Payouts APIs (OAuth 2.0 client_credentials)</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '2px' }}>Uses Client ID + Client Secret to get Bearer token.</div>
+                    <pre style={{ fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' }}>{`# Get OAuth Token (Production)
+POST https://accounts.payu.in/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=c066d621f07a...c634d75
+&client_secret=9b5c14bd86...c38287f
+&scope=create_payment_links
+
+# Response: { "access_token": "...", "token_type": "Bearer", "expires_in": 7200 }
+
+# Create Payment Link (Production)
+POST https://oneapi.payu.in/payment-links
+Authorization: Bearer {access_token}
+merchantId: 8629516
+Content-Type: application/json`}</pre>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '4px', flexWrap: 'wrap' }}>
+                      <code style={{ fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>Token: accounts.payu.in/oauth/token</code>
+                      <code style={{ fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>Links: oneapi.payu.in/payment-links</code>
+                      <code style={{ fontSize: '0.7rem', background: '#FFF9C4', padding: '2px 6px', borderRadius: '4px' }}>Test Token: uat-accounts.payu.in/oauth/token</code>
+                      <code style={{ fontSize: '0.7rem', background: '#FFF9C4', padding: '2px 6px', borderRadius: '4px' }}>Test Links: uatoneapi.payu.in/payment-links</code>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>3. Webhook (S2S Callback)</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>PayU sends form-encoded POST to your webhook URL. Verify with reverse hash:</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}><code style={{ fontSize: '0.7rem' }}>sha512(SALT|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key)</code></div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>PayU retries 3x for 200 OK. Content-Type: FormData or application/x-www-form-urlencoded.</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>Configure at: <a href="https://onboarding.payu.in/app/account" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0' }}>PayU Dashboard → Developer → Webhooks</a></div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>PayU Whitelist IPs (for webhook delivery)</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', fontSize: '0.7rem' }}>
+                      {['52.140.8.88', '3.7.89.15', '52.140.8.89', '3.7.89.21', '80.179.174.2', '3.7.89.3', '80.179.165.250', '3.7.89.8', '52.140.8.64', '3.7.89.9', '52.140.8.65', '3.7.89.10', '3.6.73.183', '3.6.83.44'].map(ip => (
+                        <code key={ip} style={{ background: '#fff', padding: '1px 4px', borderRadius: '3px' }}>{ip}</code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PayU WABA Configuration */}
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#E65100' }}>WhatsApp Payment Configuration (Meta WABA)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9330994400</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1565C0' }}>WECARE-PAYU</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1912405516040025</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
+                      <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
+                    </div>
+                    <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9903300044</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1565C0' }}>WECARE-PAYU</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1633959101297902</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
+                      <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Supported Events */}
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Events</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {[
+                      { event: 'payment.success', desc: 'Payment captured', color: '#10b981' },
+                      { event: 'payment.failed', desc: 'Payment failed', color: '#dc2626' },
+                      { event: 'payment.pending', desc: 'Awaiting bank', color: '#d97706' },
+                      { event: 'refund.success', desc: 'Refund processed', color: '#10b981' },
+                      { event: 'refund.failed', desc: 'Refund failed', color: '#dc2626' },
+                    ].map(({ event, desc, color }) => (
+                      <div key={event} style={{ background: '#E3F2FD', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #90CAF9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                          <span style={{ fontFamily: 'monospace', color: '#111827' }}>{event}</span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* PayU Data Captured */}
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1565C0' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
+                  <DataIcon size={18} />
+                  Data Captured for PayU Payments
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  {[
+                    { field: 'mihpayid', desc: 'PayU Transaction ID' },
+                    { field: 'txnid', desc: 'Merchant Transaction ID' },
+                    { field: 'amount', desc: 'Amount in rupees' },
+                    { field: 'mode', desc: 'CC, DC, NB, UPI, WALLET' },
+                    { field: 'status', desc: 'success, failure, pending' },
+                    { field: 'phone', desc: 'Customer phone' },
+                    { field: 'email', desc: 'Customer email' },
+                    { field: 'productinfo', desc: 'Product description' },
+                    { field: 'bank_ref_num', desc: 'Bank reference number' },
+                    { field: 'error_Message', desc: 'Error details (if failed)' },
+                    { field: 'firstname', desc: 'Customer name' },
+                    { field: 'hash', desc: 'SHA-512 verification hash' },
+                  ].map(({ field, desc }) => (
+                    <div key={field} style={{ padding: '0.75rem', background: '#E3F2FD', borderRadius: '0.375rem', borderLeft: '3px solid #1565C0' }}>
+                      <code style={{ fontSize: '0.85rem', color: '#1565C0' }}>{field}</code>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Note: Default Gateway */}
+              <div style={{ background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17', marginBottom: '1.5rem' }}>
+                Note: Razorpay (WECARE-RAZOR-PAY) remains the default payment gateway. PayU (WECARE-PAYU) is available as a secondary gateway on both WABA numbers. Both gateways share the same MCC (4722) and purpose code (03).
               </div>
 
               {/* Airtel Voice Webhook Section */}

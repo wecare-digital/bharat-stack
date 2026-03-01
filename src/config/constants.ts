@@ -37,6 +37,7 @@ export const WHATSAPP_PHONES = {
     wabaId: '1912405516040025',
     hasPayment: true,
     paymentConfigName: 'WECARE-RAZOR-PAY',
+    paymentConfigs: ['WECARE-RAZOR-PAY', 'WECARE-PAYU'],
     paymentProtected: false,
   },
   secondary: {
@@ -46,6 +47,7 @@ export const WHATSAPP_PHONES = {
     wabaId: '1633959101297902',
     hasPayment: true,
     paymentConfigName: 'WECARE-RAZOR-PAY',
+    paymentConfigs: ['WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU'],
     paymentProtected: true,
   },
 };

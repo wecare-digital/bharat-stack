@@ -2899,6 +2899,34 @@ export async function updateBusinessProfile(phoneId: string, updates: Record<str
   return data?.success === true;
 }
 
+// Payment Gateway Check
+export interface GatewayConfig {
+  name: string;
+  status: string;
+  gateway: string;
+  mid: string;
+  mcc: string;
+  purposeCode: string;
+  canReceivePayments: boolean;
+  note?: string;
+}
+
+export interface GatewayCheckResult {
+  wabaId: string;
+  phone: string;
+  configurations: GatewayConfig[];
+  totalConfigs: number;
+  activeConfigs: number;
+}
+
+export async function checkPaymentGateways(wabaId?: string): Promise<GatewayCheckResult[]> {
+  const url = wabaId
+    ? `${WA_BIZ_BASE}/payment-config/check?wabaId=${wabaId}`
+    : `${WA_BIZ_BASE}/payment-config/check`;
+  const data = await apiCall<any>(url);
+  return data?.gatewayChecks || [];
+}
+
 // Flows
 export async function listFlows(wabaId: string): Promise<any[]> {
   const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?wabaId=${wabaId}`);

@@ -56,7 +56,7 @@ RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 # Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
 # Config names MUST match exactly what's in Meta Business Manager
-VALID_PAYMENT_CONFIGS = {'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI'}
+VALID_PAYMENT_CONFIGS = {'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU'}
 DEFAULT_PAYMENT_CONFIG = 'WECARE-RAZOR-PAY'
 # Map phone number ID to its payment config name
 PHONE_PAYMENT_CONFIG = {

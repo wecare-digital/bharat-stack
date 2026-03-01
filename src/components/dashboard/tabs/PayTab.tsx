@@ -9,6 +9,7 @@ import Modal from '../../../components/ui/Modal';
 import { useToastContext } from '../../../contexts/ToastContext';
 import type { DashboardData } from '../../../types/dashboard';
 import { PAYMENT_CONFIG } from '../../../config/constants';
+import type { GatewayCheckResult } from '../../../api/client';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
@@ -22,6 +23,8 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
   const { messages } = data;
   const [editPayment, setEditPayment] = useState<any>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [gatewayChecks, setGatewayChecks] = useState<GatewayCheckResult[]>([]);
+  const [gatewayLoading, setGatewayLoading] = useState(false);
   const toast = useToastContext();
 
   const paymentMessages = messages.filter(
@@ -30,6 +33,21 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
   const capturedPayments = paymentMessages.filter(m => (m as any).paymentStatus === 'captured').length;
   const failedPayments = paymentMessages.filter(m => (m as any).paymentStatus === 'failed').length;
   const pendingPayments = paymentMessages.filter(m => m.status === 'pending').length;
+
+  const handleCheckGateways = async () => {
+    setGatewayLoading(true);
+    try {
+      const results = await api.checkPaymentGateways();
+      setGatewayChecks(results);
+      const totalActive = results.reduce((sum, r) => sum + r.activeConfigs, 0);
+      toast.success(`Gateway check complete: ${totalActive} active configuration(s)`);
+    } catch (err) {
+      console.error('Gateway check error:', err);
+      toast.error('Failed to check payment gateways');
+    } finally {
+      setGatewayLoading(false);
+    }
+  };
 
   const handleSavePayment = async () => {
     if (!editPayment) return;
@@ -109,6 +127,50 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
 
       <div className="payment-info">
         <span>Payments sent from: <strong>{PAYMENT_PHONE}</strong> ({PAYMENT_NAME})</span>
+      </div>
+
+      {/* Payment Gateway Check */}
+      <div style={{ margin: '16px 0', padding: 16, background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: gatewayChecks.length ? 12 : 0 }}>
+          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Payment Gateway Status (Meta API)</span>
+          <Button variant="secondary" size="sm" onClick={handleCheckGateways} loading={gatewayLoading}>
+            Check Gateways
+          </Button>
+        </div>
+        {gatewayChecks.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {gatewayChecks.map(waba => (
+              <div key={waba.wabaId} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{waba.phone}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: {waba.wabaId}</span>
+                </div>
+                {waba.configurations.length === 0 ? (
+                  <div style={{ color: '#9ca3af', fontSize: '0.8rem' }}>No payment configurations found</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {waba.configurations.map((cfg, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: cfg.canReceivePayments ? '#ecfdf5' : '#fef2f2', borderRadius: 6, fontSize: '0.8rem' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.canReceivePayments ? '#059669' : cfg.status === 'local_only' ? '#d97706' : '#dc2626', flexShrink: 0 }} />
+                        <span style={{ fontWeight: 600, minWidth: 140 }}>{cfg.name}</span>
+                        <span className={`badge ${cfg.canReceivePayments ? 'captured' : 'failed'}`} style={{ fontSize: '0.7rem' }}>
+                          {cfg.status}
+                        </span>
+                        <span style={{ color: '#6b7280' }}>{cfg.gateway}</span>
+                        {cfg.mid && <span style={{ color: '#9ca3af', fontFamily: 'monospace', fontSize: '0.7rem' }}>MID: {cfg.mid}</span>}
+                        {cfg.mcc && <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>MCC: {cfg.mcc}</span>}
+                        {cfg.note && <span style={{ color: '#d97706', fontSize: '0.7rem' }}>{cfg.note}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#6b7280' }}>
+                  {waba.activeConfigs}/{waba.totalConfigs} active
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Desktop Table */}

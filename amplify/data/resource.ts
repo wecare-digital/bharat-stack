@@ -832,6 +832,31 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table 36: PayUWebhookLog - Raw PayU webhook event log
+  PayUWebhookLog: a
+    .model({
+      id: a.id().required(),
+      eventType: a.string(), // payment.success, payment.failed, etc.
+      paymentId: a.string(), // mihpayid
+      txnId: a.string(),
+      amount: a.integer(),
+      status: a.string(),
+      mode: a.string(), // CC, DC, NB, UPI, WALLET
+      phone: a.string(),
+      email: a.string(),
+      bankRef: a.string(),
+      rawPayload: a.string(), // JSON string
+      processedAt: a.integer(),
+      createdAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('paymentId'),
+      index('txnId'),
+      index('eventType'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
 });
 
 export type Schema = ClientSchema<typeof schema>;

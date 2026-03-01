@@ -24,6 +24,7 @@ Routes:
   POST      /wa-business/groups/participants → Add/remove participants
   POST      /wa-business/groups/send   → Send group message
   GET       /wa-business/payment-config → Get payment configuration for phone
+  GET       /wa-business/payment-config/check → Check payment gateway status via Meta API
   POST      /wa-business/flow-data     → WhatsApp Flow data_exchange endpoint
 """
 import os
@@ -491,6 +492,7 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 # ============================================================================
 _RAZORPAY_MID = os.environ.get('RAZORPAY_MID', '')
 _RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', '')
+_PAYU_MID = os.environ.get('PAYU_MID', '8629516')
 _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '1728153881476046')
 
 PAYMENT_CONFIGS = {
@@ -499,6 +501,7 @@ PAYMENT_CONFIGS = {
         'wabaId': WABA1_ID,
         'configs': [
             {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-PAYU', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
@@ -509,6 +512,7 @@ PAYMENT_CONFIGS = {
         'configs': [
             {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
             {'name': 'WECARE-RAZOR-UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-PAYU', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
@@ -525,6 +529,72 @@ def _get_payment_config(phone_id: str) -> Dict:
     if 'error' in result:
         return _resp(200, {'paymentConfig': None, 'note': 'No payment config found for this phone'})
     return _resp(200, {'paymentConfig': result})
+
+
+def _check_payment_gateway(waba_id: str = None) -> Dict:
+    """Check payment gateway configurations via Meta Graph API for all WABAs or a specific one."""
+    results = []
+    waba_ids = [waba_id] if waba_id else [WABA1_ID, WABA2_ID]
+    waba_phone_map = {
+        WABA1_ID: {'phone': '+91 9330994400', 'phoneId': PHONE1_META_ID},
+        WABA2_ID: {'phone': '+91 9903300044', 'phoneId': PHONE2_META_ID},
+    }
+
+    for wid in waba_ids:
+        phone_info = waba_phone_map.get(wid, {})
+        local_config = PAYMENT_CONFIGS.get(phone_info.get('phoneId', ''), {})
+
+        # Query Meta Graph API for payment configurations on this WABA
+        api_result = _graph_api(
+            f'{wid}/payment_configurations',
+            params={'fields': 'configuration_name,status,payment_gateway,merchant_category_code,purpose_code'},
+            waba_id=wid,
+        )
+
+        meta_configs = []
+        if 'data' in api_result:
+            meta_configs = api_result['data']
+        elif 'error' not in api_result and isinstance(api_result, list):
+            meta_configs = api_result
+
+        # Build check result for each config
+        config_checks = []
+        for cfg in meta_configs:
+            config_checks.append({
+                'name': cfg.get('configuration_name', 'unknown'),
+                'status': cfg.get('status', 'unknown'),
+                'gateway': cfg.get('payment_gateway', {}).get('type', 'unknown') if isinstance(cfg.get('payment_gateway'), dict) else str(cfg.get('payment_gateway', 'unknown')),
+                'mid': cfg.get('payment_gateway', {}).get('merchant_id', '') if isinstance(cfg.get('payment_gateway'), dict) else '',
+                'mcc': cfg.get('merchant_category_code', ''),
+                'purposeCode': cfg.get('purpose_code', ''),
+                'canReceivePayments': cfg.get('status', '').lower() == 'active',
+            })
+
+        # Also include local configs not found in Meta API (for comparison)
+        meta_names = {c['name'] for c in config_checks}
+        for lc in local_config.get('configs', []):
+            if lc['name'] not in meta_names:
+                config_checks.append({
+                    'name': lc['name'],
+                    'status': 'local_only',
+                    'gateway': lc.get('gateway', ''),
+                    'mid': lc.get('mid', ''),
+                    'mcc': local_config.get('mcc', ''),
+                    'purposeCode': local_config.get('purposeCode', ''),
+                    'canReceivePayments': False,
+                    'note': 'Config exists locally but not found in Meta API',
+                })
+
+        results.append({
+            'wabaId': wid,
+            'phone': phone_info.get('phone', ''),
+            'configurations': config_checks,
+            'metaApiResponse': api_result if 'error' in api_result else None,
+            'totalConfigs': len(config_checks),
+            'activeConfigs': sum(1 for c in config_checks if c.get('canReceivePayments')),
+        })
+
+    return _resp(200, {'gatewayChecks': results})
 
 # ============================================================================
 # FLOW ENCRYPTION / DECRYPTION (WhatsApp Flows require E2E encryption)
@@ -1293,6 +1363,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'GET':
                 return _get_calling_settings(phone_id)
             return _update_calling_settings(phone_id, body)
+
+        elif '/payment-config/check' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId')
+            return _check_payment_gateway(waba_id)
 
         elif '/payment-config' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
