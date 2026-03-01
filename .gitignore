@@ -81,6 +81,7 @@ credentials.json
 _*.py
 _*.json
 _*.txt
+_*.cmd
 tmp-*.py
 flow-*.txt
 flow-*.png
