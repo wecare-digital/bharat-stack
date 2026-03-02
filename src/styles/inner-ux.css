@@ -1637,8 +1637,8 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 0 20px 20px;
-  overflow: hidden;
+  padding: 0;
+  overflow: visible;
 }
 
 /* Nested page-shell: no double padding */
@@ -1651,7 +1651,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  padding: 16px 0 12px;
+  padding: 16px 20px 12px;
   flex-shrink: 0;
 }
 
@@ -1684,6 +1684,7 @@
 .ps-tabs-wrapper {
   flex-shrink: 0;
   margin-bottom: 16px;
+  padding: 0 20px;
 }
 
 .ps-tabs {
@@ -1751,14 +1752,13 @@
   min-height: 0;
   overflow-y: auto;
   background: #fff;
-  border-radius: 8px;
 }
 
 /* Section separator between tabs and content */
 .ps-separator {
   height: 1px;
   background: var(--color-border, #e5e7eb);
-  margin-bottom: 16px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
@@ -1779,13 +1779,13 @@
   }
 
   .page-shell {
-    padding: 0 12px 12px;
+    padding: 0;
   }
 
   .ps-header {
     flex-direction: column;
     gap: 8px;
-    padding: 12px 0 8px;
+    padding: 12px 12px 8px;
   }
 
   .ps-header-actions {
@@ -1812,7 +1812,7 @@
   }
 
   .page-shell {
-    padding: 0 8px 8px;
+    padding: 0;
   }
 
   .ps-title {
