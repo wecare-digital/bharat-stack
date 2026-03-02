@@ -99,7 +99,14 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
       }
       lastConnectionError = 'Rate limited - too many requests';
     } else {
-      lastConnectionError = `HTTP ${response.status}: ${response.statusText}`;
+      // Try to extract error message from response body
+      try {
+        const errBody = await response.json();
+        const msg = errBody?.error?.message || errBody?.error || errBody?.message;
+        lastConnectionError = msg ? `HTTP ${response.status}: ${msg}` : `HTTP ${response.status}: ${response.statusText}`;
+      } catch {
+        lastConnectionError = `HTTP ${response.status}: ${response.statusText}`;
+      }
     }
     
     connectionStatus = 'disconnected';
@@ -2930,6 +2937,8 @@ export async function checkPaymentGateways(wabaId?: string): Promise<GatewayChec
 // Flows
 export async function listFlows(wabaId: string): Promise<any[]> {
   const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?wabaId=${wabaId}`);
+  if (!data) return [];
+  if (data.error) throw new Error(data.error?.message || 'Failed to fetch flows');
   return data?.flows || [];
 }
 
@@ -3539,6 +3548,8 @@ export interface SubmitRequest {
   transactionId?: string;
   invoiceId?: string;
   invoiceNumber?: string;
+  daysOld?: number;
+  isExpired?: boolean;
   createdAt: number;
   updatedAt?: number;
 }
@@ -3573,4 +3584,14 @@ export async function listFlowLogs(phone?: string): Promise<FlowLog[]> {
   if (phone) url += `?phone=${encodeURIComponent(phone)}`;
   const data = await apiCall<any>(url);
   return data?.logs || [];
+}
+
+export async function resendSubmitRequestPayment(invoiceId: string): Promise<boolean> {
+  try {
+    const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
+      method: 'POST',
+      body: JSON.stringify({ invoiceId }),
+    });
+    return !!data;
+  } catch { return false; }
 }

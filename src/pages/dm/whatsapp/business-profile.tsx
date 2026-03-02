@@ -26,9 +26,11 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ about: '', description: '', email: '', address: '', websites: '', vertical: '' });
   const [phoneSettings, setPhoneSettings] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadProfile = async (phone: typeof PHONES[0]) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [p, s] = await Promise.all([
         api.getBusinessProfile(phone.metaId),
@@ -45,8 +47,13 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
           websites: (p.websites || []).join(', '),
           vertical: p.vertical || '',
         });
+      } else {
+        setLoadError('Could not load business profile. The Meta API may be temporarily unavailable.');
       }
-    } catch (e) { toast.error('Failed to load profile'); }
+    } catch (e) {
+      setLoadError('Failed to load profile — check your Meta API token and permissions.');
+      toast.error('Failed to load profile');
+    }
     setLoading(false);
   };
 
@@ -67,10 +74,10 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const content = (
     <>
       <SEO title="Business Profile" description="WhatsApp Business Profile" noindex />
-      <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ padding: '16px 24px', maxWidth: 900, margin: '0 auto', background: '#fff' }}>
         <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>WhatsApp Business Profile</h2>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {PHONES.map(p => (
             <button key={p.id} onClick={() => setSelectedPhone(p)}
               style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.id === p.id ? '2px solid #16a34a' : '1px solid #ddd', background: selectedPhone.id === p.id ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13 }}>
@@ -79,12 +86,20 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
           ))}
         </div>
 
-        {loading ? <p>Loading...</p> : (
+        {loading ? <p>Loading...</p> : loadError ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
+            <p style={{ fontSize: 16, color: '#dc2626' }}>Profile Unavailable</p>
+            <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
+            <button onClick={() => loadProfile(selectedPhone)} style={{ marginTop: 12, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              Retry
+            </button>
+          </div>
+        ) : (
           <>
             {/* Phone Info */}
             {phoneSettings && (
               <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8, marginBottom: 20, fontSize: 13 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                   <div><span style={{ color: '#666' }}>Phone:</span> {phoneSettings.display_phone_number}</div>
                   <div><span style={{ color: '#666' }}>Name:</span> {phoneSettings.verified_name}</div>
                   <div><span style={{ color: '#666' }}>Quality:</span> <span style={{ color: phoneSettings.quality_rating === 'GREEN' ? '#16a34a' : '#059669' }}>{phoneSettings.quality_rating}</span></div>
@@ -114,7 +129,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} maxLength={512} rows={3}
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, resize: 'vertical' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Email</label>
                   <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}

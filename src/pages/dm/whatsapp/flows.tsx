@@ -35,13 +35,19 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
   const [selectedFlow, setSelectedFlow] = useState<any>(null);
   const [flowDetail, setFlowDetail] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadFlows = async (waba: typeof WABAS[0]) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.listFlows(waba.id);
       setFlows(data);
-    } catch (e) { toast.error('Failed to load flows'); }
+    } catch (e: any) {
+      const msg = e?.message || 'Failed to load flows';
+      setLoadError(msg);
+      toast.error(msg);
+    }
     setLoading(false);
   };
 
@@ -92,7 +98,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
   const content = (
     <>
       <SEO title="WhatsApp Flows" description="Manage WhatsApp Flows" noindex />
-      <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>WhatsApp Flows</h2>
           <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
@@ -100,7 +106,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {WABAS.map(w => (
             <button key={w.id} onClick={() => { setSelectedWaba(w); setSelectedFlow(null); }}
               style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #16a34a' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13 }}>
@@ -130,7 +136,15 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
           </div>
         )}
 
-        {loading ? <p>Loading flows...</p> : flows.length === 0 ? (
+        {loading ? <p>Loading flows...</p> : loadError ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
+            <p style={{ fontSize: 16, color: '#dc2626' }}>Failed to load flows</p>
+            <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
+            <button onClick={() => loadFlows(selectedWaba)} style={{ marginTop: 12, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              Retry
+            </button>
+          </div>
+        ) : flows.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
             <p style={{ fontSize: 16 }}>No flows found for this WABA</p>
             <p style={{ fontSize: 13 }}>Create a flow to build forms, surveys, and step-based experiences</p>
@@ -175,7 +189,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
               <h3 style={{ margin: 0, fontSize: 16 }}>Flow Details: {flowDetail.name}</h3>
               <button onClick={() => { setSelectedFlow(null); setFlowDetail(null); }} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>Close</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, fontSize: 13 }}>
               <div><span style={{ color: '#666' }}>ID:</span> {flowDetail.id}</div>
               <div><span style={{ color: '#666' }}>Status:</span> {flowDetail.status}</div>
               <div><span style={{ color: '#666' }}>JSON Version:</span> {flowDetail.json_version || 'N/A'}</div>

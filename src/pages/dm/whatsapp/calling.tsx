@@ -912,7 +912,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   };
 
   const s = {
-    page: { padding: '24px', maxWidth: '1100px', margin: '0 auto' } as React.CSSProperties,
+    page: { padding: '16px 24px', maxWidth: '1100px', margin: '0 auto', background: '#fff' } as React.CSSProperties,
     header: {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const,
       marginBottom: '24px', padding: '20px 24px', gap: '12px',

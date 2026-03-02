@@ -11,6 +11,7 @@ export interface ShellTab {
   id: string;
   label: string;
   icon?: string;
+  divider?: boolean; // Show a visual separator before this tab
 }
 
 interface PageShellProps {
@@ -49,17 +50,19 @@ const PageShell: React.FC<PageShellProps> = ({
       <div className="ps-tabs-wrapper">
         <div className="ps-tabs" role="tablist">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`ps-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.icon && <span className="ps-tab-icon" dangerouslySetInnerHTML={{__html: tab.icon}} title={tab.label} />}
-              {!tab.icon && tab.label}
-            </button>
+            <React.Fragment key={tab.id}>
+              {tab.divider && <span className="ps-tab-divider" aria-hidden="true" style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px', flexShrink: 0 }} />}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`ps-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.icon && <span className="ps-tab-icon" dangerouslySetInnerHTML={{__html: tab.icon}} title={tab.label} />}
+                {!tab.icon && tab.label}
+              </button>
+            </React.Fragment>
           ))}
         </div>
       </div>

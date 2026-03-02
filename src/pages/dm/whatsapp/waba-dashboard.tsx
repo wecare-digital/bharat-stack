@@ -19,10 +19,6 @@ import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
 
-// Import Templates and Welcome content
-import TemplatesPage from './templates';
-import WelcomePage from './welcome';
-
 interface PageProps {
   signOut?: () => void;
   user?: any;
@@ -54,19 +50,18 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
     phoneQuality: [],
     accountUpdates: [],
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'templates' | 'welcome'>('overview');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'events'>('overview');
 
   const tabItems: TabItem[] = [
     { id: 'overview', label: 'Phone Numbers' },
     { id: 'events', label: 'System Events' },
-    { id: 'templates', label: 'Templates' },
-    { id: 'welcome', label: 'Welcome' },
   ];
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      // Load WABAs and system events in parallel
       const [wabasData, eventsData] = await Promise.all([
         api.listWABAs(),
         api.getWABASystemEvents(),
@@ -75,16 +70,18 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
       setWabas(wabasData);
       setSystemEvents(eventsData);
 
-      // Auto-select first WABA if none selected
       if (wabasData.length > 0 && !selectedWaba) {
-        // Load full details for first WABA
         const details = await api.getWABADetails(wabasData[0].id);
         if (details) {
           setSelectedWaba(details);
         }
       }
+      if (wabasData.length === 0) {
+        setLoadError('No WABA accounts found. Check your AWS End User Messaging configuration.');
+      }
     } catch (err) {
       console.error('Failed to load WABA data:', err);
+      setLoadError('Failed to load WABA data. Check API connection and permissions.');
       toast.error('Failed to load WABA data');
     } finally {
       setLoading(false);
@@ -143,6 +140,11 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
 
         {loading && wabas.length === 0 ? (
           <div className="loading-state">Loading WABA data...</div>
+        ) : loadError && wabas.length === 0 ? (
+          <div className="loading-state">
+            <p style={{ color: '#dc2626', marginBottom: 8 }}>{loadError}</p>
+            <button onClick={loadData} style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Retry</button>
+          </div>
         ) : (
           <div className="dashboard-content">
             {/* WABA Selector */}
@@ -164,22 +166,8 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
             <Tabs 
               items={tabItems} 
               activeTab={activeTab} 
-              onChange={(id) => setActiveTab(id as 'overview' | 'events' | 'templates' | 'welcome')} 
+              onChange={(id) => setActiveTab(id as 'overview' | 'events')} 
             />
-
-            {/* Templates Tab */}
-            {activeTab === 'templates' && (
-              <div className="embedded-page">
-                <TemplatesPage signOut={signOut} user={user} embedded={true} />
-              </div>
-            )}
-
-            {/* Welcome Tab */}
-            {activeTab === 'welcome' && (
-              <div className="embedded-page">
-                <WelcomePage signOut={signOut} user={user} embedded={true} />
-              </div>
-            )}
 
             {/* Overview Tab */}
             {activeTab === 'overview' && selectedWaba && (
@@ -368,9 +356,10 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
 
       <style jsx>{`
         .waba-dashboard {
-          padding: 20px;
+          padding: 16px 24px;
           max-width: 1200px;
           margin: 0 auto;
+          background: #fff;
         }
 
         .page-header {
@@ -693,6 +682,20 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
 
         .embedded {
           padding: 0;
+        }
+
+        @media (max-width: 768px) {
+          .waba-dashboard { padding: 12px; }
+          .waba-selector-section { flex-direction: column; gap: 8px; }
+          .waba-selector-section select { min-width: 100%; }
+          .info-grid { grid-template-columns: 1fr 1fr; }
+          .phone-cards { grid-template-columns: 1fr; }
+          .phone-number { font-size: 16px; }
+        }
+
+        @media (max-width: 480px) {
+          .waba-dashboard { padding: 8px; }
+          .info-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </>

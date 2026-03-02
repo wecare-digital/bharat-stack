@@ -57,6 +57,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
   const [testResult, setTestResult] = useState<{ response: string; language: string } | null>(null);
   const [faqResults, setFaqResults] = useState<FAQSearchResult[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -64,6 +65,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [configData, promptsData, fallbacksData, interactionsData, statsData, langsData] = await Promise.all([
         getBedrockAIConfig(),
@@ -81,6 +83,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
       setLanguages(langsData);
     } catch (error) {
       console.error('Failed to load AI config:', error);
+      setLoadError('Failed to load AI configuration. Check API connection.');
       showToast('Failed to load configuration', 'error');
     }
     setLoading(false);
@@ -131,7 +134,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
 
   if (loading) {
     const loadingContent = (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <div style={{ padding: '2rem', textAlign: 'center', background: '#fff' }}>
         <div className="spinner" />
         <p>Loading AI configuration...</p>
       </div>
@@ -146,9 +149,28 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
     );
   }
 
+  if (loadError && !config) {
+    const errorContent = (
+      <div style={{ textAlign: 'center', padding: 48, background: '#fff' }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+        <p style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>AI Config Unavailable</p>
+        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 8 }}>{loadError}</p>
+        <button onClick={loadData} style={{ marginTop: 16, padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Retry</button>
+      </div>
+    );
+
+    if (embedded) return errorContent;
+
+    return (
+      <Layout user={user} onSignOut={signOut}>
+        {errorContent}
+      </Layout>
+    );
+  }
+
   const content = (
     <>
-      <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: '1rem 1.5rem', maxWidth: '1200px', margin: '0 auto', background: '#fff' }}>
         {/* Header */}
         <PageHeader 
           title="WhatsApp AI Auto-Reply" 

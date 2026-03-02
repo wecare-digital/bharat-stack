@@ -3,7 +3,7 @@
  * Uses PageShell for section header + scrollable tab bar
  */
 
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import Layout from '../../../components/Layout';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
@@ -23,6 +23,7 @@ import GroupsPage from './groups';
 import BusinessProfilePage from './business-profile';
 import WebhooksPage from './webhooks';
 import AIConfigPage from './ai-config';
+import FlowResponsesPage from './flow-responses';
 
 interface PageProps {
   signOut?: () => void;
@@ -31,18 +32,23 @@ interface PageProps {
 }
 
 const TABS: ShellTab[] = [
+  // Messaging
   { id: 'inbox', label: 'Inbox' },
-  { id: 'board', label: 'Board' },
   { id: 'campaign', label: 'Campaign' },
   { id: 'templates', label: 'Templates' },
-  { id: 'lists', label: 'List Msgs' },
+  // Interactive & AI
+  { id: 'lists', label: 'List Msgs', divider: true },
   { id: 'flows', label: 'Flows' },
-  { id: 'calling', label: 'Calling' },
-  { id: 'groups', label: 'Groups' },
-  { id: 'logs', label: 'Logs' },
+  { id: 'flow-responses', label: 'Flow Data' },
   { id: 'welcome', label: 'Welcome' },
   { id: 'ai-config', label: 'AI Config' },
-  { id: 'profile', label: 'Profile' },
+  // Communication
+  { id: 'calling', label: 'Calling', divider: true },
+  { id: 'groups', label: 'Groups' },
+  // Monitoring
+  { id: 'logs', label: 'Logs', divider: true },
+  // Settings
+  { id: 'profile', label: 'Profile', divider: true },
   { id: 'webhooks', label: 'Webhooks' },
   { id: 'waba', label: 'WABA' },
 ];
@@ -58,16 +64,16 @@ const WhatsAppPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
       {(activeTab) => (
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
           {activeTab === 'inbox' && <InboxPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'board' && <WABADashboard signOut={signOut} user={user} embedded />}
           {activeTab === 'campaign' && <CampaignPage signOut={signOut} user={user} embedded />}
           {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}
           {activeTab === 'lists' && <InteractiveListsPage signOut={signOut} user={user} embedded />}
           {activeTab === 'flows' && <FlowsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'flow-responses' && <FlowResponsesPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'welcome' && <WelcomePage signOut={signOut} user={user} embedded />}
+          {activeTab === 'ai-config' && <AIConfigPage signOut={signOut} user={user} embedded />}
           {activeTab === 'calling' && <CallingPage signOut={signOut} user={user} embedded />}
           {activeTab === 'groups' && <GroupsPage signOut={signOut} user={user} embedded />}
           {activeTab === 'logs' && <LogsPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'welcome' && <WelcomePage signOut={signOut} user={user} embedded />}
-          {activeTab === 'ai-config' && <AIConfigPage signOut={signOut} user={user} embedded />}
           {activeTab === 'profile' && <BusinessProfilePage signOut={signOut} user={user} embedded />}
           {activeTab === 'webhooks' && <WebhooksPage signOut={signOut} user={user} embedded />}
           {activeTab === 'waba' && <WABADashboard signOut={signOut} user={user} embedded />}
