@@ -364,6 +364,6 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': cors_headers(),
+        'headers': cors_headers(origin),
         'body': json.dumps({'error': message})
     }

@@ -153,8 +153,8 @@ def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params:
         except (json.JSONDecodeError, TypeError, ValueError):
             return {'error': {'message': error_body, 'code': e.code}}
 
-def _resp(code: int, body: Dict, origin: str = '') -> Dict:
-    return {'statusCode': code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}
+def _resp(code: int, body: Dict, resp_origin: str = '') -> Dict:
+    return {'statusCode': code, 'headers': cors_headers(resp_origin or origin), 'body': json.dumps(body, default=str)}
 
 # ============================================================================
 # BUSINESS PROFILE
@@ -183,8 +183,11 @@ def _update_business_profile(phone_id: str, body: Dict) -> Dict:
 # FLOWS
 # ============================================================================
 def _list_flows(waba_id: str) -> Dict:
-    result = _graph_api(f'{waba_id}/flows', waba_id=waba_id)
+    if not waba_id:
+        return _resp(400, {'error': 'wabaId required'})
+    result = _graph_api(f'{waba_id}/flows', params={'fields': 'id,name,status,categories,validation_errors'}, waba_id=waba_id)
     if 'error' in result:
+        logger.error(f'List flows error for WABA {waba_id}: {result}')
         return _resp(400, result)
     return _resp(200, {'flows': result.get('data', [])})
 
@@ -803,37 +806,43 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     'requestId': request_id,
                 }))
 
-            # Send ₹49 payment message asynchronously after flow completes
-            _invoice_number = ''
+            # Send payment + confirmation ASYNC via a separate Lambda invocation
+            # to avoid blocking the flow response (Meta has a timeout on data_exchange)
             try:
-                _invoice_number = _send_payment_after_flow(
-                    phone=phone, order_id=order_id,
-                    subject=subject, request_id=request_id,
-                    request_number=request_number,
-                    payment_ref_id=payment_ref_id
-                ) or ''
-            except Exception as pay_err:
-                logger.error(json.dumps({
-                    'event': 'flow_payment_outer_error',
-                    'error': str(pay_err),
-                    'phone': phone[:6] + '***' if phone else '',
-                    'requestId': request_id,
-                }))
-
-            # Send confirmation text message
-            try:
-                _send_flow_confirmation(
-                    phone=phone, order_id=order_id, subject=subject,
-                    request_id=request_id, request_number=request_number,
-                    payment_ref_id=payment_ref_id,
-                    invoice_number=_invoice_number
+                lambda_client.invoke(
+                    FunctionName=os.environ.get('AWS_LAMBDA_FUNCTION_NAME', 'wecare-whatsapp-business-api'),
+                    InvocationType='Event',
+                    Payload=json.dumps({
+                        '_async_action': 'flow_post_submit',
+                        'phone': phone,
+                        'order_id': order_id,
+                        'subject': subject,
+                        'request_id': request_id,
+                        'request_number': request_number,
+                        'payment_ref_id': payment_ref_id,
+                    })
                 )
-            except Exception as conf_err:
+            except Exception as async_err:
                 logger.error(json.dumps({
-                    'event': 'flow_confirmation_error',
-                    'error': str(conf_err),
+                    'event': 'flow_async_invoke_error',
+                    'error': str(async_err),
                     'requestId': request_id,
                 }))
+                # Fallback: try synchronously (old behavior) if async invoke fails
+                try:
+                    _send_payment_after_flow(
+                        phone=phone, order_id=order_id,
+                        subject=subject, request_id=request_id,
+                        request_number=request_number,
+                        payment_ref_id=payment_ref_id
+                    )
+                    _send_flow_confirmation(
+                        phone=phone, order_id=order_id, subject=subject,
+                        request_id=request_id, request_number=request_number,
+                        payment_ref_id=payment_ref_id
+                    )
+                except Exception:
+                    pass
 
             # Navigate to THANK_YOU screen with generated IDs
             # THANK_YOU is terminal:true — it closes the flow when user taps "Done"
@@ -1205,7 +1214,7 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
 
 
 def _find_contact_by_phone(phone: str) -> str:
-    """Look up contactId from DynamoDB Contacts table by phone number."""
+    """Look up contactId from DynamoDB Contacts table by phone number using GSI."""
     if not phone:
         return ''
     try:
@@ -1213,17 +1222,21 @@ def _find_contact_by_phone(phone: str) -> str:
         clean = phone.replace('+', '').replace(' ', '').replace('-', '')
         with_plus = f'+{clean}'
         table = dynamodb.Table(CONTACTS_TABLE)
-        # Try with + prefix first (contacts are stored as +91XXXXXXXXXX)
+        # Try with + prefix first (contacts are stored as +91XXXXXXXXXX), then without
         for variant in [with_plus, clean]:
-            resp = table.scan(
-                FilterExpression='phone = :p',
-                ExpressionAttributeValues={':p': variant},
-                Limit=1,
-                ProjectionExpression='id'
-            )
-            items = resp.get('Items', [])
-            if items:
-                return items[0].get('id', '')
+            try:
+                resp = table.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :p',
+                    ExpressionAttributeValues={':p': variant},
+                    Limit=1,
+                    ProjectionExpression='id'
+                )
+                items = resp.get('Items', [])
+                if items:
+                    return items[0].get('id', '')
+            except Exception:
+                pass
     except Exception as e:
         logger.warning(f'Contact lookup failed for {phone[:6]}***: {e}')
     return ''
@@ -1321,11 +1334,20 @@ def _list_submit_requests(params: Dict) -> Dict:
             resp = table.scan(Limit=limit)
 
         items = resp.get('Items', [])
-        # Convert Decimal to int/float for JSON
+        now = int(time.time())
+        # Convert Decimal to int/float for JSON + add computed fields
         for item in items:
             for k, v in item.items():
                 if isinstance(v, Decimal):
                     item[k] = int(v) if v == int(v) else float(v)
+            # Add days old + expiry flag for pending payments
+            created = item.get('createdAt', 0)
+            if created:
+                days_old = (now - created) // 86400
+                item['daysOld'] = days_old
+                # Mark as expired if pending for more than 7 days
+                if item.get('paymentStatus') == 'pending' and days_old > 7:
+                    item['isExpired'] = True
 
         # Sort by createdAt descending
         items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
@@ -1379,10 +1401,10 @@ def _list_flow_logs(params: Dict) -> Dict:
     """List flow interaction logs from SubmitRequestsTable (type=flow_log)."""
     try:
         table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
-        limit = min(int(params.get('limit', '100')), 500)
+        limit = min(int(params.get('limit', '200')), 500)
         phone_filter = params.get('phone', '')
 
-        # Scan for flow_log type records
+        # Scan for flow_log type records with full pagination
         filter_expr = '#t = :t'
         expr_names = {'#t': 'type'}
         expr_values = {':t': 'flow_log'}
@@ -1391,14 +1413,22 @@ def _list_flow_logs(params: Dict) -> Dict:
             filter_expr += ' AND contains(phone, :ph)'
             expr_values[':ph'] = phone_filter.replace('+', '').replace(' ', '')
 
-        resp = table.scan(
-            FilterExpression=filter_expr,
-            ExpressionAttributeNames=expr_names,
-            ExpressionAttributeValues=expr_values,
-            Limit=limit,
-        )
+        items = []
+        scan_kwargs = {
+            'FilterExpression': filter_expr,
+            'ExpressionAttributeNames': expr_names,
+            'ExpressionAttributeValues': expr_values,
+        }
+        while len(items) < limit:
+            resp = table.scan(**scan_kwargs)
+            items.extend(resp.get('Items', []))
+            if 'LastEvaluatedKey' not in resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
-        items = resp.get('Items', [])
+        # Trim to limit
+        items = items[:limit]
+
         for item in items:
             for k, v in item.items():
                 if isinstance(v, Decimal):
@@ -1409,6 +1439,59 @@ def _list_flow_logs(params: Dict) -> Dict:
     except Exception as e:
         logger.error(f'List flow logs error: {e}')
         return _resp(500, {'error': str(e)})
+
+
+def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
+    """
+    Handle async post-submit actions: create invoice, send payment link, send confirmation.
+    Called via async Lambda invocation from the REVIEW screen handler to avoid blocking
+    the flow data_exchange response (Meta has a timeout).
+    """
+    phone = event.get('phone', '')
+    order_id = event.get('order_id', '')
+    subject = event.get('subject', '')
+    request_number = event.get('request_number', '')
+    payment_ref_id = event.get('payment_ref_id', '')
+
+    logger.info(json.dumps({
+        'event': 'async_post_submit_start',
+        'phone': phone[:6] + '***' if phone else '',
+        'requestNumber': request_number,
+        'requestId': request_id,
+    }))
+
+    # Step 1: Create invoice + send payment link
+    invoice_number = ''
+    try:
+        invoice_number = _send_payment_after_flow(
+            phone=phone, order_id=order_id,
+            subject=subject, request_id=request_id,
+            request_number=request_number,
+            payment_ref_id=payment_ref_id
+        ) or ''
+    except Exception as pay_err:
+        logger.error(json.dumps({
+            'event': 'async_payment_error',
+            'error': str(pay_err),
+            'requestId': request_id,
+        }))
+
+    # Step 2: Send confirmation text
+    try:
+        _send_flow_confirmation(
+            phone=phone, order_id=order_id, subject=subject,
+            request_id=request_id, request_number=request_number,
+            payment_ref_id=payment_ref_id,
+            invoice_number=invoice_number
+        )
+    except Exception as conf_err:
+        logger.error(json.dumps({
+            'event': 'async_confirmation_error',
+            'error': str(conf_err),
+            'requestId': request_id,
+        }))
+
+    return {'statusCode': 200, 'body': json.dumps({'status': 'ok'})}
 
 
 # ============================================================================
@@ -1422,6 +1505,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     global origin
     origin = extract_origin(event)
+
+    # Handle async post-submit actions (invoked by REVIEW screen handler)
+    if event.get('_async_action') == 'flow_post_submit':
+        return _handle_async_post_submit(event, request_id)
+
     rc = event.get('requestContext', {})
     http = rc.get('http', {})
     method = http.get('method', event.get('httpMethod', 'GET'))

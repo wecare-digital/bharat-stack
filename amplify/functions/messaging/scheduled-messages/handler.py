@@ -35,10 +35,14 @@ OUTBOUND_LAMBDA = os.environ.get('OUTBOUND_LAMBDA', 'wecare-outbound-whatsapp')
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main handler for scheduled messages."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     
     # Check if this is a CloudWatch Events trigger (scheduled execution)
@@ -113,7 +117,7 @@ def _list_scheduled(query_params: Dict[str, str], request_id: str) -> Dict[str, 
         
         return {
             'statusCode': 200,
-            'headers': cors_headers(),
+            'headers': cors_headers(origin),
             'body': json.dumps({
                 'scheduledMessages': scheduled_messages,
                 'count': len(scheduled_messages)
@@ -185,7 +189,7 @@ def _create_scheduled(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 201,
-            'headers': cors_headers(),
+            'headers': cors_headers(origin),
             'body': json.dumps(_normalize_item(item))
         }
     except Exception as e:
@@ -254,7 +258,7 @@ def _update_scheduled(scheduled_id: str, body: Dict[str, Any], request_id: str) 
         
         return {
             'statusCode': 200,
-            'headers': cors_headers(),
+            'headers': cors_headers(origin),
             'body': json.dumps(_normalize_item(response['Attributes']))
         }
     except Exception as e:
@@ -292,7 +296,7 @@ def _cancel_scheduled(scheduled_id: str, request_id: str) -> Dict[str, Any]:
         
         return {
             'statusCode': 200,
-            'headers': cors_headers(),
+            'headers': cors_headers(origin),
             'body': json.dumps({'success': True, 'scheduledId': scheduled_id, 'status': 'CANCELLED'})
         }
     except Exception as e:
@@ -436,6 +440,6 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
     """Return error response."""
     return {
         'statusCode': status_code,
-        'headers': cors_headers(),
+        'headers': cors_headers(origin),
         'body': json.dumps({'error': message})
     }
