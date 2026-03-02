@@ -27,7 +27,6 @@
 }
 
 html, body {
-html, body {
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
@@ -39,7 +38,6 @@ html, body {
   padding-bottom: env(safe-area-inset-bottom);
   scrollbar-width: thin;
   scrollbar-color: #D1FAE5 transparent;
-  scrollbar-gutter: stable;
 }
 
 /* Global scrollbar — emerald theme, no arrows */
@@ -595,7 +593,11 @@ input, textarea, select {
   color: #000000;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+}
+
+/* When main-content contains a page-shell, let the shell handle scrolling */
+.main-content:has(.page-shell) {
+  overflow-y: hidden;
 }
 
 /* Mobile Menu Toggle */

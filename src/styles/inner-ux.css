@@ -556,6 +556,12 @@
   background: #fff;
 }
 
+/* When inner-page is inside page-shell content, let the shell scroll */
+.ps-content .inner-page {
+  height: auto;
+  overflow-y: visible;
+}
+
 .inner-page-container {
   width: 100%;
   max-width: 1400px;
@@ -1744,7 +1750,6 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-gutter: stable;
   background: #fff;
   border-radius: 8px;
 }
