@@ -1643,7 +1643,7 @@
 
 /* Nested page-shell: no double padding */
 .ps-content .page-shell {
-  padding: 0 0 10px;
+  padding: 0;
 }
 
 .ps-header {
