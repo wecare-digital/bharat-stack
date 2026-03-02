@@ -46,23 +46,21 @@ const PageShell: React.FC<PageShellProps> = ({
         {actions && <div className="ps-header-actions">{actions}</div>}
       </div>
 
-      {/* Scrollable Tab Bar */}
+      {/* Tab Bar */}
       <div className="ps-tabs-wrapper">
         <div className="ps-tabs" role="tablist">
           {tabs.map((tab) => (
-            <React.Fragment key={tab.id}>
-              {tab.divider && <span className="ps-tab-divider" aria-hidden="true" style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px', flexShrink: 0 }} />}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                className={`ps-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.icon && <span className="ps-tab-icon" dangerouslySetInnerHTML={{__html: tab.icon}} title={tab.label} />}
-                {!tab.icon && tab.label}
-              </button>
-            </React.Fragment>
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              className={`ps-tab ${activeTab === tab.id ? 'active' : ''}${tab.divider ? ' ps-tab-after-divider' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.icon && <span className="ps-tab-icon" dangerouslySetInnerHTML={{__html: tab.icon}} title={tab.label} />}
+              {!tab.icon && tab.label}
+            </button>
           ))}
         </div>
       </div>

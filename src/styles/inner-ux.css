@@ -1675,24 +1675,16 @@
   flex-wrap: wrap;
 }
 
-/* Tab Bar — Scrollable horizontal layout */
+/* Tab Bar — Wrapping multi-row layout */
 .ps-tabs-wrapper {
   flex-shrink: 0;
   margin-bottom: 16px;
-  padding-bottom: 4px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.ps-tabs-wrapper::-webkit-scrollbar {
-  display: none;
 }
 
 .ps-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  min-width: min-content;
 }
 
 .ps-tab {
@@ -1709,7 +1701,6 @@
   font-family: inherit;
   line-height: 1.3;
   text-align: center;
-  flex-shrink: 0;
 }
 
 .ps-tab-icon {
@@ -1741,6 +1732,11 @@
 .ps-tab.active .ps-tab-icon svg path,
 .ps-tab.active .ps-tab-icon svg circle {
   stroke: #fff;
+}
+
+/* Divider: extra gap before group-starting tabs */
+.ps-tab-after-divider {
+  margin-left: 8px;
 }
 
 /* Tab Content */

@@ -11,6 +11,7 @@ import { SkeletonStat, SkeletonCard } from '../../components/Skeleton';
 import SEO, { PAGE_SEO } from '../../components/SEO';
 import Button from '../../components/ui/Button';
 import Tabs, { TabItem } from '../../components/ui/Tabs';
+import Spinner from '../../components/ui/Spinner';
 import * as api from '../../api/client';
 import { 
   DashboardIcon, MessageIcon, PaymentIcon, DataIcon, BillingIcon, 
@@ -405,6 +406,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   // Submit Requests state
   const [submitRequests, setSubmitRequests] = useState<api.SubmitRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [resendingPayment, setResendingPayment] = useState<string | null>(null);
   // Flow Logs state
   const [flowLogs, setFlowLogs] = useState<api.FlowLog[]>([]);
   const [flowLogsLoading, setFlowLogsLoading] = useState(false);
@@ -458,6 +460,19 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       api.listFlowLogs().then(setFlowLogs).catch(console.error).finally(() => setFlowLogsLoading(false));
     }
   }, [activeTab]);
+
+  const handleResendPayment = async (req: api.SubmitRequest) => {
+    if (!req.invoiceId) { alert('No linked invoice — cannot resend payment'); return; }
+    setResendingPayment(req.id);
+    try {
+      const ok = await api.resendSubmitRequestPayment(req.invoiceId);
+      if (ok) {
+        alert('Payment link resent successfully');
+        setSubmitRequests(await api.listSubmitRequests());
+      } else { alert('Failed to resend payment link'); }
+    } catch (err) { console.error('Resend payment error:', err); alert('Error resending payment'); }
+    finally { setResendingPayment(null); }
+  };
 
   const handleDeleteMessages = async () => {
     if (selectedMessages.length === 0) return;
@@ -3373,6 +3388,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </div>
                 )}
 
+                {submitRequests.length === 0 && requestsLoading && (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+                    <Spinner size="lg" />
+                  </div>
+                )}
+
                 {submitRequests.length > 0 && (
                   <div className="table-wrapper" style={{ overflowX: 'auto' }}>
                     <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
@@ -3390,6 +3411,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                           <th style={{ padding: '8px 12px' }}>Payment</th>
                           <th style={{ padding: '8px 12px' }}>Txn ID</th>
                           <th style={{ padding: '8px 12px' }}>Date</th>
+                          <th style={{ padding: '8px 12px' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3420,7 +3442,31 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             </td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#059669' }}>{req.transactionId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                              {req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
+                              <div>{req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</div>
+                              <div style={{ display: 'flex', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
+                                {req.isExpired && (
+                                  <span style={{ padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#fef2f2', color: '#991b1b' }}>Expired</span>
+                                )}
+                                {typeof req.daysOld === 'number' && req.daysOld > 0 && (
+                                  <span style={{ fontSize: 10, color: req.daysOld > 7 ? '#dc2626' : '#a16207' }}>{req.daysOld}d old</span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              {req.paymentStatus !== 'captured' && req.invoiceId && (
+                                <button
+                                  onClick={() => handleResendPayment(req)}
+                                  disabled={resendingPayment === req.id}
+                                  style={{
+                                    padding: '4px 10px', fontSize: '11px', fontWeight: 600,
+                                    border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
+                                    background: resendingPayment === req.id ? '#f3f4f6' : '#fff',
+                                    color: '#2563eb', whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {resendingPayment === req.id ? '...' : 'Resend'}
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
