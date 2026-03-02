@@ -3537,6 +3537,8 @@ export interface SubmitRequest {
   paymentReferenceId?: string;
   paymentAmount?: number;
   transactionId?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
   createdAt: number;
   updatedAt?: number;
 }
@@ -3558,6 +3560,12 @@ export interface FlowLog {
   dataKeys?: string[];
   requestId?: string;
   createdAt: number;
+  // Enhanced flow data fields
+  order_id?: string;
+  subject?: string;
+  description?: string;
+  email?: string;
+  flowData?: string; // JSON string of full submitted data
 }
 
 export async function listFlowLogs(phone?: string): Promise<FlowLog[]> {

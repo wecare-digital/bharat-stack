@@ -3381,6 +3381,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                           <th style={{ padding: '8px 12px' }}>Phone</th>
                           <th style={{ padding: '8px 12px' }}>Name</th>
                           <th style={{ padding: '8px 12px' }}>Request #</th>
+                          <th style={{ padding: '8px 12px' }}>Invoice #</th>
                           <th style={{ padding: '8px 12px' }}>Payment Ref</th>
                           <th style={{ padding: '8px 12px' }}>Order ID</th>
                           <th style={{ padding: '8px 12px' }}>Subject</th>
@@ -3397,6 +3398,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{req.phone}</td>
                             <td style={{ padding: '8px 12px' }}>{req.senderName || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#2563eb' }}>{req.requestNumber || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#7c3aed' }}>{req.invoiceNumber || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.paymentReferenceId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{req.orderId}</td>
                             <td style={{ padding: '8px 12px' }}>{req.subject || '—'}</td>
@@ -3459,12 +3461,24 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                           <th style={{ padding: '8px 12px' }}>Phone</th>
                           <th style={{ padding: '8px 12px' }}>Action</th>
                           <th style={{ padding: '8px 12px' }}>Screen</th>
-                          <th style={{ padding: '8px 12px' }}>Data Keys</th>
+                          <th style={{ padding: '8px 12px' }}>Order ID</th>
+                          <th style={{ padding: '8px 12px' }}>Subject</th>
+                          <th style={{ padding: '8px 12px' }}>Description</th>
+                          <th style={{ padding: '8px 12px' }}>Data</th>
                           <th style={{ padding: '8px 12px' }}>Date</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {flowLogs.map(log => (
+                        {flowLogs.map(log => {
+                          // Parse flowData JSON if available
+                          let parsedData: Record<string, any> | null = null;
+                          if (log.flowData) {
+                            try { parsedData = JSON.parse(log.flowData); } catch {}
+                          }
+                          const extraKeys = parsedData
+                            ? Object.keys(parsedData).filter(k => !['order_id', 'subject', 'description', 'email'].includes(k))
+                            : [];
+                          return (
                           <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{log.phone || '—'}</td>
                             <td style={{ padding: '8px 12px' }}>
@@ -3479,14 +3493,26 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>
                               {log.screen || '—'}
                             </td>
-                            <td style={{ padding: '8px 12px', fontSize: '12px', color: '#888' }}>
-                              {log.dataKeys?.join(', ') || '—'}
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>
+                              {log.order_id || (parsedData?.order_id) || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '12px' }}>
+                              {log.subject || (parsedData?.subject) || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }} title={log.description || parsedData?.description || ''}>
+                              {log.description || (parsedData?.description) || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '11px', color: '#888' }}>
+                              {extraKeys.length > 0
+                                ? extraKeys.map(k => `${k}: ${parsedData![k]}`).join(', ')
+                                : (log.dataKeys?.join(', ') || '—')}
                             </td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                               {log.createdAt ? new Date(log.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

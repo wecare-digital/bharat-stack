@@ -70,6 +70,7 @@ ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'base-wecare-digital-Wix
 # Lambda client for invoking outbound WhatsApp (payment after flow)
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
+INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invoice-engine')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable')
 
@@ -709,6 +710,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 flow_token=flow_token, phone=_flow_phone,
                 action=action, screen=screen,
                 data_keys=list(data.keys()), request_id=request_id,
+                data=data,
             )
         except Exception as e:
             logger.warning(f'Flow log write failed: {e}')  # Never block flow for logging failures
@@ -802,13 +804,14 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 }))
 
             # Send ₹49 payment message asynchronously after flow completes
+            _invoice_number = ''
             try:
-                _send_payment_after_flow(
+                _invoice_number = _send_payment_after_flow(
                     phone=phone, order_id=order_id,
                     subject=subject, request_id=request_id,
                     request_number=request_number,
                     payment_ref_id=payment_ref_id
-                )
+                ) or ''
             except Exception as pay_err:
                 logger.error(json.dumps({
                     'event': 'flow_payment_outer_error',
@@ -822,7 +825,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 _send_flow_confirmation(
                     phone=phone, order_id=order_id, subject=subject,
                     request_id=request_id, request_number=request_number,
-                    payment_ref_id=payment_ref_id
+                    payment_ref_id=payment_ref_id,
+                    invoice_number=_invoice_number
                 )
             except Exception as conf_err:
                 logger.error(json.dumps({
@@ -937,10 +941,12 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
 
 
 def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id: str,
-                             request_number: str = '', payment_ref_id: str = ''):
+                             request_number: str = '', payment_ref_id: str = '') -> str:
     """
-    Send an order_details payment message (₹49) via the outbound Lambda
-    after the user completes the Submit Request flow.
+    Create an invoice via invoice-engine, then send payment link through that invoice.
+    This integrates Submit Request payments into the common invoice infrastructure
+    so they appear in the Pay Flow / Invoices tab alongside all other invoices.
+    Returns the invoice number (or empty string on failure).
     """
     logger.info(json.dumps({
         'event': 'flow_payment_start',
@@ -954,93 +960,218 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
 
     if not phone:
         logger.warning(f'[{request_id}] No phone for payment — skipping')
-        return
+        return ''
 
-    amount_paise = 4900
-    amount_rupees = amount_paise / 100
-    gst_rate = 18
-    gst_paise = round(amount_paise * gst_rate / 100)  # 882 paise = ₹8.82
     ref_id = payment_ref_id or f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
-    item_name = 'Service Request'
 
     # Look up contactId from DynamoDB
     contact_id = _find_contact_by_phone(phone)
-    logger.info(json.dumps({
-        'event': 'flow_payment_contact_lookup',
-        'contactId': contact_id or 'not_found',
-        'phone': phone[:6] + '***',
-        'requestId': request_id,
-    }))
+    sender_name = ''
+    if contact_id:
+        try:
+            table = dynamodb.Table(CONTACTS_TABLE)
+            resp = table.get_item(Key={'id': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
+            sender_name = resp.get('Item', {}).get('name', '')
+        except Exception:
+            pass
+
+    # Step 1: Create invoice via invoice-engine Lambda
+    invoice_body = {
+        'referenceId': ref_id,
+        'customerPhone': phone,
+        'customerName': sender_name,
+        'contactId': contact_id or '',
+        'orderId': order_id,
+        'entryPoint': 'submit_request_flow',
+        'purpose': f'Service Request: {subject}' if subject else 'Service Request',
+        'notes': f'Request #{request_number}' if request_number else '',
+        'gstin': '19AADFW7431N1ZK',
+        'gstRate': 18,
+        'items': [{
+            'name': 'Service Request',
+            'amount': 49,
+            'quantity': 1,
+            'gstRate': 18,
+        }],
+    }
 
     try:
-        payload = {
-            'body': json.dumps({
-                'contactId': contact_id or '',
-                'recipientPhone': phone if not contact_id else '',
-                'phoneNumberId': PHONE1_EUM_ID,
-                'isInteractivePayment': True,
-                'orderDetails': {
-                    'reference_id': ref_id,
-                    'type': 'digital-goods',
-                    'currency': 'INR',
-                    'itemName': item_name,
-                    'quantity': 1,
-                    'gstRate': gst_rate,
-                    'gstin': '19AADFW7431N1ZK',
-                    'orderId': order_id,
-                    'order': {
-                        'status': 'pending',
-                        'items': [{
-                            'retailer_id': 'SR-REQUEST',
-                            'name': item_name,
-                            'amount': {'value': amount_paise, 'offset': 100},
-                            'quantity': 1,
-                            'gstRate': gst_rate,
-                        }],
-                        'subtotal': {'value': amount_paise, 'offset': 100},
-                        'discount': {'value': 0, 'offset': 100, 'description': 'None'},
-                        'shipping': {'value': 0, 'offset': 100, 'description': 'N/A'},
-                        'tax': {'value': gst_paise, 'offset': 100, 'description': f'GST {gst_rate}%'},
-                    },
-                }
+        create_resp = lambda_client.invoke(
+            FunctionName=INVOICE_ENGINE_FUNCTION,
+            InvocationType='RequestResponse',
+            Payload=json.dumps({
+                'requestContext': {'http': {'method': 'POST'}},
+                'rawPath': '/invoices',
+                'body': json.dumps(invoice_body),
             })
-        }
-
-        response = lambda_client.invoke(
-            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
-            InvocationType='Event',
-            Payload=json.dumps(payload)
         )
+        create_result = json.loads(create_resp['Payload'].read())
+        create_body = json.loads(create_result.get('body', '{}'))
+        invoice_id = create_body.get('invoiceId', '')
+        invoice_number = create_body.get('invoiceNumber', '')
+        is_dedup = create_body.get('deduplicated', False)
 
         logger.info(json.dumps({
-            'event': 'flow_payment_sent',
-            'phone': phone[:6] + '***',
-            'orderId': order_id,
-            'subject': subject,
-            'amount': amount_rupees,
+            'event': 'flow_invoice_created',
+            'invoiceId': invoice_id,
+            'invoiceNumber': invoice_number,
             'referenceId': ref_id,
-            'contactId': contact_id or 'direct_phone',
-            'lambdaStatus': response.get('StatusCode'),
+            'deduplicated': is_dedup,
+            'phone': phone[:6] + '***',
             'requestId': request_id,
         }))
+
+        if not invoice_id:
+            logger.error(json.dumps({
+                'event': 'flow_invoice_create_failed',
+                'response': create_body,
+                'requestId': request_id,
+            }))
+            # Fallback: send payment directly via outbound (old behavior)
+            _send_payment_direct_fallback(phone, order_id, subject, ref_id, contact_id, request_id)
+            return ''
+
+        # Store invoiceId on the SubmitRequest record
+        try:
+            sr_table = dynamodb.Table(SUBMIT_REQUESTS_TABLE)
+            sr_resp = sr_table.query(
+                IndexName='paymentReferenceId',
+                KeyConditionExpression='paymentReferenceId = :ref',
+                ExpressionAttributeValues={':ref': ref_id},
+                Limit=1,
+            )
+            sr_items = sr_resp.get('Items', [])
+            if sr_items:
+                sr_table.update_item(
+                    Key={'id': sr_items[0]['id']},
+                    UpdateExpression='SET invoiceId = :inv, invoiceNumber = :inum, updatedAt = :u',
+                    ExpressionAttributeValues={
+                        ':inv': invoice_id,
+                        ':inum': invoice_number,
+                        ':u': Decimal(str(int(time.time()))),
+                    },
+                )
+        except Exception as link_err:
+            logger.warning(json.dumps({
+                'event': 'flow_invoice_link_error',
+                'error': str(link_err),
+                'requestId': request_id,
+            }))
+
+        # Step 2: Send payment link via invoice-engine (uses common infrastructure)
+        send_resp = lambda_client.invoke(
+            FunctionName=INVOICE_ENGINE_FUNCTION,
+            InvocationType='RequestResponse',
+            Payload=json.dumps({
+                'requestContext': {'http': {'method': 'POST'}},
+                'rawPath': '/invoices/send-payment-link',
+                'body': json.dumps({
+                    'invoiceId': invoice_id,
+                    'phoneNumberId': PHONE1_EUM_ID,
+                }),
+            })
+        )
+        send_result = json.loads(send_resp['Payload'].read())
+        send_status = send_result.get('statusCode', 0)
+
+        logger.info(json.dumps({
+            'event': 'flow_payment_link_sent',
+            'invoiceId': invoice_id,
+            'invoiceNumber': invoice_number,
+            'referenceId': ref_id,
+            'phone': phone[:6] + '***',
+            'statusCode': send_status,
+            'requestId': request_id,
+        }))
+
+        return invoice_number
+
     except Exception as e:
         logger.error(json.dumps({
-            'event': 'flow_payment_error',
+            'event': 'flow_invoice_payment_error',
             'phone': phone[:6] + '***',
             'error': str(e),
             'requestId': request_id,
         }))
+        # Fallback: send payment directly via outbound (old behavior)
+        try:
+            _send_payment_direct_fallback(phone, order_id, subject, ref_id, contact_id, request_id)
+        except Exception as fb_err:
+            logger.error(json.dumps({
+                'event': 'flow_payment_fallback_error',
+                'error': str(fb_err),
+                'requestId': request_id,
+            }))
+        return ''
+
+
+def _send_payment_direct_fallback(phone: str, order_id: str, subject: str,
+                                   ref_id: str, contact_id: str, request_id: str):
+    """Fallback: send payment directly via outbound-whatsapp if invoice-engine fails."""
+    amount_paise = 4900
+    gst_rate = 18
+    gst_paise = round(amount_paise * gst_rate / 100)
+
+    payload = {
+        'body': json.dumps({
+            'contactId': contact_id or '',
+            'recipientPhone': phone if not contact_id else '',
+            'phoneNumberId': PHONE1_EUM_ID,
+            'isInteractivePayment': True,
+            'orderDetails': {
+                'reference_id': ref_id,
+                'type': 'digital-goods',
+                'currency': 'INR',
+                'itemName': 'Service Request',
+                'quantity': 1,
+                'gstRate': gst_rate,
+                'gstin': '19AADFW7431N1ZK',
+                'orderId': order_id,
+                'order': {
+                    'status': 'pending',
+                    'items': [{
+                        'retailer_id': 'SR-REQUEST',
+                        'name': 'Service Request',
+                        'amount': {'value': amount_paise, 'offset': 100},
+                        'quantity': 1,
+                        'gstRate': gst_rate,
+                    }],
+                    'subtotal': {'value': amount_paise, 'offset': 100},
+                    'discount': {'value': 0, 'offset': 100, 'description': 'None'},
+                    'shipping': {'value': 0, 'offset': 100, 'description': 'N/A'},
+                    'tax': {'value': gst_paise, 'offset': 100, 'description': f'GST {gst_rate}%'},
+                },
+            }
+        })
+    }
+
+    response = lambda_client.invoke(
+        FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+        InvocationType='Event',
+        Payload=json.dumps(payload)
+    )
+
+    logger.info(json.dumps({
+        'event': 'flow_payment_fallback_sent',
+        'phone': phone[:6] + '***',
+        'referenceId': ref_id,
+        'lambdaStatus': response.get('StatusCode'),
+        'requestId': request_id,
+    }))
 
 
 def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id: str,
-                            request_number: str = '', payment_ref_id: str = ''):
+                            request_number: str = '', payment_ref_id: str = '',
+                            invoice_number: str = ''):
     """Send a WhatsApp text confirmation after the Submit Request flow completes."""
     if not phone:
         return
     try:
+        inv_line = f'*Invoice:* {invoice_number}\n' if invoice_number else ''
         msg = (
             '\u2705 *Request Submitted Successfully*\n\n'
             f'*Request No:* {request_number}\n'
+            f'{inv_line}'
             f'*Payment Ref:* {payment_ref_id}\n'
             f'*Order:* {order_id}\n'
             f'*Subject:* {subject}\n\n'
@@ -1206,10 +1337,11 @@ def _list_submit_requests(params: Dict) -> Dict:
 
 
 def _log_flow_event(flow_token: str, phone: str, action: str, screen: str,
-                    data_keys: list, request_id: str):
+                    data_keys: list, request_id: str, data: dict = None):
     """
     Log a flow interaction event to SubmitRequestsTable for audit trail.
     Uses type='flow_log' to distinguish from actual submissions.
+    Captures full submitted data for comprehensive logging.
     """
     try:
         now = int(time.time())
@@ -1225,6 +1357,19 @@ def _log_flow_event(flow_token: str, phone: str, action: str, screen: str,
             'requestId': request_id,
             'createdAt': Decimal(str(now)),
         }
+
+        # Capture full submitted data for comprehensive flow logs
+        if data and isinstance(data, dict):
+            # Store individual known fields for easy querying
+            for field in ('order_id', 'subject', 'description', 'email'):
+                if data.get(field):
+                    item[field] = str(data[field])
+            # Store full data snapshot as JSON string (for any extra fields)
+            try:
+                item['flowData'] = json.dumps(data, default=str)
+            except Exception:
+                pass
+
         table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
     except Exception as e:
         logger.warning(f'Flow log write failed: {e}')
