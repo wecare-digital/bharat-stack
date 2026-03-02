@@ -3224,7 +3224,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 DEFAULT_FLOW_TRIGGERS = {
     'submit_request': {
         'keywords': ['submit request', 'sr', 'raise request'],
-        'flowId': '25854716414220116',
+        'flowId': '2126971738077819',
         'message': {
             'body': '\U0001f447Please use the self-service option below. Once we receive it, we\u2019ll review it and follow up if needed.',
             'footer': 'WECARE.DIGITAL',

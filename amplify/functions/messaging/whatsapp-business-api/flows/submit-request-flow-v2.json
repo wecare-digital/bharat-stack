@@ -115,7 +115,7 @@
             "type": "TextArea",
             "name": "description",
             "label": "Description",
-            "required": false,
+            "required": true,
             "helper-text": "Describe your issue in detail"
           },
           {
