@@ -1451,7 +1451,8 @@
 /* WhatsApp Inbox - Unified Chat */
 .whatsapp-inbox {
   display: flex;
-  height: calc(100vh - 60px);
+  flex: 1;
+  min-height: 0;
   background: #fff;
   border-radius: 16px;
   overflow: hidden;

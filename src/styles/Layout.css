@@ -586,7 +586,8 @@ input, textarea, select {
 
 /* Main Content */
 .main-content {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
   margin-left: var(--sidebar-w);
   padding: 0;
   background: #ffffff;
@@ -594,6 +595,12 @@ input, textarea, select {
   color: #000000;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* When page-shell is present, let the flex chain handle scrolling */
+.main-content:has(> .page-shell),
+.main-content:has(> [data-page-shell]) {
+  overflow: hidden;
 }
 
 /* Mobile Menu Toggle */
@@ -631,11 +638,7 @@ input, textarea, select {
   z-index: 999;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .sidebar { width: 260px; }
-  .main-content { margin-left: 260px; }
-}
+/* Responsive - Tablet: sidebar becomes overlay */
 
 /* ========================================
    TABLET STYLES (768px - 1024px)

@@ -1279,12 +1279,12 @@
    BREADCRUMBS
    ======================================== */
 .breadcrumbs {
-  margin-top: var(--space-4);
-  margin-bottom: var(--space-4);
+  margin: 8px 12px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-secondary);
   border-radius: 13px;
   border: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .breadcrumbs-list {
@@ -1635,10 +1635,10 @@
 .page-shell {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* Nested page-shell: no double padding */
@@ -1683,7 +1683,7 @@
 /* Tab Bar — Wrapping multi-row layout */
 .ps-tabs-wrapper {
   flex-shrink: 0;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   padding: 0 20px;
 }
 
@@ -1748,9 +1748,12 @@
 
 /* Tab Content */
 .ps-content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #fff;
 }
 
