@@ -22,7 +22,18 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/dashboard']));
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    }
+    return false;
+  });
   const shortcutsModal = useKeyboardShortcutsModal();
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useKeyboardShortcuts([
     { key: 'k', ctrl: true, action: () => setSearchOpen(true), description: 'Open search' },
@@ -86,6 +97,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
   };
 
   const renderNavItems = (items: (NavItem | NavSubItem)[], level: number = 0) => {
+    // When sidebar is collapsed, only render top-level items (icons only)
+    if (sidebarCollapsed && level > 0) return null;
+
     return items.map((item, index) => {
       const hasChildren = 'children' in item && item.children && item.children.length > 0;
       const isExpanded = expandedPaths.has(item.path);
@@ -98,15 +112,26 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       const sectionLabel = 'sectionLabel' in item ? (item as NavItem).sectionLabel : undefined;
       const badge = 'badge' in item ? item.badge : undefined;
 
+      // In collapsed mode, clicking a parent nav item navigates to its path
+      const handleCollapsedClick = () => {
+        if (sidebarCollapsed && hasChildren) {
+          router.push(item.path);
+        } else if (hasChildren) {
+          toggleExpand(item.path);
+        } else {
+          router.push(item.path);
+        }
+      };
+
       return (
         <React.Fragment key={item.path}>
-          {sectionLabel && (
+          {sectionLabel && !sidebarCollapsed && (
             <div className="nav-section-label">{sectionLabel}</div>
           )}
           <div className={level === 0 ? 'nav-group' : 'nav-nested-group'}>
             {hasChildren ? (
               <>
-                <button className={itemClass} onClick={() => toggleExpand(item.path)}>
+                <button className={itemClass} onClick={handleCollapsedClick} title={sidebarCollapsed ? item.label : undefined}>
                   {'icon' in item && <span className="nav-icon">{renderIcon(item.icon, level === 0 ? 16 : 14)}</span>}
                   <span className="nav-label">{item.label}</span>
                   {badge && <span className="nav-badge-soon">{badge}</span>}
@@ -114,14 +139,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
                     <ChevronRightIcon size={level === 0 ? 12 : 10} />
                   </span>
                 </button>
-                {isExpanded && (
+                {isExpanded && !sidebarCollapsed && (
                   <div className={level === 0 ? 'nav-subitems' : 'nav-nested-items'}>
                     {renderNavItems(item.children!, level + 1)}
                   </div>
                 )}
               </>
             ) : (
-              <span className={itemClass} onClick={() => router.push(item.path)}>
+              <span className={itemClass} onClick={() => router.push(item.path)} title={sidebarCollapsed ? item.label : undefined}>
                 {'icon' in item && <span className="nav-icon">{renderIcon(item.icon, level === 0 ? 16 : 14)}</span>}
                 <span className="nav-label">{item.label}</span>
                 {badge && <span className="nav-badge-soon">{badge}</span>}
@@ -134,23 +159,32 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
   };
 
   return (
-    <div className="layout">
-      <a href="#main-content" className="skip-link">Skip to content</a>
-      <button className="mobile-menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu">
-        {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
-      </button>
-      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <div className="sidebar-brand">
-            <img src="https://app.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="sidebar-logo" />
-            <div className="sidebar-brand-text">
-              <span className="sidebar-brand-main">Base CRM</span>
-              <span className="sidebar-brand-sub">by WECARE.DIGITAL</span>
+    <div className={`layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* Global inner-page header — spans full width */}
+      <header className="inner-header">
+        <div className="inner-header-in">
+          <div className="inner-header-brand">
+            <img src="https://app.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="inner-header-logo" />
+            <div className="inner-header-text">
+              <span className="inner-header-name">Base CRM</span>
+              <a href="https://www.wecare.digital" className="inner-header-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
             </div>
           </div>
         </div>
+      </header>
+
+      <button className="mobile-menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu">
+        {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
+      </button>
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
+            <ChevronRightIcon size={14} />
+          </button>
+        </div>
         
         {/* Sidebar Search */}
+        {!sidebarCollapsed && (
         <div className="sidebar-search">
           <div className="sidebar-search-input-wrapper">
             <input
@@ -180,17 +214,21 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
             </div>
           )}
         </div>
+        )}
         
         <nav className="sidebar-nav">
           {renderNavItems(navigationConfig)}
         </nav>
         <div className="sidebar-footer">
-          {user && (
+          {user && !sidebarCollapsed && (
             <div className="user-info">
               <span className="user-role">{user.role || 'Operator'}</span>
               <span className="user-email">{user.signInDetails?.loginId || user.email}</span>
               <button className="btn-signout" onClick={onSignOut}>Sign Out</button>
             </div>
+          )}
+          {user && sidebarCollapsed && (
+            <button className="btn-signout" onClick={onSignOut} style={{ width: '100%', fontSize: 11 }}>Out</button>
           )}
         </div>
       </aside>
@@ -201,6 +239,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       </main>
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <KeyboardShortcuts isOpen={shortcutsModal.isOpen} onClose={shortcutsModal.close} />
+
+      {/* Global inner-page footer */}
+      <footer className="inner-footer">
+        <div className="inner-footer-in">
+          <a href="https://www.wecare.digital/contact" className="inner-footer-link" target="_blank" rel="noopener noreferrer">Contact us</a>
+        </div>
+      </footer>
     </div>
   );
 };

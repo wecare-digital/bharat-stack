@@ -41,7 +41,7 @@
    CONTENT BUTTONS - Emerald theme
    White bg, black text, emerald border
    ======================================== */
-.layout .main-content button,
+.layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm),
 .layout .main-content .btn,
 .layout .main-content .btn-primary,
 .layout .main-content .btn-secondary,
@@ -59,7 +59,7 @@
   transition: all 0.2s ease !important;
 }
 
-.layout .main-content button:hover,
+.layout .main-content button:hover:not([class*="ct-"]):not(.sidebar-collapse-btn),
 .layout .main-content .btn:hover,
 .layout .main-content .refresh-btn:hover,
 .layout .main-content .tab-btn:hover,
@@ -68,13 +68,13 @@
   border-color: #059669 !important;
 }
 
-.layout .main-content button:active,
+.layout .main-content button:active:not([class*="ct-"]),
 .layout .main-content .btn:active {
   background: #D1FAE5 !important;
   border-color: #059669 !important;
 }
 
-.layout .main-content button:focus-visible,
+.layout .main-content button:focus-visible:not([class*="ct-"]),
 .layout .main-content .btn:focus-visible {
   outline: none !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
@@ -89,7 +89,7 @@
   font-weight: 600 !important;
 }
 
-.layout .main-content button:disabled {
+.layout .main-content button:disabled:not([class*="ct-"]) {
   opacity: 0.5 !important;
   cursor: not-allowed !important;
 }
@@ -144,7 +144,7 @@
 .layout .main-content .filter-select {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid #D1FAE5 !important;
   border-radius: 13px !important;
   padding: 10px 14px !important;
 }
@@ -165,7 +165,7 @@
 .layout .main-content textarea {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid #D1FAE5 !important;
   border-radius: 13px !important;
 }
 
@@ -181,13 +181,13 @@
    ======================================== */
 .layout .main-content .section {
   background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #D1FAE5 !important;
   border-radius: 16px !important;
 }
 
 .layout .main-content .stat-card {
   background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #D1FAE5 !important;
   border-radius: 12px !important;
 }
 
@@ -204,7 +204,7 @@
 .layout .main-content .action-card,
 .layout .main-content .quick-action-card {
   background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #D1FAE5 !important;
   border-radius: 13px !important;
 }
 
@@ -282,7 +282,7 @@
 }
 
 /* Button Font - Larger */
-.layout .main-content button,
+.layout .main-content button:not([class*="ct-"]),
 .layout .main-content .btn {
   font-size: 16px !important;
 }
@@ -351,7 +351,7 @@
   .layout .main-content .stat-value { font-size: 32px !important; }
   .layout .main-content .stat-label { font-size: 13px !important; }
   .layout .main-content .hub-label { font-size: 16px !important; }
-  .layout .main-content button,
+  .layout .main-content button:not([class*="ct-"]),
   .layout .main-content .btn { font-size: 17px !important; }
   .layout .main-content .refresh-btn {
     width: 44px !important;
@@ -374,7 +374,7 @@
   .layout .main-content .stat-value { font-size: 28px !important; }
   .layout .main-content .stat-label { font-size: 12px !important; }
   .layout .main-content .hub-label { font-size: 15px !important; }
-  .layout .main-content button,
+  .layout .main-content button:not([class*="ct-"]),
   .layout .main-content .btn { font-size: 15px !important; }
   .layout .main-content .refresh-btn {
     width: 44px !important;
@@ -409,7 +409,7 @@
   gap: 8px;
   margin-bottom: 20px;
   padding: 4px;
-  background: #f9fafb;
+  background: #ECFDF5;
   border-radius: 14px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -441,7 +441,7 @@
 .layout .main-content .sub-tab:hover {
   background: #ffffff !important;
   color: #374151 !important;
-  border-color: #e5e7eb !important;
+  border-color: #D1FAE5 !important;
 }
 
 .layout .main-content .sub-tab.active {
@@ -467,8 +467,8 @@
   display: flex;
   gap: 8px;
   padding: 16px 20px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: #ECFDF5;
+  border-bottom: 1px solid #D1FAE5;
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -647,7 +647,7 @@
 .layout .main-content .category-card {
   padding: 1rem;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #D1FAE5;
   background: #fff;
   text-align: center;
 }
@@ -762,7 +762,7 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #D1FAE5;
 }
 
 .layout .main-content .campaign-header h2 {
@@ -778,7 +778,7 @@
   gap: 8px;
   margin-bottom: 20px;
   padding: 4px;
-  background: #f9fafb;
+  background: #ECFDF5;
   border-radius: 14px;
 }
 
@@ -798,7 +798,7 @@
 .layout .main-content .campaign-page .sub-tab:hover {
   background: #ffffff !important;
   color: #374151 !important;
-  border-color: #e5e7eb !important;
+  border-color: #D1FAE5 !important;
 }
 
 .layout .main-content .campaign-page .sub-tab.active {
@@ -834,7 +834,7 @@
 .layout .main-content .campaign-page .form-group textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid #D1FAE5;
   border-radius: 13px;
   font-size: 14px;
   background: #ffffff;
@@ -858,11 +858,11 @@
 
 /* Campaign Contacts Section */
 .layout .main-content .campaign-page .contacts-section {
-  background: #f9fafb;
+  background: #ECFDF5;
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 24px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #D1FAE5;
 }
 
 .layout .main-content .campaign-page .contacts-header {
@@ -889,7 +889,7 @@
 
 .layout .main-content .campaign-page .search-input {
   padding: 10px 14px;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid #D1FAE5;
   border-radius: 13px;
   font-size: 14px;
   min-width: 200px;
@@ -927,7 +927,7 @@
   gap: 10px;
   padding: 12px 14px;
   background: #ffffff;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid #D1FAE5;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -1031,18 +1031,18 @@
   background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #D1FAE5;
 }
 
 .layout .main-content .campaign-page .logs-table th,
 .layout .main-content .campaign-page .logs-table td {
   padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #D1FAE5;
 }
 
 .layout .main-content .campaign-page .logs-table th {
-  background: #f9fafb;
+  background: #ECFDF5;
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
@@ -1122,7 +1122,7 @@
   gap: 8px;
   margin-bottom: 24px;
   padding: 4px;
-  background: #f9fafb;
+  background: #ECFDF5;
   border-radius: 14px;
   overflow-x: auto;
 }
@@ -1144,7 +1144,7 @@
 .layout .main-content .store-page .tab-btn:hover {
   background: #ffffff !important;
   color: #374151 !important;
-  border-color: #e5e7eb !important;
+  border-color: #D1FAE5 !important;
 }
 
 .layout .main-content .store-page .tab-btn.active {
@@ -1156,11 +1156,11 @@
 }
 
 .layout .main-content .store-page .info-banner {
-  background: #f9fafb;
+  background: #ECFDF5;
   padding: 24px;
   border-radius: 16px;
   margin-bottom: 24px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #D1FAE5;
 }
 
 .layout .main-content .store-page .info-banner h3 {
@@ -1197,7 +1197,7 @@
   background: #ffffff;
   padding: 24px;
   border-radius: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #D1FAE5;
   transition: all 0.15s ease;
 }
 
@@ -1272,7 +1272,7 @@
 .layout .main-content .store-page .product-card {
   background: #ffffff;
   border-radius: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #D1FAE5;
   overflow: hidden;
   transition: all 0.15s ease;
 }
@@ -1284,7 +1284,7 @@
 
 .layout .main-content .store-page .product-image {
   height: 160px;
-  background: #f9fafb;
+  background: #ECFDF5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1361,7 +1361,7 @@
   width: 80px;
   height: 80px;
   margin: 0 auto 16px;
-  background: #f9fafb;
+  background: #ECFDF5;
   border-radius: 50%;
   color: #9ca3af;
 }
@@ -1504,9 +1504,10 @@
    Fix alignment when embedded in tabbed page
    ======================================== */
 .layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
-.layout .main-content .tab-content .whatsapp-inbox {
-  height: calc(100vh - 310px) !important;
-  max-height: calc(100vh - 310px) !important;
+.layout .main-content .tab-content .whatsapp-inbox,
+.layout .main-content .ps-content .whatsapp-inbox {
+  height: calc(100vh - var(--inner-header-h, 64px) - var(--inner-footer-h, 40px) - 200px) !important;
+  max-height: calc(100vh - var(--inner-header-h, 64px) - var(--inner-footer-h, 40px) - 200px) !important;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
@@ -1623,7 +1624,7 @@
     max-height: 35vh;
     min-height: 200px;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #D1FAE5;
   }
   
   .layout .main-content .whatsapp-inbox .chat-area {
@@ -1652,7 +1653,7 @@
 .layout .main-content .sms-sidebar input,
 .layout .main-content .voice-sidebar input,
 .layout .main-content .sidebar-search input {
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid #D1FAE5 !important;
   border-radius: 13px !important;
 }
 
@@ -1709,7 +1710,7 @@
 .layout .main-content .pay-page select,
 .layout .main-content .pay-link-page input,
 .layout .main-content .pay-link-page select {
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid #D1FAE5 !important;
   border-radius: 13px !important;
 }
 
@@ -1793,7 +1794,7 @@
 .layout .main-content .form-group input,
 .layout .main-content .form-group select,
 .layout .main-content .form-group textarea {
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid #D1FAE5 !important;
   border-radius: 13px !important;
 }
 
@@ -1829,7 +1830,7 @@
 .layout .main-content .info-banner,
 .layout .main-content .feature-card,
 .layout .main-content .product-card {
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #D1FAE5 !important;
   border-radius: 16px !important;
 }
 
@@ -1980,11 +1981,11 @@
 .layout .main-content .btn-secondary {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #d1d5db !important;
+  border: 1.5px solid #D1FAE5 !important;
 }
 
 .layout .main-content .btn-secondary:hover {
-  background: #f9fafb !important;
+  background: #ECFDF5 !important;
   border-color: #059669 !important;
 }
 
@@ -2046,8 +2047,8 @@
   display: flex;
   gap: 8px;
   padding: 16px 20px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: #ECFDF5;
+  border-bottom: 1px solid #D1FAE5;
   flex-shrink: 0;
   overflow-x: auto;
   position: relative;

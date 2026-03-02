@@ -1,0 +1,85 @@
+"""
+Standardized CORS headers and HTTP response formatting.
+
+Usage:
+    from lambda_utils.response import cors_response, options_response
+
+    def handler(event, context):
+        if event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
+            return options_response()
+        return cors_response(200, {'message': 'OK'})
+"""
+
+import json
+from typing import Any, Dict, Optional
+
+# Allowed origins — lock down to actual domains
+ALLOWED_ORIGINS = [
+    'https://base.wecare.digital',
+    'https://wecare.digital',
+    'https://app.wecare.digital',
+    'http://localhost:3000',
+]
+
+DEFAULT_METHODS = 'GET,POST,PUT,DELETE,OPTIONS'
+DEFAULT_HEADERS = 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Razorpay-Signature'
+
+
+def cors_headers(
+    origin: Optional[str] = None,
+    methods: str = DEFAULT_METHODS,
+    extra_headers: Optional[str] = None,
+) -> Dict[str, str]:
+    """
+    Build CORS headers. If the request origin is in ALLOWED_ORIGINS,
+    reflect it back; otherwise fall back to the primary domain.
+    """
+    allowed = origin if origin in ALLOWED_ORIGINS else ALLOWED_ORIGINS[0]
+    headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': allowed,
+        'Access-Control-Allow-Headers': extra_headers or DEFAULT_HEADERS,
+        'Access-Control-Allow-Methods': methods,
+    }
+    return headers
+
+
+def cors_response(
+    status_code: int,
+    body: Any,
+    origin: Optional[str] = None,
+    methods: str = DEFAULT_METHODS,
+) -> Dict[str, Any]:
+    """Return a properly formatted API Gateway / Function URL response."""
+    return {
+        'statusCode': status_code,
+        'headers': cors_headers(origin, methods),
+        'body': json.dumps(body, default=str),
+    }
+
+
+def options_response(origin: Optional[str] = None) -> Dict[str, Any]:
+    """Shortcut for CORS preflight responses."""
+    return cors_response(200, {}, origin)
+
+
+def extract_origin(event: Dict[str, Any]) -> str:
+    """Extract the Origin header from an API Gateway / Function URL event."""
+    headers = event.get('headers', {})
+    return headers.get('origin', headers.get('Origin', ''))
+
+
+def error_response(
+    status_code: int,
+    message: str,
+    origin: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Standardized error response format.
+    All Lambda functions should use this for consistent error shapes.
+    """
+    body: Dict[str, Any] = {'error': message, 'statusCode': status_code}
+    if details:
+        body['details'] = details
+    return cors_response(status_code, body, origin)
