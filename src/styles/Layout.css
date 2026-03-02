@@ -27,6 +27,7 @@
 }
 
 html, body {
+html, body {
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
@@ -592,9 +593,7 @@ input, textarea, select {
   height: 100vh;
   color: #000000;
   overflow-x: hidden;
-  overflow-y: hidden;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
 }
 
 /* Mobile Menu Toggle */
@@ -630,6 +629,12 @@ input, textarea, select {
   bottom: 0;
   background: rgba(55, 53, 47, 0.6);
   z-index: 999;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sidebar { width: 260px; }
+  .main-content { margin-left: 260px; }
 }
 
 /* ========================================
