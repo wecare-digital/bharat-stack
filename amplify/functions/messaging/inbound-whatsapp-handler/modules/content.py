@@ -139,13 +139,32 @@ def _poll(m: Dict) -> str:
 
 
 def extract_unsupported_content(message: Dict) -> str:
-    """Extract info from unsupported message types."""
+    """Extract info from unsupported message types.
+
+    WhatsApp marks several message categories as 'unsupported' in the
+    Business API webhook, most notably OTP / authentication templates
+    sent by Meta itself.  We detect common patterns so the inbox can
+    render a friendlier label instead of a generic error.
+    """
     errors = message.get('errors', [])
+
+    # ── Detect OTP / authentication template ──
+    # Meta delivers these with error code 131051 ("Message type is
+    # currently not supported") but the sender is typically a short-code
+    # or Meta-owned number.  The error detail string is the best signal.
     for error in errors:
+        code = error.get('code', 0)
         details = error.get('details', '')
+        title = error.get('title', '')
+
+        # Error 131051 is the canonical "unsupported message type" code
+        # that Meta uses for authentication / OTP templates delivered to
+        # business numbers.
+        if code == 131051 or 'not supported' in (details or title or '').lower():
+            return '[Unsupported: OTP or authentication message — content hidden by WhatsApp for security]'
+
         if details:
             return f'[Unsupported: {details}]'
-        title = error.get('title', '')
         if title:
             return f'[Unsupported: {title}]'
 

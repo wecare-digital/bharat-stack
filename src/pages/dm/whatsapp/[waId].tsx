@@ -842,6 +842,16 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     
     // Unsupported messages
     if (messageType === 'unsupported' || content?.includes('[Unsupported') || content?.includes('[Message type not supported')) {
+      // Detect OTP / authentication messages (hidden by WhatsApp for security)
+      const isOtp = content?.includes('OTP') || content?.includes('authentication') || content?.includes('security');
+      if (isOtp) {
+        return (
+          <div className="unsupported-message otp-notice">
+            <span className="unsupported-icon">🔐</span>
+            <span className="unsupported-text">OTP / verification message — content hidden by WhatsApp for security</span>
+          </div>
+        );
+      }
       return (
         <div className="unsupported-message">
           {mediaUrl ? (
@@ -1060,7 +1070,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                           </span>
                           {msg.direction === 'outbound' && (
                             <span className={`message-status ${msg.status}`}>
-                              {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
+                              {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : msg.status === 'failed' ? '✗' : '✓'}
                             </span>
                           )}
                         </div>
@@ -1399,6 +1409,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .message-time { font-size: 11px; color: #999; }
         .message-status { font-size: 12px; }
         .message-status.read, .message-status.delivered { color: #53bdeb; }
+        .message-status.failed { color: #ef4444; }
         .reaction-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.5; }
         .reaction-btn:hover { opacity: 1; }
         

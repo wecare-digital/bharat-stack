@@ -1781,9 +1781,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'length': len(sanitized_filename)
             }))
     else:
-        # Text message
+        # Text message — enable link preview when content contains a URL
+        has_url = 'http://' in content or 'https://' in content
         payload['type'] = 'text'
-        payload['text'] = {'body': content, 'preview_url': False}
+        payload['text'] = {'body': content, 'preview_url': has_url}
     
     return payload
 
@@ -1982,6 +1983,7 @@ def _get_media_extension(media_type: str) -> str:
         'audio/mpeg': '.mp3',
         'audio/mp4': '.m4a',
         'audio/ogg': '.ogg',
+        'audio/opus': '.opus',
         'audio': '.ogg',  # Default audio
 
         # Document formats (max 100MB)
@@ -2031,6 +2033,7 @@ def _get_content_type(media_type: str) -> str:
         'audio/mpeg': 'audio/mpeg',
         'audio/mp4': 'audio/mp4',
         'audio/ogg': 'audio/ogg',
+        'audio/opus': 'audio/ogg',  # Opus → OGG container for WhatsApp
         'audio': 'audio/ogg',
 
         # Document formats (max 100MB)
@@ -2108,19 +2111,45 @@ def _error_response(status_code: int, error: str, message: str = None) -> Dict[s
 
 
 def _send_typing_indicator(phone_number_id: str, recipient_phone: str) -> None:
-    """Send typing indicator to WhatsApp user via Meta Cloud API."""
-    # The AWS Social Messaging SDK doesn't expose typing indicators directly,
-    # so we use the Meta Cloud API passthrough via send_whatsapp_message
-    # with a special payload that Meta interprets as typing_on
+    """Send typing indicator to WhatsApp user.
+    
+    AWS EUM Social API does not expose a native typing indicator endpoint.
+    Instead we send a read receipt (blue ticks) which signals engagement
+    to the customer while the actual response is being prepared.
+    The frontend supplements this with a local typing animation.
+    """
     try:
-        # Use the social messaging client to send a typing indicator
-        # This is a best-effort operation
-        logger.info(f'Sending typing indicator to {recipient_phone} via {phone_number_id}')
-        # Note: AWS Social Messaging doesn't support typing indicators natively
-        # This is a placeholder - the frontend shows a local typing animation instead
+        digits_only = _normalize_phone_number(recipient_phone)
+        formatted_phone = f'+{digits_only}' if not digits_only.startswith('+') else digits_only
+
+        # Send a read-receipt-style payload — this is the closest EUM supports
+        # to a typing indicator. It shows blue ticks on the customer's side.
+        read_payload = {
+            'messaging_product': 'whatsapp',
+            'status': 'read',
+            'recipient_type': 'individual',
+            'to': formatted_phone,
+        }
+
+        social_messaging.send_whatsapp_message(
+            originationPhoneNumberId=phone_number_id,
+            message=json.dumps(read_payload).encode('utf-8'),
+            metaApiVersion=META_API_VERSION
+        )
+
+        logger.info(json.dumps({
+            'event': 'typing_indicator_sent',
+            'recipientPhone': recipient_phone,
+            'phoneNumberId': phone_number_id,
+            'note': 'Sent read receipt as typing proxy (EUM has no native typing API)'
+        }))
     except Exception as e:
-        logger.warning(f'Typing indicator error: {e}')
-        raise
+        # Non-critical — log and swallow so the caller can proceed
+        logger.warning(json.dumps({
+            'event': 'typing_indicator_error',
+            'error': str(e),
+            'recipientPhone': recipient_phone,
+        }))
 
 
 def _emit_delivery_metric(status: str, is_template: bool = False) -> None:

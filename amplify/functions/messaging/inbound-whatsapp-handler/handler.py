@@ -812,6 +812,7 @@ def _get_extension_from_mime(mime_type: str) -> str:
         'audio/mpeg': '.mp3',
         'audio/mp4': '.m4a',
         'audio/ogg': '.ogg',
+        'audio/opus': '.opus',
         
         # Document formats (max 100MB)
         'application/pdf': '.pdf',
@@ -4101,40 +4102,39 @@ def _invoke_ai_generate_response_v2(
 
 def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: str) -> None:
     """
-    Send WhatsApp typing indicator so the customer sees '...' while AI processes.
-    Uses EUM Social SendWhatsAppMessage with typing action.
-    Typing indicator auto-dismisses after 25 seconds without a reply.
+    Send WhatsApp typing indicator so the customer sees engagement while AI processes.
+    
+    AWS EUM Social API does not expose a native typing indicator endpoint.
+    We send a read receipt (blue ticks) as the closest proxy — this signals
+    to the customer that their message was seen and a response is coming.
     """
     if not sender_phone or not phone_number_id:
         return
 
     try:
-        # Clean phone number — ensure no + prefix for WhatsApp recipient
+        # Clean phone number — ensure + prefix for WhatsApp recipient
         clean_phone = sender_phone.lstrip('+')
+        formatted_phone = f'+{clean_phone}'
 
-        typing_payload = {
+        # Send read receipt as typing proxy
+        read_payload = {
             'messaging_product': 'whatsapp',
+            'status': 'read',
             'recipient_type': 'individual',
-            'to': clean_phone,
-            'type': 'reaction',  # Use status endpoint for typing
+            'to': formatted_phone,
         }
 
-        # WhatsApp Cloud API typing indicator
-        # Note: EUM Social API proxies to Meta's Cloud API
-        # The typing indicator is sent via the messages endpoint with status=typing
-        status_payload = {
-            'messaging_product': 'whatsapp',
-            'status': 'read',  # Mark as read first (shows blue ticks)
-            'message_id': '',  # Will be ignored if empty
-        }
+        social_messaging.send_whatsapp_message(
+            originationPhoneNumberId=phone_number_id,
+            message=json.dumps(read_payload).encode('utf-8'),
+            metaApiVersion='v20.0'
+        )
 
-        # For typing indicator, we use a lightweight approach:
-        # Send read receipt which shows engagement, the actual typing
-        # indicator is implicit when the response comes quickly after read
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',
             'senderPhone': sender_phone,
             'phoneNumberId': phone_number_id,
+            'note': 'Sent read receipt as typing proxy (EUM has no native typing API)',
             'requestId': request_id
         }))
 

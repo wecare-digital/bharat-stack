@@ -707,6 +707,15 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     
     // For unsupported messages without media
     if (isUnsupported) {
+      // Detect OTP / authentication messages (hidden by WhatsApp for security)
+      const isOtp = content.includes('OTP') || content.includes('authentication') || content.includes('security');
+      if (isOtp) {
+        return (
+          <span className="unsupported-msg otp-notice">
+            🔐 OTP / verification message — content hidden by WhatsApp
+          </span>
+        );
+      }
       // Try to extract useful info from the content
       const match = content.match(/\[Unsupported: (.+?)\]/);
       const detail = match ? match[1] : 'Message type not viewable';
