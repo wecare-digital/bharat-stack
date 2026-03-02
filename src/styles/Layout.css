@@ -595,11 +595,6 @@ input, textarea, select {
   overflow-y: auto;
 }
 
-/* When main-content contains a page-shell, let the shell handle scrolling */
-.main-content:has(.page-shell) {
-  overflow-y: hidden;
-}
-
 /* Mobile Menu Toggle */
 .mobile-menu-toggle {
   display: none;
