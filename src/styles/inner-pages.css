@@ -1505,9 +1505,8 @@
    ======================================== */
 .layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
 .layout .main-content .tab-content .whatsapp-inbox {
-  flex: 1;
-  height: 100% !important;
-  max-height: 100% !important;
+  height: calc(100vh - 310px) !important;
+  max-height: calc(100vh - 310px) !important;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
@@ -1516,7 +1515,6 @@
 }
 
 .layout .main-content .whatsapp-inbox {
-  flex: 1;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
