@@ -592,7 +592,9 @@ input, textarea, select {
   height: 100vh;
   color: #000000;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Mobile Menu Toggle */

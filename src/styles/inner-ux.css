@@ -1285,11 +1285,12 @@
    BREADCRUMBS
    ======================================== */
 .breadcrumbs {
-  margin: 8px 0;
+  margin: 8px 10px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-secondary);
   border-radius: 13px;
   border: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .breadcrumbs-list {
@@ -1640,7 +1641,7 @@
 .page-shell {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   padding: 0 10px;
   overflow: hidden;
@@ -1649,7 +1650,6 @@
 /* Nested page-shell: remove padding, inherit full space */
 .ps-content .page-shell {
   padding: 0;
-  height: 100%;
 }
 
 .ps-header {
@@ -1757,6 +1757,8 @@
   min-height: 0;
   overflow: hidden;
   background: #fff;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Section separator between tabs and content */
