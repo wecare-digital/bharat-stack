@@ -630,12 +630,6 @@ input, textarea, select {
   z-index: 999;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .sidebar { width: 260px; }
-  .main-content { margin-left: 260px; }
-}
-
 /* ========================================
    TABLET STYLES (768px - 1024px)
    ======================================== */

@@ -1646,9 +1646,10 @@
   overflow: hidden;
 }
 
-/* Nested page-shell: no extra padding */
+/* Nested page-shell: remove padding, inherit full space */
 .ps-content .page-shell {
   padding: 0;
+  height: 100%;
 }
 
 .ps-header {
@@ -1754,16 +1755,15 @@
 .ps-content {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   background: #fff;
-  border-radius: 8px;
 }
 
 /* Section separator between tabs and content */
 .ps-separator {
   height: 1px;
   background: var(--color-border, #e5e7eb);
-  margin-bottom: 16px;
+  margin-bottom: 0;
   flex-shrink: 0;
 }
 

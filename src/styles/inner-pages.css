@@ -1506,7 +1506,7 @@
 .layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
 .layout .main-content .tab-content .whatsapp-inbox {
   height: 100% !important;
-  max-height: calc(100vh - 180px) !important;
+  max-height: none !important;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
@@ -1522,9 +1522,10 @@
 
 /* Fix contacts sidebar width */
 .layout .main-content .whatsapp-inbox .contacts-sidebar {
-  min-width: 280px;
-  max-width: 320px;
+  min-width: 240px;
+  max-width: 300px;
   flex-shrink: 0;
+  width: 30%;
 }
 
 /* Fix chat area to fill remaining space */
