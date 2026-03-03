@@ -728,7 +728,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     e.stopPropagation();
                                     setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId);
                                   }} 
-                                  className="tag-add-btn"
                                   style={{ 
                                     width: 24, 
                                     height: 24, 
@@ -740,12 +739,16 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     alignItems: 'center', 
                                     justifyContent: 'center', 
                                     padding: 0, 
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    fontSize: 20,
+                                    fontWeight: 400,
+                                    lineHeight: 1,
+                                    color: '#059669',
+                                    fontFamily: 'Inter, sans-serif'
                                   } as React.CSSProperties}
+                                  title="Add tag"
                                 >
-                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v14m-7-7h14"/>
-                                  </svg>
+                                  +
                                 </button>
                                 {showTagMenu === c.contactId && (
                                   <div 

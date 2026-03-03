@@ -1652,21 +1652,3 @@ input[type="checkbox"]:active {
   outline-offset: 0 !important;
   box-shadow: none !important;
 }
-
-/* Tag add button - force green color */
-.tag-add-btn {
-  color: #059669 !important;
-}
-
-.tag-add-btn:hover {
-  background: #ECFDF5 !important;
-}
-
-.tag-add-btn svg {
-  display: block !important;
-  pointer-events: none !important;
-}
-
-.tag-add-btn svg path {
-  stroke: #059669 !important;
-}
