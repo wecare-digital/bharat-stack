@@ -1661,3 +1661,7 @@ input[type="checkbox"]:active {
 .tag-add-btn:hover {
   background: #ECFDF5 !important;
 }
+
+.tag-add-btn svg path {
+  stroke: #059669 !important;
+}
