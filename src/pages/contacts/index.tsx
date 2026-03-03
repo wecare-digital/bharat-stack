@@ -410,17 +410,17 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   // SortHeader component
   const SortHeader = ({ label, sKey, style }: { label: string; sKey: SortKey; style?: React.CSSProperties }) => (
-    <th onClick={() => toggleSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
+    <th onClick={() => toggleSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
       <span style={{ display: 'inline-flex', alignItems: 'center' }}>{label}<SortIcon dir={sortKey === sKey ? sortDir : null} /></span>
     </th>
   );
 
   // Inline styles for form (bypasses Next.js style jsx scoping)
   const S: Record<string, React.CSSProperties> = {
-    label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 },
-    input: { width: '100%', padding: '8px 12px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff' },
-    row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-    hint: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+    label: { display: 'block', fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 5 },
+    input: { width: '100%', padding: '10px 14px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 15, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff' },
+    row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
+    hint: { fontSize: 12, color: '#9ca3af', marginTop: 3 },
   };
   const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)'; };
   const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#D1FAE5'; e.target.style.boxShadow = 'none'; };
@@ -487,38 +487,42 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
         <div>
           <label style={S.label}>Billing Address</label>
-          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} disabled={formBillingAddress === formShippingAddress && formShippingAddress !== ''} />
-          <label 
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#059669', fontWeight: 600, marginTop: 6, cursor: 'pointer' }}
+          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+          <button 
+            type="button"
+            onClick={() => setFormBillingAddress(formShippingAddress)}
+            disabled={!formShippingAddress}
+            style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: 4, 
+              fontSize: 11, 
+              color: '#059669', 
+              fontWeight: 600, 
+              marginTop: 6, 
+              cursor: formShippingAddress ? 'pointer' : 'not-allowed',
+              opacity: formShippingAddress ? 1 : 0.5,
+              background: 'none',
+              border: 'none',
+              padding: 0
+            }}
           >
-            <input 
-              type="checkbox" 
-              checked={formBillingAddress === formShippingAddress && formShippingAddress !== ''} 
-              onChange={e => setFormBillingAddress(e.target.checked ? formShippingAddress : '')} 
-              style={{ 
-                accentColor: '#059669', 
-                outline: 'none !important' as any, 
-                border: 'none', 
-                boxShadow: 'none !important' as any,
-                cursor: 'pointer'
-              }} 
-              onFocus={e => {
-                e.target.style.outline = 'none';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-            Same as shipping address
-          </label>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Copy from shipping
+          </button>
         </div>
       </div>
       {/* Opt-in toggle */}
       <div>
-        <button type="button" onClick={() => setShowOptIn(!showOptIn)} style={{ fontSize: 13, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ transform: showOptIn ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>▶</span>
+        <button type="button" onClick={() => setShowOptIn(!showOptIn)} style={{ fontSize: 14, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+          <span style={{ transform: showOptIn ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block', color: '#059669', fontSize: 16 }}>▶</span>
           Opt-in &amp; Allowlist
         </button>
         {showOptIn && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, padding: 12, background: '#f9fafb', borderRadius: 13, border: '2px solid #D1FAE5' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10, padding: 14, background: '#f9fafb', borderRadius: 13, border: '2px solid #D1FAE5' }}>
             {[
               { label: 'WhatsApp Opt-in', val: formOptInWA, set: setFormOptInWA },
               { label: 'WhatsApp Allowlist', val: formAllowlistWA, set: setFormAllowlistWA },
@@ -527,8 +531,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               { label: 'Email Opt-in', val: formOptInEmail, set: setFormOptInEmail },
               { label: 'Email Allowlist', val: formAllowlistEmail, set: setFormAllowlistEmail },
             ].map(item => (
-              <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)} style={{ accentColor: '#059669' }} />
+              <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
+                <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)} style={{ accentColor: '#059669', width: 16, height: 16 }} />
                 {item.label}
               </label>
             ))}
@@ -658,61 +662,61 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             ) : (
               <div style={{ maxHeight: 'calc(100vh - 240px)', overflow: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
-                      <th style={{ width: 40, padding: '10px 8px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>
-                        <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ accentColor: '#059669' }} />
+                      <th style={{ width: 40, padding: '12px 10px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>
+                        <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ accentColor: '#059669', width: 16, height: 16 }} />
                       </th>
                       <SortHeader label="Name" sKey="name" />
                       <SortHeader label="Phone" sKey="phone" />
                       <SortHeader label="Email" sKey="email" />
-                      {colVisible('shipping') && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
-                      {colVisible('billing') && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
+                      {colVisible('shipping') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
+                      {colVisible('billing') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
                       {colVisible('updated') && <SortHeader label="Updated" sKey="updatedAt" />}
-                      {colVisible('tags') && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
-                      <th style={{ width: 90, padding: '10px 8px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
+                      {colVisible('tags') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
+                      <th style={{ width: 100, padding: '12px 10px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedContacts.map(c => (
                       <tr key={c.contactId} onClick={() => setDetailContact(c)} style={{ cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#ECFDF5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                        <td style={{ padding: '8px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669' }} />
+                        <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669', width: 16, height: 16 }} />
                         </td>
                         {/* Name — inline editable */}
-                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', fontWeight: 500 }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontWeight: 500, fontSize: 14 }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'name' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '2px solid #059669', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.name || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>unnamed</span>)}
                         </td>
-                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5' }}>{c.phone}</td>
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14 }}>{c.phone}</td>
                         {/* Email — inline editable */}
-                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5' }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14 }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'email' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '2px solid #059669', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.email || '—')}
                         </td>
-                        {colVisible('shipping') && <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.shippingAddress || '—'}</td>}
-                        {colVisible('billing') && <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.billingAddress || '—'}</td>}
-                        {colVisible('updated') && <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', color: '#6b7280', fontSize: 12 }} title={c.updatedAt ? new Date(c.updatedAt).toLocaleString() : ''}>{timeAgo(c.updatedAt)}</td>}
+                        {colVisible('shipping') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.shippingAddress || '—'}</td>}
+                        {colVisible('billing') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.billingAddress || '—'}</td>}
+                        {colVisible('updated') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', color: '#6b7280', fontSize: 13 }} title={c.updatedAt ? new Date(c.updatedAt).toLocaleString() : ''}>{timeAgo(c.updatedAt)}</td>}
                         {colVisible('tags') && (
-                          <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5' }} onClick={e => e.stopPropagation()}>
+                          <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                               {(contactTags[c.contactId] || []).map(tag => (
-                                <span key={tag} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                                <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
                               ))}
                               <div style={{ position: 'relative' }}>
-                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 22, height: 22, borderRadius: '50%', border: '1px solid #D1FAE5', background: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: '20px', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #059669', background: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: '20px', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>+</button>
                                 {showTagMenu === c.contactId && (
-                                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 6, zIndex: 50, minWidth: 130, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                                  <div style={{ position: 'absolute', top: 'auto', bottom: '100%', left: 0, marginBottom: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 6, zIndex: 50, minWidth: 130, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
                                     {TAG_OPTIONS.map(tag => {
                                       const active = (contactTags[c.contactId] || []).includes(tag);
                                       return (
-                                        <button key={tag} onClick={() => toggleTag(c.contactId, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 8px', border: 'none', background: active ? '#ECFDF5' : 'transparent', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
-                                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: TAG_COLORS[tag] }}></span>
+                                        <button key={tag} onClick={() => toggleTag(c.contactId, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 10px', border: 'none', background: active ? '#ECFDF5' : 'transparent', borderRadius: 8, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+                                          <span style={{ width: 12, height: 12, borderRadius: '50%', background: TAG_COLORS[tag] }}></span>
                                           {tag}
-                                          {active && <span style={{ marginLeft: 'auto', color: '#059669' }}>✓</span>}
+                                          {active && <span style={{ marginLeft: 'auto', color: '#059669', fontWeight: 600 }}>✓</span>}
                                         </button>
                                       );
                                     })}
@@ -722,10 +726,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                             </div>
                           </td>
                         )}
-                        <td style={{ padding: '8px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                            <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><EditIcon size={16} /></button>
-                            <button onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name); }} title="Delete" style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><DeleteIcon size={16} /></button>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                            <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><EditIcon size={18} /></button>
+                            <button onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name); }} title="Delete" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><DeleteIcon size={18} /></button>
                           </div>
                         </td>
                       </tr>

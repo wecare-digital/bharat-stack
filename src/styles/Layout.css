@@ -1625,8 +1625,27 @@ input[type="checkbox"] {
 }
 
 input[type="checkbox"]:focus,
-input[type="checkbox"]:focus-visible {
+input[type="checkbox"]:focus-visible,
+input[type="checkbox"]:active {
   outline: none !important;
+  outline-width: 0 !important;
+  outline-offset: 0 !important;
   box-shadow: none !important;
   border: none !important;
+}
+
+/* Specific class for contact form checkbox */
+.checkbox-no-outline {
+  outline: none !important;
+  box-shadow: none !important;
+  accent-color: #059669;
+}
+
+.checkbox-no-outline:focus,
+.checkbox-no-outline:focus-visible,
+.checkbox-no-outline:active {
+  outline: none !important;
+  outline-width: 0 !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
 }
