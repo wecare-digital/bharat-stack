@@ -725,6 +725,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                               <div style={{ position: 'relative' }}>
                                 <button 
                                   onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} 
+                                  className="tag-add-btn"
                                   style={{ 
                                     width: 24, 
                                     height: 24, 
@@ -739,9 +740,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     flexShrink: 0,
                                     fontSize: 18,
                                     fontWeight: 600,
-                                    color: '#059669',
                                     lineHeight: 1
-                                  }}
+                                  } as React.CSSProperties}
                                 >
                                   +
                                 </button>
