@@ -1,6 +1,7 @@
 /**
  * Contacts Management Page
- * Full CRUD with sorting, pagination, tooltips, keyboard shortcuts
+ * Full CRUD with sorting, pagination, tooltips, keyboard shortcuts,
+ * bulk actions, inline edit, column visibility, detail panel, duplicate detection, tags
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -11,51 +12,29 @@ import { useToastContext } from '../../contexts/ToastContext';
 import * as api from '../../api/client';
 
 // SVG Icons — emerald theme (#059669)
-const AddUserIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/>
-  </svg>
-);
-const UploadIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-    <path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/>
-  </svg>
-);
-const RefreshIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-    <path fill="#059669" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/>
-  </svg>
-);
-const DownloadIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m8 12 4 4m0 0 4-4m-4 4V6.8c0-1.39 0-2.086-.55-2.865-.366-.517-1.42-1.155-2.047-1.24-.945-.128-1.304.059-2.022.433A10 10 0 0 0 2 12c0 5.523 4.477 10 10 10s10-4.477 10-10a10 10 0 0 0-5-8.662"/>
-  </svg>
-);
-const ExportIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-  </svg>
-);
-const EditIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/>
-  </svg>
-);
-const DeleteIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/>
-  </svg>
-);
-const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}>
-    <path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} />
-    <path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} />
-  </svg>
-);
+const AddUserIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
+const UploadIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/></svg>);
+const RefreshIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="#059669" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/></svg>);
+const DownloadIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m8 12 4 4m0 0 4-4m-4 4V6.8c0-1.39 0-2.086-.55-2.865-.366-.517-1.42-1.155-2.047-1.24-.945-.128-1.304.059-2.022.433A10 10 0 0 0 2 12c0 5.523 4.477 10 10 10s10-4.477 10-10a10 10 0 0 0-5-8.662"/></svg>);
+const ExportIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
+const EditIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
+const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
+const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} /></svg>);
+const CloseIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>);
 
 type SortKey = 'name' | 'phone' | 'email' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 25;
+const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
+const TAG_COLORS: Record<string, string> = { VIP: '#dc2626', Lead: '#2563eb', Customer: '#059669', Prospect: '#d97706', Partner: '#7c3aed', Vendor: '#0891b2' };
+
+type ColumnKey = 'shipping' | 'billing' | 'updated' | 'tags';
+const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
+  { key: 'shipping', label: 'Shipping' },
+  { key: 'billing', label: 'Billing' },
+  { key: 'updated', label: 'Updated' },
+  { key: 'tags', label: 'Tags' },
+];
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '—';
@@ -85,11 +64,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [showImport, setShowImport] = useState(false);
   const toast = useToastContext();
 
-  // Sorting
+  // Sorting & Pagination
   const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
 
   // Form state
@@ -98,6 +75,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formEmail, setFormEmail] = useState('');
   const [formShippingAddress, setFormShippingAddress] = useState('');
   const [formBillingAddress, setFormBillingAddress] = useState('');
+  const [formCountryCode, setFormCountryCode] = useState('+91');
   const [formOptInWA, setFormOptInWA] = useState(false);
   const [formOptInSms, setFormOptInSms] = useState(false);
   const [formOptInEmail, setFormOptInEmail] = useState(false);
@@ -118,26 +96,62 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const [contacts, setContacts] = useState<api.Contact[]>([]);
 
+  // === NEW FEATURES STATE ===
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Column visibility
+  const [hiddenCols, setHiddenCols] = useState<Set<ColumnKey>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ct-hidden-cols');
+      if (saved) return new Set(JSON.parse(saved) as ColumnKey[]);
+    }
+    return new Set();
+  });
+  const [showColMenu, setShowColMenu] = useState(false);
+
+  // Inline edit
+  const [inlineEdit, setInlineEdit] = useState<{ id: string; field: 'name' | 'email'; value: string } | null>(null);
+
+  // Detail panel
+  const [detailContact, setDetailContact] = useState<api.Contact | null>(null);
+
+  // Tags (stored in-memory per session — would need backend support for persistence)
+  const [contactTags, setContactTags] = useState<Record<string, string[]>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ct-tags');
+      if (saved) return JSON.parse(saved);
+    }
+    return {};
+  });
+  const [showTagMenu, setShowTagMenu] = useState<string | null>(null);
+  const [showOptIn, setShowOptIn] = useState(false);
+
+  // Persist column visibility & tags
+  useEffect(() => { localStorage.setItem('ct-hidden-cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+  useEffect(() => { localStorage.setItem('ct-tags', JSON.stringify(contactTags)); }, [contactTags]);
+
+  const colVisible = (key: ColumnKey) => !hiddenCols.has(key);
+  const toggleCol = (key: ColumnKey) => {
+    setHiddenCols(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  };
+
   const loadContacts = useCallback(async () => {
     setLoading(true);
-    try {
-      const data = await api.listContacts();
-      setContacts(data);
-    } catch (err) {
-      console.error('Failed to load contacts:', err);
-      toast.error('Failed to load contacts');
-    } finally { setLoading(false); }
+    try { const data = await api.listContacts(); setContacts(data); }
+    catch { toast.error('Failed to load contacts'); }
+    finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
-  // Keyboard shortcuts: N=new, /=search, Esc=close modals
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-
       if (e.key === 'Escape') {
+        if (detailContact) { setDetailContact(null); return; }
         if (showModal) { setShowModal(false); return; }
         if (showEditModal) { setShowEditModal(false); setEditingContact(null); return; }
         if (showDeleteModal) { setShowDeleteModal(null); return; }
@@ -148,7 +162,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showModal, showEditModal, showDeleteModal]);
+  }, [showModal, showEditModal, showDeleteModal, detailContact]);
 
   // Filter + sort
   const filteredSorted = useMemo(() => {
@@ -165,18 +179,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         const db = new Date(bv).getTime() || 0;
         return sortDir === 'asc' ? da - db : db - da;
       }
-      const cmp = av.localeCompare(bv, undefined, { sensitivity: 'base' });
-      return sortDir === 'asc' ? cmp : -cmp;
+      return sortDir === 'asc' ? av.localeCompare(bv, undefined, { sensitivity: 'base' }) : bv.localeCompare(av, undefined, { sensitivity: 'base' });
     });
     return list;
   }, [contacts, searchQuery, sortKey, sortDir]);
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedContacts = filteredSorted.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
-
-  // Reset page when search changes
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
   const toggleSort = (key: SortKey) => {
@@ -186,21 +196,32 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const resetForm = () => {
     setFormName(''); setFormPhone(''); setFormEmail('');
-    setFormShippingAddress(''); setFormBillingAddress('');
-    setFormOptInWA(false); setFormOptInSms(false); setFormOptInEmail(false);
-    setFormAllowlistWA(false); setFormAllowlistSms(false); setFormAllowlistEmail(false);
+    setFormShippingAddress(''); setFormBillingAddress(''); setFormCountryCode('+91');
+    setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
+    setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
+  };
+
+  // Duplicate detection
+  const checkDuplicate = (phone: string, email: string, excludeId?: string): string | null => {
+    const fullPhone = phone ? (phone.startsWith('+') ? phone : `${formCountryCode}${phone.replace(/^0+/, '')}`) : '';
+    for (const c of contacts) {
+      if (excludeId && c.contactId === excludeId) continue;
+      if (fullPhone && c.phone === fullPhone) return `Phone ${fullPhone} already exists (${c.name || 'unnamed'})`;
+      if (email && c.email && c.email.toLowerCase() === email.toLowerCase()) return `Email ${email} already exists (${c.name || 'unnamed'})`;
+    }
+    return null;
   };
 
   const handleCreate = async () => {
     if (!formPhone && !formEmail) { toast.warning('Phone or email is required'); return; }
+    const dup = checkDuplicate(formPhone, formEmail);
+    if (dup) { toast.warning(dup); return; }
+    const fullPhone = formPhone ? (formPhone.startsWith('+') ? formPhone : `${formCountryCode}${formPhone.replace(/^0+/, '')}`) : '';
     setSaving(true);
     try {
       const result = await api.createContact({
-        name: formName,
-        phone: formPhone.startsWith('+') ? formPhone : `+${formPhone}`,
-        email: formEmail || undefined,
-        shippingAddress: formShippingAddress || undefined,
-        billingAddress: formBillingAddress || undefined,
+        name: formName, phone: fullPhone || undefined, email: formEmail || undefined,
+        shippingAddress: formShippingAddress || undefined, billingAddress: formBillingAddress || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
       });
@@ -212,7 +233,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleEdit = (contact: api.Contact) => {
     setEditingContact(contact);
-    setFormName(contact.name || ''); setFormPhone(contact.phone || ''); setFormEmail(contact.email || '');
+    setFormName(contact.name || '');
+    const ph = contact.phone || '';
+    const ccMatch = ph.match(/^(\+\d{1,4})/);
+    if (ccMatch) { setFormCountryCode(ccMatch[1]); setFormPhone(ph.slice(ccMatch[1].length)); }
+    else { setFormCountryCode('+91'); setFormPhone(ph); }
+    setFormEmail(contact.email || '');
     setFormShippingAddress(contact.shippingAddress || ''); setFormBillingAddress(contact.billingAddress || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
     setFormAllowlistWA(contact.allowlistWhatsApp || false); setFormAllowlistSms(contact.allowlistSms || false); setFormAllowlistEmail(contact.allowlistEmail || false);
@@ -221,14 +247,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleUpdate = async () => {
     if (!editingContact || (!formPhone && !formEmail)) { toast.warning('Phone or email is required'); return; }
+    const dup = checkDuplicate(formPhone, formEmail, editingContact.contactId);
+    if (dup) { toast.warning(dup); return; }
+    const fullPhone = formPhone ? (formPhone.startsWith('+') ? formPhone : `${formCountryCode}${formPhone.replace(/^0+/, '')}`) : '';
     setSaving(true);
     try {
       const result = await api.updateContact(editingContact.contactId, {
-        name: formName,
-        phone: formPhone.startsWith('+') ? formPhone : `+${formPhone}`,
-        email: formEmail || undefined,
-        shippingAddress: formShippingAddress || undefined,
-        billingAddress: formBillingAddress || undefined,
+        name: formName, phone: fullPhone || undefined, email: formEmail || undefined,
+        shippingAddress: formShippingAddress || undefined, billingAddress: formBillingAddress || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
       });
@@ -242,34 +268,110 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setShowDeleteModal(null);
     try {
       const result = await api.deleteContact(contactId);
-      if (result) { toast.success('Contact deleted'); await loadContacts(); }
+      if (result) { toast.success('Contact deleted'); selectedIds.delete(contactId); setSelectedIds(new Set(selectedIds)); await loadContacts(); }
       else toast.error('Failed to delete contact');
     } catch { toast.error('Failed to delete contact'); }
   };
 
-  // CSV import
-  const handleFileSelect = (file: File) => {
-    if (!file.name.endsWith('.csv') && !file.name.endsWith('.vcf')) { toast.error('Please select a CSV or VCF file'); return; }
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!confirm(`Delete ${count} contact${count > 1 ? 's' : ''}?`)) return;
+    let deleted = 0;
+    for (const id of selectedIds) {
+      try { const r = await api.deleteContact(id); if (r) deleted++; } catch {}
+    }
+    setSelectedIds(new Set());
+    toast.success(`Deleted ${deleted} contact${deleted > 1 ? 's' : ''}`);
+    await loadContacts();
+  };
+
+  // Bulk export selected
+  const handleBulkExport = () => {
+    const selected = contacts.filter(c => selectedIds.has(c.contactId));
+    if (selected.length === 0) return;
+    const csv = api.exportContactsToCSV(selected);
+    api.downloadFile(csv, `contacts_selected_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+  };
+
+  // Select all on current page
+  const allPageSelected = paginatedContacts.length > 0 && paginatedContacts.every(c => selectedIds.has(c.contactId));
+  const toggleSelectAll = () => {
+    const next = new Set(selectedIds);
+    if (allPageSelected) { paginatedContacts.forEach(c => next.delete(c.contactId)); }
+    else { paginatedContacts.forEach(c => next.add(c.contactId)); }
+    setSelectedIds(next);
+  };
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
+  };
+
+  // Inline edit
+  const commitInlineEdit = async () => {
+    if (!inlineEdit) return;
+    const { id, field, value } = inlineEdit;
+    setInlineEdit(null);
+    try {
+      const result = await api.updateContact(id, { [field]: value });
+      if (result) { toast.success(`${field} updated`); await loadContacts(); }
+    } catch { toast.error('Failed to update'); }
+  };
+
+  // Tags
+  const toggleTag = (contactId: string, tag: string) => {
+    setContactTags(prev => {
+      const tags = prev[contactId] || [];
+      const next = tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag];
+      return { ...prev, [contactId]: next };
+    });
+  };
+
+  // CSV import handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const parsed = file.name.endsWith('.vcf') ? parseVCard(content) : api.parseContactsCSV(content);
-      setPreviewData(parsed); setImportResult(null);
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      if (file.name.endsWith('.vcf')) {
+        setPreviewData(parseVCard(text));
+      } else {
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length < 2) { toast.warning('CSV file is empty'); return; }
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const nameIdx = headers.findIndex(h => h === 'name');
+        const phoneIdx = headers.findIndex(h => h === 'phone');
+        const emailIdx = headers.findIndex(h => h === 'email');
+        const rows: Partial<api.Contact>[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.trim());
+          rows.push({
+            name: nameIdx >= 0 ? cols[nameIdx] : '',
+            phone: phoneIdx >= 0 ? cols[phoneIdx] : '',
+            email: emailIdx >= 0 ? cols[emailIdx] : '',
+          });
+        }
+        setPreviewData(rows);
+      }
     };
     reader.readAsText(file);
   };
 
-  const parseVCard = (content: string): Partial<api.Contact>[] => {
-    const results: Partial<api.Contact>[] = [];
-    for (const vcard of content.split('END:VCARD')) {
-      if (!vcard.includes('BEGIN:VCARD')) continue;
-      const c: Partial<api.Contact> = {};
-      const fn = vcard.match(/FN:(.+)/); if (fn) c.name = fn[1].trim();
-      const tel = vcard.match(/TEL[^:]*:(.+)/); if (tel) { let p = tel[1].replace(/[^\d+]/g, ''); if (!p.startsWith('+')) p = '+' + p; c.phone = p; }
-      const em = vcard.match(/EMAIL[^:]*:(.+)/); if (em) c.email = em[1].trim();
-      if (c.phone || c.email) results.push(c);
-    }
-    return results;
+  const parseVCard = (text: string): Partial<api.Contact>[] => {
+    const cards = text.split('BEGIN:VCARD').filter(c => c.trim());
+    return cards.map(card => {
+      const lines = card.split('\n');
+      let name = '', phone = '', email = '';
+      for (const line of lines) {
+        if (line.startsWith('FN:')) name = line.slice(3).trim();
+        if (line.startsWith('TEL') && !phone) { const m = line.match(/:([\d+\s-]+)/); if (m) phone = m[1].replace(/[\s-]/g, ''); }
+        if (line.startsWith('EMAIL')) { const m = line.match(/:(.+)/); if (m) email = m[1].trim(); }
+      }
+      return { name, phone, email };
+    }).filter(c => c.phone || c.email);
   };
 
   const handleImport = async () => {
@@ -278,7 +380,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     try {
       const result = await api.importContacts(previewData);
       setImportResult(result);
-      if (result.created > 0 || result.updated > 0) await loadContacts();
+      toast.success(`Imported ${result.created} of ${result.total} contacts`);
+      await loadContacts();
     } catch { toast.error('Import failed'); }
     finally { setImporting(false); }
   };
@@ -289,302 +392,433 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const downloadTemplate = () => {
-    api.downloadFile(`name,phone,email\nJohn Doe,+919876543210,john@example.com\nJane Smith,+918765432109,`, 'contacts_template.csv', 'text/csv');
+    api.downloadFile('Name,Phone,Email\nJohn Doe,+919000090000,[email]', 'contacts_template.csv', 'text/csv');
   };
 
-  const SortHeader = ({ label, field, width }: { label: string; field: SortKey; width?: number }) => (
-    <th style={{ cursor: 'pointer', userSelect: 'none', width, background: '#ECFDF5' }} onClick={() => toggleSort(field)}>
-      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-        {label}<SortIcon dir={sortKey === field ? sortDir : null} />
-      </span>
+  // Country codes
+  const countryCodes = [
+    { code: '+91', country: 'India' }, { code: '+1', country: 'USA/Canada' }, { code: '+44', country: 'UK' },
+    { code: '+61', country: 'Australia' }, { code: '+971', country: 'UAE' }, { code: '+966', country: 'Saudi Arabia' },
+    { code: '+65', country: 'Singapore' }, { code: '+60', country: 'Malaysia' }, { code: '+49', country: 'Germany' },
+    { code: '+33', country: 'France' }, { code: '+81', country: 'Japan' }, { code: '+86', country: 'China' },
+    { code: '+82', country: 'South Korea' }, { code: '+55', country: 'Brazil' }, { code: '+27', country: 'South Africa' },
+    { code: '+234', country: 'Nigeria' }, { code: '+254', country: 'Kenya' }, { code: '+62', country: 'Indonesia' },
+    { code: '+63', country: 'Philippines' }, { code: '+7', country: 'Russia' },
+  ];
+
+  // SortHeader component
+  const SortHeader = ({ label, sKey, style }: { label: string; sKey: SortKey; style?: React.CSSProperties }) => (
+    <th onClick={() => toggleSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center' }}>{label}<SortIcon dir={sortKey === sKey ? sortDir : null} /></span>
     </th>
   );
 
+  // Inline styles for form (bypasses Next.js style jsx scoping)
+  const S: Record<string, React.CSSProperties> = {
+    label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 },
+    input: { width: '100%', padding: '8px 12px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff' },
+    row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+    hint: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
+  };
+  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)'; };
+  const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#D1FAE5'; e.target.style.boxShadow = 'none'; };
 
-  const [showOptIn, setShowOptIn] = useState(false);
-
-  // Contact form fields (shared between add/edit modals)
-  const renderContactForm = () => (
-    <div className="ct-form-grid">
-      <div className="ct-form-row">
-        <label className="ct-label">Name</label>
-        <input className="ct-input" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Full name" />
+  const renderContactForm = (isEdit: boolean) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 24px' }}>
+      {/* Name */}
+      <div>
+        <label style={S.label}>Name</label>
+        <input style={S.input} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Full name" onFocus={focusStyle} onBlur={blurStyle} />
       </div>
-      <div className="ct-form-2col">
-        <div className="ct-form-row">
-          <label className="ct-label">Phone *</label>
-          <input className="ct-input" value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="+919876543210" />
-        </div>
-        <div className="ct-form-row">
-          <label className="ct-label">Email</label>
-          <input className="ct-input" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="email@example.com" />
-        </div>
-      </div>
-      <div className="ct-form-2col">
-        <div className="ct-form-row">
-          <label className="ct-label">Shipping Address</label>
-          <textarea className="ct-textarea" value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="Shipping address" rows={2} />
-        </div>
-        <div className="ct-form-row">
-          <label className="ct-label">Billing Address</label>
-          <textarea className="ct-textarea" value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="Billing address" rows={2} />
-        </div>
-      </div>
-      <button type="button" className="ct-toggle-optin" onClick={() => setShowOptIn(!showOptIn)}>
-        {showOptIn ? '▾' : '▸'} Opt-in &amp; Allowlist
-      </button>
-      {showOptIn && (
-        <div className="ct-optin-section">
-          <div className="ct-form-row">
-            <label className="ct-label">Opt-in</label>
-            <div className="ct-checks">
-              <label className="ct-check"><input type="checkbox" checked={formOptInWA} onChange={e => setFormOptInWA(e.target.checked)} /> WhatsApp</label>
-              <label className="ct-check"><input type="checkbox" checked={formOptInSms} onChange={e => setFormOptInSms(e.target.checked)} /> SMS</label>
-              <label className="ct-check"><input type="checkbox" checked={formOptInEmail} onChange={e => setFormOptInEmail(e.target.checked)} /> Email</label>
-            </div>
+      {/* Phone + Email row */}
+      <div style={S.row}>
+        <div>
+          <label style={S.label}>Phone</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <select value={formCountryCode} onChange={e => setFormCountryCode(e.target.value)} style={{ ...S.input, width: 100, padding: '8px 4px', flexShrink: 0 }} onFocus={focusStyle as any} onBlur={blurStyle as any}>
+              {countryCodes.map(cc => <option key={cc.code} value={cc.code}>{cc.code} {cc.country}</option>)}
+            </select>
+            <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="+91 9000090000" onFocus={focusStyle} onBlur={blurStyle} />
           </div>
-          <div className="ct-form-row">
-            <label className="ct-label">Allowlist</label>
-            <div className="ct-checks">
-              <label className="ct-check"><input type="checkbox" checked={formAllowlistWA} onChange={e => setFormAllowlistWA(e.target.checked)} /> WhatsApp</label>
-              <label className="ct-check"><input type="checkbox" checked={formAllowlistSms} onChange={e => setFormAllowlistSms(e.target.checked)} /> SMS</label>
-              <label className="ct-check"><input type="checkbox" checked={formAllowlistEmail} onChange={e => setFormAllowlistEmail(e.target.checked)} /> Email</label>
-            </div>
+          <p style={S.hint}>Include country code</p>
+        </div>
+        <div>
+          <label style={S.label}>Email</label>
+          <input style={S.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="[email]" onFocus={focusStyle} onBlur={blurStyle} />
+        </div>
+      </div>
+      {/* Shipping + Billing row */}
+      <div style={S.row}>
+        <div>
+          <label style={S.label}>Shipping Address</label>
+          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="Shipping address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+        </div>
+        <div>
+          <label style={S.label}>Billing Address</label>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+            <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical', flex: 1 } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="Billing address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+            <button type="button" onClick={() => setFormBillingAddress(formShippingAddress)} title="Copy shipping address" style={{ marginTop: 4, padding: '6px 10px', fontSize: 11, color: formBillingAddress === formShippingAddress && formShippingAddress ? '#059669' : '#6b7280', background: formBillingAddress === formShippingAddress && formShippingAddress ? '#ECFDF5' : '#f9fafb', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
+              {formBillingAddress === formShippingAddress && formShippingAddress ? '✓ Copied' : '= Ship'}
+            </button>
           </div>
         </div>
-      )}
+      </div>
+      {/* Opt-in toggle */}
+      <div>
+        <button type="button" onClick={() => setShowOptIn(!showOptIn)} style={{ fontSize: 13, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ transform: showOptIn ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>▶</span>
+          Opt-in &amp; Allowlist
+        </button>
+        {showOptIn && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, padding: 12, background: '#f9fafb', borderRadius: 13, border: '2px solid #D1FAE5' }}>
+            {[
+              { label: 'WhatsApp Opt-in', val: formOptInWA, set: setFormOptInWA },
+              { label: 'WhatsApp Allowlist', val: formAllowlistWA, set: setFormAllowlistWA },
+              { label: 'SMS Opt-in', val: formOptInSms, set: setFormOptInSms },
+              { label: 'SMS Allowlist', val: formAllowlistSms, set: setFormAllowlistSms },
+              { label: 'Email Opt-in', val: formOptInEmail, set: setFormOptInEmail },
+              { label: 'Email Allowlist', val: formAllowlistEmail, set: setFormAllowlistEmail },
+            ].map(item => (
+              <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)} style={{ accentColor: '#059669' }} />
+                {item.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <Layout user={user} onSignOut={signOut}>
+    <Layout onSignOut={signOut} user={user}>
       <SEO {...PAGE_SEO.contacts} />
-      <div className="ct-page">
+      <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
         {/* Toolbar */}
-        <div className="ct-toolbar">
-          <div className="ct-toolbar-left">
-            <button className="ct-icon-btn" onClick={() => { resetForm(); setShowModal(true); }} title="Add contact (N)"><AddUserIcon /></button>
-            <button className="ct-icon-btn" onClick={() => setShowImport(!showImport)} title="Import CSV/VCF"><UploadIcon /></button>
-            <button className="ct-icon-btn" onClick={handleExport} title="Export CSV"><ExportIcon /></button>
-            <button className="ct-icon-btn" onClick={loadContacts} title="Refresh"><RefreshIcon /></button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          {/* Contact count badge */}
+          <span style={{ background: '#ECFDF5', color: '#059669', fontWeight: 600, fontSize: 13, padding: '4px 12px', borderRadius: 13 }}>
+            {filteredSorted.length} contact{filteredSorted.length !== 1 ? 's' : ''}
+          </span>
+
+          {/* Search */}
+          <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 320 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
+            </svg>
+            <input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="" style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
           </div>
-          <div className="ct-toolbar-right">
-            <span className="ct-count">{filteredSorted.length} contact{filteredSorted.length !== 1 ? 's' : ''}</span>
+
+          {/* Action buttons */}
+          <button onClick={() => { resetForm(); setShowModal(true); }} title="Add contact (N)" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, cursor: 'pointer' }}>
+            <AddUserIcon />
+          </button>
+          <button onClick={() => setShowImport(!showImport)} title="Import contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+            <UploadIcon />
+          </button>
+          <button onClick={handleExport} title="Export all contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+            <ExportIcon />
+          </button>
+          <button onClick={loadContacts} title="Refresh" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+            <RefreshIcon />
+          </button>
+
+          {/* Column visibility */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowColMenu(!showColMenu)} title="Toggle columns" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>
+            </button>
+            {showColMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 8, zIndex: 50, minWidth: 160, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                {ALL_COLUMNS.map(col => (
+                  <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer', borderRadius: 8 }}>
+                    <input type="checkbox" checked={colVisible(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#059669' }} />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 12, background: '#ECFDF5', borderRadius: 13, border: '2px solid #D1FAE5' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>{selectedIds.size} selected</span>
+            <button onClick={handleBulkExport} title="Export selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+              <ExportIcon />
+            </button>
+            <button onClick={handleBulkDelete} title="Delete selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #dc2626', borderRadius: 13, cursor: 'pointer' }}>
+              <DeleteIcon size={14} />
+            </button>
+            <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>Clear selection</button>
+          </div>
+        )}
 
         {/* Import section */}
         {showImport && (
-          <div className="ct-import-section">
-            <div className="ct-import-header">
-              <span>Import Contacts</span>
-              <button className="ct-link-btn" onClick={downloadTemplate}><DownloadIcon /> Template</button>
+          <div style={{ marginBottom: 16, padding: 16, border: '2px solid #D1FAE5', borderRadius: 13, background: '#f9fafb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <input ref={fileInputRef} type="file" accept=".csv,.vcf" onChange={handleFileSelect} style={{ fontSize: 13 }} />
+              <button onClick={downloadTemplate} style={{ fontSize: 12, color: '#059669', background: 'none', border: '2px solid #D1FAE5', borderRadius: 13, padding: '4px 10px', cursor: 'pointer' }}>
+                <DownloadIcon /> Template
+              </button>
             </div>
-            <div className="ct-import-body">
-              <input ref={fileInputRef} type="file" accept=".csv,.vcf" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} style={{ display: 'none' }} />
-              <button className="ct-btn ct-btn-outline" onClick={() => fileInputRef.current?.click()}>Choose File</button>
-              {previewData.length > 0 && (
-                <div className="ct-import-preview">
-                  <span>{previewData.length} contacts ready</span>
-                  <button className="ct-btn ct-btn-primary" onClick={handleImport} disabled={importing}>
-                    {importing ? 'Importing...' : 'Import'}
-                  </button>
+            {previewData.length > 0 && (
+              <div>
+                <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>{previewData.length} contacts ready to import</p>
+                <div style={{ maxHeight: 150, overflow: 'auto', border: '2px solid #D1FAE5', borderRadius: 13, marginBottom: 8 }}>
+                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                    <thead><tr>{['Name','Phone','Email'].map(h => <th key={h} style={{ padding: '6px 8px', background: '#ECFDF5', textAlign: 'left', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0 }}>{h}</th>)}</tr></thead>
+                    <tbody>{previewData.slice(0, 10).map((r, i) => <tr key={i}><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.name}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.phone}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.email}</td></tr>)}</tbody>
+                  </table>
                 </div>
-              )}
-              {importResult && (
-                <div className="ct-import-result">
-                  Created: {importResult.created} | Updated: {importResult.updated} | Errors: {importResult.errors}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Search */}
-        <div className="ct-search-wrap">
-          <input
-            ref={searchInputRef}
-            className="ct-search"
-            type="text"
-            placeholder="Search contacts... (press /)"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {/* Table */}
-        {loading ? (
-          <SkeletonTable rows={8} cols={8} />
-        ) : (
-          <>
-            <div className="ct-table-wrap">
-              <table className="ct-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 40, background: '#ECFDF5' }}>#</th>
-                    <SortHeader label="Name" field="name" />
-                    <SortHeader label="Phone" field="phone" />
-                    <SortHeader label="Email" field="email" />
-                    <th style={{ background: '#ECFDF5' }}>Shipping</th>
-                    <th style={{ background: '#ECFDF5' }}>Billing</th>
-                    <SortHeader label="Updated" field="updatedAt" />
-                    <th style={{ width: 90, background: '#ECFDF5' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedContacts.length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#6b7280' }}>No contacts found</td></tr>
-                  ) : paginatedContacts.map((c, i) => (
-                    <tr key={c.contactId}>
-                      <td style={{ color: '#9ca3af' }}>{(safeCurrentPage - 1) * PAGE_SIZE + i + 1}</td>
-                      <td>{c.name || '—'}</td>
-                      <td>{c.phone || '—'}</td>
-                      <td>{c.email || '—'}</td>
-                      <td><span className="ct-addr" title={c.shippingAddress || ''}>{c.shippingAddress || '—'}</span></td>
-                      <td><span className="ct-addr" title={c.billingAddress || ''}>{c.billingAddress || '—'}</span></td>
-                      <td className="ct-time" title={c.updatedAt ? new Date(c.updatedAt).toLocaleString() : ''}>{timeAgo(c.updatedAt)}</td>
-                      <td>
-                        <div className="ct-actions">
-                          <button className="ct-act-btn" onClick={() => handleEdit(c)} title="Edit"><EditIcon size={16} /></button>
-                          <button className="ct-act-btn ct-act-del" onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name || c.phone); }} title="Delete"><DeleteIcon size={16} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="ct-pagination">
-                <button className="ct-page-btn" disabled={safeCurrentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>← Prev</button>
-                <span className="ct-page-info">Page {safeCurrentPage} of {totalPages}</span>
-                <button className="ct-page-btn" disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>Next →</button>
+                <button onClick={handleImport} disabled={importing} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: importing ? 0.6 : 1 }}>
+                  {importing ? 'Importing...' : `Import ${previewData.length} contacts`}
+                </button>
               </div>
             )}
-          </>
-        )}
-
-        {/* Add Contact Modal */}
-        {showModal && (
-          <div className="ct-overlay" onClick={() => setShowModal(false)}>
-            <div className="ct-modal" onClick={e => e.stopPropagation()}>
-              <div className="ct-modal-header">
-                <span>New Contact</span>
-                <button className="ct-modal-close" onClick={() => setShowModal(false)}>×</button>
-              </div>
-              {renderContactForm()}
-              <div className="ct-modal-footer">
-                <button className="ct-btn ct-btn-outline" onClick={() => setShowModal(false)}>Cancel</button>
-                <button className="ct-btn ct-btn-primary" onClick={handleCreate} disabled={saving}>{saving ? 'Saving...' : 'Create'}</button>
-              </div>
-            </div>
+            {importResult && (
+              <p style={{ fontSize: 13, color: '#059669', marginTop: 8 }}>
+                Done: {importResult.created} created, {importResult.failed} failed, {importResult.errors.length} errors
+              </p>
+            )}
           </div>
         )}
 
-        {/* Edit Contact Modal */}
-        {showEditModal && editingContact && (
-          <div className="ct-overlay" onClick={() => { setShowEditModal(false); setEditingContact(null); }}>
-            <div className="ct-modal" onClick={e => e.stopPropagation()}>
-              <div className="ct-modal-header">
-                <span>Edit Contact</span>
-                <button className="ct-modal-close" onClick={() => { setShowEditModal(false); setEditingContact(null); }}>×</button>
+        {/* Main content area with table + detail panel */}
+        <div style={{ display: 'flex', gap: 0 }}>
+          {/* Table */}
+          <div style={{ flex: 1, minWidth: 0, border: '2px solid #D1FAE5', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
+            {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : filteredSorted.length === 0 ? (
+              <div style={{ padding: 48, textAlign: 'center' }}>
+                {searchQuery ? (
+                  <div>
+                    <p style={{ fontSize: 15, color: '#6b7280' }}>No results for &quot;{searchQuery}&quot;</p>
+                    <button onClick={() => setSearchQuery('')} style={{ marginTop: 8, fontSize: 13, color: '#059669', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ fontSize: 32, marginBottom: 8 }}>📇</p>
+                    <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
+                    <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Press <kbd style={{ padding: '2px 6px', background: '#f3f4f6', borderRadius: 4, fontSize: 11 }}>N</kbd> to add one</p>
+                  </div>
+                )}
               </div>
-              {renderContactForm()}
-              <div className="ct-modal-footer">
-                <button className="ct-btn ct-btn-outline" onClick={() => { setShowEditModal(false); setEditingContact(null); }}>Cancel</button>
-                <button className="ct-btn ct-btn-primary" onClick={handleUpdate} disabled={saving}>{saving ? 'Saving...' : 'Update'}</button>
+            ) : (
+              <div style={{ maxHeight: 'calc(100vh - 240px)', overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40, padding: '10px 8px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>
+                        <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ accentColor: '#059669' }} />
+                      </th>
+                      <SortHeader label="Name" sKey="name" />
+                      <SortHeader label="Phone" sKey="phone" />
+                      <SortHeader label="Email" sKey="email" />
+                      {colVisible('shipping') && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
+                      {colVisible('billing') && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
+                      {colVisible('updated') && <SortHeader label="Updated" sKey="updatedAt" />}
+                      {colVisible('tags') && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
+                      <th style={{ width: 90, padding: '10px 8px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedContacts.map(c => (
+                      <tr key={c.contactId} onClick={() => setDetailContact(c)} style={{ cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#ECFDF5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669' }} />
+                        </td>
+                        {/* Name — inline editable */}
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', fontWeight: 500 }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
+                          {inlineEdit?.id === c.contactId && inlineEdit.field === 'name' ? (
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '2px solid #059669', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+                          ) : (c.name || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>unnamed</span>)}
+                        </td>
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5' }}>{c.phone}</td>
+                        {/* Email — inline editable */}
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5' }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
+                          {inlineEdit?.id === c.contactId && inlineEdit.field === 'email' ? (
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '2px solid #059669', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+                          ) : (c.email || '—')}
+                        </td>
+                        {colVisible('shipping') && <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.shippingAddress || '—'}</td>}
+                        {colVisible('billing') && <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.billingAddress || '—'}</td>}
+                        {colVisible('updated') && <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5', color: '#6b7280', fontSize: 12 }} title={c.updatedAt ? new Date(c.updatedAt).toLocaleString() : ''}>{timeAgo(c.updatedAt)}</td>}
+                        {colVisible('tags') && (
+                          <td style={{ padding: '8px 12px', borderBottom: '1px solid #D1FAE5' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                              {(contactTags[c.contactId] || []).map(tag => (
+                                <span key={tag} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                              ))}
+                              <div style={{ position: 'relative' }}>
+                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 22, height: 22, borderRadius: '50%', border: '1px solid #D1FAE5', background: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: '20px', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                {showTagMenu === c.contactId && (
+                                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 6, zIndex: 50, minWidth: 130, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                                    {TAG_OPTIONS.map(tag => {
+                                      const active = (contactTags[c.contactId] || []).includes(tag);
+                                      return (
+                                        <button key={tag} onClick={() => toggleTag(c.contactId, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 8px', border: 'none', background: active ? '#ECFDF5' : 'transparent', borderRadius: 8, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
+                                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: TAG_COLORS[tag] }}></span>
+                                          {tag}
+                                          {active && <span style={{ marginLeft: 'auto', color: '#059669' }}>✓</span>}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        <td style={{ padding: '8px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                            <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><EditIcon size={16} /></button>
+                            <button onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name); }} title="Delete" style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><DeleteIcon size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
           </div>
-        )}
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteModal && (
-          <div className="ct-overlay" onClick={() => setShowDeleteModal(null)}>
-            <div className="ct-modal ct-modal-sm" onClick={e => e.stopPropagation()}>
-              <div className="ct-modal-header">
-                <span>Delete Contact</span>
-                <button className="ct-modal-close" onClick={() => setShowDeleteModal(null)}>×</button>
+          {/* Detail side panel */}
+          {detailContact && (
+            <div style={{ width: 340, flexShrink: 0, borderLeft: '2px solid #D1FAE5', background: '#fff', overflow: 'auto', marginLeft: -2, borderRadius: '0 13px 13px 0' }}>
+              <div style={{ padding: '16px 20px', background: '#ECFDF5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#374151' }}>Contact Details</h3>
+                <button onClick={() => setDetailContact(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
               </div>
-              <div style={{ padding: '16px 20px', color: '#374151' }}>
-                Are you sure you want to delete <strong>{deleteContactName}</strong>? This cannot be undone.
-              </div>
-              <div className="ct-modal-footer">
-                <button className="ct-btn ct-btn-outline" onClick={() => setShowDeleteModal(null)}>Cancel</button>
-                <button className="ct-btn ct-btn-danger" onClick={() => handleDelete(showDeleteModal)}>Delete</button>
+              <div style={{ padding: 20 }}>
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', fontSize: 24, color: '#059669', fontWeight: 700 }}>
+                    {(detailContact.name || '?')[0]?.toUpperCase()}
+                  </div>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0 }}>{detailContact.name || 'Unnamed'}</p>
+                  <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>{detailContact.phone}</p>
+                </div>
+                {[
+                  { label: 'Email', value: detailContact.email },
+                  { label: 'Shipping', value: detailContact.shippingAddress },
+                  { label: 'Billing', value: detailContact.billingAddress },
+                  { label: 'Created', value: detailContact.createdAt ? new Date(detailContact.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
+                  { label: 'Updated', value: timeAgo(detailContact.updatedAt) },
+                  { label: 'Last Message', value: timeAgo(detailContact.lastInboundMessageAt) },
+                ].map(item => (
+                  <div key={item.label} style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</p>
+                    <p style={{ fontSize: 13, color: '#374151', margin: 0, wordBreak: 'break-word' }}>{item.value || '—'}</p>
+                  </div>
+                ))}
+                {/* Tags in detail */}
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tags</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(contactTags[detailContact.contactId] || []).map(tag => (
+                      <span key={tag} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                    ))}
+                    {(contactTags[detailContact.contactId] || []).length === 0 && <span style={{ fontSize: 12, color: '#9ca3af' }}>No tags</span>}
+                  </div>
+                </div>
+                {/* Opt-in status */}
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Opt-in Status</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {[
+                      { label: 'WA', on: detailContact.optInWhatsApp },
+                      { label: 'SMS', on: detailContact.optInSms },
+                      { label: 'Email', on: detailContact.optInEmail },
+                    ].map(ch => (
+                      <span key={ch.label} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: ch.on ? '#ECFDF5' : '#f3f4f6', color: ch.on ? '#059669' : '#9ca3af' }}>
+                        {ch.on ? '✓' : '✗'} {ch.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => { setShowDeleteModal(detailContact.contactId); setDeleteContactName(detailContact.name); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#dc2626', border: '2px solid #dc2626', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                </div>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages >= 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 16 }}>
+            <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage <= 1} title="First page" style={{ padding: '6px 10px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage <= 1 ? 'default' : 'pointer', opacity: safeCurrentPage <= 1 ? 0.4 : 1, fontSize: 13 }}>«</button>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage <= 1} style={{ padding: '6px 12px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage <= 1 ? 'default' : 'pointer', opacity: safeCurrentPage <= 1 ? 0.4 : 1, fontSize: 13 }}>‹</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1).map((p, idx, arr) => (
+              <React.Fragment key={p}>
+                {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ color: '#9ca3af' }}>…</span>}
+                <button onClick={() => setCurrentPage(p)} style={{ padding: '6px 10px', border: '2px solid #D1FAE5', borderRadius: 13, background: p === safeCurrentPage ? '#059669' : '#fff', color: p === safeCurrentPage ? '#fff' : '#374151', fontWeight: p === safeCurrentPage ? 600 : 400, cursor: 'pointer', fontSize: 13 }}>{p}</button>
+              </React.Fragment>
+            ))}
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage >= totalPages} style={{ padding: '6px 12px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, fontSize: 13 }}>›</button>
+            <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage >= totalPages} title="Last page" style={{ padding: '6px 10px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, fontSize: 13 }}>»</button>
           </div>
         )}
       </div>
 
-      <style jsx>{`
-        .ct-page { padding: 12px 20px 20px; }
-        .ct-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; gap: 12px; flex-wrap: wrap; }
-        .ct-toolbar-left { display: flex; gap: 8px; align-items: center; }
-        .ct-toolbar-right { display: flex; align-items: center; gap: 12px; }
-        .ct-count { font-size: 13px; color: #6b7280; font-weight: 500; }
-        .ct-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1.5px solid #D1FAE5; background: #fff; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
-        .ct-icon-btn:hover { background: #ECFDF5; border-color: #059669; }
-        .ct-import-section { border: 1.5px solid #D1FAE5; border-radius: 12px; padding: 16px; margin-bottom: 12px; background: #fff; }
-        .ct-import-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-weight: 600; font-size: 14px; color: #111827; }
-        .ct-import-body { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-        .ct-import-preview { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #059669; }
-        .ct-import-result { font-size: 13px; color: #059669; margin-top: 8px; }
-        .ct-link-btn { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: #059669; font-size: 13px; font-weight: 500; cursor: pointer; padding: 4px 0; }
-        .ct-link-btn:hover { text-decoration: underline; }
-        .ct-search-wrap { margin-bottom: 12px; }
-        .ct-search { width: 100%; padding: 10px 14px; border: 1.5px solid #D1FAE5; border-radius: 10px; font-size: 14px; outline: none; background: #fff; transition: all 0.15s; }
-        .ct-search:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
-        .ct-table-wrap { overflow-x: auto; border: 1.5px solid #D1FAE5; border-radius: 12px; background: #fff; }
-        .ct-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .ct-table th { padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; background: #ECFDF5; border-bottom: 1.5px solid #D1FAE5; white-space: nowrap; }
-        .ct-table td { padding: 10px 12px; border-bottom: 1px solid #ECFDF5; color: #111827; }
-        .ct-table tbody tr:hover { background: #f0fdf9; }
-        .ct-table tbody tr:last-child td { border-bottom: none; }
-        .ct-addr { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
-        .ct-time { font-size: 13px; color: #6b7280; white-space: nowrap; cursor: help; }
-        .ct-actions { display: flex; gap: 6px; }
-        .ct-act-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid #D1FAE5; background: #fff; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
-        .ct-act-btn:hover { background: #ECFDF5; border-color: #059669; }
-        .ct-act-del:hover { background: #fef2f2; border-color: #ef4444; }
-        .ct-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 16px 0; }
-        .ct-page-btn { padding: 8px 16px; border: 1.5px solid #D1FAE5; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: #059669; transition: all 0.15s; }
-        .ct-page-btn:hover:not(:disabled) { background: #ECFDF5; border-color: #059669; }
-        .ct-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .ct-page-info { font-size: 13px; color: #6b7280; font-weight: 500; }
-        .ct-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10000; display: flex; align-items: center; justify-content: center; }
-        .ct-modal { background: #fff; border-radius: 14px; width: 480px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
-        .ct-modal-sm { width: 380px; }
-        .ct-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #D1FAE5; font-weight: 600; font-size: 16px; color: #111827; background: #ECFDF5; border-radius: 14px 14px 0 0; }
-        .ct-modal-close { background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; line-height: 1; padding: 0; min-height: auto; }
-        .ct-modal-close:hover { color: #374151; }
-        .ct-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid #D1FAE5; }
-        .ct-form-grid { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-        .ct-form-row { display: flex; flex-direction: column; gap: 6px; }
-        .ct-form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .ct-label { font-size: 13px; font-weight: 600; color: #374151; letter-spacing: 0.2px; }
-        .ct-input { padding: 10px 14px; border: 1.5px solid #D1FAE5; border-radius: 10px; font-size: 14px; outline: none; transition: all 0.15s; background: #fff; }
-        .ct-input:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
-        .ct-textarea { padding: 10px 14px; border: 1.5px solid #D1FAE5; border-radius: 10px; font-size: 14px; outline: none; resize: vertical; font-family: inherit; transition: all 0.15s; background: #fff; }
-        .ct-textarea:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
-        .ct-toggle-optin { background: none; border: none; color: #059669; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; text-align: left; min-height: auto; }
-        .ct-toggle-optin:hover { text-decoration: underline; }
-        .ct-optin-section { display: flex; flex-direction: column; gap: 14px; padding: 14px 16px; background: #ECFDF5; border-radius: 10px; }
-        .ct-checks { display: flex; gap: 16px; flex-wrap: wrap; }
-        .ct-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; cursor: pointer; }
-        .ct-check input[type="checkbox"] { accent-color: #059669; min-height: 16px; }
-        .ct-btn { padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; }
-        .ct-btn-primary { background: #059669; color: #fff; }
-        .ct-btn-primary:hover:not(:disabled) { background: #047857; }
-        .ct-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ct-btn-outline { background: #fff; color: #374151; border: 1.5px solid #D1FAE5; }
-        .ct-btn-outline:hover { background: #ECFDF5; border-color: #059669; }
-        .ct-btn-danger { background: #ef4444; color: #fff; }
-        .ct-btn-danger:hover { background: #dc2626; }
-      `}</style>
+      {/* Add Contact Modal */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 14, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', background: '#ECFDF5', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#374151' }}>Add Contact</h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
+            </div>
+            {renderContactForm(false)}
+            <div style={{ padding: '16px 24px', borderTop: '2px solid #D1FAE5', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowModal(false)} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
+              <button onClick={handleCreate} disabled={saving} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Create'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contact Modal */}
+      {showEditModal && editingContact && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowEditModal(false); setEditingContact(null); }}>
+          <div style={{ background: '#fff', borderRadius: 14, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', background: '#ECFDF5', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#374151' }}>Edit Contact</h2>
+              <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
+            </div>
+            {renderContactForm(true)}
+            <div style={{ padding: '16px 24px', borderTop: '2px solid #D1FAE5', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
+              <button onClick={handleUpdate} disabled={saving} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Update'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(null)}>
+          <div style={{ background: '#fff', borderRadius: 14, width: 400, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: '#374151' }}>Delete Contact</h3>
+            <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 20px' }}>
+              Are you sure you want to delete <strong>{deleteContactName || 'this contact'}</strong>? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowDeleteModal(null)} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
+              <button onClick={() => handleDelete(showDeleteModal)} style={{ padding: '8px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close menus */}
+      {(showColMenu || showTagMenu) && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => { setShowColMenu(false); setShowTagMenu(null); }} />
+      )}
     </Layout>
   );
 };

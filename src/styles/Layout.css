@@ -12,7 +12,7 @@
    ========================= */
 :root {
   --sidebar-w: 220px;
-  --inner-header-h: 64px;
+  --inner-header-h: 72px;
   --inner-footer-h: 40px;
   --base-font: 17px;
   --line: 1.55;
@@ -122,9 +122,10 @@ input, textarea, select {
 .inner-header-in {
   max-width: 1200px;
   height: 100%;
-  padding: 8px 24px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
 }
 .inner-header-brand {
   display: flex;
