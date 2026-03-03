@@ -1118,35 +1118,31 @@ input, textarea, select {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 68px;
-  height: 68px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: #D1FAE5;
+  background: #059669;
   border: none;
   cursor: pointer;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
   z-index: 9998;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
-  padding: 10px;
-  overflow: hidden;
+  padding: 0;
+  overflow: visible;
 }
 
 .floating-agent-button:hover,
 .agent-fab:hover {
-  transform: scale(1.05);
-  box-shadow: var(--shadow-xl);
-  background: #D1FAE5;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+  background: #047857;
 }
 
 .agent-fab-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: transparent;
-  border-radius: 0;
+  display: none;
 }
 
 .agent-fab-icon {
@@ -1154,11 +1150,13 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
 }
 
 .floating-agent-button .agent-icon,
 .agent-fab-icon {
-  font-size: var(--h3);
+  font-size: 24px;
 }
 
 /* Agent Panel - Notion Style */
