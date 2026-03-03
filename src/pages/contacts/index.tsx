@@ -741,10 +741,19 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     alignItems: 'center', 
                                     justifyContent: 'center', 
                                     padding: 0, 
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    position: 'relative'
                                   } as React.CSSProperties}
                                 >
-                                  <PlusIcon size={16} />
+                                  <span style={{ 
+                                    position: 'absolute',
+                                    fontSize: 18, 
+                                    fontWeight: 300, 
+                                    color: '#059669',
+                                    lineHeight: 1,
+                                    fontFamily: 'Arial, sans-serif',
+                                    userSelect: 'none'
+                                  }}>+</span>
                                 </button>
                                 {showTagMenu === c.contactId && (
                                   <div 
