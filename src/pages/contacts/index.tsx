@@ -28,6 +28,17 @@ const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
 const TAG_COLORS: Record<string, string> = { VIP: '#dc2626', Lead: '#2563eb', Customer: '#059669', Prospect: '#d97706', Partner: '#7c3aed', Vendor: '#0891b2' };
 
+// Country codes for phone number parsing
+const COUNTRY_CODES = [
+  { code: '+91', country: 'India' }, { code: '+1', country: 'USA/Canada' }, { code: '+44', country: 'UK' },
+  { code: '+61', country: 'Australia' }, { code: '+971', country: 'UAE' }, { code: '+966', country: 'Saudi Arabia' },
+  { code: '+65', country: 'Singapore' }, { code: '+60', country: 'Malaysia' }, { code: '+49', country: 'Germany' },
+  { code: '+33', country: 'France' }, { code: '+81', country: 'Japan' }, { code: '+86', country: 'China' },
+  { code: '+82', country: 'South Korea' }, { code: '+55', country: 'Brazil' }, { code: '+27', country: 'South Africa' },
+  { code: '+234', country: 'Nigeria' }, { code: '+254', country: 'Kenya' }, { code: '+62', country: 'Indonesia' },
+  { code: '+63', country: 'Philippines' }, { code: '+7', country: 'Russia' },
+];
+
 type ColumnKey = 'shipping' | 'billing' | 'updated' | 'tags';
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'shipping', label: 'Shipping' },
@@ -237,9 +248,25 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setEditingContact(contact);
     setFormName(contact.name || '');
     const ph = contact.phone || '';
-    const ccMatch = ph.match(/^(\+\d{1,4})/);
-    if (ccMatch) { setFormCountryCode(ccMatch[1]); setFormPhone(ph.slice(ccMatch[1].length)); }
-    else { setFormCountryCode('+91'); setFormPhone(ph); }
+    
+    // Find matching country code from our list
+    let matchedCode = '+91'; // default
+    let phoneNumber = ph;
+    
+    if (ph.startsWith('+')) {
+      // Try to match against known country codes (longest first)
+      const sortedCodes = COUNTRY_CODES.map(cc => cc.code).sort((a, b) => b.length - a.length);
+      for (const code of sortedCodes) {
+        if (ph.startsWith(code)) {
+          matchedCode = code;
+          phoneNumber = ph.slice(code.length);
+          break;
+        }
+      }
+    }
+    
+    setFormCountryCode(matchedCode);
+    setFormPhone(phoneNumber);
     setFormEmail(contact.email || '');
     setFormShippingAddress(contact.shippingAddress || ''); setFormBillingAddress(contact.billingAddress || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
@@ -397,17 +424,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     api.downloadFile('Name,Phone,Email\nJohn Doe,+919000090000,[email]', 'contacts_template.csv', 'text/csv');
   };
 
-  // Country codes
-  const countryCodes = [
-    { code: '+91', country: 'India' }, { code: '+1', country: 'USA/Canada' }, { code: '+44', country: 'UK' },
-    { code: '+61', country: 'Australia' }, { code: '+971', country: 'UAE' }, { code: '+966', country: 'Saudi Arabia' },
-    { code: '+65', country: 'Singapore' }, { code: '+60', country: 'Malaysia' }, { code: '+49', country: 'Germany' },
-    { code: '+33', country: 'France' }, { code: '+81', country: 'Japan' }, { code: '+86', country: 'China' },
-    { code: '+82', country: 'South Korea' }, { code: '+55', country: 'Brazil' }, { code: '+27', country: 'South Africa' },
-    { code: '+234', country: 'Nigeria' }, { code: '+254', country: 'Kenya' }, { code: '+62', country: 'Indonesia' },
-    { code: '+63', country: 'Philippines' }, { code: '+7', country: 'Russia' },
-  ];
-
   // SortHeader component
   const SortHeader = ({ label, sKey, style }: { label: string; sKey: SortKey; style?: React.CSSProperties }) => (
     <th onClick={() => toggleSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
@@ -451,7 +467,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             />
             {showCountryDropdown && (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
-                {countryCodes
+                {COUNTRY_CODES
                   .filter(cc => 
                     cc.code.includes(countrySearch) || 
                     cc.country.toLowerCase().includes(countrySearch.toLowerCase())
