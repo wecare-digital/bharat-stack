@@ -723,9 +723,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                 <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
                               ))}
                               <div style={{ position: 'relative' }}>
-                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #059669', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-                                  <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v14m-7-7h14"/>
+                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #059669', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
+                                  <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
+                                    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v14m-7-7h14"/>
                                   </svg>
                                 </button>
                                 {showTagMenu === c.contactId && (
