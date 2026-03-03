@@ -438,7 +438,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             <select value={formCountryCode} onChange={e => setFormCountryCode(e.target.value)} style={{ ...S.input, width: 100, padding: '8px 4px', flexShrink: 0 }} onFocus={focusStyle as any} onBlur={blurStyle as any}>
               {countryCodes.map(cc => <option key={cc.code} value={cc.code}>{cc.code} {cc.country}</option>)}
             </select>
-            <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="+91 9000090000" onFocus={focusStyle} onBlur={blurStyle} />
+            <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="[Phone]" onFocus={focusStyle} onBlur={blurStyle} />
           </div>
           <p style={S.hint}>Include country code</p>
         </div>
@@ -451,16 +451,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       <div style={S.row}>
         <div>
           <label style={S.label}>Shipping Address</label>
-          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="Shipping address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="[Shipping Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
         </div>
         <div>
           <label style={S.label}>Billing Address</label>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-            <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical', flex: 1 } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="Billing address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
-            <button type="button" onClick={() => setFormBillingAddress(formShippingAddress)} title="Copy shipping address" style={{ marginTop: 4, padding: '6px 10px', fontSize: 11, color: formBillingAddress === formShippingAddress && formShippingAddress ? '#059669' : '#6b7280', background: formBillingAddress === formShippingAddress && formShippingAddress ? '#ECFDF5' : '#f9fafb', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
-              {formBillingAddress === formShippingAddress && formShippingAddress ? '✓ Copied' : '= Ship'}
-            </button>
-          </div>
+          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} disabled={formBillingAddress === formShippingAddress && formShippingAddress !== ''} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280', marginTop: 6, cursor: 'pointer' }}>
+            <input type="checkbox" checked={formBillingAddress === formShippingAddress && formShippingAddress !== ''} onChange={e => setFormBillingAddress(e.target.checked ? formShippingAddress : '')} style={{ accentColor: '#059669' }} />
+            Same as shipping address
+          </label>
         </div>
       </div>
       {/* Opt-in toggle */}
