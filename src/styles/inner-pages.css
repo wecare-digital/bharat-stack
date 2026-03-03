@@ -51,7 +51,7 @@
 .layout .main-content .action-btn {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   border-radius: 13px !important;
   padding: 10px 18px !important;
   font-weight: 500 !important;
@@ -102,7 +102,7 @@
 .layout .main-content .tabs-nav button {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   border-radius: 13px !important;
 }
 
@@ -125,7 +125,7 @@
 .layout .main-content .dialer-key {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   border-radius: 16px !important;
   padding: 20px !important;
   font-size: 24px !important;
@@ -898,7 +898,7 @@
 .layout .main-content .campaign-page .select-all-btn {
   padding: 10px 18px;
   background: #ffffff;
-  border: 1.5px solid #059669;
+  border: 2px solid #D1FAE5;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -1249,7 +1249,7 @@
   padding: 10px 20px;
   background: #ffffff;
   color: #111827;
-  border: 1.5px solid #059669;
+  border: 2px solid #D1FAE5;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -1738,7 +1738,7 @@
 .layout .main-content .pay-link-page .generate-btn,
 .layout .main-content .pay-link-page .copy-btn,
 .layout .main-content .pay-link-page .share-btn {
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   border-radius: 13px !important;
   background: #ffffff !important;
   color: #111827 !important;
@@ -1758,7 +1758,7 @@
 
 /* Pay page sender notice - emerald */
 .layout .main-content .sender-notice {
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   background: #ECFDF5 !important;
 }
 
@@ -1768,7 +1768,7 @@
 
 /* Pay page preview card - emerald */
 .layout .main-content .preview-card {
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
 }
 
 .layout .main-content .preview-total {
@@ -1777,7 +1777,7 @@
 
 /* Pay page coming soon banner - emerald */
 .layout .main-content .coming-soon-banner {
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   background: #ECFDF5 !important;
 }
 
@@ -1970,7 +1970,7 @@
 .layout .main-content .btn-primary {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
 }
 
 .layout .main-content .btn-primary:hover {
@@ -2057,7 +2057,7 @@
 
 .layout .main-content .wa-tab-btn {
   padding: 10px 18px !important;
-  border: 1.5px solid #059669 !important;
+  border: 2px solid #D1FAE5 !important;
   border-radius: 13px !important;
   background: #fff !important;
   cursor: pointer !important;
@@ -2162,7 +2162,7 @@
 
 .board-tab {
   background: #fff;
-  border: 1.5px solid #059669;
+  border: 2px solid #D1FAE5;
   padding: 10px 20px;
   cursor: pointer;
   border-radius: 13px;

@@ -58,7 +58,11 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #10b981 !important;
+  background: #047857 !important;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #047857 !important;
 }
 
 ::-webkit-scrollbar-button {
@@ -133,12 +137,14 @@ input, textarea, select {
   gap: 3px;
 }
 .inner-header-logo {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 10px;
-  object-fit: cover;
+  object-fit: contain;
   position: relative;
   top: 0;
+  background: transparent;
+  padding: 0;
 }
 .inner-header-text {
   display: flex;
@@ -162,7 +168,7 @@ input, textarea, select {
   transition: color 0.25s;
 }
 .inner-header-sub:hover {
-  color: #10b981;
+  color: #059669;
 }
 
 /* =========================
@@ -199,7 +205,7 @@ input, textarea, select {
   transition: all 0.25s;
 }
 .inner-footer-link:hover {
-  color: #10b981;
+  color: #059669;
 }
 
 /* =========================
@@ -363,8 +369,8 @@ input, textarea, select {
   align-items: center;
   width: 100%;
   padding: 0;
-  border: 1.5px solid #D1FAE5;
-  border-radius: 10px;
+  border: 2px solid #D1FAE5;
+  border-radius: 13px;
   background: #fff;
   transition: all 0.15s ease;
   overflow: hidden;
@@ -377,13 +383,15 @@ input, textarea, select {
 
 .sidebar-search-input {
   flex: 1;
-  border: none;
-  background: transparent;
-  outline: none;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
   font-size: 13px;
   color: var(--text);
   min-width: 0;
-  padding: 10px 12px;
+  padding: 8px 10px;
+  min-height: unset;
 }
 
 .sidebar-search-input::placeholder {
@@ -412,8 +420,8 @@ input, textarea, select {
   left: 8px;
   right: 8px;
   background: #fff;
-  border: 1px solid #D1FAE5;
-  border-radius: 10px;
+  border: 2px solid #D1FAE5;
+  border-radius: 13px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
   max-height: 280px;
@@ -589,7 +597,7 @@ input, textarea, select {
   margin-right: 0;
   font-size: 16px;
   text-align: center;
-  color: #000000;
+  color: #059669;
 }
 
 .nav-label {
@@ -1104,11 +1112,11 @@ input, textarea, select {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: #D1FAE5;
+  border: none;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
   z-index: 9998;
@@ -1116,7 +1124,7 @@ input, textarea, select {
   align-items: center;
   justify-content: center;
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
-  padding: 0;
+  padding: 10px;
   overflow: hidden;
 }
 
@@ -1124,13 +1132,22 @@ input, textarea, select {
 .agent-fab:hover {
   transform: scale(1.05);
   box-shadow: var(--shadow-xl);
+  background: #D1FAE5;
 }
 
 .agent-fab-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+  border-radius: 0;
+}
+
+.agent-fab-icon {
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .floating-agent-button .agent-icon,
@@ -1149,9 +1166,9 @@ input, textarea, select {
   height: 500px;
   max-height: calc(100vh - 100px);
   background: var(--bg);
-  border-radius: var(--radius);
+  border-radius: 13px;
   box-shadow: var(--shadow-xl);
-  border: 1px solid var(--border);
+  border: 2px solid #059669;
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -1164,8 +1181,8 @@ input, textarea, select {
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  background: #ECFDF5;
+  border-bottom: 2px solid #059669;
 }
 
 .agent-header-info {
@@ -1175,17 +1192,22 @@ input, textarea, select {
 }
 
 .agent-avatar-logo {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 10px;
-  object-fit: cover;
+  object-fit: contain;
+  background: transparent;
+  padding: 0;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .agent-header-text {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 48px;
+  height: 56px;
   text-align: left;
 }
 
@@ -1221,13 +1243,13 @@ input, textarea, select {
 .agent-header-actions button,
 .agent-close {
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 2px solid #059669;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
+  border-radius: 13px;
   cursor: pointer;
   font-size: 16px;
-  color: var(--muted);
+  color: #059669;
   transition: background var(--transition-fast);
   display: flex;
   align-items: center;
@@ -1236,8 +1258,8 @@ input, textarea, select {
 
 .agent-header-actions button:hover,
 .agent-close:hover {
-  background: var(--hover);
-  color: var(--text);
+  background: #ECFDF5;
+  color: #059669;
 }
 
 .floating-agent-messages,
@@ -1278,13 +1300,13 @@ input, textarea, select {
 
 .floating-message.user .floating-message-content,
 .agent-message.user .agent-message-content {
-  background: var(--text);
+  background: #059669;
   color: white;
 }
 
 .floating-message.assistant .floating-message-content,
 .agent-message.assistant .agent-message-content {
-  background: var(--hover);
+  background: #ECFDF5;
   color: var(--text);
 }
 
@@ -1298,18 +1320,19 @@ input, textarea, select {
 .floating-agent-input,
 .agent-input-area {
   display: flex;
-  gap: 8px;
-  padding: 12px;
+  align-items: flex-end;
+  gap: 0;
+  padding: 10px 12px;
   background: var(--bg);
-  border-top: 1px solid var(--border);
+  border-top: 2px solid #059669;
 }
 
 .floating-agent-input input,
 .agent-input-area textarea {
   flex: 1;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 8px 42px 8px 12px;
+  border: 2px solid #059669;
+  border-radius: 13px;
   font-size: 14px;
   outline: none;
   background: var(--bg);
@@ -1319,34 +1342,41 @@ input, textarea, select {
 
 .floating-agent-input input:focus,
 .agent-input-area textarea:focus {
-  border-color: var(--text);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .floating-agent-input button,
 .agent-send-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius);
-  background: var(--text);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #059669;
   border: none;
   color: white;
-  font-size: var(--text-base);
+  font-size: 14px;
   cursor: pointer;
   transition: background var(--transition-normal);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-left: -38px;
+  margin-right: 6px;
+  margin-bottom: 3px;
+  position: relative;
+  z-index: 1;
 }
 
 .floating-agent-input button:hover:not(:disabled),
 .agent-send-btn:hover:not(:disabled) {
-  background: #333;
+  background: #059669;
 }
 
 .floating-agent-input button:disabled,
 .agent-send-btn:disabled {
-  background: var(--border);
+  background: #D1FAE5;
+  color: #9ca3af;
   cursor: not-allowed;
 }
 
@@ -1442,8 +1472,9 @@ input, textarea, select {
   .agent-fab {
     bottom: 20px;
     right: 20px;
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
+    padding: 8px;
   }
   
   .floating-agent-container,
@@ -1463,13 +1494,14 @@ input, textarea, select {
   .agent-fab {
     bottom: 16px;
     right: 16px;
-    width: 52px;
-    height: 52px;
+    width: 56px;
+    height: 56px;
+    padding: 8px;
   }
   
   .agent-fab-logo {
-    width: 34px;
-    height: 34px;
+    width: 100%;
+    height: 100%;
   }
   
   .floating-agent-container,

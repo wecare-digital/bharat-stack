@@ -31,7 +31,7 @@
   --transition-page: 0.25s ease-out;
   
   /* Colors - Clean Emerald Theme (black text) */
-  --color-primary: #10b981;
+  --color-primary: #059669;
   --color-secondary: #059669;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
@@ -41,14 +41,14 @@
   --color-bg-active: #d1fae5;
   
   /* Semantic Colors - Clean Emerald */
-  --color-success: #10b981;
-  --color-warning: #10b981;
+  --color-success: #059669;
+  --color-warning: #059669;
   --color-danger: #059669;
   
   /* Channel Colors - Emerald */
-  --color-whatsapp: #10b981;
-  --color-sms: #10b981;
-  --color-email: #10b981;
+  --color-whatsapp: #059669;
+  --color-sms: #059669;
+  --color-email: #059669;
   
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -205,9 +205,9 @@
 
 /* PRIMARY BUTTON - Main CTA (Emerald) */
 .btn-primary {
-  background: #10B981;
+  background: #059669;
   color: #ffffff;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
 }
 
@@ -229,7 +229,7 @@
 .btn-secondary.active,
 .btn-outline.active {
   background: #d1fae5;
-  border-color: #10B981;
+  border-color: #059669;
   color: #065f46;
   font-weight: var(--font-semibold);
 }
@@ -429,7 +429,7 @@
 }
 
 .status-dot.connected {
-  background: #10B981;
+  background: #059669;
 }
 
 .status-dot.disconnected {
@@ -483,7 +483,7 @@
 .stat-icon {
   font-size: 20px;
   margin-bottom: 8px;
-  color: #10B981;
+  color: #059669;
 }
 
 .stat-value {
@@ -590,7 +590,7 @@
 }
 
 .view-all-link, .link {
-  color: #10b981;
+  color: #059669;
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -653,7 +653,7 @@
 .qa-icon {
   font-size: 24px;
   margin-bottom: 8px;
-  color: #10B981;
+  color: #059669;
 }
 
 .qa-title {
@@ -837,7 +837,7 @@
 
 .tab.active {
   background: #ffffff;
-  border-color: #10B981;
+  border-color: #059669;
   color: #065f46;
   font-weight: var(--font-semibold);
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
@@ -879,14 +879,14 @@
 .form-group select:hover,
 .form-group input:hover,
 .form-group textarea:hover {
-  border-color: #10B981;
+  border-color: #059669;
 }
 
 .form-group select:focus, 
 .form-group input:focus, 
 .form-group textarea:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
@@ -1480,12 +1480,16 @@
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb {
-  background: #D1FAE5;
-  border-radius: 10px;
+  background: #D1FAE5 !important;
+  border-radius: 10px !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: #047857 !important;
+}
+
+.whatsapp-inbox ::-webkit-scrollbar-thumb:active {
+  background: #047857 !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-button {
@@ -1514,12 +1518,16 @@
 }
 
 .page-container ::-webkit-scrollbar-thumb {
-  background: #D1FAE5;
-  border-radius: 10px;
+  background: #D1FAE5 !important;
+  border-radius: 10px !important;
 }
 
 .page-container ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: #047857 !important;
+}
+
+.page-container ::-webkit-scrollbar-thumb:active {
+  background: #047857 !important;
 }
 
 .page-container ::-webkit-scrollbar-button {
@@ -1877,7 +1885,7 @@
   height: 38px;
   min-width: 38px;
   background: #ECFDF5;
-  border: 1.5px solid #10B981;
+  border: 1.5px solid #059669;
   border-radius: 10px;
   color: #059669;
   cursor: pointer;
@@ -1914,7 +1922,7 @@
 
 .contacts-search:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
@@ -1939,14 +1947,14 @@
   border: 1px solid #A7F3D0;
   border-radius: 6px;
   font-size: 12px;
-  color: #10B981;
+  color: #059669;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .contacts-pagination button:hover:not(:disabled) {
   background: #D1FAE5;
-  border-color: #10B981;
+  border-color: #059669;
   color: #059669;
 }
 
@@ -2161,7 +2169,7 @@
 
 .clear-chat-btn:hover {
   background: #ECFDF5;
-  border-color: #10b981;
+  border-color: #059669;
   color: #047857;
 }
 
@@ -2405,7 +2413,7 @@
 .clear-media-btn:hover {
   background: #ECFDF5;
   color: #047857;
-  border-color: #10b981;
+  border-color: #059669;
 }
 
 .input-wrapper {
@@ -2476,7 +2484,7 @@
 }
 
 .emoji-search-input:focus {
-  border-color: #10b981;
+  border-color: #059669;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12);
 }
 
@@ -3100,7 +3108,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #10B981;
+  color: #059669;
   background: #f0fdf4;
   border-radius: 10px;
 }
@@ -3142,7 +3150,7 @@
 }
 
 .back-link:hover {
-  color: #10B981;
+  color: #059669;
 }
 
 
@@ -3472,13 +3480,13 @@ pre code {
 
 .hub-card:hover {
   background: #f0fdf4;
-  border-color: #10B981;
+  border-color: #059669;
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(16, 185, 129, 0.15);
 }
 
 .hub-card:hover::before {
-  background: #10B981;
+  background: #059669;
 }
 
 .hub-card:active {
@@ -3493,7 +3501,7 @@ pre code {
 
 .hub-card:hover .hub-icon {
   transform: scale(1.1);
-  color: #10B981;
+  color: #059669;
 }
 
 .hub-card .hub-label {
@@ -3641,8 +3649,8 @@ pre code {
 
 .refresh-btn:hover {
   background: #f0fdf4;
-  border-color: #10B981;
-  color: #10B981;
+  border-color: #059669;
+  color: #059669;
 }
 
 .refresh-btn:active {
@@ -3708,7 +3716,7 @@ pre code {
 .dash-tabs .tab.active {
   background: #ffffff;
   color: #065f46;
-  border-color: #10B981;
+  border-color: #059669;
   font-weight: var(--font-semibold);
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
 }
@@ -3768,7 +3776,7 @@ pre code {
 
 .action-card .icon {
   margin-bottom: 8px;
-  color: #10B981;
+  color: #059669;
 }
 
 .action-card span:last-child {
@@ -4329,13 +4337,13 @@ pre code {
 
 .search-bar .search-input:hover,
 .search-input:hover {
-  border-color: #10B981;
+  border-color: #059669;
 }
 
 .search-bar .search-input:focus,
 .search-input:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
@@ -4606,7 +4614,7 @@ pre code {
 
 .confirm-input-wrapper input:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #059669;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
@@ -4638,7 +4646,7 @@ pre code {
   padding: 10px 20px;
   border: none;
   border-radius: 10px;
-  background: #10B981;
+  background: #059669;
   color: #ffffff;
   font-size: 14px;
   font-weight: 500;

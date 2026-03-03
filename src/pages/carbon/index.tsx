@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 const ICON = "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23664FC2' stroke-miterlimit='10' stroke-width='1.5' d='M16.64 19.09a5.43 5.43 0 0 1-4.16 2.08h-1a7.4 7.4 0 0 1-5.07-2.08C1 12 12 2 12 2l5 7.45a8.29 8.29 0 0 1-.36 9.64ZM11.97 9.3V23m-3.65-8.22 3.65 3.65m2.74-6.39-2.74 2.74'/%3e%3c/svg%3e";
 
 const pillars = [

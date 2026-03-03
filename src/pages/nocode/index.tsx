@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 const ICON = "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23664FC2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m17 17 5-5-5-5M7 7l-5 5 5 5m7-14-4 18'/%3e%3c/svg%3e";
 
 const features = [

@@ -49,7 +49,7 @@ Amplify.configure({
   }
 });
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.svg';
 const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
@@ -368,7 +368,7 @@ const AuthHeader = () => {
     <div style={{ textAlign: 'center', padding: '24px 20px' }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap }}>
         <img 
-          src="https://app.wecare.digital/stream/media/m/wecare-digital.png" 
+          src="https://app.wecare.digital/stream/media/m/wecaredigital.png" 
           alt="Base CRM" 
           style={{ width: logoSize, height: logoSize, borderRadius: '10px' }}
           onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}

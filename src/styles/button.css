@@ -78,7 +78,7 @@
 .btn-primary {
   background: #059669;
   color: #ffffff;
-  border: 1.5px solid #059669;
+  border: 2px solid #D1FAE5;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -103,7 +103,7 @@
 .btn-secondary {
   background: #ffffff;
   color: #111827;
-  border: 1.5px solid #059669;
+  border: 2px solid #D1FAE5;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -152,7 +152,7 @@
 .btn-danger {
   background: #ffffff;
   color: #059669;
-  border: 1.5px solid #059669;
+  border: 2px solid #D1FAE5;
 }
 
 .btn-danger:hover:not(:disabled) {

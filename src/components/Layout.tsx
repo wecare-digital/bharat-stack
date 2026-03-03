@@ -100,9 +100,18 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
     // When sidebar is collapsed, only render top-level items (icons only)
     if (sidebarCollapsed && level > 0) return null;
 
-    return items.map((item, index) => {
+    // Filter by sidebar search
+    const query = sidebarSearch.trim().toLowerCase();
+    const matchesSearch = (item: NavItem | NavSubItem): boolean => {
+      if (!query) return true;
+      if (item.label.toLowerCase().includes(query)) return true;
+      if ('children' in item && item.children) return item.children.some(matchesSearch);
+      return false;
+    };
+
+    return items.filter(matchesSearch).map((item, index) => {
       const hasChildren = 'children' in item && item.children && item.children.length > 0;
-      const isExpanded = expandedPaths.has(item.path);
+      const isExpanded = expandedPaths.has(item.path) || (!!query && hasChildren);
       const isActive = isPathActive(item.path);
       const itemClass = level === 0 
         ? `nav-item ${hasChildren ? 'nav-item-expandable' : ''} ${isActive ? 'nav-item-active' : ''}`
@@ -164,7 +173,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       <header className="inner-header">
         <div className="inner-header-in">
           <div className="inner-header-brand">
-            <img src="https://app.wecare.digital/stream/media/m/wecare-digital.png" alt="Base CRM" className="inner-header-logo" />
+            <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="Base CRM" className="inner-header-logo" />
             <div className="inner-header-text">
               <span className="inner-header-name">Base CRM</span>
               <a href="https://www.wecare.digital" className="inner-header-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
@@ -187,6 +196,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         {!sidebarCollapsed && (
         <div className="sidebar-search">
           <div className="sidebar-search-input-wrapper">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 10, flexShrink: 0 }}>
+              <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
+            </svg>
             <input
               type="text"
               placeholder="Search pages..."
@@ -199,20 +211,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
               <button className="sidebar-search-clear" onClick={() => setSidebarSearch('')}>×</button>
             )}
           </div>
-          {filteredNavItems.length > 0 && (
-            <div className="sidebar-search-results">
-              {filteredNavItems.map(item => (
-                <div
-                  key={item.path}
-                  className="sidebar-search-item"
-                  onClick={() => handleSearchItemClick(item.path)}
-                >
-                  <span className="sidebar-search-item-label">{item.label}</span>
-                  {item.parent && <span className="sidebar-search-item-parent">{item.parent}</span>}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Search results filter nav items inline — no dropdown */}
         </div>
         )}
         

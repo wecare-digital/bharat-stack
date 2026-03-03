@@ -557,12 +557,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Import section */}
         {showImport && (
-          <div style={{ marginBottom: 16, padding: 16, border: '2px solid #D1FAE5', borderRadius: 13, background: '#f9fafb' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <input ref={fileInputRef} type="file" accept=".csv,.vcf" onChange={handleFileSelect} style={{ fontSize: 13 }} />
-              <button onClick={downloadTemplate} style={{ fontSize: 12, color: '#059669', background: 'none', border: '2px solid #D1FAE5', borderRadius: 13, padding: '4px 10px', cursor: 'pointer' }}>
-                <DownloadIcon /> Template
-              </button>
+          <div style={{ marginBottom: 16, padding: 16, border: '2px solid #D1FAE5', borderRadius: 13, background: '#ECFDF5' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <label title="Choose CSV/VCF file" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', color: '#059669', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+                <UploadIcon /> Choose File
+                <input ref={fileInputRef} type="file" accept=".csv,.vcf" onChange={handleFileSelect} style={{ display: 'none' }} />
+              </label>
+              <label onClick={downloadTemplate} title="Download template" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', color: '#059669', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+                <ExportIcon /> Template
+              </label>
             </div>
             {previewData.length > 0 && (
               <div>

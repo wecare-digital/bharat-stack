@@ -275,7 +275,7 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
-  const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+  const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 
   if (!isOpen) {
     return (
@@ -327,6 +327,7 @@ const FloatingAgent: React.FC = () => {
           disabled={isLoading}
           rows={1}
           aria-label="Chat message input"
+          style={{ paddingRight: 42 }}
         />
         <button 
           className="agent-send-btn" 
@@ -334,7 +335,7 @@ const FloatingAgent: React.FC = () => {
           disabled={!input.trim() || isLoading}
           aria-label="Send message"
         >
-          {isLoading ? '...' : 'Send'}
+          {isLoading ? '·' : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>}
         </button>
       </div>
     </div>
