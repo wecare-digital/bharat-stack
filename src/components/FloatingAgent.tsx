@@ -280,10 +280,7 @@ const FloatingAgent: React.FC = () => {
   if (!isOpen) {
     return (
       <button className="agent-fab" onClick={() => setIsOpen(true)} title="Open Assistant (Ctrl+.)" aria-label="Open assistant chat">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#fff' }}>
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
+        <img src={LOGO_URL} alt="" className="agent-fab-logo" />
       </button>
     );
   }
