@@ -19,6 +19,7 @@ const DownloadIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill
 const ExportIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
 const EditIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
 const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
+const PlusIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>);
 const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} /></svg>);
 const CloseIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>);
 
@@ -728,6 +729,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     e.stopPropagation();
                                     setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId);
                                   }} 
+                                  title="Add tag"
                                   style={{ 
                                     width: 24, 
                                     height: 24, 
@@ -739,16 +741,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     alignItems: 'center', 
                                     justifyContent: 'center', 
                                     padding: 0, 
-                                    flexShrink: 0,
-                                    fontSize: 20,
-                                    fontWeight: 400,
-                                    lineHeight: 1,
-                                    color: '#059669',
-                                    fontFamily: 'Inter, sans-serif'
+                                    flexShrink: 0
                                   } as React.CSSProperties}
-                                  title="Add tag"
                                 >
-                                  +
+                                  <PlusIcon size={16} />
                                 </button>
                                 {showTagMenu === c.contactId && (
                                   <div 
