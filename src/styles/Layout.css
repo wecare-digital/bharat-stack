@@ -39,7 +39,7 @@ html, body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   scrollbar-width: thin;
-  scrollbar-color: #D1FAE5 transparent;
+  scrollbar-color: rgba(6, 95, 70, 0.15) transparent;
 }
 
 /* Global scrollbar — emerald theme, no arrows */
@@ -53,12 +53,12 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D1FAE5 !important;
+  background: rgba(6, 95, 70, 0.15) !important;
   border-radius: 10px !important;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #047857 !important;
+  background: #6EE7B7 !important;
 }
 
 ::-webkit-scrollbar-thumb:active {
@@ -119,6 +119,7 @@ input, textarea, select {
   border-bottom: 1px solid #ffffff;
   border-radius: 13px 13px 0 0;
   transition: left 0.2s ease;
+  overflow: hidden;
 }
 .sidebar-collapsed .inner-header {
   left: calc(60px + 8px);
@@ -126,7 +127,7 @@ input, textarea, select {
 .inner-header-in {
   max-width: 1200px;
   height: 100%;
-  padding: 0 24px;
+  padding: 24px 24px 20px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -134,17 +135,19 @@ input, textarea, select {
 .inner-header-brand {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 10px;
 }
 .inner-header-logo {
-  width: 56px;
-  height: 56px;
+  width: 54px;
+  height: 54px;
   border-radius: 10px;
   object-fit: contain;
-  position: relative;
-  top: 0;
+  flex-shrink: 0;
+  display: block;
   background: transparent;
   padding: 0;
+  position: relative;
+  top: -6px;
 }
 .inner-header-text {
   display: flex;
@@ -152,18 +155,18 @@ input, textarea, select {
   justify-content: center;
 }
 .inner-header-name {
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 800;
   color: #1a1a1a;
   letter-spacing: -0.5px;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 .inner-header-sub {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #6b7280;
-  line-height: 1;
-  margin-top: 2px;
+  line-height: 1.15;
+  margin-top: 3px;
   text-decoration: none;
   transition: color 0.25s;
 }
@@ -1450,13 +1453,12 @@ input, textarea, select {
   .inner-header-logo {
     width: 44px;
     height: 44px;
-    top: 0;
   }
   .inner-header-name {
     font-size: 20px;
   }
   .inner-header-sub {
-    font-size: 12px;
+    font-size: 11px;
   }
   .inner-footer {
     padding: 8px 16px;

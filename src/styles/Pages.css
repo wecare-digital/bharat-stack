@@ -1480,12 +1480,12 @@
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb {
-  background: #D1FAE5 !important;
+  background: rgba(6, 95, 70, 0.15) !important;
   border-radius: 10px !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb:hover {
-  background: #047857 !important;
+  background: #6EE7B7 !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb:active {
@@ -1505,7 +1505,7 @@
 /* Firefox scrollbar */
 .whatsapp-inbox * {
   scrollbar-width: thin;
-  scrollbar-color: #D1FAE5 transparent;
+  scrollbar-color: rgba(6, 95, 70, 0.15) transparent;
 }
 
 /* Page-level scrollbar — match theme */
@@ -1518,12 +1518,12 @@
 }
 
 .page-container ::-webkit-scrollbar-thumb {
-  background: #D1FAE5 !important;
+  background: rgba(6, 95, 70, 0.15) !important;
   border-radius: 10px !important;
 }
 
 .page-container ::-webkit-scrollbar-thumb:hover {
-  background: #047857 !important;
+  background: #6EE7B7 !important;
 }
 
 .page-container ::-webkit-scrollbar-thumb:active {
@@ -2493,7 +2493,7 @@
   padding: 4px 8px 8px;
   flex: 1;
   scrollbar-width: thin;
-  scrollbar-color: #D1FAE5 transparent;
+  scrollbar-color: rgba(6, 95, 70, 0.15) transparent;
 }
 
 .emoji-category {

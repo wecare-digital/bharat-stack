@@ -305,14 +305,14 @@ response = requests.post(
           .page{min-height:100vh;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
           
           /* Header */
-          .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
-          .hdr-in{max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
-          .logo{display:flex;align-items:center;gap:3px}
+          .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);overflow:hidden}
+          .hdr-in{max-width:1200px;margin:0 auto;padding:24px 24px 20px;display:flex;align-items:center}
+          .logo{display:flex;align-items:center;gap:10px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
-          .logo-main{font-size:32px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.1}
-          .logo-sub{font-size:17px;font-weight:600;color:#6b7280;line-height:1;margin-top:3px;text-decoration:none;transition:color .25s}
+          .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
+          .logo-sub{font-size:19px;font-weight:600;color:#6b7280;line-height:1.15;margin-top:4px;text-decoration:none;transition:color .25s}
           .logo-sub:hover{color:#10b981}
-          .logo-img{width:74px;height:74px;border-radius:14px;position:relative;top:-2px}
+          .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain;position:relative;top:-8px}
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
@@ -420,7 +420,7 @@ response = requests.post(
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
             .hdr-in{padding:14px 20px}
-            .logo-img{width:66px;height:66px}
+            .logo-img{width:64px;height:64px;border-radius:12px}
             .logo-main{font-size:28px}
             .logo-sub{font-size:15px}
             
@@ -465,10 +465,9 @@ response = requests.post(
           /* ========== MOBILE (up to 767px) ========== */
           @media(max-width:767px){
             .hdr-in{padding:12px 16px}
-            .logo{gap:3px}
-            .logo-img{width:74px;height:74px;border-radius:14px}
-            .logo-main{font-size:32px}
-            .logo-sub{font-size:17px}
+            .logo-img{width:64px;height:64px;border-radius:12px}
+            .logo-main{font-size:28px}
+            .logo-sub{font-size:15px}
             
             .hero{padding:calc(115px + env(safe-area-inset-top)) 20px 50px}
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
@@ -539,9 +538,9 @@ response = requests.post(
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
-            .logo-img{width:66px;height:66px;border-radius:12px}
-            .logo-main{font-size:28px}
-            .logo-sub{font-size:15px}
+            .logo-img{width:56px;height:56px;border-radius:11px}
+            .logo-main{font-size:26px}
+            .logo-sub{font-size:13px}
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
             .hero-left h1{font-size:38px;line-height:1.15}
@@ -593,9 +592,9 @@ response = requests.post(
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             .hdr-in{padding:10px 12px}
-            .logo-img{width:58px;height:58px;border-radius:11px}
-            .logo-main{font-size:26px}
-            .logo-sub{font-size:14px}
+            .logo-img{width:50px;height:50px;border-radius:10px}
+            .logo-main{font-size:22px}
+            .logo-sub{font-size:12px}
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{font-size:32px}
