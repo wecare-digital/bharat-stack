@@ -76,6 +76,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formShippingAddress, setFormShippingAddress] = useState('');
   const [formBillingAddress, setFormBillingAddress] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [formOptInWA, setFormOptInWA] = useState(false);
   const [formOptInSms, setFormOptInSms] = useState(false);
   const [formOptInEmail, setFormOptInEmail] = useState(false);
@@ -434,9 +436,40 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       <div>
         <label style={S.label}>Phone</label>
         <div style={{ display: 'flex', gap: 6 }}>
-          <select value={formCountryCode} onChange={e => setFormCountryCode(e.target.value)} style={{ width: 120, padding: '8px 8px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff', color: '#374151', flexShrink: 0, cursor: 'pointer' }} onFocus={focusStyle as any} onBlur={blurStyle as any}>
-            {countryCodes.map(cc => <option key={cc.code} value={cc.code}>{cc.code} {cc.country}</option>)}
-          </select>
+          {/* Searchable Country Code Dropdown */}
+          <div style={{ position: 'relative', width: 120, flexShrink: 0 }}>
+            <input
+              type="text"
+              value={showCountryDropdown ? countrySearch : formCountryCode}
+              onChange={e => { setCountrySearch(e.target.value); setShowCountryDropdown(true); }}
+              onFocus={() => { setShowCountryDropdown(true); setCountrySearch(''); }}
+              onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
+              placeholder="Code"
+              style={{ width: '100%', padding: '8px 8px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff', color: '#374151', cursor: 'pointer' }}
+              onFocusCapture={focusStyle}
+              onBlurCapture={blurStyle}
+            />
+            {showCountryDropdown && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
+                {countryCodes
+                  .filter(cc => 
+                    cc.code.includes(countrySearch) || 
+                    cc.country.toLowerCase().includes(countrySearch.toLowerCase())
+                  )
+                  .map(cc => (
+                    <div
+                      key={cc.code}
+                      onMouseDown={() => { setFormCountryCode(cc.code); setShowCountryDropdown(false); setCountrySearch(''); }}
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', transition: 'background 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#ECFDF5'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                    >
+                      {cc.code} {cc.country}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
           <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="[Phone]" onFocus={focusStyle} onBlur={blurStyle} />
         </div>
         <p style={S.hint}>Include country code</p>
