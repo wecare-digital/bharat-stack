@@ -724,7 +724,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                               ))}
                               <div style={{ position: 'relative' }}>
                                 <button 
-                                  onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId);
+                                  }} 
                                   className="tag-add-btn"
                                   style={{ 
                                     width: 24, 
@@ -740,24 +743,29 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     flexShrink: 0
                                   } as React.CSSProperties}
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-                                    <path d="M7 2.33334V11.6667M2.33334 7H11.6667" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v14m-7-7h14"/>
                                   </svg>
                                 </button>
                                 {showTagMenu === c.contactId && (
-                                  <div style={{ 
-                                    position: 'absolute',
-                                    top: '100%',
-                                    marginTop: 4,
-                                    left: 0,
-                                    background: '#fff', 
-                                    border: '2px solid #D1FAE5', 
-                                    borderRadius: 13, 
-                                    padding: 6, 
-                                    zIndex: 1000, 
-                                    minWidth: 130, 
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
-                                  }}>
+                                  <div 
+                                    style={{ 
+                                      position: 'absolute',
+                                      top: rowIndex >= paginatedContacts.length - 3 ? 'auto' : '100%',
+                                      bottom: rowIndex >= paginatedContacts.length - 3 ? '100%' : 'auto',
+                                      marginTop: rowIndex >= paginatedContacts.length - 3 ? 0 : 4,
+                                      marginBottom: rowIndex >= paginatedContacts.length - 3 ? 4 : 0,
+                                      left: 0,
+                                      background: '#fff', 
+                                      border: '2px solid #D1FAE5', 
+                                      borderRadius: 13, 
+                                      padding: 6, 
+                                      zIndex: 1000, 
+                                      minWidth: 130, 
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
+                                    }}
+                                    onClick={e => e.stopPropagation()}
+                                  >
                                     {TAG_OPTIONS.map(tag => {
                                       const active = (contactTags[c.contactId] || []).includes(tag);
                                       return (
