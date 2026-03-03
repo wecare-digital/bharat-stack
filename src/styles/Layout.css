@@ -1617,3 +1617,16 @@ input, textarea, select {
   background: var(--hover);
   font-weight: 600;
 }
+
+/* Remove focus outline from checkboxes globally */
+input[type="checkbox"] {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+input[type="checkbox"]:focus,
+input[type="checkbox"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}

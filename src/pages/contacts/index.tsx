@@ -491,7 +491,22 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           <label 
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#059669', fontWeight: 600, marginTop: 6, cursor: 'pointer' }}
           >
-            <input type="checkbox" checked={formBillingAddress === formShippingAddress && formShippingAddress !== ''} onChange={e => setFormBillingAddress(e.target.checked ? formShippingAddress : '')} style={{ accentColor: '#059669', outline: 'none', border: 'none' }} />
+            <input 
+              type="checkbox" 
+              checked={formBillingAddress === formShippingAddress && formShippingAddress !== ''} 
+              onChange={e => setFormBillingAddress(e.target.checked ? formShippingAddress : '')} 
+              style={{ 
+                accentColor: '#059669', 
+                outline: 'none !important' as any, 
+                border: 'none', 
+                boxShadow: 'none !important' as any,
+                cursor: 'pointer'
+              }} 
+              onFocus={e => {
+                e.target.style.outline = 'none';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
             Same as shipping address
           </label>
         </div>
