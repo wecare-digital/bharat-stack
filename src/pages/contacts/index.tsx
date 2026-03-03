@@ -679,7 +679,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedContacts.map(c => (
+                    {paginatedContacts.map((c, rowIndex) => (
                       <tr key={c.contactId} onClick={() => setDetailContact(c)} style={{ cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#ECFDF5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
                         <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                           <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669', width: 16, height: 16 }} />
@@ -709,7 +709,18 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                               <div style={{ position: 'relative' }}>
                                 <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #059669', background: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: '20px', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
                                 {showTagMenu === c.contactId && (
-                                  <div style={{ position: 'absolute', top: 'auto', bottom: '100%', left: 0, marginBottom: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 6, zIndex: 50, minWidth: 130, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+                                  <div style={{ 
+                                    position: 'absolute', 
+                                    ...(rowIndex < 3 ? { top: '100%', marginTop: 4 } : { bottom: '100%', marginBottom: 4 }),
+                                    left: 0, 
+                                    background: '#fff', 
+                                    border: '2px solid #D1FAE5', 
+                                    borderRadius: 13, 
+                                    padding: 6, 
+                                    zIndex: 50, 
+                                    minWidth: 130, 
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)' 
+                                  }}>
                                     {TAG_OPTIONS.map(tag => {
                                       const active = (contactTags[c.contactId] || []).includes(tag);
                                       return (
