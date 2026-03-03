@@ -707,7 +707,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                 <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
                               ))}
                               <div style={{ position: 'relative' }}>
-                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #059669', background: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: '20px', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>+</button>
+                                <button onClick={() => setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId)} style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid #059669', background: '#fff', cursor: 'pointer', fontSize: 16, lineHeight: '20px', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
                                 {showTagMenu === c.contactId && (
                                   <div style={{ position: 'absolute', top: 'auto', bottom: '100%', left: 0, marginBottom: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 6, zIndex: 50, minWidth: 130, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
                                     {TAG_OPTIONS.map(tag => {
