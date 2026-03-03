@@ -430,22 +430,21 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         <label style={S.label}>Name</label>
         <input style={S.input} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Full name" onFocus={focusStyle} onBlur={blurStyle} />
       </div>
-      {/* Phone + Email row */}
-      <div style={S.row}>
-        <div>
-          <label style={S.label}>Phone</label>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <select value={formCountryCode} onChange={e => setFormCountryCode(e.target.value)} style={{ ...S.input, width: 100, padding: '8px 4px', flexShrink: 0 }} onFocus={focusStyle as any} onBlur={blurStyle as any}>
-              {countryCodes.map(cc => <option key={cc.code} value={cc.code}>{cc.code} {cc.country}</option>)}
-            </select>
-            <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="[Phone]" onFocus={focusStyle} onBlur={blurStyle} />
-          </div>
-          <p style={S.hint}>Include country code</p>
+      {/* Phone */}
+      <div>
+        <label style={S.label}>Phone</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <select value={formCountryCode} onChange={e => setFormCountryCode(e.target.value)} style={{ ...S.input, width: 120, padding: '8px 8px', flexShrink: 0 }} onFocus={focusStyle as any} onBlur={blurStyle as any}>
+            {countryCodes.map(cc => <option key={cc.code} value={cc.code}>{cc.code} {cc.country}</option>)}
+          </select>
+          <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="[Phone]" onFocus={focusStyle} onBlur={blurStyle} />
         </div>
-        <div>
-          <label style={S.label}>Email</label>
-          <input style={S.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="[email]" onFocus={focusStyle} onBlur={blurStyle} />
-        </div>
+        <p style={S.hint}>Include country code</p>
+      </div>
+      {/* Email */}
+      <div>
+        <label style={S.label}>Email</label>
+        <input style={S.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="[email]" onFocus={focusStyle} onBlur={blurStyle} />
       </div>
       {/* Shipping + Billing row */}
       <div style={S.row}>
