@@ -456,8 +456,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         <div>
           <label style={S.label}>Billing Address</label>
           <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} disabled={formBillingAddress === formShippingAddress && formShippingAddress !== ''} />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280', marginTop: 6, cursor: 'pointer' }}>
-            <input type="checkbox" checked={formBillingAddress === formShippingAddress && formShippingAddress !== ''} onChange={e => setFormBillingAddress(e.target.checked ? formShippingAddress : '')} style={{ accentColor: '#059669' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#059669', fontWeight: 600, marginTop: 6, cursor: 'pointer' }}>
+            <input type="checkbox" checked={formBillingAddress === formShippingAddress && formShippingAddress !== ''} onChange={e => setFormBillingAddress(e.target.checked ? formShippingAddress : '')} style={{ accentColor: '#059669', outline: 'none', border: 'none' }} />
             Same as shipping address
           </label>
         </div>
