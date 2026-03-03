@@ -740,22 +740,23 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     flexShrink: 0
                                   } as React.CSSProperties}
                                 >
-                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M8 3.33334V12.6667M3.33334 8H12.6667" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                                    <path d="M7 2.33334V11.6667M2.33334 7H11.6667" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                                   </svg>
                                 </button>
                                 {showTagMenu === c.contactId && (
                                   <div style={{ 
-                                    position: 'absolute', 
-                                    ...(rowIndex < Math.floor(paginatedContacts.length / 2) ? { top: '100%', marginTop: 4 } : { bottom: '100%', marginBottom: 4 }),
-                                    left: 0, 
+                                    position: 'absolute',
+                                    top: '100%',
+                                    marginTop: 4,
+                                    left: 0,
                                     background: '#fff', 
                                     border: '2px solid #D1FAE5', 
                                     borderRadius: 13, 
                                     padding: 6, 
-                                    zIndex: 50, 
+                                    zIndex: 1000, 
                                     minWidth: 130, 
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)' 
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
                                   }}>
                                     {TAG_OPTIONS.map(tag => {
                                       const active = (contactTags[c.contactId] || []).includes(tag);
