@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
@@ -25,6 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
+  const confirm = useConfirm();
   const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
   const [flows, setFlows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,7 +83,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
   };
 
   const handleDelete = async (flowId: string) => {
-    if (!confirm('Delete this flow?')) return;
+    if (!(await confirm('Delete this flow?'))) return;
     setActionLoading(flowId);
     const ok = await api.deleteFlow(flowId);
     if (ok) { toast.success('Flow deleted'); loadFlows(selectedWaba); }

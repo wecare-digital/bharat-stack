@@ -20,6 +20,7 @@ import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { ToastProvider } from '../contexts/ToastContext';
+import { ConfirmProvider } from '../contexts/ConfirmContext';
 
 // Configure Amplify — all secrets from env vars
 Amplify.configure({
@@ -530,8 +531,10 @@ export default function App({ Component, pageProps }: AppProps) {
             }
             return (
               <ToastProvider>
-                <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
-                <FloatingAgent />
+                <ConfirmProvider>
+                  <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
+                  <FloatingAgent />
+                </ConfirmProvider>
               </ToastProvider>
             );
           }}

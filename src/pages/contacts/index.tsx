@@ -9,6 +9,7 @@ import Layout from '../../components/Layout';
 import SEO, { PAGE_SEO } from '../../components/SEO';
 import { SkeletonTable } from '../../components/Skeleton';
 import { useToastContext } from '../../contexts/ToastContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import * as api from '../../api/client';
 
 // SVG Icons — emerald theme (#059669)
@@ -75,6 +76,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [saving, setSaving] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const toast = useToastContext();
+  const confirm = useConfirm();
   
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false);
@@ -317,7 +319,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     const count = selectedIds.size;
-    if (!confirm(`Delete ${count} contact${count > 1 ? 's' : ''}?`)) return;
+    if (!(await confirm(`Delete ${count} contact${count > 1 ? 's' : ''}?`))) return;
     let deleted = 0;
     for (const id of selectedIds) {
       try { const r = await api.deleteContact(id); if (r) deleted++; } catch {}

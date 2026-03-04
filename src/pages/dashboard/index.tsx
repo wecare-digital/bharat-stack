@@ -21,6 +21,8 @@ import {
 } from '../../lib/icons';
 import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE, WHATSAPP_CALLING_VERIFY_TOKEN } from '../../config/constants';
 import { InternalAIConfig, WebhookConfig, DEFAULT_AI_CONFIG, TabType, PageProps } from '../../types/dashboard';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import { useToastContext } from '../../contexts/ToastContext';
 import OverviewTab from '../../components/dashboard/tabs/OverviewTab';
 import MessagesTab from '../../components/dashboard/tabs/MessagesTab';
 import PayTab from '../../components/dashboard/tabs/PayTab';
@@ -336,6 +338,8 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
 };
 
 const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
+  const confirm = useConfirm();
+  const toast = useToastContext();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   const [apiConnected, setApiConnected] = useState(false);
@@ -463,15 +467,15 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   }, [activeTab]);
 
   const handleResendPayment = async (req: api.SubmitRequest) => {
-    if (!req.invoiceId) { alert('No linked invoice — cannot resend payment'); return; }
+    if (!req.invoiceId) { toast.error('No linked invoice - cannot resend payment'); return; }
     setResendingPayment(req.id);
     try {
       const ok = await api.resendSubmitRequestPayment(req.invoiceId);
       if (ok) {
-        alert('Payment link resent successfully');
+        toast.success('Payment link resent successfully');
         setSubmitRequests(await api.listSubmitRequests());
-      } else { alert('Failed to resend payment link'); }
-    } catch (err) { console.error('Resend payment error:', err); alert('Error resending payment'); }
+      } else { toast.error('Failed to resend payment link'); }
+    } catch (err) { console.error('Resend payment error:', err); toast.error('Error resending payment'); }
     finally { setResendingPayment(null); }
   };
 
@@ -511,11 +515,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         setEditPayment(null);
         await loadData(true);
       } else {
-        alert('Update failed — check console');
+        toast.error('Update failed');
       }
     } catch (err) {
       console.error('Save payment error:', err);
-      alert('Error saving');
+      toast.error('Error saving');
     } finally {
       setEditSaving(false);
     }
@@ -1055,7 +1059,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         setFlowJsonEditValue('');
       }
     } catch {
-      alert('Invalid JSON');
+      toast.error('Invalid JSON');
     }
     setFlowJsonSaving(false);
   };
@@ -1741,7 +1745,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 <h3>WhatsApp Bot Flow Config</h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <Button variant="secondary" onClick={async () => {
-                    if (!confirm('Reset ALL bot flow configs to Lambda defaults? This deletes all custom configs.')) return;
+                    if (!(await confirm('Reset ALL bot flow configs to Lambda defaults? This deletes all custom configs.'))) return;
                     try {
                       const res = await fetch(`${API_BASE}/ai/botflow`, { method: 'DELETE' });
                       if (res.ok) {
@@ -1884,7 +1888,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                                 const parsed = JSON.parse(botFlowEditValue);
                                 handleSaveBotFlowConfig(botFlowEditKey, parsed);
                               } catch {
-                                alert('Invalid JSON');
+                                toast.error('Invalid JSON');
                               }
                             }}
                           >
@@ -2907,11 +2911,11 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button onClick={() => { navigator.clipboard.writeText('https://api.wecare.digital/whatsapp-calling'); alert('Callback URL copied!'); }}
+                  <button onClick={() => { navigator.clipboard.writeText('https://api.wecare.digital/whatsapp-calling'); toast.success('Callback URL copied'); }}
                     style={{ padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
                     Copy Callback URL
                   </button>
-                  <button onClick={() => { navigator.clipboard.writeText(WHATSAPP_CALLING_VERIFY_TOKEN || ''); alert('Verify token copied!'); }}
+                  <button onClick={() => { navigator.clipboard.writeText(WHATSAPP_CALLING_VERIFY_TOKEN || ''); toast.success('Verify token copied'); }}
                     style={{ padding: '0.5rem 1rem', background: '#065f46', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
                     Copy Verify Token
                   </button>

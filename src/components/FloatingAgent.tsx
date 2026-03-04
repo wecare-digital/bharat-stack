@@ -12,6 +12,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useConfirm } from '../contexts/ConfirmContext';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface ChatMessage {
   id: string;
@@ -27,6 +29,8 @@ const API_ENDPOINT = '/api/ai/generate';
 const MAX_MESSAGES = 80;
 
 const FloatingAgent: React.FC = () => {
+  const confirm = useConfirm();
+  const toast = useToastContext();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -126,7 +130,7 @@ const FloatingAgent: React.FC = () => {
 
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
-      alert('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      toast.warning('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
       return;
     }
 
@@ -207,11 +211,14 @@ const FloatingAgent: React.FC = () => {
       const isDangerous = dangerousKeywords.some(keyword => lowerText.includes(keyword));
 
       if (isDangerous) {
-        const confirmed = window.confirm(
-          'WARNING: This action may delete data and cannot be undone.\n\nAre you sure you want to continue?'
-        );
+        const confirmed = await confirm({
+          title: 'Dangerous Operation',
+          message: 'This action may delete data and cannot be undone. Are you sure you want to continue?',
+          confirmText: 'Continue',
+          variant: 'danger',
+        });
         if (!confirmed) {
-          return 'Operation cancelled by user.';
+          return 'Operation cancelled.';
         }
       }
 

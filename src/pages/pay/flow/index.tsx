@@ -4,6 +4,7 @@ import Layout from '../../../components/Layout';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 import Button from '../../../components/ui/Button';
 import * as api from '../../../api/client';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import type { Invoice, InvoiceDeliveryLog, Contact, CreateInvoiceEngineRequest } from '../../../api/client';
 
 interface PP { signOut?: () => void; user?: any; embedded?: boolean; }
@@ -68,6 +69,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [configSaving, setConfigSaving] = useState(false);
   const [msg, setMsg] = useState<{text:string;type:'success'|'error'}|null>(null);
   const showMsg = (text:string, type:'success'|'error'='success') => { setMsg({text,type}); setTimeout(()=>setMsg(null),4000); };
+  const confirm = useConfirm();
 
   /* Loaders */
   const loadCustomers = useCallback(async () => {
@@ -168,7 +170,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
     setActionLoading('');
   };
   const doCancelInvoice = async (inv:Invoice) => {
-    if(!confirm('Cancel this invoice?')) return;
+    if(!(await confirm('Cancel this invoice?'))) return;
     setActionLoading('cancel');
     try { const r = await api.cancelInvoice(inv.invoiceId); if(r) { showMsg('Invoice cancelled'); setSelInvoice(null); loadInvoices(); } else showMsg('Cancel failed','error'); } catch(e) { showMsg('Cancel failed','error'); }
     setActionLoading('');
@@ -184,8 +186,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
     setActionLoading('');
   };
   const doDeleteInvoice = async (inv:Invoice) => {
-    const adjustSeq = confirm('Delete this invoice?\n\nClick OK to also adjust sequence.\nClick Cancel to keep sequence.');
-    if(!confirm(`CONFIRM: Permanently delete invoice ${inv.invoiceNumber||inv.referenceId}?`)) return;
+    const adjustSeq = await confirm({ message: 'Delete this invoice?\n\nConfirm to also adjust sequence, Cancel to keep sequence.', title: 'Adjust Sequence?', confirmText: 'Adjust', cancelText: 'Keep', variant: 'warning' });
+    if(!(await confirm(`Permanently delete invoice ${inv.invoiceNumber||inv.referenceId}?`))) return;
     setActionLoading('delete');
     try { const r = await api.deleteInvoice(inv.invoiceId, adjustSeq); if(r?.deleted) { showMsg('Invoice deleted'); setSelInvoice(null); loadInvoices(); } else showMsg('Delete failed','error'); } catch(e) { showMsg('Delete failed','error'); }
     setActionLoading('');

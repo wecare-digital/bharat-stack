@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 
@@ -19,6 +20,7 @@ const WABAS = [
 
 const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
+  const confirm = useConfirm();
   const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
   };
 
   const handleDelete = async (groupId: string) => {
-    if (!confirm('Delete this group?')) return;
+    if (!(await confirm('Delete this group?'))) return;
     const ok = await api.deleteGroup(groupId);
     if (ok) { toast.success('Group deleted'); setSelectedGroup(null); loadGroups(selectedWaba); }
     else toast.error('Delete failed');
@@ -87,7 +89,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
   };
 
   const handleRemoveParticipant = async (phone: string) => {
-    if (!selectedGroup || !confirm(`Remove ${phone}?`)) return;
+    if (!selectedGroup || !(await confirm(`Remove ${phone}?`))) return;
     const ok = await api.manageGroupParticipants(selectedGroup.id, [phone], 'remove');
     if (ok) { toast.success('Removed'); viewDetails(selectedGroup); }
     else toast.error('Remove failed');

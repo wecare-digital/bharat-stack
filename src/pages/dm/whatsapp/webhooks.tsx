@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES, WHATSAPP_CALLING_VERIFY_TOKEN } from '../../../config/constants';
 
@@ -51,6 +52,7 @@ const META_WEBHOOK_CONFIG = {
 
 const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
+  const confirm = useConfirm();
   const [selectedWaba, setSelectedWaba] = useState(WABAS[0]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,7 +78,7 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) 
   };
 
   const handleUnsubscribe = async () => {
-    if (!confirm('Unsubscribe this app from webhooks?')) return;
+    if (!(await confirm('Unsubscribe this app from webhooks?'))) return;
     setSubscribing(true);
     const ok = await api.unsubscribeWebhook(selectedWaba.id);
     if (ok) { toast.success('Unsubscribed'); loadSubs(selectedWaba); }

@@ -9,6 +9,7 @@ import PageShell, { ShellTab } from '../../../components/PageShell';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
 
 // Embedded sub-page
@@ -52,6 +53,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [clearing, setClearing] = useState(false);
   const toast = useToastContext();
+  const confirm = useConfirm();
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -139,7 +141,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   };
 
   const handleClearLogs = async () => {
-    if (!confirm('Clear all voice logs?')) return;
+    if (!(await confirm('Clear all voice logs?'))) return;
     setClearing(true);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/voice-aws/clear-logs`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });

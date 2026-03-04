@@ -5,6 +5,7 @@
 
 import React, { useState, useRef } from 'react';
 import * as api from '../api/client';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface ContactImportExportProps {
   contacts: api.Contact[];
@@ -14,6 +15,7 @@ interface ContactImportExportProps {
 type ImportTab = 'csv' | 'manual';
 
 const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onImportComplete }) => {
+  const toast = useToastContext();
   const [activeTab, setActiveTab] = useState<ImportTab>('csv');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<api.ImportResult | null>(null);
@@ -31,7 +33,7 @@ const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onI
   // CSV file handling
   const handleFileSelect = async (file: File) => {
     if (!file.name.endsWith('.csv') && !file.name.endsWith('.vcf')) {
-      alert('Please select a CSV or VCF file');
+      toast.error('Please select a CSV or VCF file');
       return;
     }
 
@@ -126,7 +128,7 @@ const ContactImportExport: React.FC<ContactImportExportProps> = ({ contacts, onI
   // Manual contact entry
   const handleManualAdd = async () => {
     if (!manualPhone && !manualEmail) {
-      alert('Phone or email is required');
+      toast.error('Phone or email is required');
       return;
     }
     

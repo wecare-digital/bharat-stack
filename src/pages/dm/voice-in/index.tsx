@@ -9,6 +9,7 @@ import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
@@ -50,6 +51,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
   const [cdrDirectionFilter, setCdrDirectionFilter] = useState<'all' | 'INBOUND' | 'OUTBOUND'>('all');
   
   const toast = useToastContext();
+  const confirm = useConfirm();
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -161,7 +163,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
   };
 
   const handleClearLogs = async (type: 'c2c' | 'obd' | 'cdr') => {
-    if (!confirm(`Clear all ${type.toUpperCase()} logs? This cannot be undone.`)) return;
+    if (!(await confirm(`Clear all ${type.toUpperCase()} logs? This cannot be undone.`))) return;
     setClearing(true);
     try {
       const endpoint = type === 'cdr' ? 'voice-cdr-webhook' : `voice-in/${type}`; // CDR clear goes to webhook handler which owns the data

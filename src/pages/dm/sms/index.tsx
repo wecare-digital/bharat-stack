@@ -9,6 +9,7 @@ import PageShell, { ShellTab } from '../../../components/PageShell';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
@@ -65,6 +66,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [airtelSending, setAirtelSending] = useState(false);
 
   const toast = useToastContext();
+  const confirm = useConfirm();
 
   const loadContacts = useCallback(async () => {
     setLoadingContacts(true);
@@ -181,7 +183,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   };
 
   const handleClearLogs = async (type: 'aws' | 'airtel') => {
-    if (!confirm(`Clear all ${type === 'aws' ? 'AWS' : 'Airtel'} SMS logs?`)) return;
+    if (!(await confirm(`Clear all ${type === 'aws' ? 'AWS' : 'Airtel'} SMS logs?`))) return;
     setClearing(true);
     try {
       const endpoint = type === 'aws' ? 'sms-aws/clear-logs' : 'sms-in/airtel?action=clear-logs';
