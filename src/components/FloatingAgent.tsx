@@ -271,21 +271,28 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
+  /** Strip <thinking>...</thinking> tags from AI responses */
+  const cleanResponse = (text: string): string => {
+    return text.replace(/<thinking>[\s\S]*?<\/thinking>\s*/gi, '').trim();
+  };
+
   /** Extract the AI response text from any response shape */
   const extractResponse = (data: any): string | null => {
     if (!data) return null;
 
+    let raw: string | null = null;
+
     // Direct normalized format from proxy
-    if (data.suggestedResponse) return data.suggestedResponse;
-    if (data.suggestion) return data.suggestion;
+    if (data.suggestedResponse) raw = data.suggestedResponse;
+    else if (data.suggestion) raw = data.suggestion;
 
     // API Gateway wrapped format (fallback if proxy didn't unwrap)
-    if (data.body) {
+    if (!raw && data.body) {
       try {
         const parsed = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
-        if (parsed.suggestedResponse) return parsed.suggestedResponse;
-        if (parsed.suggestion) return parsed.suggestion;
-        if (parsed.error) {
+        if (parsed.suggestedResponse) raw = parsed.suggestedResponse;
+        else if (parsed.suggestion) raw = parsed.suggestion;
+        else if (parsed.error) {
           console.error('Backend error in body:', parsed.error);
           return 'Something went wrong on the server. Please try again.';
         }
@@ -294,7 +301,7 @@ const FloatingAgent: React.FC = () => {
       }
     }
 
-    return null;
+    return raw ? cleanResponse(raw) : null;
   };
 
   const handleSend = async () => {

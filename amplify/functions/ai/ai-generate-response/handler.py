@@ -790,20 +790,15 @@ def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
 
         # System prompt for internal admin agent
         system_prompts = [{
-            'text': '''You are WECARE.DIGITAL's internal admin assistant. Help operators with:
+            'text': '''You are WECARE.DIGITAL's internal admin assistant. You help operators manage contacts, send messages, and check stats.
 
-• Sending WhatsApp/SMS/Email messages
-• Finding and managing contacts
-• Viewing message history
-• Checking dashboard statistics
-• Creating invoices
-
-You have access to tools to perform these tasks. When a user asks to do something:
-1. Use the appropriate tool to execute the action
-2. Provide a clear, concise confirmation of what was done
-3. Be proactive - if user says "send message to Jignesh", search for Jignesh first, then send
-
-Be conversational but efficient. Focus on getting tasks done.'''
+RULES:
+- Keep responses SHORT and direct. No long explanations.
+- Never include <thinking> tags or internal reasoning in responses.
+- When a task is done, confirm briefly: "Done. Message sent to Jignesh." or "Found 3 contacts matching 'test'."
+- Be proactive: if user says "send message to Jignesh", search for Jignesh first, then send.
+- If you need info, ask in one short sentence.
+- No greetings or filler text. Just do the task and confirm.'''
         }]
 
         # Define tools for internal agent - COMPREHENSIVE BASE CRM CAPABILITIES
@@ -938,6 +933,27 @@ Be conversational but efficient. Focus on getting tasks done.'''
                 }
             },
             
+            # ===== WHATSAPP PAY =====
+            {
+                'toolSpec': {
+                    'name': 'send_whatsapp_pay',
+                    'description': 'Send a WhatsApp Pay interactive payment request to a contact. Creates a payment link message.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'amount': {'type': 'number', 'description': 'Payment amount in INR'},
+                                'description': {'type': 'string', 'description': 'Payment description (e.g. "Invoice #123")'},
+                                'currency': {'type': 'string', 'description': 'Currency code (default: INR)'},
+                                'expiryMinutes': {'type': 'number', 'description': 'Payment link expiry in minutes (default: 60)'},
+                                'referenceId': {'type': 'string', 'description': 'Optional reference/invoice ID'}
+                            },
+                            'required': ['contactId', 'amount', 'description']
+                        }
+                    }
+                }
+            },
             # ===== VOICE & SMS =====
             {
                 'toolSpec': {
@@ -1410,7 +1426,12 @@ def _internal_converse_with_tools(
             # If we have a text response, return it
             for content_block in message.get('content', []):
                 if 'text' in content_block:
-                    return content_block['text']
+                    response_text = content_block['text']
+                    # Strip <thinking>...</thinking> tags from response
+                    import re
+                    response_text = re.sub(r'<thinking>.*?</thinking>\s*', '', response_text, flags=re.DOTALL).strip()
+                    if response_text:
+                        return response_text
 
             # Fallback
             return "I've processed your request."
@@ -1453,6 +1474,8 @@ def _execute_internal_tool(tool_name: str, tool_input: Dict, request_id: str) ->
             return _tool_send_whatsapp_buttons(tool_input, request_id)
         elif tool_name == 'send_whatsapp_list':
             return _tool_send_whatsapp_list(tool_input, request_id)
+        elif tool_name == 'send_whatsapp_pay':
+            return _tool_send_whatsapp_pay(tool_input, request_id)
         
         # Voice & SMS
         elif tool_name == 'make_voice_call':
@@ -4180,6 +4203,68 @@ def _tool_send_whatsapp_list(params: Dict, request_id: str) -> Dict:
             'message': 'Interactive list message sent'
         }
         
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_send_whatsapp_pay(params: Dict, request_id: str) -> Dict:
+    """Send WhatsApp Pay interactive payment request."""
+    contact_id = params.get('contactId')
+    amount = params.get('amount')
+    description = params.get('description')
+    currency = params.get('currency', 'INR')
+    expiry_minutes = params.get('expiryMinutes', 60)
+    reference_id = params.get('referenceId', f'PAY-{int(time.time())}')
+
+    if not all([contact_id, amount, description]):
+        return {'success': False, 'error': 'contactId, amount, and description are required'}
+
+    try:
+        # Build WhatsApp interactive payment message
+        interactive_payload = {
+            'type': 'button',
+            'body': {'text': f'Payment Request: {description}\nAmount: {currency} {amount}\nRef: {reference_id}'},
+            'action': {
+                'buttons': [
+                    {'type': 'reply', 'reply': {'id': f'pay_{reference_id}', 'title': f'Pay {currency} {amount}'}},
+                    {'type': 'reply', 'reply': {'id': f'decline_{reference_id}', 'title': 'Decline'}}
+                ]
+            }
+        }
+
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'interactive': interactive_payload
+            })
+        }
+
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+
+        logger.info(json.dumps({
+            'event': 'whatsapp_pay_sent',
+            'contactId': contact_id,
+            'amount': amount,
+            'currency': currency,
+            'referenceId': reference_id,
+            'requestId': request_id
+        }))
+
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'referenceId': reference_id,
+            'message': f'Payment request sent: {currency} {amount} for {description}'
+        }
+
     except Exception as e:
         return {'success': False, 'error': str(e)}
 

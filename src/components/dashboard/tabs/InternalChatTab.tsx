@@ -36,6 +36,7 @@ const TOOLS_LIST = [
   { id: 'send_whatsapp', name: 'Send WhatsApp', category: 'Messaging' },
   { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging' },
   { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging' },
+  { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging' },
   { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging' },
   { id: 'send_sms', name: 'Send SMS', category: 'Messaging' },
   { id: 'send_email', name: 'Send Email', category: 'Messaging' },
@@ -93,18 +94,24 @@ const InternalChatTab: React.FC = () => {
     setLogs([]);
   }, []);
 
+  /** Strip <thinking>...</thinking> tags from AI responses */
+  const cleanResponse = (text: string): string => {
+    return text.replace(/<thinking>[\s\S]*?<\/thinking>\s*/gi, '').trim();
+  };
+
   const extractResponse = (data: any): string | null => {
     if (!data) return null;
-    if (data.suggestedResponse) return data.suggestedResponse;
-    if (data.suggestion) return data.suggestion;
-    if (data.body) {
+    let raw: string | null = null;
+    if (data.suggestedResponse) raw = data.suggestedResponse;
+    else if (data.suggestion) raw = data.suggestion;
+    if (!raw && data.body) {
       try {
         const parsed = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
-        if (parsed.suggestedResponse) return parsed.suggestedResponse;
-        if (parsed.suggestion) return parsed.suggestion;
+        if (parsed.suggestedResponse) raw = parsed.suggestedResponse;
+        else if (parsed.suggestion) raw = parsed.suggestion;
       } catch { /* ignore */ }
     }
-    return null;
+    return raw ? cleanResponse(raw) : null;
   };
 
   const processCommand = async (text: string): Promise<string> => {
