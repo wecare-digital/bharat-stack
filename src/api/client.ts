@@ -185,6 +185,7 @@ export interface Contact {
   allowlistSms: boolean;
   allowlistEmail: boolean;
   lastInboundMessageAt?: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
@@ -255,6 +256,7 @@ function normalizeContact(item: any): Contact {
     allowlistSms: item.allowlistSms || false,
     allowlistEmail: item.allowlistEmail || false,
     lastInboundMessageAt: item.lastInboundMessageAt ? new Date(Number(item.lastInboundMessageAt) * 1000).toISOString() : undefined,
+    tags: Array.isArray(item.tags) ? item.tags : [],
     createdAt: item.createdAt ? new Date(Number(item.createdAt) * 1000).toISOString() : new Date().toISOString(),
     updatedAt: item.updatedAt ? new Date(Number(item.updatedAt) * 1000).toISOString() : new Date().toISOString(),
     deletedAt: item.deletedAt,

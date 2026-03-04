@@ -24,6 +24,7 @@ const schema = a.schema({
       allowlistSms: a.boolean().default(false),
       allowlistEmail: a.boolean().default(false),
       lastInboundMessageAt: a.datetime(),
+      tags: a.string().array(),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
       deletedAt: a.datetime(),

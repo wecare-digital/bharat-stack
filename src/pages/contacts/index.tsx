@@ -16,11 +16,9 @@ import * as api from '../../api/client';
 const AddUserIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
 const UploadIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/></svg>);
 const RefreshIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="#059669" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/></svg>);
-const DownloadIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m8 12 4 4m0 0 4-4m-4 4V6.8c0-1.39 0-2.086-.55-2.865-.366-.517-1.42-1.155-2.047-1.24-.945-.128-1.304.059-2.022.433A10 10 0 0 0 2 12c0 5.523 4.477 10 10 10s10-4.477 10-10a10 10 0 0 0-5-8.662"/></svg>);
 const ExportIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
 const EditIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
 const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
-const PlusIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>);
 const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} /></svg>);
 const CloseIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>);
 
@@ -71,6 +69,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingContact, setEditingContact] = useState<api.Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,6 +86,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Sorting & Pagination
   const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
@@ -142,20 +147,19 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   // Detail panel
   const [detailContact, setDetailContact] = useState<api.Contact | null>(null);
 
-  // Tags (stored in-memory per session — would need backend support for persistence)
-  const [contactTags, setContactTags] = useState<Record<string, string[]>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ct-tags');
-      if (saved) return JSON.parse(saved);
+  // Tags (persisted to DynamoDB via contact.tags field)
+  const contactTags = useMemo<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {};
+    for (const c of contacts) {
+      if (c.tags && c.tags.length > 0) map[c.contactId] = c.tags;
     }
-    return {};
-  });
+    return map;
+  }, [contacts]);
   const [showTagMenu, setShowTagMenu] = useState<string | null>(null);
   const [showOptIn, setShowOptIn] = useState(false);
 
-  // Persist column visibility & tags
+  // Persist column visibility
   useEffect(() => { localStorage.setItem('ct-hidden-cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
-  useEffect(() => { localStorage.setItem('ct-tags', JSON.stringify(contactTags)); }, [contactTags]);
 
   const colVisible = (key: ColumnKey) => !hiddenCols.has(key);
   const toggleCol = (key: ColumnKey) => {
@@ -193,9 +197,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   // Filter + sort
   const filteredSorted = useMemo(() => {
     let list = contacts.filter(c =>
-      (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.phone || '').includes(searchQuery) ||
-      (c.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (c.name || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (c.phone || '').includes(debouncedSearch) ||
+      (c.email || '').toLowerCase().includes(debouncedSearch.toLowerCase())
     );
     list.sort((a, b) => {
       const av = (a[sortKey] || '') as string;
@@ -208,12 +212,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       return sortDir === 'asc' ? av.localeCompare(bv, undefined, { sensitivity: 'base' }) : bv.localeCompare(av, undefined, { sensitivity: 'base' });
     });
     return list;
-  }, [contacts, searchQuery, sortKey, sortDir]);
+  }, [contacts, debouncedSearch, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedContacts = filteredSorted.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
-  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -363,12 +367,16 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   // Tags
-  const toggleTag = (contactId: string, tag: string) => {
-    setContactTags(prev => {
-      const tags = prev[contactId] || [];
-      const next = tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag];
-      return { ...prev, [contactId]: next };
-    });
+  const toggleTag = async (contactId: string, tag: string) => {
+    const current = contactTags[contactId] || [];
+    const next = current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag];
+    // Optimistic update: refresh contacts list after API call
+    try {
+      await api.updateContact(contactId, { tags: next } as any);
+      await loadContacts();
+    } catch {
+      toast.error('Failed to update tags');
+    }
   };
 
   // CSV import handlers
@@ -587,7 +595,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
               <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
             </svg>
-            <input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="" style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
+            <input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search contacts..." style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
           </div>
 
           {/* Action buttons */}
@@ -673,6 +681,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Main content area with table + detail panel */}
         <div style={{ display: 'flex', gap: 0 }}>
           {/* Desktop Table View */}
+          {!isMobile && (
           <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #D1FAE5', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
@@ -815,9 +824,11 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             )}
           </div>
+          )}
 
           {/* Mobile Card View */}
-          <div className="contacts-mobile-cards" style={{ display: 'none', padding: '0 16px' }}>
+          {isMobile && (
+          <div className="contacts-mobile-cards" style={{ padding: '0 16px' }}>
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={5} /></div> : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 {searchQuery ? (
@@ -863,6 +874,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             )}
           </div>
+          )}
 
           {/* Detail side panel */}
           {detailContact && (

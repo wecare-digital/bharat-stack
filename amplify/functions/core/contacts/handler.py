@@ -44,6 +44,7 @@ ALLOWED_UPDATE_FIELDS = {
     'name', 'phone', 'email', 'shippingAddress', 'billingAddress',
     'optInWhatsApp', 'optInSms', 'optInEmail',
     'allowlistWhatsApp', 'allowlistSms', 'allowlistEmail',
+    'tags',
 }
 OPT_IN_FIELDS = {
     'optInWhatsApp', 'optInSms', 'optInEmail',
@@ -143,6 +144,7 @@ def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str
         'allowlistSms': True,
         'allowlistEmail': True,
         'lastInboundMessageAt': None,
+        'tags': body.get('tags', []),
         'createdAt': now,
         'updatedAt': now,
         'deletedAt': None,
