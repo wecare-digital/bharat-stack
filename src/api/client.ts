@@ -255,12 +255,32 @@ function normalizeContact(item: any): Contact {
     allowlistWhatsApp: item.allowlistWhatsApp || false,
     allowlistSms: item.allowlistSms || false,
     allowlistEmail: item.allowlistEmail || false,
-    lastInboundMessageAt: item.lastInboundMessageAt ? new Date(Number(item.lastInboundMessageAt) * 1000).toISOString() : undefined,
+    lastInboundMessageAt: normalizeTimestamp(item.lastInboundMessageAt),
     tags: Array.isArray(item.tags) ? item.tags : [],
-    createdAt: item.createdAt ? new Date(Number(item.createdAt) * 1000).toISOString() : new Date().toISOString(),
-    updatedAt: item.updatedAt ? new Date(Number(item.updatedAt) * 1000).toISOString() : new Date().toISOString(),
+    createdAt: normalizeTimestamp(item.createdAt) || new Date().toISOString(),
+    updatedAt: normalizeTimestamp(item.updatedAt) || new Date().toISOString(),
     deletedAt: item.deletedAt,
   };
+}
+
+/**
+ * Fix #8/#12: Safely convert epoch seconds OR ISO strings to ISO string.
+ * Handles: epoch seconds (number), epoch string ("1709568000"), ISO string, undefined/null.
+ */
+function normalizeTimestamp(value: any): string | undefined {
+  if (!value && value !== 0) return undefined;
+  // If it's a number or a string that looks like an epoch (all digits)
+  const num = Number(value);
+  if (!isNaN(num) && String(value).match(/^\d+$/)) {
+    // Epoch seconds are < 10 billion; epoch millis are > 10 billion
+    const ms = num < 1e12 ? num * 1000 : num;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  // Try parsing as ISO string
+  const d = new Date(String(value));
+  if (!isNaN(d.getTime())) return d.toISOString();
+  return undefined;
 }
 
 // ============================================================================
@@ -2293,80 +2313,6 @@ export async function sendCarouselTemplateMessage(request: {
 // ============================================================================
 // CONTACT TAGS & GROUPS API
 // ============================================================================
-
-export interface ContactTag {
-  id: string;
-  name: string;
-  color: string;
-  contactCount: number;
-}
-
-/**
- * Get all contact tags
- */
-export async function listContactTags(): Promise<ContactTag[]> {
-  // Tags are stored in localStorage for now (can be moved to DynamoDB later)
-  const stored = localStorage.getItem('contactTags');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-/**
- * Create a new contact tag
- */
-export async function createContactTag(name: string, color: string = '#25d366'): Promise<ContactTag> {
-  const tags = await listContactTags();
-  const newTag: ContactTag = {
-    id: `tag_${Date.now()}`,
-    name,
-    color,
-    contactCount: 0,
-  };
-  tags.push(newTag);
-  localStorage.setItem('contactTags', JSON.stringify(tags));
-  return newTag;
-}
-
-/**
- * Delete a contact tag
- */
-export async function deleteContactTag(tagId: string): Promise<boolean> {
-  const tags = await listContactTags();
-  const filtered = tags.filter(t => t.id !== tagId);
-  localStorage.setItem('contactTags', JSON.stringify(filtered));
-  return true;
-}
-
-/**
- * Get tags for a specific contact
- */
-export async function getContactTags(contactId: string): Promise<string[]> {
-  const stored = localStorage.getItem(`contact_tags_${contactId}`);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-/**
- * Set tags for a contact
- */
-export async function setContactTags(contactId: string, tagIds: string[]): Promise<boolean> {
-  localStorage.setItem(`contact_tags_${contactId}`, JSON.stringify(tagIds));
-  return true;
-}
-
-// ============================================================================
 // STARRED MESSAGES API
 // ============================================================================
 
@@ -2415,11 +2361,14 @@ export function isMessageStarred(messageId: string): boolean {
  * Export contacts to CSV
  */
 export function exportContactsToCSV(contacts: Contact[]): string {
-  const headers = ['Name', 'Phone', 'Email', 'WhatsApp Opt-In', 'SMS Opt-In', 'Email Opt-In', 'Created At'];
+  const headers = ['Name', 'Phone', 'Email', 'Shipping Address', 'Billing Address', 'Tags', 'WhatsApp Opt-In', 'SMS Opt-In', 'Email Opt-In', 'Created At'];
   const rows = contacts.map(c => [
     c.name || '',
     c.phone || '',
     c.email || '',
+    c.shippingAddress || '',
+    c.billingAddress || '',
+    (c.tags || []).join('; '),
     c.optInWhatsApp ? 'Yes' : 'No',
     c.optInSms ? 'Yes' : 'No',
     c.optInEmail ? 'Yes' : 'No',
@@ -2620,42 +2569,57 @@ export async function importContacts(contacts: Partial<Contact>[]): Promise<Impo
     errors: [],
   };
   
-  for (const contact of contacts) {
-    try {
-      // Ensure all contacts have WhatsApp opt-in enabled
-      const contactWithOptIn = {
-        ...contact,
-        optInWhatsApp: true,
-        allowlistWhatsApp: true,
-      };
-      
-      // Check if contact exists by phone
-      const existing = await listContacts();
-      const found = existing.find(c => c.phone === contact.phone);
-      
-      if (found) {
-        // Update existing
-        const updated = await updateContact(found.contactId, contactWithOptIn);
-        if (updated) {
-          result.updated++;
+  // Fix #1: Fetch existing contacts ONCE before the loop instead of per-contact
+  let existing: Contact[] = [];
+  try {
+    existing = await listContacts();
+  } catch {
+    // If we can't fetch, proceed without dedup — backend will catch duplicates
+  }
+  
+  // Build a phone lookup map for O(1) dedup
+  const phoneMap = new Map<string, Contact>();
+  for (const c of existing) {
+    if (c.phone) phoneMap.set(c.phone, c);
+  }
+  
+  // Process in batches of 5 for some parallelism without overwhelming the API
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+    const batch = contacts.slice(i, i + BATCH_SIZE);
+    const promises = batch.map(async (contact) => {
+      try {
+        const contactWithOptIn = {
+          ...contact,
+          optInWhatsApp: true,
+          allowlistWhatsApp: true,
+        };
+        
+        const found = contact.phone ? phoneMap.get(contact.phone) : undefined;
+        
+        if (found) {
+          const updated = await updateContact(found.contactId, contactWithOptIn);
+          if (updated) {
+            result.updated++;
+          } else {
+            result.failed++;
+            result.errors.push(`Failed to update: ${contact.phone}`);
+          }
         } else {
-          result.failed++;
-          result.errors.push(`Failed to update: ${contact.phone}`);
+          const created = await createContact(contactWithOptIn);
+          if (created) {
+            result.created++;
+          } else {
+            result.failed++;
+            result.errors.push(`Failed to create: ${contact.phone}`);
+          }
         }
-      } else {
-        // Create new
-        const created = await createContact(contactWithOptIn);
-        if (created) {
-          result.created++;
-        } else {
-          result.failed++;
-          result.errors.push(`Failed to create: ${contact.phone}`);
-        }
+      } catch (err: any) {
+        result.failed++;
+        result.errors.push(`Error with ${contact.phone}: ${err.message}`);
       }
-    } catch (err: any) {
-      result.failed++;
-      result.errors.push(`Error with ${contact.phone}: ${err.message}`);
-    }
+    });
+    await Promise.all(promises);
   }
   
   return result;

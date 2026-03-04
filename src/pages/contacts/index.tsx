@@ -12,18 +12,26 @@ import { useToastContext } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import * as api from '../../api/client';
 
-// SVG Icons — emerald theme (#059669)
-const AddUserIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
-const UploadIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/></svg>);
-const RefreshIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="#059669" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/></svg>);
-const ExportIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
-const EditIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
-const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
-const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} /></svg>);
-const CloseIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>);
+// SVG Icons — emerald theme (#059669) — Fix #17: added aria-hidden for decorative icons
+const AddUserIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
+const UploadIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/></svg>);
+const RefreshIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="#059669" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/></svg>);
+const ExportIcon = () => (<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
+const EditIcon = ({ size = 18 }: { size?: number }) => (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
+const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
+const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} /></svg>);
+const CloseIcon = () => (<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>);
 
 type SortKey = 'name' | 'phone' | 'email' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
+
+// Fix #20: SortHeader extracted outside component to avoid re-creation on every render
+const SortHeader = ({ label, sKey, sortKey, sortDir, onSort, style }: { label: string; sKey: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (key: SortKey) => void; style?: React.CSSProperties }) => (
+  <th onClick={() => onSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center' }}>{label}<SortIcon dir={sortKey === sKey ? sortDir : null} /></span>
+  </th>
+);
+
 const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
 const TAG_COLORS: Record<string, string> = { VIP: '#065f46', Lead: '#047857', Customer: '#059669', Prospect: '#059669', Partner: '#34d399', Vendor: '#6ee7b7' };
@@ -47,12 +55,25 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'tags', label: 'Tags' },
 ];
 
-function timeAgo(dateStr?: string): string {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
+function timeAgo(dateStr?: string | number): string {
+  if (!dateStr && dateStr !== 0) return '—';
+  // Backend stores timestamps as Unix epoch seconds (int(time.time()))
+  // Detect epoch seconds vs milliseconds vs ISO string
+  let d: Date;
+  if (typeof dateStr === 'number') {
+    d = new Date(dateStr < 1e12 ? dateStr * 1000 : dateStr);
+  } else {
+    const num = Number(dateStr);
+    if (!isNaN(num)) {
+      d = new Date(num < 1e12 ? num * 1000 : num);
+    } else {
+      d = new Date(dateStr);
+    }
+  }
   if (isNaN(d.getTime())) return '—';
   const now = Date.now();
   const diff = now - d.getTime();
+  if (diff < 0) return 'just now';
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
@@ -107,12 +128,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formCountryCode, setFormCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  const [formOptInWA, setFormOptInWA] = useState(false);
-  const [formOptInSms, setFormOptInSms] = useState(false);
-  const [formOptInEmail, setFormOptInEmail] = useState(false);
-  const [formAllowlistWA, setFormAllowlistWA] = useState(false);
-  const [formAllowlistSms, setFormAllowlistSms] = useState(false);
-  const [formAllowlistEmail, setFormAllowlistEmail] = useState(false);
+  const [formOptInWA, setFormOptInWA] = useState(true);
+  const [formOptInSms, setFormOptInSms] = useState(true);
+  const [formOptInEmail, setFormOptInEmail] = useState(true);
+  const [formAllowlistWA, setFormAllowlistWA] = useState(true);
+  const [formAllowlistSms, setFormAllowlistSms] = useState(true);
+  const [formAllowlistEmail, setFormAllowlistEmail] = useState(true);
 
   // Delete confirmation
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
@@ -126,6 +147,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [contacts, setContacts] = useState<api.Contact[]>([]);
+  // Fix #13: Error state for retry UI
+  const [loadError, setLoadError] = useState(false);
 
   // === NEW FEATURES STATE ===
   // Bulk selection
@@ -141,11 +164,26 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   });
   const [showColMenu, setShowColMenu] = useState(false);
 
-  // Inline edit
-  const [inlineEdit, setInlineEdit] = useState<{ id: string; field: 'name' | 'email'; value: string } | null>(null);
+  // Inline edit — Fix #8: added 'phone' as inline-editable field
+  const [inlineEdit, setInlineEdit] = useState<{ id: string; field: 'name' | 'email' | 'phone'; value: string } | null>(null);
+
+  // Fix #7: Deleting state to prevent double-click on delete modal
+  const [deleting, setDeleting] = useState(false);
+
+  // Fix #12 (R2): Track Escape to prevent onBlur from committing after cancel
+  const inlineEditCancelled = useRef(false);
 
   // Detail panel
   const [detailContact, setDetailContact] = useState<api.Contact | null>(null);
+
+  // Keep detail panel in sync when contacts list refreshes
+  useEffect(() => {
+    if (detailContact) {
+      const updated = contacts.find(c => c.contactId === detailContact.contactId);
+      if (updated) setDetailContact(updated);
+      else setDetailContact(null); // contact was deleted
+    }
+  }, [contacts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tags (persisted to DynamoDB via contact.tags field)
   const contactTags = useMemo<Record<string, string[]>>(() => {
@@ -159,6 +197,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [tagMenuPos, setTagMenuPos] = useState<{ top: number; left: number; flipUp: boolean }>({ top: 0, left: 0, flipUp: false });
   const [showOptIn, setShowOptIn] = useState(false);
 
+  // Fix #10: Close tag menu on scroll to prevent stale positioning
+  useEffect(() => {
+    if (!showTagMenu) return;
+    const handleScroll = () => setShowTagMenu(null);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, [showTagMenu]);
+
   // Persist column visibility
   useEffect(() => { localStorage.setItem('ct-hidden-cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
 
@@ -167,11 +213,23 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setHiddenCols(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   };
 
-  const loadContacts = useCallback(async () => {
+  const loadContacts = useCallback(async (retryCount = 0) => {
     setLoading(true);
-    try { const data = await api.listContacts(); setContacts(data); }
-    catch { toast.error('Failed to load contacts'); }
-    finally { setLoading(false); }
+    setLoadError(false);
+    try {
+      const data = await api.listContacts();
+      setContacts(data);
+      setLoading(false);
+    } catch {
+      if (retryCount < 1) {
+        // Don't set loading=false yet — keep skeleton visible during retry
+        setTimeout(() => loadContacts(retryCount + 1), 2000);
+        return;
+      }
+      setLoadError(true);
+      setLoading(false);
+      toast.error('Failed to load contacts');
+    }
   }, [toast]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
@@ -195,19 +253,22 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     return () => window.removeEventListener('keydown', handler);
   }, [showModal, showEditModal, showDeleteModal, detailContact]);
 
-  // Filter + sort
+  // Filter + sort (includes tag search)
   const filteredSorted = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
     let list = contacts.filter(c =>
-      (c.name || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (c.name || '').toLowerCase().includes(q) ||
       (c.phone || '').includes(debouncedSearch) ||
-      (c.email || '').toLowerCase().includes(debouncedSearch.toLowerCase())
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.tags || []).some(tag => tag.toLowerCase().includes(q))
     );
     list.sort((a, b) => {
       const av = (a[sortKey] || '') as string;
       const bv = (b[sortKey] || '') as string;
       if (sortKey === 'updatedAt') {
-        const da = new Date(av).getTime() || 0;
-        const db = new Date(bv).getTime() || 0;
+        const parseTs = (v: string) => { const n = Number(v); if (!isNaN(n)) return n < 1e12 ? n * 1000 : n; return new Date(v).getTime() || 0; };
+        const da = parseTs(av);
+        const db = parseTs(bv);
         return sortDir === 'asc' ? da - db : db - da;
       }
       return sortDir === 'asc' ? av.localeCompare(bv, undefined, { sensitivity: 'base' }) : bv.localeCompare(av, undefined, { sensitivity: 'base' });
@@ -243,8 +304,24 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     return null;
   };
 
+  // Fix #9: Frontend validation helpers
+  const isValidPhone = (phone: string): boolean => {
+    const cleaned = phone.replace(/[\s\-().]/g, '');
+    return /^\+?\d{7,15}$/.test(cleaned);
+  };
+  const isValidEmail = (email: string): boolean => {
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+  };
+
   const handleCreate = async () => {
+    if (formName.trim().length > 500) { toast.warning('Name is too long (max 500 characters)'); return; }
     if (!formPhone && !formEmail) { toast.warning('Phone or email is required'); return; }
+    if (formPhone && !isValidPhone(formPhone.startsWith('+') ? formPhone : `${formCountryCode}${formPhone.replace(/^0+/, '')}`)) {
+      toast.warning('Invalid phone number format'); return;
+    }
+    if (formEmail && !isValidEmail(formEmail)) {
+      toast.warning('Invalid email format'); return;
+    }
     const dup = checkDuplicate(formPhone, formEmail);
     if (dup) { toast.warning(dup); return; }
     const fullPhone = formPhone ? (formPhone.startsWith('+') ? formPhone : `${formCountryCode}${formPhone.replace(/^0+/, '')}`) : '';
@@ -293,7 +370,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const handleUpdate = async () => {
+    if (formName.trim().length > 500) { toast.warning('Name is too long (max 500 characters)'); return; }
     if (!editingContact || (!formPhone && !formEmail)) { toast.warning('Phone or email is required'); return; }
+    if (formPhone && !isValidPhone(formPhone.startsWith('+') ? formPhone : `${formCountryCode}${formPhone.replace(/^0+/, '')}`)) {
+      toast.warning('Invalid phone number format'); return;
+    }
+    if (formEmail && !isValidEmail(formEmail)) {
+      toast.warning('Invalid email format'); return;
+    }
     const dup = checkDuplicate(formPhone, formEmail, editingContact.contactId);
     if (dup) { toast.warning(dup); return; }
     const fullPhone = formPhone ? (formPhone.startsWith('+') ? formPhone : `${formCountryCode}${formPhone.replace(/^0+/, '')}`) : '';
@@ -312,42 +396,59 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const handleDelete = async (contactId: string) => {
+    setDeleting(true);
     setShowDeleteModal(null);
     try {
       const result = await api.deleteContact(contactId);
-      if (result) { toast.success('Contact deleted'); selectedIds.delete(contactId); setSelectedIds(new Set(selectedIds)); await loadContacts(); }
+      if (result) {
+        toast.success('Contact deleted');
+        setSelectedIds(prev => { const next = new Set(prev); next.delete(contactId); return next; });
+        await loadContacts();
+      }
       else toast.error('Failed to delete contact');
     } catch { toast.error('Failed to delete contact'); }
+    finally { setDeleting(false); }
   };
 
-  // Bulk delete
+  // Bulk delete — Fix #6: Use batched Promise.all instead of sequential
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     const count = selectedIds.size;
     if (!(await confirm(`Delete ${count} contact${count > 1 ? 's' : ''}?`))) return;
     let deleted = 0;
-    for (const id of selectedIds) {
-      try { const r = await api.deleteContact(id); if (r) deleted++; } catch {}
+    const ids = Array.from(selectedIds);
+    const BATCH = 5;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(id => api.deleteContact(id).catch(() => false)));
+      deleted += results.filter(Boolean).length;
     }
     setSelectedIds(new Set());
     toast.success(`Deleted ${deleted} contact${deleted > 1 ? 's' : ''}`);
     await loadContacts();
   };
 
-  // Bulk export selected
+  // Bulk export selected — Fix #11: added feedback toast
   const handleBulkExport = () => {
     const selected = contacts.filter(c => selectedIds.has(c.contactId));
     if (selected.length === 0) return;
     const csv = api.exportContactsToCSV(selected);
     api.downloadFile(csv, `contacts_selected_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+    toast.success(`Exported ${selected.length} contact${selected.length > 1 ? 's' : ''}`);
   };
 
-  // Select all on current page
+  // Fix #9: Select all on current page (with clear indication)
   const allPageSelected = paginatedContacts.length > 0 && paginatedContacts.every(c => selectedIds.has(c.contactId));
+  const allFilteredSelected = filteredSorted.length > 0 && filteredSorted.every(c => selectedIds.has(c.contactId));
   const toggleSelectAll = () => {
     const next = new Set(selectedIds);
     if (allPageSelected) { paginatedContacts.forEach(c => next.delete(c.contactId)); }
     else { paginatedContacts.forEach(c => next.add(c.contactId)); }
+    setSelectedIds(next);
+  };
+  const selectAllFiltered = () => {
+    const next = new Set(selectedIds);
+    filteredSorted.forEach(c => next.add(c.contactId));
     setSelectedIds(next);
   };
   const toggleSelect = (id: string) => {
@@ -356,10 +457,20 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setSelectedIds(next);
   };
 
-  // Inline edit
+  // Inline edit — Fix #8: supports name, email, and phone
   const commitInlineEdit = async () => {
-    if (!inlineEdit) return;
+    if (!inlineEdit || inlineEditCancelled.current) { inlineEditCancelled.current = false; return; }
     const { id, field, value } = inlineEdit;
+    // Validate inline email edits
+    if (field === 'email' && value && !isValidEmail(value)) {
+      toast.warning('Invalid email format');
+      return;
+    }
+    // Validate inline phone edits
+    if (field === 'phone' && value && !isValidPhone(value)) {
+      toast.warning('Invalid phone number format');
+      return;
+    }
     setInlineEdit(null);
     try {
       const result = await api.updateContact(id, { [field]: value });
@@ -390,36 +501,46 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       if (file.name.endsWith('.vcf')) {
         setPreviewData(parseVCard(text));
       } else {
-        const lines = text.split('\n').filter(l => l.trim());
-        if (lines.length < 2) { toast.warning('CSV file is empty'); return; }
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-        const nameIdx = headers.findIndex(h => h === 'name');
-        const phoneIdx = headers.findIndex(h => h === 'phone');
-        const emailIdx = headers.findIndex(h => h === 'email');
-        const rows: Partial<api.Contact>[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',').map(c => c.trim());
-          rows.push({
-            name: nameIdx >= 0 ? cols[nameIdx] : '',
-            phone: phoneIdx >= 0 ? cols[phoneIdx] : '',
-            email: emailIdx >= 0 ? cols[emailIdx] : '',
-          });
-        }
-        setPreviewData(rows);
+        // Fix #5: Use the robust CSV parser that handles quoted fields
+        const parsed = api.parseContactsCSV(text);
+        if (parsed.length === 0) { toast.warning('CSV file is empty or has no valid rows'); return; }
+        setPreviewData(parsed);
       }
     };
     reader.readAsText(file);
   };
 
+  // Fix #12: Improved vCard parser — handles vCard 3.0/4.0 TYPE params, folded lines, QP encoding
   const parseVCard = (text: string): Partial<api.Contact>[] => {
-    const cards = text.split('BEGIN:VCARD').filter(c => c.trim());
+    // Unfold continuation lines (RFC 6350: line starting with space/tab is continuation)
+    const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+    const cards = unfolded.split('BEGIN:VCARD').filter(c => c.trim());
     return cards.map(card => {
-      const lines = card.split('\n');
+      const lines = card.split(/\r?\n/);
       let name = '', phone = '', email = '';
       for (const line of lines) {
-        if (line.startsWith('FN:')) name = line.slice(3).trim();
-        if (line.startsWith('TEL') && !phone) { const m = line.match(/:([\d+\s-]+)/); if (m) phone = m[1].replace(/[\s-]/g, ''); }
-        if (line.startsWith('EMAIL')) { const m = line.match(/:(.+)/); if (m) email = m[1].trim(); }
+        const trimmed = line.trim();
+        // FN (formatted name) — may have params like FN;CHARSET=UTF-8:Name
+        if (/^FN[;:]/i.test(trimmed) && !name) {
+          const colonIdx = trimmed.indexOf(':');
+          if (colonIdx !== -1) name = trimmed.slice(colonIdx + 1).trim();
+        }
+        // TEL — handles TEL;TYPE=cell:, TEL;TYPE=WORK,VOICE:, TEL;VALUE=uri:tel:
+        if (/^TEL[;:]/i.test(trimmed) && !phone) {
+          const colonIdx = trimmed.indexOf(':');
+          if (colonIdx !== -1) {
+            let val = trimmed.slice(colonIdx + 1).trim();
+            // Strip tel: URI prefix
+            val = val.replace(/^tel:/i, '');
+            const m = val.match(/([\d+\s\-().]+)/);
+            if (m) phone = m[1].replace(/[\s\-().]/g, '');
+          }
+        }
+        // EMAIL — handles EMAIL;TYPE=INTERNET:, EMAIL;TYPE=HOME:
+        if (/^EMAIL[;:]/i.test(trimmed) && !email) {
+          const colonIdx = trimmed.indexOf(':');
+          if (colonIdx !== -1) email = trimmed.slice(colonIdx + 1).trim();
+        }
       }
       return { name, phone, email };
     }).filter(c => c.phone || c.email);
@@ -432,26 +553,23 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       const result = await api.importContacts(previewData);
       setImportResult(result);
       toast.success(`Imported ${result.created} of ${result.total} contacts`);
+      setPreviewData([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await loadContacts();
     } catch { toast.error('Import failed'); }
     finally { setImporting(false); }
   };
 
   const handleExport = () => {
-    const csv = api.exportContactsToCSV(contacts);
+    const data = debouncedSearch ? filteredSorted : contacts;
+    const csv = api.exportContactsToCSV(data);
     api.downloadFile(csv, `contacts_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+    toast.success(`Exported ${data.length} contact${data.length !== 1 ? 's' : ''}`);
   };
 
   const downloadTemplate = () => {
     api.downloadFile('Name,Phone,Email\nJohn Doe,+919000090000,[email]', 'contacts_template.csv', 'text/csv');
   };
-
-  // SortHeader component
-  const SortHeader = ({ label, sKey, style }: { label: string; sKey: SortKey; style?: React.CSSProperties }) => (
-    <th onClick={() => toggleSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center' }}>{label}<SortIcon dir={sortKey === sKey ? sortDir : null} /></span>
-    </th>
-  );
 
   // Inline styles for form (bypasses Next.js style jsx scoping)
   const S: Record<string, React.CSSProperties> = {
@@ -467,12 +585,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 24px' }}>
       {/* Name */}
       <div>
-        <label style={S.label}>Name</label>
-        <input style={S.input} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Full name" onFocus={focusStyle} onBlur={blurStyle} />
+        <label htmlFor="contact-name" style={S.label}>Name</label>
+        <input id="contact-name" style={S.input} value={formName} onChange={e => setFormName(e.target.value)} placeholder="Full name" maxLength={500} onFocus={focusStyle} onBlur={blurStyle} />
       </div>
       {/* Phone */}
       <div>
-        <label style={S.label}>Phone</label>
+        <label htmlFor="contact-phone" style={S.label}>Phone</label>
         <div style={{ display: 'flex', gap: 6 }}>
           {/* Searchable Country Code Dropdown */}
           <div style={{ position: 'relative', width: 120, flexShrink: 0 }}>
@@ -481,14 +599,19 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               value={showCountryDropdown ? countrySearch : formCountryCode}
               onChange={e => { setCountrySearch(e.target.value); setShowCountryDropdown(true); }}
               onFocus={() => { setShowCountryDropdown(true); setCountrySearch(''); }}
-              onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
+              onBlur={(e) => {
+                // Fix #13: Use relatedTarget check instead of fragile setTimeout
+                const dropdown = e.currentTarget.parentElement?.querySelector('[data-country-dropdown]');
+                if (dropdown && dropdown.contains(e.relatedTarget as Node)) return;
+                setShowCountryDropdown(false);
+              }}
               placeholder="Code"
               style={{ width: '100%', padding: '8px 8px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff', color: '#374151', cursor: 'pointer' }}
               onFocusCapture={focusStyle}
               onBlurCapture={blurStyle}
             />
             {showCountryDropdown && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
+              <div data-country-dropdown tabIndex={-1} style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
                 {COUNTRY_CODES
                   .filter(cc => 
                     cc.code.includes(countrySearch) || 
@@ -497,6 +620,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   .map(cc => (
                     <div
                       key={cc.code}
+                      tabIndex={-1}
                       onMouseDown={() => { setFormCountryCode(cc.code); setShowCountryDropdown(false); setCountrySearch(''); }}
                       style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', transition: 'background 0.15s' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#ECFDF5'}
@@ -508,24 +632,24 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             )}
           </div>
-          <input style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="[Phone]" onFocus={focusStyle} onBlur={blurStyle} />
+          <input id="contact-phone" style={S.input} value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="[Phone]" maxLength={20} onFocus={focusStyle} onBlur={blurStyle} />
         </div>
         <p style={S.hint}>Include country code</p>
       </div>
       {/* Email */}
       <div>
-        <label style={S.label}>Email</label>
-        <input style={S.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="[email]" onFocus={focusStyle} onBlur={blurStyle} />
+        <label htmlFor="contact-email" style={S.label}>Email</label>
+        <input id="contact-email" style={S.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="[email]" onFocus={focusStyle} onBlur={blurStyle} />
       </div>
       {/* Shipping + Billing row */}
       <div style={S.row}>
         <div>
-          <label style={S.label}>Shipping Address</label>
-          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="[Shipping Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+          <label htmlFor="contact-shipping" style={S.label}>Shipping Address</label>
+          <textarea id="contact-shipping" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="[Shipping Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
         </div>
         <div>
-          <label style={S.label}>Billing Address</label>
-          <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+          <label htmlFor="contact-billing" style={S.label}>Billing Address</label>
+          <textarea id="contact-billing" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
           <button 
             type="button"
             onClick={() => setFormBillingAddress(formShippingAddress)}
@@ -593,10 +717,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
           {/* Search */}
           <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 320 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
               <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
             </svg>
-            <input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search contacts..." style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
+            <input ref={searchInputRef} aria-label="Search contacts" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search contacts..." style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
           </div>
 
           {/* Action buttons */}
@@ -609,7 +733,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           <button onClick={handleExport} title="Export all contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
             <ExportIcon />
           </button>
-          <button onClick={loadContacts} title="Refresh" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+          <button onClick={() => loadContacts()} title="Refresh" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
             <RefreshIcon />
           </button>
 
@@ -631,10 +755,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
         </div>
 
-        {/* Bulk action bar */}
+        {/* Bulk action bar — Fix #9: shows select-all-pages option */}
         {selectedIds.size > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 12, background: '#ECFDF5', borderRadius: 13, border: '2px solid #D1FAE5' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 12, background: '#ECFDF5', borderRadius: 13, border: '2px solid #D1FAE5', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>{selectedIds.size} selected</span>
+            {allPageSelected && !allFilteredSelected && filteredSorted.length > PAGE_SIZE && (
+              <button onClick={selectAllFiltered} style={{ fontSize: 12, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                Select all {filteredSorted.length} contacts
+              </button>
+            )}
             <button onClick={handleBulkExport} title="Export selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
               <ExportIcon />
             </button>
@@ -666,6 +795,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     <tbody>{previewData.slice(0, 10).map((r, i) => <tr key={i}><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.name}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.phone}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.email}</td></tr>)}</tbody>
                   </table>
                 </div>
+                {previewData.length > 10 && (
+                  <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>…and {previewData.length - 10} more</p>
+                )}
                 <button onClick={handleImport} disabled={importing} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: importing ? 0.6 : 1 }}>
                   {importing ? 'Importing...' : `Import ${previewData.length} contacts`}
                 </button>
@@ -673,7 +805,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             )}
             {importResult && (
               <p style={{ fontSize: 13, color: '#059669', marginTop: 8 }}>
-                Done: {importResult.created} created, {importResult.failed} failed, {importResult.errors.length} errors
+                Done: {importResult.created} created, {importResult.updated} updated, {importResult.failed} failed{importResult.errors.length > 0 ? `, ${importResult.errors.length} errors` : ''}
               </p>
             )}
           </div>
@@ -684,7 +816,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           {/* Desktop Table View */}
           {!isMobile && (
           <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #D1FAE5', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
-            {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : filteredSorted.length === 0 ? (
+            {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : loadError ? (
+              <div style={{ padding: 48, textAlign: 'center' }}>
+                <p style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Failed to load contacts</p>
+                <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+              </div>
+            ) : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 {searchQuery ? (
                   <div>
@@ -707,12 +844,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       <th style={{ width: 40, padding: '12px 10px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>
                         <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ accentColor: '#059669', width: 16, height: 16 }} />
                       </th>
-                      <SortHeader label="Name" sKey="name" />
-                      <SortHeader label="Phone" sKey="phone" />
-                      <SortHeader label="Email" sKey="email" />
+                      <SortHeader label="Name" sKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                      <SortHeader label="Phone" sKey="phone" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                      <SortHeader label="Email" sKey="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                       {colVisible('shipping') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
                       {colVisible('billing') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
-                      {colVisible('updated') && <SortHeader label="Updated" sKey="updatedAt" />}
+                      {colVisible('updated') && <SortHeader label="Updated" sKey="updatedAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />}
                       {colVisible('tags') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
                       <th style={{ width: 100, padding: '12px 10px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
                     </tr>
@@ -723,22 +860,27 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                         <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                           <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669', width: 16, height: 16 }} />
                         </td>
-                        {/* Name — inline editable */}
-                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontWeight: 500, fontSize: 14 }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
+                        {/* Name — inline editable (double-click) — Fix #18: cursor hint */}
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontWeight: 500, fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'name' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.name || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>unnamed</span>)}
                         </td>
-                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14 }}>{c.phone}</td>
-                        {/* Email — inline editable */}
-                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14 }} onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
+                        {/* Phone — inline editable (double-click) — Fix #8 */}
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'phone', value: c.phone || '' }); }}>
+                          {inlineEdit?.id === c.contactId && inlineEdit.field === 'phone' ? (
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                          ) : (c.phone || '—')}
+                        </td>
+                        {/* Email — inline editable (double-click) — Fix #18: cursor hint */}
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'email' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.email || '—')}
                         </td>
                         {colVisible('shipping') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.shippingAddress || '—'}</td>}
                         {colVisible('billing') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.billingAddress || '—'}</td>}
-                        {colVisible('updated') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', color: '#6b7280', fontSize: 13 }} title={c.updatedAt ? new Date(c.updatedAt).toLocaleString() : ''}>{timeAgo(c.updatedAt)}</td>}
+                        {colVisible('updated') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', color: '#6b7280', fontSize: 13 }} title={c.updatedAt ? (() => { const n = Number(c.updatedAt); const d = new Date(!isNaN(n) && n < 1e12 ? n * 1000 : (!isNaN(n) ? n : c.updatedAt)); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })() : ''}>{timeAgo(c.updatedAt)}</td>}
                         {colVisible('tags') && (
                           <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
@@ -811,7 +953,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           {/* Mobile Card View */}
           {isMobile && (
           <div className="contacts-mobile-cards" style={{ padding: '0 16px' }}>
-            {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={5} /></div> : filteredSorted.length === 0 ? (
+            {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={5} /></div> : loadError ? (
+              <div style={{ padding: 48, textAlign: 'center' }}>
+                <p style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Failed to load contacts</p>
+                <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+              </div>
+            ) : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 {searchQuery ? (
                   <div>
@@ -831,6 +978,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 {paginatedContacts.map(c => (
                   <div key={c.contactId} className="contact-card" onClick={() => setDetailContact(c)}>
                     <div className="contact-card-header">
+                      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
+                        <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669', width: 18, height: 18 }} />
+                      </div>
                       <div style={{ flex: 1 }}>
                         <div className="contact-card-name">{c.name || 'Unnamed'}</div>
                         <div className="contact-card-phone">{c.phone}</div>
@@ -860,7 +1010,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
           {/* Detail side panel */}
           {detailContact && (
-            <div style={{ width: 340, flexShrink: 0, borderLeft: '2px solid #D1FAE5', background: '#fff', overflow: 'auto', marginLeft: -2, borderRadius: '0 13px 13px 0' }}>
+            <div style={{ width: 340, flexShrink: 0, borderLeft: '2px solid #D1FAE5', background: '#fff', overflow: 'auto', marginLeft: -2, borderRadius: '0 13px 13px 0', maxHeight: 'calc(100vh - 200px)' }}>
               <div style={{ padding: '16px 20px', background: '#ECFDF5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#374151' }}>Contact Details</h3>
                 <button onClick={() => setDetailContact(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
@@ -877,7 +1027,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   { label: 'Email', value: detailContact.email },
                   { label: 'Shipping', value: detailContact.shippingAddress },
                   { label: 'Billing', value: detailContact.billingAddress },
-                  { label: 'Created', value: detailContact.createdAt ? new Date(detailContact.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
+                  { label: 'Created', value: detailContact.createdAt ? (() => { const ts = Number(detailContact.createdAt); const d = new Date(!isNaN(ts) && ts < 1e12 ? ts * 1000 : (!isNaN(ts) ? ts : detailContact.createdAt)); return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); })() : '—' },
                   { label: 'Updated', value: timeAgo(detailContact.updatedAt) },
                   { label: 'Last Message', value: timeAgo(detailContact.lastInboundMessageAt) },
                 ].map(item => (
@@ -911,6 +1061,21 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     ))}
                   </div>
                 </div>
+                {/* Fix #15: Allowlist status */}
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Allowlist Status</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {[
+                      { label: 'WA', on: detailContact.allowlistWhatsApp },
+                      { label: 'SMS', on: detailContact.allowlistSms },
+                      { label: 'Email', on: detailContact.allowlistEmail },
+                    ].map(ch => (
+                      <span key={`al-${ch.label}`} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: ch.on ? '#ECFDF5' : '#f3f4f6', color: ch.on ? '#059669' : '#9ca3af' }}>
+                        {ch.on ? '✓' : '✗'} {ch.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
@@ -938,13 +1103,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         )}
       </div>
 
-      {/* Add Contact Modal */}
+      {/* Add Contact Modal — Fix #10: accessibility */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowModal(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Add Contact" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowModal(false)}>
           <div style={{ background: '#fff', borderRadius: 14, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '20px 24px', background: '#ECFDF5', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#374151' }}>Add Contact</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
+              <button onClick={() => setShowModal(false)} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
             </div>
             {renderContactForm(false)}
             <div style={{ padding: '16px 24px', borderTop: '2px solid #D1FAE5', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -955,13 +1120,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
       )}
 
-      {/* Edit Contact Modal */}
+      {/* Edit Contact Modal — Fix #10: accessibility */}
       {showEditModal && editingContact && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowEditModal(false); setEditingContact(null); }}>
+        <div role="dialog" aria-modal="true" aria-label="Edit Contact" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowEditModal(false); setEditingContact(null); }}>
           <div style={{ background: '#fff', borderRadius: 14, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '20px 24px', background: '#ECFDF5', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#374151' }}>Edit Contact</h2>
-              <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
+              <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
             </div>
             {renderContactForm(true)}
             <div style={{ padding: '16px 24px', borderTop: '2px solid #D1FAE5', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -972,17 +1137,17 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal — Fix #10: accessibility */}
       {showDeleteModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(null)}>
+        <div role="dialog" aria-modal="true" aria-label="Delete Contact" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(null)}>
           <div style={{ background: '#fff', borderRadius: 14, width: 400, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: '#374151' }}>Delete Contact</h3>
             <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 20px' }}>
-              Are you sure you want to delete <strong>{deleteContactName || 'this contact'}</strong>? This cannot be undone.
+              Are you sure you want to delete <strong>{deleteContactName || 'this contact'}</strong>? The contact will be archived and can be recovered by an admin.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setShowDeleteModal(null)} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
-              <button onClick={() => handleDelete(showDeleteModal)} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+              <button onClick={() => setShowDeleteModal(null)} disabled={deleting} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: deleting ? 'not-allowed' : 'pointer', color: '#374151' }}>Cancel</button>
+              <button onClick={() => handleDelete(showDeleteModal)} disabled={deleting} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}>{deleting ? 'Deleting...' : 'Delete'}</button>
             </div>
           </div>
         </div>
@@ -990,7 +1155,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
       {/* Click outside to close menus */}
       {(showColMenu || showTagMenu) && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => { setShowColMenu(false); setShowTagMenu(null); }} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => { setShowColMenu(false); setShowTagMenu(null); }} />
       )}
 
       {/* Fixed-position tag dropdown (rendered outside overflow container) */}

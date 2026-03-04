@@ -204,7 +204,7 @@ input, textarea, select {
   justify-content: flex-start;
 }
 .inner-footer-link {
-  font-size: 15px;
+  font-size: 18px;
   color: #6b7280;
   text-decoration: none;
   font-weight: 500;
@@ -764,7 +764,7 @@ input, textarea, select {
 .btn-signout {
   background: var(--bg);
   color: var(--text);
-  border: 1px solid #D1FAE5;
+  border: 2px solid #D1FAE5;
   padding: 8px 12px;
   border-radius: var(--radius);
   font-size: var(--text-xs);

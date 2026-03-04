@@ -54,6 +54,25 @@ OPT_IN_FIELDS = {
 DEFAULT_SEARCH_LIMIT = 20
 MAX_SEARCH_LIMIT = 100
 
+# Fix #14: Simple in-memory rate limiting for create operations
+# Note: In a multi-Lambda environment, consider using DynamoDB or ElastiCache for distributed rate limiting
+_rate_limit_store: Dict[str, list] = {}
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX_CREATES = 30  # max creates per window per IP
+
+
+def _check_rate_limit(source_ip: str) -> bool:
+    """Returns True if rate limit exceeded."""
+    now = time.time()
+    if source_ip not in _rate_limit_store:
+        _rate_limit_store[source_ip] = []
+    # Clean old entries
+    _rate_limit_store[source_ip] = [t for t in _rate_limit_store[source_ip] if now - t < RATE_LIMIT_WINDOW]
+    if len(_rate_limit_store[source_ip]) >= RATE_LIMIT_MAX_CREATES:
+        return True
+    _rate_limit_store[source_ip].append(now)
+    return False
+
 
 # ─── Main Router ────────────────────────────────────────────────────────────
 
@@ -82,8 +101,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _read_one(contact_id, request_id, origin)
             return _list_all(query_params, request_id, origin)
 
-        # POST /contacts
+        # POST /contacts — Fix #14: rate limited
         if method == 'POST':
+            source_ip = (event.get('requestContext', {}).get('identity', {}) or {}).get('sourceIp', 'unknown')
+            if _check_rate_limit(source_ip):
+                return cors_response(429, {'error': 'Too many requests. Please try again later.'}, origin)
             body = json.loads(event.get('body', '{}'))
             return _create(body, request_id, origin)
 
@@ -126,6 +148,11 @@ def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str
     if email and not _validate_email(email):
         return cors_response(400, {'error': 'Invalid email format'}, origin)
 
+    # Fix #4: Server-side duplicate detection
+    dup = _check_duplicate(phone, email)
+    if dup:
+        return cors_response(409, {'error': dup}, origin)
+
     contact_id = str(uuid.uuid4())
     now = int(time.time())
 
@@ -137,12 +164,12 @@ def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str
         'email': email,
         'shippingAddress': body.get('shippingAddress', '').strip() if body.get('shippingAddress') else None,
         'billingAddress': body.get('billingAddress', '').strip() if body.get('billingAddress') else None,
-        'optInWhatsApp': True,
-        'optInSms': True,
-        'optInEmail': True,
-        'allowlistWhatsApp': True,
-        'allowlistSms': True,
-        'allowlistEmail': True,
+        'optInWhatsApp': body.get('optInWhatsApp', True) if isinstance(body.get('optInWhatsApp'), bool) else True,
+        'optInSms': body.get('optInSms', True) if isinstance(body.get('optInSms'), bool) else True,
+        'optInEmail': body.get('optInEmail', True) if isinstance(body.get('optInEmail'), bool) else True,
+        'allowlistWhatsApp': body.get('allowlistWhatsApp', True) if isinstance(body.get('allowlistWhatsApp'), bool) else True,
+        'allowlistSms': body.get('allowlistSms', True) if isinstance(body.get('allowlistSms'), bool) else True,
+        'allowlistEmail': body.get('allowlistEmail', True) if isinstance(body.get('allowlistEmail'), bool) else True,
         'lastInboundMessageAt': None,
         'tags': body.get('tags', []),
         'createdAt': now,
@@ -174,74 +201,56 @@ def _read_one(contact_id: str, request_id: str, origin: str = '') -> Dict[str, A
 # ─── LIST ALL ───────────────────────────────────────────────────────────────
 
 def _list_all(params: Dict[str, str], request_id: str, origin: str = '') -> Dict[str, Any]:
+    """Fix #2: Paginate through ALL DynamoDB results so the frontend gets the complete list."""
     table = dynamodb.Table(CONTACTS_TABLE)
     filt = Attr('deletedAt').not_exists() | Attr('deletedAt').eq(None)
-    limit = min(int(params.get('limit', MAX_SEARCH_LIMIT)), MAX_SEARCH_LIMIT)
-    next_token = params.get('nextToken')
 
-    scan_kwargs: Dict[str, Any] = {'FilterExpression': filt, 'Limit': limit}
-    if next_token:
-        try:
-            scan_kwargs['ExclusiveStartKey'] = json.loads(base64.b64decode(next_token).decode())
-        except Exception:
-            return cors_response(400, {'error': 'Invalid nextToken'}, origin)
+    scan_kwargs: Dict[str, Any] = {'FilterExpression': filt}
 
     all_items: List[Dict] = []
-    # Paginate up to the requested limit
-    while len(all_items) < limit:
+    while True:
         resp = table.scan(**scan_kwargs)
         all_items.extend(resp.get('Items', []))
         if 'LastEvaluatedKey' not in resp:
             break
         scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
-    # Trim to limit
-    items = all_items[:limit]
-    contacts = [_from_dynamo(i) for i in items]
-
-    result_token = None
-    if len(all_items) > limit or resp.get('LastEvaluatedKey'):
-        # Use the last item's key as the pagination token
-        last_key = resp.get('LastEvaluatedKey') or {'id': items[-1].get('id', items[-1].get('contactId'))} if items else None
-        if last_key:
-            result_token = base64.b64encode(json.dumps(last_key, default=str).encode()).decode()
+    contacts = [_from_dynamo(i) for i in all_items]
 
     log_event(logger, 'contacts_list', count=len(contacts), requestId=request_id)
-    return cors_response(200, {'contacts': contacts, 'count': len(contacts), 'nextToken': result_token}, origin)
+    # Removed Cache-Control: frontend calls loadContacts() after every mutation,
+    # so caching could serve stale data. Let the browser/CDN handle caching naturally.
+    return response
 
 
 # ─── SEARCH ─────────────────────────────────────────────────────────────────
 
 def _search(params: Dict[str, str], request_id: str, origin: str = '') -> Dict[str, Any]:
+    """Fix #3: Scan all pages so search doesn't miss results from later pages."""
     query = (params.get('q') or '').strip().lower()
     limit = min(int(params.get('limit', DEFAULT_SEARCH_LIMIT)), MAX_SEARCH_LIMIT)
-    next_token = params.get('nextToken')
 
     table = dynamodb.Table(CONTACTS_TABLE)
     filt = Attr('deletedAt').not_exists() | Attr('deletedAt').eq(None)
 
-    scan_kwargs: Dict[str, Any] = {'FilterExpression': filt, 'Limit': limit * 3}
-    if next_token:
-        try:
-            scan_kwargs['ExclusiveStartKey'] = json.loads(base64.b64decode(next_token).decode())
-        except Exception:
-            return cors_response(400, {'error': 'Invalid nextToken'}, origin)
+    scan_kwargs: Dict[str, Any] = {'FilterExpression': filt}
 
-    resp = table.scan(**scan_kwargs)
-    items = resp.get('Items', [])
+    all_items: List[Dict] = []
+    while True:
+        resp = table.scan(**scan_kwargs)
+        all_items.extend(resp.get('Items', []))
+        if 'LastEvaluatedKey' not in resp:
+            break
+        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
     if query:
-        items = [i for i in items if _matches(i, query)]
+        all_items = [i for i in all_items if _matches(i, query)]
 
-    items = items[:limit]
+    items = all_items[:limit]
     contacts = [_from_dynamo(i) for i in items]
 
-    result_token = None
-    if resp.get('LastEvaluatedKey'):
-        result_token = base64.b64encode(json.dumps(resp['LastEvaluatedKey'], default=str).encode()).decode()
-
     log_event(logger, 'contacts_search', query=query, count=len(contacts), requestId=request_id)
-    return cors_response(200, {'contacts': contacts, 'count': len(contacts), 'nextToken': result_token}, origin)
+    return cors_response(200, {'contacts': contacts, 'count': len(contacts)}, origin)
 
 
 # ─── UPDATE ─────────────────────────────────────────────────────────────────
@@ -264,6 +273,14 @@ def _update(contact_id: str, body: Dict[str, Any], request_id: str, origin: str 
         updates['email'] = updates['email'].strip().lower()
         if not _validate_email(updates['email']):
             return cors_response(400, {'error': 'Invalid email format'}, origin)
+
+    # Duplicate check on phone/email changes
+    check_phone = updates.get('phone')
+    check_email = updates.get('email')
+    if check_phone or check_email:
+        dup = _check_duplicate(check_phone, check_email, exclude_id=contact_id)
+        if dup:
+            return cors_response(409, {'error': dup}, origin)
 
     updates['updatedAt'] = int(time.time())
 
@@ -305,13 +322,24 @@ def _soft_delete(contact_id: str, request_id: str, origin: str = '') -> Dict[str
     resp = table.get_item(Key={'id': contact_id})
     item = resp.get('Item')
     if not item:
-        # Try scanning by contactId field
-        scan_resp = table.scan(FilterExpression='contactId = :cid', ExpressionAttributeValues={':cid': contact_id}, Limit=1)
-        items = scan_resp.get('Items', [])
-        if items:
-            item = items[0]
-            contact_id = item.get('id', contact_id)
-        else:
+        # Try scanning by contactId field — paginate to handle large tables
+        scan_kwargs: Dict[str, Any] = {
+            'FilterExpression': 'contactId = :cid AND (attribute_not_exists(deletedAt) OR deletedAt = :null)',
+            'ExpressionAttributeValues': {':cid': contact_id, ':null': None},
+            'Limit': 50,
+        }
+        item = None
+        while True:
+            scan_resp = table.scan(**scan_kwargs)
+            items = scan_resp.get('Items', [])
+            if items:
+                item = items[0]
+                contact_id = item.get('id', contact_id)
+                break
+            if 'LastEvaluatedKey' not in scan_resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = scan_resp['LastEvaluatedKey']
+        if not item:
             return cors_response(404, {'error': 'Contact not found'}, origin)
 
     if item.get('deletedAt') is not None:
@@ -330,27 +358,41 @@ def _soft_delete(contact_id: str, request_id: str, origin: str = '') -> Dict[str
 
 
 def _hard_delete(contact_id: str, request_id: str, origin: str = '') -> Dict[str, Any]:
+    # Verify contact exists before scanning message tables
+    table = dynamodb.Table(CONTACTS_TABLE)
+    resp = table.get_item(Key={'id': contact_id})
+    if not resp.get('Item'):
+        return cors_response(404, {'error': 'Contact not found'}, origin)
+
     msgs_deleted = 0
     media_deleted = 0
 
-    # Delete messages from both tables
+    # Delete messages from both tables (paginate to handle large datasets)
     for tbl_name in (INBOUND_TABLE, OUTBOUND_TABLE):
         try:
             tbl = dynamodb.Table(tbl_name)
-            resp = tbl.scan(FilterExpression='contactId = :cid', ExpressionAttributeValues={':cid': contact_id})
-            for msg in resp.get('Items', []):
-                s3_key = msg.get('s3Key')
-                if s3_key:
+            scan_kwargs: Dict[str, Any] = {
+                'FilterExpression': 'contactId = :cid',
+                'ExpressionAttributeValues': {':cid': contact_id},
+            }
+            while True:
+                resp = tbl.scan(**scan_kwargs)
+                for msg in resp.get('Items', []):
+                    s3_key = msg.get('s3Key')
+                    if s3_key:
+                        try:
+                            _delete_s3(s3_key)
+                            media_deleted += 1
+                        except Exception:
+                            pass
                     try:
-                        _delete_s3(s3_key)
-                        media_deleted += 1
+                        tbl.delete_item(Key={'id': msg.get('id') or msg.get('messageId')})
+                        msgs_deleted += 1
                     except Exception:
                         pass
-                try:
-                    tbl.delete_item(Key={'id': msg.get('id') or msg.get('messageId')})
-                    msgs_deleted += 1
-                except Exception:
-                    pass
+                if 'LastEvaluatedKey' not in resp:
+                    break
+                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
         except Exception as e:
             logger.warning(f"Error scanning {tbl_name}: {e}")
 
@@ -379,13 +421,48 @@ def _validate_email(email: str) -> bool:
     return bool(re.match(pattern, email))
 
 
+def _check_duplicate(phone: Optional[str], email: Optional[str], exclude_id: Optional[str] = None) -> Optional[str]:
+    """Server-side duplicate detection by phone or email.
+    Note: For large tables, consider adding GSIs on phone and email for O(1) lookups.
+    Currently uses scan with ProjectionExpression to minimize data transfer.
+    """
+    if not phone and not email:
+        return None
+    table = dynamodb.Table(CONTACTS_TABLE)
+    filt = Attr('deletedAt').not_exists() | Attr('deletedAt').eq(None)
+    scan_kwargs: Dict[str, Any] = {
+        'FilterExpression': filt,
+        'ProjectionExpression': '#id, #cid, #ph, #em, #nm',
+        'ExpressionAttributeNames': {
+            '#id': 'id', '#cid': 'contactId', '#ph': 'phone', '#em': 'email', '#nm': 'name'
+        },
+    }
+    all_items: List[Dict] = []
+    while True:
+        resp = table.scan(**scan_kwargs)
+        all_items.extend(resp.get('Items', []))
+        if 'LastEvaluatedKey' not in resp:
+            break
+        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+    for item in all_items:
+        item_id = item.get('id') or item.get('contactId')
+        if exclude_id and item_id == exclude_id:
+            continue
+        if phone and item.get('phone') == phone:
+            return f"Phone {phone} already exists ({item.get('name', 'unnamed')})"
+        if email and item.get('email', '').lower() == email.lower():
+            return f"Email {email} already exists ({item.get('name', 'unnamed')})"
+    return None
+
+
 def _matches(item: Dict[str, Any], query: str) -> bool:
     name = str(item.get('name', '')).lower()
     phone = str(item.get('phone', '')).lower()
     email = str(item.get('email', '')).lower()
+    tags = [str(t).lower() for t in (item.get('tags') or [])]
     clean_q = query.lstrip('+')
     clean_p = phone.lstrip('+')
-    return query in name or query in phone or query in email or clean_q in clean_p
+    return query in name or query in phone or query in email or clean_q in clean_p or any(query in t for t in tags)
 
 
 def _delete_s3(stored_key: str):
