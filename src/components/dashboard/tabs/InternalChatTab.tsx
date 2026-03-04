@@ -37,6 +37,7 @@ const TOOLS_LIST = [
   { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging' },
   { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging' },
   { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging' },
+  { id: 'send_whatsapp_flow', name: 'Send Flow', category: 'Messaging' },
   { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging' },
   { id: 'send_sms', name: 'Send SMS', category: 'Messaging' },
   { id: 'send_email', name: 'Send Email', category: 'Messaging' },
@@ -57,6 +58,7 @@ const TOOLS_LIST = [
   { id: 'create_invoice', name: 'Create Invoice', category: 'Invoicing' },
   { id: 'get_wix_products', name: 'Wix Products', category: 'Ecommerce' },
   { id: 'get_wix_orders', name: 'Wix Orders', category: 'Ecommerce' },
+  { id: 'list_submit_requests', name: 'Flow Submissions', category: 'Flows' },
 ];
 
 const InternalChatTab: React.FC = () => {
@@ -120,6 +122,8 @@ const InternalChatTab: React.FC = () => {
     return raw ? cleanResponse(raw) : null;
   };
 
+  const MAX_MESSAGES = 100;
+
   const processCommand = async (text: string): Promise<string> => {
     const startTime = Date.now();
     try {
@@ -134,6 +138,8 @@ const InternalChatTab: React.FC = () => {
             messageContent: text,
             context: 'internal-admin',
             sessionId,
+            temperature,
+            maxTokens,
           }),
         });
       } catch (fetchErr: any) {
@@ -196,7 +202,10 @@ const InternalChatTab: React.FC = () => {
     if (!input.trim() || isLoading) return;
     const text = input.trim();
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => {
+      const updated = [...prev, userMsg];
+      return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
+    });
     setInput('');
     setIsLoading(true);
 
@@ -265,6 +274,8 @@ const InternalChatTab: React.FC = () => {
               { label: 'Invoices', cmd: 'list recent invoices' },
               { label: 'Wix Products', cmd: 'list wix products' },
               { label: 'Templates', cmd: 'list templates' },
+              { label: 'Flow Submissions', cmd: 'list recent submit requests' },
+              { label: 'Send Flow', cmd: 'send submit request flow to ' },
             ].map(a => (
               <button key={a.label} onClick={() => quickAction(a.cmd)} style={{
                 padding: '4px 10px', border: '1px solid #d1fae5', borderRadius: '12px',

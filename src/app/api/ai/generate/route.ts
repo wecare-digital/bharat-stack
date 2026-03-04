@@ -11,6 +11,8 @@ export async function POST(request: NextRequest) {
       messageContent: body.messageContent?.substring(0, 100),
       context: body.context,
       sessionId: body.sessionId,
+      temperature: body.temperature,
+      maxTokens: body.maxTokens,
     });
 
     // Forward request to API Gateway with timeout

@@ -1,4 +1,4 @@
-﻿"""
+﻿﻿"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
@@ -737,6 +737,8 @@ def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
     message_id = body.get('messageId', '')
     contact_id = body.get('contactId', '')
     session_id = body.get('sessionId', f'internal-{request_id}')
+    temperature = float(body.get('temperature', 0.7))
+    max_tokens = int(body.get('maxTokens', 2048))
 
     logger.info(json.dumps({
         'event': 'internal_agent_called',
@@ -795,6 +797,7 @@ def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
 YOU HAVE THESE TOOLS - USE THEM, never say you can't do something if a tool exists for it:
 - search_contacts, create_contact, update_contact, add_contact_email
 - send_whatsapp, send_whatsapp_buttons, send_whatsapp_list, send_whatsapp_pay
+- send_whatsapp_flow, list_submit_requests
 - make_voice_call, send_sms, send_email
 - get_messages, get_stats
 - schedule_message, list_scheduled_messages
@@ -809,7 +812,10 @@ RULES:
 - Never include <thinking> tags in responses.
 - Be proactive: "send message to Jignesh" -> search first, then send.
 - For payment requests, use send_whatsapp_pay tool directly.
-- No greetings, no filler. Do the task, confirm briefly.'''
+- For submit request flows, use send_whatsapp_flow tool.
+- No greetings, no filler. Do the task, confirm briefly.
+- When a tool returns an error, report it clearly. Do not retry with the same bad input.
+- contactId must always be a UUID. If you only have a name, search_contacts first to get the UUID.'''
         }]
 
         # Define tools for internal agent - COMPREHENSIVE BASE CRM CAPABILITIES
@@ -1339,16 +1345,50 @@ RULES:
                         }
                     }
                 }
+            },
+            
+            # ===== WHATSAPP FLOWS =====
+            {
+                'toolSpec': {
+                    'name': 'send_whatsapp_flow',
+                    'description': 'Send a WhatsApp Flow (like Submit Request form) to a contact. The flow opens an interactive form in WhatsApp.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'flowType': {'type': 'string', 'description': 'Flow type: submit_request (default)'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'list_submit_requests',
+                    'description': 'List WhatsApp Flow submissions (submit requests). Can filter by contact or status.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Filter by contact ID'},
+                                'status': {'type': 'string', 'description': 'Filter by status: pending, approved, rejected, completed'},
+                                'limit': {'type': 'number', 'description': 'Number of results (default 20)'}
+                            }
+                        }
+                    }
+                }
             }
         ]
-
-        # Call Bedrock Converse API with tool use
         suggestion = _internal_converse_with_tools(
             conversation_history=conversation_history,
             system_prompts=system_prompts,
             tools=tools,
             request_id=request_id,
-            session_id=session_id
+            session_id=session_id,
+            temperature=temperature,
+            max_tokens=max_tokens
         )
 
         # Add assistant response to history
@@ -1413,7 +1453,9 @@ def _internal_converse_with_tools(
     tools: List[Dict],
     request_id: str,
     session_id: str = 'unknown',
-    max_iterations: int = MAX_TOOL_USE_ITERATIONS
+    max_iterations: int = MAX_TOOL_USE_ITERATIONS,
+    temperature: float = 0.7,
+    max_tokens: int = 2048
 ) -> str:
     """
     Internal agent conversation with tool use support.
@@ -1440,8 +1482,8 @@ def _internal_converse_with_tools(
                 'system': system_prompts,
                 'toolConfig': {'tools': tools},
                 'inferenceConfig': {
-                    'maxTokens': 2048,
-                    'temperature': 0.7,
+                    'maxTokens': max_tokens,
+                    'temperature': temperature,
                     'topP': 0.9
                 }
             }
@@ -1658,6 +1700,12 @@ def _execute_internal_tool(tool_name: str, tool_input: Dict, request_id: str) ->
             return _tool_get_wix_products(tool_input, request_id)
         elif tool_name == 'get_wix_orders':
             return _tool_get_wix_orders(tool_input, request_id)
+        
+        # WhatsApp Flows
+        elif tool_name == 'send_whatsapp_flow':
+            return _tool_send_whatsapp_flow(tool_input, request_id)
+        elif tool_name == 'list_submit_requests':
+            return _tool_list_submit_requests(tool_input, request_id)
         
         else:
             return {'success': False, 'error': f'Unknown tool: {tool_name}'}
@@ -4174,19 +4222,64 @@ def _get_fallback_response(lang_name: str = 'English') -> str:
 def _tool_create_contact(params: Dict, request_id: str) -> Dict:
     """Create contact tool implementation."""
     name = params.get('name')
-    phone = params.get('phone', '')
-    email = params.get('email', '')
+    phone = params.get('phone', '').strip()
+    email = params.get('email', '').strip()
     
     if not name:
         return {'success': False, 'error': 'Name is required'}
     
+    if not phone and not email:
+        return {'success': False, 'error': 'At least phone or email is required'}
+    
+    # Validate email format if provided
+    if email:
+        valid_email, email_msg = validate_email(email)
+        if not valid_email:
+            return {'success': False, 'error': email_msg}
+        email = email_msg  # normalized lowercase
+    
+    # Validate phone format if provided
+    if phone:
+        valid_phone, phone_msg = validate_phone(phone)
+        if not valid_phone:
+            return {'success': False, 'error': phone_msg}
+    
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        
+        # Duplicate detection - scan for matching phone or email
+        if phone:
+            scan_result = contacts_table.scan(
+                FilterExpression='phone = :p AND attribute_not_exists(deletedAt)',
+                ExpressionAttributeValues={':p': phone},
+                Limit=5
+            )
+            if scan_result.get('Items'):
+                existing = scan_result['Items'][0]
+                return {
+                    'success': False,
+                    'error': f'Contact with phone {phone} already exists: {existing.get("name")} (ID: {existing.get("id")})'
+                }
+        
+        if email:
+            scan_result = contacts_table.scan(
+                FilterExpression='email = :e AND attribute_not_exists(deletedAt)',
+                ExpressionAttributeValues={':e': email},
+                Limit=5
+            )
+            if scan_result.get('Items'):
+                existing = scan_result['Items'][0]
+                return {
+                    'success': False,
+                    'error': f'Contact with email {email} already exists: {existing.get("name")} (ID: {existing.get("id")})'
+                }
+        
         contact_id = str(uuid.uuid4())
         now = int(time.time())
         
         contact = {
             'id': contact_id,
+            'contactId': contact_id,
             'name': name,
             'phone': phone,
             'email': email,
@@ -4277,6 +4370,25 @@ def _tool_send_whatsapp_buttons(params: Dict, request_id: str) -> Dict:
     if not contact_id or not body_text or not buttons:
         return {'success': False, 'error': 'contactId, bodyText, and buttons are required'}
     
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+    
+    # Button count validation (WhatsApp max 3)
+    if len(buttons) > 3:
+        return {'success': False, 'error': f'Maximum 3 buttons allowed, got {len(buttons)}. Remove some buttons.'}
+    
+    if len(buttons) == 0:
+        return {'success': False, 'error': 'At least 1 button is required'}
+    
+    # Validate button structure
+    for i, btn in enumerate(buttons):
+        if not isinstance(btn, dict) or not btn.get('id') or not btn.get('title'):
+            return {'success': False, 'error': f'Button {i+1} must have "id" and "title" fields'}
+        if len(btn['title']) > 20:
+            return {'success': False, 'error': f'Button {i+1} title exceeds 20 char limit: "{btn["title"]}"'}
+    
     try:
         # Build interactive message payload
         interactive_payload = {
@@ -4329,6 +4441,28 @@ def _tool_send_whatsapp_list(params: Dict, request_id: str) -> Dict:
     if not all([contact_id, body_text, button_text, sections]):
         return {'success': False, 'error': 'contactId, bodyText, buttonText, and sections are required'}
     
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+    
+    # Button text max 20 chars
+    if len(button_text) > 20:
+        return {'success': False, 'error': f'buttonText exceeds 20 char limit: "{button_text}"'}
+    
+    # Section validation (max 10 sections, each with max 10 rows)
+    if len(sections) > 10:
+        return {'success': False, 'error': f'Maximum 10 sections allowed, got {len(sections)}'}
+    
+    for i, section in enumerate(sections):
+        if not isinstance(section, dict):
+            return {'success': False, 'error': f'Section {i+1} must be an object with title and rows'}
+        rows = section.get('rows', [])
+        if not rows:
+            return {'success': False, 'error': f'Section {i+1} must have at least 1 row'}
+        if len(rows) > 10:
+            return {'success': False, 'error': f'Section {i+1} exceeds 10 row limit'}
+    
     try:
         interactive_payload = {
             'type': 'list',
@@ -4377,6 +4511,14 @@ def _tool_send_whatsapp_pay(params: Dict, request_id: str) -> Dict:
 
     if not all([contact_id, amount, description]):
         return {'success': False, 'error': 'contactId, amount, and description are required'}
+
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+
+    if not isinstance(amount, (int, float)) or amount <= 0:
+        return {'success': False, 'error': 'amount must be a positive number'}
 
     try:
         # Build WhatsApp interactive payment message
@@ -4438,6 +4580,11 @@ def _tool_make_voice_call(params: Dict, request_id: str) -> Dict:
     if not contact_id:
         return {'success': False, 'error': 'contactId is required'}
     
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+    
     if not message and not audio_url:
         return {'success': False, 'error': 'Either message (for TTS) or audioUrl is required'}
     
@@ -4479,6 +4626,11 @@ def _tool_send_sms(params: Dict, request_id: str) -> Dict:
     if not contact_id or not message:
         return {'success': False, 'error': 'contactId and message are required'}
     
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+    
     try:
         payload = {
             'body': json.dumps({
@@ -4515,6 +4667,11 @@ def _tool_send_email(params: Dict, request_id: str) -> Dict:
     
     if not all([contact_id, subject, message]):
         return {'success': False, 'error': 'contactId, subject, and message are required'}
+    
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
     
     try:
         payload = {
@@ -4695,33 +4852,53 @@ def _tool_add_contact_email(params: Dict, request_id: str) -> Dict:
 def _tool_delete_contact(params: Dict, request_id: str) -> Dict:
     """Soft delete a contact."""
     contact_id = params.get('contactId')
-    
+
     if not contact_id:
         return {'success': False, 'error': 'contactId is required'}
-    
+
+    # UUID validation - prevent name-as-ID bug
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
-        
+
+        # Existence check
+        existing = contacts_table.get_item(Key={'id': contact_id}).get('Item')
+        if not existing:
+            return {'success': False, 'error': f'Contact {contact_id} not found'}
+
+        if existing.get('deletedAt'):
+            return {'success': False, 'error': 'Contact is already deleted'}
+
         contacts_table.update_item(
             Key={'id': contact_id},
-            UpdateExpression='SET deletedAt = :now',
-            ExpressionAttributeValues={':now': int(time.time())}
+            UpdateExpression='SET deletedAt = :now, updatedAt = :now',
+            ExpressionAttributeValues={
+                ':now': int(time.time())
+            },
+            ReturnValues='ALL_NEW'
         )
-        
+
+        contact_name = existing.get('name', 'Unknown')
+
         logger.info(json.dumps({
             'event': 'contact_deleted',
             'contactId': contact_id,
+            'contactName': contact_name,
             'requestId': request_id
         }))
-        
+
         return {
             'success': True,
             'contactId': contact_id,
-            'message': 'Contact marked as deleted'
+            'message': f'Contact "{contact_name}" marked as deleted'
         }
-        
+
     except Exception as e:
         return {'success': False, 'error': str(e)}
+
 
 
 def _tool_delete_messages(params: Dict, request_id: str) -> Dict:
@@ -5227,5 +5404,158 @@ def _tool_get_wix_orders(params: Dict, request_id: str) -> Dict:
             'count': len(orders),
             'orders': summary
         }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_send_whatsapp_flow(params: Dict, request_id: str) -> Dict:
+    """Send a WhatsApp Flow (e.g. Submit Request) to a contact."""
+    contact_id = params.get('contactId')
+    flow_type = params.get('flowType', 'submit_request')
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    # UUID validation
+    valid, msg = validate_contact_id(contact_id)
+    if not valid:
+        return {'success': False, 'error': msg}
+    
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        existing = contacts_table.get_item(Key={'id': contact_id}).get('Item')
+        if not existing:
+            return {'success': False, 'error': f'Contact {contact_id} not found'}
+        
+        phone = existing.get('phone', '')
+        if not phone:
+            return {'success': False, 'error': 'Contact has no phone number'}
+        
+        # Get flow config from SystemConfig
+        flow_config = {}
+        try:
+            config_table = dynamodb.Table(os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable'))
+            config_resp = config_table.get_item(Key={'configKey': 'botFlowConfig'})
+            bot_config = config_resp.get('Item', {}).get('configValue', {})
+            if isinstance(bot_config, str):
+                bot_config = json.loads(bot_config)
+            triggers = bot_config.get('flowTriggers', {})
+            flow_config = triggers.get(flow_type, {})
+        except Exception:
+            pass
+        
+        # Default flow IDs
+        flow_ids = {
+            'submit_request': '1235100738173254',
+        }
+        
+        flow_id = flow_config.get('flowId', '') or flow_ids.get(flow_type, '')
+        if not flow_id:
+            return {'success': False, 'error': f'Unknown flow type: {flow_type}'}
+        
+        flow_msg = flow_config.get('message', {})
+        flow_token = f'flow-{contact_id}-{int(time.time())}'
+        
+        # Invoke outbound-whatsapp with flow payload
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'interactive': {
+                    'type': 'flow',
+                    'body': {'text': flow_msg.get('body', 'Please use the self-service option below.')},
+                    'footer': {'text': flow_msg.get('footer', 'WECARE.DIGITAL')},
+                    'action': {
+                        'name': 'flow',
+                        'parameters': {
+                            'flow_message_version': '3',
+                            'flow_id': flow_id,
+                            'flow_cta': flow_msg.get('flowCta', 'Submit Request'),
+                            'flow_action': 'data_exchange',
+                            'flow_token': flow_token,
+                            'flow_action_payload': {
+                                'screen': 'INIT',
+                                'data': {'senderPhone': phone}
+                            }
+                        }
+                    }
+                }
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'flowType': flow_type,
+            'message': f'WhatsApp Flow "{flow_type}" sent to {existing.get("name", phone)}'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_list_submit_requests(params: Dict, request_id: str) -> Dict:
+    """List submit request flow submissions from DynamoDB."""
+    contact_id = params.get('contactId')
+    status_filter = params.get('status')
+    limit = min(params.get('limit', 20), 50)
+    
+    try:
+        table = dynamodb.Table(os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable'))
+        
+        scan_kwargs = {'Limit': limit}
+        filter_parts = []
+        expr_values = {}
+        
+        if contact_id:
+            valid, msg = validate_contact_id(contact_id)
+            if not valid:
+                return {'success': False, 'error': msg}
+            filter_parts.append('contactId = :cid')
+            expr_values[':cid'] = contact_id
+        
+        if status_filter:
+            filter_parts.append('#st = :status')
+            expr_values[':status'] = status_filter
+            scan_kwargs['ExpressionAttributeNames'] = {'#st': 'status'}
+        
+        if filter_parts:
+            scan_kwargs['FilterExpression'] = ' AND '.join(filter_parts)
+            scan_kwargs['ExpressionAttributeValues'] = expr_values
+        
+        result = table.scan(**scan_kwargs)
+        items = result.get('Items', [])
+        
+        # Sort by createdAt descending
+        items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+        
+        summary = []
+        for item in items[:limit]:
+            summary.append({
+                'submissionId': item.get('id') or item.get('submissionId'),
+                'contactId': item.get('contactId'),
+                'phone': item.get('senderPhone', ''),
+                'status': item.get('status', 'pending'),
+                'requestType': item.get('requestType', ''),
+                'description': (item.get('description', '') or '')[:100],
+                'createdAt': item.get('createdAt', ''),
+                'paymentStatus': item.get('paymentStatus', ''),
+            })
+        
+        return {
+            'success': True,
+            'count': len(summary),
+            'submissions': summary
+        }
+        
     except Exception as e:
         return {'success': False, 'error': str(e)}

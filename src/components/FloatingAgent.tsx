@@ -24,6 +24,8 @@ interface ChatMessage {
 // Use local API route to avoid CORS/fetch issues in browser
 const API_ENDPOINT = '/api/ai/generate';
 
+const MAX_MESSAGES = 80;
+
 const FloatingAgent: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -156,7 +158,10 @@ const FloatingAgent: React.FC = () => {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
+    });
     setInput('');
     setIsLoading(true);
 
@@ -172,7 +177,7 @@ const FloatingAgent: React.FC = () => {
     const response = await processCommand(userMessage.content);
 
     setMessages(prev => prev.map(m => 
-      m.id === loadingId ? { ...m, content: response, status: 'sent' } : m
+      m.id === loadingId ? { ...m, content: response, status: response.startsWith('Something went wrong') || response.startsWith('Unable to reach') ? 'error' : 'sent' } : m
     ));
     setIsLoading(false);
   };
@@ -314,7 +319,10 @@ const FloatingAgent: React.FC = () => {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
+    });
     setInput('');
     setIsLoading(true);
 
@@ -330,7 +338,7 @@ const FloatingAgent: React.FC = () => {
     const response = await processCommand(userMessage.content);
 
     setMessages(prev => prev.map(m => 
-      m.id === loadingId ? { ...m, content: response, status: 'sent' } : m
+      m.id === loadingId ? { ...m, content: response, status: response.startsWith('Something went wrong') || response.startsWith('Unable to reach') ? 'error' : 'sent' } : m
     ));
     setIsLoading(false);
   };
@@ -343,6 +351,20 @@ const FloatingAgent: React.FC = () => {
   };
 
   const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
+
+  const retryMessage = async (messageId: string) => {
+    // Find the user message before this error message
+    const idx = messages.findIndex(m => m.id === messageId);
+    if (idx <= 0) return;
+    const userMsg = messages[idx - 1];
+    if (userMsg.role !== 'user') return;
+    
+    setIsLoading(true);
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: '...', status: 'sending' } : m));
+    const response = await processCommand(userMsg.content);
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: response, status: response.startsWith('Something went wrong') || response.startsWith('Unable to reach') ? 'error' : 'sent' } : m));
+    setIsLoading(false);
+  };
 
   const clearChat = () => {
     setMessages([{
@@ -401,8 +423,20 @@ const FloatingAgent: React.FC = () => {
                 </React.Fragment>
               ))}
             </div>
-            <div className="agent-message-time">
+            <div className="agent-message-time" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {msg.status === 'error' && msg.role === 'assistant' && (
+                <button
+                  onClick={() => retryMessage(msg.id)}
+                  disabled={isLoading}
+                  style={{
+                    background: 'none', border: 'none', color: '#059669', cursor: 'pointer',
+                    fontSize: '11px', padding: '0 4px', textDecoration: 'underline',
+                  }}
+                >
+                  Retry
+                </button>
+              )}
             </div>
           </div>
         ))}
