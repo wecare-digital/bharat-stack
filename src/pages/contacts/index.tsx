@@ -156,6 +156,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     return map;
   }, [contacts]);
   const [showTagMenu, setShowTagMenu] = useState<string | null>(null);
+  const [tagMenuPos, setTagMenuPos] = useState<{ top: number; left: number; flipUp: boolean }>({ top: 0, left: 0, flipUp: false });
   const [showOptIn, setShowOptIn] = useState(false);
 
   // Persist column visibility
@@ -748,7 +749,19 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setShowTagMenu(showTagMenu === c.contactId ? null : c.contactId);
+                                    if (showTagMenu === c.contactId) {
+                                      setShowTagMenu(null);
+                                    } else {
+                                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                      const dropdownHeight = 200;
+                                      const flipUp = rect.bottom + dropdownHeight > window.innerHeight;
+                                      setTagMenuPos({
+                                        top: flipUp ? rect.top : rect.bottom + 4,
+                                        left: rect.left,
+                                        flipUp
+                                      });
+                                      setShowTagMenu(c.contactId);
+                                    }
                                   }} 
                                   title="Add tag"
                                   style={{ 
@@ -776,37 +789,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     userSelect: 'none'
                                   }}>+</span>
                                 </button>
-                                {showTagMenu === c.contactId && (
-                                  <div 
-                                    style={{ 
-                                      position: 'absolute',
-                                      top: rowIndex >= paginatedContacts.length - 3 ? 'auto' : '100%',
-                                      bottom: rowIndex >= paginatedContacts.length - 3 ? '100%' : 'auto',
-                                      marginTop: rowIndex >= paginatedContacts.length - 3 ? 0 : 4,
-                                      marginBottom: rowIndex >= paginatedContacts.length - 3 ? 4 : 0,
-                                      left: 0,
-                                      background: '#fff', 
-                                      border: '2px solid #D1FAE5', 
-                                      borderRadius: 13, 
-                                      padding: 6, 
-                                      zIndex: 1000, 
-                                      minWidth: 130, 
-                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
-                                    }}
-                                    onClick={e => e.stopPropagation()}
-                                  >
-                                    {TAG_OPTIONS.map(tag => {
-                                      const active = (contactTags[c.contactId] || []).includes(tag);
-                                      return (
-                                        <button key={tag} onClick={() => toggleTag(c.contactId, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 10px', border: 'none', background: active ? '#ECFDF5' : 'transparent', borderRadius: 8, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
-                                          <span style={{ width: 12, height: 12, borderRadius: '50%', background: TAG_COLORS[tag] }}></span>
-                                          {tag}
-                                          {active && <span style={{ marginLeft: 'auto', color: '#059669', fontWeight: 600 }}>✓</span>}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </td>
@@ -1009,6 +991,37 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       {/* Click outside to close menus */}
       {(showColMenu || showTagMenu) && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => { setShowColMenu(false); setShowTagMenu(null); }} />
+      )}
+
+      {/* Fixed-position tag dropdown (rendered outside overflow container) */}
+      {showTagMenu && (
+        <div 
+          style={{ 
+            position: 'fixed',
+            top: tagMenuPos.flipUp ? 'auto' : tagMenuPos.top,
+            bottom: tagMenuPos.flipUp ? (window.innerHeight - tagMenuPos.top + 4) : 'auto',
+            left: tagMenuPos.left,
+            background: '#fff', 
+            border: '2px solid #D1FAE5', 
+            borderRadius: 13, 
+            padding: 6, 
+            zIndex: 1001, 
+            minWidth: 130, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)' 
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {TAG_OPTIONS.map(tag => {
+            const active = (contactTags[showTagMenu] || []).includes(tag);
+            return (
+              <button key={tag} onClick={() => toggleTag(showTagMenu, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 10px', border: 'none', background: active ? '#ECFDF5' : 'transparent', borderRadius: 8, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', background: TAG_COLORS[tag] }}></span>
+                {tag}
+                {active && <span style={{ marginLeft: 'auto', color: '#059669', fontWeight: 600 }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
       )}
     </Layout>
   );
