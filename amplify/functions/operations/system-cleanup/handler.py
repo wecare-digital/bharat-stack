@@ -25,6 +25,7 @@ BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 dynamodb_client = boto3.client('dynamodb', region_name=REGION)
 s3 = boto3.client('s3', region_name=REGION)
+sqs = boto3.client('sqs', region_name=REGION)
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
 
@@ -204,6 +205,140 @@ CLEANUP_RESOURCES = {
         'type': 's3',
         'prefix': 'whatsapp-media/whatsapp-voice/',
     },
+    # --- Additional resources (full factory reset coverage) ---
+    'dlq_messages': {
+        'label': 'DLQ Messages (Failed Retry Queue)',
+        'category': 'Messages',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-DLQMessagesTable',
+    },
+    'messages_legacy': {
+        'label': 'Messages (Legacy Table)',
+        'category': 'Messages',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-MessagesTable',
+    },
+    'dlt_templates': {
+        'label': 'DLT Templates (Airtel SMS)',
+        'category': 'SMS',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-DLTTemplates',
+    },
+    'wix_products_cache': {
+        'label': 'Wix Products Cache',
+        'category': 'Ecommerce',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-WixProductsCache',
+    },
+    'wix_orders_cache': {
+        'label': 'Wix Orders Cache',
+        'category': 'Ecommerce',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-WixOrdersCache',
+    },
+    'wix_order_ids': {
+        'label': 'Wix Order ID Mapping',
+        'category': 'Ecommerce',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-WixOrderIds',
+    },
+    'template_analytics': {
+        'label': 'Template Analytics',
+        'category': 'Analytics & Logs',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-TemplateAnalyticsTable',
+    },
+    'submit_requests': {
+        'label': 'Flow Submit Requests',
+        'category': 'Analytics & Logs',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-SubmitRequestsTable',
+    },
+    'audit_logs': {
+        'label': 'Audit Logs',
+        'category': 'Analytics & Logs',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-AuditLog',
+    },
+    'rate_limit': {
+        'label': 'Rate Limit Trackers',
+        'category': 'System',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-RateLimitTracker',
+    },
+    'payu_webhook_log': {
+        'label': 'PayU Webhook Log',
+        'category': 'Invoices & Payments',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-PayUWebhookLogTable',
+    },
+    's3_whatsapp_media_incoming': {
+        'label': 'S3: WhatsApp Media (Incoming)',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'whatsapp-media/whatsapp-media-incoming/',
+    },
+    's3_whatsapp_media_outgoing': {
+        'label': 'S3: WhatsApp Media (Outgoing)',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'whatsapp-media/whatsapp-media-outgoing/',
+    },
+    's3_template_headers': {
+        'label': 'S3: Template Headers',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'whatsapp-media/template-headers/',
+    },
+    's3_product_images': {
+        'label': 'S3: Product Images',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'store/products/',
+    },
+    's3_reports': {
+        'label': 'S3: Reports & Exports',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'stream/',
+    },
+    's3_whatsapp_calling_ai': {
+        'label': 'S3: WhatsApp Calling AI Audio',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'whatsapp-media/calling-ai/',
+    },
+    's3_whatsapp_downloads': {
+        'label': 'S3: WhatsApp Media Downloads',
+        'category': 'S3 Storage',
+        'type': 's3',
+        'prefix': 'whatsapp-media/downloads/',
+    },
+    # SQS Queues
+    'sqs_inbound_dlq': {
+        'label': 'SQS: Inbound DLQ',
+        'category': 'SQS Queues',
+        'type': 'sqs',
+        'queue': 'base-wecare-digital-inbound-dlq',
+    },
+    'sqs_bulk_dlq': {
+        'label': 'SQS: Bulk DLQ',
+        'category': 'SQS Queues',
+        'type': 'sqs',
+        'queue': 'base-wecare-digital-bulk-dlq',
+    },
+    'sqs_bulk_queue': {
+        'label': 'SQS: Bulk Queue',
+        'category': 'SQS Queues',
+        'type': 'sqs',
+        'queue': 'base-wecare-digital-bulk-queue',
+    },
+    'sqs_outbound_dlq': {
+        'label': 'SQS: Outbound DLQ',
+        'category': 'SQS Queues',
+        'type': 'sqs',
+        'queue': 'base-wecare-digital-outbound-dlq',
+    },
 }
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -259,6 +394,16 @@ def _get_s3_count(prefix: str) -> int:
         return -1
 
 
+def _get_sqs_count(queue_name: str) -> int:
+    """Get approximate message count in an SQS queue."""
+    try:
+        url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
+        attrs = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible'])
+        return int(attrs['Attributes'].get('ApproximateNumberOfMessages', 0)) + int(attrs['Attributes'].get('ApproximateNumberOfMessagesNotVisible', 0))
+    except Exception:
+        return -1
+
+
 def _preview() -> Dict[str, Any]:
     """Return item counts for all clearable resources."""
     resources = []
@@ -275,6 +420,9 @@ def _preview() -> Dict[str, Any]:
         elif res['type'] == 's3':
             entry['prefix'] = res['prefix']
             entry['count'] = _get_s3_count(res['prefix'])
+        elif res['type'] == 'sqs':
+            entry['queue'] = res['queue']
+            entry['count'] = _get_sqs_count(res['queue'])
         resources.append(entry)
 
     return {
@@ -335,6 +483,19 @@ def _wipe_s3_prefix(prefix: str) -> int:
     return deleted
 
 
+def _purge_sqs_queue(queue_name: str) -> int:
+    """Purge all messages from an SQS queue."""
+    try:
+        url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
+        attrs = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=['ApproximateNumberOfMessages'])
+        count = int(attrs['Attributes'].get('ApproximateNumberOfMessages', 0))
+        sqs.purge_queue(QueueUrl=url)
+        return count
+    except Exception as e:
+        logger.warning(f"Cannot purge SQS queue {queue_name}: {e}")
+        return 0
+
+
 def _cleanup(event: Dict[str, Any]) -> Dict[str, Any]:
     """Delete selected resources."""
     try:
@@ -361,6 +522,8 @@ def _cleanup(event: Dict[str, Any]) -> Dict[str, Any]:
                 count = _wipe_table(res['table'])
             elif res['type'] == 's3':
                 count = _wipe_s3_prefix(res['prefix'])
+            elif res['type'] == 'sqs':
+                count = _purge_sqs_queue(res['queue'])
             else:
                 count = 0
             elapsed = round(time.time() - t0, 1)

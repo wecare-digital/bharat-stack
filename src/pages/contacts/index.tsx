@@ -683,7 +683,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                 ) : (
                   <div>
-                    <p style={{ fontSize: 32, marginBottom: 8 }}>📇</p>
+                    <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Press <kbd style={{ padding: '2px 6px', background: '#f3f4f6', borderRadius: 4, fontSize: 11 }}>N</kbd> to add one</p>
                   </div>
@@ -827,7 +827,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                 ) : (
                   <div>
-                    <p style={{ fontSize: 32, marginBottom: 8 }}>📇</p>
+                    <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Tap + to add one</p>
                   </div>

@@ -28,6 +28,9 @@ export const systemCleanupPolicy = new PolicyStatement({
     's3:ListBucket',
     's3:DeleteObject',
     's3:DeleteObjects',
+    'sqs:GetQueueUrl',
+    'sqs:GetQueueAttributes',
+    'sqs:PurgeQueue',
   ],
   resources: ['*'],
 });

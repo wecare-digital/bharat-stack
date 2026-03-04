@@ -12,7 +12,7 @@ export type TabType =
   | 'overview'
   | 'messages'
   | 'pay'
-  | 'data'
+  | 'factoryreset'
   | 'billing'
   | 'health'
   | 'advisor'

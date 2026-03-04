@@ -3500,9 +3500,10 @@ export interface CleanupResource {
   id: string;
   label: string;
   category: string;
-  type: 'dynamodb' | 's3';
+  type: 'dynamodb' | 's3' | 'sqs';
   table?: string;
   prefix?: string;
+  queue?: string;
   count: number;
 }
 

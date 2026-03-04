@@ -1,7 +1,7 @@
 /**
- * Data Tab — Data management, delete messages, hard delete contacts, system cleanup
+ * Factory Reset Tab — Full system cleanup with all DynamoDB tables and S3 prefixes
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
@@ -13,13 +13,20 @@ interface DataTabProps {
 }
 
 const CLEANUP_FALLBACK: api.CleanupResource[] = [
+  // Messages
   { id: 'whatsapp_inbox', label: 'WhatsApp Inbox (Inbound)', category: 'Messages', type: 'dynamodb', table: 'WhatsAppInboundTable', count: -1 },
   { id: 'whatsapp_outbox', label: 'WhatsApp Outbox (Outbound)', category: 'Messages', type: 'dynamodb', table: 'WhatsAppOutboundTable', count: -1 },
   { id: 'scheduled_messages', label: 'Scheduled Messages', category: 'Messages', type: 'dynamodb', table: 'ScheduledMessagesTable', count: -1 },
+  { id: 'dlq_messages', label: 'DLQ Messages (Failed Retry Queue)', category: 'Messages', type: 'dynamodb', table: 'DLQMessagesTable', count: -1 },
+  { id: 'messages_legacy', label: 'Messages (Legacy Table)', category: 'Messages', type: 'dynamodb', table: 'MessagesTable', count: -1 },
+  // Contacts
   { id: 'contacts', label: 'Contacts', category: 'Contacts', type: 'dynamodb', table: 'ContactsTable', count: -1 },
+  // Media
   { id: 'media_files', label: 'Media Files (DB records)', category: 'Media', type: 'dynamodb', table: 'MediaFilesTable', count: -1 },
+  // AI
   { id: 'conversation_history', label: 'AI Conversation History', category: 'AI', type: 'dynamodb', table: 'ConversationHistoryTable', count: -1 },
   { id: 'ai_interactions', label: 'AI Interactions Log', category: 'AI', type: 'dynamodb', table: 'AIInteractionsTable', count: -1 },
+  // Voice
   { id: 'whatsapp_calling', label: 'WhatsApp Call Logs', category: 'Voice', type: 'dynamodb', table: 'WhatsAppCallingTable', count: -1 },
   { id: 'voice_cdr', label: 'Voice CDR Records', category: 'Voice', type: 'dynamodb', table: 'VoiceCDRTable', count: -1 },
   { id: 'voice_calls', label: 'Voice Calls (Airtel)', category: 'Voice', type: 'dynamodb', table: 'VoiceCalls', count: -1 },
@@ -27,8 +34,11 @@ const CLEANUP_FALLBACK: api.CleanupResource[] = [
   { id: 'whatsapp_voice_log', label: 'WhatsApp Voice (TTS) Log', category: 'Voice', type: 'dynamodb', table: 'WhatsAppVoiceTable', count: -1 },
   { id: 'obd_campaigns', label: 'OBD Campaigns', category: 'Voice', type: 'dynamodb', table: 'OBDCampaigns', count: -1 },
   { id: 'airtel_c2c', label: 'Airtel C2C Records', category: 'Voice', type: 'dynamodb', table: 'AirtelC2CTable', count: -1 },
+  // SMS
   { id: 'sms_aws', label: 'SMS AWS (Pinpoint)', category: 'SMS', type: 'dynamodb', table: 'SmsAwsTable', count: -1 },
   { id: 'airtel_sms', label: 'Airtel SMS Messages', category: 'SMS', type: 'dynamodb', table: 'AirtelSMSTable', count: -1 },
+  { id: 'dlt_templates', label: 'DLT Templates (Airtel SMS)', category: 'SMS', type: 'dynamodb', table: 'DLTTemplates', count: -1 },
+  // Invoices & Payments
   { id: 'invoices', label: 'Invoices', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoicesTable', count: -1 },
   { id: 'invoice_items', label: 'Invoice Line Items', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceItemsTable', count: -1 },
   { id: 'invoice_assets', label: 'Invoice Assets (PDFs)', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceAssetsTable', count: -1 },
@@ -36,12 +46,37 @@ const CLEANUP_FALLBACK: api.CleanupResource[] = [
   { id: 'invoice_sequence', label: 'Invoice Sequence Counter', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceSequenceTable', count: -1 },
   { id: 'payments', label: 'Payments', category: 'Invoices & Payments', type: 'dynamodb', table: 'PaymentsTable', count: -1 },
   { id: 'razorpay_webhook_log', label: 'Razorpay Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'RazorpayWebhookLogTable', count: -1 },
+  { id: 'payu_webhook_log', label: 'PayU Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'PayUWebhookLogTable', count: -1 },
+  // Bulk
   { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
   { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
+  // Ecommerce
+  { id: 'wix_products_cache', label: 'Wix Products Cache', category: 'Ecommerce', type: 'dynamodb', table: 'WixProductsCache', count: -1 },
+  { id: 'wix_orders_cache', label: 'Wix Orders Cache', category: 'Ecommerce', type: 'dynamodb', table: 'WixOrdersCache', count: -1 },
+  { id: 'wix_order_ids', label: 'Wix Order ID Mapping', category: 'Ecommerce', type: 'dynamodb', table: 'WixOrderIds', count: -1 },
+  // Analytics & Logs
+  { id: 'template_analytics', label: 'Template Analytics', category: 'Analytics & Logs', type: 'dynamodb', table: 'TemplateAnalyticsTable', count: -1 },
+  { id: 'submit_requests', label: 'Flow Submit Requests', category: 'Analytics & Logs', type: 'dynamodb', table: 'SubmitRequestsTable', count: -1 },
+  { id: 'audit_logs', label: 'Audit Logs', category: 'Analytics & Logs', type: 'dynamodb', table: 'AuditLog', count: -1 },
+  // System (optional)
+  { id: 'rate_limit', label: 'Rate Limit Trackers', category: 'System', type: 'dynamodb', table: 'RateLimitTracker', count: -1 },
+  // S3 Storage
   { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'invoices/', count: -1 },
   { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'stream/media/wa/', count: -1 },
+  { id: 's3_whatsapp_media_incoming', label: 'S3: WhatsApp Media (Incoming)', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/whatsapp-media-incoming/', count: -1 },
+  { id: 's3_whatsapp_media_outgoing', label: 'S3: WhatsApp Media (Outgoing)', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/whatsapp-media-outgoing/', count: -1 },
   { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'voice/voice-in/', count: -1 },
   { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/whatsapp-voice/', count: -1 },
+  { id: 's3_template_headers', label: 'S3: Template Headers', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/template-headers/', count: -1 },
+  { id: 's3_product_images', label: 'S3: Product Images', category: 'S3 Storage', type: 's3', prefix: 'store/products/', count: -1 },
+  { id: 's3_reports', label: 'S3: Reports & Exports', category: 'S3 Storage', type: 's3', prefix: 'stream/', count: -1 },
+  { id: 's3_whatsapp_calling_ai', label: 'S3: WhatsApp Calling AI Audio', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/calling-ai/', count: -1 },
+  { id: 's3_whatsapp_downloads', label: 'S3: WhatsApp Media Downloads', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/downloads/', count: -1 },
+  // SQS Queues
+  { id: 'sqs_inbound_dlq', label: 'SQS: Inbound DLQ', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-inbound-dlq', count: -1 },
+  { id: 'sqs_bulk_dlq', label: 'SQS: Bulk DLQ', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-bulk-dlq', count: -1 },
+  { id: 'sqs_bulk_queue', label: 'SQS: Bulk Queue', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-bulk-queue', count: -1 },
+  { id: 'sqs_outbound_dlq', label: 'SQS: Outbound DLQ', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-outbound-dlq', count: -1 },
 ];
 
 const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
@@ -270,7 +305,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
       />
 
       <div className="data-tab">
-        <h3>Data Management</h3>
+        <h3>Factory Reset</h3>
 
         <div className="delete-options">
           <button className={deleteMode === 'messages' ? 'active' : ''} onClick={() => setDeleteMode(deleteMode === 'messages' ? null : 'messages')}>Delete Messages</button>
