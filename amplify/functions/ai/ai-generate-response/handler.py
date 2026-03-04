@@ -4216,34 +4216,51 @@ def _tool_update_contact(params: Dict, request_id: str) -> Dict:
     if not contact_id:
         return {'success': False, 'error': 'contactId is required'}
     
+    # Validate contactId looks like a UUID (not a name)
+    if len(contact_id) < 30 or '-' not in contact_id:
+        return {'success': False, 'error': f'Invalid contactId format: "{contact_id}". Use search_contacts first to get the correct ID.'}
+    
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
         
+        # First verify the contact exists
+        existing = contacts_table.get_item(Key={'id': contact_id})
+        if 'Item' not in existing:
+            return {'success': False, 'error': f'Contact not found with ID: {contact_id}'}
+        
         update_expr_parts = ['updatedAt = :now']
         expr_values = {':now': int(time.time())}
+        expr_names = {}
         
         if params.get('name'):
             update_expr_parts.append('#n = :name')
             expr_values[':name'] = params['name']
+            expr_names['#n'] = 'name'
         if params.get('phone'):
             update_expr_parts.append('phone = :phone')
             expr_values[':phone'] = params['phone']
         if params.get('email'):
             update_expr_parts.append('email = :email')
-            expr_values[':email'] = params['email']
+            expr_values[':email'] = params['email'].strip().lower()
         
-        expr_names = {'#n': 'name'} if params.get('name') else None
+        update_kwargs = {
+            'Key': {'id': contact_id},
+            'UpdateExpression': 'SET ' + ', '.join(update_expr_parts),
+            'ExpressionAttributeValues': expr_values,
+            'ReturnValues': 'ALL_NEW'
+        }
+        if expr_names:
+            update_kwargs['ExpressionAttributeNames'] = expr_names
         
-        contacts_table.update_item(
-            Key={'id': contact_id},
-            UpdateExpression='SET ' + ', '.join(update_expr_parts),
-            ExpressionAttributeValues=expr_values,
-            ExpressionAttributeNames=expr_names if expr_names else None
-        )
+        result = contacts_table.update_item(**update_kwargs)
+        updated = result.get('Attributes', {})
         
         return {
             'success': True,
             'contactId': contact_id,
+            'name': updated.get('name'),
+            'email': updated.get('email'),
+            'phone': updated.get('phone'),
             'message': 'Contact updated successfully'
         }
         
@@ -4634,28 +4651,41 @@ def _tool_send_template(params: Dict, request_id: str) -> Dict:
 def _tool_add_contact_email(params: Dict, request_id: str) -> Dict:
     """Add or update email for a contact."""
     contact_id = params.get('contactId')
-    email = params.get('email')
+    email = params.get('email', '').strip().lower()
     
     if not contact_id or not email:
         return {'success': False, 'error': 'contactId and email are required'}
     
+    # Validate contactId looks like a UUID
+    if len(contact_id) < 30 or '-' not in contact_id:
+        return {'success': False, 'error': f'Invalid contactId format: "{contact_id}". Use search_contacts first to get the correct ID.'}
+    
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
         
-        contacts_table.update_item(
+        # Verify contact exists
+        existing = contacts_table.get_item(Key={'id': contact_id})
+        if 'Item' not in existing:
+            return {'success': False, 'error': f'Contact not found with ID: {contact_id}'}
+        
+        result = contacts_table.update_item(
             Key={'id': contact_id},
             UpdateExpression='SET email = :email, updatedAt = :now',
             ExpressionAttributeValues={
                 ':email': email,
                 ':now': int(time.time())
-            }
+            },
+            ReturnValues='ALL_NEW'
         )
+        
+        updated = result.get('Attributes', {})
         
         return {
             'success': True,
             'contactId': contact_id,
-            'email': email,
-            'message': f'Email {email} added to contact'
+            'name': updated.get('name'),
+            'email': updated.get('email'),
+            'message': f'Email updated to {email}'
         }
         
     except Exception as e:
