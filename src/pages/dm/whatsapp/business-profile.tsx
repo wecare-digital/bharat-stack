@@ -80,7 +80,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {PHONES.map(p => (
             <button key={p.id} onClick={() => setSelectedPhone(p)}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.id === p.id ? '2px solid #16a34a' : '1px solid #ddd', background: selectedPhone.id === p.id ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.id === p.id ? '2px solid #059669' : '1px solid #ddd', background: selectedPhone.id === p.id ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {p.name} ({p.display})
             </button>
           ))}
@@ -90,7 +90,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
           <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
             <p style={{ fontSize: 16, color: '#059669' }}>Profile Unavailable</p>
             <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
-            <button onClick={() => loadProfile(selectedPhone)} style={{ marginTop: 12, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+            <button onClick={() => loadProfile(selectedPhone)} style={{ marginTop: 12, padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               Retry
             </button>
           </div>
@@ -102,7 +102,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                   <div><span style={{ color: '#666' }}>Phone:</span> {phoneSettings.display_phone_number}</div>
                   <div><span style={{ color: '#666' }}>Name:</span> {phoneSettings.verified_name}</div>
-                  <div><span style={{ color: '#666' }}>Quality:</span> <span style={{ color: phoneSettings.quality_rating === 'GREEN' ? '#16a34a' : '#059669' }}>{phoneSettings.quality_rating}</span></div>
+                  <div><span style={{ color: '#666' }}>Quality:</span> <span style={{ color: phoneSettings.quality_rating === 'GREEN' ? '#059669' : '#059669' }}>{phoneSettings.quality_rating}</span></div>
                   <div><span style={{ color: '#666' }}>Tier:</span> {phoneSettings.messaging_limit_tier}</div>
                   <div><span style={{ color: '#666' }}>Official:</span> {phoneSettings.is_official_business_account ? 'Yes' : 'No'}</div>
                   <div><span style={{ color: '#666' }}>Name Status:</span> {phoneSettings.name_status}</div>
@@ -155,7 +155,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }} />
               </div>
               <button onClick={handleSave} disabled={saving}
-                style={{ padding: '10px 24px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, width: 'fit-content' }}>
+                style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, width: 'fit-content' }}>
                 {saving ? 'Saving...' : 'Save Profile'}
               </button>
             </div>

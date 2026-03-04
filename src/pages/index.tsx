@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Home Page - WECARE.DIGITAL Landing
  * WhatsApp Business API Platform
  * Mobile & Tablet Optimized
@@ -178,7 +178,7 @@ response = requests.post(
           <div className="hero-content">
             <div className="hero-left">
               <h1>Reach more customers wherever they are, whatever they're on</h1>
-              <p>Engage them on every channel, in every scenario – from our platform or your stack.</p>
+              <p>Engage them on every channel, in every scenario � from our platform or your stack.</p>
               <div className="hero-stats">
                 <div className="stat"><span>B+</span><small>Users reachable</small></div>
                 <div className="stat"><span>Fast</span><small>Onboarding</small></div>
@@ -228,7 +228,7 @@ response = requests.post(
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
           <div className="section-header">
             <h2>Every touchpoint<br/>One seamless experience</h2>
-            <p>Engage, support, and convert customers across their entire journey — from first contact to lasting loyalty</p>
+            <p>Engage, support, and convert customers across their entire journey � from first contact to lasting loyalty</p>
           </div>
           <div className="usecase-pills">
             {useCases.map((title, i) => (
@@ -241,7 +241,7 @@ response = requests.post(
           <div className="api-grid">
             <div className="api-info">
               <h2>Built for the AI era.</h2>
-              <p className="api-desc">The complete platform for enterprise brands to acquire, convert, and retain customers across every channel—powered by AI that understands your business and unifies customer data into a single view to drive personalized experiences, targeted campaigns, and intelligent automation.</p>
+              <p className="api-desc">The complete platform for enterprise brands to acquire, convert, and retain customers across every channel�powered by AI that understands your business and unifies customer data into a single view to drive personalized experiences, targeted campaigns, and intelligent automation.</p>
             </div>
             <div className="api-demo">
               <div className="code-tabs">
@@ -283,13 +283,13 @@ response = requests.post(
               <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M19 9V7a2 2 0 0 0-2-2h-2m4 4v6m0-6h2m-2 6v2a2 2 0 0 1-2 2h-2m4-4h2m-6 4H9m6 0v2m-6-2H7a2 2 0 0 1-2-2v-2m4 4v2M9 5H7a2 2 0 0 0-2 2v2m4-4V3m0 2h6m0 0V3M5 15H3m2 0V9m0 0H3m8 1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1'/%3e%3cpath fill='%23333333' fill-rule='evenodd' d='M19 7v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2m-8 3h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1' clip-rule='evenodd' opacity='.25'/%3e%3c/svg%3e" alt="NoCode" loading="lazy" /></div>
               <h3>NoCode</h3>
               <p>To extend human reach by giving everyone the code to leverage their life, built on Base CRM.</p>
-              <a href="/nocode" className="explore-link">Explore →</a>
+              <a href="/nocode" className="explore-link">Explore ?</a>
             </div>
             <div className="capability-card">
               <div className="cap-icon"><img src="data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m15 1-3 3-3-3m0 22 3-3 3 3M12 4v16'/%3e%3ccircle cx='12' cy='7' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3ccircle cx='12' cy='17' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M3.97 3.9 5.07 8 .97 9.1m19.06 11-1.1-4.1 4.1-1.1M5.07 8l13.86 8'/%3e%3ccircle cx='7.67' cy='9.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3ccircle cx='16.33' cy='14.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M20.03 3.9 18.93 8l4.1 1.1m-19.06 11 1.1-4.1-4.1-1.1M18.93 8 5.07 16'/%3e%3ccircle cx='16.33' cy='9.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3ccircle cx='7.67' cy='14.5' r='1' fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M2 12h2m16 0h2M7 20.66l1-1.73m8-13.86 1-1.73m0 17.32-1-1.73M8 5.07 7 3.34'/%3e%3c/svg%3e" alt="Carbon" loading="lazy" /></div>
               <h3>Carbon</h3>
               <p>Turn decarbonisation into business results. Transform sustainability data with Base CRM.</p>
-              <a href="/carbon" className="explore-link">Explore →</a>
+              <a href="/carbon" className="explore-link">Explore ?</a>
             </div>
           </div>
         </section>
@@ -311,7 +311,7 @@ response = requests.post(
           .logo-text{display:flex;flex-direction:column;justify-content:center}
           .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
           .logo-sub{font-size:19px;font-weight:600;color:#6b7280;line-height:1.15;margin-top:4px;text-decoration:none;transition:color .25s}
-          .logo-sub:hover{color:#10b981}
+          .logo-sub:hover{color:#059669}
           .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain;position:relative;top:-8px}
           
           /* Animations */
@@ -325,7 +325,7 @@ response = requests.post(
           .hero-left p{font-size:21px;color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
           .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px;transition:all .25s;cursor:default}
-          .stat:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .stat:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
           .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
           
@@ -373,7 +373,7 @@ response = requests.post(
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .pill:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
@@ -384,7 +384,7 @@ response = requests.post(
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:17px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
-          .tab.active{background:#10b981;color:#fff}
+          .tab.active{background:#059669;color:#fff}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
@@ -392,7 +392,7 @@ response = requests.post(
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .capability-card:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .capability-card:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:20px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
@@ -404,18 +404,18 @@ response = requests.post(
           
           /* Explore Section */
           .section-divider{display:flex;justify-content:center;padding:0 24px}
-          .section-divider span{display:block;width:60px;height:3px;border-radius:3px;background:#10b981}
+          .section-divider span{display:block;width:60px;height:3px;border-radius:3px;background:#059669}
           .section-header .section-divider{margin-top:16px;padding:0}
           .explore-section{padding:60px 24px;background:#fff}
           .explore-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:1100px;margin:0 auto}
-          .explore-link{display:block;margin-top:12px;font-size:21px;font-weight:500;color:#10b981;text-decoration:none;transition:color .2s}
+          .explore-link{display:block;margin-top:12px;font-size:21px;font-weight:500;color:#059669;text-decoration:none;transition:color .2s}
           .explore-link:hover{color:#059669}
           
           /* Footer */
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:flex-start}
           .ftr-contact{font-size:21px;color:#6b7280;text-decoration:none;font-weight:500;transition:all .25s}
-          .ftr-contact:hover{color:#10b981}
+          .ftr-contact:hover{color:#059669}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -481,7 +481,7 @@ response = requests.post(
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
-            .mockup-wrapper:hover{border-color:#10b981;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+            .mockup-wrapper:hover{border-color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}

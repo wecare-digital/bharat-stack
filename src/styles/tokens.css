@@ -44,12 +44,12 @@
   
   /* Accent - Clean Emerald theme (black text) */
   --accent: #059669;
-  --accent-light: #f0fdf4;
+  --accent-light: #ecfdf5;
   --accent-hover: #047857;
   
   /* Semantic Colors - Distinct for each state */
   --success: #059669;
-  --success-light: #f0fdf4;
+  --success-light: #ecfdf5;
   --success-bg: #ecfdf5;
   
   --danger: #059669;
@@ -166,7 +166,7 @@
   --notion-border: var(--border);
   --notion-border-dark: var(--border-dark);
   --notion-accent: #059669;
-  --notion-accent-light: #f0fdf4;
+  --notion-accent-light: #ecfdf5;
   --notion-green: #059669;
   --notion-green-light: #ecfdf5;
   --notion-red: #059669;

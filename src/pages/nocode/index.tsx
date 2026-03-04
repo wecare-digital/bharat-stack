@@ -94,19 +94,19 @@ const NoCodePage: React.FC = () => {
           .logo-text{display:flex;flex-direction:column;justify-content:center}
           .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
           .logo-sub{font-size:19px;font-weight:600;color:#6b7280;line-height:1.15;margin-top:4px;text-decoration:none;transition:color .25s}
-          .logo-sub:hover{color:#10b981}
+          .logo-sub:hover{color:#059669}
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
           .anim.show{opacity:1;transform:translateY(0)}
           .hero{padding:140px 24px 60px;max-width:700px;margin:0 auto;text-align:center}
           .badge-icon{width:64px;height:64px;margin:0 auto 16px;background:#fff;border:2px solid #e5e7eb;border-radius:14px;display:flex;align-items:center;justify-content:center;padding:14px}
           .badge-icon img{width:100%;height:100%;object-fit:contain}
-          .badge{display:inline-block;padding:6px 16px;background:#f0fdf4;color:#059669;border-radius:20px;font-size:14px;font-weight:600;margin-bottom:20px}
+          .badge{display:inline-block;padding:6px 16px;background:#ecfdf5;color:#059669;border-radius:20px;font-size:14px;font-weight:600;margin-bottom:20px}
           .hero h1{font-size:48px;font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px}
           .hero p{font-size:21px;color:#6b7280;line-height:1.6;margin:0}
           .features{padding:40px 24px 60px}
           .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .card:hover{border-color:#10b981;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .card:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
           .card-icon{width:52px;height:52px;background:#fff;border:2px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .card-icon img{width:100%;height:100%;object-fit:contain}
           .card h3{font-size:20px;font-weight:600;margin:0 0 8px;color:#1a1a1a}
@@ -119,7 +119,7 @@ const NoCodePage: React.FC = () => {
           .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
           .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between}
           .ftr a{font-size:21px;color:#6b7280;text-decoration:none;font-weight:500;transition:all .25s}
-          .ftr a:hover{color:#10b981}
+          .ftr a:hover{color:#059669}
 
           @media(max-width:1024px){
             .hdr-in{padding:14px 20px}

@@ -1236,7 +1236,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .template-card.library {
-          border-left: 4px solid #10B981;
+          border-left: 4px solid #059669;
         }
 
         .template-header {
@@ -1621,7 +1621,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-remove-card {
-          background: #f0fdf4;
+          background: #ecfdf5;
           color: #065f46;
           border: 1px solid #a7f3d0;
           width: 28px;
@@ -1633,7 +1633,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
 
         .btn-remove-card:hover {
           background: #d1fae5;
-          border-color: #10B981;
+          border-color: #059669;
         }
 
         .card-media {
@@ -1778,7 +1778,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
           padding: 8px 10px;
           text-align: center;
           font-size: 12px;
-          color: #10b981;
+          color: #059669;
           border-top: 1px solid #eee;
           cursor: pointer;
         }

@@ -62,7 +62,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      pending: '#059669', paid: '#16a34a', completed: '#16a34a', failed: '#059669', expired: '#9ca3af',
+      pending: '#059669', paid: '#059669', completed: '#059669', failed: '#059669', expired: '#9ca3af',
     };
     return (
       <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: colors[status] || '#6b7280' }}>
@@ -80,7 +80,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
         {/* Section Tabs */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           <button onClick={() => setActiveSection('requests')}
-            style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === 'requests' ? '2px solid #16a34a' : '1px solid #ddd', background: activeSection === 'requests' ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === 'requests' ? 600 : 400 }}>
+            style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === 'requests' ? '2px solid #059669' : '1px solid #ddd', background: activeSection === 'requests' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === 'requests' ? 600 : 400 }}>
             Submit Requests ({requests.length})
           </button>
           <button onClick={() => setActiveSection('logs')}

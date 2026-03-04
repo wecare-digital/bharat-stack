@@ -19,7 +19,7 @@ interface Contact { id: string; name: string; email: string; unread: number; las
 interface EmailMessage { id: string; direction: 'inbound' | 'outbound'; subject?: string; content: string; timestamp: string; status: string; contactId: string; }
 
 const CONTACTS_PER_PAGE = 20;
-const AVATAR_COLORS = ['#059669','#047857','#065f46','#10b981','#34d399','#059669','#047857','#065f46','#10b981','#34d399'];
+const AVATAR_COLORS = ['#059669','#047857','#065f46','#059669','#34d399','#059669','#047857','#065f46','#059669','#34d399'];
 
 const getAvatarColor = (name: string): string => {
   let hash = 0;

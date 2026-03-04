@@ -1303,7 +1303,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               )}
 
               {!loading && !billingData && (
-                <div style={{ background: '#f0fdf4', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #a7f3d0' }}>
+                <div style={{ background: '#ecfdf5', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #a7f3d0' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>—</div>
                   <h3 style={{ color: '#065f46', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
                   <p style={{ color: '#6b7280', margin: 0 }}>Check API connection or try refreshing.</p>
@@ -1818,8 +1818,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                                       <strong style={{ color: '#059669' }}>{flowKey}</strong>
                                       <span style={{
                                         padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                                        background: trigger?.enabled !== false ? '#dcfce7' : '#f3f4f6',
-                                        color: trigger?.enabled !== false ? '#166534' : '#6b7280',
+                                        background: trigger?.enabled !== false ? '#d1fae5' : '#f3f4f6',
+                                        color: trigger?.enabled !== false ? '#065f46' : '#6b7280',
                                       }}>
                                         {trigger?.enabled !== false ? '● Enabled' : '○ Disabled'}
                                       </span>
@@ -2073,11 +2073,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <TabErrorBoundary tabName="Webhook">
             <div className="webhook-tab">
               {/* Razorpay Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #10B981' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #059669' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                   <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
@@ -2109,15 +2109,15 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Events</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { event: 'payment.captured', desc: 'Payment successful', color: '#10b981' },
+                      { event: 'payment.captured', desc: 'Payment successful', color: '#059669' },
                       { event: 'payment.failed', desc: 'Payment failed', color: '#6b7280' },
-                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#10b981' },
+                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#059669' },
                       { event: 'refund.created', desc: 'Refund initiated', color: '#6b7280' },
-                      { event: 'refund.processed', desc: 'Refund completed', color: '#10b981' },
-                      { event: 'order.paid', desc: 'Order paid', color: '#10b981' },
-                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#10b981' },
+                      { event: 'refund.processed', desc: 'Refund completed', color: '#059669' },
+                      { event: 'order.paid', desc: 'Order paid', color: '#059669' },
+                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#059669' },
                       { event: 'payment.dispute.*', desc: 'Dispute events', color: '#6b7280' },
-                      { event: 'settlement.*', desc: 'Settlement events', color: '#10b981' },
+                      { event: 'settlement.*', desc: 'Settlement events', color: '#059669' },
                     ].map(({ event, desc, color }) => (
                       <div key={event} style={{ background: '#D1FAE5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2208,7 +2208,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
               </div>
 
               {/* Razorpay Data Captured */}
-              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #10B981' }}>
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #059669' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
                   <DataIcon size={18} />
                   Data Captured for Payments
@@ -2228,7 +2228,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                     { field: 'notes', desc: 'Custom metadata' },
                     { field: 'createdAt', desc: 'Timestamp' },
                   ].map(({ field, desc }) => (
-                    <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #10B981' }}>
+                    <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #059669' }}>
                       <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                     </div>
@@ -2379,10 +2379,10 @@ Content-Type: application/json`}</pre>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Events</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { event: 'payment.success', desc: 'Payment captured', color: '#10b981' },
+                      { event: 'payment.success', desc: 'Payment captured', color: '#059669' },
                       { event: 'payment.failed', desc: 'Payment failed', color: '#059669' },
                       { event: 'payment.pending', desc: 'Awaiting bank', color: '#059669' },
-                      { event: 'refund.success', desc: 'Refund processed', color: '#10b981' },
+                      { event: 'refund.success', desc: 'Refund processed', color: '#059669' },
                       { event: 'refund.failed', desc: 'Refund failed', color: '#059669' },
                     ].map(({ event, desc, color }) => (
                       <div key={event} style={{ background: '#ecfdf5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #a7f3d0' }}>
@@ -2563,7 +2563,7 @@ Content-Type: application/json`}</pre>
               </div>
 
               {/* Voice CDR Data Captured */}
-              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #10B981' }}>
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #059669' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
                   <DataIcon size={18} />
                   Data Captured for Voice CDR
@@ -2587,7 +2587,7 @@ Content-Type: application/json`}</pre>
                     { field: 'recordingURL', desc: 'Call recording URL' },
                     { field: 'hangupCause', desc: 'USER/SYSTEM_INITIATED' },
                   ].map(({ field, desc }) => (
-                    <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #10B981' }}>
+                    <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #059669' }}>
                       <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                     </div>
@@ -2735,11 +2735,11 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
               </div>
 
               {/* AWS Pinpoint SMS & Voice Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #10B981' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                   <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
@@ -2803,8 +2803,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Lambda Functions</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { name: 'wecare-sms-aws', desc: 'SMS send + CRUD', color: '#10b981' },
-                      { name: 'wecare-voice-aws', desc: 'Voice call + CRUD', color: '#10b981' },
+                      { name: 'wecare-sms-aws', desc: 'SMS send + CRUD', color: '#059669' },
+                      { name: 'wecare-voice-aws', desc: 'Voice call + CRUD', color: '#059669' },
                     ].map(({ name, desc, color }) => (
                       <div key={name} style={{ background: '#ECFDF5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2929,12 +2929,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
               {/* Wix Store Webhook Section */}
               <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#f0fdf4', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #6ee7b7' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #6ee7b7' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="#059669" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WECARE.DIGITAL Wix Store</h3>
-                    <span className="badge" style={{ background: '#f0fdf4', color: '#059669', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
+                    <span className="badge" style={{ background: '#ecfdf5', color: '#059669', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
                   </div>
                 </div>
 
@@ -2943,21 +2943,21 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
                     Live Store
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
                     Wix Products
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
                     Wix Orders
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
                     Media Manager
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f0fdf4', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
                     Wix Dashboard
                   </a>
                 </div>
 
-                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #6ee7b7' }}>
+                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #6ee7b7' }}>
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#059669' }}>API Endpoints (Lambda: wecare-wix-store)</h4>
                   {[
                     { label: 'List Products', method: 'GET', path: '/wix-store/products' },
@@ -3447,8 +3447,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                                 borderRadius: '12px',
                                 fontSize: '11px',
                                 fontWeight: 600,
-                                background: req.paymentStatus === 'captured' ? '#dcfce7' : req.paymentStatus === 'failed' ? '#f3f4f6' : '#ecfdf5',
-                                color: req.paymentStatus === 'captured' ? '#166534' : req.paymentStatus === 'failed' ? '#6b7280' : '#065f46',
+                                background: req.paymentStatus === 'captured' ? '#d1fae5' : req.paymentStatus === 'failed' ? '#f3f4f6' : '#ecfdf5',
+                                color: req.paymentStatus === 'captured' ? '#065f46' : req.paymentStatus === 'failed' ? '#6b7280' : '#065f46',
                               }}>
                                 {req.paymentStatus === 'captured' ? '✓ Paid' : req.paymentStatus === 'failed' ? '✗ Failed' : '⏳ Pending'}
                               </span>

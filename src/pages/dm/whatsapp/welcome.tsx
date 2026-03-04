@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WhatsApp Welcome Message Configuration
  */
 
@@ -25,8 +25,8 @@ interface WelcomeConfig {
 
 const defaultConfig: WelcomeConfig = {
   enabled: false,
-  textMessage: "Hi there! 👋 Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support — all right here.\n\nℹ️ _You're chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started 👇",
-  welcomeBackMessage: "Welcome back! 💛 What can we help with today? 👇",
+  textMessage: "Hi there! ?? Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support � all right here.\n\n?? _You're chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started ??",
+  welcomeBackMessage: "Welcome back! ?? What can we help with today? ??",
   delaySeconds: 2,
   phoneNumberId: WHATSAPP_PHONES.primary.id,
 };
@@ -99,7 +99,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
       <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: embedded ? 'none' : '0 1px 3px rgba(0,0,0,0.08)' }}>
         {/* Info banner */}
-        <div style={{ marginBottom: 24, padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 13, color: '#166534' }}>
+        <div style={{ marginBottom: 24, padding: '12px 16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, fontSize: 13, color: '#065f46' }}>
           When enabled, these messages override the default bot welcome. Disable to use the Lambda default welcome text.
         </div>
 
@@ -110,7 +110,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
             style={{
               flex: 1, padding: '12px 16px', border: '2px solid', borderRadius: 8, cursor: 'pointer',
               borderColor: activePhone === WHATSAPP_PHONES.primary.id ? '#059669' : '#e5e7eb',
-              background: activePhone === WHATSAPP_PHONES.primary.id ? '#f0fdf4' : '#fff',
+              background: activePhone === WHATSAPP_PHONES.primary.id ? '#ecfdf5' : '#fff',
               fontWeight: activePhone === WHATSAPP_PHONES.primary.id ? 600 : 400,
             }}
           >
@@ -122,7 +122,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
             style={{
               flex: 1, padding: '12px 16px', border: '2px solid', borderRadius: 8, cursor: 'pointer',
               borderColor: activePhone === WHATSAPP_PHONES.secondary.id ? '#059669' : '#e5e7eb',
-              background: activePhone === WHATSAPP_PHONES.secondary.id ? '#f0fdf4' : '#fff',
+              background: activePhone === WHATSAPP_PHONES.secondary.id ? '#ecfdf5' : '#fff',
               fontWeight: activePhone === WHATSAPP_PHONES.secondary.id ? 600 : 400,
             }}
           >

@@ -579,7 +579,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           font-size: 16px;
         }
         .remove-btn:hover {
-          background: #fecaca;
+          background: #d1fae5;
         }
         .remove-btn.small {
           width: 24px;

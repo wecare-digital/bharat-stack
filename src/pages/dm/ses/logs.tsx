@@ -104,7 +104,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     background: disabled ? '#f9fafb' : '#ECFDF5',
     border: `1px solid ${disabled ? '#e5e7eb' : '#A7F3D0'}`,
     borderRadius: '6px', fontSize: '12px',
-    color: disabled ? '#9ca3af' : '#10B981',
+    color: disabled ? '#9ca3af' : '#059669',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.4 : 1
   });
@@ -133,10 +133,10 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer',
               opacity: selectedIds.size === 0 ? 0.5 : 1,
               transition: 'all 0.15s ease',
-              color: selectedIds.size === 0 ? '#9ca3af' : '#10B981'
+              color: selectedIds.size === 0 ? '#9ca3af' : '#059669'
             }}
             onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#ECFDF5'; e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.color = '#059669'; }}}
-            onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#10B981'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#059669'; }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
@@ -169,7 +169,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               onClick={() => setFilter(f)}
               style={{
                 padding: '8px 16px',
-                border: '1.5px solid #10B981',
+                border: '1.5px solid #059669',
                 borderRadius: '13px',
                 background: filter === f ? '#D1FAE5' : '#fff',
                 color: '#111827',
@@ -211,7 +211,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                         setSelectedIds(newSet);
                       }
                     }}
-                    style={{ accentColor: '#10B981' }}
+                    style={{ accentColor: '#059669' }}
                   />
                 </th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>To</th>
@@ -228,7 +228,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                       type="checkbox"
                       checked={selectedIds.has(m.messageId)}
                       onChange={() => toggleSelect(m.messageId)}
-                      style={{ accentColor: '#10B981' }}
+                      style={{ accentColor: '#059669' }}
                     />
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '14px' }}>{m.contactId}</td>

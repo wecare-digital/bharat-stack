@@ -463,13 +463,13 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                 <button
                   onClick={() => setManageMode('single')}
-                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'single' ? '2px solid #10b981' : '1px solid #d1d5db', background: manageMode === 'single' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'single' ? 600 : 400, fontSize: 13 }}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'single' ? '2px solid #059669' : '1px solid #d1d5db', background: manageMode === 'single' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'single' ? 600 : 400, fontSize: 13 }}
                 >
                   Single Product
                 </button>
                 <button
                   onClick={() => setManageMode('bulk')}
-                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'bulk' ? '2px solid #10b981' : '1px solid #d1d5db', background: manageMode === 'bulk' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'bulk' ? 600 : 400, fontSize: 13 }}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'bulk' ? '2px solid #059669' : '1px solid #d1d5db', background: manageMode === 'bulk' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'bulk' ? 600 : 400, fontSize: 13 }}
                 >
                   Bulk Create (JSON)
                 </button>
@@ -477,7 +477,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
               {/* Sample Products */}
               {sampleProducts.length > 0 && (
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>BNB CLUB Templates</span>
                     <button onClick={handleLoadAllSamples} style={{ fontSize: 12, padding: '4px 12px', border: '1px solid #86efac', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#059669' }}>
@@ -559,7 +559,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button onClick={handleCreateProduct} disabled={creating || !newProduct.name || !newProduct.price}
-                      style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !newProduct.name || !newProduct.price ? 0.5 : 1 }}>
+                      style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !newProduct.name || !newProduct.price ? 0.5 : 1 }}>
                       {creating ? 'Creating...' : 'Create Product'}
                     </button>
                   </div>
@@ -575,7 +575,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                     style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 12, outline: 'none', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
                   <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button onClick={handleBulkCreate} disabled={creating || !bulkJson.trim()}
-                      style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !bulkJson.trim() ? 0.5 : 1 }}>
+                      style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !bulkJson.trim() ? 0.5 : 1 }}>
                       {creating ? 'Creating...' : 'Bulk Create'}
                     </button>
                   </div>
@@ -584,7 +584,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
               {/* Result */}
               {createResult && (
-                <div style={{ marginTop: 16, background: createResult.success ? '#f0fdf4' : '#f3f4f6', border: `1px solid ${createResult.success ? '#bbf7d0' : '#e5e7eb'}`, borderRadius: 12, padding: 16 }}>
+                <div style={{ marginTop: 16, background: createResult.success ? '#ecfdf5' : '#f3f4f6', border: `1px solid ${createResult.success ? '#a7f3d0' : '#e5e7eb'}`, borderRadius: 12, padding: 16 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: createResult.success ? '#059669' : '#6b7280', marginBottom: 8 }}>
                     {createResult.success ? (createResult.bulk ? `Bulk: ${createResult.succeeded}/${createResult.total} created` : 'Product Created') : 'Error'}
                   </div>
@@ -604,14 +604,14 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Wix Site</h3>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: '#10b981', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
+                    style={{ fontSize: 12, color: '#059669', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
                     Open Wix Dashboard →
                   </a>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                   <div style={adminCard}><span style={adminLabel}>Site Name</span><span style={adminVal}>WECARE.DIGITAL</span></div>
                   <div style={adminCard}><span style={adminLabel}>Site ID</span><span style={{ ...adminVal, fontSize: 11, fontFamily: 'monospace' }}>461dece3-613a</span></div>
-                  <div style={adminCard}><span style={adminLabel}>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ ...adminVal, color: '#10b981', textDecoration: 'none' }}>wecare.digital</a></div>
+                  <div style={adminCard}><span style={adminLabel}>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ ...adminVal, color: '#059669', textDecoration: 'none' }}>wecare.digital</a></div>
                   <div style={adminCard}><span style={adminLabel}>Status</span><span style={{ ...adminVal, color: '#059669' }}>Published</span></div>
                   <div style={adminCard}><span style={adminLabel}>Currency</span><span style={adminVal}>INR (₹)</span></div>
                   <div style={adminCard}><span style={adminLabel}>Conv. Fee</span><span style={adminVal}>2% + 18% GST</span></div>
@@ -623,7 +623,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Velo Code Files</h3>
                   <a href="https://editor.wix.com/html/editor/web/renderer/edit/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: '#10b981', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
+                    style={{ fontSize: 12, color: '#059669', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
                     Open in Wix Editor →
                   </a>
                 </div>
@@ -770,7 +770,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                           {s.published ? 'Published' : 'Draft'}
                         </span>
                         {s.viewUrl && (
-                          <a href={s.viewUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#10b981' }}>Visit →</a>
+                          <a href={s.viewUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#059669' }}>Visit →</a>
                         )}
                       </div>
                     ))}

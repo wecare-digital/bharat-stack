@@ -511,12 +511,12 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
 
             {/* FAQ Results (instant, local) */}
             {faqResults.length > 0 && (
-              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '13px', border: '1px solid #bbf7d0' }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#166534', fontSize: '0.9rem' }}>
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#ecfdf5', borderRadius: '13px', border: '1px solid #a7f3d0' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#065f46', fontSize: '0.9rem' }}>
                   Static FAQ Matches (Free, Instant)
                 </div>
                 {faqResults.map((r) => (
-                  <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #dcfce7' }}>
+                  <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #d1fae5' }}>
                     <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{r.question}</div>
                     <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '0.25rem', whiteSpace: 'pre-line' }}>{r.answer}</div>
                     <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.25rem' }}>

@@ -63,8 +63,8 @@ const WABA_CONFIG = {
 
 // Avatar color palette - consistent per contact
 const AVATAR_COLORS = [
-  '#059669', '#047857', '#065f46', '#10b981', '#34d399',
-  '#059669', '#047857', '#065f46', '#10b981', '#34d399',
+  '#059669', '#047857', '#065f46', '#059669', '#34d399',
+  '#059669', '#047857', '#065f46', '#059669', '#34d399',
 ];
 
 // Delete/clear icon — trash can (emerald themed)

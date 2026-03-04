@@ -37,7 +37,7 @@
   --color-border: #e5e7eb;
   --color-bg: #fff;
   --color-bg-secondary: #ECFDF5;
-  --color-bg-hover: #f0fdf4;
+  --color-bg-hover: #ecfdf5;
   --color-bg-active: #d1fae5;
   
   /* Semantic Colors - Clean Emerald */
@@ -303,7 +303,7 @@
 }
 
 .btn-success:hover {
-  background: #f0fdf4;
+  background: #ecfdf5;
 }
 
 /* Link style button */
@@ -844,7 +844,7 @@
 }
 
 .tab.active:hover {
-  background: #f0fdf4;
+  background: #ecfdf5;
 }
 
 /* Form Styles - Unified with Emerald Focus */
@@ -2534,7 +2534,7 @@
 }
 
 .emoji-btn:hover {
-  background: #f0fdf4;
+  background: #ecfdf5;
 }
 
 @media (max-width: 768px) {
@@ -3109,7 +3109,7 @@
   align-items: center;
   justify-content: center;
   color: #059669;
-  background: #f0fdf4;
+  background: #ecfdf5;
   border-radius: 10px;
 }
 
@@ -3479,7 +3479,7 @@ pre code {
 }
 
 .hub-card:hover {
-  background: #f0fdf4;
+  background: #ecfdf5;
   border-color: #059669;
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(16, 185, 129, 0.15);
@@ -3648,7 +3648,7 @@ pre code {
 }
 
 .refresh-btn:hover {
-  background: #f0fdf4;
+  background: #ecfdf5;
   border-color: #059669;
   color: #059669;
 }
@@ -3722,7 +3722,7 @@ pre code {
 }
 
 .dash-tabs .tab.active:hover {
-  background: #f0fdf4;
+  background: #ecfdf5;
 }
 
 .dash-tabs .tab svg {

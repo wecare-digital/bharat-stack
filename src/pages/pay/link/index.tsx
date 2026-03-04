@@ -210,8 +210,8 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .page-header h1 { font-size: 22px; margin: 0 0 4px 0; }
         .page-header p { color: #4a4a4a; margin: 0; font-size: 14px; }
         
-        .coming-soon-banner { display: flex; align-items: center; gap: 16px; background: #ECFDF5; padding: 16px 20px; border-radius: 13px; margin-bottom: 20px; border: 1.5px solid #10B981; }
-        .banner-icon { font-size: 24px; color: #10B981; }
+        .coming-soon-banner { display: flex; align-items: center; gap: 16px; background: #ECFDF5; padding: 16px 20px; border-radius: 13px; margin-bottom: 20px; border: 1.5px solid #059669; }
+        .banner-icon { font-size: 24px; color: #059669; }
         .banner-content h3 { margin: 0 0 4px 0; font-size: 16px; color: #111827; }
         .banner-content p { margin: 0; font-size: 13px; color: #4a4a4a; }
         
@@ -222,24 +222,24 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .form-section h3 { font-size: 14px; margin: 0 0 12px 0; color: #000; font-weight: 600; }
         
         .ref-row { display: flex; gap: 8px; }
-        .ref-row input { flex: 1; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; background: #fff; }
+        .ref-row input { flex: 1; padding: 10px 12px; border: 1.5px solid #059669; border-radius: 13px; font-size: 14px; background: #fff; }
         .ref-row input:hover { background: #ECFDF5; }
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .form-field { }
         .form-field.full-width { grid-column: span 2; }
         .form-field label { display: block; font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
-        .form-field input, .form-field select { width: 100%; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
+        .form-field input, .form-field select { width: 100%; padding: 10px 12px; border: 1.5px solid #059669; border-radius: 13px; font-size: 14px; box-sizing: border-box; background: #fff; }
         .form-field input:hover, .form-field select:hover { background: #ECFDF5; }
         .form-field input:focus, .form-field select:focus { outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); background: #fff; }
         
         .generate-btn { width: 100%; }
         
         .link-preview h3 { font-size: 14px; margin: 0 0 10px 0; font-weight: 600; }
-        .preview-card { background: #fff; border-radius: 13px; padding: 20px; border: 1.5px solid #10B981; }
+        .preview-card { background: #fff; border-radius: 13px; padding: 20px; border: 1.5px solid #059669; }
         
         .link-display { display: flex; gap: 8px; margin-bottom: 16px; }
-        .link-display input { flex: 1; padding: 10px 12px; border: 1.5px solid #10B981; border-radius: 13px; font-size: 14px; background: #f5f5f5; }
+        .link-display input { flex: 1; padding: 10px 12px; border: 1.5px solid #059669; border-radius: 13px; font-size: 14px; background: #f5f5f5; }
         
         .link-details { padding: 12px; background: #ECFDF5; border-radius: 10px; margin-bottom: 16px; }
         .detail-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }

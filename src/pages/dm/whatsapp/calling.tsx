@@ -920,7 +920,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       borderRadius: '12px', border: '1px solid #a7f3d0',
     } as React.CSSProperties,
     tabs: {
-      display: 'flex', gap: '4px', marginBottom: '20px', background: '#f0fdf4',
+      display: 'flex', gap: '4px', marginBottom: '20px', background: '#ecfdf5',
       padding: '4px', borderRadius: '10px', border: '1px solid #d1fae5', flexWrap: 'wrap' as const,
     } as React.CSSProperties,
     card: {
@@ -932,7 +932,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const tab = (active: boolean): React.CSSProperties => ({
     padding: '8px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer',
     fontSize: '13px', fontWeight: active ? 600 : 500,
-    background: active ? '#10b981' : 'transparent', color: active ? '#fff' : '#065f46',
+    background: active ? '#059669' : 'transparent', color: active ? '#fff' : '#065f46',
   });
 
   const badge = (status: string): React.CSSProperties => ({
@@ -974,7 +974,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {activeTab === 'live' && (
           <div>
             {/* Auto-pickup toggle */}
-            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ ...s.card, background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Live Call Dashboard</h3>
                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#047857' }}>
@@ -982,12 +982,12 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button onClick={loadActiveCalls} style={{ padding: '6px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                <button onClick={loadActiveCalls} style={{ padding: '6px 14px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                   Refresh
                 </button>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#065f46', cursor: 'pointer' }}>
                   <input type="checkbox" checked={autoPickup} onChange={toggleAutoPickup} disabled={autoPickupLoading}
-                    style={{ width: '16px', height: '16px', accentColor: '#10b981' }} />
+                    style={{ width: '16px', height: '16px', accentColor: '#059669' }} />
                   Auto-pickup
                 </label>
               </div>
@@ -1045,7 +1045,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     if (res.ok) toast.success('IVR URL saved');
                     else toast.error('Failed to save IVR URL');
                   } catch (e) { toast.error('Failed to save IVR URL'); }
-                }} style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                }} style={{ padding: '8px 14px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                   Save URL
                 </button>
                 <a href={ivrUrl} target="_blank" rel="noopener noreferrer"
@@ -1088,7 +1088,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                           {call.status === 'ringing' && (
                             <>
                               <button onClick={() => answerCallWebRTC(call)}
-                                style={{ padding: '6px 16px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                                style={{ padding: '6px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                                 Answer
                               </button>
                               <button onClick={() => rejectCall(call.callId, call.phoneNumberId)}
@@ -1118,7 +1118,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             </div>
 
             {/* Outbound Call — Business-Initiated */}
-            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #a7f3d0', background: outboundStep === 'connected' ? '#ecfdf5' : outboundStep === 'calling' ? '#ecfdf5' : '#f0fdf4' }}>
+            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #a7f3d0', background: outboundStep === 'connected' ? '#ecfdf5' : outboundStep === 'calling' ? '#ecfdf5' : '#ecfdf5' }}>
               <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#065f46' }}>Outbound Call (Business-Initiated)</h4>
 
               {outboundStep === 'idle' && (
@@ -1168,7 +1168,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={initiateOutboundCall} disabled={outboundLoading}
-                      style={{ padding: '8px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                      style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
                       {outboundLoading ? 'Connecting...' : 'Call Now'}
                     </button>
                     <button onClick={resetOutbound}
@@ -1246,7 +1246,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             <div style={{ ...s.card, marginTop: '12px' }}>
               <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WebRTC Status</h4>
               <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.8 }}>
-                <div>Browser WebRTC: <span style={{ color: typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '#10b981' : '#059669', fontWeight: 600 }}>
+                <div>Browser WebRTC: <span style={{ color: typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '#059669' : '#059669', fontWeight: 600 }}>
                   {typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '✓ Supported' : '✗ Not supported'}
                 </span></div>
                 <div>Microphone: <span style={{ fontWeight: 500 }}>Will request permission when answering a call</span></div>
@@ -1306,7 +1306,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div>
-            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0' }}>
+            <div style={{ ...s.card, background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
               <h3 style={{ margin: '0 0 8px', fontSize: '15px', color: '#065f46' }}>How it works</h3>
               <p style={{ margin: 0, fontSize: '13px', color: '#047857', lineHeight: 1.6 }}>
                 The WhatsApp Business Calling API (launched July 2025) enables bidirectional VoIP calls
@@ -1464,7 +1464,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   { label: 'Sandbox Testing', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sandbox' },
                 ].map((d, i) => (
                   <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none' }}>
+                    style={{ fontSize: '13px', color: '#059669', textDecoration: 'none' }}>
                     {d.label} ↗
                   </a>
                 ))}
@@ -1477,7 +1477,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {activeTab === 'webhook' && (
           <div>
             {/* Webhook Status */}
-            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
+            <div style={{ ...s.card, background: '#ecfdf5', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '18px' }}>-</span>
                 <h3 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Webhook Endpoint — Deployed & Verified</h3>
@@ -1494,7 +1494,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             <div style={s.card}>
               <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Meta Dashboard Configuration</h4>
               <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6b7280' }}>
-                Enter these values in <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>Meta App Dashboard → WhatsApp → Configuration</a>
+                Enter these values in <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>Meta App Dashboard → WhatsApp → Configuration</a>
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
@@ -1504,7 +1504,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                       {WEBHOOK_CONFIG.callbackUrl}
                     </code>
                     <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_CONFIG.callbackUrl); toast.success('Copied'); }}
-                      style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      style={{ padding: '8px 14px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       Copy
                     </button>
                   </div>
@@ -1516,7 +1516,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                       {WEBHOOK_CONFIG.verifyToken}
                     </code>
                     <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_CONFIG.verifyToken); toast.success('Copied'); }}
-                      style={{ padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      style={{ padding: '8px 14px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       Copy
                     </button>
                   </div>
@@ -1568,7 +1568,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             <div style={{ ...s.card, marginTop: '12px' }}>
               <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>How to Configure Webhook in Meta Dashboard</h4>
               <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 }}>
-                <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
+                <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
                 <li>Under "Webhook", click "Edit" (or "Configure" if first time)</li>
                 <li>Paste the Callback URL above</li>
                 <li>Paste the Verify Token above</li>
@@ -1609,7 +1609,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   { label: 'Meta Business Settings', url: 'https://business.facebook.com/settings' },
                 ].map((d, i) => (
                   <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none' }}>
+                    style={{ fontSize: '13px', color: '#059669', textDecoration: 'none' }}>
                     {d.label} ↗
                   </a>
                 ))}
@@ -1621,7 +1621,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {/* SETUP TAB */}
         {activeTab === 'setup' && (
           <div>
-            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '20px' }}>
+            <div style={{ ...s.card, background: '#ecfdf5', border: '1px solid #a7f3d0', marginBottom: '20px' }}>
               <p style={{ margin: 0, fontSize: '13px', color: '#065f46' }}>
                 Follow these steps to enable WhatsApp Business Calling. Default: Graph API + Webhooks (HTTPS) signaling with WebRTC media. SIP available with explicit enablement.
               </p>
@@ -1632,7 +1632,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                   <div style={{
                     width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                    background: step.done ? '#10b981' : '#e5e7eb', color: step.done ? '#fff' : '#6b7280',
+                    background: step.done ? '#059669' : '#e5e7eb', color: step.done ? '#fff' : '#6b7280',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '14px', fontWeight: 700,
                   }}>
@@ -1708,7 +1708,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {/* RESOURCES TAB */}
         {activeTab === 'resources' && (
           <div>
-            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '20px' }}>
+            <div style={{ ...s.card, background: '#ecfdf5', border: '1px solid #a7f3d0', marginBottom: '20px' }}>
               <p style={{ margin: 0, fontSize: '13px', color: '#065f46' }}>
                 AWS resources for WhatsApp Calling + TTS integration. Region: us-east-1.
               </p>
@@ -1741,7 +1741,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         {/* CALLING SETTINGS TAB */}
         {activeTab === 'settings' && (
           <div>
-            <div style={{ ...s.card, background: '#f0fdf4', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
+            <div style={{ ...s.card, background: '#ecfdf5', border: '1px solid #a7f3d0', marginBottom: '16px' }}>
               <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: '#065f46' }}>Enable & Configure Calling</h3>
               <p style={{ margin: 0, fontSize: '13px', color: '#047857' }}>
                 Use this to enable the call icon on your WhatsApp number, set business hours, and restrict calling to specific countries.
@@ -1755,9 +1755,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PHONE_NUMBERS.map((p, i) => (
                   <button key={i} onClick={() => { setSettingsPhone(p); }}
-                    style={{ padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #10b981' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+                    style={{ padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #059669' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
                     {p.name} ({p.display})
-                    {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#10b981' }}>Ready</span>}
+                    {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#059669' }}>Ready</span>}
                     {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#059669' }}>Needs 2K</span>}
                   </button>
                 ))}
@@ -1776,11 +1776,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Call Icon Visibility</label>
                   <div style={{ display: 'flex', gap: 12 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                      <input type="radio" name="visibility" checked={callingVisibility === 'default'} onChange={() => setCallingVisibility('default')} style={{ accentColor: '#10b981' }} />
+                      <input type="radio" name="visibility" checked={callingVisibility === 'default'} onChange={() => setCallingVisibility('default')} style={{ accentColor: '#059669' }} />
                       <span>Default (show call icon)</span>
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                      <input type="radio" name="visibility" checked={callingVisibility === 'disable_all'} onChange={() => setCallingVisibility('disable_all')} style={{ accentColor: '#10b981' }} />
+                      <input type="radio" name="visibility" checked={callingVisibility === 'disable_all'} onChange={() => setCallingVisibility('disable_all')} style={{ accentColor: '#059669' }} />
                       <span>Disable All (hide call icon)</span>
                     </label>
                   </div>
@@ -1797,7 +1797,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 {/* Business Call Hours */}
                 <div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, marginBottom: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={callHoursEnabled} onChange={e => setCallHoursEnabled(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#10b981' }} />
+                    <input type="checkbox" checked={callHoursEnabled} onChange={e => setCallHoursEnabled(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#059669' }} />
                     Enable Business Call Hours
                   </label>
                   {callHoursEnabled && (
@@ -1833,7 +1833,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               {/* Save Button */}
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 }}>
                 <button onClick={saveCallingSettings} disabled={savingSettings}
-                  style={{ padding: '10px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                  style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
                   {savingSettings ? 'Saving...' : 'Enable Calling / Save Settings'}
                 </button>
                 <button onClick={loadCallingSettings} disabled={loadingSettings}
@@ -1861,7 +1861,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div>call_icon_visibility: <code style={{ fontSize: 12 }}>"default"</code> (show) or <code style={{ fontSize: 12 }}>"disable_all"</code> (hide)</div>
                 <div>restrict_to_user_countries: Array of ISO country codes (e.g. ["IN", "AE"])</div>
                 <div>call_hours: Timezone + per-day schedule with from/to times</div>
-                <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981' }}>Call Control Settings ↗</a></div>
+                <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>Call Control Settings ↗</a></div>
               </div>
             </div>
           </div>

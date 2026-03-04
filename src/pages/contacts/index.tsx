@@ -28,7 +28,7 @@ type SortKey = 'name' | 'phone' | 'email' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
-const TAG_COLORS: Record<string, string> = { VIP: '#065f46', Lead: '#047857', Customer: '#059669', Prospect: '#10b981', Partner: '#34d399', Vendor: '#6ee7b7' };
+const TAG_COLORS: Record<string, string> = { VIP: '#065f46', Lead: '#047857', Customer: '#059669', Prospect: '#059669', Partner: '#34d399', Vendor: '#6ee7b7' };
 
 // Country codes for phone number parsing
 const COUNTRY_CODES = [

@@ -447,7 +447,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
       )}
 
       <style jsx>{`
-        .voice-page { height: 100%; display: flex; flex-direction: column; background: #f0fdf4; padding: 16px; box-sizing: border-box; overflow: hidden; }
+        .voice-page { height: 100%; display: flex; flex-direction: column; background: #ecfdf5; padding: 16px; box-sizing: border-box; overflow: hidden; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
         .header-title { display: flex; align-items: center; gap: 10px; color: #065f46; flex-wrap: wrap; }
         .header-title h2 { margin: 0; font-size: 1.1rem; }
@@ -463,7 +463,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ecfdf5; font-size: 12px; white-space: nowrap; }
         th { background: #ecfdf5; font-weight: 600; color: #065f46; position: sticky; top: 0; z-index: 1; }
-        tr:hover { background: #f0fdf4; }
+        tr:hover { background: #ecfdf5; }
         .time-cell { font-size: 11px; }
         .phone-cell { font-family: monospace; color: #047857; font-size: 11px; }
         .id-cell { font-family: monospace; font-size: 10px; color: #6b7280; }
@@ -494,12 +494,12 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         .file-input { padding: 6px; background: #f9fafb; }
         .audio-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .audio-option { display: flex; align-items: center; gap: 8px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 12px; }
-        .audio-option:hover { border-color: #a7f3d0; background: #f0fdf4; }
+        .audio-option:hover { border-color: #a7f3d0; background: #ecfdf5; }
         .audio-option.selected { border-color: #059669; background: #ecfdf5; }
         .audio-option input[type="radio"] { display: none; }
         .checkbox-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
         .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #059669; }
-        .info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #166534; }
+        .info-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #065f46; }
         .info-box strong { color: #065f46; }
         .info-box.warning { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
         .info-box.warning strong { color: #059669; }
@@ -518,7 +518,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         .contact-search { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
         .contact-list { max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
         .contact-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
-        .contact-row:hover { background: #f0fdf4; }
+        .contact-row:hover { background: #ecfdf5; }
         .contact-row:last-child { border-bottom: none; }
         .contact-avatar { width: 32px; height: 32px; background: #059669; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
         .contact-details { flex: 1; min-width: 0; }

@@ -21,7 +21,7 @@ const WABAS = [
 const CATEGORIES = ['SIGN_UP', 'SIGN_IN', 'APPOINTMENT_BOOKING', 'LEAD_GENERATION', 'CONTACT_US', 'CUSTOMER_SUPPORT', 'SURVEY', 'OTHER'];
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#059669', PUBLISHED: '#16a34a', DEPRECATED: '#9ca3af', BLOCKED: '#059669', THROTTLED: '#059669',
+  DRAFT: '#059669', PUBLISHED: '#059669', DEPRECATED: '#9ca3af', BLOCKED: '#059669', THROTTLED: '#059669',
 };
 
 const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -103,7 +103,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
       <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>WhatsApp Flows</h2>
-          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
             + Create Flow
           </button>
         </div>
@@ -111,7 +111,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {WABAS.map(w => (
             <button key={w.id} onClick={() => { setSelectedWaba(w); setSelectedFlow(null); }}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #16a34a' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #059669' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {w.name} ({w.display})
             </button>
           ))}
@@ -130,7 +130,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
               </select>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
                 {creating ? 'Creating...' : 'Create'}
               </button>
               <button onClick={() => setShowCreate(false)} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
@@ -142,7 +142,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
           <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
             <p style={{ fontSize: 16, color: '#059669' }}>Failed to load flows</p>
             <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
-            <button onClick={() => loadFlows(selectedWaba)} style={{ marginTop: 12, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+            <button onClick={() => loadFlows(selectedWaba)} style={{ marginTop: 12, padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               Retry
             </button>
           </div>
@@ -169,7 +169,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
                     <button onClick={() => viewDetails(flow)} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>Details</button>
                     {flow.status === 'DRAFT' && (
                       <>
-                        <button onClick={() => handlePublish(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#16a34a', color: '#fff', cursor: 'pointer' }}>Publish</button>
+                        <button onClick={() => handlePublish(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Publish</button>
                         <button onClick={() => handleDelete(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Delete</button>
                       </>
                     )}

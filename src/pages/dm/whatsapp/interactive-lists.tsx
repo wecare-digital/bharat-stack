@@ -147,7 +147,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {PHONES.map(p => (
             <button key={p.metaId} onClick={() => setSelectedPhone(p)}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.metaId === p.metaId ? '2px solid #16a34a' : '1px solid #ddd', background: selectedPhone.metaId === p.metaId ? '#f0fdf4' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.metaId === p.metaId ? '2px solid #059669' : '1px solid #ddd', background: selectedPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {p.name} ({p.display})
             </button>
           ))}
@@ -203,7 +203,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
         <div style={{ ...cs.card }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Sections & Rows</span>
-            <button onClick={addSection} style={{ padding: '4px 12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>+ Add Section</button>
+            <button onClick={addSection} style={{ padding: '4px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>+ Add Section</button>
           </div>
           {sections.map((section, si) => (
             <div key={si} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 10 }}>
@@ -234,7 +234,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
         {/* Actions */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
           <button onClick={handleSend} disabled={sending}
-            style={{ padding: '10px 24px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+            style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
             {sending ? 'Sending...' : 'Send List Message'}
           </button>
           <button onClick={() => setJsonPreview(!jsonPreview)}
@@ -259,7 +259,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
         {/* Last Result */}
         {lastResult && (
-          <div style={{ ...cs.card, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+          <div style={{ ...cs.card, background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#065f46' }}>Last Send Result</span>
             <pre style={{ margin: '8px 0 0', fontSize: 12, color: '#047857' }}>{JSON.stringify(lastResult, null, 2)}</pre>
           </div>
@@ -271,7 +271,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
           <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
             <div>Endpoint: <code style={{ fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>POST /{'<PHONE_NUMBER_ID>'}/messages</code></div>
             <div>Type: <code style={{ fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>interactive → list</code></div>
-            <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-list-messages" target="_blank" rel="noopener noreferrer" style={{ color: '#16a34a' }}>Meta Interactive List Messages ↗</a></div>
+            <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-list-messages" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>Meta Interactive List Messages ↗</a></div>
           </div>
         </div>
       </div>

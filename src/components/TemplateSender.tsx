@@ -522,7 +522,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
           border-radius: 10px;
           color: white;
         }
-        .category-badge.utility { background: #10B981; }
+        .category-badge.utility { background: #059669; }
         .category-badge.marketing { background: #059669; }
         .category-badge.authentication { background: #065f46; }
         .carousel-badge {
@@ -545,7 +545,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
         .back-btn {
           background: none;
           border: none;
-          color: #10b981;
+          color: #059669;
           cursor: pointer;
           font-size: 13px;
           padding: 0;

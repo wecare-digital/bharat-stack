@@ -44,7 +44,7 @@ function Table<T extends Record<string, any>>({
             <tr style={{ background: '#f9fafb' }}>
               {selectable && (
                 <th style={thStyle}>
-                  <input type="checkbox" checked={allSelected} onChange={e => onSelectAll?.(e.target.checked)} style={{ accentColor: '#10B981' }} />
+                  <input type="checkbox" checked={allSelected} onChange={e => onSelectAll?.(e.target.checked)} style={{ accentColor: '#059669' }} />
                 </th>
               )}
               {columns.map(col => (
@@ -62,7 +62,7 @@ function Table<T extends Record<string, any>>({
                 <tr key={String(item[keyField])} style={{ borderBottom: '1px solid #e5e7eb' }}>
                   {selectable && (
                     <td style={tdStyle}>
-                      <input type="checkbox" checked={selectedIds.has(String(item[keyField]))} onChange={() => onSelect?.(String(item[keyField]))} style={{ accentColor: '#10B981' }} />
+                      <input type="checkbox" checked={selectedIds.has(String(item[keyField]))} onChange={() => onSelect?.(String(item[keyField]))} style={{ accentColor: '#059669' }} />
                     </td>
                   )}
                   {columns.map(col => (
