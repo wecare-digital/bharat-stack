@@ -46,12 +46,8 @@ export const LinkIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, cl
 
 // Forms / Document
 export const FormIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = '#059669' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
+  <svg width={size} height={size} viewBox="0 0 16 16" fill={color} className={className}>
+    <path d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2m0 13V4a2 2 0 0 0-2-2H5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1M3 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
   </svg>
 );
 
@@ -307,6 +303,13 @@ export const InboxIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, c
   </svg>
 );
 
+// CheckList / Task (Calendar style)
+export const CheckListIcon: React.FC<IconProps> = ({ size = 18, strokeWidth = 1.5, className, color = '#059669' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 10H3m13-8v4M8 2v4m-.2 16h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C21 19.72 21 18.88 21 17.2V8.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C18.72 4 17.88 4 16.2 4H7.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C3 6.28 3 7.12 3 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C5.28 22 6.12 22 7.8 22" />
+  </svg>
+);
+
 // Export all icons as a map for dynamic usage
 export const IconMap: Record<string, React.FC<IconProps>> = {
   dashboard: DashboardIcon,
@@ -343,4 +346,5 @@ export const IconMap: Record<string, React.FC<IconProps>> = {
   store: StoreIcon,
   health: HealthIcon,
   advisor: AdvisorIcon,
+  checklist: CheckListIcon,
 };

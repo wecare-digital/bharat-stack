@@ -75,6 +75,16 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [saving, setSaving] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const toast = useToastContext();
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Sorting & Pagination
   const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
@@ -660,8 +670,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Main content area with table + detail panel */}
         <div style={{ display: 'flex', gap: 0 }}>
-          {/* Table */}
-          <div style={{ flex: 1, minWidth: 0, border: '2px solid #D1FAE5', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
+          {/* Desktop Table View */}
+          <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #D1FAE5', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 {searchQuery ? (
@@ -800,6 +810,54 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="contacts-mobile-cards" style={{ display: 'none', padding: '0 16px' }}>
+            {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={5} /></div> : filteredSorted.length === 0 ? (
+              <div style={{ padding: 48, textAlign: 'center' }}>
+                {searchQuery ? (
+                  <div>
+                    <p style={{ fontSize: 15, color: '#6b7280' }}>No results for &quot;{searchQuery}&quot;</p>
+                    <button onClick={() => setSearchQuery('')} style={{ marginTop: 8, fontSize: 13, color: '#059669', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ fontSize: 32, marginBottom: 8 }}>📇</p>
+                    <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
+                    <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Tap + to add one</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {paginatedContacts.map(c => (
+                  <div key={c.contactId} className="contact-card" onClick={() => setDetailContact(c)}>
+                    <div className="contact-card-header">
+                      <div style={{ flex: 1 }}>
+                        <div className="contact-card-name">{c.name || 'Unnamed'}</div>
+                        <div className="contact-card-phone">{c.phone}</div>
+                        {c.email && <div className="contact-card-email">{c.email}</div>}
+                      </div>
+                      <div className="contact-card-actions" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}><EditIcon size={20} /></button>
+                        <button onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name); }} title="Delete" style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}><DeleteIcon size={20} /></button>
+                      </div>
+                    </div>
+                    {(contactTags[c.contactId] || []).length > 0 && (
+                      <div className="contact-card-tags">
+                        {(contactTags[c.contactId] || []).map(tag => (
+                          <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="contact-card-meta">
+                      Updated {timeAgo(c.updatedAt)}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

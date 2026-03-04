@@ -25,6 +25,7 @@ import OverviewTab from '../../components/dashboard/tabs/OverviewTab';
 import MessagesTab from '../../components/dashboard/tabs/MessagesTab';
 import PayTab from '../../components/dashboard/tabs/PayTab';
 import DataTab from '../../components/dashboard/tabs/DataTab';
+import InternalChatTab from '../../components/dashboard/tabs/InternalChatTab';
 import TabErrorBoundary from '../../components/dashboard/TabErrorBoundary';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
@@ -1227,7 +1228,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'botflow', 'webhook', 'guide', 'search', 'requests'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'pay', 'data', 'billing', 'health', 'advisor', 'ai', 'internalchat', 'botflow', 'webhook', 'guide', 'search', 'requests'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -1241,12 +1242,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'health' && <HealthIcon size={16} />}
               {tab === 'advisor' && <AdvisorIcon size={16} />}
               {tab === 'ai' && <AIIcon size={16} />}
+              {tab === 'internalchat' && <MessageIcon size={16} />}
               {tab === 'botflow' && <WhatsAppIcon size={16} />}
               {tab === 'webhook' && <LinkIcon size={16} />}
               {tab === 'guide' && <DocumentIcon size={16} />}
               {tab === 'search' && <SearchIcon size={16} />}
               {tab === 'requests' && <DocumentIcon size={16} />}
-              <span>{tab === 'ai' ? 'AI' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab === 'requests' ? 'Requests' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              <span>{tab === 'ai' ? 'AI' : tab === 'internalchat' ? 'Internal Chat' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab === 'requests' ? 'Requests' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -1721,6 +1723,13 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
 
             </div>
+            </TabErrorBoundary>
+          )}
+
+          {/* INTERNAL CHAT TAB */}
+          {activeTab === 'internalchat' && (
+            <TabErrorBoundary tabName="Internal Chat">
+              <InternalChatTab />
             </TabErrorBoundary>
           )}
 

@@ -21,7 +21,8 @@ export type TabType =
   | 'botflow'
   | 'webhook'
   | 'guide'
-  | 'requests';
+  | 'requests'
+  | 'internalchat';
 
 export interface DashboardData {
   contacts: api.Contact[];

@@ -67,9 +67,9 @@ export const navigationConfig: NavItem[] = [
     badge: 'Soon',
   },
   {
-    path: '/docs',
-    label: 'Docs',
-    icon: 'document',
+    path: '/task',
+    label: 'Task',
+    icon: 'checklist',
     badge: 'Soon',
   },
 ];

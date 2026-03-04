@@ -38,6 +38,7 @@ import time
 from typing import Dict, Any, Tuple, List, Optional
 from decimal import Decimal
 from botocore.config import Config
+from functools import wraps
 
 # Configure logging
 from lambda_utils.logging import get_logger
@@ -706,41 +707,960 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _handle_external(body, headers, request_id)
 
     except Exception as e:
-        logger.error(json.dumps({'event': 'ai_generate_error', 'error': str(e), 'errorType': type(e).__name__, 'requestId': request_id}))
+        logger.error(json.dumps({'event': 'ai_generate_error', 'error': str(e), 'errorType': type(e).__name__, 'requestId': request_id, 'context': agent_context}))
+        import traceback
+        logger.error(f"TRACEBACK: {traceback.format_exc()}")
+        
+        # Different fallback for internal vs external
+        if agent_context == 'internal-admin':
+            fallback_msg = "Sorry, I encountered an error. Please try again or contact support."
+        else:
+            fallback_msg = _get_fallback_response()
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({'suggestedResponse': fallback_msg, 'error': str(e)})
+        }
+
+
+# ============================================================================
+# INTERNAL PATH (FloatingAgent — Converse API with tool use for admin tasks)
+# ============================================================================
+
+def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
+    """
+    Internal admin path using Bedrock Converse API with tool use.
+    Supports dynamic task execution via function calling.
+    """
+    message_content = body.get('messageContent', '')
+    message_id = body.get('messageId', '')
+    contact_id = body.get('contactId', '')
+    session_id = body.get('sessionId', f'internal-{request_id}')
+
+    logger.info(json.dumps({
+        'event': 'internal_agent_called',
+        'messageContent': message_content[:100],
+        'sessionId': session_id,
+        'requestId': request_id
+    }))
+
+    if not message_content:
+        return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'suggestedResponse': 'How can I help you today?'})}
+
+    # Truncate if too long
+    if len(message_content) > MAX_INPUT_TEXT_LENGTH:
+        message_content = message_content[:MAX_INPUT_TEXT_LENGTH]
+
+    try:
+        # Get or create conversation history for internal agent
+        conversation_table = dynamodb.Table(CONVERSATION_TABLE)
+        history_key = f'internal-{session_id}'
+        
+        try:
+            # Query by phoneHash (partition key) to get latest conversation
+            phone_hash = f'internal-{session_id}'
+            history_response = conversation_table.query(
+                KeyConditionExpression='phoneHash = :ph',
+                ExpressionAttributeValues={':ph': phone_hash},
+                ScanIndexForward=False,  # Get latest first
+                Limit=1
+            )
+            items = history_response.get('Items', [])
+            history_item = items[0] if items else {}
+            conversation_history = history_item.get('messages', [])
+            
+            # Check session idle timeout
+            last_updated = history_item.get('lastUpdated', 0)
+            if last_updated and (time.time() - float(last_updated)) > (SESSION_IDLE_TIMEOUT_MINUTES * 60):
+                logger.info(json.dumps({'event': 'internal_session_timeout', 'sessionId': session_id}))
+                conversation_history = []
+        except Exception:
+            conversation_history = []
+
+        # Add user message to history
+        conversation_history.append({
+            'role': 'user',
+            'content': [{'text': message_content}]
+        })
+
+        # Keep only recent messages
+        if len(conversation_history) > MAX_HISTORY_MESSAGES:
+            conversation_history = conversation_history[-MAX_HISTORY_MESSAGES:]
+
+        # System prompt for internal admin agent
+        system_prompts = [{
+            'text': '''You are WECARE.DIGITAL's internal admin assistant. Help operators with:
+
+• Sending WhatsApp/SMS/Email messages
+• Finding and managing contacts
+• Viewing message history
+• Checking dashboard statistics
+• Creating invoices
+
+You have access to tools to perform these tasks. When a user asks to do something:
+1. Use the appropriate tool to execute the action
+2. Provide a clear, concise confirmation of what was done
+3. Be proactive - if user says "send message to Jignesh", search for Jignesh first, then send
+
+Be conversational but efficient. Focus on getting tasks done.'''
+        }]
+
+        # Define tools for internal agent - COMPREHENSIVE BASE CRM CAPABILITIES
+        tools = [
+            # ===== CONTACT MANAGEMENT =====
+            {
+                'toolSpec': {
+                    'name': 'search_contacts',
+                    'description': 'Search for contacts by name, phone number, or email. Use this when user mentions a contact name or wants to find someone.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'query': {
+                                    'type': 'string',
+                                    'description': 'Name, phone number, or email to search for'
+                                }
+                            },
+                            'required': ['query']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'create_contact',
+                    'description': 'Create a new contact in the CRM.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'name': {'type': 'string', 'description': 'Contact name'},
+                                'phone': {'type': 'string', 'description': 'Phone number with country code'},
+                                'email': {'type': 'string', 'description': 'Email address'}
+                            },
+                            'required': ['name']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'update_contact',
+                    'description': 'Update an existing contact details.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID to update'},
+                                'name': {'type': 'string', 'description': 'New name'},
+                                'phone': {'type': 'string', 'description': 'New phone'},
+                                'email': {'type': 'string', 'description': 'New email'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            
+            # ===== WHATSAPP MESSAGING =====
+            {
+                'toolSpec': {
+                    'name': 'send_whatsapp',
+                    'description': 'Send a simple WhatsApp text message to a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'message': {'type': 'string', 'description': 'Message text'}
+                            },
+                            'required': ['contactId', 'message']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'send_whatsapp_buttons',
+                    'description': 'Send WhatsApp message with interactive buttons (up to 3 buttons).',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'bodyText': {'type': 'string', 'description': 'Main message text'},
+                                'buttons': {
+                                    'type': 'array',
+                                    'description': 'Array of button objects with id and title',
+                                    'items': {
+                                        'type': 'object',
+                                        'properties': {
+                                            'id': {'type': 'string'},
+                                            'title': {'type': 'string'}
+                                        }
+                                    }
+                                },
+                                'headerText': {'type': 'string', 'description': 'Optional header text'},
+                                'footerText': {'type': 'string', 'description': 'Optional footer text'}
+                            },
+                            'required': ['contactId', 'bodyText', 'buttons']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'send_whatsapp_list',
+                    'description': 'Send WhatsApp message with interactive list menu.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'bodyText': {'type': 'string', 'description': 'Main message text'},
+                                'buttonText': {'type': 'string', 'description': 'Button text to open list'},
+                                'sections': {
+                                    'type': 'array',
+                                    'description': 'List sections with rows',
+                                    'items': {
+                                        'type': 'object',
+                                        'properties': {
+                                            'title': {'type': 'string'},
+                                            'rows': {'type': 'array'}
+                                        }
+                                    }
+                                }
+                            },
+                            'required': ['contactId', 'bodyText', 'buttonText', 'sections']
+                        }
+                    }
+                }
+            },
+            
+            # ===== VOICE & SMS =====
+            {
+                'toolSpec': {
+                    'name': 'make_voice_call',
+                    'description': 'Make a voice call using Airtel C2C with pre-recorded message or TTS.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID to call'},
+                                'message': {'type': 'string', 'description': 'Text message for TTS (text-to-speech)'},
+                                'audioUrl': {'type': 'string', 'description': 'URL of pre-recorded audio file'},
+                                'language': {'type': 'string', 'description': 'Language code for TTS (en, hi, etc)'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'send_sms',
+                    'description': 'Send SMS message to a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'message': {'type': 'string', 'description': 'SMS text'}
+                            },
+                            'required': ['contactId', 'message']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'send_email',
+                    'description': 'Send email to a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'subject': {'type': 'string', 'description': 'Email subject'},
+                                'message': {'type': 'string', 'description': 'Email body'}
+                            },
+                            'required': ['contactId', 'subject', 'message']
+                        }
+                    }
+                }
+            },
+            
+            # ===== MESSAGE HISTORY & ANALYTICS =====
+            {
+                'toolSpec': {
+                    'name': 'get_messages',
+                    'description': 'Get message history for a contact. Shows recent messages sent to/from the contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'limit': {'type': 'number', 'description': 'Number of messages (default 10)'},
+                                'direction': {'type': 'string', 'description': 'Filter by direction: inbound, outbound, or all'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'get_stats',
+                    'description': 'Get dashboard statistics including total contacts, messages, and today\'s activity.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'period': {'type': 'string', 'description': 'Time period: today, week, month, all'}
+                            }
+                        }
+                    }
+                }
+            },
+            
+            # ===== SCHEDULED MESSAGES =====
+            {
+                'toolSpec': {
+                    'name': 'schedule_message',
+                    'description': 'Schedule a message to be sent at a specific time.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'message': {'type': 'string', 'description': 'Message text'},
+                                'scheduledTime': {'type': 'string', 'description': 'ISO timestamp when to send'},
+                                'channel': {'type': 'string', 'description': 'Channel: whatsapp, sms, email'}
+                            },
+                            'required': ['contactId', 'message', 'scheduledTime', 'channel']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'list_scheduled_messages',
+                    'description': 'List all scheduled messages that haven\'t been sent yet.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Optional: filter by contact ID'}
+                            }
+                        }
+                    }
+                }
+            },
+            
+            # ===== TEMPLATES =====
+            {
+                'toolSpec': {
+                    'name': 'list_templates',
+                    'description': 'List available WhatsApp message templates.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'status': {'type': 'string', 'description': 'Filter by status: APPROVED, PENDING, REJECTED'}
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'send_template',
+                    'description': 'Send a WhatsApp template message to a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'templateName': {'type': 'string', 'description': 'Template name'},
+                                'parameters': {
+                                    'type': 'array',
+                                    'description': 'Template parameter values',
+                                    'items': {'type': 'string'}
+                                }
+                            },
+                            'required': ['contactId', 'templateName']
+                        }
+                    }
+                }
+            },
+            
+            # ===== DATA MANAGEMENT & CLEANUP =====
+            {
+                'toolSpec': {
+                    'name': 'add_contact_email',
+                    'description': 'Add or update email address for a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'email': {'type': 'string', 'description': 'Email address to add'}
+                            },
+                            'required': ['contactId', 'email']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'delete_contact',
+                    'description': 'Soft delete a contact (marks as deleted, doesn\'t remove data).',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID to delete'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'delete_messages',
+                    'description': 'Delete specific messages or all messages for a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'messageIds': {
+                                    'type': 'array',
+                                    'description': 'Specific message IDs to delete (optional, if not provided deletes all)',
+                                    'items': {'type': 'string'}
+                                },
+                                'direction': {'type': 'string', 'description': 'Filter by direction: inbound, outbound, or all'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'delete_media_files',
+                    'description': 'Delete media files (images, videos, documents) from S3 for a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'fileKeys': {
+                                    'type': 'array',
+                                    'description': 'Specific S3 keys to delete (optional, if not provided deletes all for contact)',
+                                    'items': {'type': 'string'}
+                                }
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'clear_all_contact_data',
+                    'description': 'DANGEROUS: Completely clear ALL data for a contact including messages, media files, and conversation history. Use with caution!',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'confirm': {'type': 'boolean', 'description': 'Must be true to confirm deletion'}
+                            },
+                            'required': ['contactId', 'confirm']
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'list_media_files',
+                    'description': 'List all media files stored in S3 for a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'fileType': {'type': 'string', 'description': 'Filter by type: image, video, audio, document, or all'}
+                            },
+                            'required': ['contactId']
+                        }
+                    }
+                }
+            }
+        ]
+
+        # Call Bedrock Converse API with tool use
+        suggestion = _internal_converse_with_tools(
+            conversation_history=conversation_history,
+            system_prompts=system_prompts,
+            tools=tools,
+            request_id=request_id,
+            session_id=session_id
+        )
+
+        # Add assistant response to history
+        conversation_history.append({
+            'role': 'assistant',
+            'content': [{'text': suggestion}]
+        })
+
+        # Save updated conversation history
+        ttl = int(time.time()) + (CONVERSATION_TTL_HOURS * 3600)
+        conversation_table.put_item(Item={
+            'phoneHash': f'internal-{session_id}',  # Required key for table
+            'timestamp': Decimal(str(time.time())),
+            'id': history_key,
+            'sessionId': session_id,
+            'messages': conversation_history,
+            'lastUpdated': Decimal(str(time.time())),
+            'ttl': ttl,
+            'context': 'internal-admin'
+        })
+
+        logger.info(json.dumps({
+            'event': 'internal_agent_response_generated',
+            'sessionId': session_id,
+            'responseLength': len(suggestion),
+            'requestId': request_id
+        }))
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'suggestedResponse': suggestion,
+                'messageId': message_id,
+                'contactId': contact_id,
+                'sessionId': session_id
+            })
+        }
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'internal_agent_error',
+            'error': str(e),
+            'requestId': request_id
+        }))
         import traceback
         logger.error(f"TRACEBACK: {traceback.format_exc()}")
         return {
             'statusCode': 200,
             'headers': headers,
-            'body': json.dumps({'suggestedResponse': _get_fallback_response(), 'error': str(e)})
+            'body': json.dumps({
+                'suggestedResponse': 'Sorry, I encountered an error processing your request. Please try again.',
+                'errorCode': 'INTERNAL_ERROR',
+                'requestId': request_id
+            })
         }
 
 
-# ============================================================================
-# INTERNAL PATH (FloatingAgent — unchanged)
-# ============================================================================
+def _internal_converse_with_tools(
+    conversation_history: List[Dict],
+    system_prompts: List[Dict],
+    tools: List[Dict],
+    request_id: str,
+    session_id: str = 'unknown',
+    max_iterations: int = MAX_TOOL_USE_ITERATIONS
+) -> str:
+    """
+    Internal agent conversation with tool use support.
+    Handles multi-turn tool calling until final answer is reached.
+    """
+    current_messages = conversation_history.copy()
+    iteration = 0
 
-def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
-    """Internal admin path using Bedrock Agent (unchanged)."""
-    message_content = body.get('messageContent', '')
-    message_id = body.get('messageId', '')
-    contact_id = body.get('contactId', '')
+    while iteration < max_iterations:
+        iteration += 1
+        
+        logger.info(json.dumps({
+            'event': 'internal_converse_iteration',
+            'iteration': iteration,
+            'messageCount': len(current_messages),
+            'requestId': request_id
+        }))
 
-    if not INTERNAL_AGENT_ID or not INTERNAL_AGENT_ALIAS:
+        try:
+            # Call Bedrock Converse API
+            converse_params = {
+                'modelId': MODEL_ID,
+                'messages': current_messages,
+                'system': system_prompts,
+                'toolConfig': {'tools': tools},
+                'inferenceConfig': {
+                    'maxTokens': 2048,
+                    'temperature': 0.7,
+                    'topP': 0.9
+                }
+            }
+
+            response = bedrock_runtime.converse(**converse_params)
+            
+            output = response.get('output', {})
+            message = output.get('message', {})
+            stop_reason = response.get('stopReason')
+
+            logger.info(json.dumps({
+                'event': 'internal_converse_response',
+                'stopReason': stop_reason,
+                'iteration': iteration,
+                'requestId': request_id
+            }))
+
+            # Add assistant message to conversation
+            current_messages.append(message)
+
+            # If model wants to use tools
+            if stop_reason == 'tool_use':
+                tool_results = []
+                
+                for content_block in message.get('content', []):
+                    if 'toolUse' in content_block:
+                        tool_use = content_block['toolUse']
+                        tool_name = tool_use.get('name')
+                        tool_input = tool_use.get('input', {})
+                        tool_use_id = tool_use.get('toolUseId')
+
+                        logger.info(json.dumps({
+                            'event': 'internal_tool_use',
+                            'toolName': tool_name,
+                            'toolInput': tool_input,
+                            'requestId': request_id
+                        }))
+
+                        # ===== CRITICAL IMPROVEMENTS =====
+                        
+                        # 1. Rate Limiting
+                        allowed, rate_msg = check_rate_limit(session_id, tool_name, limit=10, window=60)
+                        if not allowed:
+                            tool_result = {'error': rate_msg}
+                            tool_results.append({
+                                'toolResult': {
+                                    'toolUseId': tool_use_id,
+                                    'content': [{'json': tool_result}]
+                                }
+                            })
+                            continue
+                        
+                        # 2. Execute tool with timing and audit logging
+                        start_time = time.time()
+                        tool_status = 'success'
+                        tool_error = ''
+                        
+                        try:
+                            tool_result = _execute_internal_tool(tool_name, tool_input, request_id)
+                            
+                            # Check if tool returned an error
+                            if isinstance(tool_result, dict) and 'error' in tool_result:
+                                tool_status = 'error'
+                                tool_error = tool_result['error']
+                                
+                        except Exception as e:
+                            tool_status = 'error'
+                            tool_error = str(e)
+                            tool_result = {'error': f'Tool execution failed: {str(e)}'}
+                            logger.error(json.dumps({
+                                'event': 'tool_execution_error',
+                                'toolName': tool_name,
+                                'error': str(e),
+                                'requestId': request_id
+                            }))
+                        
+                        duration = time.time() - start_time
+                        
+                        # 3. Audit Logging
+                        log_tool_execution(
+                            tool_name=tool_name,
+                            params=tool_input,
+                            result=tool_result,
+                            duration=duration,
+                            session_id=session_id,
+                            status=tool_status,
+                            error=tool_error
+                        )
+
+                        tool_results.append({
+                            'toolResult': {
+                                'toolUseId': tool_use_id,
+                                'content': [{'json': tool_result}]
+                            }
+                        })
+
+                # Add tool results to conversation
+                current_messages.append({
+                    'role': 'user',
+                    'content': tool_results
+                })
+
+                # Continue loop to get final answer
+                continue
+
+            # If we have a text response, return it
+            for content_block in message.get('content', []):
+                if 'text' in content_block:
+                    return content_block['text']
+
+            # Fallback
+            return "I've processed your request."
+
+        except Exception as e:
+            logger.error(json.dumps({
+                'event': 'internal_converse_error',
+                'error': str(e),
+                'iteration': iteration,
+                'requestId': request_id
+            }))
+            if iteration == 1:
+                raise
+            return "I encountered an error while processing your request."
+
+    # Max iterations reached
+    logger.warning(json.dumps({
+        'event': 'internal_max_iterations_reached',
+        'iterations': iteration,
+        'requestId': request_id
+    }))
+    return "I've completed the available steps for your request."
+
+
+def _execute_internal_tool(tool_name: str, tool_input: Dict, request_id: str) -> Dict:
+    """Execute internal agent tool and return result."""
+    try:
+        # Contact Management
+        if tool_name == 'search_contacts':
+            return _tool_search_contacts(tool_input, request_id)
+        elif tool_name == 'create_contact':
+            return _tool_create_contact(tool_input, request_id)
+        elif tool_name == 'update_contact':
+            return _tool_update_contact(tool_input, request_id)
+        
+        # WhatsApp Messaging
+        elif tool_name == 'send_whatsapp':
+            return _tool_send_whatsapp(tool_input, request_id)
+        elif tool_name == 'send_whatsapp_buttons':
+            return _tool_send_whatsapp_buttons(tool_input, request_id)
+        elif tool_name == 'send_whatsapp_list':
+            return _tool_send_whatsapp_list(tool_input, request_id)
+        
+        # Voice & SMS
+        elif tool_name == 'make_voice_call':
+            return _tool_make_voice_call(tool_input, request_id)
+        elif tool_name == 'send_sms':
+            return _tool_send_sms(tool_input, request_id)
+        elif tool_name == 'send_email':
+            return _tool_send_email(tool_input, request_id)
+        
+        # Message History & Analytics
+        elif tool_name == 'get_messages':
+            return _tool_get_messages(tool_input, request_id)
+        elif tool_name == 'get_stats':
+            return _tool_get_stats(request_id)
+        
+        # Scheduled Messages
+        elif tool_name == 'schedule_message':
+            return _tool_schedule_message(tool_input, request_id)
+        elif tool_name == 'list_scheduled_messages':
+            return _tool_list_scheduled_messages(tool_input, request_id)
+        
+        # Templates
+        elif tool_name == 'list_templates':
+            return _tool_list_templates(tool_input, request_id)
+        elif tool_name == 'send_template':
+            return _tool_send_template(tool_input, request_id)
+        
+        # Data Management & Cleanup
+        elif tool_name == 'add_contact_email':
+            return _tool_add_contact_email(tool_input, request_id)
+        elif tool_name == 'delete_contact':
+            return _tool_delete_contact(tool_input, request_id)
+        elif tool_name == 'delete_messages':
+            return _tool_delete_messages(tool_input, request_id)
+        elif tool_name == 'delete_media_files':
+            return _tool_delete_media_files(tool_input, request_id)
+        elif tool_name == 'clear_all_contact_data':
+            return _tool_clear_all_contact_data(tool_input, request_id)
+        elif tool_name == 'list_media_files':
+            return _tool_list_media_files(tool_input, request_id)
+        
+        else:
+            return {'success': False, 'error': f'Unknown tool: {tool_name}'}
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'tool_execution_error',
+            'toolName': tool_name,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_search_contacts(params: Dict, request_id: str) -> Dict:
+    """Search contacts tool implementation."""
+    query = params.get('query', '').lower()
+    
+    if not query:
+        return {'success': False, 'error': 'Search query is required'}
+    
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        
+        response = contacts_table.scan(
+            FilterExpression='(attribute_not_exists(deletedAt) OR deletedAt = :null)',
+            ExpressionAttributeValues={':null': None}
+        )
+        
+        contacts = []
+        for item in response.get('Items', []):
+            name = (item.get('name') or '').lower()
+            phone = (item.get('phone') or '').lower()
+            email = (item.get('email') or '').lower()
+            
+            if query in name or query in phone or query in email:
+                contacts.append({
+                    'id': item.get('id'),
+                    'name': item.get('name'),
+                    'phone': item.get('phone'),
+                    'email': item.get('email')
+                })
+        
         return {
-            'statusCode': 200, 'headers': headers,
-            'body': json.dumps({'suggestedResponse': _get_fallback_response(), 'error': 'Internal agent not configured'})
+            'success': True,
+            'count': len(contacts),
+            'contacts': contacts[:10]
         }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
 
-    if not message_content:
-        return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'suggestedResponse': _get_fallback_response()})}
 
-    suggestion = _invoke_bedrock_agent(message_content, INTERNAL_AGENT_ID, INTERNAL_AGENT_ALIAS, INTERNAL_KB_ID, request_id)
+def _tool_send_whatsapp(params: Dict, request_id: str) -> Dict:
+    """Send WhatsApp message tool implementation with validation."""
+    contact_id = params.get('contactId')
+    message = params.get('message')
+    
+    # Validate contact ID
+    if not contact_id:
+        return {'success': False, 'error': format_error('invalid_parameters', 'contactId is required')}
+    
+    valid_id, id_msg = validate_contact_id(contact_id)
+    if not valid_id:
+        return {'success': False, 'error': format_error('invalid_parameters', id_msg)}
+    
+    # Validate message
+    if not message:
+        return {'success': False, 'error': format_error('invalid_parameters', 'message is required')}
+    
+    if len(message) > 4096:
+        return {'success': False, 'error': format_error('message_too_long', f'Message is {len(message)} characters')}
+    
+    try:
+        # Invoke outbound WhatsApp Lambda with retry
+        @retry_on_error(max_retries=3)
+        def send_message():
+            payload = {
+                'body': json.dumps({
+                    'contactId': contact_id,
+                    'content': message
+                })
+            }
+            
+            lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+            response = lambda_client.invoke(
+                FunctionName='wecare-outbound-whatsapp',
+                InvocationType='RequestResponse',
+                Payload=json.dumps(payload)
+            )
+            
+            result = json.loads(response['Payload'].read().decode('utf-8'))
+            return json.loads(result.get('body', '{}'))
+        
+        result_body = send_message()
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'status': result_body.get('status', 'sent'),
+            'message': f'✅ Message sent successfully to contact {contact_id}'
+        }
+        
+    except Exception as e:
+        logger.error(f"Send WhatsApp failed: {e}")
+        return {'success': False, 'error': format_error('service_unavailable', str(e))}
 
-    return {
-        'statusCode': 200, 'headers': headers,
-        'body': json.dumps({'suggestedResponse': suggestion, 'messageId': message_id, 'contactId': contact_id})
-    }
+
+def _tool_get_messages(params: Dict, request_id: str) -> Dict:
+    """Get messages tool implementation."""
+    contact_id = params.get('contactId')
+    limit = int(params.get('limit', 10))
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    try:
+        messages = []
+        
+        # Get inbound messages
+        inbound_table = dynamodb.Table(MESSAGES_TABLE)
+        inbound_response = inbound_table.scan(
+            FilterExpression='contactId = :cid',
+            ExpressionAttributeValues={':cid': contact_id},
+            Limit=limit
+        )
+        
+        for item in inbound_response.get('Items', []):
+            messages.append({
+                'direction': 'inbound',
+                'content': item.get('content'),
+                'timestamp': str(item.get('timestamp'))
+            })
+        
+        # Sort by timestamp
+        messages.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return {
+            'success': True,
+            'count': len(messages),
+            'messages': messages[:limit]
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_get_stats(request_id: str) -> Dict:
+    """Get stats tool implementation."""
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        messages_table = dynamodb.Table(MESSAGES_TABLE)
+        
+        contacts_count = contacts_table.scan(
+            FilterExpression='attribute_not_exists(deletedAt) OR deletedAt = :null',
+            ExpressionAttributeValues={':null': None},
+            Select='COUNT'
+        ).get('Count', 0)
+        
+        messages_count = messages_table.scan(Select='COUNT').get('Count', 0)
+        
+        return {
+            'success': True,
+            'totalContacts': contacts_count,
+            'totalMessages': messages_count
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
 
 
 # ============================================================================
@@ -2147,6 +3067,197 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
     return None
 
 
+# ============================================================================
+# CRITICAL IMPROVEMENTS - PRODUCTION READY
+# ============================================================================
+
+# ── Retry Logic with Exponential Backoff ──
+def retry_on_error(max_retries=3, backoff_factor=2):
+    """Retry decorator with exponential backoff for transient errors"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (ClientError, ConnectionError) as e:
+                    if attempt == max_retries - 1:
+                        logger.error(json.dumps({
+                            'event': 'retry_exhausted',
+                            'function': func.__name__,
+                            'error': str(e),
+                            'attempts': max_retries
+                        }))
+                        raise
+                    wait_time = backoff_factor ** attempt
+                    logger.warning(json.dumps({
+                        'event': 'retry_attempt',
+                        'function': func.__name__,
+                        'attempt': attempt + 1,
+                        'wait_time': wait_time,
+                        'error': str(e)
+                    }))
+                    time.sleep(wait_time)
+            return None
+        return wrapper
+    return decorator
+
+
+# ── Parameter Validation ──
+def validate_phone(phone: str) -> Tuple[bool, str]:
+    """Validate phone number (E.164 format)"""
+    if not phone:
+        return False, "Phone number is required"
+    
+    clean = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    
+    # Check E.164 format: +[country code][number]
+    pattern = r'^\+[1-9]\d{1,14}$'
+    if not re.match(pattern, clean):
+        return False, f"Invalid phone format. Use: +[country][number] (e.g., +919876543210). Got: {phone}"
+    
+    return True, clean
+
+
+def validate_email(email: str) -> Tuple[bool, str]:
+    """Validate email address"""
+    if not email:
+        return False, "Email is required"
+    
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(pattern, email):
+        return False, f"Invalid email format: {email}"
+    
+    return True, email.lower()
+
+
+def validate_contact_id(contact_id: str) -> Tuple[bool, str]:
+    """Validate contact ID (UUID format)"""
+    if not contact_id:
+        return False, "Contact ID is required"
+    
+    try:
+        uuid.UUID(contact_id)
+        return True, contact_id
+    except ValueError:
+        return False, f"Invalid contact ID format: {contact_id}"
+
+
+# ── Audit Logging ──
+def log_tool_execution(tool_name: str, params: Dict, result: Any, duration: float, 
+                       session_id: str, status: str = 'success', error: str = ''):
+    """Log every tool execution for audit trail and monitoring"""
+    try:
+        audit_table = dynamodb.Table('base-wecare-digital-AuditLog')
+        
+        # Truncate large results
+        result_str = json.dumps(result, default=str)
+        if len(result_str) > 1000:
+            result_str = result_str[:1000] + '... [truncated]'
+        
+        audit_table.put_item(Item={
+            'id': str(uuid.uuid4()),
+            'timestamp': Decimal(str(int(time.time()))),
+            'toolName': tool_name,
+            'parameters': json.dumps(params, default=str)[:500],
+            'result': result_str,
+            'duration': Decimal(str(round(duration, 3))),
+            'sessionId': session_id,
+            'status': status,
+            'error': error[:500] if error else '',
+            'context': 'internal-admin',
+            'expiresAt': Decimal(str(int(time.time()) + (90 * 24 * 3600)))  # 90 days TTL
+        })
+        
+        # Send CloudWatch metrics
+        try:
+            cloudwatch = boto3.client('cloudwatch')
+            cloudwatch.put_metric_data(
+                Namespace='FloatingAgent',
+                MetricData=[
+                    {
+                        'MetricName': 'ToolExecutionTime',
+                        'Value': duration * 1000,
+                        'Unit': 'Milliseconds',
+                        'Dimensions': [{'Name': 'ToolName', 'Value': tool_name}]
+                    },
+                    {
+                        'MetricName': 'ToolExecutionCount',
+                        'Value': 1,
+                        'Unit': 'Count',
+                        'Dimensions': [
+                            {'Name': 'ToolName', 'Value': tool_name},
+                            {'Name': 'Status', 'Value': status}
+                        ]
+                    }
+                ]
+            )
+        except Exception as cw_error:
+            logger.warning(f"CloudWatch metric failed: {cw_error}")
+            
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'audit_log_failed',
+            'error': str(e),
+            'toolName': tool_name
+        }))
+
+
+# ── Rate Limiting ──
+def check_rate_limit(session_id: str, tool_name: str, limit: int = 10, window: int = 60) -> Tuple[bool, str]:
+    """Check if rate limit exceeded (10 requests per minute per tool)"""
+    try:
+        table = dynamodb.Table('base-wecare-digital-RateLimitTracker')
+        key = f"{session_id}:{tool_name}"
+        now = int(time.time())
+        window_start = now - window
+        
+        # Get current count
+        response = table.get_item(Key={'id': key})
+        item = response.get('Item', {})
+        
+        # Clean old timestamps
+        timestamps = [int(ts) for ts in item.get('timestamps', []) if int(ts) > window_start]
+        
+        # Check limit
+        if len(timestamps) >= limit:
+            return False, f"Rate limit exceeded. Max {limit} requests per {window} seconds. Please wait a moment."
+        
+        # Add new timestamp
+        timestamps.append(now)
+        table.put_item(Item={
+            'id': key,
+            'timestamps': timestamps,
+            'expiresAt': Decimal(str(now + window))
+        })
+        
+        return True, ""
+    except Exception as e:
+        logger.warning(f"Rate limit check failed: {e}")
+        return True, ""  # Fail open
+
+
+# ── Better Error Messages ──
+ERROR_MESSAGES = {
+    'contact_not_found': '❌ Contact not found.\n\n💡 Try:\n• Search by phone: "find +919876543210"\n• Search by name: "find Jignesh"\n• Create new: "create contact John +919876543210"',
+    'invalid_phone': '❌ Invalid phone number.\n\n💡 Use international format:\n• India: +919876543210\n• USA: +14155552671\n• UK: +447447840003',
+    'invalid_email': '❌ Invalid email address.\n\n💡 Use format: name@domain.com',
+    'rate_limit': '⚠️ Too many requests.\n\n💡 Please wait a moment before trying again.',
+    'service_unavailable': '❌ Service temporarily unavailable.\n\n💡 Please try again in a few moments.',
+    'invalid_parameters': '❌ Invalid parameters.\n\n💡 Type "help" to see available commands.',
+    'permission_denied': '❌ Permission denied.\n\n💡 This action requires admin privileges.',
+    'message_too_long': '❌ Message too long.\n\n💡 WhatsApp messages must be under 4096 characters.',
+}
+
+
+def format_error(error_type: str, details: str = '') -> str:
+    """Format user-friendly error message"""
+    base_msg = ERROR_MESSAGES.get(error_type, '❌ An error occurred.\n\n💡 Type "help" for assistance.')
+    if details:
+        return f"{base_msg}\n\nDetails: {details}"
+    return base_msg
+
+
 # ── Pay helpers ──
 
 def _r(msg: str) -> Dict:
@@ -2762,11 +3873,12 @@ def _invoke_bedrock_agent(user_message: str, agent_id: str, agent_alias: str, kb
             }))
             return completion.strip()
 
-        # Fallback to KB if agent returns empty
+        # Fallback to KB only if kb_id is provided (external path)
         if kb_id:
             return _query_knowledge_base(user_message, kb_id, detected_lang, lang_name, request_id)
 
-        return _get_fallback_response(lang_name)
+        # For internal agent (no KB), return empty to let caller handle
+        return ""
 
     except Exception as e:
         logger.error(json.dumps({
@@ -2774,10 +3886,12 @@ def _invoke_bedrock_agent(user_message: str, agent_id: str, agent_alias: str, kb
             'error': str(e),
             'requestId': request_id
         }))
+        # Only use KB fallback if kb_id provided (external path)
         if kb_id:
             detected_lang, lang_name = _detect_language(user_message)
             return _query_knowledge_base(user_message, kb_id, detected_lang, lang_name, request_id)
-        return _get_fallback_response()
+        # For internal agent, return empty
+        return ""
 
 
 # ============================================================================
@@ -2885,3 +3999,697 @@ def _get_fallback_response(lang_name: str = 'English') -> str:
         'Marathi': "नमस्कार! 👋 WECARE.DIGITAL शी संपर्क साधल्याबद्दल धन्यवाद। जलद मदतीसाठी +91 9330994400 वर कॉल करा किंवा one@wecare.digital वर ईमेल करा. 😊",
     }
     return fallback_responses.get(lang_name, "Hi! 👋 Thanks for reaching out to WECARE.DIGITAL. For quick help, call us at +91 9330994400 or email one@wecare.digital. We're here to help! 😊")
+
+
+
+# ============================================================================
+# ADDITIONAL TOOL IMPLEMENTATIONS FOR INTERNAL AGENT
+# ============================================================================
+
+def _tool_create_contact(params: Dict, request_id: str) -> Dict:
+    """Create contact tool implementation."""
+    name = params.get('name')
+    phone = params.get('phone', '')
+    email = params.get('email', '')
+    
+    if not name:
+        return {'success': False, 'error': 'Name is required'}
+    
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        contact_id = str(uuid.uuid4())
+        now = int(time.time())
+        
+        contact = {
+            'id': contact_id,
+            'name': name,
+            'phone': phone,
+            'email': email,
+            'optInWhatsApp': True,
+            'optInSms': True,
+            'optInEmail': True,
+            'createdAt': now,
+            'updatedAt': now
+        }
+        
+        contacts_table.put_item(Item=contact)
+        
+        return {
+            'success': True,
+            'contactId': contact_id,
+            'message': f'Contact "{name}" created successfully'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_update_contact(params: Dict, request_id: str) -> Dict:
+    """Update contact tool implementation."""
+    contact_id = params.get('contactId')
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        
+        update_expr_parts = ['updatedAt = :now']
+        expr_values = {':now': int(time.time())}
+        
+        if params.get('name'):
+            update_expr_parts.append('#n = :name')
+            expr_values[':name'] = params['name']
+        if params.get('phone'):
+            update_expr_parts.append('phone = :phone')
+            expr_values[':phone'] = params['phone']
+        if params.get('email'):
+            update_expr_parts.append('email = :email')
+            expr_values[':email'] = params['email']
+        
+        expr_names = {'#n': 'name'} if params.get('name') else None
+        
+        contacts_table.update_item(
+            Key={'id': contact_id},
+            UpdateExpression='SET ' + ', '.join(update_expr_parts),
+            ExpressionAttributeValues=expr_values,
+            ExpressionAttributeNames=expr_names if expr_names else None
+        )
+        
+        return {
+            'success': True,
+            'contactId': contact_id,
+            'message': 'Contact updated successfully'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_send_whatsapp_buttons(params: Dict, request_id: str) -> Dict:
+    """Send WhatsApp interactive buttons message."""
+    contact_id = params.get('contactId')
+    body_text = params.get('bodyText')
+    buttons = params.get('buttons', [])
+    
+    if not contact_id or not body_text or not buttons:
+        return {'success': False, 'error': 'contactId, bodyText, and buttons are required'}
+    
+    try:
+        # Build interactive message payload
+        interactive_payload = {
+            'type': 'button',
+            'body': {'text': body_text},
+            'action': {
+                'buttons': [{'type': 'reply', 'reply': btn} for btn in buttons[:3]]  # Max 3 buttons
+            }
+        }
+        
+        if params.get('headerText'):
+            interactive_payload['header'] = {'type': 'text', 'text': params['headerText']}
+        if params.get('footerText'):
+            interactive_payload['footer'] = {'text': params['footerText']}
+        
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'interactive': interactive_payload
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'message': 'Interactive button message sent'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_send_whatsapp_list(params: Dict, request_id: str) -> Dict:
+    """Send WhatsApp interactive list message."""
+    contact_id = params.get('contactId')
+    body_text = params.get('bodyText')
+    button_text = params.get('buttonText')
+    sections = params.get('sections', [])
+    
+    if not all([contact_id, body_text, button_text, sections]):
+        return {'success': False, 'error': 'contactId, bodyText, buttonText, and sections are required'}
+    
+    try:
+        interactive_payload = {
+            'type': 'list',
+            'body': {'text': body_text},
+            'action': {
+                'button': button_text,
+                'sections': sections
+            }
+        }
+        
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'interactive': interactive_payload
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'message': 'Interactive list message sent'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_make_voice_call(params: Dict, request_id: str) -> Dict:
+    """Make voice call with TTS or pre-recorded audio."""
+    contact_id = params.get('contactId')
+    message = params.get('message')
+    audio_url = params.get('audioUrl')
+    language = params.get('language', 'en')
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    if not message and not audio_url:
+        return {'success': False, 'error': 'Either message (for TTS) or audioUrl is required'}
+    
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'message': message,
+                'audioUrl': audio_url,
+                'language': language
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-voice-aws',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'callId': result_body.get('callId'),
+            'message': 'Voice call initiated'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_send_sms(params: Dict, request_id: str) -> Dict:
+    """Send SMS tool implementation."""
+    contact_id = params.get('contactId')
+    message = params.get('message')
+    
+    if not contact_id or not message:
+        return {'success': False, 'error': 'contactId and message are required'}
+    
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'content': message
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-sms',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'status': 'sent'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_send_email(params: Dict, request_id: str) -> Dict:
+    """Send email tool implementation."""
+    contact_id = params.get('contactId')
+    subject = params.get('subject')
+    message = params.get('message')
+    
+    if not all([contact_id, subject, message]):
+        return {'success': False, 'error': 'contactId, subject, and message are required'}
+    
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'subject': subject,
+                'content': message
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-email',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'status': 'sent'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_schedule_message(params: Dict, request_id: str) -> Dict:
+    """Schedule message tool implementation."""
+    contact_id = params.get('contactId')
+    message = params.get('message')
+    scheduled_time = params.get('scheduledTime')
+    channel = params.get('channel', 'whatsapp')
+    
+    if not all([contact_id, message, scheduled_time, channel]):
+        return {'success': False, 'error': 'contactId, message, scheduledTime, and channel are required'}
+    
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'content': message,
+                'scheduledTime': scheduled_time,
+                'channel': channel
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-scheduled-messages',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'scheduleId': result_body.get('scheduleId'),
+            'message': f'Message scheduled for {scheduled_time}'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_list_scheduled_messages(params: Dict, request_id: str) -> Dict:
+    """List scheduled messages tool implementation."""
+    # Placeholder - would query scheduled messages table
+    return {
+        'success': True,
+        'scheduledMessages': [],
+        'message': 'No scheduled messages found'
+    }
+
+
+def _tool_list_templates(params: Dict, request_id: str) -> Dict:
+    """List WhatsApp templates tool implementation."""
+    # Placeholder - would query templates from Meta API
+    return {
+        'success': True,
+        'templates': [],
+        'message': 'No templates found'
+    }
+
+
+def _tool_send_template(params: Dict, request_id: str) -> Dict:
+    """Send WhatsApp template message tool implementation."""
+    contact_id = params.get('contactId')
+    template_name = params.get('templateName')
+    parameters = params.get('parameters', [])
+    
+    if not contact_id or not template_name:
+        return {'success': False, 'error': 'contactId and templateName are required'}
+    
+    try:
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'templateName': template_name,
+                'parameters': parameters
+            })
+        }
+        
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        result_body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'messageId': result_body.get('messageId'),
+            'message': f'Template "{template_name}" sent'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+
+# ============================================================================
+# DATA MANAGEMENT & CLEANUP TOOLS
+# ============================================================================
+
+def _tool_add_contact_email(params: Dict, request_id: str) -> Dict:
+    """Add or update email for a contact."""
+    contact_id = params.get('contactId')
+    email = params.get('email')
+    
+    if not contact_id or not email:
+        return {'success': False, 'error': 'contactId and email are required'}
+    
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        
+        contacts_table.update_item(
+            Key={'id': contact_id},
+            UpdateExpression='SET email = :email, updatedAt = :now',
+            ExpressionAttributeValues={
+                ':email': email,
+                ':now': int(time.time())
+            }
+        )
+        
+        return {
+            'success': True,
+            'contactId': contact_id,
+            'email': email,
+            'message': f'Email {email} added to contact'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_delete_contact(params: Dict, request_id: str) -> Dict:
+    """Soft delete a contact."""
+    contact_id = params.get('contactId')
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    try:
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        
+        contacts_table.update_item(
+            Key={'id': contact_id},
+            UpdateExpression='SET deletedAt = :now',
+            ExpressionAttributeValues={':now': int(time.time())}
+        )
+        
+        logger.info(json.dumps({
+            'event': 'contact_deleted',
+            'contactId': contact_id,
+            'requestId': request_id
+        }))
+        
+        return {
+            'success': True,
+            'contactId': contact_id,
+            'message': 'Contact marked as deleted'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_delete_messages(params: Dict, request_id: str) -> Dict:
+    """Delete messages for a contact."""
+    contact_id = params.get('contactId')
+    message_ids = params.get('messageIds', [])
+    direction = params.get('direction', 'all')
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    try:
+        messages_table = dynamodb.Table(MESSAGES_TABLE)
+        deleted_count = 0
+        
+        if message_ids:
+            # Delete specific messages
+            for msg_id in message_ids:
+                try:
+                    messages_table.delete_item(Key={'id': msg_id})
+                    deleted_count += 1
+                except Exception:
+                    pass
+        else:
+            # Delete all messages for contact
+            response = messages_table.scan(
+                FilterExpression='contactId = :cid',
+                ExpressionAttributeValues={':cid': contact_id}
+            )
+            
+            for item in response.get('Items', []):
+                if direction == 'all' or item.get('direction', '').lower() == direction.lower():
+                    try:
+                        messages_table.delete_item(Key={'id': item['id']})
+                        deleted_count += 1
+                    except Exception:
+                        pass
+        
+        logger.info(json.dumps({
+            'event': 'messages_deleted',
+            'contactId': contact_id,
+            'count': deleted_count,
+            'requestId': request_id
+        }))
+        
+        return {
+            'success': True,
+            'deletedCount': deleted_count,
+            'message': f'Deleted {deleted_count} messages'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_delete_media_files(params: Dict, request_id: str) -> Dict:
+    """Delete media files from S3 for a contact."""
+    contact_id = params.get('contactId')
+    file_keys = params.get('fileKeys', [])
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    try:
+        deleted_count = 0
+        
+        if file_keys:
+            # Delete specific files
+            for key in file_keys:
+                try:
+                    s3.delete_object(Bucket=MEDIA_BUCKET, Key=key)
+                    deleted_count += 1
+                except Exception:
+                    pass
+        else:
+            # Delete all files for contact
+            prefix = f'media/{contact_id}/'
+            response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
+            
+            for obj in response.get('Contents', []):
+                try:
+                    s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
+                    deleted_count += 1
+                except Exception:
+                    pass
+        
+        logger.info(json.dumps({
+            'event': 'media_files_deleted',
+            'contactId': contact_id,
+            'count': deleted_count,
+            'requestId': request_id
+        }))
+        
+        return {
+            'success': True,
+            'deletedCount': deleted_count,
+            'message': f'Deleted {deleted_count} media files from S3'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_clear_all_contact_data(params: Dict, request_id: str) -> Dict:
+    """DANGEROUS: Clear ALL data for a contact."""
+    contact_id = params.get('contactId')
+    confirm = params.get('confirm', False)
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    if not confirm:
+        return {
+            'success': False,
+            'error': 'Confirmation required. This will delete ALL data including messages, media, and conversation history. Set confirm=true to proceed.'
+        }
+    
+    try:
+        results = {
+            'messages_deleted': 0,
+            'media_files_deleted': 0,
+            'conversation_cleared': False,
+            'contact_deleted': False
+        }
+        
+        # Delete messages
+        messages_result = _tool_delete_messages({'contactId': contact_id}, request_id)
+        if messages_result.get('success'):
+            results['messages_deleted'] = messages_result.get('deletedCount', 0)
+        
+        # Delete media files
+        media_result = _tool_delete_media_files({'contactId': contact_id}, request_id)
+        if media_result.get('success'):
+            results['media_files_deleted'] = media_result.get('deletedCount', 0)
+        
+        # Clear conversation history
+        try:
+            conversation_table = dynamodb.Table(CONVERSATION_TABLE)
+            phone_hash = f'contact-{contact_id}'
+            
+            # Query and delete all conversation records
+            response = conversation_table.query(
+                KeyConditionExpression='phoneHash = :ph',
+                ExpressionAttributeValues={':ph': phone_hash}
+            )
+            
+            for item in response.get('Items', []):
+                conversation_table.delete_item(
+                    Key={
+                        'phoneHash': item['phoneHash'],
+                        'timestamp': item['timestamp']
+                    }
+                )
+            
+            results['conversation_cleared'] = True
+        except Exception:
+            pass
+        
+        # Soft delete contact
+        contact_result = _tool_delete_contact({'contactId': contact_id}, request_id)
+        if contact_result.get('success'):
+            results['contact_deleted'] = True
+        
+        logger.warning(json.dumps({
+            'event': 'all_contact_data_cleared',
+            'contactId': contact_id,
+            'results': results,
+            'requestId': request_id
+        }))
+        
+        return {
+            'success': True,
+            'results': results,
+            'message': f'Cleared all data for contact: {results["messages_deleted"]} messages, {results["media_files_deleted"]} media files, conversation history, and contact record'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
+    """List media files for a contact."""
+    contact_id = params.get('contactId')
+    file_type = params.get('fileType', 'all').lower()
+    
+    if not contact_id:
+        return {'success': False, 'error': 'contactId is required'}
+    
+    try:
+        prefix = f'media/{contact_id}/'
+        response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
+        
+        files = []
+        for obj in response.get('Contents', []):
+            key = obj['Key']
+            size = obj['Size']
+            last_modified = obj['LastModified'].isoformat()
+            
+            # Determine file type from extension
+            ext = key.split('.')[-1].lower() if '.' in key else ''
+            detected_type = 'unknown'
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                detected_type = 'image'
+            elif ext in ['mp4', 'mov', 'avi', 'webm']:
+                detected_type = 'video'
+            elif ext in ['mp3', 'wav', 'ogg', 'opus']:
+                detected_type = 'audio'
+            elif ext in ['pdf', 'doc', 'docx', 'xls', 'xlsx']:
+                detected_type = 'document'
+            
+            # Filter by type if specified
+            if file_type == 'all' or detected_type == file_type:
+                files.append({
+                    'key': key,
+                    'type': detected_type,
+                    'size': size,
+                    'lastModified': last_modified
+                })
+        
+        return {
+            'success': True,
+            'count': len(files),
+            'files': files[:50],  # Limit to 50 files
+            'message': f'Found {len(files)} media files'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}

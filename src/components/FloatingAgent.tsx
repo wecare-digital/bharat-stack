@@ -1,17 +1,17 @@
 /**
- * Floating Agent - Internal Admin Chatbot
+ * Floating Agent - Internal Admin Task Assistant
  * WECARE.DIGITAL Admin Platform
  * 
  * AI-powered assistant for internal task automation
- * Uses local FAQ search + Bedrock AI fallback via API
+ * Direct Bedrock AI via API (no FAQ/auto-reply - task-focused only)
+ * Voice input supported via Web Speech API
  * 
  * Model: Amazon Nova Lite (~$0.06/1M input tokens)
  * 
- * Note: External (WhatsApp auto-reply) uses separate AI pipeline
+ * Note: External (WhatsApp auto-reply) uses separate AI pipeline with KB
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { searchFAQs, formatSearchResponse } from '../utils/faqSearch';
 
 interface ChatMessage {
   id: string;
@@ -21,7 +21,8 @@ interface ChatMessage {
   status?: 'sending' | 'sent' | 'error';
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+// Use local API route to avoid CORS/fetch issues in browser
+const API_ENDPOINT = '/api/ai/generate';
 
 const FloatingAgent: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,15 +30,18 @@ const FloatingAgent: React.FC = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hi! I\'m your Base CRM assistant. I can help you send messages, find contacts, check stats, and answer questions. Just type what you need!',
+      content: 'Hi! I\'m your Base CRM task assistant. I can help you:\n\n• Send WhatsApp messages\n• Find and manage contacts\n• Check stats and analytics\n• Execute admin tasks\n\nType or use voice input!',
       timestamp: new Date(),
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,169 +76,225 @@ const FloatingAgent: React.FC = () => {
     return () => document.removeEventListener('keydown', handleGlobalKey);
   }, []);
 
+  // Initialize Web Speech API
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+        // Auto-send voice input
+        setTimeout(() => {
+          if (transcript.trim()) {
+            handleSendVoice(transcript.trim());
+          }
+        }, 100);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors on cleanup
+        }
+      }
+    };
+  }, []);
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Error stopping recognition:', e);
+      }
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error('Error starting recognition:', e);
+        setIsListening(false);
+      }
+    }
+  };
+
+  const handleSendVoice = async (text: string) => {
+    if (!text || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    const loadingId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, {
+      id: loadingId,
+      role: 'assistant',
+      content: '...',
+      timestamp: new Date(),
+      status: 'sending',
+    }]);
+
+    const response = await processCommand(userMessage.content);
+
+    setMessages(prev => prev.map(m => 
+      m.id === loadingId ? { ...m, content: response, status: 'sent' } : m
+    ));
+    setIsLoading(false);
+  };
+
 
   const processCommand = async (text: string): Promise<string> => {
     const lowerText = text.toLowerCase();
-    
+
     try {
-      // Send WhatsApp message - more flexible matching
-      // Match: "send ... to PHONE" or "send ... PHONE" with optional message content
-      if (lowerText.includes('send')) {
-        // Match phone numbers - look for 10+ digit sequences
-        const phoneMatch = text.match(/(\+?\d[\d\s-]{8,}\d)/);
-        // Match message content after "saying", "as", "message", "content", "text", or ":"
-        const contentMatch = text.match(/(?:saying|as|message|content|text|:)\s+["']?(.+?)["']?$/i);
-        
-        if (!phoneMatch) {
-          return 'Please provide a phone number. Example: "Send to +919330994400 saying Hello!" or "Send hi to 447447840003"';
-        }
-        
-        // Clean phone number - remove +, spaces, dashes
-        const phone = phoneMatch[1].replace(/[\s\-\+]/g, '');
-        const contactsRes = await fetch(`${API_BASE}/contacts?q=${encodeURIComponent(phone)}`);
-        const contactsData = await contactsRes.json();
-        const contacts = contactsData.contacts || [];
-        
-        if (contacts.length === 0) {
-          return `No contact found with phone ${phone}. Use "find contact ${phone}" to search or add the contact first.`;
-        }
-        
-        const contact = contacts[0];
-        
-        // Try to extract message content
-        let messageContent = contentMatch?.[1]?.trim();
-        
-        // If no content match, try to find text before "to PHONE"
-        if (!messageContent) {
-          const beforePhoneMatch = text.match(/send\s+(?:a\s+)?(?:test\s+)?(?:message\s+)?["']?(.+?)["']?\s+to\s+\+?\d/i);
-          if (beforePhoneMatch && beforePhoneMatch[1] && beforePhoneMatch[1].trim().length > 0) {
-            messageContent = beforePhoneMatch[1].trim();
-          }
-        }
-        
-        if (!messageContent) {
-          return `Found: ${contact.name || 'Unknown'} (${contact.phone})\n\nWhat message would you like to send? Try: "send hi to ${phone}"`;
-        }
-        
-        const sendRes = await fetch(`${API_BASE}/whatsapp/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contactId: contact.contactId || contact.id,
-            content: messageContent,
-          }),
-        });
-        
-        if (sendRes.ok) {
-          const result = await sendRes.json();
-          return `✓ Message sent!\n\nTo: ${contact.name || contact.phone}\nMessage: "${messageContent}"\nStatus: ${result.status || 'sent'}`;
-        }
-        const errorData = await sendRes.json().catch(() => ({}));
-        return `Failed to send message: ${errorData.error || sendRes.statusText}`;
-      }
-      
-      // Find contact
-      if (lowerText.includes('find') || lowerText.includes('search') || lowerText.includes('contact')) {
-        const phoneMatch = text.match(/(\+?\d[\d\s-]{8,})/);
-        const nameMatch = text.match(/(?:named?|called?|for)\s+["']?(\w+)["']?/i);
-        // Clean phone number - remove +, spaces, dashes to match stored format
-        const query = phoneMatch?.[1]?.replace(/[\s\-\+]/g, '') || nameMatch?.[1] || '';
-        
-        if (!query) {
-          return 'Please provide a phone number or name to search.';
-        }
-        
-        const res = await fetch(`${API_BASE}/contacts?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        const contacts = data.contacts || [];
-        
-        if (contacts.length === 0) {
-          return `No contacts found matching "${query}"`;
-        }
-        
-        const results = contacts.slice(0, 5).map((c: any) => 
-          `• ${c.name || 'Unknown'} - ${c.phone || 'No phone'}`
-        ).join('\n');
-        
-        return `Found ${contacts.length} contact(s):\n\n${results}`;
-      }
-      
-      // Stats
-      if (lowerText.includes('stats') || lowerText.includes('dashboard') || lowerText.includes('today')) {
-        const [contactsRes, messagesRes] = await Promise.all([
-          fetch(`${API_BASE}/contacts`),
-          fetch(`${API_BASE}/messages`),
-        ]);
-        
-        const contactsData = await contactsRes.json();
-        const messagesData = await messagesRes.json();
-        
-        const contacts = contactsData.contacts || [];
-        const allMessages = messagesData.messages || [];
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayMessages = allMessages.filter((m: any) => new Date(m.timestamp) >= today);
-        const inbound = todayMessages.filter((m: any) => m.direction === 'INBOUND').length;
-        const outbound = todayMessages.filter((m: any) => m.direction === 'OUTBOUND').length;
-        
-        return `Today's Stats:\n\nMessages: ${todayMessages.length}\n  - Inbound: ${inbound}\n  - Outbound: ${outbound}\n\nTotal Contacts: ${contacts.length}`;
-      }
-      
-      // Help
-      if (lowerText.includes('help') || lowerText.includes('what can')) {
-        return `I can help you with:\n\n• Send WhatsApp to +91... saying Hello\n• Find contact +91... or named John\n• Show today's stats\n• Check recent messages\n\nJust type naturally!`;
-      }
-      
-      // AI fallback — try local FAQ first (instant, free), then API
-      const faqResults = searchFAQs(text, { maxResults: 1 });
-      if (faqResults.length > 0 && faqResults[0].score >= 2) {
-        return faqResults[0].answer;
+      // Quick local help command only
+      if (lowerText === 'help' || lowerText === 'what can you do' || lowerText === 'what can you do?') {
+        return 'I\'m your AI task assistant powered by Amazon Bedrock. I can:\n\n' +
+          '- Send WhatsApp/SMS/Email messages\n' +
+          '- Send interactive messages (buttons, lists)\n' +
+          '- Make voice calls with TTS\n' +
+          '- Find and manage contacts\n' +
+          '- Schedule messages\n' +
+          '- View message history\n' +
+          '- Check dashboard stats\n' +
+          '- Manage templates\n\n' +
+          'Just tell me what you need in natural language.\n' +
+          'Example: "send hi message to Jignesh"';
       }
 
+      // Check for dangerous operations and confirm
+      const dangerousKeywords = ['delete all', 'clear all', 'remove all', 'delete contact', 'clear data'];
+      const isDangerous = dangerousKeywords.some(keyword => lowerText.includes(keyword));
+
+      if (isDangerous) {
+        const confirmed = window.confirm(
+          'WARNING: This action may delete data and cannot be undone.\n\nAre you sure you want to continue?'
+        );
+        if (!confirmed) {
+          return 'Operation cancelled by user.';
+        }
+      }
+
+      setStatusMessage('Understanding your request...');
+
+      // Call AI via proxy — proxy normalizes the response to { suggestedResponse, error? }
+      let aiRes: Response;
       try {
-        const aiRes = await fetch(`${API_BASE}/ai/generate`, {
+        aiRes = await fetch(API_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
           body: JSON.stringify({
             messageContent: text,
-            context: 'internal',
+            context: 'internal-admin',
+            sessionId: sessionId,
           }),
         });
-        
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          // Handle Lambda proxy response format
-          if (aiData.body) {
-            try {
-              const parsed = typeof aiData.body === 'string' ? JSON.parse(aiData.body) : aiData.body;
-              if (parsed.suggestion || parsed.suggestedResponse) {
-                return parsed.suggestion || parsed.suggestedResponse;
-              }
-            } catch (e) {
-              // Continue to direct response check
-            }
-          }
-          // Direct response format
-          if (aiData.suggestion || aiData.suggestedResponse) {
-            return aiData.suggestion || aiData.suggestedResponse;
-          }
-        }
-      } catch (aiError) {
-        console.error('AI fallback error:', aiError);
+      } catch (fetchErr: any) {
+        setStatusMessage('');
+        console.error('Fetch error:', fetchErr);
+        return 'Unable to reach the server. Please check your connection and try again.';
       }
 
-      // Final fallback — return FAQ result even with low score, or default
-      if (faqResults.length > 0) {
-        return faqResults[0].answer;
+      setStatusMessage('Processing...');
+
+      // Parse response — always try to extract JSON
+      let data: any;
+      try {
+        data = await aiRes.json();
+      } catch {
+        setStatusMessage('');
+        return 'Received an invalid response from the server. Please try again.';
       }
-      
-      return 'I can help you send messages, find contacts, or check stats. Try "help" for examples.';
-      
+
+      setStatusMessage('');
+
+      // The proxy normalizes to { suggestedResponse, error? }
+      // But handle all possible shapes defensively
+      const response = extractResponse(data);
+
+      if (response) {
+        return response;
+      }
+
+      // If we got an error but no response text
+      if (data.error) {
+        console.error('Backend error:', data.error);
+        return 'Something went wrong on the server. Please try again.';
+      }
+
+      console.error('Unexpected response format:', JSON.stringify(data).substring(0, 500));
+      return 'Received an unexpected response. Please try again.';
+
     } catch (error: any) {
       console.error('Agent error:', error);
-      return `Connection error: ${error.message || 'Please try again.'}`;
+      setStatusMessage('');
+      return 'Something went wrong. Please try again.';
     }
+  };
+
+  /** Extract the AI response text from any response shape */
+  const extractResponse = (data: any): string | null => {
+    if (!data) return null;
+
+    // Direct normalized format from proxy
+    if (data.suggestedResponse) return data.suggestedResponse;
+    if (data.suggestion) return data.suggestion;
+
+    // API Gateway wrapped format (fallback if proxy didn't unwrap)
+    if (data.body) {
+      try {
+        const parsed = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+        if (parsed.suggestedResponse) return parsed.suggestedResponse;
+        if (parsed.suggestion) return parsed.suggestion;
+        if (parsed.error) {
+          console.error('Backend error in body:', parsed.error);
+          return 'Something went wrong on the server. Please try again.';
+        }
+      } catch {
+        // body wasn't parseable
+      }
+    }
+
+    return null;
   };
 
   const handleSend = async () => {
@@ -277,6 +337,15 @@ const FloatingAgent: React.FC = () => {
 
   const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 
+  const clearChat = () => {
+    setMessages([{
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: 'Chat cleared. How can I help you?',
+      timestamp: new Date(),
+    }]);
+  };
+
   if (!isOpen) {
     return (
       <button className="agent-fab" onClick={() => setIsOpen(true)} title="Open Assistant (Ctrl+.)" aria-label="Open assistant chat">
@@ -295,7 +364,23 @@ const FloatingAgent: React.FC = () => {
             <span className="agent-subtitle">by WECARE.DIGITAL</span>
           </div>
         </div>
-        <button className="agent-close" onClick={() => setIsOpen(false)} aria-label="Close assistant">×</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={clearChat}
+            title="Clear chat"
+            aria-label="Clear chat history"
+            style={{
+              background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)',
+              cursor: 'pointer', padding: '4px', borderRadius: '4px', fontSize: '12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+          <button className="agent-close" onClick={() => setIsOpen(false)} aria-label="Close assistant">×</button>
+        </div>
       </div>
 
       <div className="agent-messages" aria-live="polite" aria-relevant="additions">
@@ -314,20 +399,83 @@ const FloatingAgent: React.FC = () => {
             </div>
           </div>
         ))}
+        {statusMessage && (
+          <div className="agent-status-message" style={{
+            padding: '8px 12px',
+            margin: '8px',
+            background: '#ECFDF5',
+            border: '1px solid #A7F3D0',
+            borderRadius: '8px',
+            color: '#059669',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span className="status-spinner" style={{
+              width: '12px',
+              height: '12px',
+              border: '2px solid #059669',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite'
+            }} />
+            {statusMessage}
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       <div className="agent-input-area">
+        <button
+          className="agent-voice-btn"
+          onClick={toggleVoiceInput}
+          disabled={isLoading}
+          aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+          title={isListening ? 'Stop listening' : 'Voice input'}
+          style={{
+            position: 'absolute',
+            left: '20px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '28px',
+            height: '28px',
+            border: 'none',
+            background: isListening ? '#059669' : 'transparent',
+            color: isListening ? '#fff' : '#059669',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s',
+            zIndex: 10,
+          }}
+        >
+          {isListening ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          )}
+        </button>
         <textarea
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message or command..."
+          placeholder={isListening ? 'Listening...' : 'Type or use voice...'}
           disabled={isLoading}
           rows={1}
           aria-label="Chat message input"
-          style={{ paddingRight: 42 }}
+          style={{ paddingLeft: 56, paddingRight: 42 }}
         />
         <button 
           className="agent-send-btn" 

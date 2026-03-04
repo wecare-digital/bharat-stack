@@ -867,4 +867,4 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
   // DynamoDB billing mode: PAY_PER_REQUEST (on-demand)
-});
+}) as any;

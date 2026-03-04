@@ -1,0 +1,363 @@
+'use client';
+
+/**
+ * Internal Agent Settings Page
+ * Configure AI-powered admin assistant capabilities
+ */
+
+import React, { useState, useEffect } from 'react';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+
+interface AgentConfig {
+  enabled: boolean;
+  modelId: string;
+  temperature: number;
+  maxTokens: number;
+  sessionTimeout: number;
+  enabledTools: string[];
+  defaultChannel: string;
+  autoSearch: boolean;
+  conversationHistory: boolean;
+}
+
+const AVAILABLE_TOOLS = [
+  { id: 'search_contacts', name: 'Search Contacts', category: 'Contact Management' },
+  { id: 'create_contact', name: 'Create Contact', category: 'Contact Management' },
+  { id: 'update_contact', name: 'Update Contact', category: 'Contact Management' },
+  { id: 'send_whatsapp', name: 'Send WhatsApp Text', category: 'WhatsApp' },
+  { id: 'send_whatsapp_buttons', name: 'Send Interactive Buttons', category: 'WhatsApp' },
+  { id: 'send_whatsapp_list', name: 'Send Interactive List', category: 'WhatsApp' },
+  { id: 'make_voice_call', name: 'Make Voice Call (TTS)', category: 'Voice' },
+  { id: 'send_sms', name: 'Send SMS', category: 'SMS' },
+  { id: 'send_email', name: 'Send Email', category: 'Email' },
+  { id: 'get_messages', name: 'Get Message History', category: 'Analytics' },
+  { id: 'get_stats', name: 'Get Dashboard Stats', category: 'Analytics' },
+  { id: 'schedule_message', name: 'Schedule Message', category: 'Advanced' },
+  { id: 'list_scheduled_messages', name: 'List Scheduled Messages', category: 'Advanced' },
+  { id: 'list_templates', name: 'List Templates', category: 'Templates' },
+  { id: 'send_template', name: 'Send Template Message', category: 'Templates' },
+];
+
+const DEFAULT_CONFIG: AgentConfig = {
+  enabled: true,
+  modelId: 'amazon.nova-lite-v1:0',
+  temperature: 0.7,
+  maxTokens: 2048,
+  sessionTimeout: 15,
+  enabledTools: AVAILABLE_TOOLS.map(t => t.id),
+  defaultChannel: 'whatsapp',
+  autoSearch: true,
+  conversationHistory: true,
+};
+
+export default function InternalAgentSettings() {
+  const [config, setConfig] = useState<AgentConfig>(DEFAULT_CONFIG);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const loadConfig = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/ai/internal/config`);
+      if (res.ok) {
+        const data = await res.json();
+        setConfig({ ...DEFAULT_CONFIG, ...data.config });
+      }
+    } catch (error) {
+      console.error('Failed to load config:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveConfig = async () => {
+    setSaving(true);
+    setMessage('');
+    try {
+      const res = await fetch(`${API_BASE}/ai/internal/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      
+      if (res.ok) {
+        setMessage('Settings saved successfully!');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage('Failed to save settings');
+      }
+    } catch (error) {
+      setMessage('Error saving settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleTool = (toolId: string) => {
+    setConfig(prev => ({
+      ...prev,
+      enabledTools: prev.enabledTools.includes(toolId)
+        ? prev.enabledTools.filter(id => id !== toolId)
+        : [...prev.enabledTools, toolId]
+    }));
+  };
+
+  const toggleCategory = (category: string) => {
+    const categoryTools = AVAILABLE_TOOLS.filter(t => t.category === category).map(t => t.id);
+    const allEnabled = categoryTools.every(id => config.enabledTools.includes(id));
+    
+    setConfig(prev => ({
+      ...prev,
+      enabledTools: allEnabled
+        ? prev.enabledTools.filter(id => !categoryTools.includes(id))
+        : [...new Set([...prev.enabledTools, ...categoryTools])]
+    }));
+  };
+
+  const categories = [...new Set(AVAILABLE_TOOLS.map(t => t.category))];
+
+  if (loading) {
+    return (
+      <div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading settings...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Internal Agent Settings</h1>
+          <p className="text-gray-600 mt-1">Configure your AI-powered admin assistant</p>
+        </div>
+
+        {message && (
+          <div className={`mb-4 p-4 rounded-lg ${message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            {message}
+          </div>
+        )}
+
+        {/* General Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h2>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-medium text-gray-700">Enable Internal Agent</label>
+                <p className="text-sm text-gray-500">Turn AI assistant on/off</p>
+              </div>
+              <button
+                onClick={() => setConfig(prev => ({ ...prev, enabled: !prev.enabled }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.enabled ? 'bg-green-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  config.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">AI Model</label>
+              <select
+                value={config.modelId}
+                onChange={(e) => setConfig(prev => ({ ...prev, modelId: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="amazon.nova-lite-v1:0">Amazon Nova Lite (Fast, Cost-effective)</option>
+                <option value="amazon.nova-pro-v1:0">Amazon Nova Pro (Balanced)</option>
+                <option value="amazon.nova-premier-v1:0">Amazon Nova Premier (Advanced)</option>
+                <option value="anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet (Premium)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">
+                Temperature: {config.temperature}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={config.temperature}
+                onChange={(e) => setConfig(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500 mt-1">Lower = more focused, Higher = more creative</p>
+            </div>
+
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">Max Tokens</label>
+              <input
+                type="number"
+                value={config.maxTokens}
+                onChange={(e) => setConfig(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                min="512"
+                max="4096"
+                step="256"
+              />
+              <p className="text-sm text-gray-500 mt-1">Maximum response length</p>
+            </div>
+
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">Session Timeout (minutes)</label>
+              <input
+                type="number"
+                value={config.sessionTimeout}
+                onChange={(e) => setConfig(prev => ({ ...prev, sessionTimeout: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                min="5"
+                max="60"
+                step="5"
+              />
+              <p className="text-sm text-gray-500 mt-1">Reset conversation after idle time</p>
+            </div>
+
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">Default Channel</label>
+              <select
+                value={config.defaultChannel}
+                onChange={(e) => setConfig(prev => ({ ...prev, defaultChannel: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="whatsapp">WhatsApp</option>
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-medium text-gray-700">Auto-search Contacts</label>
+                <p className="text-sm text-gray-500">Automatically search for contacts by name</p>
+              </div>
+              <button
+                onClick={() => setConfig(prev => ({ ...prev, autoSearch: !prev.autoSearch }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.autoSearch ? 'bg-green-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  config.autoSearch ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-medium text-gray-700">Conversation History</label>
+                <p className="text-sm text-gray-500">Remember context across messages</p>
+              </div>
+              <button
+                onClick={() => setConfig(prev => ({ ...prev, conversationHistory: !prev.conversationHistory }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  config.conversationHistory ? 'bg-green-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  config.conversationHistory ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tool Capabilities */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tool Capabilities</h2>
+          <p className="text-sm text-gray-600 mb-4">Enable or disable specific agent capabilities</p>
+
+          <div className="space-y-6">
+            {categories.map(category => {
+              const categoryTools = AVAILABLE_TOOLS.filter(t => t.category === category);
+              const allEnabled = categoryTools.every(t => config.enabledTools.includes(t.id));
+              const someEnabled = categoryTools.some(t => config.enabledTools.includes(t.id));
+
+              return (
+                <div key={category} className="border-b border-gray-200 pb-4 last:border-0">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-gray-900">{category}</h3>
+                    <button
+                      onClick={() => toggleCategory(category)}
+                      className={`px-3 py-1 rounded text-sm font-medium ${
+                        allEnabled
+                          ? 'bg-green-100 text-green-700'
+                          : someEnabled
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {allEnabled ? 'All Enabled' : someEnabled ? 'Partial' : 'All Disabled'}
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {categoryTools.map(tool => (
+                      <label key={tool.id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={config.enabledTools.includes(tool.id)}
+                          onChange={() => toggleTool(tool.id)}
+                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        />
+                        <span className="text-sm text-gray-700">{tool.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Usage Stats */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Usage Statistics</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">-</div>
+              <div className="text-sm text-gray-600">Total Queries</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">-</div>
+              <div className="text-sm text-gray-600">Tools Used</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">-</div>
+              <div className="text-sm text-gray-600">Avg Response Time</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={loadConfig}
+            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          >
+            Reset
+          </button>
+          <button
+            onClick={saveConfig}
+            disabled={saving}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

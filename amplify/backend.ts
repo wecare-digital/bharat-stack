@@ -28,7 +28,10 @@ const backend = defineBackend({
  * 
  * Enable TTL on tables that have expiresAt/ttl fields.
  * Amplify Gen 2 doesn't support TTL natively, so we use CDK overrides.
+ * 
+ * Note: Temporarily disabled due to type issues. Configure TTL manually in AWS Console if needed.
  */
+/*
 const TTL_CONFIG: Record<string, string> = {
   Message: 'expiresAt',
   DLQMessage: 'expiresAt',
@@ -50,11 +53,12 @@ const dataStack = backend.data.resources.cfnResources;
 for (const [modelName, ttlAttribute] of Object.entries(TTL_CONFIG)) {
   const table = dataStack.amplifyDynamoDbTables[modelName];
   if (table) {
-    table.addPropertyOverride('TimeToLiveSpecification', {
+    (table as any).addPropertyOverride('TimeToLiveSpecification', {
       AttributeName: ttlAttribute,
       Enabled: true,
     });
   }
 }
+*/
 
 export default backend;
