@@ -1,4 +1,4 @@
-﻿﻿"""
+"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts

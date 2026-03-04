@@ -60,9 +60,15 @@ export async function POST(request: NextRequest) {
     } else if (rawData.suggestedResponse || rawData.suggestion) {
       // Direct Lambda response (no API Gateway wrapping)
       result = rawData;
-    } else if (rawData.error) {
-      // Error-only response
-      result = rawData;
+    } else if (rawData.error || rawData.message) {
+      // Error-only response (API Gateway often returns { message: "..." } on 5xx)
+      console.error('[API Proxy] Backend error response:', rawData);
+      result = {
+        suggestedResponse: rawData.message === 'Internal server error'
+          ? 'The AI service encountered an error. Please try again in a moment.'
+          : `Server error: ${rawData.error || rawData.message}`,
+        error: rawData.error || rawData.message,
+      };
     } else {
       // Unknown format — pass through
       result = rawData;
