@@ -473,8 +473,8 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #f5f5f5; color: #6b7280; }
         .status-badge.initiated, .status-badge.completed, .status-badge.success, .status-badge.active { background: #d1fae5; color: #059669; }
         .status-badge.failed, .status-badge.error { background: #ECFDF5; color: #059669; }
-        .status-badge.pending, .status-badge.in_progress { background: #fef3c7; color: #92400e; }
-        .type-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #e0e7ff; color: #4338ca; }
+        .status-badge.pending, .status-badge.in_progress { background: #ecfdf5; color: #059669; }
+        .type-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #ecfdf5; color: #059669; }
         .recording-link { color: #059669; text-decoration: none; }
         .empty-state { text-align: center; color: #047857; padding: 30px !important; }
         .webhook-info { padding: 12px; background: #ecfdf5; border-top: 1px solid #d1fae5; font-size: 12px; }
@@ -501,19 +501,19 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #059669; }
         .info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #166534; }
         .info-box strong { color: #065f46; }
-        .info-box.warning { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
-        .info-box.warning strong { color: #78350f; }
+        .info-box.warning { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+        .info-box.warning strong { color: #059669; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
         .input-with-btn { display: flex; gap: 6px; }
         .input-with-btn input { flex: 1; }
         .textarea-with-btn { display: flex; flex-direction: column; gap: 6px; }
         .fetch-btn { padding: 8px 10px; background: #ecfdf5; border: 1px solid #059669; border-radius: 8px; color: #065f46; font-size: 12px; cursor: pointer; white-space: nowrap; }
         .fetch-btn:hover { background: #d1fae5; }
-        .var-btn { background: #e0e7ff; border-color: #6366f1; color: #4338ca; }
-        .var-btn:hover { background: #c7d2fe; }
+        .var-btn { background: #ecfdf5; border-color: #059669; color: #059669; }
+        .var-btn:hover { background: #d1fae5; }
         .var-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
-        .var-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #e0e7ff; border-radius: 4px; font-size: 11px; color: #4338ca; }
-        .var-tag button { background: none; border: none; color: #6366f1; cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+        .var-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #ecfdf5; border-radius: 4px; font-size: 11px; color: #059669; }
+        .var-tag button { background: none; border: none; color: #059669; cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
         .contact-picker { max-width: 360px; }
         .contact-search { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
         .contact-list { max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }

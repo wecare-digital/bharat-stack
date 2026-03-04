@@ -21,7 +21,7 @@ const WABAS = [
 const CATEGORIES = ['SIGN_UP', 'SIGN_IN', 'APPOINTMENT_BOOKING', 'LEAD_GENERATION', 'CONTACT_US', 'CUSTOMER_SUPPORT', 'SURVEY', 'OTHER'];
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#f59e0b', PUBLISHED: '#16a34a', DEPRECATED: '#9ca3af', BLOCKED: '#059669', THROTTLED: '#f97316',
+  DRAFT: '#059669', PUBLISHED: '#16a34a', DEPRECATED: '#9ca3af', BLOCKED: '#059669', THROTTLED: '#059669',
 };
 
 const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -140,7 +140,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
 
         {loading ? <p>Loading flows...</p> : loadError ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-            <p style={{ fontSize: 16, color: '#dc2626' }}>Failed to load flows</p>
+            <p style={{ fontSize: 16, color: '#059669' }}>Failed to load flows</p>
             <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
             <button onClick={() => loadFlows(selectedWaba)} style={{ marginTop: 12, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               Retry
@@ -174,7 +174,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
                       </>
                     )}
                     {flow.status === 'PUBLISHED' && (
-                      <button onClick={() => handleDeprecate(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #f59e0b', borderRadius: 4, background: '#fff', color: '#f59e0b', cursor: 'pointer' }}>Deprecate</button>
+                      <button onClick={() => handleDeprecate(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #059669', borderRadius: 4, background: '#fff', color: '#059669', cursor: 'pointer' }}>Deprecate</button>
                     )}
                   </div>
                 </div>

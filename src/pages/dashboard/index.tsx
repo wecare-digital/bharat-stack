@@ -1815,11 +1815,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                                 {hasConfig && Object.entries(cfg).map(([flowKey, trigger]: [string, any]) => (
                                   <div key={flowKey} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                      <strong style={{ color: '#1e40af' }}>{flowKey}</strong>
+                                      <strong style={{ color: '#059669' }}>{flowKey}</strong>
                                       <span style={{
                                         padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                                        background: trigger?.enabled !== false ? '#dcfce7' : '#fef2f2',
-                                        color: trigger?.enabled !== false ? '#166534' : '#991b1b',
+                                        background: trigger?.enabled !== false ? '#dcfce7' : '#f3f4f6',
+                                        color: trigger?.enabled !== false ? '#166534' : '#6b7280',
                                       }}>
                                         {trigger?.enabled !== false ? '● Enabled' : '○ Disabled'}
                                       </span>
@@ -1907,10 +1907,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
 
               {/* Flow JSON — Inner Pages Control */}
-              <div style={{ marginTop: '2rem', padding: '1.25rem', border: '1px solid #6366f1', borderRadius: '0.75rem', background: '#fff' }}>
+              <div style={{ marginTop: '2rem', padding: '1.25rem', border: '1px solid #059669', borderRadius: '0.75rem', background: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <div>
-                    <h4 style={{ margin: 0, color: '#4338ca' }}>Flow JSON — Inner Pages</h4>
+                    <h4 style={{ margin: 0, color: '#059669' }}>Flow JSON — Inner Pages</h4>
                     <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#888' }}>
                       Full control of WhatsApp Flow screens (ORDER_SELECT, SUBMIT_REQUEST_FORM, TERMS, REVIEW, THANK_YOU). Stored in SystemConfigTable.
                     </p>
@@ -1941,9 +1941,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 {flowJsonLoading && <SkeletonCard />}
 
                 {!flowJsonLoading && !flowJson && !flowJsonEditMode && (
-                  <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#fefce8', borderRadius: '0.5rem', border: '1px dashed #eab308' }}>
+                  <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px dashed #059669' }}>
                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>—</div>
-                    <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#854d0e' }}>No Flow JSON stored yet</div>
+                    <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#065f46' }}>No Flow JSON stored yet</div>
                     <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v2.json</code> to enable screen-level control.</div>
                   </div>
                 )}
@@ -1951,17 +1951,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 {!flowJsonLoading && flowJson && !flowJsonEditMode && (
                   <>
                     {/* Routing Model */}
-                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f0f0ff', borderRadius: '0.375rem' }}>
-                      <strong style={{ fontSize: '0.85rem', color: '#4338ca' }}>Routing Model</strong>
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#ecfdf5', borderRadius: '0.375rem' }}>
+                      <strong style={{ fontSize: '0.85rem', color: '#059669' }}>Routing Model</strong>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
                         {flowJson.routing_model && Object.entries(flowJson.routing_model).map(([from, toArr]: [string, any]) => (
                           <div key={from} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}>
-                            <span style={{ padding: '2px 8px', background: '#e0e7ff', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 600, color: '#3730a3' }}>{from}</span>
+                            <span style={{ padding: '2px 8px', background: '#ecfdf5', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 600, color: '#059669' }}>{from}</span>
                             {toArr && toArr.length > 0 ? (
                               <>
                                 <span style={{ color: '#888' }}>→</span>
                                 {toArr.map((t: string) => (
-                                  <span key={t} style={{ padding: '2px 8px', background: '#dbeafe', borderRadius: '8px', fontFamily: 'monospace', color: '#1e40af' }}>{t}</span>
+                                  <span key={t} style={{ padding: '2px 8px', background: '#d1fae5', borderRadius: '8px', fontFamily: 'monospace', color: '#059669' }}>{t}</span>
                                 ))}
                               </>
                             ) : (
@@ -1983,9 +1983,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                           onClick={() => setFlowJsonExpandedScreen(flowJsonExpandedScreen === screen.id ? null : screen.id)}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#4338ca', fontSize: '0.85rem' }}>{screen.id}</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#059669', fontSize: '0.85rem' }}>{screen.id}</span>
                             {screen.title && <span style={{ color: '#888', fontSize: '0.8rem' }}>— {screen.title}</span>}
-                            {screen.terminal && <span style={{ padding: '1px 6px', background: '#fef2f2', color: '#991b1b', borderRadius: '8px', fontSize: '10px', fontWeight: 600 }}>TERMINAL</span>}
+                            {screen.terminal && <span style={{ padding: '1px 6px', background: '#ecfdf5', color: '#065f46', borderRadius: '8px', fontSize: '10px', fontWeight: 600 }}>TERMINAL</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: '#888' }}>
                             {screen.data && <span>{Object.keys(screen.data).length} data fields</span>}
@@ -2041,7 +2041,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 {flowJsonEditMode && (
                   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '1.5rem', width: '90%', maxWidth: '800px', maxHeight: '85vh', overflow: 'auto' }}>
-                      <h4 style={{ marginBottom: '0.5rem', color: '#4338ca' }}>Edit Flow JSON — Inner Pages</h4>
+                      <h4 style={{ marginBottom: '0.5rem', color: '#059669' }}>Edit Flow JSON — Inner Pages</h4>
                       <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1rem' }}>
                         Paste the full WhatsApp Flow JSON (screens, routing_model, version). Stored in SystemConfigTable under key <code>whatsapp_flow_json</code>.
                       </p>
@@ -2195,7 +2195,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                  <a href="https://razorpay.com/docs/api" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#1565C0', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
+                  <a href="https://razorpay.com/docs/api" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
                     API Docs
                   </a>
                   <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
@@ -2237,20 +2237,20 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
               </div>
 
               {/* PayU Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #1565C0' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #059669' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#E3F2FD', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #90CAF9' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #a7f3d0' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#1565C0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>PayU Webhook</h3>
-                    <span className="badge" style={{ background: '#E3F2FD', color: '#1565C0', marginTop: '4px' }}>Active — MID: 8629516</span>
+                    <span className="badge" style={{ background: '#ecfdf5', color: '#059669', marginTop: '4px' }}>Active — MID: 8629516</span>
                   </div>
                 </div>
 
-                <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
+                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #a7f3d0' }}>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://api.wecare.digital/payu-webhook</code>
@@ -2336,7 +2336,7 @@ Content-Type: application/json`}</pre>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>PayU sends form-encoded POST to your webhook URL. Verify with reverse hash:</div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}><code style={{ fontSize: '0.7rem' }}>sha512(SALT|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key)</code></div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>PayU retries 3x for 200 OK. Content-Type: FormData or application/x-www-form-urlencoded.</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>Configure at: <a href="https://onboarding.payu.in/app/account" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0' }}>PayU Dashboard → Developer → Webhooks</a></div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>Configure at: <a href="https://onboarding.payu.in/app/account" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>PayU Dashboard → Developer → Webhooks</a></div>
                   </div>
 
                   <div>
@@ -2355,7 +2355,7 @@ Content-Type: application/json`}</pre>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9330994400</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1565C0' }}>WECARE-PAYU</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#059669' }}>WECARE-PAYU</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1912405516040025</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
@@ -2364,7 +2364,7 @@ Content-Type: application/json`}</pre>
                     </div>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9903300044</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1565C0' }}>WECARE-PAYU</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#059669' }}>WECARE-PAYU</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1633959101297902</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
@@ -2380,12 +2380,12 @@ Content-Type: application/json`}</pre>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
                       { event: 'payment.success', desc: 'Payment captured', color: '#10b981' },
-                      { event: 'payment.failed', desc: 'Payment failed', color: '#dc2626' },
-                      { event: 'payment.pending', desc: 'Awaiting bank', color: '#d97706' },
+                      { event: 'payment.failed', desc: 'Payment failed', color: '#059669' },
+                      { event: 'payment.pending', desc: 'Awaiting bank', color: '#059669' },
                       { event: 'refund.success', desc: 'Refund processed', color: '#10b981' },
-                      { event: 'refund.failed', desc: 'Refund failed', color: '#dc2626' },
+                      { event: 'refund.failed', desc: 'Refund failed', color: '#059669' },
                     ].map(({ event, desc, color }) => (
-                      <div key={event} style={{ background: '#E3F2FD', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #90CAF9' }}>
+                      <div key={event} style={{ background: '#ecfdf5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #a7f3d0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827' }}>{event}</span>
@@ -2398,7 +2398,7 @@ Content-Type: application/json`}</pre>
               </div>
 
               {/* PayU Data Captured */}
-              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1565C0' }}>
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #059669' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
                   <DataIcon size={18} />
                   Data Captured for PayU Payments
@@ -2418,8 +2418,8 @@ Content-Type: application/json`}</pre>
                     { field: 'firstname', desc: 'Customer name' },
                     { field: 'hash', desc: 'SHA-512 verification hash' },
                   ].map(({ field, desc }) => (
-                    <div key={field} style={{ padding: '0.75rem', background: '#E3F2FD', borderRadius: '0.375rem', borderLeft: '3px solid #1565C0' }}>
-                      <code style={{ fontSize: '0.85rem', color: '#1565C0' }}>{field}</code>
+                    <div key={field} style={{ padding: '0.75rem', background: '#ecfdf5', borderRadius: '0.375rem', borderLeft: '3px solid #059669' }}>
+                      <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                     </div>
                   ))}
@@ -2537,7 +2537,7 @@ Content-Type: application/json`}</pre>
                       { event: 'ALL', desc: 'All real-time events', color: '#E53935' },
                       { event: 'CALL', desc: 'Call state changes', color: '#FB8C00' },
                       { event: 'MEDIA', desc: 'Audio playback events', color: '#7B1FA2' },
-                      { event: 'DTMF', desc: 'Keypad input events', color: '#1976D2' },
+                      { event: 'DTMF', desc: 'Keypad input events', color: '#059669' },
                       { event: 'RECORD', desc: 'Recording events', color: '#388E3C' },
                     ].map(({ event, desc, color }) => (
                       <div key={event} style={{ background: '#FFEBEE', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #FFCDD2' }}>
@@ -2596,19 +2596,19 @@ Content-Type: application/json`}</pre>
               </div>
 
               {/* Airtel SMS Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1976D2' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#E3F2FD', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #90CAF9' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #a7f3d0' }}>
                     <SmsIcon size={24} />
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Airtel IQ SMS</h3>
-                    <span className="badge" style={{ background: '#E3F2FD', color: '#1565C0', marginTop: '4px' }}>DLT Compliant</span>
+                    <span className="badge" style={{ background: '#ecfdf5', color: '#059669', marginTop: '4px' }}>DLT Compliant</span>
                   </div>
                 </div>
                 
-                <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1565C0' }}>SMS API Endpoints</h4>
+                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #a7f3d0' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#059669' }}>SMS API Endpoints</h4>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (via our API — supports v4/v5/v6)</label>
@@ -2635,7 +2635,7 @@ Content-Type: application/json`}</pre>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET/POST/DELETE https://api.wecare.digital/sms-in/airtel/templates</code>
                   </div>
 
-                  <h4 style={{ margin: '0.75rem 0 0.5rem 0', fontSize: '0.85rem', color: '#1565C0' }}>Airtel IQ Direct Endpoints (3 versions)</h4>
+                  <h4 style={{ margin: '0.75rem 0 0.5rem 0', fontSize: '0.85rem', color: '#059669' }}>Airtel IQ Direct Endpoints (3 versions)</h4>
                   {[
                     { label: 'v4 — Single / Multiple SMS', url: 'POST https://iqmessaging.airtel.in/api/v4/send-sms' },
                     { label: 'v5 — Content Moderation (no DLT fields needed)', url: 'POST https://iqmessaging.airtel.in/api/v5/send-sms-cm' },
@@ -2647,7 +2647,7 @@ Content-Type: application/json`}</pre>
                       <code style={{ fontSize: '0.8rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>{url}</code>
                     </div>
                   ))}
-                  <div style={{ fontSize: '0.75rem', color: '#1565C0', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.5rem', fontStyle: 'italic' }}>
                     v4/v5/v6: Basic auth + customerId header · Bulk/Conduit: Basic auth only (no customerId)
                   </div>
                 </div>
@@ -2717,12 +2717,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Message Types</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { type: 'SERVICE_EXPLICIT', desc: 'Service messages (opt-in)', color: '#1976D2' },
-                      { type: 'SERVICE_IMPLICIT', desc: 'Service messages (implicit)', color: '#1976D2' },
+                      { type: 'SERVICE_EXPLICIT', desc: 'Service messages (opt-in)', color: '#059669' },
+                      { type: 'SERVICE_IMPLICIT', desc: 'Service messages (implicit)', color: '#059669' },
                       { type: 'TRANSACTIONAL', desc: 'OTP, alerts, etc.', color: '#388E3C' },
-                      { type: 'PROMOTIONAL', desc: 'Marketing messages', color: '#F57C00' },
+                      { type: 'PROMOTIONAL', desc: 'Marketing messages', color: '#059669' },
                     ].map(({ type, desc, color }) => (
-                      <div key={type} style={{ background: '#E3F2FD', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #90CAF9' }}>
+                      <div key={type} style={{ background: '#ecfdf5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #a7f3d0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{type}</span>
@@ -3024,12 +3024,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
                       <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Base CRM Repo</div>
-                      <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
+                      <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>base</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
                       <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
-                      <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1565C0', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
+                      <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
                     </div>
                   </div>
@@ -3038,23 +3038,23 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </div>
                 </div>
 
-                <div style={{ background: '#E3F2FD', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #90CAF9' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1565C0' }}>Wix Data Collections</h4>
+                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #a7f3d0' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#059669' }}>Wix Data Collections</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#1565C0', fontWeight: 600 }}>OrderIDs</code>
+                      <code style={{ color: '#059669', fontWeight: 600 }}>OrderIDs</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Written by Velo (Thank You page). Fields: orderId (WD-ORD), wixOrderId, orderNumber, buyerEmail, buyerPhone, totalAmount, orderDate</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#1565C0', fontWeight: 600 }}>OrderCustomIds</code>
+                      <code style={{ color: '#059669', fontWeight: 600 }}>OrderCustomIds</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Written by Velo + Lambda. Fields: orderId (Wix UUID), customOrderNumber (WD-ORD), memberId, buyerEmail</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#1565C0', fontWeight: 600 }}>Stores/Products</code>
+                      <code style={{ color: '#059669', fontWeight: 600 }}>Stores/Products</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Wix native. Read-only from REST API. SKU prefix: WD-</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#1565C0', fontWeight: 600 }}>Stores/Orders</code>
+                      <code style={{ color: '#059669', fontWeight: 600 }}>Stores/Orders</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Wix native. customField writable via Velo only. Native # hidden everywhere.</div>
                     </div>
                   </div>
@@ -3432,8 +3432,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                           <tr key={req.id} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{req.phone}</td>
                             <td style={{ padding: '8px 12px' }}>{req.senderName || '—'}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#2563eb' }}>{req.requestNumber || '—'}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#7c3aed' }}>{req.invoiceNumber || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.requestNumber || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.invoiceNumber || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.paymentReferenceId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{req.orderId}</td>
                             <td style={{ padding: '8px 12px' }}>{req.subject || '—'}</td>
@@ -3447,8 +3447,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                                 borderRadius: '12px',
                                 fontSize: '11px',
                                 fontWeight: 600,
-                                background: req.paymentStatus === 'captured' ? '#dcfce7' : req.paymentStatus === 'failed' ? '#fef2f2' : '#fef9c3',
-                                color: req.paymentStatus === 'captured' ? '#166534' : req.paymentStatus === 'failed' ? '#991b1b' : '#854d0e',
+                                background: req.paymentStatus === 'captured' ? '#dcfce7' : req.paymentStatus === 'failed' ? '#f3f4f6' : '#ecfdf5',
+                                color: req.paymentStatus === 'captured' ? '#166534' : req.paymentStatus === 'failed' ? '#6b7280' : '#065f46',
                               }}>
                                 {req.paymentStatus === 'captured' ? '✓ Paid' : req.paymentStatus === 'failed' ? '✗ Failed' : '⏳ Pending'}
                               </span>
@@ -3458,10 +3458,10 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                               <div>{req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</div>
                               <div style={{ display: 'flex', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
                                 {req.isExpired && (
-                                  <span style={{ padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#fef2f2', color: '#991b1b' }}>Expired</span>
+                                  <span style={{ padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#ecfdf5', color: '#065f46' }}>Expired</span>
                                 )}
                                 {typeof req.daysOld === 'number' && req.daysOld > 0 && (
-                                  <span style={{ fontSize: 10, color: req.daysOld > 7 ? '#dc2626' : '#a16207' }}>{req.daysOld}d old</span>
+                                  <span style={{ fontSize: 10, color: req.daysOld > 7 ? '#059669' : '#059669' }}>{req.daysOld}d old</span>
                                 )}
                               </div>
                             </td>
@@ -3474,7 +3474,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                                     padding: '4px 10px', fontSize: '11px', fontWeight: 600,
                                     border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
                                     background: resendingPayment === req.id ? '#f3f4f6' : '#fff',
-                                    color: '#2563eb', whiteSpace: 'nowrap',
+                                    color: '#059669', whiteSpace: 'nowrap',
                                   }}
                                 >
                                   {resendingPayment === req.id ? '...' : 'Resend'}
@@ -3543,8 +3543,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             <td style={{ padding: '8px 12px' }}>
                               <span style={{
                                 padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                                background: log.action === 'INIT' ? '#dbeafe' : log.action === 'data_exchange' ? '#f3e8ff' : '#f1f5f9',
-                                color: log.action === 'INIT' ? '#1e40af' : log.action === 'data_exchange' ? '#6b21a8' : '#475569',
+                                background: log.action === 'INIT' ? '#d1fae5' : log.action === 'data_exchange' ? '#f3e8ff' : '#f1f5f9',
+                                color: log.action === 'INIT' ? '#059669' : log.action === 'data_exchange' ? '#6b21a8' : '#475569',
                               }}>
                                 {log.action}
                               </span>

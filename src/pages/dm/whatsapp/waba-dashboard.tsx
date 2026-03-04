@@ -142,7 +142,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
           <div className="loading-state">Loading WABA data...</div>
         ) : loadError && wabas.length === 0 ? (
           <div className="loading-state">
-            <p style={{ color: '#dc2626', marginBottom: 8 }}>{loadError}</p>
+            <p style={{ color: '#059669', marginBottom: 8 }}>{loadError}</p>
             <button onClick={loadData} style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Retry</button>
           </div>
         ) : (

@@ -62,7 +62,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      pending: '#f59e0b', paid: '#16a34a', completed: '#16a34a', failed: '#ef4444', expired: '#9ca3af',
+      pending: '#059669', paid: '#16a34a', completed: '#16a34a', failed: '#059669', expired: '#9ca3af',
     };
     return (
       <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: colors[status] || '#6b7280' }}>
@@ -84,7 +84,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
             Submit Requests ({requests.length})
           </button>
           <button onClick={() => setActiveSection('logs')}
-            style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === 'logs' ? '2px solid #4f46e5' : '1px solid #ddd', background: activeSection === 'logs' ? '#eef2ff' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === 'logs' ? 600 : 400 }}>
+            style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === 'logs' ? '2px solid #059669' : '1px solid #ddd', background: activeSection === 'logs' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === 'logs' ? 600 : 400 }}>
             Flow Interaction Logs ({logs.length})
           </button>
         </div>
@@ -111,7 +111,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
               <p style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading submit requests...</p>
             ) : requestsError && requests.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-                <p style={{ fontSize: 16, color: '#dc2626' }}>Failed to load requests</p>
+                <p style={{ fontSize: 16, color: '#059669' }}>Failed to load requests</p>
                 <p style={{ fontSize: 13, marginTop: 8 }}>{requestsError}</p>
                 <button onClick={loadRequests} style={{ marginTop: 12, padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Retry</button>
               </div>
@@ -171,7 +171,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
               <p style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading flow logs...</p>
             ) : logsError && logs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-                <p style={{ fontSize: 16, color: '#dc2626' }}>Failed to load flow logs</p>
+                <p style={{ fontSize: 16, color: '#059669' }}>Failed to load flow logs</p>
                 <p style={{ fontSize: 13, marginTop: 8 }}>{logsError}</p>
                 <button onClick={loadLogs} style={{ marginTop: 12, padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Retry</button>
               </div>
@@ -200,7 +200,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
                         <tr key={log.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>{log.phone || '-'}</td>
                           <td style={{ padding: '8px 10px' }}>
-                            <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, background: log.action === 'INIT' ? '#dbeafe' : log.action === 'data_exchange' ? '#fef3c7' : '#f3f4f6' }}>
+                            <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, background: log.action === 'INIT' ? '#ecfdf5' : log.action === 'data_exchange' ? '#ecfdf5' : '#f3f4f6' }}>
                               {log.action}
                             </span>
                           </td>

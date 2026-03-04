@@ -378,7 +378,7 @@ const InternalChatTab: React.FC = () => {
               {logs.map(log => (
                 <div key={log.id} style={{
                   padding: '12px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px',
-                  borderLeft: `3px solid ${log.status === 'success' ? '#059669' : '#ef4444'}`,
+                  borderLeft: `3px solid ${log.status === 'success' ? '#059669' : '#059669'}`,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <span style={{ fontSize: '12px', color: '#6b7280' }}>
@@ -386,8 +386,8 @@ const InternalChatTab: React.FC = () => {
                     </span>
                     <span style={{
                       fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
-                      background: log.status === 'success' ? '#ECFDF5' : '#fef2f2',
-                      color: log.status === 'success' ? '#059669' : '#ef4444',
+                      background: log.status === 'success' ? '#ECFDF5' : '#f3f4f6',
+                      color: log.status === 'success' ? '#059669' : '#6b7280',
                     }}>
                       {log.duration}ms
                     </span>

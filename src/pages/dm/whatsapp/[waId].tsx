@@ -1409,7 +1409,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .message-time { font-size: 11px; color: #999; }
         .message-status { font-size: 12px; }
         .message-status.read, .message-status.delivered { color: #53bdeb; }
-        .message-status.failed { color: #ef4444; }
+        .message-status.failed { color: #059669; }
         .reaction-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.5; }
         .reaction-btn:hover { opacity: 1; }
         

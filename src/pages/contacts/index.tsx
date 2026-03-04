@@ -28,7 +28,7 @@ type SortKey = 'name' | 'phone' | 'email' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
-const TAG_COLORS: Record<string, string> = { VIP: '#dc2626', Lead: '#2563eb', Customer: '#059669', Prospect: '#d97706', Partner: '#7c3aed', Vendor: '#0891b2' };
+const TAG_COLORS: Record<string, string> = { VIP: '#065f46', Lead: '#047857', Customer: '#059669', Prospect: '#10b981', Partner: '#34d399', Vendor: '#6ee7b7' };
 
 // Country codes for phone number parsing
 const COUNTRY_CODES = [
@@ -629,7 +629,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             <button onClick={handleBulkExport} title="Export selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
               <ExportIcon />
             </button>
-            <button onClick={handleBulkDelete} title="Delete selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #dc2626', borderRadius: 13, cursor: 'pointer' }}>
+            <button onClick={handleBulkDelete} title="Delete selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #059669', borderRadius: 13, cursor: 'pointer' }}>
               <DeleteIcon size={14} />
             </button>
             <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>Clear selection</button>
@@ -920,7 +920,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => { setShowDeleteModal(detailContact.contactId); setDeleteContactName(detailContact.name); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#dc2626', border: '2px solid #dc2626', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                  <button onClick={() => { setShowDeleteModal(detailContact.contactId); setDeleteContactName(detailContact.name); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#059669', border: '2px solid #059669', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                 </div>
               </div>
             </div>
@@ -988,7 +988,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setShowDeleteModal(null)} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
-              <button onClick={() => handleDelete(showDeleteModal)} style={{ padding: '8px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+              <button onClick={() => handleDelete(showDeleteModal)} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
             </div>
           </div>
         </div>

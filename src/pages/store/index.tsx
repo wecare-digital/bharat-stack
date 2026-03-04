@@ -323,12 +323,12 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
     }},
     { key: 'payment', header: 'Payment', render: (o: api.WixOrder) => {
       const status = o.paymentStatus || o._summary?.paymentStatus || '';
-      const color = status === 'PAID' ? '#059669' : status === 'NOT_PAID' ? '#059669' : '#d97706';
+      const color = status === 'PAID' ? '#059669' : status === 'NOT_PAID' ? '#059669' : '#059669';
       return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ')}</span>;
     }},
     { key: 'fulfillment', header: 'Fulfillment', render: (o: api.WixOrder) => {
       const status = o.fulfillmentStatus || o._summary?.fulfillmentStatus || '';
-      const color = status === 'FULFILLED' ? '#059669' : status === 'NOT_FULFILLED' ? '#6b7280' : '#d97706';
+      const color = status === 'FULFILLED' ? '#059669' : status === 'NOT_FULFILLED' ? '#6b7280' : '#059669';
       return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ') || '—'}</span>;
     }},
     { key: 'date', header: 'Date', render: (o: api.WixOrder) => {
@@ -584,8 +584,8 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
               {/* Result */}
               {createResult && (
-                <div style={{ marginTop: 16, background: createResult.success ? '#f0fdf4' : '#fef2f2', border: `1px solid ${createResult.success ? '#bbf7d0' : '#fecaca'}`, borderRadius: 12, padding: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: createResult.success ? '#059669' : '#dc2626', marginBottom: 8 }}>
+                <div style={{ marginTop: 16, background: createResult.success ? '#f0fdf4' : '#f3f4f6', border: `1px solid ${createResult.success ? '#bbf7d0' : '#e5e7eb'}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: createResult.success ? '#059669' : '#6b7280', marginBottom: 8 }}>
                     {createResult.success ? (createResult.bulk ? `Bulk: ${createResult.succeeded}/${createResult.total} created` : 'Product Created') : 'Error'}
                   </div>
                   <pre style={{ fontSize: 12, margin: 0, whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto', color: '#374151' }}>
@@ -651,8 +651,8 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                         </div>
                         <span style={{
                           fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500,
-                          background: f.status === 'active' ? '#d1fae5' : '#fef3c7',
-                          color: f.status === 'active' ? '#059669' : '#d97706',
+                          background: f.status === 'active' ? '#d1fae5' : '#ecfdf5',
+                          color: f.status === 'active' ? '#059669' : '#059669',
                         }}>
                           {f.status === 'active' ? 'Active' : 'Pending Merge'}
                         </span>
@@ -766,7 +766,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                           <div style={{ fontWeight: 500 }}>{s.displayName}</div>
                           <div style={{ fontSize: 12, color: '#6b7280' }}>ID: {s.id}</div>
                         </div>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: s.published ? '#d1fae5' : '#fef3c7', color: s.published ? '#059669' : '#d97706' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: s.published ? '#d1fae5' : '#ecfdf5', color: s.published ? '#059669' : '#059669' }}>
                           {s.published ? 'Published' : 'Draft'}
                         </span>
                         {s.viewUrl && (

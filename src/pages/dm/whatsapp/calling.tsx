@@ -937,9 +937,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
   const badge = (status: string): React.CSSProperties => ({
     display: 'inline-block', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-    background: status === 'active' || status === 'available' ? '#ecfdf5' : status === 'planned' ? '#fef3c7' : '#f3f4f6',
-    color: status === 'active' || status === 'available' ? '#065f46' : status === 'planned' ? '#92400e' : '#6b7280',
-    border: `1px solid ${status === 'active' || status === 'available' ? '#a7f3d0' : status === 'planned' ? '#fde68a' : '#e5e7eb'}`,
+    background: status === 'active' || status === 'available' ? '#ecfdf5' : status === 'planned' ? '#ecfdf5' : '#f3f4f6',
+    color: status === 'active' || status === 'available' ? '#065f46' : status === 'planned' ? '#065f46' : '#6b7280',
+    border: `1px solid ${status === 'active' || status === 'available' ? '#a7f3d0' : status === 'planned' ? '#a7f3d0' : '#e5e7eb'}`,
   });
 
   const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' };
@@ -995,9 +995,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
             {/* Auto-pickup Mode Selector */}
             {autoPickup && (
-              <div style={{ ...s.card, marginTop: '12px', border: '1px solid #c7d2fe', background: '#eef2ff' }}>
+              <div style={{ ...s.card, marginTop: '12px', border: '1px solid #a7f3d0', background: '#ecfdf5' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#312e81' }}>Auto-pickup Mode:</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#065f46' }}>Auto-pickup Mode:</label>
                   {([
                     { value: 'manual' as const, label: 'Manual', desc: 'Connect call, human answers' },
                     { value: 'ivr' as const, label: 'IVR', desc: 'Play audio greeting, then hang up' },
@@ -1014,9 +1014,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                       } catch { toast.error('Failed to save mode'); }
                     }} style={{
                       padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-                      border: autoPickupMode === m.value ? '2px solid #6366f1' : '1px solid #d1d5db',
-                      background: autoPickupMode === m.value ? '#c7d2fe' : '#fff',
-                      color: autoPickupMode === m.value ? '#312e81' : '#374151',
+                      border: autoPickupMode === m.value ? '2px solid #059669' : '1px solid #d1d5db',
+                      background: autoPickupMode === m.value ? '#ecfdf5' : '#fff',
+                      color: autoPickupMode === m.value ? '#065f46' : '#374151',
                     }} title={m.desc}>
                       {m.label}
                     </button>
@@ -1071,8 +1071,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   {activeCalls.map((call: any, i: number) => (
                     <div key={call.callId || i} style={{
                       padding: '14px 16px', borderRadius: '10px',
-                      background: call.status === 'ringing' ? '#fef3c7' : call.status === 'connected' ? '#ecfdf5' : '#f3f4f6',
-                      border: `1px solid ${call.status === 'ringing' ? '#fde68a' : call.status === 'connected' ? '#a7f3d0' : '#e5e7eb'}`,
+                      background: call.status === 'ringing' ? '#ecfdf5' : call.status === 'connected' ? '#ecfdf5' : '#f3f4f6',
+                      border: `1px solid ${call.status === 'ringing' ? '#a7f3d0' : call.status === 'connected' ? '#a7f3d0' : '#e5e7eb'}`,
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                         <div>
@@ -1118,8 +1118,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             </div>
 
             {/* Outbound Call — Business-Initiated */}
-            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #c7d2fe', background: outboundStep === 'connected' ? '#ecfdf5' : outboundStep === 'calling' ? '#fef3c7' : '#eef2ff' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#312e81' }}>Outbound Call (Business-Initiated)</h4>
+            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #a7f3d0', background: outboundStep === 'connected' ? '#ecfdf5' : outboundStep === 'calling' ? '#ecfdf5' : '#f0fdf4' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#065f46' }}>Outbound Call (Business-Initiated)</h4>
 
               {outboundStep === 'idle' && (
                 <div>
@@ -1148,7 +1148,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px' }} />
                     </div>
                     <button onClick={requestOutboundPermission} disabled={outboundLoading || !outboundPhone.trim()}
-                      style={{ padding: '8px 18px', background: outboundPhone.trim() ? '#6366f1' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      style={{ padding: '8px 18px', background: outboundPhone.trim() ? '#059669' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {outboundLoading ? 'Sending...' : 'Request Permission'}
                     </button>
                   </div>
@@ -1160,7 +1160,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                     <span style={{ fontSize: '20px' }}>-</span>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#312e81' }}>Permission request sent to {outboundPhone}</div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#065f46' }}>Permission request sent to {outboundPhone}</div>
                       <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
                         Waiting for user to tap "Allow" in WhatsApp. Once granted, click "Call Now" to initiate.
                       </div>
@@ -1183,7 +1183,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '24px' }}>-</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#92400e' }}>Calling {outboundPhone}...</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#065f46' }}>Calling {outboundPhone}...</div>
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>Ringing — waiting for user to pick up</div>
                   </div>
                   <button onClick={hangupOutbound}
@@ -1203,7 +1203,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={toggleOutboundMute}
-                        style={{ padding: '8px 14px', background: outboundMuted ? '#fef3c7' : '#f3f4f6', color: outboundMuted ? '#92400e' : '#374151', border: `1px solid ${outboundMuted ? '#fde68a' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        style={{ padding: '8px 14px', background: outboundMuted ? '#ecfdf5' : '#f3f4f6', color: outboundMuted ? '#065f46' : '#374151', border: `1px solid ${outboundMuted ? '#a7f3d0' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                         {outboundMuted ? 'Unmute' : 'Mute'}
                       </button>
                       <button onClick={hangupOutbound}
@@ -1226,7 +1226,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     {outboundCallDuration > 0 && <div style={{ fontSize: '12px', color: '#6b7280' }}>Duration: {fmtDuration(outboundCallDuration)}</div>}
                   </div>
                   <button onClick={resetOutbound}
-                    style={{ padding: '8px 16px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                    style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                     New Call
                   </button>
                 </div>
@@ -1677,26 +1677,26 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             ))}
 
             {/* Sandbox Testing Info */}
-            <div style={{ ...s.card, marginTop: '8px', background: '#fffbeb', border: '1px solid #fde68a' }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#92400e' }}>Sandbox Testing</h4>
-              <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#78350f', lineHeight: 1.5 }}>
+            <div style={{ ...s.card, marginTop: '8px', background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#065f46' }}>Sandbox Testing</h4>
+              <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#065f46', lineHeight: 1.5 }}>
                 Sandbox accounts (Tech Partners only) and public test numbers have relaxed limits for integration testing.
                 No 2,000 messaging limit requirement for test numbers.
               </p>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <tbody>
-                    <tr style={{ borderBottom: '1px solid #fde68a' }}>
-                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#78350f' }}>Permission requests</td>
-                      <td style={{ padding: '6px 10px', color: '#92400e', fontFamily: 'monospace' }}>25/day, 100/week (vs 1/day, 2/week prod)</td>
+                    <tr style={{ borderBottom: '1px solid #a7f3d0' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#065f46' }}>Permission requests</td>
+                      <td style={{ padding: '6px 10px', color: '#059669', fontFamily: 'monospace' }}>25/day, 100/week (vs 1/day, 2/week prod)</td>
                     </tr>
-                    <tr style={{ borderBottom: '1px solid #fde68a' }}>
-                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#78350f' }}>Unanswered → warning</td>
-                      <td style={{ padding: '6px 10px', color: '#92400e', fontFamily: 'monospace' }}>5 consecutive (vs 2 prod)</td>
+                    <tr style={{ borderBottom: '1px solid #a7f3d0' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#065f46' }}>Unanswered → warning</td>
+                      <td style={{ padding: '6px 10px', color: '#059669', fontFamily: 'monospace' }}>5 consecutive (vs 2 prod)</td>
                     </tr>
                     <tr>
-                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#78350f' }}>Unanswered → revoke</td>
-                      <td style={{ padding: '6px 10px', color: '#92400e', fontFamily: 'monospace' }}>10 consecutive (vs 4 prod)</td>
+                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#065f46' }}>Unanswered → revoke</td>
+                      <td style={{ padding: '6px 10px', color: '#059669', fontFamily: 'monospace' }}>10 consecutive (vs 4 prod)</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1758,7 +1758,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     style={{ padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #10b981' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
                     {p.name} ({p.display})
                     {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#10b981' }}>Ready</span>}
-                    {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#f59e0b' }}>Needs 2K</span>}
+                    {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#059669' }}>Needs 2K</span>}
                   </button>
                 ))}
               </div>

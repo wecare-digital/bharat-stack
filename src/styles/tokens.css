@@ -52,16 +52,16 @@
   --success-light: #f0fdf4;
   --success-bg: #ecfdf5;
   
-  --danger: #dc2626;
-  --danger-light: #fef2f2;
-  --danger-bg: #fef2f2;
+  --danger: #059669;
+  --danger-light: #ecfdf5;
+  --danger-bg: #ecfdf5;
   
-  --warning: #d97706;
-  --warning-light: #fffbeb;
-  --warning-bg: #fffbeb;
+  --warning: #059669;
+  --warning-light: #ecfdf5;
+  --warning-bg: #ecfdf5;
   
-  --info: #2563eb;
-  --info-light: #eff6ff;
+  --info: #059669;
+  --info-light: #ecfdf5;
   
   /* ========================================
    * TYPOGRAPHY - Home Page Style
@@ -169,12 +169,12 @@
   --notion-accent-light: #f0fdf4;
   --notion-green: #059669;
   --notion-green-light: #ecfdf5;
-  --notion-red: #dc2626;
-  --notion-red-light: #fef2f2;
-  --notion-orange: #d97706;
-  --notion-orange-light: #fffbeb;
-  --notion-purple: #2563eb;
-  --notion-purple-light: #eff6ff;
+  --notion-red: #059669;
+  --notion-red-light: #ecfdf5;
+  --notion-orange: #059669;
+  --notion-orange-light: #ecfdf5;
+  --notion-purple: #059669;
+  --notion-purple-light: #ecfdf5;
   
   /* Pages.css compatibility */
   --color-primary: #059669;
@@ -184,8 +184,8 @@
   --color-bg: #fff;
   --color-bg-secondary: #ECFDF5;
   --color-success: #059669;
-  --color-warning: #d97706;
-  --color-danger: #dc2626;
+  --color-warning: #059669;
+  --color-danger: #059669;
 }
 
 /* ========================================

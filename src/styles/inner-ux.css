@@ -49,16 +49,16 @@
   --color-primary-active: #D1FAE5;
   --color-primary-dark: #065f46;
   
-  /* Danger - Red for destructive actions */
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-light: #fef2f2;
-  --color-danger-border: #fecaca;
+  /* Danger - Emerald theme (consistent with site design) */
+  --color-danger: #059669;
+  --color-danger-hover: #047857;
+  --color-danger-light: #ecfdf5;
+  --color-danger-border: #a7f3d0;
   
-  /* Warning - Amber for caution */
-  --color-warning: #d97706;
-  --color-warning-light: #fffbeb;
-  --color-warning-border: #fde68a;
+  /* Warning - Emerald theme (consistent with site design) */
+  --color-warning: #059669;
+  --color-warning-light: #ecfdf5;
+  --color-warning-border: #a7f3d0;
   
   /* Success - Emerald */
   --color-success: #059669;
@@ -236,7 +236,7 @@
 }
 
 .btn-danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3);
 }
 
 /* DANGER FILLED: Red bg - Confirm delete */
@@ -344,7 +344,7 @@
 }
 
 .icon-btn-danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3);
 }
 
 
@@ -543,7 +543,7 @@
 .inner-page input.error:focus,
 .inner-page select.error:focus,
 .inner-page textarea.error:focus {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
 
@@ -2026,7 +2026,7 @@
   background: #f9fafb;
   border-radius: 8px;
 }
-.pf-log-error { color: #ef4444; }
+.pf-log-error { color: var(--color-danger); }
 
 /* Inline input (inside table) */
 .pf-inline-input {
@@ -2066,7 +2066,7 @@
 .pf-remove-btn {
   background: none;
   border: none;
-  color: #ef4444;
+  color: var(--color-danger);
   cursor: pointer;
   font-size: 16px;
 }

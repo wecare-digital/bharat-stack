@@ -107,7 +107,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
         </div>
 
         {/* Note about Groups API */}
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 13 }}>
+        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 13 }}>
           <strong>Note:</strong> WhatsApp Business Groups API is in limited availability. Groups allow businesses to communicate with up to 512 participants. Messages sent to groups are free of charge.
         </div>
 

@@ -836,27 +836,27 @@
 }
 
 .cleanup-result-error {
-  color: #dc2626;
+  color: #059669;
   font-weight: 500;
 }
 
 .cleanup-confirm {
   margin-top: var(--space-md);
   padding: 12px;
-  background: #fef2f2;
+  background: #ecfdf5;
   border-radius: var(--radius-sm);
-  border: 1px solid #fecaca;
+  border: 1px solid #a7f3d0;
 }
 
 .cleanup-confirm-text {
   font-size: 13px;
-  color: #991b1b;
+  color: #065f46;
   margin-bottom: 8px;
 }
 
 .cleanup-confirm-list {
   font-size: 11px;
-  color: #7f1d1d;
+  color: #065f46;
   margin: 0 0 8px 16px;
 }
 
@@ -866,11 +866,11 @@
 
 .delete-panel .cleanup-confirm input[type="text"] {
   margin-bottom: 8px;
-  border-color: #fecaca;
+  border-color: #a7f3d0;
 }
 
 .delete-panel .cleanup-confirm input[type="text"]:focus {
-  border-color: #dc2626;
+  border-color: #059669;
 }
 
 /* Message Selection */

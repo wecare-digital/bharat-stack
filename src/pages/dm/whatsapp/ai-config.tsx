@@ -528,7 +528,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             )}
 
             {faqResults.length === 0 && testMessage.trim() && !saving && (
-              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fde68a', fontSize: '0.85rem', color: '#92400e' }}>
+              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0', fontSize: '0.85rem', color: '#065f46' }}>
                 No FAQ matches found for this query. The AI will generate a response using Bedrock.
               </div>
             )}

@@ -88,7 +88,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
         {loading ? <p>Loading...</p> : loadError ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-            <p style={{ fontSize: 16, color: '#dc2626' }}>Profile Unavailable</p>
+            <p style={{ fontSize: 16, color: '#059669' }}>Profile Unavailable</p>
             <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
             <button onClick={() => loadProfile(selectedPhone)} style={{ marginTop: 12, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               Retry
