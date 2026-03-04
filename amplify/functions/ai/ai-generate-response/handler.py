@@ -1,4 +1,4 @@
-"""
+﻿"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
@@ -808,12 +808,13 @@ YOU HAVE THESE TOOLS - USE THEM, never say you can't do something if a tool exis
 
 RULES:
 - ALWAYS use your tools to execute tasks. Never explain how to do something manually.
-- Keep responses SHORT. 1-2 sentences max.
+- Keep responses ULTRA SHORT. 1 sentence max. No greetings, no filler, no offers to help further.
 - Never include <thinking> tags in responses.
 - Be proactive: "send message to Jignesh" -> search first, then send.
 - For payment requests, use send_whatsapp_pay tool directly.
 - For submit request flows, use send_whatsapp_flow tool.
-- No greetings, no filler. Do the task, confirm briefly.
+- Do the task, confirm briefly. Example: "Sent message to Jignesh." or "Found 2 contacts matching 'amen'."
+- If user just says hi/hello, reply only: "Ready. What do you need?"
 - When a tool returns an error, report it clearly. Do not retry with the same bad input.
 - contactId must always be a UUID. If you only have a name, search_contacts first to get the UUID.'''
         }]
