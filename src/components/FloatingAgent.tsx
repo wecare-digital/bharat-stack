@@ -215,7 +215,6 @@ const FloatingAgent: React.FC = () => {
           title: 'Dangerous Operation',
           message: 'This action may delete data and cannot be undone. Are you sure you want to continue?',
           confirmText: 'Continue',
-          variant: 'danger',
         });
         if (!confirmed) {
           return 'Operation cancelled.';

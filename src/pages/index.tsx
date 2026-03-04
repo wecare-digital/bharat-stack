@@ -178,7 +178,7 @@ response = requests.post(
           <div className="hero-content">
             <div className="hero-left">
               <h1>Reach more customers wherever they are, whatever they're on</h1>
-              <p>Engage them on every channel, in every scenario – from our platform or your stack.</p>
+              <p>Engage them on every channel, in every scenario - from our platform or your stack.</p>
               <div className="hero-stats">
                 <div className="stat"><span>B+</span><small>Users reachable</small></div>
                 <div className="stat"><span>Fast</span><small>Onboarding</small></div>
@@ -228,7 +228,7 @@ response = requests.post(
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
           <div className="section-header">
             <h2>Every touchpoint<br/>One seamless experience</h2>
-            <p>Engage, support, and convert customers across their entire journey — from first contact to lasting loyalty</p>
+            <p>Engage, support, and convert customers across their entire journey - from first contact to lasting loyalty</p>
           </div>
           <div className="usecase-pills">
             {useCases.map((title, i) => (
@@ -241,7 +241,7 @@ response = requests.post(
           <div className="api-grid">
             <div className="api-info">
               <h2>Built for the AI era.</h2>
-              <p className="api-desc">The complete platform for enterprise brands to acquire, convert, and retain customers across every channel—powered by AI that understands your business and unifies customer data into a single view to drive personalized experiences, targeted campaigns, and intelligent automation.</p>
+              <p className="api-desc">The complete platform for enterprise brands to acquire, convert, and retain customers across every channel-powered by AI that understands your business and unifies customer data into a single view to drive personalized experiences, targeted campaigns, and intelligent automation.</p>
             </div>
             <div className="api-demo">
               <div className="code-tabs">

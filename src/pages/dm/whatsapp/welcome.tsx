@@ -25,7 +25,7 @@ interface WelcomeConfig {
 
 const defaultConfig: WelcomeConfig = {
   enabled: false,
-  textMessage: "Hi there! ?? Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support — all right here.\n\n?? _You're chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started ??",
+  textMessage: "Hi there! ?? Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support - all right here.\n\n?? _You're chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started ??",
   welcomeBackMessage: "Welcome back! ?? What can we help with today? ??",
   delaySeconds: 2,
   phoneNumberId: WHATSAPP_PHONES.primary.id,

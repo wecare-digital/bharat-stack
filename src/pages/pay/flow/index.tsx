@@ -186,7 +186,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
     setActionLoading('');
   };
   const doDeleteInvoice = async (inv:Invoice) => {
-    const adjustSeq = await confirm({ message: 'Delete this invoice?\n\nConfirm to also adjust sequence, Cancel to keep sequence.', title: 'Adjust Sequence?', confirmText: 'Adjust', cancelText: 'Keep', variant: 'warning' });
+    const adjustSeq = await confirm({ message: 'Delete this invoice?\n\nConfirm to also adjust sequence, Cancel to keep sequence.', title: 'Adjust Sequence?', confirmText: 'Adjust', cancelText: 'Keep' });
     if(!(await confirm(`Permanently delete invoice ${inv.invoiceNumber||inv.referenceId}?`))) return;
     setActionLoading('delete');
     try { const r = await api.deleteInvoice(inv.invoiceId, adjustSeq); if(r?.deleted) { showMsg('Invoice deleted'); setSelInvoice(null); loadInvoices(); } else showMsg('Delete failed','error'); } catch(e) { showMsg('Delete failed','error'); }
