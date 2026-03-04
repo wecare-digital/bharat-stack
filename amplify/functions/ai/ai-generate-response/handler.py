@@ -790,15 +790,26 @@ def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
 
         # System prompt for internal admin agent
         system_prompts = [{
-            'text': '''You are WECARE.DIGITAL's internal admin assistant. You help operators manage contacts, send messages, and check stats.
+            'text': '''You are WECARE.DIGITAL's internal CRM assistant. You execute tasks using your tools.
+
+YOU HAVE THESE TOOLS - USE THEM, never say you can't do something if a tool exists for it:
+- search_contacts, create_contact, update_contact, add_contact_email
+- send_whatsapp, send_whatsapp_buttons, send_whatsapp_list, send_whatsapp_pay
+- make_voice_call, send_sms, send_email
+- get_messages, get_stats
+- schedule_message, list_scheduled_messages
+- list_templates, send_template
+- delete_contact, delete_messages, delete_media_files, list_media_files, clear_all_contact_data
+- get_voice_cdr, get_billing_summary, get_invoice_list, create_invoice
+- get_wix_products, get_wix_orders
 
 RULES:
-- Keep responses SHORT and direct. No long explanations.
-- Never include <thinking> tags or internal reasoning in responses.
-- When a task is done, confirm briefly: "Done. Message sent to Jignesh." or "Found 3 contacts matching 'test'."
-- Be proactive: if user says "send message to Jignesh", search for Jignesh first, then send.
-- If you need info, ask in one short sentence.
-- No greetings or filler text. Just do the task and confirm.'''
+- ALWAYS use your tools to execute tasks. Never explain how to do something manually.
+- Keep responses SHORT. 1-2 sentences max.
+- Never include <thinking> tags in responses.
+- Be proactive: "send message to Jignesh" -> search first, then send.
+- For payment requests, use send_whatsapp_pay tool directly.
+- No greetings, no filler. Do the task, confirm briefly.'''
         }]
 
         # Define tools for internal agent - COMPREHENSIVE BASE CRM CAPABILITIES
@@ -1215,6 +1226,119 @@ RULES:
                         }
                     }
                 }
+            },
+            
+            # ===== VOICE CDR & ANALYTICS =====
+            {
+                'toolSpec': {
+                    'name': 'get_voice_cdr',
+                    'description': 'Get voice call detail records (CDR). Shows call history with duration, status, and caller info.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'callType': {'type': 'string', 'description': 'INBOUND or OUTBOUND'},
+                                'status': {'type': 'string', 'description': 'Answered, Missed, Busy, Disconnected'},
+                                'limit': {'type': 'number', 'description': 'Number of records (default 20)'},
+                                'callerNumber': {'type': 'string', 'description': 'Filter by caller phone'}
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'get_billing_summary',
+                    'description': 'Get AWS billing summary including costs by service, total spend, and comparison with previous month.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'month': {'type': 'number', 'description': '0 for current month, -1 for last month, etc.'}
+                            }
+                        }
+                    }
+                }
+            },
+            
+            # ===== INVOICING =====
+            {
+                'toolSpec': {
+                    'name': 'get_invoice_list',
+                    'description': 'List invoices. Can filter by contact or status.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Filter by contact ID'},
+                                'status': {'type': 'string', 'description': 'Filter by status: draft, sent, paid, overdue'},
+                                'limit': {'type': 'number', 'description': 'Number of invoices (default 20)'}
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'create_invoice',
+                    'description': 'Create a new invoice for a contact.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'contactId': {'type': 'string', 'description': 'Contact ID'},
+                                'items': {
+                                    'type': 'array',
+                                    'description': 'Invoice line items with description and amount',
+                                    'items': {
+                                        'type': 'object',
+                                        'properties': {
+                                            'description': {'type': 'string'},
+                                            'amount': {'type': 'number'},
+                                            'quantity': {'type': 'number'}
+                                        }
+                                    }
+                                },
+                                'currency': {'type': 'string', 'description': 'Currency code (default: INR)'},
+                                'dueDate': {'type': 'string', 'description': 'Due date in ISO format'},
+                                'notes': {'type': 'string', 'description': 'Additional notes'}
+                            },
+                            'required': ['contactId', 'items']
+                        }
+                    }
+                }
+            },
+            
+            # ===== ECOMMERCE (WIX STORE) =====
+            {
+                'toolSpec': {
+                    'name': 'get_wix_products',
+                    'description': 'List products from the Wix online store.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'query': {'type': 'string', 'description': 'Search query for product name'},
+                                'limit': {'type': 'number', 'description': 'Number of products (default 20)'}
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                'toolSpec': {
+                    'name': 'get_wix_orders',
+                    'description': 'List orders from the Wix online store.',
+                    'inputSchema': {
+                        'json': {
+                            'type': 'object',
+                            'properties': {
+                                'status': {'type': 'string', 'description': 'Filter by status: APPROVED, FULFILLED, CANCELLED'},
+                                'limit': {'type': 'number', 'description': 'Number of orders (default 20)'}
+                            }
+                        }
+                    }
+                }
             }
         ]
 
@@ -1516,6 +1640,24 @@ def _execute_internal_tool(tool_name: str, tool_input: Dict, request_id: str) ->
             return _tool_clear_all_contact_data(tool_input, request_id)
         elif tool_name == 'list_media_files':
             return _tool_list_media_files(tool_input, request_id)
+        
+        # Voice CDR & Analytics
+        elif tool_name == 'get_voice_cdr':
+            return _tool_get_voice_cdr(tool_input, request_id)
+        elif tool_name == 'get_billing_summary':
+            return _tool_get_billing_summary(tool_input, request_id)
+        
+        # Invoicing
+        elif tool_name == 'get_invoice_list':
+            return _tool_get_invoice_list(tool_input, request_id)
+        elif tool_name == 'create_invoice':
+            return _tool_create_invoice(tool_input, request_id)
+        
+        # Ecommerce
+        elif tool_name == 'get_wix_products':
+            return _tool_get_wix_products(tool_input, request_id)
+        elif tool_name == 'get_wix_orders':
+            return _tool_get_wix_orders(tool_input, request_id)
         
         else:
             return {'success': False, 'error': f'Unknown tool: {tool_name}'}
@@ -4776,5 +4918,284 @@ def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
             'message': f'Found {len(files)} media files'
         }
         
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+# ===== NEW TOOLS: Voice CDR, Billing, Invoicing, Ecommerce =====
+
+def _tool_get_voice_cdr(params: Dict, request_id: str) -> Dict:
+    """Get voice call detail records."""
+    try:
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        
+        query_params = {}
+        if params.get('callType'):
+            query_params['callType'] = params['callType']
+        if params.get('status'):
+            query_params['status'] = params['status']
+        if params.get('limit'):
+            query_params['limit'] = str(params['limit'])
+        if params.get('callerNumber'):
+            query_params['callerNumber'] = params['callerNumber']
+        
+        payload = {
+            'httpMethod': 'GET',
+            'queryStringParameters': query_params,
+            'headers': {'origin': 'https://app.wecare.digital'}
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName='wecare-voice-cdr-read',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        body = json.loads(result.get('body', '{}'))
+        
+        records = body.get('records', [])
+        stats = body.get('stats', {})
+        
+        summary = []
+        for r in records[:10]:
+            summary.append({
+                'caller': r.get('callerNumber', 'N/A'),
+                'destination': r.get('destinationNumber', 'N/A'),
+                'status': r.get('status', 'N/A'),
+                'duration': r.get('conversationDuration', '00:00'),
+                'time': r.get('startTime', 'N/A')
+            })
+        
+        return {
+            'success': True,
+            'totalRecords': body.get('count', 0),
+            'records': summary,
+            'stats': {
+                'totalCalls': stats.get('totalCalls', 0),
+                'answered': stats.get('answered', 0),
+                'missed': stats.get('missed', 0),
+            }
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_get_billing_summary(params: Dict, request_id: str) -> Dict:
+    """Get AWS billing summary."""
+    try:
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        
+        month = params.get('month', 0)
+        payload = {
+            'httpMethod': 'GET',
+            'queryStringParameters': {'month': str(month)},
+            'headers': {'origin': 'https://app.wecare.digital'}
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName='wecare-billing',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'totalCost': body.get('totalCost', '0.00'),
+            'currency': body.get('currency', 'USD'),
+            'period': body.get('period', ''),
+            'topServices': body.get('serviceBreakdown', [])[:5],
+            'previousMonthTotal': body.get('previousMonthTotal', '0.00'),
+            'freeAlerts': body.get('freeTierAlerts', [])
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_get_invoice_list(params: Dict, request_id: str) -> Dict:
+    """List invoices."""
+    try:
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        
+        query_params = {}
+        if params.get('contactId'):
+            query_params['contactId'] = params['contactId']
+        if params.get('status'):
+            query_params['status'] = params['status']
+        query_params['limit'] = str(params.get('limit', 20))
+        
+        payload = {
+            'httpMethod': 'GET',
+            'path': '/invoices',
+            'queryStringParameters': query_params,
+            'headers': {'origin': 'https://app.wecare.digital'}
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName='wecare-invoice-engine',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        body = json.loads(result.get('body', '{}'))
+        
+        invoices = body.get('invoices', [])
+        summary = []
+        for inv in invoices[:20]:
+            summary.append({
+                'invoiceId': inv.get('invoiceId'),
+                'contactId': inv.get('contactId'),
+                'amount': inv.get('totalAmount'),
+                'status': inv.get('status'),
+                'date': inv.get('createdAt', '')[:10]
+            })
+        
+        return {
+            'success': True,
+            'count': len(invoices),
+            'invoices': summary
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_create_invoice(params: Dict, request_id: str) -> Dict:
+    """Create a new invoice."""
+    contact_id = params.get('contactId')
+    items = params.get('items', [])
+    
+    if not contact_id or not items:
+        return {'success': False, 'error': 'contactId and items are required'}
+    
+    try:
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        
+        invoice_data = {
+            'contactId': contact_id,
+            'items': items,
+            'currency': params.get('currency', 'INR'),
+            'notes': params.get('notes', ''),
+        }
+        if params.get('dueDate'):
+            invoice_data['dueDate'] = params['dueDate']
+        
+        payload = {
+            'httpMethod': 'POST',
+            'path': '/invoices',
+            'body': json.dumps(invoice_data),
+            'headers': {'origin': 'https://app.wecare.digital', 'Content-Type': 'application/json'}
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName='wecare-invoice-engine',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        body = json.loads(result.get('body', '{}'))
+        
+        return {
+            'success': True,
+            'invoiceId': body.get('invoiceId'),
+            'invoiceNumber': body.get('invoiceNumber'),
+            'totalAmount': body.get('totalAmount'),
+            'message': f'Invoice created: {body.get("invoiceNumber", "N/A")}'
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_get_wix_products(params: Dict, request_id: str) -> Dict:
+    """List Wix store products."""
+    try:
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        
+        query_params = {}
+        if params.get('query'):
+            query_params['search'] = params['query']
+        query_params['limit'] = str(params.get('limit', 20))
+        
+        payload = {
+            'httpMethod': 'GET',
+            'path': '/products',
+            'queryStringParameters': query_params,
+            'headers': {'origin': 'https://app.wecare.digital'}
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName='wecare-wix-store',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        body = json.loads(result.get('body', '{}'))
+        
+        products = body.get('products', [])
+        summary = []
+        for p in products[:20]:
+            summary.append({
+                'name': p.get('name'),
+                'price': p.get('price', {}).get('formatted', 'N/A'),
+                'status': p.get('status', 'N/A'),
+                'id': p.get('id')
+            })
+        
+        return {
+            'success': True,
+            'count': len(products),
+            'products': summary
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _tool_get_wix_orders(params: Dict, request_id: str) -> Dict:
+    """List Wix store orders."""
+    try:
+        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        
+        query_params = {}
+        if params.get('status'):
+            query_params['status'] = params['status']
+        query_params['limit'] = str(params.get('limit', 20))
+        
+        payload = {
+            'httpMethod': 'GET',
+            'path': '/orders',
+            'queryStringParameters': query_params,
+            'headers': {'origin': 'https://app.wecare.digital'}
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName='wecare-wix-store',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        result = json.loads(response['Payload'].read().decode('utf-8'))
+        body = json.loads(result.get('body', '{}'))
+        
+        orders = body.get('orders', [])
+        summary = []
+        for o in orders[:20]:
+            summary.append({
+                'orderId': o.get('number') or o.get('id'),
+                'status': o.get('status', 'N/A'),
+                'total': o.get('totals', {}).get('total', 'N/A'),
+                'date': o.get('dateCreated', '')[:10],
+                'buyer': o.get('buyerInfo', {}).get('firstName', 'N/A')
+            })
+        
+        return {
+            'success': True,
+            'count': len(orders),
+            'orders': summary
+        }
     except Exception as e:
         return {'success': False, 'error': str(e)}

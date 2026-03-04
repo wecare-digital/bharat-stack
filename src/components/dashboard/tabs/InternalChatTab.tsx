@@ -51,6 +51,12 @@ const TOOLS_LIST = [
   { id: 'delete_media_files', name: 'Delete Media', category: 'Data' },
   { id: 'list_media_files', name: 'List Media', category: 'Data' },
   { id: 'clear_all_contact_data', name: 'Clear All Data', category: 'Data' },
+  { id: 'get_voice_cdr', name: 'Voice CDR', category: 'Analytics' },
+  { id: 'get_billing_summary', name: 'AWS Billing', category: 'Analytics' },
+  { id: 'get_invoice_list', name: 'List Invoices', category: 'Invoicing' },
+  { id: 'create_invoice', name: 'Create Invoice', category: 'Invoicing' },
+  { id: 'get_wix_products', name: 'Wix Products', category: 'Ecommerce' },
+  { id: 'get_wix_orders', name: 'Wix Orders', category: 'Ecommerce' },
 ];
 
 const InternalChatTab: React.FC = () => {
@@ -254,8 +260,11 @@ const InternalChatTab: React.FC = () => {
               { label: 'Find Contact', cmd: 'find contact ' },
               { label: 'Send Message', cmd: 'send message to ' },
               { label: 'Dashboard Stats', cmd: 'show dashboard stats' },
-              { label: 'List Templates', cmd: 'list templates' },
-              { label: 'Scheduled Messages', cmd: 'list scheduled messages' },
+              { label: 'Voice CDR', cmd: 'show recent voice calls' },
+              { label: 'AWS Billing', cmd: 'show current month billing' },
+              { label: 'Invoices', cmd: 'list recent invoices' },
+              { label: 'Wix Products', cmd: 'list wix products' },
+              { label: 'Templates', cmd: 'list templates' },
             ].map(a => (
               <button key={a.label} onClick={() => quickAction(a.cmd)} style={{
                 padding: '4px 10px', border: '1px solid #d1fae5', borderRadius: '12px',
