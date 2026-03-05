@@ -383,12 +383,14 @@ def _get_table_count(table_name: str) -> int:
 
 
 def _get_s3_count(prefix: str) -> int:
-    """Get object count under an S3 prefix."""
+    """Get content file count under an S3 prefix (excludes folder markers)."""
     try:
         count = 0
         paginator = s3.get_paginator('list_objects_v2')
         for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
-            count += page.get('KeyCount', 0)
+            for obj in page.get('Contents', []):
+                if not obj['Key'].endswith('/'):
+                    count += 1
         return count
     except Exception:
         return -1
@@ -468,14 +470,17 @@ def _wipe_table(table_name: str) -> int:
 
 
 def _wipe_s3_prefix(prefix: str) -> int:
-    """Delete all objects under an S3 prefix."""
+    """Delete content files under an S3 prefix, preserving folder markers (0-byte keys ending with /)."""
     deleted = 0
     paginator = s3.get_paginator('list_objects_v2')
     for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
         objects = page.get('Contents', [])
         if not objects:
             continue
-        delete_keys = [{'Key': obj['Key']} for obj in objects]
+        # Only delete actual files — skip folder markers (keys ending with "/" and size <= 3)
+        delete_keys = [{'Key': obj['Key']} for obj in objects if not obj['Key'].endswith('/')]
+        if not delete_keys:
+            continue
         for i in range(0, len(delete_keys), 1000):
             batch = delete_keys[i:i + 1000]
             s3.delete_objects(Bucket=BUCKET, Delete={'Objects': batch})
