@@ -258,13 +258,19 @@ CLEANUP_RESOURCES = {
         'label': 'Audit Logs',
         'category': 'Analytics & Logs',
         'type': 'dynamodb',
-        'table': 'base-wecare-digital-AuditLog',
+        'table': 'base-wecare-digital-AuditLogsTable',
     },
     'rate_limit': {
         'label': 'Rate Limit Trackers',
         'category': 'System',
         'type': 'dynamodb',
-        'table': 'base-wecare-digital-RateLimitTracker',
+        'table': 'base-wecare-digital-RateLimitTable',
+    },
+    'sms_in_airtel': {
+        'label': 'Airtel Inbound SMS',
+        'category': 'SMS',
+        'type': 'dynamodb',
+        'table': 'base-wecare-digital-SmsInAirtelTable',
     },
     'payu_webhook_log': {
         'label': 'PayU Webhook Log',
