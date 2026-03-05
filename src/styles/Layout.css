@@ -130,7 +130,7 @@ input, textarea, select {
 .inner-header-in {
   max-width: 1200px;
   height: 100%;
-  padding: 24px 24px 20px;
+  padding: 8px 24px 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -150,7 +150,7 @@ input, textarea, select {
   background: transparent;
   padding: 0;
   position: relative;
-  top: -6px;
+  top: -7px;
 }
 .inner-header-text {
   display: flex;
