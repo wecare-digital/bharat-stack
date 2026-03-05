@@ -130,7 +130,7 @@ input, textarea, select {
 .inner-header-in {
   max-width: 1200px;
   height: 100%;
-  padding: 8px 24px 0;
+  padding: 20px 24px 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -149,13 +149,12 @@ input, textarea, select {
   display: block;
   background: transparent;
   padding: 0;
-  position: relative;
-  top: -7px;
 }
 .inner-header-text {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  margin-top: 6px;
 }
 .inner-header-name {
   font-size: 30px;

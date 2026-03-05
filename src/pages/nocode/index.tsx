@@ -88,9 +88,9 @@ const NoCodePage: React.FC = () => {
         <style jsx>{`
           .pg{min-height:100vh;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
           .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);overflow:hidden}
-          .hdr-in{max-width:1200px;margin:0 auto;padding:12px 24px;display:flex;align-items:center}
+          .hdr-in{max-width:1200px;margin:0 auto;padding:20px 24px;display:flex;align-items:center}
           .logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-          .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain}
+          .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain;margin-top:-4px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
           .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
           .logo-sub{font-size:19px;font-weight:600;color:#6b7280;line-height:1.15;margin-top:4px;text-decoration:none;transition:color .25s}
