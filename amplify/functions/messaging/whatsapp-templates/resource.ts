@@ -17,6 +17,6 @@ export const whatsappTemplates = defineFunction({
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
     MEDIA_BUCKET: 'app.wecare.digital',
-    TEMPLATE_MEDIA_PREFIX: 'whatsapp-media/template-headers/',
+    TEMPLATE_MEDIA_PREFIX: 'base/whatsapp-media/template-headers/',
   },
 });

@@ -32,7 +32,7 @@ BULK_JOBS_TABLE = os.environ.get('BULK_JOBS_TABLE', 'BulkJobs')
 BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'BulkRecipients')
 BULK_QUEUE_URL = os.environ.get('BULK_QUEUE_URL', '')
 REPORT_BUCKET = os.environ.get('REPORT_BUCKET', 'app.wecare.digital')
-REPORT_PREFIX = os.environ.get('REPORT_PREFIX', 'stream/')
+REPORT_PREFIX = os.environ.get('REPORT_PREFIX', 'base/reports/')
 
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -367,7 +367,7 @@ def _generate_partial_report(job_id: str, job: Dict, request_id: str) -> None:
         }
         
         # Store in S3
-        report_key = f"{REPORT_PREFIX}{job_id}-partial.json"
+        report_key = f"{REPORT_PREFIX}wecare-digital-{job_id}-partial.json"
         s3.put_object(
             Bucket=REPORT_BUCKET,
             Key=report_key,

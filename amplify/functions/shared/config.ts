@@ -45,12 +45,12 @@ export const S3_BUCKETS = {
 };
 
 // S3 Prefixes
+// User/transactional data under base/ (factory reset = wipe base/ only)
+// Static internal assets under stream/ (never wiped)
 export const S3_PREFIXES = {
-  MEDIA_INBOUND: 'whatsapp-media/whatsapp-media-incoming/',
-  MEDIA_OUTBOUND: 'whatsapp-media/whatsapp-media-outgoing/',
-  REPORTS: 'stream/',
-  EXTERNAL_KB: 'stream/gen-ai/external-kb/',
-  INTERNAL_KB: 'stream/gen-ai/internal-kb/',
+  MEDIA_INBOUND: 'base/whatsapp-media/incoming/',
+  MEDIA_OUTBOUND: 'base/whatsapp-media/outgoing/',
+  REPORTS: 'base/reports/',
 };
 
 // WhatsApp Configuration

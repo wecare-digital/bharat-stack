@@ -26,6 +26,7 @@ Lambda Layer: Klayers-p312-Pillow:10 (Pillow 12.1.1)
 import os
 import json
 import logging
+import uuid
 import urllib.request
 import urllib.error
 import io
@@ -42,7 +43,7 @@ from lambda_utils.logging import get_logger
 logger = get_logger(__name__)
 
 S3_BUCKET = 'app.wecare.digital'
-S3_PREFIX = 'store/products'
+S3_PREFIX = 'base/store/products'
 
 # Image dimensions (Wix ideal: 3000x3000 for zoom)
 IMG_SIZE = 3000
@@ -343,8 +344,9 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
 
     # Generate PNG
     png_bytes = _generate_png(country, visa_type, price, tagline, country_name)
-    file_name = f'{country}-{visa_type}.png'
-    s3_key = f'{S3_PREFIX}/{category}/{file_name}'
+    short_id = uuid.uuid4().hex[:8]
+    file_name = f'wecare-digital-{short_id}-{country}-{visa_type}.png'
+    s3_key = f'{S3_PREFIX}/{file_name}'
 
     try:
         s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -543,7 +545,7 @@ def _convert_flag_to_png(body: dict, request_id: str) -> Dict[str, Any]:
         png_bytes = buf.getvalue()
 
         # Upload to S3
-        s3_key = f'store/flags/png/{cc}.png'
+        s3_key = f'stream/media/flags/wecare-digital-{cc}.png'
         s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         s3_client.put_object(
             Bucket=S3_BUCKET,

@@ -18,7 +18,7 @@ social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('A
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-TEMPLATE_MEDIA_PREFIX = os.environ.get('TEMPLATE_MEDIA_PREFIX', 'whatsapp-media/template-headers/')
+TEMPLATE_MEDIA_PREFIX = os.environ.get('TEMPLATE_MEDIA_PREFIX', 'base/whatsapp-media/template-headers/')
 DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 
 
@@ -273,7 +273,7 @@ def _upload_template_media(waba_id, body):
             file_bytes = base64.b64decode(file_data_b64)
 
         # Upload to S3 first (for reference)
-        upload_key = f'{TEMPLATE_MEDIA_PREFIX}{uuid.uuid4().hex[:12]}_{filename}'
+        upload_key = f'{TEMPLATE_MEDIA_PREFIX}wecare-digital-{uuid.uuid4().hex[:8]}_{filename}'
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=upload_key,
@@ -332,7 +332,7 @@ def _upload_carousel_media(waba_id, body, query_params):
         else:
             file_bytes = base64.b64decode(file_data_b64)
 
-        upload_key = f'{TEMPLATE_MEDIA_PREFIX}carousel/{uuid.uuid4().hex[:12]}_card{card_index}'
+        upload_key = f'{TEMPLATE_MEDIA_PREFIX}wecare-digital-{uuid.uuid4().hex[:8]}_card{card_index}'
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=upload_key,

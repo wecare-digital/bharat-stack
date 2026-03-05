@@ -16,6 +16,7 @@ Velo HTTP Functions: https://dev.wix.com/docs/velo/apis/wix-http-functions
 import os
 import json
 import logging
+import uuid
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
@@ -959,7 +960,7 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
 
 
 S3_BUCKET = 'app.wecare.digital'
-S3_PRODUCT_PREFIX = 'store/products'
+S3_PRODUCT_PREFIX = 'base/store/products'
 
 # Wix Media Manager folder IDs (WECARE Store structure)
 WIX_MEDIA_FOLDERS = {
@@ -1116,7 +1117,6 @@ def _upload_product_image(event: dict, body: dict, request_id: str) -> Dict[str,
     Body:
       imageBase64: required — base64-encoded image data
       fileName: required — e.g. 'visa-tourist.jpg'
-      category: optional — subfolder under store/products/ (default: 'general')
       contentType: optional — e.g. 'image/jpeg' (default: auto-detect from extension)
       productId: optional — if provided, also attaches the image to this product
     """
@@ -1127,8 +1127,10 @@ def _upload_product_image(event: dict, body: dict, request_id: str) -> Dict[str,
     if not image_b64 or not file_name:
         return _response(400, {'error': 'Missing imageBase64 or fileName', 'requestId': request_id})
 
-    category = body.get('category', 'general').strip('/')
-    s3_key = f'{S3_PRODUCT_PREFIX}/{category}/{file_name}'
+    # Flat storage with wecare-digital prefix — no nesting
+    short_id = uuid.uuid4().hex[:8]
+    ext = file_name.rsplit('.', 1)[-1].lower() if '.' in file_name else 'jpg'
+    s3_key = f'{S3_PRODUCT_PREFIX}/wecare-digital-{short_id}.{ext}'
 
     # Auto-detect content type
     ext = file_name.rsplit('.', 1)[-1].lower() if '.' in file_name else 'jpg'

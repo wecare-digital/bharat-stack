@@ -16,7 +16,7 @@ Airtel API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-ca
 Auth: HMAC-SHA256 via Kong gateway
 Secrets: wecare/airtel/c2c
 
-Recording Storage: s3://app.wecare.digital/voice/voice-in/c2c/
+Recording Storage: s3://app.wecare.digital/base/voice/
 
 Kong Credentials (from Secrets Manager):
 - app_id: WECAREDIG_fD4BKqUbC8k90jNrPR0n (HMAC username)
@@ -97,7 +97,7 @@ VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCD
 AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
 AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
 S3_BUCKET = 'app.wecare.digital'
-S3_RECORDING_PREFIX = 'voice/voice-in/c2c/'
+S3_RECORDING_PREFIX = 'base/voice/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 
 # Cached secrets

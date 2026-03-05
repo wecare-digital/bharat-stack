@@ -37,7 +37,7 @@ MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'Message')
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'MediaFile')
 RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'RateLimitTracker')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'whatsapp-media/whatsapp-media-outgoing/')
+MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'base/whatsapp-media/outgoing/')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
@@ -1133,7 +1133,7 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         is_s3_key = (
             media_file.startswith('s3://') or
             media_file.startswith(MEDIA_PREFIX) or
-            media_file.startswith('invoices/') or
+            media_file.startswith('base/') or
             media_file.startswith('stream/') or
             (('/' in media_file) and media_file.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp4', '.pdf', '.ogg', '.mp3')))
         )

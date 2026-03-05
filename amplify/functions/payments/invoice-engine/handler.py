@@ -15,7 +15,7 @@ DynamoDB Tables:
 - base-wecare-digital-InvoiceDeliveryLogTable
 
 S3 Bucket: app.wecare.digital
-Prefix: invoices/
+Prefix: base/invoices/
 """
 
 import os
@@ -52,7 +52,7 @@ PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsT
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-INVOICE_PREFIX = 'invoices/'
+INVOICE_PREFIX = 'base/invoices/'
 CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
 
 # Company details for invoice
@@ -900,7 +900,7 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
 
     # S3 key uses WhatsApp payment reference ID (unguessable, unique)
     ref_id = invoice.get('referenceId', invoice_id)
-    s3_key = f"{INVOICE_PREFIX}{ref_id}.png"
+    s3_key = f"{INVOICE_PREFIX}wecare-digital-{ref_id}.png"
 
     s3.put_object(
         Bucket=MEDIA_BUCKET,
@@ -1265,7 +1265,7 @@ def generate_invoice_pdf(invoice_id: str, request_id: str) -> Dict:
             pdf_bytes = _generate_html_pdf_fallback(html)
 
     ref_id = invoice.get('referenceId', invoice_id)
-    s3_key = f"{INVOICE_PREFIX}{ref_id}.pdf"
+    s3_key = f"{INVOICE_PREFIX}wecare-digital-{ref_id}.pdf"
 
     s3.put_object(
         Bucket=MEDIA_BUCKET,
@@ -1716,7 +1716,7 @@ def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
 
     # Try to delete S3 files for this invoice
     try:
-        prefix = f'invoices/{ref_id or invoice_id}'
+        prefix = f'base/invoices/wecare-digital-{ref_id or invoice_id}'
         s3_resp = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix, MaxKeys=20)
         for obj in s3_resp.get('Contents', []):
             s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
@@ -1804,7 +1804,7 @@ def clear_all_invoice_data(request_id: str) -> Dict:
     s3_deleted = 0
     try:
         paginator = s3.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix='invoices/'):
+        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix='base/invoices/'):
             objects = page.get('Contents', [])
             if objects:
                 s3.delete_objects(Bucket=MEDIA_BUCKET, Delete={'Objects': [{'Key': o['Key']} for o in objects]})

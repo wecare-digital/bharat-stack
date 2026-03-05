@@ -45,7 +45,7 @@ AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'base-wecare-dig
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'whatsapp-media/whatsapp-media-incoming/')
+MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'base/whatsapp-media/incoming/')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable')
 
@@ -664,13 +664,14 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
       key = "audio/"             → final = "audio/{mediaId}.ogg"
     
     Strategy: Use MEDIA_PREFIX directly (ending with "/") so files land flat
-    under whatsapp-media/whatsapp-media-incoming/{mediaId}.{ext}
+    under base/whatsapp-media/incoming/{mediaId}.{ext}, then rename to
+    wecare-digital-{uuid}.{ext} format.
     
     Returns the actual S3 key of the downloaded file.
     """
     try:
         # Use MEDIA_PREFIX directly — files land flat, no subfolders
-        s3_key_prefix = MEDIA_PREFIX  # e.g. "whatsapp-media/whatsapp-media-incoming/"
+        s3_key_prefix = MEDIA_PREFIX  # e.g. "base/whatsapp-media/incoming/"
         
         logger.info(json.dumps({
             'event': 'media_download_start',
@@ -741,6 +742,33 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
             logger.warning(json.dumps({
                 'event': 'media_using_constructed_key',
                 'constructedKey': actual_s3_key,
+                'requestId': request_id
+            }))
+        
+        # Rename to wecare-digital-{uuid}.{ext} format (flat, no nesting)
+        ext = _get_extension_from_mime(mime_type) if mime_type else _get_extension_from_type(media_type)
+        short_id = uuid.uuid4().hex[:8]
+        renamed_key = f"{MEDIA_PREFIX}wecare-digital-{short_id}{ext}"
+        try:
+            s3.copy_object(
+                Bucket=MEDIA_BUCKET,
+                CopySource={'Bucket': MEDIA_BUCKET, 'Key': actual_s3_key},
+                Key=renamed_key
+            )
+            s3.delete_object(Bucket=MEDIA_BUCKET, Key=actual_s3_key)
+            logger.info(json.dumps({
+                'event': 'media_renamed',
+                'originalKey': actual_s3_key,
+                'renamedKey': renamed_key,
+                'requestId': request_id
+            }))
+            actual_s3_key = renamed_key
+        except Exception as rename_err:
+            logger.warning(json.dumps({
+                'event': 'media_rename_failed',
+                'originalKey': actual_s3_key,
+                'targetKey': renamed_key,
+                'error': str(rename_err),
                 'requestId': request_id
             }))
         
@@ -3112,7 +3140,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 
         png_bytes = _render_text_to_png(lines, scale=3, logo_pixels=logo_pixels, logo_w=logo_w, logo_h=logo_h)
 
-        s3_key = f'invoices/{inv_ref}.png'
+        s3_key = f'base/invoices/wecare-digital-{inv_ref}.png'
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=s3_key,

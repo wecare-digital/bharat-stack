@@ -596,10 +596,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     { id: 'payu_webhook_log', label: 'PayU Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'PayUWebhookLogTable', count: -1 },
     { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
     { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
-    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'invoices/', count: -1 },
-    { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'stream/media/wa/', count: -1 },
-    { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'voice/voice-in/', count: -1 },
-    { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'whatsapp-media/whatsapp-voice/', count: -1 },
+    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'base/invoices/', count: -1 },
+    { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/', count: -1 },
+    { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'base/voice/', count: -1 },
+    { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/voice/', count: -1 },
   ];
 
   const loadCleanupPreview = async () => {

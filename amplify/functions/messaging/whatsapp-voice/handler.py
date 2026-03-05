@@ -39,7 +39,7 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsT
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
 VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'base-wecare-digital-WhatsAppVoiceTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'whatsapp-media/whatsapp-voice/')
+MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'base/whatsapp-media/voice/')
 
 # WhatsApp Phone Number IDs
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1',
@@ -231,7 +231,7 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
         }))
 
         # Step 2: Upload to S3
-        s3_key = f"{MEDIA_PREFIX}{msg_id}.mp3"
+        s3_key = f"{MEDIA_PREFIX}wecare-digital-{msg_id[:8]}.mp3"
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=s3_key,
@@ -315,7 +315,7 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
                 LanguageCode=language_code,
             )
             audio_stream = polly_response['AudioStream'].read()
-            s3_key = f"{MEDIA_PREFIX}{msg_id}.mp3"
+            s3_key = f"{MEDIA_PREFIX}wecare-digital-{msg_id[:8]}.mp3"
             s3.put_object(
                 Bucket=MEDIA_BUCKET, Key=s3_key,
                 Body=audio_stream, ContentType='audio/mpeg'
@@ -372,7 +372,7 @@ def _handle_send_audio(body: Dict, request_id: str) -> Dict[str, Any]:
         # If base64 audio provided, upload to S3 first
         if audio_base64 and not s3_key:
             ext = 'ogg' if 'ogg' in content_type else 'mp3'
-            s3_key = f"{MEDIA_PREFIX}{msg_id}.{ext}"
+            s3_key = f"{MEDIA_PREFIX}wecare-digital-{msg_id[:8]}.{ext}"
             audio_bytes = base64.b64decode(audio_base64)
             s3.put_object(
                 Bucket=MEDIA_BUCKET, Key=s3_key,

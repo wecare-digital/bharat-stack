@@ -6,24 +6,28 @@ import { defineStorage } from '@aws-amplify/backend';
  * Single bucket: app.wecare.digital
  * 
  * Structure:
- * - whatsapp-media/whatsapp-media-incoming/: Inbound WhatsApp media
- * - whatsapp-media/whatsapp-media-outgoing/: Outbound WhatsApp media
- * - stream/: Bulk job reports and exports
+ * - base/              : All user/transactional data (factory reset = wipe base/ only)
+ *   - whatsapp-media/  : incoming/, outgoing/, voice/, calling-ai/, template-headers/, downloads/
+ *   - invoices/        : Invoice PNGs and PDFs
+ *   - voice/           : Voice recordings (Airtel OBD)
+ *   - reports/         : Bulk job reports and exports
+ *   - store/products/  : Product images
+ * - stream/            : Static internal assets (NEVER wiped)
+ *   - media/m/         : Logos, branding images
+ *   - media/fonts/     : Invoice PDF fonts
+ *   - media/ivr/       : IVR audio files
  */
 export const storage = defineStorage({
   name: 'wecare-media',
   // Reference consolidated bucket: app.wecare.digital
   access: (allow) => ({
-    // WhatsApp media paths
-    'whatsapp-media/whatsapp-media-incoming/*': [
+    // User/transactional data — all under base/
+    'base/*': [
       allow.authenticated.to(['read', 'write']),
     ],
-    'whatsapp-media/whatsapp-media-outgoing/*': [
-      allow.authenticated.to(['read', 'write']),
-    ],
-    // Reports folder
+    // Static internal assets — read-only for authenticated users
     'stream/*': [
-      allow.authenticated.to(['read', 'write']),
+      allow.authenticated.to(['read']),
     ],
   }),
 });

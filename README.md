@@ -17,10 +17,23 @@ npm run dev
 - **App Client**: 1j8kbi48m4v2rped3n224rlevb
 
 ### S3 Bucket
-Single bucket: `app.wecare.digital`
-- `whatsapp-media/whatsapp-media-incoming/` - Inbound media
-- `whatsapp-media/whatsapp-media-outgoing/` - Outbound media
-- `stream/` - Reports and exports
+Single bucket: `app.wecare.digital` (versioning enabled)
+- `base/` - All user/transactional data (factory reset = wipe base/ only)
+  - `whatsapp-media/incoming/` - Inbound media
+  - `whatsapp-media/outgoing/` - Outbound media
+  - `whatsapp-media/voice/` - TTS audio
+  - `whatsapp-media/calling-ai/` - Call transcripts & TTS
+  - `whatsapp-media/template-headers/` - Template media
+  - `whatsapp-media/downloads/` - Media downloads
+  - `invoices/` - Invoice PNGs and PDFs
+  - `voice/` - Voice recordings (Airtel OBD)
+  - `reports/` - Bulk job reports
+  - `store/products/` - Product images
+- `stream/` - Static internal assets (NEVER wiped by cleanup)
+  - `media/m/` - Logos, branding
+  - `media/fonts/` - Invoice PDF fonts
+  - `media/ivr/` - IVR audio files
+
 
 ### DynamoDB Tables
 - `base-wecare-digital-ContactsTable`

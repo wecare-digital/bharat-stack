@@ -18,7 +18,7 @@ export const inboundWhatsappHandler = defineFunction({
     AI_INTERACTIONS_TABLE: 'base-wecare-digital-AIInteractionsTable',
     MEDIA_BUCKET: 'app.wecare.digital',
     S3_BUCKET: 'app.wecare.digital',
-    MEDIA_INBOUND_PREFIX: 'whatsapp-media/whatsapp-media-incoming/',
+    MEDIA_INBOUND_PREFIX: 'base/whatsapp-media/incoming/',
     SNS_TOPIC_ARN: `arn:aws:sns:us-east-1:${process.env.AWS_ACCOUNT_ID || '775261844268'}:base-wecare-digital`,
     INBOUND_DLQ_URL: `https://sqs.us-east-1.amazonaws.com/${process.env.AWS_ACCOUNT_ID || '775261844268'}/base-wecare-digital-inbound-dlq`,
     OUTBOUND_WHATSAPP_FUNCTION: 'wecare-outbound-whatsapp',

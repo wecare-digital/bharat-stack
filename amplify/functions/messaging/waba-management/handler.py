@@ -546,7 +546,7 @@ def _get_media(media_id: str, phone_number_id: str, query_params: Dict, request_
         
         # If not metadata only, specify S3 destination
         if not metadata_only:
-            s3_key = f'whatsapp-media/downloads/{media_id}'
+            s3_key = f'base/whatsapp-media/downloads/wecare-digital-{media_id}'
             params['destinationS3File'] = {
                 'bucketName': MEDIA_BUCKET,
                 'key': s3_key

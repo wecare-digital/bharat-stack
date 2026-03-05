@@ -1001,7 +1001,7 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
     media_format = 'webm' if ext == 'webm' else 'ogg' if ext == 'ogg' else 'mp3'
 
     audio_bytes = b64.b64decode(audio_base64)
-    s3_key = f"whatsapp-media/calling-ai/input/{session_id}_{int(time.time())}.{ext}"
+    s3_key = f"base/whatsapp-media/calling-ai/wecare-digital-{session_id[:8]}_{int(time.time())}.{ext}"
 
     s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_bytes, ContentType=mime_type)
     logger.info(f"[TRANSCRIBE] Uploaded {len(audio_bytes)} bytes to s3://{MEDIA_BUCKET}/{s3_key}")
@@ -1013,7 +1013,7 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
         MediaFormat=media_format,
         LanguageCode=TRANSCRIBE_LANGUAGE,
         OutputBucketName=MEDIA_BUCKET,
-        OutputKey=f"whatsapp-media/calling-ai/transcripts/{job_name}.json",
+        OutputKey=f"base/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json",
     )
 
     # Poll for completion (max 30s)
@@ -1022,7 +1022,7 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
         status = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
         job_status = status['TranscriptionJob']['TranscriptionJobStatus']
         if job_status == 'COMPLETED':
-            transcript_key = f"whatsapp-media/calling-ai/transcripts/{job_name}.json"
+            transcript_key = f"base/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json"
             obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
             transcript_data = json.loads(obj['Body'].read().decode('utf-8'))
             text = transcript_data.get('results', {}).get('transcripts', [{}])[0].get('transcript', '')
@@ -1107,7 +1107,7 @@ def _generate_tts_url(text: str, session_id: str, request_id: str) -> Optional[s
             LanguageCode=AI_LANGUAGE or 'en-IN',
         )
         audio_stream = polly_response['AudioStream'].read()
-        s3_key = f"whatsapp-media/calling-ai/tts/{session_id}_{int(time.time())}.mp3"
+        s3_key = f"base/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
         s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
         url = s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
         logger.info(f"[TTS] Generated {len(audio_stream)} bytes → {s3_key}")
@@ -1121,7 +1121,7 @@ def _generate_tts_url(text: str, session_id: str, request_id: str) -> Optional[s
                 LanguageCode=AI_LANGUAGE or 'en-IN',
             )
             audio_stream = polly_response['AudioStream'].read()
-            s3_key = f"whatsapp-media/calling-ai/tts/{session_id}_{int(time.time())}.mp3"
+            s3_key = f"base/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
             s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
             return s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
         except Exception as e2:

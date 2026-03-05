@@ -18,6 +18,6 @@ export const outboundWhatsapp = defineFunction({
     WHATSAPP_PHONE_NUMBER_ID_2: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c',
     MEDIA_BUCKET: 'app.wecare.digital',
     S3_BUCKET: 'app.wecare.digital',
-    MEDIA_OUTBOUND_PREFIX: 'whatsapp-media/whatsapp-media-outgoing/',
+    MEDIA_OUTBOUND_PREFIX: 'base/whatsapp-media/outgoing/',
   },
 });
