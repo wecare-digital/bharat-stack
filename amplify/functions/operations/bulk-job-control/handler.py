@@ -32,7 +32,7 @@ BULK_JOBS_TABLE = os.environ.get('BULK_JOBS_TABLE', 'BulkJobs')
 BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'BulkRecipients')
 BULK_QUEUE_URL = os.environ.get('BULK_QUEUE_URL', '')
 REPORT_BUCKET = os.environ.get('REPORT_BUCKET', 'app.wecare.digital')
-REPORT_PREFIX = os.environ.get('REPORT_PREFIX', 'base/reports/')
+REPORT_PREFIX = os.environ.get('REPORT_PREFIX', 'stack/reports/')
 
 
 # Module-level origin for CORS (set per-invocation in handler)

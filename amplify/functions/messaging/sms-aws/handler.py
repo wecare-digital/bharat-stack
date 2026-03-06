@@ -3,7 +3,7 @@ AWS SMS Lambda Function
 
 Purpose: Send SMS messages via Amazon Pinpoint SMS (us-east-1)
 Supports: Transactional SMS, Promotional SMS
-Table: base-wecare-digital-SmsAwsTable (dedicated)
+Table: stack-wecare-digital-SmsAwsTable (dedicated)
 
 Endpoints:
   GET  /sms-aws/messages          - List SMS messages
@@ -31,8 +31,8 @@ REGION = 'us-east-1'
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 pinpoint_sms = boto3.client('pinpoint-sms-voice-v2', region_name=REGION)
 
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'base-wecare-digital-SmsAwsTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
 ORIGINATION_IDENTITY = os.environ.get('ORIGINATION_IDENTITY', '')
 SENDER_ID = os.environ.get('SENDER_ID', 'WECARE')
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days

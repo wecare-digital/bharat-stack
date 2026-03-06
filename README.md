@@ -36,11 +36,11 @@ Single bucket: `app.wecare.digital` (versioning enabled)
 
 
 ### DynamoDB Tables
-- `base-wecare-digital-ContactsTable`
-- `base-wecare-digital-WhatsAppInboundTable`
-- `base-wecare-digital-WhatsAppOutboundTable`
-- `base-wecare-digital-BulkJobsTable`
-- `base-wecare-digital-VoiceCalls`
+- `stack-wecare-digital-ContactsTable`
+- `stack-wecare-digital-WhatsAppInboundTable`
+- `stack-wecare-digital-WhatsAppOutboundTable`
+- `stack-wecare-digital-BulkJobsTable`
+- `stack-wecare-digital-VoiceCalls`
 
 ### WhatsApp Phone Numbers
 | Name | Phone | ID |

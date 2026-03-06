@@ -29,8 +29,8 @@ logger = get_logger(__name__)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-SCHEDULED_TABLE = os.environ.get('SCHEDULED_TABLE', 'base-wecare-digital-ScheduledMessagesTable')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
+SCHEDULED_TABLE = os.environ.get('SCHEDULED_TABLE', 'stack-wecare-digital-ScheduledMessagesTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 OUTBOUND_LAMBDA = os.environ.get('OUTBOUND_LAMBDA', 'wecare-outbound-whatsapp')
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)

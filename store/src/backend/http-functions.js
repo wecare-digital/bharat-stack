@@ -52,7 +52,7 @@ async function authenticate(request) {
 // CORS — reflect allowed origins instead of wildcard
 // ---------------------------------------------------------------------------
 const ALLOWED_ORIGINS = [
-  'https://base.wecare.digital',
+  'https://stack.wecare.digital',
   'https://wecare.digital',
   'https://app.wecare.digital',
 ];

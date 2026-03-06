@@ -92,12 +92,12 @@ s3 = boto3.client('s3', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
-AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'base-wecare-digital-AirtelC2CTable')
-VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCDRTable')
+AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'stack-wecare-digital-AirtelC2CTable')
+VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
 AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
 S3_BUCKET = 'app.wecare.digital'
-S3_RECORDING_PREFIX = 'base/voice/'
+S3_RECORDING_PREFIX = 'stack/voice/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 
 # Cached secrets

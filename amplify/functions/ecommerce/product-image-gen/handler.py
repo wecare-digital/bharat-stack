@@ -43,7 +43,7 @@ from lambda_utils.logging import get_logger
 logger = get_logger(__name__)
 
 S3_BUCKET = 'app.wecare.digital'
-S3_PREFIX = 'base/store/products'
+S3_PREFIX = 'stack/store/products'
 
 # Image dimensions (Wix ideal: 3000x3000 for zoom)
 IMG_SIZE = 3000

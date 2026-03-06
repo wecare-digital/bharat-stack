@@ -45,9 +45,9 @@ WIX_API_BASE = os.environ.get('WIX_API_BASE_URL', 'https://www.wixapis.com')
 WIX_VELO_BASE = os.environ.get('WIX_VELO_BASE_URL', '')  # e.g. https://www.yoursite.com
 WIX_VELO_API_KEY = os.environ.get('WIX_VELO_API_KEY', '')  # shared secret for auth
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'base-wecare-digital-WixProductsCache')
-ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'base-wecare-digital-WixOrdersCache')
-ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'base-wecare-digital-WixOrderIds')
+PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'stack-wecare-digital-WixProductsCache')
+ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'stack-wecare-digital-WixOrdersCache')
+ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'stack-wecare-digital-WixOrderIds')
 
 
 # ===================================================================
@@ -960,7 +960,7 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
 
 
 S3_BUCKET = 'app.wecare.digital'
-S3_PRODUCT_PREFIX = 'base/store/products'
+S3_PRODUCT_PREFIX = 'stack/store/products'
 
 # Wix Media Manager folder IDs (WECARE Store structure)
 WIX_MEDIA_FOLDERS = {

@@ -47,9 +47,9 @@ PAYU_MID = os.environ.get('PAYU_MID', '8629516')
 PAYU_BASE_URL = os.environ.get('PAYU_BASE_URL', 'https://info.payu.in/merchant/postservice.php')  # Production
 PAYU_TOKEN_URL = os.environ.get('PAYU_TOKEN_URL', 'https://accounts.payu.in/oauth/token')  # OAuth token
 PAYU_PAYMENT_LINKS_URL = os.environ.get('PAYU_PAYMENT_LINKS_URL', 'https://oneapi.payu.in/payment-links')  # Payment Links API
-PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
-INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
-WEBHOOK_LOG_TABLE = os.environ.get('PAYU_WEBHOOK_LOG_TABLE', 'base-wecare-digital-PayUWebhookLogTable')
+PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
+INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
+WEBHOOK_LOG_TABLE = os.environ.get('PAYU_WEBHOOK_LOG_TABLE', 'stack-wecare-digital-PayUWebhookLogTable')
 
 # Module-level origin for CORS
 origin = ''

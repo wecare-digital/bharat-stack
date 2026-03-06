@@ -14,6 +14,6 @@ export const voiceCdr = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    VOICE_CDR_TABLE: 'base-wecare-digital-VoiceCDRTable',
+    VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
   },
 });

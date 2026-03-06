@@ -8,7 +8,7 @@ export const aiConfigManagement = defineFunction({
   memoryMB: 256,
   environment: {
     LOG_LEVEL: 'INFO',
-    SYSTEM_CONFIG_TABLE: 'base-wecare-digital-SystemConfigTable',
-    AI_INTERACTIONS_TABLE: 'base-wecare-digital-AIInteractionsTable',
+    SYSTEM_CONFIG_TABLE: 'stack-wecare-digital-SystemConfigTable',
+    AI_INTERACTIONS_TABLE: 'stack-wecare-digital-AIInteractionsTable',
   },
 });

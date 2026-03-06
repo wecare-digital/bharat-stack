@@ -42,9 +42,9 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-MESSAGES_INBOUND_TABLE = os.environ.get('MESSAGES_INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
-MESSAGES_OUTBOUND_TABLE = os.environ.get('MESSAGES_OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+MESSAGES_INBOUND_TABLE = os.environ.get('MESSAGES_INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+MESSAGES_OUTBOUND_TABLE = os.environ.get('MESSAGES_OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
 OUTBOUND_SMS_FUNCTION = os.environ.get('OUTBOUND_SMS_FUNCTION', 'wecare-outbound-sms')
 OUTBOUND_EMAIL_FUNCTION = os.environ.get('OUTBOUND_EMAIL_FUNCTION', 'wecare-outbound-email')

@@ -18,19 +18,19 @@ const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 export function addBackendResources(stack: Stack) {
   // SQS Queues
   const inboundDlq = new sqs.Queue(stack, 'InboundDLQ', {
-    queueName: 'base-wecare-digital-inbound-dlq',
+    queueName: 'stack-wecare-digital-inbound-dlq',
     visibilityTimeout: Duration.seconds(300),
     retentionPeriod: Duration.days(7),
   });
 
   const bulkDlq = new sqs.Queue(stack, 'BulkDLQ', {
-    queueName: 'base-wecare-digital-bulk-dlq',
+    queueName: 'stack-wecare-digital-bulk-dlq',
     visibilityTimeout: Duration.seconds(300),
     retentionPeriod: Duration.days(7),
   });
 
   const bulkQueue = new sqs.Queue(stack, 'BulkQueue', {
-    queueName: 'base-wecare-digital-bulk-queue',
+    queueName: 'stack-wecare-digital-bulk-queue',
     visibilityTimeout: Duration.seconds(300),
     retentionPeriod: Duration.days(1),
     deadLetterQueue: {
@@ -40,7 +40,7 @@ export function addBackendResources(stack: Stack) {
   });
 
   const outboundDlq = new sqs.Queue(stack, 'OutboundDLQ', {
-    queueName: 'base-wecare-digital-outbound-dlq',
+    queueName: 'stack-wecare-digital-outbound-dlq',
     visibilityTimeout: Duration.seconds(300),
     retentionPeriod: Duration.days(7),
   });
@@ -49,7 +49,7 @@ export function addBackendResources(stack: Stack) {
   const alarmTopic = sns.Topic.fromTopicArn(
     stack,
     'AlarmTopic',
-    `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`
+    `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital`
   );
 
   // CloudWatch Alarms

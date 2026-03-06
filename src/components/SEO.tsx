@@ -14,12 +14,12 @@ interface SEOProps {
   ogImage?: string;
 }
 
-const BASE_URL = 'https://base.wecare.digital';
+const BASE_URL = 'https://stack.wecare.digital';
 const DEFAULT_IMAGE = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
-const SITE_NAME = 'Base CRM by WECARE.DIGITAL';
+const SITE_NAME = 'Stack CRM by WECARE.DIGITAL';
 
 // Default keywords for all pages
-const DEFAULT_KEYWORDS = 'WhatsApp Business API, WhatsApp CRM, bulk messaging, SMS API, email marketing, voice calls, Razorpay payments, customer engagement, multi-channel CRM, WECARE.DIGITAL, Base CRM';
+const DEFAULT_KEYWORDS = 'WhatsApp Business API, WhatsApp CRM, bulk messaging, SMS API, email marketing, voice calls, Razorpay payments, customer engagement, multi-channel CRM, WECARE.DIGITAL, Stack CRM';
 
 export default function SEO({ 
   title, 

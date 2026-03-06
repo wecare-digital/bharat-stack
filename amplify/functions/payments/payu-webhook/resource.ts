@@ -12,9 +12,9 @@ export const payuWebhook = defineFunction({
     PAYU_CLIENT_ID: process.env.PAYU_CLIENT_ID ?? 'c066d621f07afd57e1797306a33acd5f51d19400adb0741449784dc36c634d75',
     PAYU_CLIENT_SECRET: process.env.PAYU_CLIENT_SECRET ?? '9b5c14bd86f0d8deabad339837e43ebce4cb039a26897d142ba0b1f91c38287f',
     PAYU_MID: '8629516',
-    PAYMENTS_TABLE: 'base-wecare-digital-PaymentsTable',
-    INVOICES_TABLE: 'base-wecare-digital-InvoicesTable',
-    PAYU_WEBHOOK_LOG_TABLE: 'base-wecare-digital-PayUWebhookLogTable',
+    PAYMENTS_TABLE: 'stack-wecare-digital-PaymentsTable',
+    INVOICES_TABLE: 'stack-wecare-digital-InvoicesTable',
+    PAYU_WEBHOOK_LOG_TABLE: 'stack-wecare-digital-PayUWebhookLogTable',
     LOG_LEVEL: 'INFO',
   },
 });

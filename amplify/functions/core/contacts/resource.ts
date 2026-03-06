@@ -15,9 +15,9 @@ export const contacts = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
-    INBOUND_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
-    OUTBOUND_TABLE: 'base-wecare-digital-WhatsAppOutboundTable',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
+    INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable',
+    OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable',
     MEDIA_BUCKET: 'app.wecare.digital',
   },
 });

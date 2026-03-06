@@ -17,9 +17,9 @@ export const smsAirtel = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    AIRTEL_SMS_TABLE: 'base-wecare-digital-AirtelSMSTable',
-    DLT_TEMPLATES_TABLE: 'base-wecare-digital-DLTTemplates',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
+    AIRTEL_SMS_TABLE: 'stack-wecare-digital-AirtelSMSTable',
+    DLT_TEMPLATES_TABLE: 'stack-wecare-digital-DLTTemplates',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     AIRTEL_SMS_HOST: 'iqmessaging.airtel.in',
     AIRTEL_SMS_SECRET_NAME: 'wecare/airtel/sms',
   },

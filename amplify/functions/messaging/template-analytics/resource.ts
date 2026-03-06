@@ -12,7 +12,7 @@ export const templateAnalyticsFunction = defineFunction({
   timeoutSeconds: 30,
   memoryMB: 256,
   environment: {
-    OUTBOUND_TABLE: 'base-wecare-digital-WhatsAppOutboundTable',
+    OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable',
     LOG_LEVEL: 'INFO',
   },
 });

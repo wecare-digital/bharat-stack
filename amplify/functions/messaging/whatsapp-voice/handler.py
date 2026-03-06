@@ -35,11 +35,11 @@ s3 = boto3.client('s3', region_name=REGION)
 social_messaging = boto3.client('socialmessaging', region_name=REGION)
 
 # Environment
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
-VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'base-wecare-digital-WhatsAppVoiceTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
+VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'stack-wecare-digital-WhatsAppVoiceTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'base/whatsapp-media/voice/')
+MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'stack/whatsapp-media/voice/')
 
 # WhatsApp Phone Number IDs
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1',

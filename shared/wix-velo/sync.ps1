@@ -1,5 +1,5 @@
 # Sync shared Wix Velo backend code to both repos
-# Run from the base.wecare.digital repo root
+# Run from the stack.wecare.digital repo root
 #
 # Usage: .\shared\wix-velo\sync.ps1
 #

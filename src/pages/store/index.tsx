@@ -1,7 +1,7 @@
 /**
  * Store Page - WECARE.DIGITAL
  * Wix Store Integration — Products, Orders, Collections, Inventory
- * URL: https://base.wecare.digital/store
+ * URL: https://stack.wecare.digital/store
  */
 
 import React, { useState, useEffect, useCallback } from 'react';

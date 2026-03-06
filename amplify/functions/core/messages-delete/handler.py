@@ -23,8 +23,8 @@ s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Table names - actual tables used by the system
-INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
-OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 INBOUND_WHATSAPP_FUNCTION = os.environ.get('INBOUND_WHATSAPP_FUNCTION', 'wecare-inbound-whatsapp')
 

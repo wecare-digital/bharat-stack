@@ -95,20 +95,20 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     arn: `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/*`, 
     accountId: AWS_ACCOUNT_ID,
     details: [
-      'base-wecare-digital-ContactsTable',
-      'base-wecare-digital-WhatsAppOutboundTable',
-      'base-wecare-digital-MediaFilesTable',
-      'base-wecare-digital-RateLimitTable',
-      'base-wecare-digital-SmsAwsTable (Pinpoint SMS logs)',
-      'base-wecare-digital-VoiceAwsTable (Pinpoint Voice logs)',
-      'base-wecare-digital-AirtelC2CTable (Airtel C2C)',
-      'base-wecare-digital-OBDCampaigns (Airtel OBD)',
-      'base-wecare-digital-VoiceCDRTable (Airtel CDR)',
-      'base-wecare-digital-SmsInAirtelTable (Airtel SMS)',
-      'base-wecare-digital-ScheduledMessagesTable',
-      'base-wecare-digital-TemplateAnalyticsTable',
-      'base-wecare-digital-WixProductsCache (Wix Store)',
-      'base-wecare-digital-WixOrdersCache (Wix Store)'
+      'stack-wecare-digital-ContactsTable',
+      'stack-wecare-digital-WhatsAppOutboundTable',
+      'stack-wecare-digital-MediaFilesTable',
+      'stack-wecare-digital-RateLimitTable',
+      'stack-wecare-digital-SmsAwsTable (Pinpoint SMS logs)',
+      'stack-wecare-digital-VoiceAwsTable (Pinpoint Voice logs)',
+      'stack-wecare-digital-AirtelC2CTable (Airtel C2C)',
+      'stack-wecare-digital-OBDCampaigns (Airtel OBD)',
+      'stack-wecare-digital-VoiceCDRTable (Airtel CDR)',
+      'stack-wecare-digital-SmsInAirtelTable (Airtel SMS)',
+      'stack-wecare-digital-ScheduledMessagesTable',
+      'stack-wecare-digital-TemplateAnalyticsTable',
+      'stack-wecare-digital-WixProductsCache (Wix Store)',
+      'stack-wecare-digital-WixOrdersCache (Wix Store)'
     ]
   },
   'Amazon RDS': { 
@@ -153,7 +153,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon Route 53': { 
     arn: 'arn:aws:route53:::hostedzone/*', 
     accountId: AWS_ACCOUNT_ID,
-    details: ['wecare.digital', 'base.wecare.digital', 'app.wecare.digital']
+    details: ['wecare.digital', 'stack.wecare.digital', 'app.wecare.digital']
   },
   'Amazon VPC': { 
     arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/*`, 
@@ -323,7 +323,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'AWS Amplify': { 
     arn: `arn:aws:amplify:${AWS_REGION}:${AWS_ACCOUNT_ID}:apps/d3nadrc9t6n3f8`, 
     accountId: AWS_ACCOUNT_ID,
-    details: ['App: d3nadrc9t6n3f8', 'Branch: base', 'Domain: base.wecare.digital']
+    details: ['App: d3nadrc9t6n3f8', 'Branch: base', 'Domain: stack.wecare.digital']
   },
   'AWS CodeBuild': { 
     arn: `arn:aws:codebuild:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
@@ -596,10 +596,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     { id: 'payu_webhook_log', label: 'PayU Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'PayUWebhookLogTable', count: -1 },
     { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
     { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
-    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'base/invoices/', count: -1 },
-    { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/', count: -1 },
-    { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'base/voice/', count: -1 },
-    { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/voice/', count: -1 },
+    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'stack/invoices/', count: -1 },
+    { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/', count: -1 },
+    { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'stack/voice/', count: -1 },
+    { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/voice/', count: -1 },
   ];
 
   const loadCleanupPreview = async () => {
@@ -3023,7 +3023,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#065f46' }}>TWO REPOS — IMPORTANT</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Base CRM Repo</div>
+                      <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Stack CRM Repo</div>
                       <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>base</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                     </div>
@@ -3083,7 +3083,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17' }}>
-                  Note: Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>base-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT base repo.
+                  Note: Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>stack-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT base repo.
                 </div>
               </div>
 

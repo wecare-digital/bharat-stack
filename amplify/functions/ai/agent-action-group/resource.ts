@@ -21,9 +21,9 @@ export const agentActionGroup = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
-    MESSAGES_INBOUND_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
-    MESSAGES_OUTBOUND_TABLE: 'base-wecare-digital-WhatsAppOutboundTable',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
+    MESSAGES_INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable',
+    MESSAGES_OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable',
     OUTBOUND_WHATSAPP_FUNCTION: 'wecare-outbound-whatsapp',
     OUTBOUND_SMS_FUNCTION: 'wecare-outbound-sms',
     OUTBOUND_EMAIL_FUNCTION: 'wecare-outbound-email',

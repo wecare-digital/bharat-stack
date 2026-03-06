@@ -16,8 +16,8 @@ export const voiceC2c = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    AIRTEL_C2C_TABLE: 'base-wecare-digital-AirtelC2CTable',
-    VOICE_CDR_TABLE: 'base-wecare-digital-VoiceCDRTable',
+    AIRTEL_C2C_TABLE: 'stack-wecare-digital-AirtelC2CTable',
+    VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
     AIRTEL_KONG_HOST: 'iqvoice.airtel.in',
     AIRTEL_C2C_SECRET_NAME: 'wecare/airtel/c2c',
   },

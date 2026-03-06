@@ -13,6 +13,6 @@ export const voiceCdrRead = defineFunction({
   memoryMB: 256,
   environment: {
     LOG_LEVEL: 'INFO',
-    VOICE_CDR_TABLE: 'base-wecare-digital-VoiceCDRTable',
+    VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
   },
 });

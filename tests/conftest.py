@@ -14,7 +14,7 @@ def api_event():
     """Minimal API Gateway / Function URL event."""
     return {
         'requestContext': {'http': {'method': 'POST', 'path': '/test'}},
-        'headers': {'origin': 'https://base.wecare.digital', 'authorization': 'Bearer test-token'},
+        'headers': {'origin': 'https://stack.wecare.digital', 'authorization': 'Bearer test-token'},
         'body': '{"key": "value"}',
         'isBase64Encoded': False,
     }
@@ -25,7 +25,7 @@ def options_event():
     """OPTIONS preflight event."""
     return {
         'requestContext': {'http': {'method': 'OPTIONS', 'path': '/test'}},
-        'headers': {'origin': 'https://base.wecare.digital'},
+        'headers': {'origin': 'https://stack.wecare.digital'},
         'body': None,
     }
 

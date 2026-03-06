@@ -18,6 +18,6 @@ export const wabaManagement = defineFunction({
   memoryMB: 256,
   environment: {
     LOG_LEVEL: 'INFO',
-    SYSTEM_CONFIG_TABLE: 'base-wecare-digital-SystemConfigTable',
+    SYSTEM_CONFIG_TABLE: 'stack-wecare-digital-SystemConfigTable',
   },
 });

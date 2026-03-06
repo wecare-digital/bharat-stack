@@ -7,8 +7,8 @@ Supports filtering by contactId, channel, and direction.
 Generates pre-signed URLs for media files.
 
 DynamoDB Tables (actual names):
-- base-wecare-digital-WhatsAppInboundTable
-- base-wecare-digital-WhatsAppOutboundTable
+- stack-wecare-digital-WhatsAppInboundTable
+- stack-wecare-digital-WhatsAppOutboundTable
 """
 
 import os
@@ -28,8 +28,8 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # DynamoDB table names - actual tables used by the system
-INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
-OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
 

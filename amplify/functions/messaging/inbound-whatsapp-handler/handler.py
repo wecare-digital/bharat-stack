@@ -37,17 +37,17 @@ s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables - use actual table names
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
-MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'base-wecare-digital-MediaFilesTable')
-SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
-AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'base-wecare-digital-AIInteractionsTable')
-INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
+AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'stack-wecare-digital-AIInteractionsTable')
+INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'base/whatsapp-media/incoming/')
+MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'stack/whatsapp-media/incoming/')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable')
+SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
 
 # AI Lambda function names
 AI_QUERY_KB_FUNCTION = os.environ.get('AI_QUERY_KB_FUNCTION', 'wecare-ai-query-kb')
@@ -664,14 +664,14 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
       key = "audio/"             → final = "audio/{mediaId}.ogg"
     
     Strategy: Use MEDIA_PREFIX directly (ending with "/") so files land flat
-    under base/whatsapp-media/incoming/{mediaId}.{ext}, then rename to
+    under stack/whatsapp-media/incoming/{mediaId}.{ext}, then rename to
     wecare-digital-{uuid}.{ext} format.
     
     Returns the actual S3 key of the downloaded file.
     """
     try:
         # Use MEDIA_PREFIX directly — files land flat, no subfolders
-        s3_key_prefix = MEDIA_PREFIX  # e.g. "base/whatsapp-media/incoming/"
+        s3_key_prefix = MEDIA_PREFIX  # e.g. "stack/whatsapp-media/incoming/"
         
         logger.info(json.dumps({
             'event': 'media_download_start',
@@ -936,7 +936,7 @@ def _process_status(status: Dict, request_id: str) -> None:
         return
     
     # Search BOTH tables for the message using GSI
-    OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+    OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
     tables_to_check = [
         ('inbound', MESSAGES_TABLE),
         ('outbound', OUTBOUND_TABLE),
@@ -1156,7 +1156,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
     originating_phone_id = None
     if reference_id:
         try:
-            OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'base-wecare-digital-WhatsAppOutboundTable')
+            OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
             outbound_table = dynamodb.Table(OUTBOUND_TABLE)
             # Query GSI paymentReferenceId-index (falls back to scan if GSI missing)
             found = False
@@ -2061,7 +2061,7 @@ def _send_to_dlq(record: Dict, error: str, request_id: str) -> None:
         }))
 
 
-CALLING_TABLE = os.environ.get('CALL_LOG_TABLE', 'base-wecare-digital-WhatsAppCallingTable')
+CALLING_TABLE = os.environ.get('CALL_LOG_TABLE', 'stack-wecare-digital-WhatsAppCallingTable')
 
 
 def _forward_call_permission_to_calling_table(sender_phone: str, receiving_phone: str,
@@ -2630,7 +2630,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 from hashlib import sha256
                 clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
                 ph = sha256(clean_phone.encode()).hexdigest()[:32]
-                conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable'))
+                conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'stack-wecare-digital-ConversationHistoryTable'))
                 conv_table.update_item(
                     Key={'phoneHash': ph},
                     UpdateExpression='SET lastPaymentRef = :ref, lastPaymentAmount = :amt, lastPaymentStatus = :s, lastPaymentAt = :t',
@@ -3140,7 +3140,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 
         png_bytes = _render_text_to_png(lines, scale=3, logo_pixels=logo_pixels, logo_w=logo_w, logo_h=logo_h)
 
-        s3_key = f'base/invoices/wecare-digital-{inv_ref}.png'
+        s3_key = f'stack/invoices/wecare-digital-{inv_ref}.png'
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=s3_key,
@@ -3964,7 +3964,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '') if sender_phone else ''
                     ph = sha256(clean_phone.encode()).hexdigest()[:32] if clean_phone else ''
                     if ph:
-                        conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'base-wecare-digital-ConversationHistoryTable'))
+                        conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'stack-wecare-digital-ConversationHistoryTable'))
                         pref_resp = conv_table.get_item(Key={'phoneHash': ph})
                         pref_item = pref_resp.get('Item', {})
                         audio_enabled = pref_item.get('audioEnabled', False)

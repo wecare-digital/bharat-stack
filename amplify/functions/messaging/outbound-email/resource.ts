@@ -9,8 +9,8 @@ export const outboundEmail = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
-    MESSAGES_TABLE: 'base-wecare-digital-MessagesTable',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
+    MESSAGES_TABLE: 'stack-wecare-digital-MessagesTable',
     FROM_EMAIL: 'noreply@wecare.digital',
     REPLY_TO_EMAIL: 'support@wecare.digital',
   },

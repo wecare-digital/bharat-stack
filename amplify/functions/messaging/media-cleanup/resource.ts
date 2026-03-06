@@ -9,7 +9,7 @@ export const mediaCleanup = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    MEDIA_FILES_TABLE: 'base-wecare-digital-MediaFilesTable',
+    MEDIA_FILES_TABLE: 'stack-wecare-digital-MediaFilesTable',
     WHATSAPP_PHONE_NUMBER_ID_1: 'phone-number-id-5e020cecd221429996f6ae721cc42206',
     CLEANUP_AGE_DAYS: '25',
     MAX_DELETIONS: '50',

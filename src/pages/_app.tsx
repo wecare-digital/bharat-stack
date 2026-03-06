@@ -1,5 +1,5 @@
 ﻿/**
- * Base CRM by WECARE.DIGITAL
+ * Stack CRM by WECARE.DIGITAL
  * Simplified auth - just wrap protected pages with Authenticator
  */
 
@@ -34,11 +34,11 @@ Amplify.configure({
           domain: process.env.NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN || '',
           scopes: ['openid', 'email', 'profile'],
           redirectSignIn: [
-            process.env.NEXT_PUBLIC_APP_URL || 'https://base.wecare.digital/',
+            process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
             'http://localhost:3000/',
           ],
           redirectSignOut: [
-            process.env.NEXT_PUBLIC_APP_URL || 'https://base.wecare.digital/',
+            process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
             'http://localhost:3000/',
           ],
           responseType: 'code' as const
@@ -149,7 +149,7 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "WECARE.DIGITAL",
-  "alternateName": "Base CRM",
+  "alternateName": "Stack CRM",
   "url": "https://wecare.digital",
   "logo": LOGO_URL,
   "image": LOGO_URL,
@@ -175,8 +175,8 @@ const organizationSchema = {
 const softwareSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Base CRM by WECARE.DIGITAL",
-  "alternateName": "Base CRM",
+  "name": "Stack CRM by WECARE.DIGITAL",
+  "alternateName": "Stack CRM",
   "applicationCategory": "BusinessApplication",
   "applicationSubCategory": "CRM Software",
   "operatingSystem": "Web Browser",
@@ -221,9 +221,9 @@ const softwareSchema = {
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  "name": "Base CRM by WECARE.DIGITAL",
-  "alternateName": "Base CRM",
-  "url": "https://base.wecare.digital",
+  "name": "Stack CRM by WECARE.DIGITAL",
+  "alternateName": "Stack CRM",
+  "url": "https://stack.wecare.digital",
   "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
   "publisher": {
     "@type": "Organization",
@@ -233,7 +233,7 @@ const websiteSchema = {
     "@type": "SearchAction",
     "target": {
       "@type": "EntryPoint",
-      "urlTemplate": "https://base.wecare.digital/contacts?q={search_term_string}"
+      "urlTemplate": "https://stack.wecare.digital/contacts?q={search_term_string}"
     },
     "query-input": "required name=search_term_string"
   },
@@ -247,10 +247,10 @@ const faqSchema = {
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "What is Base CRM by WECARE.DIGITAL?",
+      "name": "What is Stack CRM by WECARE.DIGITAL?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Base CRM is an enterprise multi-channel messaging platform that integrates WhatsApp Business API, SMS, Email, and Voice communications. It helps businesses engage customers, send bulk messages, collect payments via Razorpay, and automate responses with AI."
+        "text": "Stack CRM is an enterprise multi-channel messaging platform that integrates WhatsApp Business API, SMS, Email, and Voice communications. It helps businesses engage customers, send bulk messages, collect payments via Razorpay, and automate responses with AI."
       }
     },
     {
@@ -258,23 +258,23 @@ const faqSchema = {
       "name": "How can I send bulk WhatsApp messages?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Base CRM provides bulk WhatsApp messaging through the official WhatsApp Business API. You can upload contacts, create message templates, and send promotional or transactional messages to thousands of customers at once."
+        "text": "Stack CRM provides bulk WhatsApp messaging through the official WhatsApp Business API. You can upload contacts, create message templates, and send promotional or transactional messages to thousands of customers at once."
       }
     },
     {
       "@type": "Question",
-      "name": "Does Base CRM support WhatsApp payments?",
+      "name": "Does Stack CRM support WhatsApp payments?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes, Base CRM integrates with Razorpay to enable WhatsApp payments. You can send payment requests directly through WhatsApp and track payment status in real-time."
+        "text": "Yes, Stack CRM integrates with Razorpay to enable WhatsApp payments. You can send payment requests directly through WhatsApp and track payment status in real-time."
       }
     },
     {
       "@type": "Question",
-      "name": "What messaging channels does Base CRM support?",
+      "name": "What messaging channels does Stack CRM support?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Base CRM supports WhatsApp Business API, SMS (via AWS Pinpoint and IN SMS), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
+        "text": "Stack CRM supports WhatsApp Business API, SMS (via AWS Pinpoint and IN SMS), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
       }
     }
   ]
@@ -338,7 +338,7 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
       "@type": "ListItem",
       "position": 1,
       "name": "Home",
-      "item": "https://base.wecare.digital"
+      "item": "https://stack.wecare.digital"
     },
     {
       "@type": "ListItem",
@@ -370,12 +370,12 @@ const AuthHeader = () => {
       <div style={{ display: 'inline-flex', alignItems: 'center', gap }}>
         <img 
           src="https://app.wecare.digital/stream/media/m/wecaredigital.png" 
-          alt="Base CRM" 
+          alt="Stack CRM" 
           style={{ width: logoSize, height: logoSize, borderRadius: '10px' }}
           onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
         />
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', height: logoSize }}>
-          <span style={{ fontSize: titleSize, fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.3px', lineHeight: 1 }}>Base CRM</span>
+          <span style={{ fontSize: titleSize, fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.3px', lineHeight: 1 }}>Stack CRM</span>
           <span style={{ fontSize: subSize, fontWeight: 600, color: '#6b7280', lineHeight: 1, marginTop }}>by WECARE.DIGITAL</span>
         </div>
       </div>
@@ -387,7 +387,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   
-  const isPublic = router.pathname === '/' || router.pathname === '/nocode' || router.pathname === '/carbon';
+  const isPublic = router.pathname === '/' || router.pathname === '/crm' || router.pathname === '/studio' || router.pathname === '/sustainability';
 
   useEffect(() => {
     setMounted(true);
@@ -403,29 +403,29 @@ export default function App({ Component, pageProps }: AppProps) {
     return (
       <ErrorBoundary>
         <Head>
-          <title>Base CRM by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
+          <title>Stack CRM by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
           <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Start free today." />
-          <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications, WECARE.DIGITAL, Base CRM" />
+          <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications, WECARE.DIGITAL, Stack CRM" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href={FAVICON_URL} />
           <link rel="apple-touch-icon" href={LOGO_URL} />
-          <link rel="canonical" href="https://base.wecare.digital/" />
+          <link rel="canonical" href="https://stack.wecare.digital/" />
           
           {/* Open Graph */}
           <meta property="og:type" content="website" />
-          <meta property="og:url" content="https://base.wecare.digital/" />
-          <meta property="og:title" content="Base CRM - WhatsApp Business API Platform | WECARE.DIGITAL" />
+          <meta property="og:url" content="https://stack.wecare.digital/" />
+          <meta property="og:title" content="Stack CRM - WhatsApp Business API Platform | WECARE.DIGITAL" />
           <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
           <meta property="og:image" content={LOGO_URL} />
           <meta property="og:image:width" content="512" />
           <meta property="og:image:height" content="512" />
-          <meta property="og:site_name" content="Base CRM by WECARE.DIGITAL" />
+          <meta property="og:site_name" content="Stack CRM by WECARE.DIGITAL" />
           <meta property="og:locale" content="en_IN" />
           
           {/* Twitter */}
           <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:url" content="https://base.wecare.digital/" />
-          <meta name="twitter:title" content="Base CRM - WhatsApp Business API Platform" />
+          <meta name="twitter:url" content="https://stack.wecare.digital/" />
+          <meta name="twitter:title" content="Stack CRM - WhatsApp Business API Platform" />
           <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
           <meta name="twitter:image" content={LOGO_URL} />
           
@@ -479,14 +479,14 @@ export default function App({ Component, pageProps }: AppProps) {
 
   // Get page name for breadcrumb
   const pageName = router.pathname.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' > ') || 'Dashboard';
-  const pageUrl = `https://base.wecare.digital${router.pathname}`;
+  const pageUrl = `https://stack.wecare.digital${router.pathname}`;
 
   // Protected pages
   return (
     <ErrorBoundary>
       <Head>
-        <title>Base CRM by WECARE.DIGITAL</title>
-        <meta name="description" content="Base CRM Dashboard - Multi-channel messaging platform" />
+        <title>Stack CRM by WECARE.DIGITAL</title>
+        <meta name="description" content="Stack CRM Dashboard - Multi-channel messaging platform" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href={FAVICON_URL} />
         <link rel="apple-touch-icon" href={LOGO_URL} />

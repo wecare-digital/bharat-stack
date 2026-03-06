@@ -15,7 +15,7 @@ from typing import Any, Dict, Optional
 
 # Allowed origins — lock down to actual domains
 ALLOWED_ORIGINS = [
-    'https://base.wecare.digital',
+    'https://stack.wecare.digital',
     'https://wecare.digital',
     'https://app.wecare.digital',
     'http://localhost:3000',

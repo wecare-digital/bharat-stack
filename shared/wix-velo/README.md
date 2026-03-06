@@ -4,7 +4,7 @@ This folder contains the **source of truth** for Wix Velo backend code shared be
 
 | Repo | Branch | Purpose |
 |------|--------|---------|
-| `wecaredigital/base.wecare.digital` | `base` | CRM dashboard, Lambdas, Amplify. Has a reference copy at `store/src/` |
+| `wecaredigital/base.wecare.digital` | `base` | Stack CRM dashboard, Lambdas, Amplify. Has a reference copy at `store/src/` |
 | `wecaredigital/store.wecare.digital` | `main` | **LIVE on Wix** — connected via Git Integration. Auto-syncs to Wix Editor on push |
 
 ## How It Works
@@ -39,9 +39,9 @@ Example: WD-ORD - A3F7B2C1 - 22-02-2026 - 17:43:01 - IST
 
 | Table | Purpose |
 |-------|---------|
-| `base-wecare-digital-WixOrderIds` | Lambda order ID mapping (orderId → wdOrderNumber) |
-| `base-wecare-digital-WixProductsCache` | Product cache for dashboard |
-| `base-wecare-digital-WixOrdersCache` | Order cache for dashboard |
+| `stack-wecare-digital-WixOrderIds` | Lambda order ID mapping (orderId → wdOrderNumber) |
+| `stack-wecare-digital-WixProductsCache` | Product cache for dashboard |
+| `stack-wecare-digital-WixOrdersCache` | Order cache for dashboard |
 
 ## API Keys
 

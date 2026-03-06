@@ -24,7 +24,7 @@ const WEBHOOK_CONFIG = {
   verifyToken: WHATSAPP_CALLING_VERIFY_TOKEN,
   subscribedFields: ['calls'],
   lambda: 'wecare-whatsapp-calling',
-  table: 'base-wecare-digital-WhatsAppCallingTable',
+  table: 'stack-wecare-digital-WhatsAppCallingTable',
   status: 'verified',  // deployed, verified, subscribed
 };
 

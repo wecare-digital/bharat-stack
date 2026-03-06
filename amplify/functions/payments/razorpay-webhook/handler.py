@@ -36,10 +36,10 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
-PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
-INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
-WEBHOOK_LOG_TABLE = os.environ.get('WEBHOOK_LOG_TABLE', 'base-wecare-digital-RazorpayWebhookLogTable')
+PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
+INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+WEBHOOK_LOG_TABLE = os.environ.get('WEBHOOK_LOG_TABLE', 'stack-wecare-digital-RazorpayWebhookLogTable')
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -397,7 +397,7 @@ def _handle_payment_failed(event_data: Dict, request_id: str) -> None:
         try:
             import time as _time
             # Full pagination to avoid DynamoDB Limit bug
-            inv_table = dynamodb.Table(os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable'))
+            inv_table = dynamodb.Table(os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable'))
             matched = []
             scan_kwargs = {
                 'FilterExpression': 'referenceId = :ref AND (paymentStatus = :ps1 OR paymentStatus = :ps2)',

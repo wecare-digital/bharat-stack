@@ -61,22 +61,22 @@ const CLEANUP_FALLBACK: api.CleanupResource[] = [
   // System (optional)
   { id: 'rate_limit', label: 'Rate Limit Trackers', category: 'System', type: 'dynamodb', table: 'RateLimitTracker', count: -1 },
   // S3 Storage
-  { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'base/invoices/', count: -1 },
-  { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/', count: -1 },
-  { id: 's3_whatsapp_media_incoming', label: 'S3: WhatsApp Media (Incoming)', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/incoming/', count: -1 },
-  { id: 's3_whatsapp_media_outgoing', label: 'S3: WhatsApp Media (Outgoing)', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/outgoing/', count: -1 },
-  { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'base/voice/', count: -1 },
-  { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/voice/', count: -1 },
-  { id: 's3_template_headers', label: 'S3: Template Headers', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/template-headers/', count: -1 },
-  { id: 's3_product_images', label: 'S3: Product Images', category: 'S3 Storage', type: 's3', prefix: 'base/store/products/', count: -1 },
-  { id: 's3_reports', label: 'S3: Reports & Exports', category: 'S3 Storage', type: 's3', prefix: 'base/reports/', count: -1 },
-  { id: 's3_whatsapp_calling_ai', label: 'S3: WhatsApp Calling AI Audio', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/calling-ai/', count: -1 },
-  { id: 's3_whatsapp_downloads', label: 'S3: WhatsApp Media Downloads', category: 'S3 Storage', type: 's3', prefix: 'base/whatsapp-media/downloads/', count: -1 },
+  { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'stack/invoices/', count: -1 },
+  { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/', count: -1 },
+  { id: 's3_whatsapp_media_incoming', label: 'S3: WhatsApp Media (Incoming)', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/incoming/', count: -1 },
+  { id: 's3_whatsapp_media_outgoing', label: 'S3: WhatsApp Media (Outgoing)', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/outgoing/', count: -1 },
+  { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'stack/voice/', count: -1 },
+  { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/voice/', count: -1 },
+  { id: 's3_template_headers', label: 'S3: Template Headers', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/template-headers/', count: -1 },
+  { id: 's3_product_images', label: 'S3: Product Images', category: 'S3 Storage', type: 's3', prefix: 'stack/store/products/', count: -1 },
+  { id: 's3_reports', label: 'S3: Reports & Exports', category: 'S3 Storage', type: 's3', prefix: 'stack/reports/', count: -1 },
+  { id: 's3_whatsapp_calling_ai', label: 'S3: WhatsApp Calling AI Audio', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/calling-ai/', count: -1 },
+  { id: 's3_whatsapp_downloads', label: 'S3: WhatsApp Media Downloads', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/downloads/', count: -1 },
   // SQS Queues
-  { id: 'sqs_inbound_dlq', label: 'SQS: Inbound DLQ', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-inbound-dlq', count: -1 },
-  { id: 'sqs_bulk_dlq', label: 'SQS: Bulk DLQ', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-bulk-dlq', count: -1 },
-  { id: 'sqs_bulk_queue', label: 'SQS: Bulk Queue', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-bulk-queue', count: -1 },
-  { id: 'sqs_outbound_dlq', label: 'SQS: Outbound DLQ', category: 'SQS Queues', type: 'sqs', queue: 'base-wecare-digital-outbound-dlq', count: -1 },
+  { id: 'sqs_inbound_dlq', label: 'SQS: Inbound DLQ', category: 'SQS Queues', type: 'sqs', queue: 'stack-wecare-digital-inbound-dlq', count: -1 },
+  { id: 'sqs_bulk_dlq', label: 'SQS: Bulk DLQ', category: 'SQS Queues', type: 'sqs', queue: 'stack-wecare-digital-bulk-dlq', count: -1 },
+  { id: 'sqs_bulk_queue', label: 'SQS: Bulk Queue', category: 'SQS Queues', type: 'sqs', queue: 'stack-wecare-digital-bulk-queue', count: -1 },
+  { id: 'sqs_outbound_dlq', label: 'SQS: Outbound DLQ', category: 'SQS Queues', type: 'sqs', queue: 'stack-wecare-digital-outbound-dlq', count: -1 },
 ];
 
 const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {

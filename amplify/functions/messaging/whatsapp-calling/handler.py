@@ -39,7 +39,7 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', '')
-CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'base-wecare-digital-WhatsAppCallingTable')
+CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'stack-wecare-digital-WhatsAppCallingTable')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
@@ -625,7 +625,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 # Default: ON — auto-pickup is enabled by default.
 # Toggle via SystemConfig table or environment variable.
 
-SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr-greeting.mp3')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
@@ -1001,7 +1001,7 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
     media_format = 'webm' if ext == 'webm' else 'ogg' if ext == 'ogg' else 'mp3'
 
     audio_bytes = b64.b64decode(audio_base64)
-    s3_key = f"base/whatsapp-media/calling-ai/wecare-digital-{session_id[:8]}_{int(time.time())}.{ext}"
+    s3_key = f"stack/whatsapp-media/calling-ai/wecare-digital-{session_id[:8]}_{int(time.time())}.{ext}"
 
     s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_bytes, ContentType=mime_type)
     logger.info(f"[TRANSCRIBE] Uploaded {len(audio_bytes)} bytes to s3://{MEDIA_BUCKET}/{s3_key}")
@@ -1013,7 +1013,7 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
         MediaFormat=media_format,
         LanguageCode=TRANSCRIBE_LANGUAGE,
         OutputBucketName=MEDIA_BUCKET,
-        OutputKey=f"base/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json",
+        OutputKey=f"stack/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json",
     )
 
     # Poll for completion (max 30s)
@@ -1022,7 +1022,7 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
         status = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
         job_status = status['TranscriptionJob']['TranscriptionJobStatus']
         if job_status == 'COMPLETED':
-            transcript_key = f"base/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json"
+            transcript_key = f"stack/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json"
             obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
             transcript_data = json.loads(obj['Body'].read().decode('utf-8'))
             text = transcript_data.get('results', {}).get('transcripts', [{}])[0].get('transcript', '')
@@ -1107,7 +1107,7 @@ def _generate_tts_url(text: str, session_id: str, request_id: str) -> Optional[s
             LanguageCode=AI_LANGUAGE or 'en-IN',
         )
         audio_stream = polly_response['AudioStream'].read()
-        s3_key = f"base/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
+        s3_key = f"stack/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
         s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
         url = s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
         logger.info(f"[TTS] Generated {len(audio_stream)} bytes → {s3_key}")
@@ -1121,7 +1121,7 @@ def _generate_tts_url(text: str, session_id: str, request_id: str) -> Optional[s
                 LanguageCode=AI_LANGUAGE or 'en-IN',
             )
             audio_stream = polly_response['AudioStream'].read()
-            s3_key = f"base/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
+            s3_key = f"stack/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
             s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
             return s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
         except Exception as e2:

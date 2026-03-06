@@ -21,6 +21,6 @@ export const whatsappTemplateManagement = defineFunction({
   environment: {
     LOG_LEVEL: 'INFO',
     MEDIA_BUCKET: 'app.wecare.digital',
-    TEMPLATE_MEDIA_PREFIX: 'base/whatsapp-media/template-headers/',
+    TEMPLATE_MEDIA_PREFIX: 'stack/whatsapp-media/template-headers/',
   },
 });

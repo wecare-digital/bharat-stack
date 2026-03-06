@@ -2,7 +2,7 @@
  * Product Manager — WECARE.DIGITAL Store (Velo Web Module)
  *
  * Create, update, and manage products in the Wix Store via Velo.
- * Called from the CRM dashboard (base.wecare.digital/store) through
+ * Called from the CRM dashboard (stack.wecare.digital/store) through
  * the Lambda → Velo HTTP Functions pipeline.
  *
  * Uses wix-stores-backend for product CRUD operations.

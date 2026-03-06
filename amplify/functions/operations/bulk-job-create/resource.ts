@@ -9,8 +9,8 @@ export const bulkJobCreate = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    BULK_JOBS_TABLE: 'base-wecare-digital-BulkJobsTable',
-    BULK_RECIPIENTS_TABLE: 'base-wecare-digital-BulkRecipientsTable',
-    BULK_QUEUE_URL: `https://sqs.us-east-1.amazonaws.com/${process.env.AWS_ACCOUNT_ID || '775261844268'}/base-wecare-digital-bulk-queue`,
+    BULK_JOBS_TABLE: 'stack-wecare-digital-BulkJobsTable',
+    BULK_RECIPIENTS_TABLE: 'stack-wecare-digital-BulkRecipientsTable',
+    BULK_QUEUE_URL: `https://sqs.us-east-1.amazonaws.com/${process.env.AWS_ACCOUNT_ID || '775261844268'}/stack-wecare-digital-bulk-queue`,
   },
 });

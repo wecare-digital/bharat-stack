@@ -39,7 +39,7 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
-SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 
 # CORS headers
@@ -546,7 +546,7 @@ def _get_media(media_id: str, phone_number_id: str, query_params: Dict, request_
         
         # If not metadata only, specify S3 destination
         if not metadata_only:
-            s3_key = f'base/whatsapp-media/downloads/wecare-digital-{media_id}'
+            s3_key = f'stack/whatsapp-media/downloads/wecare-digital-{media_id}'
             params['destinationS3File'] = {
                 'bucketName': MEDIA_BUCKET,
                 'key': s3_key

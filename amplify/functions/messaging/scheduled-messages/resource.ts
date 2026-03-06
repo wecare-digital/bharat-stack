@@ -12,8 +12,8 @@ export const scheduledMessagesFunction = defineFunction({
   timeoutSeconds: 60,
   memoryMB: 256,
   environment: {
-    SCHEDULED_TABLE: 'base-wecare-digital-ScheduledMessagesTable',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
+    SCHEDULED_TABLE: 'stack-wecare-digital-ScheduledMessagesTable',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     OUTBOUND_LAMBDA: 'wecare-outbound-whatsapp',
     LOG_LEVEL: 'INFO',
   },

@@ -11,23 +11,23 @@ export const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
 
 // DynamoDB Tables (actual deployed names)
 export const TABLES = {
-  CONTACTS: process.env.CONTACTS_TABLE || 'base-wecare-digital-ContactsTable',
-  MESSAGES_INBOUND: process.env.MESSAGES_INBOUND_TABLE || 'base-wecare-digital-WhatsAppInboundTable',
-  MESSAGES_OUTBOUND: process.env.MESSAGES_OUTBOUND_TABLE || 'base-wecare-digital-WhatsAppOutboundTable',
-  BULK_JOBS: process.env.BULK_JOBS_TABLE || 'base-wecare-digital-BulkJobsTable',
-  BULK_RECIPIENTS: process.env.BULK_RECIPIENTS_TABLE || 'base-wecare-digital-BulkRecipientsTable',
-  USERS: process.env.USERS_TABLE || 'base-wecare-digital-UsersTable',
-  MEDIA_FILES: process.env.MEDIA_FILES_TABLE || 'base-wecare-digital-MediaFilesTable',
-  DLQ_MESSAGES: process.env.DLQ_MESSAGES_TABLE || 'base-wecare-digital-DLQMessagesTable',
-  AUDIT_LOGS: process.env.AUDIT_LOGS_TABLE || 'base-wecare-digital-AuditLogsTable',
-  AI_INTERACTIONS: process.env.AI_INTERACTIONS_TABLE || 'base-wecare-digital-AIInteractionsTable',
-  RATE_LIMIT: process.env.RATE_LIMIT_TABLE || 'base-wecare-digital-RateLimitTable',
-  SYSTEM_CONFIG: process.env.SYSTEM_CONFIG_TABLE || 'base-wecare-digital-SystemConfigTable',
-  VOICE_CALLS: process.env.VOICE_CALLS_TABLE || 'base-wecare-digital-VoiceCalls',
-  SMS_AWS: process.env.SMS_AWS_TABLE || 'base-wecare-digital-SmsAwsTable',
-  VOICE_AWS: process.env.VOICE_AWS_TABLE || 'base-wecare-digital-VoiceAwsTable',
-  WIX_PRODUCTS_CACHE: process.env.WIX_PRODUCTS_CACHE_TABLE || 'base-wecare-digital-WixProductsCache',
-  WIX_ORDERS_CACHE: process.env.WIX_ORDERS_CACHE_TABLE || 'base-wecare-digital-WixOrdersCache',
+  CONTACTS: process.env.CONTACTS_TABLE || 'stack-wecare-digital-ContactsTable',
+  MESSAGES_INBOUND: process.env.MESSAGES_INBOUND_TABLE || 'stack-wecare-digital-WhatsAppInboundTable',
+  MESSAGES_OUTBOUND: process.env.MESSAGES_OUTBOUND_TABLE || 'stack-wecare-digital-WhatsAppOutboundTable',
+  BULK_JOBS: process.env.BULK_JOBS_TABLE || 'stack-wecare-digital-BulkJobsTable',
+  BULK_RECIPIENTS: process.env.BULK_RECIPIENTS_TABLE || 'stack-wecare-digital-BulkRecipientsTable',
+  USERS: process.env.USERS_TABLE || 'stack-wecare-digital-UsersTable',
+  MEDIA_FILES: process.env.MEDIA_FILES_TABLE || 'stack-wecare-digital-MediaFilesTable',
+  DLQ_MESSAGES: process.env.DLQ_MESSAGES_TABLE || 'stack-wecare-digital-DLQMessagesTable',
+  AUDIT_LOGS: process.env.AUDIT_LOGS_TABLE || 'stack-wecare-digital-AuditLogsTable',
+  AI_INTERACTIONS: process.env.AI_INTERACTIONS_TABLE || 'stack-wecare-digital-AIInteractionsTable',
+  RATE_LIMIT: process.env.RATE_LIMIT_TABLE || 'stack-wecare-digital-RateLimitTable',
+  SYSTEM_CONFIG: process.env.SYSTEM_CONFIG_TABLE || 'stack-wecare-digital-SystemConfigTable',
+  VOICE_CALLS: process.env.VOICE_CALLS_TABLE || 'stack-wecare-digital-VoiceCalls',
+  SMS_AWS: process.env.SMS_AWS_TABLE || 'stack-wecare-digital-SmsAwsTable',
+  VOICE_AWS: process.env.VOICE_AWS_TABLE || 'stack-wecare-digital-VoiceAwsTable',
+  WIX_PRODUCTS_CACHE: process.env.WIX_PRODUCTS_CACHE_TABLE || 'stack-wecare-digital-WixProductsCache',
+  WIX_ORDERS_CACHE: process.env.WIX_ORDERS_CACHE_TABLE || 'stack-wecare-digital-WixOrdersCache',
 };
 
 // Wix Store Configuration
@@ -45,12 +45,12 @@ export const S3_BUCKETS = {
 };
 
 // S3 Prefixes
-// User/transactional data under base/ (factory reset = wipe base/ only)
+// User/transactional data under stack/ (factory reset = wipe stack/ only)
 // Static internal assets under stream/ (never wiped)
 export const S3_PREFIXES = {
-  MEDIA_INBOUND: 'base/whatsapp-media/incoming/',
-  MEDIA_OUTBOUND: 'base/whatsapp-media/outgoing/',
-  REPORTS: 'base/reports/',
+  MEDIA_INBOUND: 'stack/whatsapp-media/incoming/',
+  MEDIA_OUTBOUND: 'stack/whatsapp-media/outgoing/',
+  REPORTS: 'stack/reports/',
 };
 
 // WhatsApp Configuration
@@ -65,7 +65,7 @@ export const WHATSAPP_CONFIG = {
 
 // SNS Topics
 export const SNS_TOPICS = {
-  WHATSAPP_EVENTS: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`,
+  WHATSAPP_EVENTS: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital`,
 };
 
 // Cognito

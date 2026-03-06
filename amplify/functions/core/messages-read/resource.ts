@@ -8,8 +8,8 @@ export const messagesRead = defineFunction({
   memoryMB: 256,
   environment: {
     AWS_REGION: 'us-east-1',
-    INBOUND_TABLE: 'base-wecare-digital-WhatsAppInboundTable',
-    OUTBOUND_TABLE: 'base-wecare-digital-WhatsAppOutboundTable',
+    INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable',
+    OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable',
     MEDIA_BUCKET: 'app.wecare.digital',
     LOG_LEVEL: 'INFO',
   },

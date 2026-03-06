@@ -1,10 +1,10 @@
-﻿"""
+"""
 AI Generate Response Lambda Function
 
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
 
 Architecture:
-- INTERNAL: Bedrock Agent (FloatingAgent) for admin tasks — unchanged
+- INTERNAL: Bedrock Agent (FloatingAgent) for admin tasks � unchanged
   - Agent ID: QIEEHEBTZO / Alias: ASCBD7YPUT / KB: static-faq
 - EXTERNAL: Bedrock Converse API (Amazon Nova Lite) for WhatsApp auto-reply
   - Multimodal: text, images, audio, video, documents
@@ -62,17 +62,17 @@ s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-CONVERSATION_TABLE = os.environ.get('CONVERSATION_TABLE', 'base-wecare-digital-ConversationHistoryTable')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-WhatsAppInboundTable')
+CONVERSATION_TABLE = os.environ.get('CONVERSATION_TABLE', 'stack-wecare-digital-ConversationHistoryTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 
-# Internal Agent (FloatingAgent — admin tasks, unchanged)
+# Internal Agent (FloatingAgent � admin tasks, unchanged)
 INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'QIEEHEBTZO')
 INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'ASCBD7YPUT')
 INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'static-faq')
 
-# External (WhatsApp auto-reply — Converse API)
+# External (WhatsApp auto-reply � Converse API)
 EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'static-faq')
 MODEL_ID = os.environ.get('MODEL_ID', 'amazon.nova-lite-v1:0')
 GUARDRAIL_ID = os.environ.get('GUARDRAIL_ID', '')
@@ -84,10 +84,10 @@ MAX_SESSION_MESSAGES = int(os.environ.get('MAX_SESSION_MESSAGES', '50'))
 CONVERSATION_TTL_HOURS = int(os.environ.get('CONVERSATION_TTL_HOURS', '24'))
 PROCESSING_LOCK_TTL_SECONDS = 90
 
-# Session idle timeout (minutes) — reset conversation if idle too long
+# Session idle timeout (minutes) � reset conversation if idle too long
 SESSION_IDLE_TIMEOUT_MINUTES = int(os.environ.get('SESSION_IDLE_TIMEOUT_MINUTES', '15'))
 
-# Input text size limit — truncate to prevent token abuse
+# Input text size limit � truncate to prevent token abuse
 MAX_INPUT_TEXT_LENGTH = int(os.environ.get('MAX_INPUT_TEXT_LENGTH', '2000'))
 
 # Media size limits (bytes) for inline Converse API
@@ -113,26 +113,26 @@ SUPPORTED_LANGUAGES = {
     'kannada': 'Kannada', 'kn': 'Kannada',
     'malayalam': 'Malayalam', 'ml': 'Malayalam',
     # Asian
-    'chinese': 'Chinese', 'zh': 'Chinese', '中文': 'Chinese',
-    'japanese': 'Japanese', 'ja': 'Japanese', '日本語': 'Japanese',
-    'korean': 'Korean', 'ko': 'Korean', '한국어': 'Korean',
-    'thai': 'Thai', 'th': 'Thai', 'ไทย': 'Thai',
+    'chinese': 'Chinese', 'zh': 'Chinese', '??': 'Chinese',
+    'japanese': 'Japanese', 'ja': 'Japanese', '???': 'Japanese',
+    'korean': 'Korean', 'ko': 'Korean', '???': 'Korean',
+    'thai': 'Thai', 'th': 'Thai', '???': 'Thai',
     'vietnamese': 'Vietnamese', 'vi': 'Vietnamese',
     'indonesian': 'Indonesian', 'id': 'Indonesian', 'bahasa': 'Indonesian',
     'sinhala': 'Sinhala', 'si': 'Sinhala', 'sinhalese': 'Sinhala',
     # Middle East
-    'arabic': 'Arabic', 'ar': 'Arabic', 'العربية': 'Arabic',
-    'turkish': 'Turkish', 'tr': 'Turkish', 'türkçe': 'Turkish',
-    'russian': 'Russian', 'ru': 'Russian', 'русский': 'Russian',
-    'urdu': 'Urdu', 'ur': 'Urdu', 'اردو': 'Urdu',
+    'arabic': 'Arabic', 'ar': 'Arabic', '???????': 'Arabic',
+    'turkish': 'Turkish', 'tr': 'Turkish', 't�rk�e': 'Turkish',
+    'russian': 'Russian', 'ru': 'Russian', '???????': 'Russian',
+    'urdu': 'Urdu', 'ur': 'Urdu', '????': 'Urdu',
     'punjabi': 'Punjabi', 'pa': 'Punjabi',
     # European
-    'french': 'French', 'fr': 'French', 'français': 'French',
-    'spanish': 'Spanish', 'es': 'Spanish', 'español': 'Spanish',
-    'portuguese': 'Portuguese', 'pt': 'Portuguese', 'português': 'Portuguese',
+    'french': 'French', 'fr': 'French', 'fran�ais': 'French',
+    'spanish': 'Spanish', 'es': 'Spanish', 'espa�ol': 'Spanish',
+    'portuguese': 'Portuguese', 'pt': 'Portuguese', 'portugu�s': 'Portuguese',
 }
 
-# ── Two-step language picker: Step 1 = Region, Step 2 = Languages ──
+# -- Two-step language picker: Step 1 = Region, Step 2 = Languages --
 
 LANGUAGE_REGION_PICKER = [
     {'id': 'region_popular', 'title': '\u2b50 Popular', 'description': 'English, Hindi, Bengali, Tamil & more'},
@@ -144,71 +144,71 @@ LANGUAGE_REGION_PICKER = [
 LANGUAGE_BY_REGION = {
     'region_popular': [
         {'id': 'lang_english', 'title': 'English'},
-        {'id': 'lang_hindi', 'title': 'हिन्दी / Hindi'},
+        {'id': 'lang_hindi', 'title': '?????? / Hindi'},
         {'id': 'lang_hinglish', 'title': 'Hinglish'},
-        {'id': 'lang_bengali', 'title': 'বাংলা / Bengali'},
-        {'id': 'lang_tamil', 'title': 'தமிழ் / Tamil'},
-        {'id': 'lang_telugu', 'title': 'తెలుగు / Telugu'},
-        {'id': 'lang_gujarati', 'title': 'ગુજરાતી / Gujarati'},
-        {'id': 'lang_marathi', 'title': 'मराठी / Marathi'},
-        {'id': 'lang_kannada', 'title': 'ಕನ್ನಡ / Kannada'},
-        {'id': 'lang_malayalam', 'title': 'മലയാളം / Malayalam'},
+        {'id': 'lang_bengali', 'title': '????? / Bengali'},
+        {'id': 'lang_tamil', 'title': '????? / Tamil'},
+        {'id': 'lang_telugu', 'title': '?????? / Telugu'},
+        {'id': 'lang_gujarati', 'title': '??????? / Gujarati'},
+        {'id': 'lang_marathi', 'title': '????? / Marathi'},
+        {'id': 'lang_kannada', 'title': '????? / Kannada'},
+        {'id': 'lang_malayalam', 'title': '?????? / Malayalam'},
     ],
     'region_asian': [
-        {'id': 'lang_chinese', 'title': '简体中文 / Chinese'},
-        {'id': 'lang_japanese', 'title': '日本語 / Japanese'},
-        {'id': 'lang_korean', 'title': '한국어 / Korean'},
-        {'id': 'lang_thai', 'title': 'ไทย / Thai'},
-        {'id': 'lang_vietnamese', 'title': 'Tiếng Việt / Vietnamese'},
+        {'id': 'lang_chinese', 'title': '???? / Chinese'},
+        {'id': 'lang_japanese', 'title': '??? / Japanese'},
+        {'id': 'lang_korean', 'title': '??? / Korean'},
+        {'id': 'lang_thai', 'title': '??? / Thai'},
+        {'id': 'lang_vietnamese', 'title': 'Ti?ng Vi?t / Vietnamese'},
         {'id': 'lang_indonesian', 'title': 'Indonesia / Indonesian'},
-        {'id': 'lang_sinhala', 'title': 'සිංහල / Sinhala'},
+        {'id': 'lang_sinhala', 'title': '????? / Sinhala'},
     ],
     'region_middle_east': [
-        {'id': 'lang_arabic', 'title': 'العربية / Arabic'},
-        {'id': 'lang_turkish', 'title': 'Türkçe / Turkish'},
-        {'id': 'lang_russian', 'title': 'Русский / Russian'},
-        {'id': 'lang_urdu', 'title': 'اردو / Urdu'},
-        {'id': 'lang_punjabi', 'title': 'ਪੰਜਾਬੀ / Punjabi'},
+        {'id': 'lang_arabic', 'title': '??????? / Arabic'},
+        {'id': 'lang_turkish', 'title': 'T�rk�e / Turkish'},
+        {'id': 'lang_russian', 'title': '??????? / Russian'},
+        {'id': 'lang_urdu', 'title': '???? / Urdu'},
+        {'id': 'lang_punjabi', 'title': '?????? / Punjabi'},
     ],
     'region_european': [
-        {'id': 'lang_french', 'title': 'Français / French'},
-        {'id': 'lang_spanish', 'title': 'Español / Spanish'},
-        {'id': 'lang_portuguese', 'title': 'Português / Portuguese'},
+        {'id': 'lang_french', 'title': 'Fran�ais / French'},
+        {'id': 'lang_spanish', 'title': 'Espa�ol / Spanish'},
+        {'id': 'lang_portuguese', 'title': 'Portugu�s / Portuguese'},
     ],
 }
 
-# Flat map: lang ID → language name (built from all regions)
+# Flat map: lang ID ? language name (built from all regions)
 LANGUAGE_ID_MAP = {}
 for _region_langs in LANGUAGE_BY_REGION.values():
     for _opt in _region_langs:
         LANGUAGE_ID_MAP[_opt['id']] = _opt['title'].split(' / ')[-1] if ' / ' in _opt['title'] else _opt['title']
 
 LANGUAGE_CONFIRMATIONS = {
-    'English': "Language set to English! 🌐 How can I help you today?",
-    'Hindi': "भाषा हिंदी में सेट हो गई! 🌐 मैं आपकी कैसे मदद कर सकता हूँ?",
-    'Hinglish': "Language Hinglish mein set ho gayi! 🌐 Kaise help kar sakta hoon?",
-    'Bengali': "ভাষা বাংলায় সেট হয়েছে! 🌐 আমি কীভাবে সাহায্য করতে পারি?",
-    'Tamil': "மொழி தமிழில் அமைக்கப்பட்டது! 🌐 நான் எப்படி உதவ முடியும்?",
-    'Telugu': "భాష తెలుగులో సెట్ చేయబడింది! 🌐 నేను ఎలా సహాయం చేయగలను?",
-    'Gujarati': "ભાષા ગુજરાતીમાં સેટ થઈ! 🌐 હું કેવી રીતે મદદ કરી શકું?",
-    'Marathi': "भाषा मराठीत सेट झाली! 🌐 मी कशी मदत करू शकतो?",
-    'Kannada': "ಭಾಷೆ ಕನ್ನಡಕ್ಕೆ ಹೊಂದಿಸಲಾಗಿದೆ! 🌐 ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
-    'Malayalam': "ഭാഷ മലയാളത്തിൽ സജ്ജീകരിച്ചു! 🌐 ഞാൻ എങ്ങനെ സഹായിക്കാം?",
-    'Chinese': "语言已设置为中文！🌐 我能帮您什么？",
-    'Japanese': "言語が日本語に設定されました！🌐 何かお手伝いできますか？",
-    'Korean': "언어가 한국어로 설정되었습니다! 🌐 무엇을 도와드릴까요?",
-    'Thai': "ตั้งค่าภาษาเป็นภาษาไทยแล้ว! 🌐 ให้ช่วยอะไรดีคะ?",
-    'Vietnamese': "Ngôn ngữ đã được đặt thành Tiếng Việt! 🌐 Tôi có thể giúp gì?",
-    'Indonesian': "Bahasa diatur ke Indonesia! 🌐 Ada yang bisa saya bantu?",
-    'Sinhala': "භාෂාව සිංහලට සකසා ඇත! 🌐 මට ඔබට උදව් කළ හැක්කේ කෙසේද?",
-    'Arabic': "تم تعيين اللغة إلى العربية! 🌐 كيف يمكنني مساعدتك؟",
-    'Turkish': "Dil Türkçe olarak ayarlandı! 🌐 Size nasıl yardımcı olabilirim?",
-    'Russian': "Язык установлен на русский! 🌐 Чем могу помочь?",
-    'Urdu': "زبان اردو میں سیٹ ہو گئی! 🌐 میں آپ کی کیسے مدد کر سکتا ہوں؟",
-    'Punjabi': "ਭਾਸ਼ਾ ਪੰਜਾਬੀ ਵਿੱਚ ਸੈੱਟ ਹੋ ਗਈ! 🌐 ਮੈਂ ਤੁਹਾਡੀ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
-    'French': "Langue définie sur le français ! 🌐 Comment puis-je vous aider ?",
-    'Spanish': "¡Idioma configurado en español! 🌐 ¿Cómo puedo ayudarte?",
-    'Portuguese': "Idioma definido para português! 🌐 Como posso ajudar?",
+    'English': "Language set to English! ?? How can I help you today?",
+    'Hindi': "???? ????? ??? ??? ?? ??! ?? ??? ???? ???? ??? ?? ???? ????",
+    'Hinglish': "Language Hinglish mein set ho gayi! ?? Kaise help kar sakta hoon?",
+    'Bengali': "???? ??????? ??? ??????! ?? ??? ?????? ??????? ???? ?????",
+    'Tamil': "???? ??????? ??????????????! ?? ???? ?????? ??? ?????????",
+    'Telugu': "??? ???????? ???? ?????????! ?? ???? ??? ????? ????????",
+    'Gujarati': "???? ?????????? ??? ??! ?? ??? ???? ???? ??? ??? ?????",
+    'Marathi': "???? ?????? ??? ????! ?? ?? ??? ??? ??? ?????",
+    'Kannada': "???? ????????? ????????????! ?? ???? ???? ???? ?????????",
+    'Malayalam': "??? ?????????? ????????????! ?? ??? ?????? ???????????",
+    'Chinese': "????????!?? ???????",
+    'Japanese': "??????????????!?? ????????????",
+    'Korean': "??? ???? ???????! ?? ??? ???????",
+    'Thai': "??????????????????????????! ?? ????????????????",
+    'Vietnamese': "Ng�n ng? d� du?c d?t th�nh Ti?ng Vi?t! ?? T�i c� th? gi�p g�?",
+    'Indonesian': "Bahasa diatur ke Indonesia! ?? Ada yang bisa saya bantu?",
+    'Sinhala': "????? ?????? ???? ??! ?? ?? ??? ???? ?? ?????? ??????",
+    'Arabic': "?? ????? ????? ??? ???????! ?? ??? ?????? ????????",
+    'Turkish': "Dil T�rk�e olarak ayarlandi! ?? Size nasil yardimci olabilirim?",
+    'Russian': "???? ?????????? ?? ???????! ?? ??? ???? ???????",
+    'Urdu': "???? ???? ??? ??? ?? ???! ?? ??? ?? ?? ???? ??? ?? ???? ????",
+    'Punjabi': "????? ?????? ???? ???? ?? ??! ?? ??? ?????? ????? ??? ?? ???? ????",
+    'French': "Langue d�finie sur le fran�ais ! ?? Comment puis-je vous aider ?",
+    'Spanish': "�Idioma configurado en espa�ol! ?? �C�mo puedo ayudarte?",
+    'Portuguese': "Idioma definido para portugu�s! ?? Como posso ajudar?",
 }
 
 
@@ -217,104 +217,104 @@ LANGUAGE_CONFIRMATIONS = {
 # ============================================================================
 
 DEFAULT_BOT_FLOW = {
-    # ── AI & Language Disclaimer (dashboard-manageable) ──
-    'disclaimer': "ℹ️ _This is an AI assistant. Responses are generated on a best-effort basis and may not always be accurate. Language and voice support is provided on a best-effort basis. Please verify important information independently or contact our team at +91 9330994400._",
+    # -- AI & Language Disclaimer (dashboard-manageable) --
+    'disclaimer': "?? _This is an AI assistant. Responses are generated on a best-effort basis and may not always be accurate. Language and voice support is provided on a best-effort basis. Please verify important information independently or contact our team at +91 9330994400._",
 
-    # ── Welcome messages ──
+    # -- Welcome messages --
     'welcome': {
-        'text': "Hi there! 👋 Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support \u2014 all right here.\n\nℹ️ _You\u2019re chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started 👇",
+        'text': "Hi there! ?? Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support \u2014 all right here.\n\n?? _You\u2019re chatting with an AI assistant. Responses may not always be accurate. Please verify important details independently._\n\nTap Menu to get started ??",
     },
     'welcomeBack': {
-        'text': "Welcome back! 💛 What can we help with today? 👇",
+        'text': "Welcome back! ?? What can we help with today? ??",
     },
 
-    # ── Main Menu (10 rows, 2 sections) ──
+    # -- Main Menu (10 rows, 2 sections) --
     'mainMenu': {
         'header': 'WECARE.DIGITAL',
-        'body': "Pick what you need 👇",
+        'body': "Pick what you need ??",
         'footer': 'wecare.digital',
         'buttonText': 'Menu',
         'sections': [
             {
                 'title': 'Explore',
                 'rows': [
-                    {'id': 'menu_store', 'title': '🛒 Store', 'description': 'Shop our brand marketplaces'},
-                    {'id': 'menu_self_service', 'title': '🚀 Self Service', 'description': 'Submit, track & manage requests'},
-                    {'id': 'menu_pay', 'title': '💳 Pay', 'description': 'Make a payment via WhatsApp'},
-                    {'id': 'menu_subscribe', 'title': '📝 Subscribe', 'description': 'Sign up with name, email & phone'},
+                    {'id': 'menu_store', 'title': '?? Store', 'description': 'Shop our brand marketplaces'},
+                    {'id': 'menu_self_service', 'title': '?? Self Service', 'description': 'Submit, track & manage requests'},
+                    {'id': 'menu_pay', 'title': '?? Pay', 'description': 'Make a payment via WhatsApp'},
+                    {'id': 'menu_subscribe', 'title': '?? Subscribe', 'description': 'Sign up with name, email & phone'},
                 ]
             },
             {
                 'title': 'More',
                 'rows': [
-                    {'id': 'menu_app', 'title': '📱 Download App', 'description': 'Get the WECARE.DIGITAL app'},
-                    {'id': 'menu_about', 'title': '💛 About Us', 'description': 'Our mission & brands'},
-                    {'id': 'menu_audio', 'title': '🎧 Audio Response', 'description': 'Get replies as voice messages'},
-                    {'id': 'menu_language', 'title': '🌐 Change Language', 'description': 'Choose your response language'},
-                    {'id': 'menu_notifications', 'title': '🔔 Notifications', 'description': 'Manage your alert preferences'},
-                    {'id': 'menu_human', 'title': '💬 Talk to Human', 'description': 'Connect with a live agent'},
+                    {'id': 'menu_app', 'title': '?? Download App', 'description': 'Get the WECARE.DIGITAL app'},
+                    {'id': 'menu_about', 'title': '?? About Us', 'description': 'Our mission & brands'},
+                    {'id': 'menu_audio', 'title': '?? Audio Response', 'description': 'Get replies as voice messages'},
+                    {'id': 'menu_language', 'title': '?? Change Language', 'description': 'Choose your response language'},
+                    {'id': 'menu_notifications', 'title': '?? Notifications', 'description': 'Manage your alert preferences'},
+                    {'id': 'menu_human', 'title': '?? Talk to Human', 'description': 'Connect with a live agent'},
                 ]
             }
         ]
     },
 
-    # ── Sub-Menus ──
+    # -- Sub-Menus --
     'subMenus': {
         'menu_store': {
             'header': 'Our Store',
-            'body': "Explore our brands & gifting 👇",
+            'body': "Explore our brands & gifting ??",
             'footer': 'wecare.digital/store',
             'buttonText': 'Browse',
             'sections': [
                 {
                     'title': 'Brands',
                     'rows': [
-                        {'id': 'store_bnb_club', 'title': '✈️ BNB Club', 'description': 'Travel, visas, corporate & FIT'},
-                        {'id': 'store_no_fault', 'title': '⚖️ No Fault', 'description': 'Faster online dispute resolution'},
-                        {'id': 'store_expo_week', 'title': '🌍 Expo Week', 'description': 'Virtual fairs & digital events'},
-                        {'id': 'store_ritual_guru', 'title': '🙏 Ritual Guru', 'description': 'Puja kits & step-by-step guides'},
-                        {'id': 'store_legal_champ', 'title': '📄 Legal Champ', 'description': 'Business docs & registrations'},
-                        {'id': 'store_swdhya', 'title': '🧘 Swdhya', 'description': 'Samvad — self-inquiry chats'},
+                        {'id': 'store_bnb_club', 'title': '?? BNB Club', 'description': 'Travel, visas, corporate & FIT'},
+                        {'id': 'store_no_fault', 'title': '?? No Fault', 'description': 'Faster online dispute resolution'},
+                        {'id': 'store_expo_week', 'title': '?? Expo Week', 'description': 'Virtual fairs & digital events'},
+                        {'id': 'store_ritual_guru', 'title': '?? Ritual Guru', 'description': 'Puja kits & step-by-step guides'},
+                        {'id': 'store_legal_champ', 'title': '?? Legal Champ', 'description': 'Business docs & registrations'},
+                        {'id': 'store_swdhya', 'title': '?? Swdhya', 'description': 'Samvad � self-inquiry chats'},
                     ]
                 },
                 {
                     'title': 'Gifting',
                     'rows': [
-                        {'id': 'store_gift_card', 'title': '🎁 Gift Card', 'description': 'Send a WECARE.DIGITAL gift card'},
-                        {'id': 'menu_back', 'title': '↩️ Back to Menu', 'description': 'Return to main menu'},
+                        {'id': 'store_gift_card', 'title': '?? Gift Card', 'description': 'Send a WECARE.DIGITAL gift card'},
+                        {'id': 'menu_back', 'title': '?? Back to Menu', 'description': 'Return to main menu'},
                     ]
                 }
             ]
         },
         'menu_self_service': {
             'header': 'Self Service',
-            'body': "What do you need help with? 👇",
+            'body': "What do you need help with? ??",
             'footer': 'wecare.digital/selfservice',
             'buttonText': 'Options',
             'sections': [
                 {
                     'title': 'Requests',
                     'rows': [
-                        {'id': 'menu_submit_request', 'title': '📩 Submit a Request', 'description': 'Start a new service request'},
-                        {'id': 'menu_amend_request', 'title': '✏️ Amend a Request', 'description': 'Modify a previous request'},
-                        {'id': 'menu_track_request', 'title': '📍 Track a Request', 'description': 'Check your request status'},
+                        {'id': 'menu_submit_request', 'title': '?? Submit a Request', 'description': 'Start a new service request'},
+                        {'id': 'menu_amend_request', 'title': '?? Amend a Request', 'description': 'Modify a previous request'},
+                        {'id': 'menu_track_request', 'title': '?? Track a Request', 'description': 'Check your request status'},
                     ]
                 },
                 {
                     'title': 'Services',
                     'rows': [
-                        {'id': 'menu_rx_slot', 'title': '🗓️ RX Slot', 'description': 'Schedule a medical appointment'},
-                        {'id': 'menu_drop_docs', 'title': '📤 Drop Docs', 'description': 'Upload supporting documents'},
-                        {'id': 'menu_hours', 'title': '⏰ Business Hours', 'description': 'When we are available'},
-                        {'id': 'menu_enterprise', 'title': '🤝 Enterprise Assist', 'description': 'Business & technical support'},
-                        {'id': 'menu_back', 'title': '↩️ Back to Menu', 'description': 'Return to main menu'},
+                        {'id': 'menu_rx_slot', 'title': '??? RX Slot', 'description': 'Schedule a medical appointment'},
+                        {'id': 'menu_drop_docs', 'title': '?? Drop Docs', 'description': 'Upload supporting documents'},
+                        {'id': 'menu_hours', 'title': '? Business Hours', 'description': 'When we are available'},
+                        {'id': 'menu_enterprise', 'title': '?? Enterprise Assist', 'description': 'Business & technical support'},
+                        {'id': 'menu_back', 'title': '?? Back to Menu', 'description': 'Return to main menu'},
                     ]
                 }
             ]
         },
     },
 
-    # ── Menu Responses ──
+    # -- Menu Responses --
     'menuResponses': {
         # Sub-menu openers
         'menu_store': {
@@ -345,7 +345,7 @@ DEFAULT_BOT_FLOW = {
         },
         # Human handoff
         'menu_human': {
-            'text': "💬 Connecting you with a live agent... A team member will be with you shortly. 🙏",
+            'text': "?? Connecting you with a live agent... A team member will be with you shortly. ??",
             'action': 'human_handoff',
         },
         # Back to main menu (from sub-menus)
@@ -360,88 +360,88 @@ DEFAULT_BOT_FLOW = {
         },
         # Self-service items
         'menu_submit_request': {
-            'text': "📩 *Submit a Request*\n\nSubmit a request — it\u2019s quick and easy. We\u2019ll review and keep you posted. 📬",
+            'text': "?? *Submit a Request*\n\nSubmit a request � it\u2019s quick and easy. We\u2019ll review and keep you posted. ??",
             'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_amend_request': {
-            'text': "✏️ *Amend a Request*\n\nNeed to modify a previous request? Update it anytime, subject to terms and approval. 🛠️",
+            'text': "?? *Amend a Request*\n\nNeed to modify a previous request? Update it anytime, subject to terms and approval. ???",
             'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_track_request': {
-            'text': "📍 *Track a Request*\n\nCheck your request status — see when it\u2019s received, reviewed, or completed. 🔍",
+            'text': "?? *Track a Request*\n\nCheck your request status � see when it\u2019s received, reviewed, or completed. ??",
             'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_rx_slot': {
-            'text': "🗓️ *RX Slot*\n\nSchedule a medical appointment for your MEd Tour package via BNB Club. 🩺",
+            'text': "??? *RX Slot*\n\nSchedule a medical appointment for your MEd Tour package via BNB Club. ??",
             'cta': {'text': 'Book Slot', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_drop_docs': {
-            'text': "📤 *Drop Docs*\n\nUpload supporting documents directly to your request. All uploads are secure. 📎",
+            'text': "?? *Drop Docs*\n\nUpload supporting documents directly to your request. All uploads are secure. ??",
             'cta': {'text': 'Upload Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_enterprise': {
-            'text': "🤝 *Enterprise Support*\n\nFor technical or business inquiries, our enterprise team is here. 💼",
+            'text': "?? *Enterprise Support*\n\nFor technical or business inquiries, our enterprise team is here. ??",
             'cta': {'text': 'Get Support', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_hours': {
-            'text': "⏰ *Business Hours*\n\nMon–Fri, 9 AM – 6 PM (IST). Our 24/7 self-service portal is always open. 🌐",
+            'text': "? *Business Hours*\n\nMon�Fri, 9 AM � 6 PM (IST). Our 24/7 self-service portal is always open. ??",
             'cta': {'text': 'Self Service', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_app': {
-            'text': "📱 *Download the App*\n\nManage services on the go — iOS and Android. Track, schedule, and more. 📲",
+            'text': "?? *Download the App*\n\nManage services on the go � iOS and Android. Track, schedule, and more. ??",
             'cta': {'text': 'GET APP', 'url': 'https://wecare.digital/one'},
         },
         'menu_about': {
-            'text': "💛 *About Us*\n\nWECARE.DIGITAL creates helpful products for everyday life — with you at the heart.\n\nOur brands: BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, and Swdhya.",
+            'text': "?? *About Us*\n\nWECARE.DIGITAL creates helpful products for everyday life � with you at the heart.\n\nOur brands: BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, and Swdhya.",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital'},
         },
         # Store brand responses
         'store_bnb_club': {
-            'text': "✈️ *BNB Club — Travel*\n\nYour travel club for visas, corporate travel, FIT packages, and itinerary planning. 🌏",
+            'text': "?? *BNB Club � Travel*\n\nYour travel club for visas, corporate travel, FIT packages, and itinerary planning. ??",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/bnbclub'},
         },
         'store_no_fault': {
-            'text': "⚖️ *No Fault — ODR*\n\nFaster, lower-cost online dispute resolution. Fair, transparent, efficient. 🤝",
+            'text': "?? *No Fault � ODR*\n\nFaster, lower-cost online dispute resolution. Fair, transparent, efficient. ??",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/nofault'},
         },
         'store_expo_week': {
-            'text': "🌍 *Expo Week — Digital Events*\n\nVirtual travel fairs, exclusive offers, and sustainable discovery. 🎪",
+            'text': "?? *Expo Week � Digital Events*\n\nVirtual travel fairs, exclusive offers, and sustainable discovery. ??",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/expoweek'},
         },
         'store_ritual_guru': {
-            'text': "🙏 *Ritual Guru — Culture*\n\nTemple-grade puja kits with step-by-step guides. Global delivery. 🙏",
+            'text': "?? *Ritual Guru � Culture*\n\nTemple-grade puja kits with step-by-step guides. Global delivery. ??",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/ritualguru'},
         },
         'store_legal_champ': {
-            'text': "📄 *Legal Champ — Documentation*\n\nBusiness docs, registrations, and compliance made simple. 📋",
+            'text': "?? *Legal Champ � Documentation*\n\nBusiness docs, registrations, and compliance made simple. ??",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/legalchamp'},
         },
         'store_swdhya': {
-            'text': "🧘 *Swdhya — Samvad*\n\nSelf-inquiry conversations for clarity and action. 🌱",
+            'text': "?? *Swdhya � Samvad*\n\nSelf-inquiry conversations for clarity and action. ??",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/swdhya'},
         },
         'store_gift_card': {
-            'text': "🎁 *Gift Card*\n\nGive the gift of choice! Redeemable across all WECARE.DIGITAL brands. 💛",
+            'text': "?? *Gift Card*\n\nGive the gift of choice! Redeemable across all WECARE.DIGITAL brands. ??",
             'cta': {'text': 'Get Gift Card', 'url': 'https://www.wecare.digital/gift-card'},
         },
     },
 
-    # ── Conversational flow prompts ──
+    # -- Conversational flow prompts --
     'flows': {
         'subscribe': {
-            'step_name': "📝 Let\u2019s get you signed up! What\u2019s your full name?",
-            'step_email': "Nice, {name}! Your email address? 📧",
-            'step_phone': "Got it! Last one — phone number with country code? 📱",
-            'done': "You\u2019re all set, {name}! ✅ Welcome aboard. 💛",
-            'invalid_email': "Hmm, that doesn\u2019t look like a valid email. Try again? 📧",
-            'invalid_phone': "That doesn\u2019t look right. Enter phone with country code (e.g. +91 98765 43210) 📱",
+            'step_name': "?? Let\u2019s get you signed up! What\u2019s your full name?",
+            'step_email': "Nice, {name}! Your email address? ??",
+            'step_phone': "Got it! Last one � phone number with country code? ??",
+            'done': "You\u2019re all set, {name}! ? Welcome aboard. ??",
+            'invalid_email': "Hmm, that doesn\u2019t look like a valid email. Try again? ??",
+            'invalid_phone': "That doesn\u2019t look right. Enter phone with country code (e.g. +91 98765 43210) ??",
         },
         'pay': {
-            'step_amount': "💳 Enter unit price (₹) (numbers only)\nExample: 500",
-            'step_quantity': "📦 Enter quantity / units (type 1 for single)\nExample: 2",
-            'invalid_amount': "⚠️ Please enter a valid number between 1 and 100000.",
-            'invalid_quantity': "⚠️ Please enter a valid quantity between 1 and 999.",
-            'sending': "Processing payment of ₹{amount}... ⏳",
+            'step_amount': "?? Enter unit price (?) (numbers only)\nExample: 500",
+            'step_quantity': "?? Enter quantity / units (type 1 for single)\nExample: 2",
+            'invalid_amount': "?? Please enter a valid number between 1 and 100000.",
+            'invalid_quantity': "?? Please enter a valid quantity between 1 and 999.",
+            'sending': "Processing payment of ?{amount}... ?",
             'default_item_name': 'Services/Goods',
             'default_gst_rate': 18,
             'default_shipping': 49,
@@ -450,62 +450,62 @@ DEFAULT_BOT_FLOW = {
         },
     },
 
-    # ── Toggle messages ──
+    # -- Toggle messages --
     'toggles': {
-        'audio_on': "🎧 Audio replies enabled! You\u2019ll now receive voice messages too. 🔊\n\n_Voice is generated by AI on a best-effort basis. Some languages may use an approximate voice._",
-        'audio_off': "🎧 Audio replies disabled. Text only from now. 📝",
-        'audio_prompt': "🎧 Audio replies are {status}. Reply ON to hear responses in your language, or OFF for text only.\n\n_Voice is AI-generated on a best-effort basis._",
-        'notifications_on': "🔔 Notifications enabled! You\u2019ll receive updates and alerts. 📨",
-        'notifications_off': "🔔 Notifications turned off. Re-enable anytime from the menu.",
-        'notifications_prompt': "🔔 Notifications are {status}. Reply ON to receive updates, or OFF to stop.",
+        'audio_on': "?? Audio replies enabled! You\u2019ll now receive voice messages too. ??\n\n_Voice is generated by AI on a best-effort basis. Some languages may use an approximate voice._",
+        'audio_off': "?? Audio replies disabled. Text only from now. ??",
+        'audio_prompt': "?? Audio replies are {status}. Reply ON to hear responses in your language, or OFF for text only.\n\n_Voice is AI-generated on a best-effort basis._",
+        'notifications_on': "?? Notifications enabled! You\u2019ll receive updates and alerts. ??",
+        'notifications_off': "?? Notifications turned off. Re-enable anytime from the menu.",
+        'notifications_prompt': "?? Notifications are {status}. Reply ON to receive updates, or OFF to stop.",
     },
 
-    # ── Options menu (after any action) ──
+    # -- Options menu (after any action) --
     'options': {
         'header': "What\u2019s next?",
-        'body': "Pick an option below 👇",
+        'body': "Pick an option below ??",
         'footer': 'wecare.digital',
         'buttonText': 'Next',
         'sections': [
             {
                 'title': 'Choose',
                 'rows': [
-                    {'id': 'opt_do_more', 'title': '🧭 Do more', 'description': 'Back to the main menu'},
-                    {'id': 'opt_done', 'title': '✌️ Done here', 'description': 'All finished for now'},
+                    {'id': 'opt_do_more', 'title': '?? Do more', 'description': 'Back to the main menu'},
+                    {'id': 'opt_done', 'title': '?? Done here', 'description': 'All finished for now'},
                 ]
             }
         ]
     },
     'doMore': {
-        'text': "Let\u2019s go! 🚀 Pick what\u2019s next 👇",
+        'text': "Let\u2019s go! ?? Pick what\u2019s next ??",
     },
     'done': {
-        'text': "All done? You crushed it. 👊 Catch you later! 💛",
+        'text': "All done? You crushed it. ?? Catch you later! ??",
     },
 
-    # ── Rating ──
+    # -- Rating --
     'rating': {
         'header': 'Quick feedback',
-        'body': "How was your experience? 🫶",
+        'body': "How was your experience? ??",
         'footer': 'wecare.digital',
         'buttonText': 'Rate',
         'sections': [
             {
                 'title': 'How was it?',
                 'rows': [
-                    {'id': 'rate_good', 'title': 'Vibes immaculate 🙌', 'description': 'Great experience'},
-                    {'id': 'rate_ok', 'title': '😐 Just okay', 'description': 'It was fine'},
-                    {'id': 'rate_mid', 'title': 'Kinda mid 🫤', 'description': 'Could be better'},
+                    {'id': 'rate_good', 'title': 'Vibes immaculate ??', 'description': 'Great experience'},
+                    {'id': 'rate_ok', 'title': '?? Just okay', 'description': 'It was fine'},
+                    {'id': 'rate_mid', 'title': 'Kinda mid ??', 'description': 'Could be better'},
                 ]
             }
         ]
     },
     'ratingResponses': {
-        'rate_good': "Thanks for vibin\u2019 with us! 🌟",
-        'rate_ok': "Appreciate the honesty! We\u2019ll keep improving. 💪",
-        'rate_mid': "Bet — glow-up in progress 🔧",
+        'rate_good': "Thanks for vibin\u2019 with us! ??",
+        'rate_ok': "Appreciate the honesty! We\u2019ll keep improving. ??",
+        'rate_mid': "Bet � glow-up in progress ??",
     },
-    'errorMsg': "Whoops! That didn\u2019t register. Try picking from the menu. ⚠️",
+    'errorMsg': "Whoops! That didn\u2019t register. Try picking from the menu. ??",
 }
 
 
@@ -526,7 +526,7 @@ RULES:
 - If the user has set a preferred language, ALWAYS respond in that language
 - Otherwise, detect the user's language from their message and respond in that same language
 - If the user asks to change language (e.g. "speak in Hindi", "language bengali"), use the set_language tool
-- Keep responses SHORT (2-4 sentences max) — this is WhatsApp, not email
+- Keep responses SHORT (2-4 sentences max) � this is WhatsApp, not email
 - Use 1-2 emojis for warmth
 - If the user sends an image, describe what you see and ask how you can help
 - If the user sends a voice note or audio, respond to the transcribed/understood content
@@ -662,7 +662,7 @@ Rules for escalate=true:
 # ============================================================================
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Generate AI response — routes to internal agent or external Converse API."""
+    """Generate AI response � routes to internal agent or external Converse API."""
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
 
@@ -699,11 +699,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'suggestedResponse': '', 'mode': 'DRY_RUN'})}
 
     try:
-        # ── INTERNAL (admin) path — unchanged, uses Bedrock Agent ──
+        # -- INTERNAL (admin) path � unchanged, uses Bedrock Agent --
         if agent_context == 'internal-admin':
             return _handle_internal(body, headers, request_id)
 
-        # ── EXTERNAL (WhatsApp) path — Converse API with multimodal ──
+        # -- EXTERNAL (WhatsApp) path � Converse API with multimodal --
         return _handle_external(body, headers, request_id)
 
     except Exception as e:
@@ -725,7 +725,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 # ============================================================================
-# INTERNAL PATH (FloatingAgent — Converse API with tool use for admin tasks)
+# INTERNAL PATH (FloatingAgent � Converse API with tool use for admin tasks)
 # ============================================================================
 
 def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
@@ -819,7 +819,7 @@ RULES:
 - contactId must always be a UUID. If you only have a name, search_contacts first to get the UUID.'''
         }]
 
-        # Define tools for internal agent - COMPREHENSIVE BASE CRM CAPABILITIES
+        # Define tools for internal agent - COMPREHENSIVE STACK CRM CAPABILITIES
         tools = [
             # ===== CONTACT MANAGEMENT =====
             {
@@ -1806,7 +1806,7 @@ def _tool_send_whatsapp(params: Dict, request_id: str) -> Dict:
             'success': True,
             'messageId': result_body.get('messageId'),
             'status': result_body.get('status', 'sent'),
-            'message': f'✅ Message sent successfully to contact {contact_id}'
+            'message': f'? Message sent successfully to contact {contact_id}'
         }
         
     except Exception as e:
@@ -1878,7 +1878,7 @@ def _tool_get_stats(request_id: str) -> Dict:
 
 
 # ============================================================================
-# EXTERNAL PATH (WhatsApp — Converse API + multimodal + conversation history)
+# EXTERNAL PATH (WhatsApp � Converse API + multimodal + conversation history)
 # ============================================================================
 
 def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
@@ -1916,7 +1916,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
             'body': json.dumps({'suggestedResponse': _get_fallback_response(), 'error': 'No sender identifier'})
         }
 
-    # ── Processing lock: prevent duplicate AI calls ──
+    # -- Processing lock: prevent duplicate AI calls --
     lock_acquired = _acquire_processing_lock(phone_hash)
     if not lock_acquired:
         return {
@@ -1930,7 +1930,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         }
 
     try:
-        # ── Message size validation: truncate oversized text ──
+        # -- Message size validation: truncate oversized text --
         if message_content and len(message_content) > MAX_INPUT_TEXT_LENGTH:
             logger.warning(json.dumps({
                 'event': 'message_truncated',
@@ -1941,7 +1941,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
             }))
             message_content = message_content[:MAX_INPUT_TEXT_LENGTH] + '...[truncated]'
 
-        # ── Load conversation history ──
+        # -- Load conversation history --
         logger.info(json.dumps({
             'event': 'loading_history',
             'phoneHash': phone_hash[:8],
@@ -1949,10 +1949,10 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         }))
         history = _load_conversation_history(phone_hash)
 
-        # ── Check if this is a language selection reply ──
+        # -- Check if this is a language selection reply --
         lang_selection = _detect_language_selection(message_content, message_type)
         if lang_selection:
-            # Region selection (Step 1) → return languages for that region
+            # Region selection (Step 1) ? return languages for that region
             if isinstance(lang_selection, dict) and 'region' in lang_selection:
                 region_id = lang_selection['region']
                 region_languages = lang_selection['languages']
@@ -1974,7 +1974,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 return {
                     'statusCode': 200, 'headers': headers,
                     'body': json.dumps({
-                        'suggestedResponse': f'🌐 Choose your language from {region_title} 👇',
+                        'suggestedResponse': f'?? Choose your language from {region_title} ??',
                         'showLanguagePicker': True,
                         'languagePickerStep': 'languages',
                         'regionId': region_id,
@@ -1983,7 +1983,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                     })
                 }
 
-            # Language selection (Step 2) → save preference
+            # Language selection (Step 2) ? save preference
             lp_config = _get_language_picker_config_from_db()
             _save_language_preference(phone_hash, lang_selection)
             confirmation = lp_config['languageConfirmations'].get(lang_selection,
@@ -2007,10 +2007,10 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 })
             }
 
-        # ── Bot flow: handle menu/options/rating selections ──
+        # -- Bot flow: handle menu/options/rating selections --
         flow_config = _get_bot_flow_config()
 
-        # ── Apply welcome page override (welcome.tsx → SystemConfigTable 'welcome_message') ──
+        # -- Apply welcome page override (welcome.tsx ? SystemConfigTable 'welcome_message') --
         welcome_override = _get_welcome_config()
         if welcome_override:
             if welcome_override.get('textMessage'):
@@ -2029,7 +2029,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 })
             }
 
-        # ── Check if this is a brand-new session (no history) → send welcome text only ──
+        # -- Check if this is a brand-new session (no history) ? send welcome text only --
         # Menu is NOT auto-sent. User types "menu" to see it.
         is_new_session = not history.get('messages') and not history.get('preferredLanguage')
         is_returning = not history.get('messages') and history.get('preferredLanguage')
@@ -2048,7 +2048,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 messages=[{'role': 'assistant', 'content': [{'text': welcome_text}]}],
                 message_count=0
             )
-            # Just send welcome text — no auto menu
+            # Just send welcome text � no auto menu
             return {
                 'statusCode': 200, 'headers': headers,
                 'body': json.dumps({
@@ -2060,7 +2060,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 })
             }
 
-        # ── Build the user content blocks for Converse API ──
+        # -- Build the user content blocks for Converse API --
         content_blocks = _build_content_blocks(
             message_content=message_content,
             message_type=message_type,
@@ -2076,7 +2076,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 'body': json.dumps({'suggestedResponse': _get_fallback_response()})
             }
 
-        # ── Session idle timeout: reset if idle too long ──
+        # -- Session idle timeout: reset if idle too long --
         last_updated = history.get('updatedAt', 0)
         if last_updated:
             idle_seconds = time.time() - float(last_updated)
@@ -2091,7 +2091,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 }))
                 history = {'messages': [], 'messageCount': 0}
 
-        # ── Check conversation limits ──
+        # -- Check conversation limits --
         session_msg_count = history.get('messageCount', 0)
         if session_msg_count >= MAX_SESSION_MESSAGES:
             logger.info(json.dumps({
@@ -2102,7 +2102,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
             }))
             history = {'messages': [], 'messageCount': 0}
 
-        # ── Intent classification + human escalation ──
+        # -- Intent classification + human escalation --
         # Skip classification for very short messages (greetings, single words)
         # to avoid unnecessary latency on simple interactions
         if message_content and message_type == 'text' and len(message_content.strip()) > 10:
@@ -2115,7 +2115,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                     'phoneHash': phone_hash,
                     'requestId': request_id
                 }))
-                escalation_msg = "I'd like to connect you with our team for the best help on this. 🙏 A team member will be with you shortly. You can also reach us at +91 9330994400."
+                escalation_msg = "I'd like to connect you with our team for the best help on this. ?? A team member will be with you shortly. You can also reach us at +91 9330994400."
                 return {
                     'statusCode': 200, 'headers': headers,
                     'body': json.dumps({
@@ -2129,7 +2129,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                     })
                 }
 
-        # ── Retrieve KB context for grounded answers ──
+        # -- Retrieve KB context for grounded answers --
         # Only pre-fetch KB for the first message in a session (no history).
         # For subsequent messages, the model can use the search_knowledge_base tool
         # autonomously when it needs factual data, avoiding redundant KB calls.
@@ -2137,7 +2137,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         if message_content and not history.get('messages'):
             kb_context = _retrieve_kb_context(message_content, request_id)
 
-        # ── Build system prompt with KB context and language preference ──
+        # -- Build system prompt with KB context and language preference --
         system_prompt = SYSTEM_PROMPT
         preferred_lang = history.get('preferredLanguage', '')
         if preferred_lang:
@@ -2145,11 +2145,11 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         if kb_context:
             system_prompt += f"\n\nRELEVANT KNOWLEDGE BASE CONTEXT:\n{kb_context}"
 
-        # ── Prepare messages for Converse API ──
+        # -- Prepare messages for Converse API --
         converse_messages = history.get('messages', [])[-MAX_HISTORY_MESSAGES:]
         converse_messages.append({'role': 'user', 'content': content_blocks})
 
-        # ── Call Bedrock Converse API (with tool use loop) ──
+        # -- Call Bedrock Converse API (with tool use loop) --
         suggestion = _call_converse_with_tools(
             system_prompt=system_prompt,
             messages=converse_messages,
@@ -2161,7 +2161,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         if not suggestion:
             suggestion = _get_fallback_response()
 
-        # ── Save updated conversation history ──
+        # -- Save updated conversation history --
         # Only store text representation in history (not raw media bytes)
         history_user_content = [{'text': message_content or f'[{message_type}]'}]
         history_messages = history.get('messages', [])[-MAX_HISTORY_MESSAGES:]
@@ -2542,7 +2542,7 @@ def _classify_intent(message_content: str, request_id: str) -> Dict:
             'error': str(e),
             'requestId': request_id
         }))
-        # Fail open — don't escalate on classification error
+        # Fail open � don't escalate on classification error
         return {'intent': 'unknown', 'escalate': False, 'confidence': 0.0}
 
 
@@ -2657,7 +2657,7 @@ def _call_converse_with_tools(system_prompt: str, messages: List[Dict], sender_p
 
         return result_text.strip() if result_text else ''
 
-    # Exhausted iterations — return whatever we have
+    # Exhausted iterations � return whatever we have
     logger.warning(json.dumps({
         'event': 'tool_use_max_iterations',
         'iterations': MAX_TOOL_USE_ITERATIONS,
@@ -2730,7 +2730,7 @@ def _lookup_contact(phone: str, request_id: str) -> str:
             )
             items = response.get('Items', [])
         except Exception:
-            # GSI may not exist — fall back to scan (less efficient but works)
+            # GSI may not exist � fall back to scan (less efficient but works)
             response = contacts_table.scan(
                 FilterExpression='phoneNumber = :phone OR phone = :phone OR contains(phoneNumbers, :phone)',
                 ExpressionAttributeValues={':phone': clean_phone},
@@ -2848,9 +2848,9 @@ def _detect_language_selection(message_content: str, message_type: str) -> Optio
     """
     Detect if the user's message is a language or region selection.
     Handles:
-    - Region picker reply ID (e.g. "region_popular") → returns dict with region languages
-    - Interactive list reply ID (e.g. "lang_hindi") → returns language name string
-    - Interactive list reply title (e.g. "हिंदी / Hindi")
+    - Region picker reply ID (e.g. "region_popular") ? returns dict with region languages
+    - Interactive list reply ID (e.g. "lang_hindi") ? returns language name string
+    - Interactive list reply title (e.g. "????? / Hindi")
     - Text commands like "language hindi", "lang: bengali"
     Returns:
     - str: normalized language name (for lang_ selections)
@@ -2862,19 +2862,19 @@ def _detect_language_selection(message_content: str, message_type: str) -> Optio
 
     content_lower = message_content.strip().lower()
 
-    # ── Step 1 reply: Region selection (e.g. "region_popular") ──
+    # -- Step 1 reply: Region selection (e.g. "region_popular") --
     if content_lower.startswith('region_'):
         languages = LANGUAGE_BY_REGION.get(content_lower)
         if languages:
             return {'region': content_lower, 'languages': languages}
 
-    # ── Step 2 reply: Language selection (e.g. "lang_hindi") ──
+    # -- Step 2 reply: Language selection (e.g. "lang_hindi") --
     if content_lower.startswith('lang_'):
         lang = LANGUAGE_ID_MAP.get(content_lower)
         if lang:
             return lang
 
-    # Check interactive list reply title (e.g. "हिंदी / Hindi" → extract "Hindi")
+    # Check interactive list reply title (e.g. "????? / Hindi" ? extract "Hindi")
     if message_type == 'interactive':
         if ' / ' in message_content:
             english_part = message_content.split(' / ')[-1].strip().lower()
@@ -2885,10 +2885,10 @@ def _detect_language_selection(message_content: str, message_type: str) -> Optio
 
     # Text command: "language hindi", "lang bengali", "change language to tamil"
     lang_patterns = [
-        r'^(?:language|lang|bhasha|भाषा)[:\s]+(\w+)',
+        r'^(?:language|lang|bhasha|????)[:\s]+(\w+)',
         r'^change\s+language\s+(?:to\s+)?(\w+)',
         r'^switch\s+(?:to\s+)?(\w+)',
-        r'^(\w+)\s+(?:mein|me|में)\s+(?:baat|bolo|reply|jawab)',
+        r'^(\w+)\s+(?:mein|me|???)\s+(?:baat|bolo|reply|jawab)',
     ]
     for pattern in lang_patterns:
         match = re.match(pattern, content_lower)
@@ -2918,7 +2918,7 @@ def _detect_brand_selection(message_content: str, message_type: str) -> Optional
 
 
 # ============================================================================
-# BOT FLOW ENGINE (menu → response → options → rating)
+# BOT FLOW ENGINE (menu ? response ? options ? rating)
 # ============================================================================
 
 def _get_bot_flow_config() -> Dict:
@@ -2997,18 +2997,18 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
     content_lower = message_content.strip().lower()
 
-    # ── Fix #3: Escape words — cancel/back/exit during active flows ──
+    # -- Fix #3: Escape words � cancel/back/exit during active flows --
     ESCAPE_WORDS = {'cancel', 'menu', 'exit', 'stop', 'quit', 'main menu'}
 
-    # ── Check for active conversational flow (state machine) ──
+    # -- Check for active conversational flow (state machine) --
     flow_state = history.get('flowState')
     if flow_state:
         # Check escape words first
         if content_lower in ESCAPE_WORDS:
             _clear_flow_state(phone_hash)
             return {
-                'suggestedResponse': "No worries! Back to the main menu 👇",
-                'suggestion': "No worries! Back to the main menu 👇",
+                'suggestedResponse': "No worries! Back to the main menu ??",
+                'suggestion': "No worries! Back to the main menu ??",
                 'flowAction': 'showMainMenu',
             }
 
@@ -3017,7 +3017,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         data = flow_state.get('data', {})
         flows = flow_config.get('flows', {})
 
-        # ── Subscribe flow ──
+        # -- Subscribe flow --
         if flow_name == 'subscribe':
             sub_prompts = flows.get('subscribe', {})
 
@@ -3050,7 +3050,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     data['phone'] = sender_phone
                     _save_subscriber(data, phone_hash, request_id)
                     _clear_flow_state(phone_hash)
-                    done_msg = sub_prompts.get('done', "You're all set! ✅").format(name=data.get('name', ''))
+                    done_msg = sub_prompts.get('done', "You're all set! ?").format(name=data.get('name', ''))
                     return {
                         'suggestedResponse': done_msg,
                         'suggestion': done_msg,
@@ -3082,7 +3082,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'flowAction': 'showOptions',
                 }
 
-        # ── Pay flow (replaced by instant sendPendingPayments flow) ──
+        # -- Pay flow (replaced by instant sendPendingPayments flow) --
         if flow_name == 'pay':
             _clear_flow_state(phone_hash)
             return {
@@ -3092,7 +3092,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 'paymentCustomerPhone': sender_phone,
             }
 
-        # ── Toggle flows (audio/notifications) ──
+        # -- Toggle flows (audio/notifications) --
         if flow_name in ('toggle_audio', 'toggle_notifications'):
             toggles = flow_config.get('toggles', {})
             toggle_type = 'audio' if flow_name == 'toggle_audio' else 'notifications'
@@ -3124,16 +3124,16 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestion': msg,
                 }
 
-    # ── "menu" keyword trigger — show main menu on demand ──
+    # -- "menu" keyword trigger � show main menu on demand --
     if content_lower in ('menu', 'main menu', 'show menu', 'hi', 'hello'):
-        greeting = flow_config.get('welcome', {}).get('text', '') if not history.get('messages') else flow_config.get('welcomeBack', {}).get('text', "Here's the menu 👇")
+        greeting = flow_config.get('welcome', {}).get('text', '') if not history.get('messages') else flow_config.get('welcomeBack', {}).get('text', "Here's the menu ??")
         return {
-            'suggestedResponse': greeting or "Here's the menu 👇",
-            'suggestion': greeting or "Here's the menu 👇",
+            'suggestedResponse': greeting or "Here's the menu ??",
+            'suggestion': greeting or "Here's the menu ??",
             'flowAction': 'showMainMenu',
         }
 
-    # ── Keyword-based pay flow trigger ──
+    # -- Keyword-based pay flow trigger --
     PAY_KEYWORDS = {
         'pay', 'payment', 'i want to pay', 'make payment', 'make a payment',
         'send payment', 'pay now', 'pay bill', 'bill pay', 'pay due',
@@ -3141,7 +3141,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         'rupees', 'amount pay', 'pay amount', 'invoice', 'pay invoice',
     }
     if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
-        # Instant pay flow — send all pending invoices as WhatsApp Pay orders
+        # Instant pay flow � send all pending invoices as WhatsApp Pay orders
         return {
             'suggestedResponse': '',
             'suggestion': '',
@@ -3149,7 +3149,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             'paymentCustomerPhone': sender_phone,
         }
 
-    # ── Main menu / store item selected ──
+    # -- Main menu / store item selected --
     if content_lower.startswith('menu_') or content_lower.startswith('store_'):
         menu_responses = flow_config.get('menuResponses', {})
         item = menu_responses.get(content_lower)
@@ -3160,7 +3160,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             if action == 'show_language_picker':
                 lp_config = _get_language_picker_config_from_db()
                 return {
-                    'suggestedResponse': '🌐 Choose your region to see available languages 👇',
+                    'suggestedResponse': '?? Choose your region to see available languages ??',
                     'showLanguagePicker': True,
                     'languagePickerStep': 'region',
                     'regionOptions': lp_config['regionPicker'],
@@ -3172,8 +3172,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                 sub_menu = sub_menus.get(content_lower)
                 if sub_menu:
                     return {
-                        'suggestedResponse': sub_menu.get('body', 'Choose an option 👇'),
-                        'suggestion': sub_menu.get('body', 'Choose an option 👇'),
+                        'suggestedResponse': sub_menu.get('body', 'Choose an option ??'),
+                        'suggestion': sub_menu.get('body', 'Choose an option ??'),
                         'flowAction': 'showSubMenu',
                         'subMenuConfig': sub_menu,
                     }
@@ -3182,8 +3182,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             # Back to main menu (from sub-menus)
             if action == 'show_main_menu':
                 return {
-                    'suggestedResponse': "Here's the menu 👇",
-                    'suggestion': "Here's the menu 👇",
+                    'suggestedResponse': "Here's the menu ??",
+                    'suggestion': "Here's the menu ??",
                     'flowAction': 'showMainMenu',
                 }
 
@@ -3197,9 +3197,9 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestion': prompt,
                 }
 
-            # Start pay flow — check for pending dues first
+            # Start pay flow � check for pending dues first
             if action == 'start_pay_flow':
-                # Instant pay flow — send all pending invoices as WhatsApp Pay orders
+                # Instant pay flow � send all pending invoices as WhatsApp Pay orders
                 return {
                     'suggestedResponse': '',
                     'suggestion': '',
@@ -3249,7 +3249,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             }
         return None
 
-    # ── Options: Do more ──
+    # -- Options: Do more --
     if content_lower == 'opt_do_more':
         do_more = flow_config.get('doMore', {})
         return {
@@ -3258,7 +3258,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             'flowAction': 'showMainMenu',
         }
 
-    # ── Options: Done ──
+    # -- Options: Done --
     if content_lower == 'opt_done':
         done = flow_config.get('done', {})
         return {
@@ -3267,7 +3267,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             'flowAction': 'showRating',
         }
 
-    # ── Rating selection ──
+    # -- Rating selection --
     if content_lower.startswith('rate_'):
         rating_responses = flow_config.get('ratingResponses', {})
         response_text = rating_responses.get(content_lower, 'Thanks for your feedback! \U0001f49b')
@@ -3285,7 +3285,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 # CRITICAL IMPROVEMENTS - PRODUCTION READY
 # ============================================================================
 
-# ── Retry Logic with Exponential Backoff ──
+# -- Retry Logic with Exponential Backoff --
 def retry_on_error(max_retries=3, backoff_factor=2):
     """Retry decorator with exponential backoff for transient errors"""
     def decorator(func):
@@ -3317,7 +3317,7 @@ def retry_on_error(max_retries=3, backoff_factor=2):
     return decorator
 
 
-# ── Parameter Validation ──
+# -- Parameter Validation --
 def validate_phone(phone: str) -> Tuple[bool, str]:
     """Validate phone number (E.164 format)"""
     if not phone:
@@ -3357,12 +3357,12 @@ def validate_contact_id(contact_id: str) -> Tuple[bool, str]:
         return False, f"Invalid contact ID format: {contact_id}"
 
 
-# ── Audit Logging ──
+# -- Audit Logging --
 def log_tool_execution(tool_name: str, params: Dict, result: Any, duration: float, 
                        session_id: str, status: str = 'success', error: str = ''):
     """Log every tool execution for audit trail and monitoring"""
     try:
-        audit_table = dynamodb.Table('base-wecare-digital-AuditLog')
+        audit_table = dynamodb.Table('stack-wecare-digital-AuditLog')
         
         # Truncate large results
         result_str = json.dumps(result, default=str)
@@ -3417,11 +3417,11 @@ def log_tool_execution(tool_name: str, params: Dict, result: Any, duration: floa
         }))
 
 
-# ── Rate Limiting ──
+# -- Rate Limiting --
 def check_rate_limit(session_id: str, tool_name: str, limit: int = 10, window: int = 60) -> Tuple[bool, str]:
     """Check if rate limit exceeded (10 requests per minute per tool)"""
     try:
-        table = dynamodb.Table('base-wecare-digital-RateLimitTracker')
+        table = dynamodb.Table('stack-wecare-digital-RateLimitTracker')
         key = f"{session_id}:{tool_name}"
         now = int(time.time())
         window_start = now - window
@@ -3451,28 +3451,28 @@ def check_rate_limit(session_id: str, tool_name: str, limit: int = 10, window: i
         return True, ""  # Fail open
 
 
-# ── Better Error Messages ──
+# -- Better Error Messages --
 ERROR_MESSAGES = {
-    'contact_not_found': '❌ Contact not found.\n\n💡 Try:\n• Search by phone: "find +919876543210"\n• Search by name: "find Jignesh"\n• Create new: "create contact John +919876543210"',
-    'invalid_phone': '❌ Invalid phone number.\n\n💡 Use international format:\n• India: +919876543210\n• USA: +14155552671\n• UK: +447447840003',
-    'invalid_email': '❌ Invalid email address.\n\n💡 Use format: name@domain.com',
-    'rate_limit': '⚠️ Too many requests.\n\n💡 Please wait a moment before trying again.',
-    'service_unavailable': '❌ Service temporarily unavailable.\n\n💡 Please try again in a few moments.',
-    'invalid_parameters': '❌ Invalid parameters.\n\n💡 Type "help" to see available commands.',
-    'permission_denied': '❌ Permission denied.\n\n💡 This action requires admin privileges.',
-    'message_too_long': '❌ Message too long.\n\n💡 WhatsApp messages must be under 4096 characters.',
+    'contact_not_found': '? Contact not found.\n\n?? Try:\n� Search by phone: "find +919876543210"\n� Search by name: "find Jignesh"\n� Create new: "create contact John +919876543210"',
+    'invalid_phone': '? Invalid phone number.\n\n?? Use international format:\n� India: +919876543210\n� USA: +14155552671\n� UK: +447447840003',
+    'invalid_email': '? Invalid email address.\n\n?? Use format: name@domain.com',
+    'rate_limit': '?? Too many requests.\n\n?? Please wait a moment before trying again.',
+    'service_unavailable': '? Service temporarily unavailable.\n\n?? Please try again in a few moments.',
+    'invalid_parameters': '? Invalid parameters.\n\n?? Type "help" to see available commands.',
+    'permission_denied': '? Permission denied.\n\n?? This action requires admin privileges.',
+    'message_too_long': '? Message too long.\n\n?? WhatsApp messages must be under 4096 characters.',
 }
 
 
 def format_error(error_type: str, details: str = '') -> str:
     """Format user-friendly error message"""
-    base_msg = ERROR_MESSAGES.get(error_type, '❌ An error occurred.\n\n💡 Type "help" for assistance.')
+    base_msg = ERROR_MESSAGES.get(error_type, '? An error occurred.\n\n?? Type "help" for assistance.')
     if details:
         return f"{base_msg}\n\nDetails: {details}"
     return base_msg
 
 
-# ── Pay helpers ──
+# -- Pay helpers --
 
 def _r(msg: str) -> Dict:
     """Shorthand: return a simple suggestedResponse/suggestion pair."""
@@ -3480,12 +3480,12 @@ def _r(msg: str) -> Dict:
 
 
 PURPOSE_MAP = {
-    '1': 'BNB Club — Travel',
-    '2': 'No Fault — ODR',
-    '3': 'Expo Week — Events',
-    '4': 'Ritual Guru — Puja',
-    '5': 'Legal Champ — Docs',
-    '6': 'Swdhya — Samvad',
+    '1': 'BNB Club � Travel',
+    '2': 'No Fault � ODR',
+    '3': 'Expo Week � Events',
+    '4': 'Ritual Guru � Puja',
+    '5': 'Legal Champ � Docs',
+    '6': 'Swdhya � Samvad',
     '7': 'Gift Card',
     '8': 'Advance Payment',
     '9': 'Service Fee',
@@ -3493,7 +3493,7 @@ PURPOSE_MAP = {
 }
 
 
-# ── Customer profile helpers (for returning customers) ──
+# -- Customer profile helpers (for returning customers) --
 
 def _load_customer_profile(phone_hash: str) -> Dict:
     """Load saved customer profile from ConversationHistoryTable."""
@@ -3641,7 +3641,7 @@ def _update_contact_with_customer_info(sender_phone: str, profile: Dict, request
         }))
 
 
-# ── Flow state helpers (DynamoDB) ──
+# -- Flow state helpers (DynamoDB) --
 
 def _save_flow_state(phone_hash: str, flow: str, step: str, data: Dict) -> None:
     """Save conversational flow state to DynamoDB."""
@@ -4118,7 +4118,7 @@ def _detect_language(text: str) -> Tuple[str, str]:
         return ('en', 'English')
 
     if re.search(r'[\u0900-\u097F]', text):
-        marathi_words = ['आहे', 'काय', 'मला', 'तुम्ही', 'आम्ही']
+        marathi_words = ['???', '???', '???', '??????', '?????']
         if any(word in text for word in marathi_words):
             return ('mr', 'Marathi')
         return ('hi', 'Hindi')
@@ -4140,7 +4140,7 @@ def _detect_language(text: str) -> Tuple[str, str]:
 
 
 # ============================================================================
-# KB QUERY (for internal fallback — unchanged)
+# KB QUERY (for internal fallback � unchanged)
 # ============================================================================
 
 def _query_knowledge_base(user_message: str, kb_id: str, detected_lang: str, lang_name: str, request_id: str) -> str:
@@ -4158,11 +4158,11 @@ INSTRUCTIONS:
 - End with a clear action (website, phone, or next step)
 
 BRANDS:
-- Travel/Hotels/Visa → BNB Club (bnbclub.in)
-- Documents/Registration/GST → Legal Champ (legalchamp.in)
-- Disputes/Complaints → No Fault (nofault.in)
-- Puja/Rituals → Ritual Guru (ritualguru.in)
-- Self-inquiry/Reflection → Swdhya (swdhya.in)
+- Travel/Hotels/Visa ? BNB Club (bnbclub.in)
+- Documents/Registration/GST ? Legal Champ (legalchamp.in)
+- Disputes/Complaints ? No Fault (nofault.in)
+- Puja/Rituals ? Ritual Guru (ritualguru.in)
+- Self-inquiry/Reflection ? Swdhya (swdhya.in)
 
 CONTACT: +91 9330994400 | one@wecare.digital
 
@@ -4204,15 +4204,15 @@ Respond helpfully in {lang_name} and end with a specific action."""
 def _get_fallback_response(lang_name: str = 'English') -> str:
     """Return a friendly fallback response in the detected language."""
     fallback_responses = {
-        'Hindi': "नमस्ते! 👋 WECARE.DIGITAL से संपर्क करने के लिए धन्यवाद। त्वरित सहायता के लिए +91 9330994400 पर कॉल करें या one@wecare.digital पर ईमेल करें। 😊",
-        'Bengali': "নমস্কার! 👋 WECARE.DIGITAL-এ যোগাযোগ করার জন্য ধন্যবাদ। দ্রুত সাহায্যের জন্য +91 9330994400-এ কল করুন বা one@wecare.digital-এ ইমেল করুন। 😊",
-        'Hinglish': "Hi! 👋 WECARE.DIGITAL se contact karne ke liye thanks. Quick help ke liye +91 9330994400 pe call karein ya one@wecare.digital pe email karein. 😊",
-        'Tamil': "வணக்கம்! 👋 WECARE.DIGITAL-ஐ தொடர்பு கொண்டதற்கு நன்றி। விரைவான உதவிக்கு +91 9330994400 அழைக்கவும் அல்லது one@wecare.digital மின்னஞ்சல் அனுப்பவும். 😊",
-        'Telugu': "నమస్కారం! 👋 WECARE.DIGITAL ని సంప్రదించినందుకు ధన్యవాదాలు। త్వరిత సహాయం కోసం +91 9330994400 కు కాల్ చేయండి లేదా one@wecare.digital కు ఇమెయిల్ చేయండి. 😊",
-        'Gujarati': "નમસ્તે! 👋 WECARE.DIGITAL નો સંપર્ક કરવા બદલ આભાર. ઝડપી મદદ માટે +91 9330994400 પર કૉલ કરો અથવા one@wecare.digital પર ઇમેઇલ કરો. 😊",
-        'Marathi': "नमस्कार! 👋 WECARE.DIGITAL शी संपर्क साधल्याबद्दल धन्यवाद। जलद मदतीसाठी +91 9330994400 वर कॉल करा किंवा one@wecare.digital वर ईमेल करा. 😊",
+        'Hindi': "??????! ?? WECARE.DIGITAL ?? ?????? ???? ?? ??? ???????? ?????? ?????? ?? ??? +91 9330994400 ?? ??? ???? ?? one@wecare.digital ?? ???? ????? ??",
+        'Bengali': "???????! ?? WECARE.DIGITAL-? ??????? ???? ???? ???????? ????? ????????? ???? +91 9330994400-? ?? ???? ?? one@wecare.digital-? ???? ????? ??",
+        'Hinglish': "Hi! ?? WECARE.DIGITAL se contact karne ke liye thanks. Quick help ke liye +91 9330994400 pe call karein ya one@wecare.digital pe email karein. ??",
+        'Tamil': "???????! ?? WECARE.DIGITAL-? ??????? ?????????? ?????? ??????? ???????? +91 9330994400 ?????????? ?????? one@wecare.digital ?????????? ??????????. ??",
+        'Telugu': "????????! ?? WECARE.DIGITAL ?? ???????????????? ??????????? ?????? ????? ???? +91 9330994400 ?? ???? ?????? ???? one@wecare.digital ?? ??????? ??????. ??",
+        'Gujarati': "??????! ?? WECARE.DIGITAL ?? ?????? ???? ??? ????. ???? ??? ???? +91 9330994400 ?? ??? ??? ???? one@wecare.digital ?? ????? ???. ??",
+        'Marathi': "???????! ?? WECARE.DIGITAL ?? ?????? ???????????? ???????? ??? ???????? +91 9330994400 ?? ??? ??? ????? one@wecare.digital ?? ???? ???. ??",
     }
-    return fallback_responses.get(lang_name, "Hi! 👋 Thanks for reaching out to WECARE.DIGITAL. For quick help, call us at +91 9330994400 or email one@wecare.digital. We're here to help! 😊")
+    return fallback_responses.get(lang_name, "Hi! ?? Thanks for reaching out to WECARE.DIGITAL. For quick help, call us at +91 9330994400 or email one@wecare.digital. We're here to help! ??")
 
 
 
@@ -5435,7 +5435,7 @@ def _tool_send_whatsapp_flow(params: Dict, request_id: str) -> Dict:
         # Get flow config from SystemConfig
         flow_config = {}
         try:
-            config_table = dynamodb.Table(os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable'))
+            config_table = dynamodb.Table(os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable'))
             config_resp = config_table.get_item(Key={'configKey': 'botFlowConfig'})
             bot_config = config_resp.get('Item', {}).get('configValue', {})
             if isinstance(bot_config, str):
@@ -5511,7 +5511,7 @@ def _tool_list_submit_requests(params: Dict, request_id: str) -> Dict:
     limit = min(params.get('limit', 20), 50)
     
     try:
-        table = dynamodb.Table(os.environ.get('SUBMIT_REQUESTS_TABLE', 'base-wecare-digital-SubmitRequestsTable'))
+        table = dynamodb.Table(os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable'))
         
         scan_kwargs = {'Limit': limit}
         filter_parts = []

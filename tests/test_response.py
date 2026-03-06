@@ -9,8 +9,8 @@ from lambda_utils.response import (
 
 class TestCorsHeaders:
     def test_allowed_origin_reflected(self):
-        h = cors_headers('https://base.wecare.digital')
-        assert h['Access-Control-Allow-Origin'] == 'https://base.wecare.digital'
+        h = cors_headers('https://stack.wecare.digital')
+        assert h['Access-Control-Allow-Origin'] == 'https://stack.wecare.digital'
 
     def test_unknown_origin_falls_back(self):
         h = cors_headers('https://evil.com')
@@ -53,8 +53,8 @@ class TestCorsResponse:
         assert r['statusCode'] == 500
 
     def test_origin_passed_through(self):
-        r = cors_response(200, {}, 'https://base.wecare.digital')
-        assert r['headers']['Access-Control-Allow-Origin'] == 'https://base.wecare.digital'
+        r = cors_response(200, {}, 'https://stack.wecare.digital')
+        assert r['headers']['Access-Control-Allow-Origin'] == 'https://stack.wecare.digital'
 
     def test_serializes_datetime(self):
         from datetime import datetime
@@ -75,8 +75,8 @@ class TestOptionsResponse:
 
 class TestExtractOrigin:
     def test_lowercase_header(self):
-        event = {'headers': {'origin': 'https://base.wecare.digital'}}
-        assert extract_origin(event) == 'https://base.wecare.digital'
+        event = {'headers': {'origin': 'https://stack.wecare.digital'}}
+        assert extract_origin(event) == 'https://stack.wecare.digital'
 
     def test_capitalized_header(self):
         event = {'headers': {'Origin': 'https://wecare.digital'}}

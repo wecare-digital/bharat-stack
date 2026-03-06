@@ -66,10 +66,10 @@ s3 = boto3.client('s3', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
-OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'base-wecare-digital-OBDCampaigns')
-VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCDRTable')
+OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'stack-wecare-digital-OBDCampaigns')
+VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 S3_BUCKET = os.environ.get('S3_BUCKET', 'app.wecare.digital')
-S3_RECORDING_PREFIX = 'base/voice/'
+S3_RECORDING_PREFIX = 'stack/voice/'
 AIRTEL_OBD_SECRET_NAME = os.environ.get('AIRTEL_OBD_SECRET_NAME', 'wecare/airtel/obd')
 TTL_DAYS = 90
 

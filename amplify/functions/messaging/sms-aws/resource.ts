@@ -9,8 +9,8 @@ export const smsAws = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
-    SMS_AWS_TABLE: 'base-wecare-digital-SmsAwsTable',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
+    SMS_AWS_TABLE: 'stack-wecare-digital-SmsAwsTable',
     // Amazon Pinpoint SMS Voice v2 (us-east-1)
     ORIGINATION_IDENTITY: '', // Phone number or sender ID registered in Pinpoint
     SENDER_ID: 'WECARE',

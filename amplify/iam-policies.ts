@@ -19,7 +19,7 @@ export const IAM_POLICIES = {
           'logs:CreateLogStream',
           'logs:PutLogEvents',
         ],
-        Resource: `arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/base-wecare-digital/*`,
+        Resource: `arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/stack-wecare-digital/*`,
       },
       {
         Effect: 'Allow',
@@ -32,8 +32,8 @@ export const IAM_POLICIES = {
           'dynamodb:Scan',
         ],
         Resource: [
-          // Actual tables used by the system (base-wecare-digital-* prefix)
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/base-wecare-digital-*`,
+          // Actual tables used by the system (stack-wecare-digital-* prefix)
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/stack-wecare-digital-*`,
           // Legacy table patterns (for backwards compatibility)
           `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/Contact-*`,
           `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/Message-*`,
@@ -145,10 +145,10 @@ export const IAM_POLICIES = {
           'sqs:GetQueueAttributes',
         ],
         Resource: [
-          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-inbound-dlq`,
-          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-bulk-queue`,
-          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-bulk-dlq`,
-          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital-outbound-dlq`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital-inbound-dlq`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital-bulk-queue`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital-bulk-dlq`,
+          `arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital-outbound-dlq`,
         ],
       },
     ],
@@ -163,7 +163,7 @@ export const IAM_POLICIES = {
         Action: [
           'sns:Publish',
         ],
-        Resource: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:base-wecare-digital`,
+        Resource: `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:stack-wecare-digital`,
       },
     ],
   },

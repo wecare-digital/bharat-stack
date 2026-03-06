@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 class TestRequireAuth:
     """Test auth middleware with mocked Cognito."""
 
-    def _make_event(self, method='POST', path='/test', token='valid-token', origin='https://base.wecare.digital'):
+    def _make_event(self, method='POST', path='/test', token='valid-token', origin='https://stack.wecare.digital'):
         event = {
             'requestContext': {'http': {'method': method, 'path': path}},
             'headers': {'origin': origin},

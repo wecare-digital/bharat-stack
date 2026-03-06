@@ -35,8 +35,8 @@ export const wixStore = defineFunction({
     WIX_VELO_BASE_URL: process.env.WIX_VELO_BASE_URL || 'https://www.wecare.digital',
     WIX_VELO_API_KEY: process.env.WIX_VELO_API_KEY || '',     // Optional: shared secret for Velo auth
     // DynamoDB cache
-    WIX_PRODUCTS_CACHE_TABLE: 'base-wecare-digital-WixProductsCache',
-    WIX_ORDERS_CACHE_TABLE: 'base-wecare-digital-WixOrdersCache',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
+    WIX_PRODUCTS_CACHE_TABLE: 'stack-wecare-digital-WixProductsCache',
+    WIX_ORDERS_CACHE_TABLE: 'stack-wecare-digital-WixOrdersCache',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
   },
 });

@@ -173,9 +173,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       <header className="inner-header">
         <div className="inner-header-in">
           <div className="inner-header-brand">
-            <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="Base CRM" className="inner-header-logo" />
+            <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="Stack CRM" className="inner-header-logo" />
             <div className="inner-header-text">
-              <span className="inner-header-name">Base CRM</span>
+              <span className="inner-header-name">Stack CRM</span>
               <a href="https://www.wecare.digital" className="inner-header-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
             </div>
           </div>

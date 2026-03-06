@@ -37,8 +37,8 @@ sns = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 pinpoint = boto3.client('pinpoint', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-MessagesTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 PINPOINT_APP_ID = os.environ.get('PINPOINT_APP_ID', '')
 ORIGINATION_NUMBER = os.environ.get('ORIGINATION_NUMBER', '')
 SENDER_ID = os.environ.get('SENDER_ID', 'WECARE')

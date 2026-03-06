@@ -9,8 +9,8 @@ export const outboundVoice = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    VOICE_TABLE: 'base-wecare-digital-VoiceCalls',
-    CONTACTS_TABLE: 'base-wecare-digital-ContactsTable',
+    VOICE_TABLE: 'stack-wecare-digital-VoiceCalls',
+    CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     AIRTEL_SECRET: 'wecare/airtel-iq',
     CDR_WEBHOOK_URL: 'https://api.wecare.digital/voice-cdr-webhook',
   },

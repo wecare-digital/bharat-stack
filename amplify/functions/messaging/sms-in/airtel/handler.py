@@ -67,9 +67,9 @@ AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
-AIRTEL_SMS_TABLE = os.environ.get('AIRTEL_SMS_TABLE', 'base-wecare-digital-AirtelSMSTable')
-DLT_TEMPLATES_TABLE = os.environ.get('DLT_TEMPLATES_TABLE', 'base-wecare-digital-DLTTemplates')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
+AIRTEL_SMS_TABLE = os.environ.get('AIRTEL_SMS_TABLE', 'stack-wecare-digital-AirtelSMSTable')
+DLT_TEMPLATES_TABLE = os.environ.get('DLT_TEMPLATES_TABLE', 'stack-wecare-digital-DLTTemplates')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 AIRTEL_SMS_SECRET_NAME = os.environ.get('AIRTEL_SMS_SECRET_NAME', 'wecare/airtel/sms')
 AIRTEL_SMS_HOST = 'iqmessaging.airtel.in'
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60

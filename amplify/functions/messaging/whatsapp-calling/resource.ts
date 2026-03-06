@@ -22,10 +22,10 @@
  * 
  * Environment Variables:
  *   VERIFY_TOKEN: wecare_calling_verify_2026
- *   CALL_LOG_TABLE: base-wecare-digital-WhatsAppCallingTable
+ *   CALL_LOG_TABLE: stack-wecare-digital-WhatsAppCallingTable
  *   META_TOKEN_SECRET: wecare/meta-system-user-token
  *   META_API_VERSION: v20.0
- *   SYSTEM_CONFIG_TABLE: base-wecare-digital-SystemConfigTable
+ *   SYSTEM_CONFIG_TABLE: stack-wecare-digital-SystemConfigTable
  *   MEDIA_BUCKET: app.wecare.digital
  *   AUTO_PICKUP_AUDIO_KEY: whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg
  *   AUTO_PICKUP_ENABLED: true (default ON, overridden by SystemConfig)
@@ -45,8 +45,8 @@
  *   ai     - Auto-answer, AI bot conversation loop (Transcribe → Bedrock → Polly)
  * 
  * DynamoDB Tables:
- *   base-wecare-digital-WhatsAppCallingTable (partition key: id)
- *   base-wecare-digital-SystemConfigTable (partition key: id)
+ *   stack-wecare-digital-WhatsAppCallingTable (partition key: id)
+ *   stack-wecare-digital-SystemConfigTable (partition key: id)
  * 
  * Meta Webhook Config:
  *   Callback URL: https://api.wecare.digital/whatsapp-calling
@@ -55,4 +55,4 @@
  */
 
 export const whatsappCallingLambdaName = 'wecare-whatsapp-calling';
-export const whatsappCallingTableName = 'base-wecare-digital-WhatsAppCallingTable';
+export const whatsappCallingTableName = 'stack-wecare-digital-WhatsAppCallingTable';

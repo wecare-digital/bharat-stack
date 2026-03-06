@@ -67,7 +67,7 @@ const InternalChatTab: React.FC = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hi! I\'m your Base CRM task assistant. I can help you manage contacts, send messages, check stats, and more. Type or use the quick actions below.',
+      content: 'Hi! I\'m your Stack CRM task assistant. I can help you manage contacts, send messages, check stats, and more. Type or use the quick actions below.',
       timestamp: new Date(),
     }
   ]);

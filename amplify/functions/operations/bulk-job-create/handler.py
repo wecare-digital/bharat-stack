@@ -25,8 +25,8 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 sqs = boto3.client('sqs', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
-BULK_JOBS_TABLE = os.environ.get('BULK_JOBS_TABLE', 'base-wecare-digital-BulkJobsTable')
-BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'base-wecare-digital-BulkRecipientsTable')
+BULK_JOBS_TABLE = os.environ.get('BULK_JOBS_TABLE', 'stack-wecare-digital-BulkJobsTable')
+BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'stack-wecare-digital-BulkRecipientsTable')
 BULK_QUEUE_URL = os.environ.get('BULK_QUEUE_URL', '')
 CHUNK_SIZE = 100  # Recipients per SQS message
 

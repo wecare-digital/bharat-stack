@@ -6,7 +6,7 @@ import { defineStorage } from '@aws-amplify/backend';
  * Single bucket: app.wecare.digital
  * 
  * Structure:
- * - base/              : All user/transactional data (factory reset = wipe base/ only)
+ * - stack/              : All user/transactional data (factory reset = wipe stack/ only)
  *   - whatsapp-media/  : incoming/, outgoing/, voice/, calling-ai/, template-headers/, downloads/
  *   - invoices/        : Invoice PNGs and PDFs
  *   - voice/           : Voice recordings (Airtel OBD)
@@ -21,8 +21,8 @@ export const storage = defineStorage({
   name: 'wecare-media',
   // Reference consolidated bucket: app.wecare.digital
   access: (allow) => ({
-    // User/transactional data — all under base/
-    'base/*': [
+    // User/transactional data — all under stack/
+    'stack/*': [
       allow.authenticated.to(['read', 'write']),
     ],
     // Static internal assets — read-only for authenticated users
@@ -45,22 +45,22 @@ export const storage = defineStorage({
  */
 export const queueConfig = {
   inboundDlq: {
-    name: 'base-wecare-digital-inbound-dlq',
+    name: 'stack-wecare-digital-inbound-dlq',
     visibilityTimeout: 300,
     messageRetentionPeriod: 604800, // 7 days
   },
   bulkQueue: {
-    name: 'base-wecare-digital-bulk-queue',
+    name: 'stack-wecare-digital-bulk-queue',
     visibilityTimeout: 300,
     messageRetentionPeriod: 86400, // 1 day
   },
   bulkDlq: {
-    name: 'base-wecare-digital-bulk-dlq',
+    name: 'stack-wecare-digital-bulk-dlq',
     visibilityTimeout: 300,
     messageRetentionPeriod: 604800, // 7 days
   },
   outboundDlq: {
-    name: 'base-wecare-digital-outbound-dlq',
+    name: 'stack-wecare-digital-outbound-dlq',
     visibilityTimeout: 300,
     messageRetentionPeriod: 604800, // 7 days
   },

@@ -24,8 +24,8 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 ses = boto3.client('ses', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'base-wecare-digital-MessagesTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 FROM_EMAIL = os.environ.get('FROM_EMAIL', 'noreply@wecare.digital')
 REPLY_TO_EMAIL = os.environ.get('REPLY_TO_EMAIL', 'support@wecare.digital')
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days

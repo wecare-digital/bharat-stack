@@ -8,11 +8,11 @@ Purpose: Unified invoice service for all 3 payment entry points
 - Admin CRUD operations
 
 DynamoDB Tables:
-- base-wecare-digital-InvoicesTable
-- base-wecare-digital-InvoiceItemsTable
-- base-wecare-digital-InvoiceSequenceTable
-- base-wecare-digital-InvoiceAssetsTable
-- base-wecare-digital-InvoiceDeliveryLogTable
+- stack-wecare-digital-InvoicesTable
+- stack-wecare-digital-InvoiceItemsTable
+- stack-wecare-digital-InvoiceSequenceTable
+- stack-wecare-digital-InvoiceAssetsTable
+- stack-wecare-digital-InvoiceDeliveryLogTable
 
 S3 Bucket: app.wecare.digital
 Prefix: base/invoices/
@@ -43,16 +43,16 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 s3 = boto3.client('s3', region_name='us-east-1')
 lambda_client = boto3.client('lambda', region_name='us-east-1')
 
-INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'base-wecare-digital-InvoicesTable')
-INVOICE_ITEMS_TABLE = os.environ.get('INVOICE_ITEMS_TABLE', 'base-wecare-digital-InvoiceItemsTable')
-INVOICE_SEQ_TABLE = os.environ.get('INVOICE_SEQ_TABLE', 'base-wecare-digital-InvoiceSequenceTable')
-INVOICE_ASSETS_TABLE = os.environ.get('INVOICE_ASSETS_TABLE', 'base-wecare-digital-InvoiceAssetsTable')
-INVOICE_DELIVERY_TABLE = os.environ.get('INVOICE_DELIVERY_TABLE', 'base-wecare-digital-InvoiceDeliveryLogTable')
-PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'base-wecare-digital-PaymentsTable')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
-SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'base-wecare-digital-SystemConfigTable')
+INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
+INVOICE_ITEMS_TABLE = os.environ.get('INVOICE_ITEMS_TABLE', 'stack-wecare-digital-InvoiceItemsTable')
+INVOICE_SEQ_TABLE = os.environ.get('INVOICE_SEQ_TABLE', 'stack-wecare-digital-InvoiceSequenceTable')
+INVOICE_ASSETS_TABLE = os.environ.get('INVOICE_ASSETS_TABLE', 'stack-wecare-digital-InvoiceAssetsTable')
+INVOICE_DELIVERY_TABLE = os.environ.get('INVOICE_DELIVERY_TABLE', 'stack-wecare-digital-InvoiceDeliveryLogTable')
+PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-INVOICE_PREFIX = 'base/invoices/'
+INVOICE_PREFIX = 'stack/invoices/'
 CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
 
 # Company details for invoice
@@ -1716,7 +1716,7 @@ def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
 
     # Try to delete S3 files for this invoice
     try:
-        prefix = f'base/invoices/wecare-digital-{ref_id or invoice_id}'
+        prefix = f'stack/invoices/wecare-digital-{ref_id or invoice_id}'
         s3_resp = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix, MaxKeys=20)
         for obj in s3_resp.get('Contents', []):
             s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
@@ -1767,7 +1767,7 @@ def clear_all_invoice_data(request_id: str) -> Dict:
         'invoice_delivery_log': (INVOICE_DELIVERY_TABLE, None),
         'invoice_sequence': (INVOICE_SEQ_TABLE, None),
         'payments': (PAYMENTS_TABLE, 'id'),
-        'razorpay_webhook_log': ('base-wecare-digital-RazorpayWebhookLogTable', 'id'),
+        'razorpay_webhook_log': ('stack-wecare-digital-RazorpayWebhookLogTable', 'id'),
     }
     results = {}
     total = 0
@@ -1804,7 +1804,7 @@ def clear_all_invoice_data(request_id: str) -> Dict:
     s3_deleted = 0
     try:
         paginator = s3.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix='base/invoices/'):
+        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix='stack/invoices/'):
             objects = page.get('Contents', [])
             if objects:
                 s3.delete_objects(Bucket=MEDIA_BUCKET, Delete={'Objects': [{'Key': o['Key']} for o in objects]})

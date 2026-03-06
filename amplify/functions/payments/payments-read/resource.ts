@@ -9,6 +9,6 @@ export const paymentsRead = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    PAYMENTS_TABLE: 'base-wecare-digital-PaymentsTable',
+    PAYMENTS_TABLE: 'stack-wecare-digital-PaymentsTable',
   },
 });

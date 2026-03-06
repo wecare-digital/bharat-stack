@@ -71,9 +71,9 @@ dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 s3 = boto3.client('s3', region_name=AWS_REGION)
 
 # Environment variables
-VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'base-wecare-digital-VoiceCDRTable')
+VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 S3_BUCKET = 'app.wecare.digital'
-S3_RECORDING_PREFIX = 'base/voice/'
+S3_RECORDING_PREFIX = 'stack/voice/'
 
 # Configuration
 INBOUND_NUMBER = '+919319767034'

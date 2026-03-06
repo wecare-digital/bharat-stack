@@ -23,8 +23,8 @@ logger = get_logger(__name__)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-VOICE_TABLE = os.environ.get('VOICE_TABLE', 'base-wecare-digital-VoiceCalls')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'base-wecare-digital-ContactsTable')
+VOICE_TABLE = os.environ.get('VOICE_TABLE', 'stack-wecare-digital-VoiceCalls')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SECRET_NAME = os.environ.get('AIRTEL_SECRET', 'wecare/airtel-iq')
 CDR_WEBHOOK_URL = os.environ.get('CDR_WEBHOOK_URL', 'https://api.wecare.digital/voice-cdr-webhook')
 
