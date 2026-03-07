@@ -14,6 +14,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { useToastContext } from '../contexts/ToastContext';
+import { API_BASE } from '../config/constants';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface ChatMessage {
   id: string;
@@ -23,8 +25,8 @@ interface ChatMessage {
   status?: 'sending' | 'sent' | 'error';
 }
 
-// Use local API route to avoid CORS/fetch issues in browser
-const API_ENDPOINT = '/api/ai/generate';
+// API Gateway endpoint for AI generate (same as client.ts)
+const API_ENDPOINT = `${API_BASE}/ai/generate`;
 
 const MAX_MESSAGES = 80;
 
@@ -223,13 +225,16 @@ const FloatingAgent: React.FC = () => {
 
       setStatusMessage('Understanding your request...');
 
-      // Call AI via proxy — proxy normalizes the response to { suggestedResponse, error? }
+      // Call AI via API Gateway with auth
       let aiRes: Response;
       try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString() ?? '';
         aiRes = await fetch(API_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
           },

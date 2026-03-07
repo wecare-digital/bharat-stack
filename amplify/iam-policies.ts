@@ -32,20 +32,7 @@ export const IAM_POLICIES = {
           'dynamodb:Scan',
         ],
         Resource: [
-          // Actual tables used by the system (stack-wecare-digital-* prefix)
           `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/stack-wecare-digital-*`,
-          // Legacy table patterns (for backwards compatibility)
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/Contact-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/Message-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/BulkJob-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/BulkRecipient-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/User-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/MediaFile-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/DLQMessage-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/AuditLog-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/AIInteraction-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/RateLimitTracker-*`,
-          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/SystemConfig-*`,
         ],
       },
       {
@@ -377,6 +364,17 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
 
   // === Payments ===
   'wecare-razorpay-webhook': ['common', 'lambdaInvoke'],
+  'wecare-payu-webhook': ['common'],
   'wecare-payments-read': ['common'],
   'wecare-invoice-engine': ['common', 'whatsapp', 'lambdaInvoke'],
+
+  // === Ecommerce ===
+  'wecare-wix-store': ['common'],
+  'wecare-product-image-gen': ['common', 's3'],
+
+  // === Operations (additional) ===
+  'wecare-system-cleanup': ['common', 'sqs', 's3'],
+
+  // === Core (additional) ===
+  'wecare-faq-handler': ['common'],
 };

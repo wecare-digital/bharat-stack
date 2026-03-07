@@ -3,8 +3,10 @@
  * Full-featured chat with controls, logs, and settings
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { API_BASE } from '../../../config/constants';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
-const API_ENDPOINT = '/api/ai/generate';
+const API_ENDPOINT = `${API_BASE}/ai/generate`;
 
 interface ChatMessage {
   id: string;
@@ -131,9 +133,11 @@ const InternalChatTab: React.FC = () => {
 
       let res: Response;
       try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString() ?? '';
         res = await fetch(API_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             messageContent: text,
             context: 'internal-admin',

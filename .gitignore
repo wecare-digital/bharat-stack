@@ -62,6 +62,8 @@ yarn-error.log*
 *.temp
 .cache/
 temp/
+deploy_tmp/
+scripts/_pkg/
 
 # Build artifacts
 *.zip
