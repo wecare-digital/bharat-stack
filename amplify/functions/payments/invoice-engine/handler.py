@@ -15,7 +15,7 @@ DynamoDB Tables:
 - stack-wecare-digital-InvoiceDeliveryLogTable
 
 S3 Bucket: app.wecare.digital
-Prefix: base/invoices/
+Prefix: stack/invoices/
 """
 
 import os

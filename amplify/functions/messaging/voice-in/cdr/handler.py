@@ -10,7 +10,7 @@ Webhook Configuration:
 - Inbound Number: +91 9319767034
 - Email: voice@wecare.digital
 
-Recording Storage: s3://app.wecare.digital/base/voice/
+Recording Storage: s3://app.wecare.digital/stack/voice/
 
 Airtel IP Whitelist (if 403 errors):
 - 125.19.17.212

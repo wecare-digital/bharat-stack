@@ -18,7 +18,7 @@ npm run dev
 
 ### S3 Bucket
 Single bucket: `app.wecare.digital` (versioning enabled)
-- `base/` - All user/transactional data (factory reset = wipe base/ only)
+- `stack/` - All user/transactional data (factory reset = wipe stack/ only)
   - `whatsapp-media/incoming/` - Inbound media
   - `whatsapp-media/outgoing/` - Outbound media
   - `whatsapp-media/voice/` - TTS audio

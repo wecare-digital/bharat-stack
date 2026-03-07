@@ -1,0 +1,31 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 24 || true
+        - nvm use 24 || true
+        - node -v
+        - npm -v
+        - rm -f package-lock.json
+        - npm install --no-audit --no-fund --legacy-peer-deps
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: out
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
+customHeaders:
+  - pattern: "**/*"
+    headers:
+      - key: Cache-Control
+        value: "public, max-age=0, must-revalidate"
+      - key: X-Frame-Options
+        value: SAMEORIGIN
+      - key: X-Content-Type-Options
+        value: nosniff

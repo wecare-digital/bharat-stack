@@ -321,9 +321,9 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   
   // DEVELOPER TOOLS
   'AWS Amplify': { 
-    arn: `arn:aws:amplify:${AWS_REGION}:${AWS_ACCOUNT_ID}:apps/d3nadrc9t6n3f8`, 
+    arn: `arn:aws:amplify:${AWS_REGION}:${AWS_ACCOUNT_ID}:apps/d22dm4b0jn71jw`, 
     accountId: AWS_ACCOUNT_ID,
-    details: ['App: d3nadrc9t6n3f8', 'Branch: stack', 'Domain: stack.wecare.digital']
+    details: ['App: d22dm4b0jn71jw', 'Branch: stack', 'Domain: stack.wecare.digital']
   },
   'AWS CodeBuild': { 
     arn: `arn:aws:codebuild:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 

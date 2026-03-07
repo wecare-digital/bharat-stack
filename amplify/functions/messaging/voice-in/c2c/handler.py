@@ -16,7 +16,7 @@ Airtel API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-ca
 Auth: HMAC-SHA256 via Kong gateway
 Secrets: wecare/airtel/c2c
 
-Recording Storage: s3://app.wecare.digital/base/voice/
+Recording Storage: s3://app.wecare.digital/stack/voice/
 
 Kong Credentials (from Secrets Manager):
 - app_id: WECAREDIG_fD4BKqUbC8k90jNrPR0n (HMAC username)

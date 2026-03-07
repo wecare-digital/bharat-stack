@@ -4,7 +4,7 @@
 # Usage: .\shared\wix-velo\sync.ps1
 #
 # This copies shared backend files to:
-#   1. store/src/backend/ (base repo reference copy)
+#   1. store/src/backend/ (stack repo reference copy)
 #   2. ../store.wecare.digital/src/backend/ (Wix live repo)
 
 $ErrorActionPreference = "Stop"
@@ -29,7 +29,7 @@ foreach ($file in $SyncFiles) {
         continue
     }
 
-    # Copy to base repo reference
+    # Copy to stack repo reference
     $dst1 = Join-Path $BaseTarget $file
     Copy-Item $src $dst1 -Force
     Write-Host "  OK: $file -> $BaseTarget" -ForegroundColor Green
@@ -46,5 +46,5 @@ foreach ($file in $SyncFiles) {
 
 Write-Host ""
 Write-Host "Done. Remember to commit + push BOTH repos:" -ForegroundColor Cyan
-Write-Host "  1. git add -A && git commit -m 'sync velo code' && git push origin base" -ForegroundColor White
+Write-Host "  1. git add -A && git commit -m 'sync velo code' && git push origin stack" -ForegroundColor White
 Write-Host "  2. git -C ../store.wecare.digital add -A && git -C ../store.wecare.digital commit -m 'sync velo code' && git -C ../store.wecare.digital push origin main" -ForegroundColor White
