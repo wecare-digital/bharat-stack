@@ -323,7 +323,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'AWS Amplify': { 
     arn: `arn:aws:amplify:${AWS_REGION}:${AWS_ACCOUNT_ID}:apps/d3nadrc9t6n3f8`, 
     accountId: AWS_ACCOUNT_ID,
-    details: ['App: d3nadrc9t6n3f8', 'Branch: base', 'Domain: stack.wecare.digital']
+    details: ['App: d3nadrc9t6n3f8', 'Branch: stack', 'Domain: stack.wecare.digital']
   },
   'AWS CodeBuild': { 
     arn: `arn:aws:codebuild:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
@@ -3024,8 +3024,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
                       <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Stack CRM Repo</div>
-                      <a href="https://github.com/wecaredigital/base.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/base.wecare.digital</a>
-                      <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>base</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
+                      <a href="https://github.com/wecaredigital/stack.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/stack.wecare.digital</a>
+                      <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>stack</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
                       <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
@@ -3083,7 +3083,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17' }}>
-                  Note: Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>stack-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT base repo.
+                  Note: Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>stack-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT stack repo.
                 </div>
               </div>
 

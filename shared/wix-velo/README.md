@@ -4,7 +4,7 @@ This folder contains the **source of truth** for Wix Velo backend code shared be
 
 | Repo | Branch | Purpose |
 |------|--------|---------|
-| `wecaredigital/base.wecare.digital` | `base` | Stack CRM dashboard, Lambdas, Amplify. Has a reference copy at `store/src/` |
+| `wecaredigital/stack.wecare.digital` | `stack` | Stack CRM dashboard, Lambdas, Amplify. Has a reference copy at `store/src/` |
 | `wecaredigital/store.wecare.digital` | `main` | **LIVE on Wix** — connected via Git Integration. Auto-syncs to Wix Editor on push |
 
 ## How It Works
@@ -16,7 +16,7 @@ This folder contains the **source of truth** for Wix Velo backend code shared be
 ## Important Notes
 
 - **Page files** (e.g. `Thank You Page.f0at2.js`) have Wix internal IDs — they can ONLY be created from the Wix Editor. Don't create page files here.
-- **http-functions.js** in the Wix repo is a massive file with SEO/sitemap/RSS/AI feeds code. The base repo has a simpler version. Don't overwrite the Wix version.
+- **http-functions.js** in the Wix repo is a massive file with SEO/sitemap/RSS/AI feeds code. The stack repo has a simpler version. Don't overwrite the Wix version.
 - **orderId.web.js** and **events.js** are the critical shared files — they handle order ID generation.
 
 ## Order ID Format
