@@ -4,7 +4,7 @@ AI Generate Response Lambda Function
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
 
 Architecture:
-- INTERNAL: Bedrock Agent (FloatingAgent) for admin tasks — unchanged
+- INTERNAL: Bedrock Agent (FloatingAgent) for admin tasks - unchanged
   - Agent ID: QIEEHEBTZO / Alias: ASCBD7YPUT / KB: static-faq
 - EXTERNAL: Bedrock Converse API (Amazon Nova Lite) for WhatsApp auto-reply
   - Multimodal: text, images, audio, video, documents
@@ -67,12 +67,12 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-Contacts
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 
-# Internal Agent (FloatingAgent — admin tasks, unchanged)
+# Internal Agent (FloatingAgent - admin tasks, unchanged)
 INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'QIEEHEBTZO')
 INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'ASCBD7YPUT')
 INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'static-faq')
 
-# External (WhatsApp auto-reply — Converse API)
+# External (WhatsApp auto-reply - Converse API)
 EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'static-faq')
 MODEL_ID = os.environ.get('MODEL_ID', 'amazon.nova-lite-v1:0')
 GUARDRAIL_ID = os.environ.get('GUARDRAIL_ID', '')
@@ -84,10 +84,10 @@ MAX_SESSION_MESSAGES = int(os.environ.get('MAX_SESSION_MESSAGES', '50'))
 CONVERSATION_TTL_HOURS = int(os.environ.get('CONVERSATION_TTL_HOURS', '24'))
 PROCESSING_LOCK_TTL_SECONDS = 90
 
-# Session idle timeout (minutes) — reset conversation if idle too long
+# Session idle timeout (minutes) - reset conversation if idle too long
 SESSION_IDLE_TIMEOUT_MINUTES = int(os.environ.get('SESSION_IDLE_TIMEOUT_MINUTES', '15'))
 
-# Input text size limit — truncate to prevent token abuse
+# Input text size limit - truncate to prevent token abuse
 MAX_INPUT_TEXT_LENGTH = int(os.environ.get('MAX_INPUT_TEXT_LENGTH', '2000'))
 
 # Media size limits (bytes) for inline Converse API
@@ -122,14 +122,14 @@ SUPPORTED_LANGUAGES = {
     'sinhala': 'Sinhala', 'si': 'Sinhala', 'sinhalese': 'Sinhala',
     # Middle East
     'arabic': 'Arabic', 'ar': 'Arabic', '???????': 'Arabic',
-    'turkish': 'Turkish', 'tr': 'Turkish', 'türkçe': 'Turkish',
+    'turkish': 'Turkish', 'tr': 'Turkish', 'turkce': 'Turkish',
     'russian': 'Russian', 'ru': 'Russian', '???????': 'Russian',
     'urdu': 'Urdu', 'ur': 'Urdu', '????': 'Urdu',
     'punjabi': 'Punjabi', 'pa': 'Punjabi',
     # European
-    'french': 'French', 'fr': 'French', 'français': 'French',
-    'spanish': 'Spanish', 'es': 'Spanish', 'español': 'Spanish',
-    'portuguese': 'Portuguese', 'pt': 'Portuguese', 'português': 'Portuguese',
+    'french': 'French', 'fr': 'French', 'francais': 'French',
+    'spanish': 'Spanish', 'es': 'Spanish', 'espanol': 'Spanish',
+    'portuguese': 'Portuguese', 'pt': 'Portuguese', 'portugues': 'Portuguese',
 }
 
 # -- Two-step language picker: Step 1 = Region, Step 2 = Languages --
@@ -165,15 +165,15 @@ LANGUAGE_BY_REGION = {
     ],
     'region_middle_east': [
         {'id': 'lang_arabic', 'title': '??????? / Arabic'},
-        {'id': 'lang_turkish', 'title': 'Türkçe / Turkish'},
+        {'id': 'lang_turkish', 'title': 'Turkce / Turkish'},
         {'id': 'lang_russian', 'title': '??????? / Russian'},
         {'id': 'lang_urdu', 'title': '???? / Urdu'},
         {'id': 'lang_punjabi', 'title': '?????? / Punjabi'},
     ],
     'region_european': [
-        {'id': 'lang_french', 'title': 'Français / French'},
-        {'id': 'lang_spanish', 'title': 'Español / Spanish'},
-        {'id': 'lang_portuguese', 'title': 'Português / Portuguese'},
+        {'id': 'lang_french', 'title': 'Francais / French'},
+        {'id': 'lang_spanish', 'title': 'Espanol / Spanish'},
+        {'id': 'lang_portuguese', 'title': 'Portugues / Portuguese'},
     ],
 }
 
@@ -198,17 +198,17 @@ LANGUAGE_CONFIRMATIONS = {
     'Japanese': "??????????????!?? ????????????",
     'Korean': "??? ???? ???????! ?? ??? ???????",
     'Thai': "??????????????????????????! ?? ????????????????",
-    'Vietnamese': "Ngôn ng? dã du?c d?t thành Ti?ng Vi?t! ?? Tôi có th? giúp gì?",
+    'Vietnamese': "Ngon ngu da duoc dat thanh Tieng Viet! \U0001f1fb\U0001f1f3 Toi co the giup gi?",
     'Indonesian': "Bahasa diatur ke Indonesia! ?? Ada yang bisa saya bantu?",
     'Sinhala': "????? ?????? ???? ??! ?? ?? ??? ???? ?? ?????? ??????",
     'Arabic': "?? ????? ????? ??? ???????! ?? ??? ?????? ????????",
-    'Turkish': "Dil Türkçe olarak ayarlandi! ?? Size nasil yardimci olabilirim?",
+    'Turkish': "Dil Turkce olarak ayarlandi! \U0001f1f9\U0001f1f7 Size nasil yardimci olabilirim?",
     'Russian': "???? ?????????? ?? ???????! ?? ??? ???? ???????",
     'Urdu': "???? ???? ??? ??? ?? ???! ?? ??? ?? ?? ???? ??? ?? ???? ????",
     'Punjabi': "????? ?????? ???? ???? ?? ??! ?? ??? ?????? ????? ??? ?? ???? ????",
-    'French': "Langue définie sur le français ! ?? Comment puis-je vous aider ?",
-    'Spanish': "¡Idioma configurado en español! ?? ¿Cómo puedo ayudarte?",
-    'Portuguese': "Idioma definido para português! ?? Como posso ajudar?",
+    'French': "Langue definie sur le francais ! \U0001f1eb\U0001f1f7 Comment puis-je vous aider ?",
+    'Spanish': "Idioma configurado en espanol! \U0001f1ea\U0001f1f8 Como puedo ayudarte?",
+    'Portuguese': "Idioma definido para portugues! \U0001f1e7\U0001f1f7 Como posso ajudar?",
 }
 
 
@@ -274,7 +274,7 @@ DEFAULT_BOT_FLOW = {
                         {'id': 'store_expo_week', 'title': '?? Expo Week', 'description': 'Virtual fairs & digital events'},
                         {'id': 'store_ritual_guru', 'title': '?? Ritual Guru', 'description': 'Puja kits & step-by-step guides'},
                         {'id': 'store_legal_champ', 'title': '?? Legal Champ', 'description': 'Business docs & registrations'},
-                        {'id': 'store_swdhya', 'title': '?? Swdhya', 'description': 'Samvad — self-inquiry chats'},
+                        {'id': 'store_swdhya', 'title': '\U0001f9d8 Swdhya', 'description': 'Samvad - self-inquiry chats'},
                     ]
                 },
                 {
@@ -360,7 +360,7 @@ DEFAULT_BOT_FLOW = {
         },
         # Self-service items
         'menu_submit_request': {
-            'text': "?? *Submit a Request*\n\nSubmit a request — it\u2019s quick and easy. We\u2019ll review and keep you posted. ??",
+            'text': "\U0001f4cb *Submit a Request*\n\nSubmit a request - it\u2019s quick and easy. We\u2019ll review and keep you posted. \U0001f4e8",
             'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_amend_request': {
@@ -368,7 +368,7 @@ DEFAULT_BOT_FLOW = {
             'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_track_request': {
-            'text': "?? *Track a Request*\n\nCheck your request status — see when it\u2019s received, reviewed, or completed. ??",
+            'text': "\U0001f50d *Track a Request*\n\nCheck your request status - see when it\u2019s received, reviewed, or completed. \U0001f4cb",
             'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_rx_slot': {
@@ -384,40 +384,40 @@ DEFAULT_BOT_FLOW = {
             'cta': {'text': 'Get Support', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_hours': {
-            'text': "? *Business Hours*\n\nMon–Fri, 9 AM – 6 PM (IST). Our 24/7 self-service portal is always open. ??",
+            'text': "\u23f0 *Business Hours*\n\nMon-Fri, 9 AM - 6 PM (IST). Our 24/7 self-service portal is always open. \U0001f310",
             'cta': {'text': 'Self Service', 'url': 'https://wecare.digital/selfservice'},
         },
         'menu_app': {
-            'text': "?? *Download the App*\n\nManage services on the go — iOS and Android. Track, schedule, and more. ??",
+            'text': "\U0001f4f1 *Download the App*\n\nManage services on the go - iOS and Android. Track, schedule, and more. \U0001f680",
             'cta': {'text': 'GET APP', 'url': 'https://wecare.digital/one'},
         },
         'menu_about': {
-            'text': "?? *About Us*\n\nWECARE.DIGITAL creates helpful products for everyday life — with you at the heart.\n\nOur brands: BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, and Swdhya.",
+            'text': "\U0001f30d *About Us*\n\nWECARE.DIGITAL creates helpful products for everyday life - with you at the heart.\n\nOur brands: BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, and Swdhya.",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital'},
         },
         # Store brand responses
         'store_bnb_club': {
-            'text': "?? *BNB Club — Travel*\n\nYour travel club for visas, corporate travel, FIT packages, and itinerary planning. ??",
+            'text': "\U0001f30d *BNB Club - Travel*\n\nYour travel club for visas, corporate travel, FIT packages, and itinerary planning. \u2708\ufe0f",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/bnbclub'},
         },
         'store_no_fault': {
-            'text': "?? *No Fault — ODR*\n\nFaster, lower-cost online dispute resolution. Fair, transparent, efficient. ??",
+            'text': "\u2696\ufe0f *No Fault - ODR*\n\nFaster, lower-cost online dispute resolution. Fair, transparent, efficient. \U0001f4bc",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/nofault'},
         },
         'store_expo_week': {
-            'text': "?? *Expo Week — Digital Events*\n\nVirtual travel fairs, exclusive offers, and sustainable discovery. ??",
+            'text': "\U0001f3aa *Expo Week - Digital Events*\n\nVirtual travel fairs, exclusive offers, and sustainable discovery. \U0001f30d",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/expoweek'},
         },
         'store_ritual_guru': {
-            'text': "?? *Ritual Guru — Culture*\n\nTemple-grade puja kits with step-by-step guides. Global delivery. ??",
+            'text': "\U0001f54c *Ritual Guru - Culture*\n\nTemple-grade puja kits with step-by-step guides. Global delivery. \U0001f4e6",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/ritualguru'},
         },
         'store_legal_champ': {
-            'text': "?? *Legal Champ — Documentation*\n\nBusiness docs, registrations, and compliance made simple. ??",
+            'text': "\U0001f4dc *Legal Champ - Documentation*\n\nBusiness docs, registrations, and compliance made simple. \u2705",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/legalchamp'},
         },
         'store_swdhya': {
-            'text': "?? *Swdhya — Samvad*\n\nSelf-inquiry conversations for clarity and action. ??",
+            'text': "\U0001f9d8 *Swdhya - Samvad*\n\nSelf-inquiry conversations for clarity and action. \U0001f4ac",
             'cta': {'text': 'Explore', 'url': 'https://wecare.digital/swdhya'},
         },
         'store_gift_card': {
@@ -431,7 +431,7 @@ DEFAULT_BOT_FLOW = {
         'subscribe': {
             'step_name': "?? Let\u2019s get you signed up! What\u2019s your full name?",
             'step_email': "Nice, {name}! Your email address? ??",
-            'step_phone': "Got it! Last one — phone number with country code? ??",
+            'step_phone': "Got it! Last one - phone number with country code? \U0001f4f1",
             'done': "You\u2019re all set, {name}! ? Welcome aboard. ??",
             'invalid_email': "Hmm, that doesn\u2019t look like a valid email. Try again? ??",
             'invalid_phone': "That doesn\u2019t look right. Enter phone with country code (e.g. +91 98765 43210) ??",
@@ -503,7 +503,7 @@ DEFAULT_BOT_FLOW = {
     'ratingResponses': {
         'rate_good': "Thanks for vibin\u2019 with us! ??",
         'rate_ok': "Appreciate the honesty! We\u2019ll keep improving. ??",
-        'rate_mid': "Bet — glow-up in progress ??",
+        'rate_mid': "Bet - glow-up in progress \U0001f4aa",
     },
     'errorMsg': "Whoops! That didn\u2019t register. Try picking from the menu. ??",
 }
@@ -526,7 +526,7 @@ RULES:
 - If the user has set a preferred language, ALWAYS respond in that language
 - Otherwise, detect the user's language from their message and respond in that same language
 - If the user asks to change language (e.g. "speak in Hindi", "language bengali"), use the set_language tool
-- Keep responses SHORT (2-4 sentences max) — this is WhatsApp, not email
+- Keep responses SHORT (2-4 sentences max) - this is WhatsApp, not email
 - Use 1-2 emojis for warmth
 - If the user sends an image, describe what you see and ask how you can help
 - If the user sends a voice note or audio, respond to the transcribed/understood content
@@ -662,7 +662,7 @@ Rules for escalate=true:
 # ============================================================================
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Generate AI response — routes to internal agent or external Converse API."""
+    """Generate AI response - routes to internal agent or external Converse API."""
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
 
@@ -699,11 +699,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'suggestedResponse': '', 'mode': 'DRY_RUN'})}
 
     try:
-        # -- INTERNAL (admin) path — unchanged, uses Bedrock Agent --
+        # -- INTERNAL (admin) path - unchanged, uses Bedrock Agent --
         if agent_context == 'internal-admin':
             return _handle_internal(body, headers, request_id)
 
-        # -- EXTERNAL (WhatsApp) path — Converse API with multimodal --
+        # -- EXTERNAL (WhatsApp) path - Converse API with multimodal --
         return _handle_external(body, headers, request_id)
 
     except Exception as e:
@@ -725,7 +725,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 # ============================================================================
-# INTERNAL PATH (FloatingAgent — Converse API with tool use for admin tasks)
+# INTERNAL PATH (FloatingAgent - Converse API with tool use for admin tasks)
 # ============================================================================
 
 def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
@@ -1878,7 +1878,7 @@ def _tool_get_stats(request_id: str) -> Dict:
 
 
 # ============================================================================
-# EXTERNAL PATH (WhatsApp — Converse API + multimodal + conversation history)
+# EXTERNAL PATH (WhatsApp - Converse API + multimodal + conversation history)
 # ============================================================================
 
 def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
@@ -2048,7 +2048,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
                 messages=[{'role': 'assistant', 'content': [{'text': welcome_text}]}],
                 message_count=0
             )
-            # Just send welcome text — no auto menu
+            # Just send welcome text - no auto menu
             return {
                 'statusCode': 200, 'headers': headers,
                 'body': json.dumps({
@@ -2542,7 +2542,7 @@ def _classify_intent(message_content: str, request_id: str) -> Dict:
             'error': str(e),
             'requestId': request_id
         }))
-        # Fail open — don't escalate on classification error
+        # Fail open - don't escalate on classification error
         return {'intent': 'unknown', 'escalate': False, 'confidence': 0.0}
 
 
@@ -2657,7 +2657,7 @@ def _call_converse_with_tools(system_prompt: str, messages: List[Dict], sender_p
 
         return result_text.strip() if result_text else ''
 
-    # Exhausted iterations — return whatever we have
+    # Exhausted iterations - return whatever we have
     logger.warning(json.dumps({
         'event': 'tool_use_max_iterations',
         'iterations': MAX_TOOL_USE_ITERATIONS,
@@ -2730,7 +2730,7 @@ def _lookup_contact(phone: str, request_id: str) -> str:
             )
             items = response.get('Items', [])
         except Exception:
-            # GSI may not exist — fall back to scan (less efficient but works)
+            # GSI may not exist - fall back to scan (less efficient but works)
             response = contacts_table.scan(
                 FilterExpression='phoneNumber = :phone OR phone = :phone OR contains(phoneNumbers, :phone)',
                 ExpressionAttributeValues={':phone': clean_phone},
@@ -2997,7 +2997,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
 
     content_lower = message_content.strip().lower()
 
-    # -- Fix #3: Escape words — cancel/back/exit during active flows --
+    # -- Fix #3: Escape words - cancel/back/exit during active flows --
     ESCAPE_WORDS = {'cancel', 'menu', 'exit', 'stop', 'quit', 'main menu'}
 
     # -- Check for active conversational flow (state machine) --
@@ -3124,7 +3124,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestion': msg,
                 }
 
-    # -- "menu" keyword trigger — show main menu on demand --
+    # -- "menu" keyword trigger - show main menu on demand --
     if content_lower in ('menu', 'main menu', 'show menu', 'hi', 'hello'):
         greeting = flow_config.get('welcome', {}).get('text', '') if not history.get('messages') else flow_config.get('welcomeBack', {}).get('text', "Here's the menu ??")
         return {
@@ -3141,7 +3141,7 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         'rupees', 'amount pay', 'pay amount', 'invoice', 'pay invoice',
     }
     if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
-        # Instant pay flow — send all pending invoices as WhatsApp Pay orders
+        # Instant pay flow - send all pending invoices as WhatsApp Pay orders
         return {
             'suggestedResponse': '',
             'suggestion': '',
@@ -3197,9 +3197,9 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestion': prompt,
                 }
 
-            # Start pay flow — check for pending dues first
+            # Start pay flow - check for pending dues first
             if action == 'start_pay_flow':
-                # Instant pay flow — send all pending invoices as WhatsApp Pay orders
+                # Instant pay flow - send all pending invoices as WhatsApp Pay orders
                 return {
                     'suggestedResponse': '',
                     'suggestion': '',
@@ -3453,8 +3453,8 @@ def check_rate_limit(session_id: str, tool_name: str, limit: int = 10, window: i
 
 # -- Better Error Messages --
 ERROR_MESSAGES = {
-    'contact_not_found': '? Contact not found.\n\n?? Try:\n• Search by phone: "find +919876543210"\n• Search by name: "find Jignesh"\n• Create new: "create contact John +919876543210"',
-    'invalid_phone': '? Invalid phone number.\n\n?? Use international format:\n• India: +919876543210\n• USA: +14155552671\n• UK: +447447840003',
+    'contact_not_found': '\u274c Contact not found.\n\n\U0001f4a1 Try:\n- Search by phone: "find +919876543210"\n- Search by name: "find Jignesh"\n- Create new: "create contact John +919876543210"',
+    'invalid_phone': '\u274c Invalid phone number.\n\n\U0001f4a1 Use international format:\n- India: +919876543210\n- USA: +14155552671\n- UK: +447447840003',
     'invalid_email': '? Invalid email address.\n\n?? Use format: name@domain.com',
     'rate_limit': '?? Too many requests.\n\n?? Please wait a moment before trying again.',
     'service_unavailable': '? Service temporarily unavailable.\n\n?? Please try again in a few moments.',
@@ -3480,12 +3480,12 @@ def _r(msg: str) -> Dict:
 
 
 PURPOSE_MAP = {
-    '1': 'BNB Club — Travel',
-    '2': 'No Fault — ODR',
-    '3': 'Expo Week — Events',
-    '4': 'Ritual Guru — Puja',
-    '5': 'Legal Champ — Docs',
-    '6': 'Swdhya — Samvad',
+    '1': 'BNB Club - Travel',
+    '2': 'No Fault - ODR',
+    '3': 'Expo Week - Events',
+    '4': 'Ritual Guru - Puja',
+    '5': 'Legal Champ - Docs',
+    '6': 'Swdhya - Samvad',
     '7': 'Gift Card',
     '8': 'Advance Payment',
     '9': 'Service Fee',
@@ -4140,7 +4140,7 @@ def _detect_language(text: str) -> Tuple[str, str]:
 
 
 # ============================================================================
-# KB QUERY (for internal fallback — unchanged)
+# KB QUERY (for internal fallback - unchanged)
 # ============================================================================
 
 def _query_knowledge_base(user_message: str, kb_id: str, detected_lang: str, lang_name: str, request_id: str) -> str:
