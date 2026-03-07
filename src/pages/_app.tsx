@@ -57,7 +57,7 @@ const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
 
 // Custom Amplify UI Theme - Black buttons with 13px border radius
 const authTheme: Theme = {
-  name: 'base-crm-theme',
+  name: 'stack-crm-theme',
   tokens: {
     colors: {
       brand: {

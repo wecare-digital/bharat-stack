@@ -44,10 +44,17 @@ const NoCodePage: React.FC = () => {
         <header className="hdr">
           <div className="hdr-in">
             <a href="/" className="logo">
-              <img src={LOGO_URL} alt="Stack CRM" className="logo-img" />
+              <img src={LOGO_URL} alt="WECARE.DIGITAL" className="logo-img" />
               <div className="logo-text">
-                <span className="logo-main">Stack CRM</span>
-                <a href="https://www.wecare.digital" className="logo-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
+                <span className="logo-main">Stack</span>
+                <div className="nav-dropdown">
+                  <button className="nav-trigger">Products <span className="nav-arrow">▼</span></button>
+                  <div className="nav-menu">
+                    <a href="/crm" className="nav-item">CRM</a>
+                    <a href="/studio" className="nav-item">Studio</a>
+                    <a href="/sustainability" className="nav-item">Sustainability</a>
+                  </div>
+                </div>
               </div>
             </a>
           </div>
@@ -93,8 +100,15 @@ const NoCodePage: React.FC = () => {
           .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain;margin-top:-4px}
           .logo-text{display:flex;flex-direction:column;justify-content:center}
           .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
-          .logo-sub{font-size:19px;font-weight:600;color:#6b7280;line-height:1.15;margin-top:4px;text-decoration:none;transition:color .25s}
-          .logo-sub:hover{color:#059669}
+          .nav-dropdown{position:relative;margin-top:4px}
+          .nav-trigger{background:none;border:none;font-size:19px;font-weight:600;color:#6b7280;cursor:pointer;padding:0;font-family:inherit;transition:color .25s;display:flex;align-items:center;gap:4px}
+          .nav-trigger:hover{color:#059669}
+          .nav-arrow{font-size:10px;transition:transform .2s}
+          .nav-dropdown:hover .nav-arrow{transform:rotate(180deg)}
+          .nav-menu{position:absolute;top:100%;left:0;background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:8px 0;min-width:180px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+          .nav-dropdown:hover .nav-menu{opacity:1;visibility:visible;transform:translateY(0)}
+          .nav-item{display:block;padding:10px 20px;font-size:15px;font-weight:500;color:#1a1a1a;text-decoration:none;transition:all .15s}
+          .nav-item:hover{color:#059669;background:#ecfdf5}
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
           .anim.show{opacity:1;transform:translateY(0)}
           .hero{padding:140px 24px 60px;max-width:700px;margin:0 auto;text-align:center}
@@ -125,7 +139,6 @@ const NoCodePage: React.FC = () => {
             .hdr-in{padding:14px 20px}
             .logo-img{width:64px;height:64px;border-radius:12px}
             .logo-main{font-size:28px}
-            .logo-sub{font-size:15px}
             .hero{padding:110px 20px 50px}
             .hero h1{font-size:38px;letter-spacing:-1px}
             .hero p{font-size:17px}
@@ -143,7 +156,7 @@ const NoCodePage: React.FC = () => {
             .hdr-in{padding:12px 16px}
             .logo-img{width:64px;height:64px;border-radius:12px}
             .logo-main{font-size:28px}
-            .logo-sub{font-size:15px}
+            .nav-trigger{font-size:15px}
             .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 44px}
             .badge-icon{width:56px;height:56px;padding:12px}
             .hero h1{font-size:42px;letter-spacing:-0.5px;line-height:1.12}
@@ -164,7 +177,7 @@ const NoCodePage: React.FC = () => {
           @media(max-width:480px){
             .logo-img{width:56px;height:56px;border-radius:11px}
             .logo-main{font-size:26px}
-            .logo-sub{font-size:13px}
+            .nav-trigger{font-size:13px}
             .hero h1{font-size:38px;line-height:1.15}
             .hero p{font-size:22px}
             .grid{gap:12px}

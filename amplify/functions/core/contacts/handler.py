@@ -220,7 +220,7 @@ def _list_all(params: Dict[str, str], request_id: str, origin: str = '') -> Dict
     log_event(logger, 'contacts_list', count=len(contacts), requestId=request_id)
     # Removed Cache-Control: frontend calls loadContacts() after every mutation,
     # so caching could serve stale data. Let the browser/CDN handle caching naturally.
-    return response
+    return cors_response(200, {'contacts': contacts}, origin)
 
 
 # ─── SEARCH ─────────────────────────────────────────────────────────────────

@@ -49,7 +49,14 @@ const HubPage: React.FC = () => (
             <img src={LOGO_URL} alt="WECARE.DIGITAL" className="logo-img" />
             <div className="logo-text">
               <span className="logo-main">Stack</span>
-              <a href="https://www.wecare.digital" className="logo-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
+              <div className="nav-dropdown">
+                <button className="nav-trigger">Products <span className="nav-arrow">▼</span></button>
+                <div className="nav-menu">
+                  <a href="/crm" className="nav-item">CRM</a>
+                  <a href="/studio" className="nav-item">Studio</a>
+                  <a href="/sustainability" className="nav-item">Sustainability</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -87,8 +94,15 @@ const HubPage: React.FC = () => (
         .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain;margin-top:-4px}
         .logo-text{display:flex;flex-direction:column;justify-content:center}
         .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
-        .logo-sub{font-size:19px;font-weight:600;color:#6b7280;line-height:1.15;margin-top:4px;text-decoration:none;transition:color .25s}
-        .logo-sub:hover{color:#059669}
+        .nav-dropdown{position:relative;margin-top:4px}
+        .nav-trigger{background:none;border:none;font-size:19px;font-weight:600;color:#6b7280;cursor:pointer;padding:0;font-family:inherit;transition:color .25s;display:flex;align-items:center;gap:4px}
+        .nav-trigger:hover{color:#059669}
+        .nav-arrow{font-size:10px;transition:transform .2s}
+        .nav-dropdown:hover .nav-arrow{transform:rotate(180deg)}
+        .nav-menu{position:absolute;top:100%;left:0;background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:8px 0;min-width:180px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+        .nav-dropdown:hover .nav-menu{opacity:1;visibility:visible;transform:translateY(0)}
+        .nav-item{display:block;padding:10px 20px;font-size:15px;font-weight:500;color:#1a1a1a;text-decoration:none;transition:all .15s}
+        .nav-item:hover{color:#059669;background:#ecfdf5}
         .hero{padding:160px 24px 40px;max-width:700px;margin:0 auto;text-align:center}
         .hero h1{font-size:48px;font-weight:700;line-height:1.08;margin:0 0 16px;letter-spacing:-1.5px}
         .hero p{font-size:21px;color:#6b7280;line-height:1.6;margin:0}
@@ -111,7 +125,7 @@ const HubPage: React.FC = () => (
           .hdr-in{padding:12px 16px}
           .logo-img{width:64px;height:64px;border-radius:12px}
           .logo-main{font-size:28px}
-          .logo-sub{font-size:15px}
+          .nav-trigger{font-size:15px}
           .hero{padding:calc(110px + env(safe-area-inset-top)) 20px 32px}
           .hero h1{font-size:38px;letter-spacing:-0.5px}
           .hero p{font-size:20px}
@@ -127,7 +141,7 @@ const HubPage: React.FC = () => (
         @media(max-width:480px){
           .logo-img{width:56px;height:56px;border-radius:11px}
           .logo-main{font-size:26px}
-          .logo-sub{font-size:13px}
+          .nav-trigger{font-size:13px}
           .hero h1{font-size:32px}
           .hero p{font-size:18px}
         }
