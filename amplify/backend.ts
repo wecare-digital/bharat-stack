@@ -11,10 +11,10 @@ import { storage } from './storage/resource';
  * 
  * This backend defines:
  * - Auth: Cognito (existing user pool)
- * - Data: DynamoDB (35 tables)
+ * - Data: DynamoDB (38 tables)
  * - Storage: S3 (existing buckets)
  * 
- * Lambda functions (47 Python functions) are deployed separately
+ * Lambda functions (42 Python functions) are deployed separately
  * and already exist in AWS. They are not managed by Amplify Gen 2.
  */
 const backend = defineBackend({
