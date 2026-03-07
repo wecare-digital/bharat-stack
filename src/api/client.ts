@@ -512,7 +512,7 @@ export async function uploadCarouselCardMedia(
   if (wabaId) params.append('wabaId', wabaId);
   
   return apiCall<{ headerHandle: string; s3Key: string; cardIndex: number }>(
-    `${API_BASE}/templates/carousel-media${params.toString() ? '?' + params : ''}`,
+    `${API_BASE}/whatsapp/templates/carousel-media${params.toString() ? '?' + params : ''}`,
     {
       method: 'POST',
       body: JSON.stringify({ mediaBase64, contentType, cardIndex }),
@@ -528,7 +528,7 @@ export async function createCarouselTemplate(
   if (request.wabaId) params.append('wabaId', request.wabaId);
   
   return apiCall<{ metaTemplateId: string; templateStatus: string; templateType: string; cardCount: number }>(
-    `${API_BASE}/templates/carousel${params.toString() ? '?' + params : ''}`,
+    `${API_BASE}/whatsapp/templates/carousel${params.toString() ? '?' + params : ''}`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -1644,7 +1644,7 @@ export interface UpdateTemplateRequest {
  * API: ListWhatsAppMessageTemplates
  */
 export async function listTemplates(wabaId?: string, maxResults?: number): Promise<WhatsAppTemplate[]> {
-  let url = `${API_BASE}/templates`;
+  let url = `${API_BASE}/whatsapp/templates`;
   const params = new URLSearchParams();
   if (wabaId) params.append('wabaId', wabaId);
   if (maxResults) params.append('maxResults', maxResults.toString());
@@ -1662,7 +1662,7 @@ export async function listTemplates(wabaId?: string, maxResults?: number): Promi
  * API: GetWhatsAppMessageTemplate
  */
 export async function getTemplateDetails(templateId: string, wabaId?: string): Promise<any | null> {
-  let url = `${API_BASE}/templates/${templateId}`;
+  let url = `${API_BASE}/whatsapp/templates/${templateId}`;
   if (wabaId) url += `?wabaId=${wabaId}`;
   
   const data = await apiCall<any>(url);
@@ -1677,7 +1677,7 @@ export async function getTemplateDetails(templateId: string, wabaId?: string): P
  * API: CreateWhatsAppMessageTemplate
  */
 export async function createTemplate(request: CreateTemplateRequest): Promise<{ metaTemplateId: string; category: string; templateStatus: string } | null> {
-  return apiCall<any>(`${API_BASE}/templates`, {
+  return apiCall<any>(`${API_BASE}/whatsapp/templates`, {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -1688,7 +1688,7 @@ export async function createTemplate(request: CreateTemplateRequest): Promise<{ 
  * API: CreateWhatsAppMessageTemplateFromLibrary
  */
 export async function createTemplateFromLibrary(request: CreateFromLibraryRequest): Promise<{ metaTemplateId: string; category: string; templateStatus: string } | null> {
-  return apiCall<any>(`${API_BASE}/templates/from-library`, {
+  return apiCall<any>(`${API_BASE}/whatsapp/template-from-library`, {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -1699,7 +1699,7 @@ export async function createTemplateFromLibrary(request: CreateFromLibraryReques
  * API: UpdateWhatsAppMessageTemplate
  */
 export async function updateTemplate(templateId: string, request: UpdateTemplateRequest): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/templates/${templateId}`, {
+  const data = await apiCall<any>(`${API_BASE}/whatsapp/templates/${templateId}`, {
     method: 'PUT',
     body: JSON.stringify(request),
   });
@@ -1711,7 +1711,7 @@ export async function updateTemplate(templateId: string, request: UpdateTemplate
  * API: DeleteWhatsAppMessageTemplate
  */
 export async function deleteTemplate(templateName: string, wabaId?: string, deleteAllLanguages?: boolean): Promise<boolean> {
-  let url = `${API_BASE}/templates/${templateName}`;
+  let url = `${API_BASE}/whatsapp/templates/${templateName}`;
   const params = new URLSearchParams();
   params.append('templateName', templateName);
   if (wabaId) params.append('wabaId', wabaId);
@@ -1735,7 +1735,7 @@ export async function listTemplateLibrary(filters?: {
   language?: string;
   maxResults?: number;
 }): Promise<MetaLibraryTemplate[]> {
-  let url = `${API_BASE}/templates/library`;
+  let url = `${API_BASE}/whatsapp/template-library`;
   if (filters) {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -1762,7 +1762,7 @@ export async function uploadTemplateMedia(request: {
   mediaType?: string;
   filename?: string;
 }): Promise<{ metaHeaderHandle: string; s3Key: string } | null> {
-  return apiCall<any>(`${API_BASE}/templates/media`, {
+  return apiCall<any>(`${API_BASE}/whatsapp/templates/media`, {
     method: 'POST',
     body: JSON.stringify(request),
   });
