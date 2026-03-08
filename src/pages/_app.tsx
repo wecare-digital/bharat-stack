@@ -364,10 +364,12 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <>
       <Header />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 96px - 69px)', paddingTop: 96 }}>
-        {children}
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingTop: 96 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {children}
+        </div>
+        <Footer />
       </div>
-      <Footer />
     </>
   );
 };
