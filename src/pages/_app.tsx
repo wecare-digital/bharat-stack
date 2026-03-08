@@ -9,7 +9,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
-import { Authenticator, ThemeProvider, Theme } from '@aws-amplify/ui-react';
+import { Authenticator, ThemeProvider, Theme, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import '../styles/Pages.css';
 import '../styles/Layout.css';
@@ -351,6 +351,27 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
   ]
 });
 
+/**
+ * AuthGate — shows Header + Footer around the login form only when unauthenticated.
+ * Once authenticated, renders children directly (Layout handles its own Header/Footer).
+ */
+const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { authStatus } = useAuthenticator((ctx) => [ctx.authStatus]);
+  const isAuthed = authStatus === 'authenticated';
+
+  if (isAuthed) return <>{children}</>;
+
+  return (
+    <>
+      <Header />
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 96px - 69px)', paddingTop: 96 }}>
+        {children}
+      </div>
+      <Footer />
+    </>
+  );
+};
+
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -493,57 +514,26 @@ export default function App({ Component, pageProps }: AppProps) {
       {/* WhatsApp Chat Widget */}
       <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
-        <Authenticator hideSignUp={true} components={{
-          Header: () => (
-            <header className="login-hdr">
-              <div style={{ maxWidth: 1300, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center' }}>
-                <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                  <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="WECARE.DIGITAL" style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'contain' }} />
-                </a>
-              </div>
-            </header>
-          ),
-          Footer: () => (
-            <footer className="login-ftr">
-              <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px', display: 'flex', justifyContent: 'flex-start' }}>
-                <a href="https://www.wecare.digital/contact" style={{ fontSize: 21, color: '#6b7280', textDecoration: 'none', fontWeight: 500 }}>Contact us</a>
-              </div>
-            </footer>
-          ),
-        }}>
-          {({ signOut, user }) => {
-            if (typeof window !== 'undefined' && (window as any).FB) {
-              (window as any).FB.AppEvents.logEvent('CompletedRegistration');
-            }
-            return (
-              <ToastProvider>
-                <ConfirmProvider>
-                  <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
-                  <FloatingAgent />
-                </ConfirmProvider>
-              </ToastProvider>
-            );
-          }}
-        </Authenticator>
+        <Authenticator.Provider>
+          <AuthGate>
+            <Authenticator hideSignUp={true}>
+              {({ signOut, user }) => {
+                if (typeof window !== 'undefined' && (window as any).FB) {
+                  (window as any).FB.AppEvents.logEvent('CompletedRegistration');
+                }
+                return (
+                  <ToastProvider>
+                    <ConfirmProvider>
+                      <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
+                      <FloatingAgent />
+                    </ConfirmProvider>
+                  </ToastProvider>
+                );
+              }}
+            </Authenticator>
+          </AuthGate>
+        </Authenticator.Provider>
       </ThemeProvider>
-      <style>{`
-        /* Login page layout: Header top, form centered, Footer bottom */
-        [data-amplify-authenticator] {
-          min-height: 100vh;
-        }
-        [data-amplify-authenticator] > [data-amplify-container] {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-        }
-        [data-amplify-authenticator] [data-amplify-router] {
-          margin: auto;
-          border-radius: 16px;
-        }
-        /* Login Header — rendered via Authenticator components prop */
-        .login-hdr { position: static; background: #fff; }
-        .login-ftr { background: #fff; }
-      `}</style>
     </ErrorBoundary>
   );
 }
