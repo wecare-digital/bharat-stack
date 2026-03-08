@@ -494,11 +494,24 @@ export default function App({ Component, pageProps }: AppProps) {
       <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
         <Authenticator hideSignUp={true} components={{
-          Header: () => <Header />,
-          Footer: () => <Footer />,
+          Header: () => (
+            <header className="login-hdr">
+              <div style={{ maxWidth: 1300, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center' }}>
+                <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+                  <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="WECARE.DIGITAL" style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'contain' }} />
+                </a>
+              </div>
+            </header>
+          ),
+          Footer: () => (
+            <footer className="login-ftr">
+              <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px', display: 'flex', justifyContent: 'flex-start' }}>
+                <a href="https://www.wecare.digital/contact" style={{ fontSize: 21, color: '#6b7280', textDecoration: 'none', fontWeight: 500 }}>Contact us</a>
+              </div>
+            </footer>
+          ),
         }}>
           {({ signOut, user }) => {
-            // Track login event in Facebook SDK
             if (typeof window !== 'undefined' && (window as any).FB) {
               (window as any).FB.AppEvents.logEvent('CompletedRegistration');
             }
@@ -514,8 +527,11 @@ export default function App({ Component, pageProps }: AppProps) {
         </Authenticator>
       </ThemeProvider>
       <style>{`
-        /* Login screen: Header top, form centered, Footer bottom left-aligned */
-        [data-amplify-authenticator] [data-amplify-container] {
+        /* Login page layout: Header top, form centered, Footer bottom */
+        [data-amplify-authenticator] {
+          min-height: 100vh;
+        }
+        [data-amplify-authenticator] > [data-amplify-container] {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
@@ -524,11 +540,9 @@ export default function App({ Component, pageProps }: AppProps) {
           margin: auto;
           border-radius: 16px;
         }
-        [data-amplify-authenticator] [data-amplify-container] > .hdr,
-        [data-amplify-authenticator] [data-amplify-container] > .ftr {
-          width: 100%;
-          align-self: stretch;
-        }
+        /* Login Header — rendered via Authenticator components prop */
+        .login-hdr { position: static; background: #fff; }
+        .login-ftr { background: #fff; }
       `}</style>
     </ErrorBoundary>
   );
