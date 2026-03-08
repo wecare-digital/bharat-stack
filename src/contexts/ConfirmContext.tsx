@@ -1,7 +1,7 @@
 /**
  * Confirm Dialog Context
  * Unified confirm dialog for the entire app.
- * Site theme: Emerald #059669 throughout.
+ * Site theme: Emerald #10b981 throughout.
  *
  * Usage:
  *   const confirm = useConfirm();
@@ -98,7 +98,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
             }}
           >
             {/* Accent bar */}
-            <div style={{ height: '3px', background: dialog.danger ? '#dc2626' : '#059669' }} />
+            <div style={{ height: '3px', background: dialog.danger ? '#dc2626' : '#10b981' }} />
 
             <div style={{ padding: '20px 20px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -112,7 +112,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
                       <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
                   ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
                     </svg>
                   )}
@@ -144,7 +144,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
                       borderRadius: '8px', fontSize: '13px', outline: 'none',
                       boxSizing: 'border-box',
                     }}
-                    onFocus={e => { e.target.style.borderColor = dialog.danger ? '#dc2626' : '#059669'; }}
+                    onFocus={e => { e.target.style.borderColor = dialog.danger ? '#dc2626' : '#10b981'; }}
                     onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
                   />
                 </div>
@@ -171,7 +171,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
                 disabled={!canConfirm}
                 style={{
                   padding: '7px 16px', border: 'none', borderRadius: '8px',
-                  background: !canConfirm ? '#d1d5db' : (dialog.danger ? '#dc2626' : '#059669'),
+                  background: !canConfirm ? '#d1d5db' : (dialog.danger ? '#dc2626' : '#10b981'),
                   color: '#fff', fontSize: '13px', fontWeight: 500,
                   cursor: canConfirm ? 'pointer' : 'not-allowed',
                   opacity: canConfirm ? 1 : 0.6,

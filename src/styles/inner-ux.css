@@ -43,11 +43,11 @@
   --bp-wide: 1440px;
   
   /* Colors - Emerald Theme (SINGLE SOURCE OF TRUTH) */
-  --color-primary: #059669;
-  --color-primary-hover: #047857;
+  --color-primary: #10b981;
+  --color-primary-hover: #059669;
   --color-primary-light: #ECFDF5;
   --color-primary-active: #D1FAE5;
-  --color-primary-dark: #065f46;
+  --color-primary-dark: #047857;
   
   /* Danger - Emerald theme (consistent with site design) */
   --color-danger: #059669;
@@ -751,12 +751,12 @@
 
 .toast-warning .toast-icon {
   background: #ECFDF5;
-  color: #059669;
+  color: #10b981;
 }
 
 .toast-info .toast-icon {
   background: #ECFDF5;
-  color: #059669;
+  color: #10b981;
 }
 
 .toast-message {

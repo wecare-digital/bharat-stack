@@ -57,24 +57,24 @@ const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.s
 const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
 
-// Custom Amplify UI Theme - Black buttons with 13px border radius
+// Custom Amplify UI Theme - Emerald green matching site design
 const authTheme: Theme = {
   name: 'stack-crm-theme',
   tokens: {
     colors: {
       brand: {
         primary: {
-          10: { value: '#f5f5f5' },
-          20: { value: '#e5e5e5' },
-          40: { value: '#a3a3a3' },
-          60: { value: '#525252' },
-          80: { value: '#1a1a1a' },
-          90: { value: '#0a0a0a' },
-          100: { value: '#000000' },
+          10: { value: '#ecfdf5' },
+          20: { value: '#d1fae5' },
+          40: { value: '#6ee7b7' },
+          60: { value: '#10b981' },
+          80: { value: '#059669' },
+          90: { value: '#047857' },
+          100: { value: '#065f46' },
         },
       },
       font: {
-        interactive: { value: '#1a1a1a' },
+        interactive: { value: '#10b981' },
       },
       background: {
         primary: { value: '#ffffff' },
@@ -90,40 +90,40 @@ const authTheme: Theme = {
       },
       button: {
         primary: {
-          backgroundColor: { value: '#1a1a1a' },
+          backgroundColor: { value: '#10b981' },
           color: { value: '#ffffff' },
           _hover: {
-            backgroundColor: { value: '#333333' },
+            backgroundColor: { value: '#059669' },
           },
           _active: {
-            backgroundColor: { value: '#000000' },
+            backgroundColor: { value: '#047857' },
           },
         },
         link: {
-          color: { value: '#1a1a1a' },
+          color: { value: '#10b981' },
           _hover: {
-            color: { value: '#525252' },
+            color: { value: '#059669' },
             backgroundColor: { value: 'transparent' },
           },
         },
       },
       fieldcontrol: {
         borderRadius: { value: '10px' },
-        borderColor: { value: '#e5e7eb' },
+        borderColor: { value: '#d1fae5' },
         _focus: {
-          borderColor: { value: '#1a1a1a' },
-          boxShadow: { value: '0 0 0 2px rgba(26, 26, 26, 0.1)' },
+          borderColor: { value: '#10b981' },
+          boxShadow: { value: '0 0 0 2px rgba(16, 185, 129, 0.15)' },
         },
       },
       tabs: {
         item: {
           color: { value: '#6b7280' },
           _active: {
-            color: { value: '#1a1a1a' },
-            borderColor: { value: '#1a1a1a' },
+            color: { value: '#10b981' },
+            borderColor: { value: '#10b981' },
           },
           _hover: {
-            color: { value: '#1a1a1a' },
+            color: { value: '#059669' },
           },
         },
       },
@@ -493,7 +493,10 @@ export default function App({ Component, pageProps }: AppProps) {
       {/* WhatsApp Chat Widget */}
       <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
-        <Authenticator hideSignUp={true}>
+        <Authenticator hideSignUp={true} components={{
+          Header: () => <Header />,
+          Footer: () => <Footer />,
+        }}>
           {({ signOut, user }) => {
             // Track login event in Facebook SDK
             if (typeof window !== 'undefined' && (window as any).FB) {
@@ -510,6 +513,18 @@ export default function App({ Component, pageProps }: AppProps) {
           }}
         </Authenticator>
       </ThemeProvider>
+      <style>{`
+        /* Login screen: center the form between Header and Footer */
+        [data-amplify-authenticator] [data-amplify-router] {
+          margin: auto;
+          border-radius: 16px;
+        }
+        [data-amplify-authenticator] [data-amplify-container] {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+        }
+      `}</style>
     </ErrorBoundary>
   );
 }
