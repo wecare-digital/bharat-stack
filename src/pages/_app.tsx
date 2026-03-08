@@ -514,15 +514,20 @@ export default function App({ Component, pageProps }: AppProps) {
         </Authenticator>
       </ThemeProvider>
       <style>{`
-        /* Login screen: center the form between Header and Footer */
-        [data-amplify-authenticator] [data-amplify-router] {
-          margin: auto;
-          border-radius: 16px;
-        }
+        /* Login screen: Header top, form centered, Footer bottom left-aligned */
         [data-amplify-authenticator] [data-amplify-container] {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
+        }
+        [data-amplify-authenticator] [data-amplify-router] {
+          margin: auto;
+          border-radius: 16px;
+        }
+        [data-amplify-authenticator] [data-amplify-container] > .hdr,
+        [data-amplify-authenticator] [data-amplify-container] > .ftr {
+          width: 100%;
+          align-self: stretch;
         }
       `}</style>
     </ErrorBoundary>
