@@ -1,18 +1,23 @@
 /**
  * Confirm Dialog Context
- * Replaces browser window.confirm() with a themed modal dialog.
+ * Unified confirm dialog for the entire app.
  * Site theme: Emerald #059669 throughout.
- * Usage: const confirm = useConfirm();
- *        if (await confirm('Delete 25 contacts?')) { ... }
+ *
+ * Usage:
+ *   const confirm = useConfirm();
+ *   if (await confirm('Delete 25 contacts?')) { ... }
+ *   if (await confirm({ title: 'Hard Delete', message: <p>Gone forever</p>, confirmInput: 'DELETE', danger: true })) { ... }
  */
 
-import React, { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 
 interface ConfirmOptions {
   title?: string;
-  message: string;
+  message: ReactNode;
   confirmText?: string;
   cancelText?: string;
+  confirmInput?: string;   // If set, user must type this exact string to enable confirm
+  danger?: boolean;        // Red-tinted destructive action styling
 }
 
 type ConfirmFn = (messageOrOptions: string | ConfirmOptions) => Promise<boolean>;
@@ -22,23 +27,31 @@ const ConfirmContext = createContext<ConfirmFn | undefined>(undefined);
 interface DialogState {
   isOpen: boolean;
   title: string;
-  message: string;
+  message: ReactNode;
   confirmText: string;
   cancelText: string;
+  confirmInput?: string;
+  danger: boolean;
 }
 
 export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [dialog, setDialog] = useState<DialogState>({
-    isOpen: false, title: 'Confirm', message: '', confirmText: 'Confirm', cancelText: 'Cancel',
+    isOpen: false, title: 'Confirm', message: '', confirmText: 'Confirm', cancelText: 'Cancel', danger: false,
   });
+  const [inputValue, setInputValue] = useState('');
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
+
+  // Reset input when dialog closes
+  useEffect(() => {
+    if (!dialog.isOpen) setInputValue('');
+  }, [dialog.isOpen]);
 
   const confirm: ConfirmFn = useCallback((messageOrOptions) => {
     const opts: ConfirmOptions = typeof messageOrOptions === 'string'
       ? { message: messageOrOptions } : messageOrOptions;
 
-    const lower = opts.message.toLowerCase();
-    const isDestructive = ['delete', 'remove', 'clear', 'cancel', 'reset'].some(k => lower.includes(k));
+    const msgStr = typeof opts.message === 'string' ? opts.message.toLowerCase() : '';
+    const isDestructive = opts.danger || ['delete', 'remove', 'clear', 'cancel', 'reset'].some(k => msgStr.includes(k));
 
     setDialog({
       isOpen: true,
@@ -46,6 +59,8 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
       message: opts.message,
       confirmText: opts.confirmText || (isDestructive ? 'Yes, proceed' : 'Confirm'),
       cancelText: opts.cancelText || 'Cancel',
+      confirmInput: opts.confirmInput,
+      danger: opts.danger || false,
     });
 
     return new Promise<boolean>((resolve) => { resolveRef.current = resolve; });
@@ -57,6 +72,8 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
     resolveRef.current = null;
   }, []);
 
+  const canConfirm = !dialog.confirmInput || inputValue === dialog.confirmInput;
+
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
@@ -64,7 +81,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
         <div
           role="dialog" aria-modal="true"
           aria-labelledby="confirm-title" aria-describedby="confirm-msg"
-          onKeyDown={e => { if (e.key === 'Escape') handleClose(false); if (e.key === 'Enter') handleClose(true); }}
+          onKeyDown={e => { if (e.key === 'Escape') handleClose(false); if (e.key === 'Enter' && canConfirm) handleClose(true); }}
           onClick={() => handleClose(false)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
@@ -75,33 +92,63 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '380px',
+              background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '420px',
               boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden',
               animation: 'confirmIn 0.15s ease-out',
             }}
           >
             {/* Accent bar */}
-            <div style={{ height: '3px', background: '#059669' }} />
+            <div style={{ height: '3px', background: dialog.danger ? '#dc2626' : '#059669' }} />
 
             <div style={{ padding: '20px 20px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <div style={{
-                  width: '32px', height: '32px', borderRadius: '50%', background: '#ecfdf5',
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  background: dialog.danger ? '#fef2f2' : '#ecfdf5',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-                  </svg>
+                  {dialog.danger ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                    </svg>
+                  )}
                 </div>
                 <h3 id="confirm-title" style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#111827' }}>
                   {dialog.title}
                 </h3>
               </div>
-              <p id="confirm-msg" style={{
-                margin: '0 0 20px', fontSize: '13px', lineHeight: 1.5, color: '#4b5563', paddingLeft: '42px',
+              <div id="confirm-msg" style={{
+                margin: '0 0 16px', fontSize: '13px', lineHeight: 1.5, color: '#4b5563', paddingLeft: '42px',
               }}>
                 {dialog.message}
-              </p>
+              </div>
+
+              {/* Type-to-confirm input */}
+              {dialog.confirmInput && (
+                <div style={{ paddingLeft: '42px', marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginBottom: '6px', fontWeight: 500 }}>
+                    Type &quot;{dialog.confirmInput}&quot; to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={e => setInputValue(e.target.value)}
+                    placeholder={dialog.confirmInput}
+                    autoFocus
+                    style={{
+                      width: '100%', padding: '8px 12px', border: '1.5px solid #d1d5db',
+                      borderRadius: '8px', fontSize: '13px', outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={e => { e.target.style.borderColor = dialog.danger ? '#dc2626' : '#059669'; }}
+                    onBlur={e => { e.target.style.borderColor = '#d1d5db'; }}
+                  />
+                </div>
+              )}
             </div>
 
             <div style={{
@@ -109,7 +156,8 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
               padding: '12px 20px', background: '#f9fafb', borderTop: '1px solid #f3f4f6',
             }}>
               <button
-                onClick={() => handleClose(false)} autoFocus
+                onClick={() => handleClose(false)}
+                autoFocus={!dialog.confirmInput}
                 style={{
                   padding: '7px 16px', border: '1px solid #d1d5db', borderRadius: '8px',
                   background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 500,
@@ -120,10 +168,13 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
               </button>
               <button
                 onClick={() => handleClose(true)}
+                disabled={!canConfirm}
                 style={{
                   padding: '7px 16px', border: 'none', borderRadius: '8px',
-                  background: '#059669', color: '#fff', fontSize: '13px', fontWeight: 500,
-                  cursor: 'pointer',
+                  background: !canConfirm ? '#d1d5db' : (dialog.danger ? '#dc2626' : '#059669'),
+                  color: '#fff', fontSize: '13px', fontWeight: 500,
+                  cursor: canConfirm ? 'pointer' : 'not-allowed',
+                  opacity: canConfirm ? 1 : 0.6,
                 }}
               >
                 {dialog.confirmText}

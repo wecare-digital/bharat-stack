@@ -5,6 +5,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import type { DashboardData } from '../../../types/dashboard';
 
 interface DataTabProps {
@@ -82,6 +83,7 @@ const CLEANUP_FALLBACK: api.CleanupResource[] = [
 const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
   const { contacts, messages } = data;
   const toast = useToastContext();
+  const confirm = useConfirm();
 
   // Delete mode
   const [deleteMode, setDeleteMode] = useState<'messages' | 'hard' | 'clearAll' | 'systemCleanup' | null>(null);
@@ -89,19 +91,12 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
 
-
-  // Modals
-  const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
-  const [showClearAllModal, setShowClearAllModal] = useState(false);
-
   // System cleanup
   const [cleanupResources, setCleanupResources] = useState<api.CleanupResource[]>([]);
   const [cleanupSelected, setCleanupSelected] = useState<Set<string>>(new Set());
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResults, setCleanupResults] = useState<api.CleanupResult[] | null>(null);
-  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
-  const [cleanupConfirmText, setCleanupConfirmText] = useState('');
 
   const contactMessages = selectedContact
     ? messages.filter(m => m.contactId === selectedContact)
@@ -131,7 +126,24 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
 
   const handleHardDelete = async () => {
     if (!selectedContact) return;
-    setShowHardDeleteModal(false);
+    const ok = await confirm({
+      title: 'Hard Delete Contact',
+      message: (
+        <div>
+          <p>This will permanently delete:</p>
+          <ul style={{ margin: '8px 0 8px 20px', lineHeight: 1.6 }}>
+            <li>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</li>
+            <li>{contactMessages.length} messages</li>
+            <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
+          </ul>
+          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+        </div>
+      ),
+      confirmInput: 'DELETE',
+      confirmText: 'Hard Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await api.hardDeleteContact(selectedContact);
@@ -148,7 +160,26 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
   };
 
   const handleClearAllData = async () => {
-    setShowClearAllModal(false);
+    const ok = await confirm({
+      title: 'Clear All Data',
+      message: (
+        <div>
+          <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data</p>
+          <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
+            <li>All WhatsApp messages (inbound &amp; outbound)</li>
+            <li>All SMS messages</li>
+            <li>All Voice call records</li>
+            <li>All {contacts.length} contacts</li>
+            <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
+          </ul>
+          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+        </div>
+      ),
+      confirmInput: 'DELETE ALL',
+      confirmText: 'Clear Everything',
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await api.clearAllInboxData();
@@ -203,8 +234,14 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
   };
 
   const executeSystemCleanup = async () => {
-    setShowCleanupConfirm(false);
-    setCleanupConfirmText('');
+    const ok = await confirm({
+      title: 'System Cleanup',
+      message: `Permanently delete ${cleanupSelected.size} resource${cleanupSelected.size !== 1 ? 's' : ''}? This action cannot be undone.`,
+      confirmInput: 'CONFIRM DELETE',
+      confirmText: 'Permanently Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setCleanupRunning(true);
     const selected = Array.from(cleanupSelected);
     try {
@@ -229,81 +266,8 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
   };
 
 
-  // --- Confirmation Modal ---
-  const ConfirmModal = ({ isOpen, title, message, confirmText = 'Confirm', confirmInput, onConfirm, onCancel }: {
-    isOpen: boolean; title: string; message: React.ReactNode; confirmText?: string;
-    confirmInput?: string; onConfirm: () => void; onCancel: () => void;
-  }) => {
-    const [inputValue, setInputValue] = React.useState('');
-    React.useEffect(() => { if (!isOpen) setInputValue(''); }, [isOpen]);
-    if (!isOpen) return null;
-    const canConfirm = !confirmInput || inputValue === confirmInput;
-    return (
-      <div className="confirm-modal-overlay" onClick={onCancel}>
-        <div className="confirm-modal" onClick={e => e.stopPropagation()}>
-          <div className="confirm-modal-header"><h3>{title}</h3></div>
-          <div className="confirm-modal-body">
-            {message}
-            {confirmInput && (
-              <div className="confirm-input-wrapper">
-                <label>Type &quot;{confirmInput}&quot; to confirm:</label>
-                <input type="text" value={inputValue} onChange={e => setInputValue(e.target.value)} placeholder={confirmInput} autoFocus />
-              </div>
-            )}
-          </div>
-          <div className="confirm-modal-footer">
-            <button className="confirm-modal-cancel" onClick={onCancel}>Cancel</button>
-            <button className="confirm-modal-confirm" onClick={onConfirm} disabled={!canConfirm}>{confirmText}</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
-      {/* Modals */}
-      <ConfirmModal
-        isOpen={showHardDeleteModal}
-        title="Hard Delete Contact"
-        message={
-          <div>
-            <p>This will permanently delete:</p>
-            <ul style={{ margin: '8px 0 8px 20px', lineHeight: 1.6 }}>
-              <li>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</li>
-              <li>{contactMessages.length} messages</li>
-              <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
-            </ul>
-            <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
-          </div>
-        }
-        confirmInput="DELETE"
-        confirmText="Hard Delete"
-        onConfirm={handleHardDelete}
-        onCancel={() => setShowHardDeleteModal(false)}
-      />
-      <ConfirmModal
-        isOpen={showClearAllModal}
-        title="Clear All Data"
-        message={
-          <div>
-            <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data</p>
-            <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
-              <li>All WhatsApp messages (inbound &amp; outbound)</li>
-              <li>All SMS messages</li>
-              <li>All Voice call records</li>
-              <li>All {contacts.length} contacts</li>
-              <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
-            </ul>
-            <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
-          </div>
-        }
-        confirmInput="DELETE ALL"
-        confirmText="Clear Everything"
-        onConfirm={handleClearAllData}
-        onCancel={() => setShowClearAllModal(false)}
-      />
-
       <div className="data-tab">
         <h3>Factory Reset</h3>
 
@@ -366,7 +330,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
             )}
             <div className="delete-actions">
               <Button variant="secondary" onClick={() => { setDeleteMode(null); setSelectedContact(''); }}>Cancel</Button>
-              <Button variant="danger" onClick={() => setShowHardDeleteModal(true)} disabled={deleting || !selectedContact} loading={deleting}>Hard Delete</Button>
+              <Button variant="danger" onClick={handleHardDelete} disabled={deleting || !selectedContact} loading={deleting}>Hard Delete</Button>
             </div>
           </div>
         )}
@@ -391,7 +355,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
             </div>
             <div className="delete-actions">
               <Button variant="secondary" onClick={() => setDeleteMode(null)}>Cancel</Button>
-              <Button variant="danger" onClick={() => setShowClearAllModal(true)} disabled={deleting} loading={deleting}>Clear All Data</Button>
+              <Button variant="danger" onClick={handleClearAllData} disabled={deleting} loading={deleting}>Clear All Data</Button>
             </div>
           </div>
         )}
@@ -449,26 +413,10 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
             <div className="delete-actions">
               <Button variant="secondary" onClick={() => { setDeleteMode(null); setCleanupResults(null); setCleanupSelected(new Set()); }}>Cancel</Button>
               <Button variant="secondary" onClick={loadCleanupPreview} disabled={cleanupLoading}>Refresh</Button>
-              <Button variant="danger" onClick={() => setShowCleanupConfirm(true)} disabled={cleanupRunning || cleanupSelected.size === 0} loading={cleanupRunning}>
+              <Button variant="danger" onClick={executeSystemCleanup} disabled={cleanupRunning || cleanupSelected.size === 0} loading={cleanupRunning}>
                 Delete {cleanupSelected.size} Resource{cleanupSelected.size !== 1 ? 's' : ''}
               </Button>
             </div>
-            {showCleanupConfirm && (
-              <div className="cleanup-confirm">
-                <p className="cleanup-confirm-text">Type <strong>CONFIRM DELETE</strong> to permanently delete {cleanupSelected.size} resource{cleanupSelected.size !== 1 ? 's' : ''}:</p>
-                <ul className="cleanup-confirm-list">
-                  {Array.from(cleanupSelected).map(id => {
-                    const res = cleanupResources.find(r => r.id === id);
-                    return <li key={id}>{res?.label || id}</li>;
-                  })}
-                </ul>
-                <input type="text" value={cleanupConfirmText} onChange={e => setCleanupConfirmText(e.target.value)} placeholder="Type CONFIRM DELETE" />
-                <div className="delete-actions">
-                  <Button variant="secondary" onClick={() => { setShowCleanupConfirm(false); setCleanupConfirmText(''); }}>Cancel</Button>
-                  <Button variant="danger" onClick={executeSystemCleanup} disabled={cleanupConfirmText !== 'CONFIRM DELETE'}>Permanently Delete</Button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

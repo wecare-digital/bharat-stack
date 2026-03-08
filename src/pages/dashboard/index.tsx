@@ -361,8 +361,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
-  const [showClearAllModal, setShowClearAllModal] = useState(false);
   
   // System cleanup state
   const [cleanupResources, setCleanupResources] = useState<api.CleanupResource[]>([]);
@@ -370,8 +368,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResults, setCleanupResults] = useState<api.CleanupResult[] | null>(null);
-  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
-  const [cleanupConfirmText, setCleanupConfirmText] = useState('');
   
   // Payment edit state
   const [editPayment, setEditPayment] = useState<any>(null);
@@ -535,7 +531,24 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleHardDelete = async () => {
     if (!selectedContact) return;
-    setShowHardDeleteModal(false);
+    const ok = await confirm({
+      title: 'Hard Delete Contact',
+      message: (
+        <div>
+          <p>This will permanently delete:</p>
+          <ul style={{ margin: '8px 0 8px 20px', lineHeight: 1.6 }}>
+            <li>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</li>
+            <li>{contactMessages.length} messages</li>
+            <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
+          </ul>
+          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+        </div>
+      ),
+      confirmInput: 'DELETE',
+      confirmText: 'Hard Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await api.hardDeleteContact(selectedContact);
@@ -552,7 +565,28 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
   // Clear ALL data across all channels - SMS, Voice, WhatsApp, S3, etc.
   const handleClearAllData = async () => {
-    setShowClearAllModal(false);
+    const ok = await confirm({
+      title: 'Clear All Data',
+      message: (
+        <div>
+          <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data:</p>
+          <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
+            <li>All WhatsApp messages (inbound &amp; outbound)</li>
+            <li>All SMS messages (inbound &amp; outbound)</li>
+            <li>All SMS IN messages</li>
+            <li>All Voice call records (inbound &amp; outbound)</li>
+            <li>All Voice IN call records</li>
+            <li>All {contacts.length} contacts</li>
+            <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
+          </ul>
+          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+        </div>
+      ),
+      confirmInput: 'DELETE ALL',
+      confirmText: 'Clear Everything',
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       // Clear all inbox data (messages + contacts)
@@ -650,8 +684,14 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const executeSystemCleanup = async () => {
-    setShowCleanupConfirm(false);
-    setCleanupConfirmText('');
+    const ok = await confirm({
+      title: 'System Cleanup',
+      message: `Permanently delete ${cleanupSelected.size} resource${cleanupSelected.size !== 1 ? 's' : ''}? This action cannot be undone.`,
+      confirmInput: 'CONFIRM DELETE',
+      confirmText: 'Permanently Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setCleanupRunning(true);
     const selected = Array.from(cleanupSelected);
     const results: api.CleanupResult[] = [];
@@ -1090,70 +1130,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     ? filteredMessages.filter(m => m.contactId === selectedContact)
     : filteredMessages;
 
-  // Confirmation Modal Component
-  const ConfirmModal = ({ 
-    isOpen, 
-    title, 
-    message, 
-    confirmText = 'Confirm',
-    confirmInput,
-    onConfirm, 
-    onCancel 
-  }: {
-    isOpen: boolean;
-    title: string;
-    message: React.ReactNode;
-    confirmText?: string;
-    confirmInput?: string;
-    onConfirm: () => void;
-    onCancel: () => void;
-  }) => {
-    const [inputValue, setInputValue] = React.useState('');
-    
-    React.useEffect(() => {
-      if (!isOpen) setInputValue('');
-    }, [isOpen]);
-    
-    if (!isOpen) return null;
-    
-    const canConfirm = !confirmInput || inputValue === confirmInput;
-    
-    return (
-      <div className="confirm-modal-overlay" onClick={onCancel}>
-        <div className="confirm-modal" onClick={e => e.stopPropagation()}>
-          <div className="confirm-modal-header">
-            <h3>{title}</h3>
-          </div>
-          <div className="confirm-modal-body">
-            {message}
-            {confirmInput && (
-              <div className="confirm-input-wrapper">
-                <label>Type "{confirmInput}" to confirm:</label>
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  placeholder={confirmInput}
-                  autoFocus
-                />
-              </div>
-            )}
-          </div>
-          <div className="confirm-modal-footer">
-            <button className="confirm-modal-cancel" onClick={onCancel}>Cancel</button>
-            <button 
-              className="confirm-modal-confirm"
-              onClick={onConfirm}
-              disabled={!canConfirm}
-            >
-              {confirmText}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <Layout user={user} onSignOut={signOut}>
       <SEO 
@@ -1164,54 +1140,6 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         noindex={true}
       />
       
-      {/* Confirmation Modals */}
-      <ConfirmModal
-        isOpen={showHardDeleteModal}
-        title="Hard Delete Contact"
-        message={
-          <div>
-            <p>This will permanently delete:</p>
-            <ul style={{ margin: '8px 0 8px 20px', lineHeight: 1.6 }}>
-              <li>Contact: {contacts.find(c => c.id === selectedContact)?.name || selectedContact}</li>
-              <li>{contactMessages.length} messages</li>
-              <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
-            </ul>
-            <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
-          </div>
-        }
-        confirmInput="DELETE"
-        confirmText="Hard Delete"
-        onConfirm={handleHardDelete}
-        onCancel={() => setShowHardDeleteModal(false)}
-      />
-      
-      <ConfirmModal
-        isOpen={showClearAllModal}
-        title="Clear All Data"
-        message={
-          <div>
-            <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>
-              WARNING: This will permanently delete ALL data:
-            </p>
-            <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
-              <li>All WhatsApp messages (inbound & outbound)</li>
-              <li>All SMS messages (inbound & outbound)</li>
-              <li>All SMS IN messages</li>
-              <li>All Voice call records (inbound & outbound)</li>
-              <li>All Voice IN call records</li>
-              <li>All {contacts.length} contacts</li>
-              <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
-            </ul>
-            <p style={{ color: '#065f46', fontWeight: 500 }}>
-              This action cannot be undone!
-            </p>
-          </div>
-        }
-        confirmInput="DELETE ALL"
-        confirmText="Clear Everything"
-        onConfirm={handleClearAllData}
-        onCancel={() => setShowClearAllModal(false)}
-      />
       
       <div className="dash">
         {/* Header */}

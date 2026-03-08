@@ -135,9 +135,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formAllowlistSms, setFormAllowlistSms] = useState(true);
   const [formAllowlistEmail, setFormAllowlistEmail] = useState(true);
 
-  // Delete confirmation
-  const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
-  const [deleteContactName, setDeleteContactName] = useState('');
+  // Delete confirmation (uses global useConfirm)
 
   // CSV import
   const [previewData, setPreviewData] = useState<Partial<api.Contact>[]>([]);
@@ -243,7 +241,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         if (detailContact) { setDetailContact(null); return; }
         if (showModal) { setShowModal(false); return; }
         if (showEditModal) { setShowEditModal(false); setEditingContact(null); return; }
-        if (showDeleteModal) { setShowDeleteModal(null); return; }
       }
       if (inInput) return;
       if (e.key === 'n' || e.key === 'N') { e.preventDefault(); resetForm(); setShowModal(true); }
@@ -251,7 +248,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showModal, showEditModal, showDeleteModal, detailContact]);
+  }, [showModal, showEditModal, detailContact]);
 
   // Filter + sort (includes tag search)
   const filteredSorted = useMemo(() => {
@@ -395,9 +392,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (contactId: string) => {
+  const handleDelete = async (contactId: string, contactName?: string) => {
+    const ok = await confirm({
+      title: 'Delete Contact',
+      message: `Are you sure you want to delete ${contactName ? `"${contactName}"` : 'this contact'}? The contact will be archived and can be recovered by an admin.`,
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
-    setShowDeleteModal(null);
     try {
       const result = await api.deleteContact(contactId);
       if (result) {
@@ -938,7 +941,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                         <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                             <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><EditIcon size={18} /></button>
-                            <button onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name); }} title="Delete" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><DeleteIcon size={18} /></button>
+                            <button onClick={() => handleDelete(c.contactId, c.name)} title="Delete" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><DeleteIcon size={18} /></button>
                           </div>
                         </td>
                       </tr>
@@ -988,7 +991,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       </div>
                       <div className="contact-card-actions" onClick={e => e.stopPropagation()}>
                         <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}><EditIcon size={20} /></button>
-                        <button onClick={() => { setShowDeleteModal(c.contactId); setDeleteContactName(c.name); }} title="Delete" style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}><DeleteIcon size={20} /></button>
+                        <button onClick={() => handleDelete(c.contactId, c.name)} title="Delete" style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}><DeleteIcon size={20} /></button>
                       </div>
                     </div>
                     {(contactTags[c.contactId] || []).length > 0 && (
@@ -1079,7 +1082,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => { setShowDeleteModal(detailContact.contactId); setDeleteContactName(detailContact.name); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#059669', border: '2px solid #059669', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                  <button onClick={() => { const c = detailContact; setDetailContact(null); handleDelete(c.contactId, c.name); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#059669', border: '2px solid #059669', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                 </div>
               </div>
             </div>
@@ -1137,21 +1140,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal — Fix #10: accessibility */}
-      {showDeleteModal && (
-        <div role="dialog" aria-modal="true" aria-label="Delete Contact" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeleteModal(null)}>
-          <div style={{ background: '#fff', borderRadius: 14, width: 400, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600, color: '#374151' }}>Delete Contact</h3>
-            <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 20px' }}>
-              Are you sure you want to delete <strong>{deleteContactName || 'this contact'}</strong>? The contact will be archived and can be recovered by an admin.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setShowDeleteModal(null)} disabled={deleting} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: deleting ? 'not-allowed' : 'pointer', color: '#374151' }}>Cancel</button>
-              <button onClick={() => handleDelete(showDeleteModal)} disabled={deleting} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}>{deleting ? 'Deleting...' : 'Delete'}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Click outside to close menus */}
       {(showColMenu || showTagMenu) && (

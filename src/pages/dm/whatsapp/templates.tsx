@@ -19,6 +19,7 @@ import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import { SkeletonCard } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import Button from '../../../components/ui/Button';
 import Tabs, { TabItem } from '../../../components/ui/Tabs';
 import * as api from '../../../api/client';
@@ -49,6 +50,7 @@ const STATUS_COLORS: Record<string, string> = {
 const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const router = useRouter();
   const toast = useToastContext();
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<api.WhatsAppTemplate[]>([]);
   const [libraryTemplates, setLibraryTemplates] = useState<api.MetaLibraryTemplate[]>([]);
@@ -59,7 +61,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
   const [selectedTemplate, setSelectedTemplate] = useState<api.WhatsAppTemplate | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCarouselModal, setShowCarouselModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Analytics state
@@ -178,12 +179,18 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
   }, [activeTab, selectedWaba]);
 
   const handleDeleteTemplate = async (templateName: string) => {
+    const ok = await confirm({
+      title: 'Delete Template',
+      message: (<p>Are you sure you want to delete <strong>{templateName}</strong>?<br /><br /><span style={{ color: '#666', fontSize: 13 }}>This action cannot be undone.</span></p>),
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       const success = await api.deleteTemplate(templateName, selectedWaba, true);
       if (success) {
         toast.success('Template deleted');
-        setShowDeleteConfirm(null);
         loadTemplates();
       } else {
         toast.error('Failed to delete template');
@@ -575,7 +582,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => setShowDeleteConfirm(template.name)}
+                      onClick={() => handleDeleteTemplate(template.name)}
                     >
                       Delete
                     </Button>
@@ -884,35 +891,6 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 </Button>
                 <Button variant="primary" onClick={handleCreateTemplate}>
                   Create Template
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="modal-overlay" onClick={() => setShowDeleteConfirm(null)}>
-            <div className="modal small" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Delete Template</h2>
-                <button className="close-btn" onClick={() => setShowDeleteConfirm(null)}>×</button>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete <strong>{showDeleteConfirm}</strong>?</p>
-                <p className="warning">This action cannot be undone.</p>
-              </div>
-              <div className="modal-footer">
-                <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => handleDeleteTemplate(showDeleteConfirm)}
-                  disabled={deleting}
-                  loading={deleting}
-                >
-                  Delete
                 </Button>
               </div>
             </div>
