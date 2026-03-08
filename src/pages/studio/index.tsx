@@ -41,25 +41,6 @@ const NoCodePage: React.FC = () => {
         <link rel="canonical" href="https://stack.wecare.digital/studio" />
       </Head>
       <div className="pg">
-        <header className="hdr">
-          <div className="hdr-in">
-            <a href="/" className="logo">
-              <img src={LOGO_URL} alt="WECARE.DIGITAL" className="logo-img" />
-              <div className="logo-text">
-                <span className="logo-main">Stack</span>
-                <div className="nav-dropdown">
-                  <button className="nav-trigger">Products <span className="nav-arrow">▼</span></button>
-                  <div className="nav-menu">
-                    <a href="/crm" className="nav-item">CRM</a>
-                    <a href="/studio" className="nav-item">Studio</a>
-                    <a href="/sustainability" className="nav-item">Sustainability</a>
-                  </div>
-                </div>
-              </div>
-            </a>
-          </div>
-        </header>
-
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="badge-icon"><img src={ICON} alt="NoCode" /></div>
           <div className="badge">Studio</div>
@@ -85,30 +66,8 @@ const NoCodePage: React.FC = () => {
           <a href="/access" className="btn">Get Started</a>
         </section>
 
-        <footer className="ftr">
-          <div className="ftr-in">
-            <a href="/crm">← CRM</a>
-            <a href="/sustainability">Sustainability →</a>
-          </div>
-        </footer>
-
         <style jsx>{`
           .pg{min-height:100vh;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
-          .hdr{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);overflow:hidden}
-          .hdr-in{max-width:1200px;margin:0 auto;padding:20px 24px;display:flex;align-items:center}
-          .logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-          .logo-img{width:72px;height:72px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain;margin-top:-4px}
-          .logo-text{display:flex;flex-direction:column;justify-content:center}
-          .logo-main{font-size:38px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px;line-height:1.15}
-          .nav-dropdown{position:relative;margin-top:4px}
-          .nav-trigger{background:none;border:none;font-size:19px;font-weight:600;color:#6b7280;cursor:pointer;padding:0;font-family:inherit;transition:color .25s;display:flex;align-items:center;gap:4px}
-          .nav-trigger:hover{color:#059669}
-          .nav-arrow{font-size:10px;transition:transform .2s}
-          .nav-dropdown:hover .nav-arrow{transform:rotate(180deg)}
-          .nav-menu{position:absolute;top:100%;left:0;background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:8px 0;min-width:180px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
-          .nav-dropdown:hover .nav-menu{opacity:1;visibility:visible;transform:translateY(0)}
-          .nav-item{display:block;padding:10px 20px;font-size:15px;font-weight:500;color:#1a1a1a;text-decoration:none;transition:all .15s}
-          .nav-item:hover{color:#059669;background:#ecfdf5}
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
           .anim.show{opacity:1;transform:translateY(0)}
           .hero{padding:140px 24px 60px;max-width:700px;margin:0 auto;text-align:center}
@@ -130,15 +89,8 @@ const NoCodePage: React.FC = () => {
           .cta p{font-size:21px;color:#6b7280;margin:0 0 24px}
           .btn{display:inline-block;padding:14px 36px;background:#1a1a1a;color:#fff;border-radius:13px;text-decoration:none;font-size:16px;font-weight:600;transition:all .2s}
           .btn:hover{background:#333}
-          .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
-          .ftr-in{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between}
-          .ftr a{font-size:21px;color:#6b7280;text-decoration:none;font-weight:500;transition:all .25s}
-          .ftr a:hover{color:#059669}
 
           @media(max-width:1024px){
-            .hdr-in{padding:14px 20px}
-            .logo-img{width:64px;height:64px;border-radius:12px}
-            .logo-main{font-size:28px}
             .hero{padding:110px 20px 50px}
             .hero h1{font-size:38px;letter-spacing:-1px}
             .hero p{font-size:17px}
@@ -153,10 +105,6 @@ const NoCodePage: React.FC = () => {
           }
 
           @media(max-width:767px){
-            .hdr-in{padding:12px 16px}
-            .logo-img{width:64px;height:64px;border-radius:12px}
-            .logo-main{font-size:28px}
-            .nav-trigger{font-size:15px}
             .hero{padding:calc(90px + env(safe-area-inset-top)) 20px 44px}
             .badge-icon{width:56px;height:56px;padding:12px}
             .hero h1{font-size:42px;letter-spacing:-0.5px;line-height:1.12}
@@ -170,14 +118,9 @@ const NoCodePage: React.FC = () => {
             .cta{padding:44px 20px}
             .cta h2{font-size:34px;line-height:1.2}
             .cta p{font-size:24px}
-            .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
-            .ftr a{font-size:24px}
           }
 
           @media(max-width:480px){
-            .logo-img{width:56px;height:56px;border-radius:11px}
-            .logo-main{font-size:26px}
-            .nav-trigger{font-size:13px}
             .hero h1{font-size:38px;line-height:1.15}
             .hero p{font-size:22px}
             .grid{gap:12px}
@@ -186,7 +129,6 @@ const NoCodePage: React.FC = () => {
             .card p{font-size:18px}
             .cta h2{font-size:30px}
             .cta p{font-size:20px}
-            .ftr a{font-size:20px}
           }
 
           @media(max-width:374px){

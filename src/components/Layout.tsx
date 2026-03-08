@@ -4,6 +4,8 @@
 import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import SearchModal from './SearchModal';
+import Header from './Header';
+import Footer from './Footer';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
 import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon } from '../lib/icons';
@@ -168,20 +170,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
   };
 
   return (
-    <div className={`layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Global inner-page header — spans full width */}
-      <header className="inner-header">
-        <div className="inner-header-in">
-          <div className="inner-header-brand">
-            <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="Stack CRM" className="inner-header-logo" />
-            <div className="inner-header-text">
-              <span className="inner-header-name">Stack CRM</span>
-              <a href="https://www.wecare.digital" className="inner-header-sub" target="_blank" rel="noopener noreferrer">by WECARE.DIGITAL</a>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <>
+      <Header />
+      <div className={`layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <button className="mobile-menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu">
         {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
       </button>
@@ -238,14 +229,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       </main>
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <KeyboardShortcuts isOpen={shortcutsModal.isOpen} onClose={shortcutsModal.close} />
-
-      {/* Global inner-page footer */}
-      <footer className="inner-footer">
-        <div className="inner-footer-in">
-          <a href="https://www.wecare.digital/contact" className="inner-footer-link" target="_blank" rel="noopener noreferrer">Contact us</a>
-        </div>
-      </footer>
     </div>
+    <Footer />
+    </>
   );
 };
 

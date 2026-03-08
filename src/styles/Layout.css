@@ -12,8 +12,8 @@
    ========================= */
 :root {
   --sidebar-w: 220px;
-  --inner-header-h: 72px;
-  --inner-footer-h: 40px;
+  --inner-header-h: 96px;
+  --inner-footer-h: 69px;
   --base-font: 17px;
   --line: 1.55;
   --radius: 12px;
@@ -214,6 +214,20 @@ input, textarea, select {
 }
 
 /* =========================
+   Shared Header/Footer in Layout
+   ========================= */
+.layout ~ .ftr {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* =========================
    Sidebar - Notion Style
    ========================= */
 .sidebar {
@@ -224,9 +238,9 @@ input, textarea, select {
   display: flex;
   flex-direction: column;
   position: fixed;
-  height: calc(100vh - var(--inner-header-h) - 8px);
+  height: calc(100vh - var(--inner-header-h) - var(--inner-footer-h));
   left: 0;
-  top: calc(var(--inner-header-h) + 8px);
+  top: var(--inner-header-h);
   transition: width 0.2s ease;
   z-index: 100;
 }
@@ -782,16 +796,14 @@ input, textarea, select {
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-w);
-  margin-top: calc(var(--inner-header-h) + 8px);
+  margin-top: var(--inner-header-h);
   padding: 0;
-  padding-bottom: calc(var(--inner-footer-h) + 16px);
+  padding-bottom: 16px;
   background: #ffffff;
-  height: calc(100vh - var(--inner-header-h) - 8px);
+  height: calc(100vh - var(--inner-header-h) - var(--inner-footer-h));
   color: #000000;
   overflow-x: hidden;
   overflow-y: auto;
-  border-top-left-radius: 13px;
-  border-top-right-radius: 13px;
   border-top: 1px solid #ffffff;
   border-left: 1px solid #ffffff;
 }
@@ -1449,10 +1461,10 @@ input, textarea, select {
    ======================================== */
 @media (max-width: 768px) {
   .inner-header {
-    height: 64px;
+    height: 96px;
   }
   :root {
-    --inner-header-h: 64px;
+    --inner-header-h: 96px;
   }
   .inner-header-in {
     padding: 0 16px;

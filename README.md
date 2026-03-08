@@ -64,11 +64,12 @@ Single bucket: `app.wecare.digital` (versioning enabled)
 │   └── storage/       # S3 configuration
 ├── src/
 │   ├── api/           # API client
-│   ├── components/    # React components
+│   ├── components/    # React components (Header, Footer, Layout, etc.)
 │   ├── pages/         # Next.js pages
 │   └── styles/        # CSS styles
-├── docs/aws/          # AWS Documentation
-└── scripts/           # Admin scripts
+├── docs/              # Documentation
+├── shared/            # Shared config (FAQ, Wix)
+└── scripts/           # Deploy & sync scripts
 ```
 
 ## Lambda Functions
@@ -83,13 +84,11 @@ All Lambda functions use Python 3.12 runtime with prefix `wecare-*`:
 
 ## Documentation
 
-See `docs/aws/` folder for:
-- [AWS Resources](docs/aws/RESOURCES.md)
-- [WhatsApp API Reference](docs/aws/WHATSAPP-API-REFERENCE.md)
-- [WhatsApp Payments](docs/aws/WHATSAPP-PAYMENTS.md)
-- [S3 Bucket Config](docs/aws/S3-BUCKET-CONFIG.md)
-- [Bedrock KB Setup](docs/aws/BEDROCK-KB.md)
+- [FAQ System](docs/FAQ-SYSTEM.md)
+- [OpenAPI Spec](docs/openapi.yaml)
 
 ## Admin Scripts
 
-- `scripts/delete_all_messages.py` - Delete all messages from DynamoDB and S3
+- `scripts/deploy_all.ps1` - Deploy all Lambda functions
+- `scripts/deploy_all.cmd` - Deploy all Lambda functions (CMD)
+- `scripts/sync_faq.py` - Sync FAQ config to Python + TypeScript

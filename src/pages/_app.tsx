@@ -19,6 +19,8 @@ import '../styles/inner-ux.css';
 import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { ToastProvider } from '../contexts/ToastContext';
 import { ConfirmProvider } from '../contexts/ConfirmContext';
 
@@ -349,40 +351,6 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
   ]
 });
 
-const AuthHeader = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 480);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  const logoSize = isMobile ? '44px' : '52px';
-  const gap = '6px';
-  const titleSize = isMobile ? '18px' : '22px';
-  const subSize = isMobile ? '10px' : '12px';
-  const marginTop = '3px';
-  
-  return (
-    <div style={{ textAlign: 'center', padding: '24px 20px' }}>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap }}>
-        <img 
-          src="https://app.wecare.digital/stream/media/m/wecaredigital.png" 
-          alt="Stack CRM" 
-          style={{ width: logoSize, height: logoSize, borderRadius: '10px' }}
-          onError={(e) => { (e.target as HTMLImageElement).src = FAVICON_URL; }}
-        />
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', height: logoSize }}>
-          <span style={{ fontSize: titleSize, fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.3px', lineHeight: 1 }}>Stack CRM</span>
-          <span style={{ fontSize: subSize, fontWeight: 600, color: '#6b7280', lineHeight: 1, marginTop }}>by WECARE.DIGITAL</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -472,7 +440,9 @@ export default function App({ Component, pageProps }: AppProps) {
           `}
         </Script>
         <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk-public" />
+        <Header />
         <Component {...pageProps} />
+        <Footer />
       </ErrorBoundary>
     );
   }
@@ -523,7 +493,7 @@ export default function App({ Component, pageProps }: AppProps) {
       {/* WhatsApp Chat Widget */}
       <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <ThemeProvider theme={authTheme}>
-        <Authenticator hideSignUp={true} components={{ Header: AuthHeader }}>
+        <Authenticator hideSignUp={true}>
           {({ signOut, user }) => {
             // Track login event in Facebook SDK
             if (typeof window !== 'undefined' && (window as any).FB) {
