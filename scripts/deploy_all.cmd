@@ -10,6 +10,7 @@ call :deploy wecare-contacts amplify\functions\core\contacts\handler.py ""
 call :deploy wecare-messages-read amplify\functions\core\messages-read\handler.py ""
 call :deploy wecare-messages-delete amplify\functions\core\messages-delete\handler.py ""
 call :deploy wecare-faq-handler amplify\functions\core\faq-handler\handler.py ""
+call :deploy wecare-url-shortener amplify\functions\core\url-shortener\handler.py ""
 
 REM === WhatsApp ===
 call :deploy wecare-inbound-whatsapp amplify\functions\messaging\inbound-whatsapp-handler\handler.py amplify\functions\messaging\inbound-whatsapp-handler\modules
@@ -38,6 +39,7 @@ call :deploy wecare-voice-cdr-read amplify\functions\messaging\voice-cdr-read\ha
 call :deploy wecare-outbound-voice amplify\functions\messaging\outbound-voice\handler.py ""
 
 REM === Scheduled & Bulk ===
+call :deploy wecare-push-notifications amplify\functions\messaging\push-notifications\handler.py ""
 call :deploy wecare-scheduled-messages amplify\functions\messaging\scheduled-messages\handler.py ""
 call :deploy wecare-bulk-job-create amplify\functions\operations\bulk-job-create\handler.py ""
 call :deploy wecare-bulk-worker amplify\functions\operations\bulk-worker\handler.py ""

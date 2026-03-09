@@ -49,6 +49,7 @@ $results += Deploy-Lambda "wecare-contacts" "amplify\functions\core\contacts\han
 $results += Deploy-Lambda "wecare-messages-read" "amplify\functions\core\messages-read\handler.py" ""
 $results += Deploy-Lambda "wecare-messages-delete" "amplify\functions\core\messages-delete\handler.py" ""
 $results += Deploy-Lambda "wecare-faq-handler" "amplify\functions\core\faq-handler\handler.py" ""
+$results += Deploy-Lambda "wecare-url-shortener" "amplify\functions\core\url-shortener\handler.py" ""
 
 # === WhatsApp ===
 $results += Deploy-Lambda "wecare-inbound-whatsapp" "amplify\functions\messaging\inbound-whatsapp-handler\handler.py" "amplify\functions\messaging\inbound-whatsapp-handler\modules"
@@ -77,6 +78,7 @@ $results += Deploy-Lambda "wecare-voice-cdr-read" "amplify\functions\messaging\v
 $results += Deploy-Lambda "wecare-outbound-voice" "amplify\functions\messaging\outbound-voice\handler.py" ""
 
 # === Scheduled & Bulk ===
+$results += Deploy-Lambda "wecare-push-notifications" "amplify\functions\messaging\push-notifications\handler.py" ""
 $results += Deploy-Lambda "wecare-scheduled-messages" "amplify\functions\messaging\scheduled-messages\handler.py" ""
 $results += Deploy-Lambda "wecare-bulk-job-create" "amplify\functions\operations\bulk-job-create\handler.py" ""
 $results += Deploy-Lambda "wecare-bulk-worker" "amplify\functions\operations\bulk-worker\handler.py" ""
