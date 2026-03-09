@@ -31,6 +31,14 @@ export const navigationConfig: NavItem[] = [
     path: '/dm',
     label: 'Messages',
     icon: 'message',
+    children: [
+      { path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp' },
+      { path: '/dm/sms', label: 'SMS', icon: 'sms' },
+      { path: '/dm/voice', label: 'Voice', icon: 'voice' },
+      { path: '/dm/ses', label: 'Email', icon: 'email' },
+      { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
+      { path: '/dm/push', label: 'Push', icon: 'push' },
+    ],
   },
   {
     path: '/pay',
@@ -52,19 +60,23 @@ export const navigationConfig: NavItem[] = [
     label: 'Access',
     icon: 'access',
   },
-  // Coming Soon section
+  {
+    path: '/contact-test',
+    label: 'Design Reference',
+    icon: 'form',
+  },
   {
     path: '/link',
     label: 'Link',
     icon: 'link',
-    badge: 'Soon',
-    sectionLabel: 'Coming Soon',
   },
+  // Coming Soon section
   {
     path: '/forms',
     label: 'Forms',
     icon: 'form',
     badge: 'Soon',
+    sectionLabel: 'Coming Soon',
   },
   {
     path: '/task',

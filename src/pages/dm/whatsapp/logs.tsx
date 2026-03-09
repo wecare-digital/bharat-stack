@@ -125,8 +125,8 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false
         .badge-inbound { background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
         .badge-outbound { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
         .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .text-success { color: #059669; }
-        .text-error { color: #059669; }
+        .text-success { color: #1a3a2a; }
+        .text-error { color: #1a3a2a; }
         .empty-state { text-align: center; color: #6b7280; padding: 40px; }
       `}</style>
     </>

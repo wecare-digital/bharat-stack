@@ -359,6 +359,19 @@ def _process_message(
             if s3_key:
                 media_id = _store_media_record(message_id, s3_key, media_data, whatsapp_media_id)
     
+    # Ephemeral messages may carry media nested inside — try to extract
+    if msg_type == 'ephemeral' and not s3_key:
+        ephemeral_data = message.get('ephemeral', {})
+        if isinstance(ephemeral_data, dict):
+            for etype in ('image', 'video', 'audio', 'document', 'sticker'):
+                edata = ephemeral_data.get(etype, {})
+                if isinstance(edata, dict) and edata.get('id'):
+                    mime_hint = edata.get('mime_type', '')
+                    s3_key = _download_media(edata['id'], message_id, etype, aws_phone_number_id, request_id, mime_hint)
+                    if s3_key:
+                        media_id = _store_media_record(message_id, s3_key, edata, edata['id'])
+                    break
+    
     # Store message in DynamoDB with WABA info and sender name
     message_record = {
         'id': message_id,

@@ -95,7 +95,7 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {WABAS.map(w => (
             <button key={w.id} onClick={() => setSelectedWaba(w)}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #059669' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #1a3a2a' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {w.name} ({w.display})
             </button>
           ))}
@@ -120,10 +120,10 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) 
           <h3 style={{ fontSize: 16, marginBottom: 12 }}>Active Webhook Endpoints</h3>
           <div style={{ display: 'grid', gap: 10 }}>
             {EXISTING_WEBHOOKS.map(wh => (
-              <div key={wh.name} style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: 14 }}>
+              <div key={wh.name} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{wh.name}</span>
-                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: '#059669' }}>{wh.status}</span>
+                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: '#1a3a2a' }}>{wh.status}</span>
                 </div>
                 <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>URL: {wh.url}</div>
                 <div style={{ fontSize: 12, color: '#666' }}>Lambda: {wh.lambda} | Verify Token: {wh.verifyToken}</div>
@@ -138,10 +138,10 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ fontSize: 16, margin: 0 }}>App Subscriptions (WABA: {selectedWaba.id})</h3>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleSubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+              <button onClick={handleSubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
                 {subscribing ? '...' : 'Subscribe App'}
               </button>
-              <button onClick={handleUnsubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#fff', color: '#059669', border: '1px solid #059669', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+              <button onClick={handleUnsubscribe} disabled={subscribing} style={{ padding: '6px 14px', background: '#fff', color: '#1a3a2a', border: '1px solid #1a3a2a', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
                 Unsubscribe
               </button>
             </div>

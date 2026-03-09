@@ -21,7 +21,7 @@ const WABAS = [
 const CATEGORIES = ['SIGN_UP', 'SIGN_IN', 'APPOINTMENT_BOOKING', 'LEAD_GENERATION', 'CONTACT_US', 'CUSTOMER_SUPPORT', 'SURVEY', 'OTHER'];
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#059669', PUBLISHED: '#059669', DEPRECATED: '#9ca3af', BLOCKED: '#059669', THROTTLED: '#059669',
+  DRAFT: '#1a3a2a', PUBLISHED: '#1a3a2a', DEPRECATED: '#9ca3af', BLOCKED: '#1a3a2a', THROTTLED: '#1a3a2a',
 };
 
 const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -103,7 +103,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
       <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>WhatsApp Flows</h2>
-          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
             + Create Flow
           </button>
         </div>
@@ -111,7 +111,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {WABAS.map(w => (
             <button key={w.id} onClick={() => { setSelectedWaba(w); setSelectedFlow(null); }}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #059669' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #1a3a2a' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {w.name} ({w.display})
             </button>
           ))}
@@ -130,7 +130,7 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
               </select>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
                 {creating ? 'Creating...' : 'Create'}
               </button>
               <button onClick={() => setShowCreate(false)} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
@@ -140,9 +140,9 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
 
         {loading ? <p>Loading flows...</p> : loadError ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-            <p style={{ fontSize: 16, color: '#059669' }}>Failed to load flows</p>
+            <p style={{ fontSize: 16, color: '#1a3a2a' }}>Failed to load flows</p>
             <p style={{ fontSize: 13, marginTop: 8 }}>{loadError}</p>
-            <button onClick={() => loadFlows(selectedWaba)} style={{ marginTop: 12, padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+            <button onClick={() => loadFlows(selectedWaba)} style={{ marginTop: 12, padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               Retry
             </button>
           </div>
@@ -169,12 +169,12 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
                     <button onClick={() => viewDetails(flow)} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>Details</button>
                     {flow.status === 'DRAFT' && (
                       <>
-                        <button onClick={() => handlePublish(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Publish</button>
-                        <button onClick={() => handleDelete(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Delete</button>
+                        <button onClick={() => handlePublish(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#d1f470', color: '#1a3a2a', cursor: 'pointer' }}>Publish</button>
+                        <button onClick={() => handleDelete(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#d1f470', color: '#1a3a2a', cursor: 'pointer' }}>Delete</button>
                       </>
                     )}
                     {flow.status === 'PUBLISHED' && (
-                      <button onClick={() => handleDeprecate(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #059669', borderRadius: 4, background: '#fff', color: '#059669', cursor: 'pointer' }}>Deprecate</button>
+                      <button onClick={() => handleDeprecate(flow.id)} disabled={actionLoading === flow.id} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #1a3a2a', borderRadius: 4, background: '#fff', color: '#1a3a2a', cursor: 'pointer' }}>Deprecate</button>
                     )}
                   </div>
                 </div>
@@ -199,8 +199,8 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
               <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#666' }}>Endpoint URI:</span> {flowDetail.endpoint_uri || 'Not set'}</div>
             </div>
             {flowDetail.validation_errors?.length > 0 && (
-              <div style={{ marginTop: 12, padding: 12, background: '#ECFDF5', borderRadius: 6, fontSize: 13 }}>
-                <strong style={{ color: '#059669' }}>Validation Errors:</strong>
+              <div style={{ marginTop: 12, padding: 12, background: '#f9fafb', borderRadius: 6, fontSize: 13 }}>
+                <strong style={{ color: '#1a3a2a' }}>Validation Errors:</strong>
                 <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                   {flowDetail.validation_errors.map((e: any, i: number) => <li key={i}>{e.error || JSON.stringify(e)}</li>)}
                 </ul>

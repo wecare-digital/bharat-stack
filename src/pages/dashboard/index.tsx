@@ -29,6 +29,8 @@ import PayTab from '../../components/dashboard/tabs/PayTab';
 import DataTab from '../../components/dashboard/tabs/DataTab';
 import InternalChatTab from '../../components/dashboard/tabs/InternalChatTab';
 import TabErrorBoundary from '../../components/dashboard/TabErrorBoundary';
+import AppBuilderTab from '../../components/dashboard/tabs/AppBuilderTab';
+import { AppBuilderIcon } from '../../lib/icons';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
@@ -541,7 +543,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <li>{contactMessages.length} messages</li>
             <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
           </ul>
-          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500 }}>This action cannot be undone!</p>
         </div>
       ),
       confirmInput: 'DELETE',
@@ -569,7 +571,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       title: 'Clear All Data',
       message: (
         <div>
-          <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data:</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data:</p>
           <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
             <li>All WhatsApp messages (inbound &amp; outbound)</li>
             <li>All SMS messages (inbound &amp; outbound)</li>
@@ -579,7 +581,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <li>All {contacts.length} contacts</li>
             <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
           </ul>
-          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500 }}>This action cannot be undone!</p>
         </div>
       ),
       confirmInput: 'DELETE ALL',
@@ -1160,7 +1162,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <nav className="dash-tabs">
-          {(['overview', 'messages', 'pay', 'factoryreset', 'billing', 'health', 'advisor', 'ai', 'internalchat', 'botflow', 'webhook', 'guide', 'search', 'requests'] as TabType[]).map(tab => (
+          {(['overview', 'messages', 'pay', 'factoryreset', 'billing', 'health', 'advisor', 'ai', 'internalchat', 'botflow', 'webhook', 'guide', 'search', 'requests', 'appbuilder'] as TabType[]).map(tab => (
             <button
               key={tab}
               className={`tab ${activeTab === tab ? 'active' : ''}`}
@@ -1180,7 +1182,8 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               {tab === 'guide' && <DocumentIcon size={16} />}
               {tab === 'search' && <SearchIcon size={16} />}
               {tab === 'requests' && <DocumentIcon size={16} />}
-              <span>{tab === 'ai' ? 'AI' : tab === 'internalchat' ? 'Internal Chat' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab === 'requests' ? 'Requests' : tab === 'factoryreset' ? 'Factory Reset' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              {tab === 'appbuilder' && <AppBuilderIcon size={16} />}
+              <span>{tab === 'ai' ? 'AI' : tab === 'internalchat' ? 'Internal Chat' : tab === 'botflow' ? 'Bot Flow' : tab === 'webhook' ? 'Webhook' : tab === 'guide' ? 'Guide' : tab === 'health' ? 'Health' : tab === 'advisor' ? 'Advisor' : tab === 'requests' ? 'Requests' : tab === 'factoryreset' ? 'Factory Reset' : tab === 'appbuilder' ? 'App Builder' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </nav>
@@ -1231,9 +1234,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               )}
 
               {!loading && !billingData && (
-                <div style={{ background: '#ecfdf5', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #a7f3d0' }}>
+                <div style={{ background: '#f9fafb', borderRadius: '8px', textAlign: 'center', padding: '3rem', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>—</div>
-                  <h3 style={{ color: '#065f46', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
+                  <h3 style={{ color: '#0f2a1d', margin: '0 0 0.5rem' }}>Unable to Load Billing Data</h3>
                   <p style={{ color: '#6b7280', margin: 0 }}>Check API connection or try refreshing.</p>
                 </div>
               )}
@@ -1641,7 +1644,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 </Button>
 
                 {testResult && (
-                  <div style={{ padding: '1rem', background: '#ECFDF5', borderRadius: '0.5rem', border: '1px solid #A7F3D0' }}>
+                  <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
                     <div style={{ fontWeight: 500, marginBottom: '0.5rem' }}>AI Response:</div>
                     <div style={{ whiteSpace: 'pre-wrap' }}>{testResult}</div>
                   </div>
@@ -1743,11 +1746,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                                 {hasConfig && Object.entries(cfg).map(([flowKey, trigger]: [string, any]) => (
                                   <div key={flowKey} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                      <strong style={{ color: '#059669' }}>{flowKey}</strong>
+                                      <strong style={{ color: '#1a3a2a' }}>{flowKey}</strong>
                                       <span style={{
                                         padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                                        background: trigger?.enabled !== false ? '#d1fae5' : '#f3f4f6',
-                                        color: trigger?.enabled !== false ? '#065f46' : '#6b7280',
+                                        background: trigger?.enabled !== false ? '#f3f4f6' : '#f3f4f6',
+                                        color: trigger?.enabled !== false ? '#0f2a1d' : '#6b7280',
                                       }}>
                                         {trigger?.enabled !== false ? '● Enabled' : '○ Disabled'}
                                       </span>
@@ -1835,10 +1838,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
 
               {/* Flow JSON — Inner Pages Control */}
-              <div style={{ marginTop: '2rem', padding: '1.25rem', border: '1px solid #059669', borderRadius: '0.75rem', background: '#fff' }}>
+              <div style={{ marginTop: '2rem', padding: '1.25rem', border: '1px solid #1a3a2a', borderRadius: '0.75rem', background: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <div>
-                    <h4 style={{ margin: 0, color: '#059669' }}>Flow JSON — Inner Pages</h4>
+                    <h4 style={{ margin: 0, color: '#1a3a2a' }}>Flow JSON — Inner Pages</h4>
                     <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#888' }}>
                       Full control of WhatsApp Flow screens (ORDER_SELECT, SUBMIT_REQUEST_FORM, TERMS, REVIEW, THANK_YOU). Stored in SystemConfigTable.
                     </p>
@@ -1869,9 +1872,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 {flowJsonLoading && <SkeletonCard />}
 
                 {!flowJsonLoading && !flowJson && !flowJsonEditMode && (
-                  <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px dashed #059669' }}>
+                  <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px dashed #1a3a2a' }}>
                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>—</div>
-                    <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#065f46' }}>No Flow JSON stored yet</div>
+                    <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#0f2a1d' }}>No Flow JSON stored yet</div>
                     <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v2.json</code> to enable screen-level control.</div>
                   </div>
                 )}
@@ -1879,17 +1882,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 {!flowJsonLoading && flowJson && !flowJsonEditMode && (
                   <>
                     {/* Routing Model */}
-                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#ecfdf5', borderRadius: '0.375rem' }}>
-                      <strong style={{ fontSize: '0.85rem', color: '#059669' }}>Routing Model</strong>
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem' }}>
+                      <strong style={{ fontSize: '0.85rem', color: '#1a3a2a' }}>Routing Model</strong>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
                         {flowJson.routing_model && Object.entries(flowJson.routing_model).map(([from, toArr]: [string, any]) => (
                           <div key={from} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}>
-                            <span style={{ padding: '2px 8px', background: '#ecfdf5', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 600, color: '#059669' }}>{from}</span>
+                            <span style={{ padding: '2px 8px', background: '#f9fafb', borderRadius: '8px', fontFamily: 'monospace', fontWeight: 600, color: '#1a3a2a' }}>{from}</span>
                             {toArr && toArr.length > 0 ? (
                               <>
                                 <span style={{ color: '#888' }}>→</span>
                                 {toArr.map((t: string) => (
-                                  <span key={t} style={{ padding: '2px 8px', background: '#d1fae5', borderRadius: '8px', fontFamily: 'monospace', color: '#059669' }}>{t}</span>
+                                  <span key={t} style={{ padding: '2px 8px', background: '#f3f4f6', borderRadius: '8px', fontFamily: 'monospace', color: '#1a3a2a' }}>{t}</span>
                                 ))}
                               </>
                             ) : (
@@ -1911,9 +1914,9 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                           onClick={() => setFlowJsonExpandedScreen(flowJsonExpandedScreen === screen.id ? null : screen.id)}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#059669', fontSize: '0.85rem' }}>{screen.id}</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1a3a2a', fontSize: '0.85rem' }}>{screen.id}</span>
                             {screen.title && <span style={{ color: '#888', fontSize: '0.8rem' }}>— {screen.title}</span>}
-                            {screen.terminal && <span style={{ padding: '1px 6px', background: '#ecfdf5', color: '#065f46', borderRadius: '8px', fontSize: '10px', fontWeight: 600 }}>TERMINAL</span>}
+                            {screen.terminal && <span style={{ padding: '1px 6px', background: '#f9fafb', color: '#0f2a1d', borderRadius: '8px', fontSize: '10px', fontWeight: 600 }}>TERMINAL</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: '#888' }}>
                             {screen.data && <span>{Object.keys(screen.data).length} data fields</span>}
@@ -1969,7 +1972,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                 {flowJsonEditMode && (
                   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '1.5rem', width: '90%', maxWidth: '800px', maxHeight: '85vh', overflow: 'auto' }}>
-                      <h4 style={{ marginBottom: '0.5rem', color: '#059669' }}>Edit Flow JSON — Inner Pages</h4>
+                      <h4 style={{ marginBottom: '0.5rem', color: '#1a3a2a' }}>Edit Flow JSON — Inner Pages</h4>
                       <p style={{ fontSize: '0.8rem', color: '#888', marginBottom: '1rem' }}>
                         Paste the full WhatsApp Flow JSON (screens, routing_model, version). Stored in SystemConfigTable under key <code>whatsapp_flow_json</code>.
                       </p>
@@ -2001,20 +2004,20 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
             <TabErrorBoundary tabName="Webhook">
             <div className="webhook-tab">
               {/* Razorpay Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #1a3a2a' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Razorpay Webhook</h3>
-                    <span className="badge" style={{ background: '#D1FAE5', color: '#111827', marginTop: '4px' }}>Active</span>
+                    <span className="badge" style={{ background: '#f3f4f6', color: '#111827', marginTop: '4px' }}>Active</span>
                   </div>
                 </div>
                 
-                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://api.wecare.digital/razorpay-webhook</code>
@@ -2037,17 +2040,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Events</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { event: 'payment.captured', desc: 'Payment successful', color: '#059669' },
+                      { event: 'payment.captured', desc: 'Payment successful', color: '#1a3a2a' },
                       { event: 'payment.failed', desc: 'Payment failed', color: '#6b7280' },
-                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#059669' },
+                      { event: 'payment.authorized', desc: 'Payment authorized', color: '#1a3a2a' },
                       { event: 'refund.created', desc: 'Refund initiated', color: '#6b7280' },
-                      { event: 'refund.processed', desc: 'Refund completed', color: '#059669' },
-                      { event: 'order.paid', desc: 'Order paid', color: '#059669' },
-                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#059669' },
+                      { event: 'refund.processed', desc: 'Refund completed', color: '#1a3a2a' },
+                      { event: 'order.paid', desc: 'Order paid', color: '#1a3a2a' },
+                      { event: 'payment_link.paid', desc: 'Payment link used', color: '#1a3a2a' },
                       { event: 'payment.dispute.*', desc: 'Dispute events', color: '#6b7280' },
-                      { event: 'settlement.*', desc: 'Settlement events', color: '#059669' },
+                      { event: 'settlement.*', desc: 'Settlement events', color: '#1a3a2a' },
                     ].map(({ event, desc, color }) => (
-                      <div key={event} style={{ background: '#D1FAE5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
+                      <div key={event} style={{ background: '#f3f4f6', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827' }}>{event}</span>
@@ -2100,7 +2103,7 @@ curl -u rzp_live_SM1ozNck4LJ3VN:YOUR_KEY_SECRET \\
                       { method: 'GET', path: '/v1/settlements', desc: 'Fetch Settlements' },
                     ].map(({ method, path, desc }) => (
                       <div key={`${method}${path}`} style={{ background: '#fff', padding: '0.35rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ color: method === 'POST' ? '#059669' : '#1d4ed8', fontWeight: 600, fontSize: '0.65rem', fontFamily: 'monospace', minWidth: '32px' }}>{method}</span>
+                        <span style={{ color: method === 'POST' ? '#1a3a2a' : '#1d4ed8', fontWeight: 600, fontSize: '0.65rem', fontFamily: 'monospace', minWidth: '32px' }}>{method}</span>
                         <code style={{ fontSize: '0.7rem', color: '#111827' }}>{path}</code>
                         <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: 'auto' }}>{desc}</span>
                       </div>
@@ -2123,10 +2126,10 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                  <a href="https://razorpay.com/docs/api" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
+                  <a href="https://razorpay.com/docs/api" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#d1f470', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
                     API Docs
                   </a>
-                  <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
+                  <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#d1f470', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
                     Razorpay Dashboard
                   </a>
                   <a href="https://www.postman.com/razorpaydev" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#E65100', color: '#fff', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 500 }}>
@@ -2136,7 +2139,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
               </div>
 
               {/* Razorpay Data Captured */}
-              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
                   <DataIcon size={18} />
                   Data Captured for Payments
@@ -2156,8 +2159,8 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                     { field: 'notes', desc: 'Custom metadata' },
                     { field: 'createdAt', desc: 'Timestamp' },
                   ].map(({ field, desc }) => (
-                    <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #059669' }}>
-                      <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>
+                    <div key={field} style={{ padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem', borderLeft: '3px solid #1a3a2a' }}>
+                      <code style={{ fontSize: '0.85rem', color: '#1a3a2a' }}>{field}</code>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                     </div>
                   ))}
@@ -2165,20 +2168,20 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
               </div>
 
               {/* PayU Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #1a3a2a' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #a7f3d0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>PayU Webhook</h3>
-                    <span className="badge" style={{ background: '#ecfdf5', color: '#059669', marginTop: '4px' }}>Active — MID: 8629516</span>
+                    <span className="badge" style={{ background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' }}>Active — MID: 8629516</span>
                   </div>
                 </div>
 
-                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #a7f3d0' }}>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Webhook URL</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' }}>https://api.wecare.digital/payu-webhook</code>
@@ -2264,7 +2267,7 @@ Content-Type: application/json`}</pre>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>PayU sends form-encoded POST to your webhook URL. Verify with reverse hash:</div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}><code style={{ fontSize: '0.7rem' }}>sha512(SALT|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key)</code></div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>PayU retries 3x for 200 OK. Content-Type: FormData or application/x-www-form-urlencoded.</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>Configure at: <a href="https://onboarding.payu.in/app/account" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>PayU Dashboard → Developer → Webhooks</a></div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>Configure at: <a href="https://onboarding.payu.in/app/account" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a' }}>PayU Dashboard → Developer → Webhooks</a></div>
                   </div>
 
                   <div>
@@ -2283,21 +2286,21 @@ Content-Type: application/json`}</pre>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9330994400</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#059669' }}>WECARE-PAYU</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>WECARE-PAYU</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1912405516040025</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
-                      <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
+                      <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
                     </div>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9903300044</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#059669' }}>WECARE-PAYU</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>WECARE-PAYU</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1633959101297902</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
-                      <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
+                      <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
                     </div>
                   </div>
                 </div>
@@ -2307,13 +2310,13 @@ Content-Type: application/json`}</pre>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Events</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { event: 'payment.success', desc: 'Payment captured', color: '#059669' },
-                      { event: 'payment.failed', desc: 'Payment failed', color: '#059669' },
-                      { event: 'payment.pending', desc: 'Awaiting bank', color: '#059669' },
-                      { event: 'refund.success', desc: 'Refund processed', color: '#059669' },
-                      { event: 'refund.failed', desc: 'Refund failed', color: '#059669' },
+                      { event: 'payment.success', desc: 'Payment captured', color: '#1a3a2a' },
+                      { event: 'payment.failed', desc: 'Payment failed', color: '#1a3a2a' },
+                      { event: 'payment.pending', desc: 'Awaiting bank', color: '#1a3a2a' },
+                      { event: 'refund.success', desc: 'Refund processed', color: '#1a3a2a' },
+                      { event: 'refund.failed', desc: 'Refund failed', color: '#1a3a2a' },
                     ].map(({ event, desc, color }) => (
-                      <div key={event} style={{ background: '#ecfdf5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #a7f3d0' }}>
+                      <div key={event} style={{ background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827' }}>{event}</span>
@@ -2326,7 +2329,7 @@ Content-Type: application/json`}</pre>
               </div>
 
               {/* PayU Data Captured */}
-              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
                   <DataIcon size={18} />
                   Data Captured for PayU Payments
@@ -2346,8 +2349,8 @@ Content-Type: application/json`}</pre>
                     { field: 'firstname', desc: 'Customer name' },
                     { field: 'hash', desc: 'SHA-512 verification hash' },
                   ].map(({ field, desc }) => (
-                    <div key={field} style={{ padding: '0.75rem', background: '#ecfdf5', borderRadius: '0.375rem', borderLeft: '3px solid #059669' }}>
-                      <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>
+                    <div key={field} style={{ padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem', borderLeft: '3px solid #1a3a2a' }}>
+                      <code style={{ fontSize: '0.85rem', color: '#1a3a2a' }}>{field}</code>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                     </div>
                   ))}
@@ -2465,7 +2468,7 @@ Content-Type: application/json`}</pre>
                       { event: 'ALL', desc: 'All real-time events', color: '#E53935' },
                       { event: 'CALL', desc: 'Call state changes', color: '#FB8C00' },
                       { event: 'MEDIA', desc: 'Audio playback events', color: '#7B1FA2' },
-                      { event: 'DTMF', desc: 'Keypad input events', color: '#059669' },
+                      { event: 'DTMF', desc: 'Keypad input events', color: '#1a3a2a' },
                       { event: 'RECORD', desc: 'Recording events', color: '#388E3C' },
                     ].map(({ event, desc, color }) => (
                       <div key={event} style={{ background: '#FFEBEE', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #FFCDD2' }}>
@@ -2491,7 +2494,7 @@ Content-Type: application/json`}</pre>
               </div>
 
               {/* Voice CDR Data Captured */}
-              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
                   <DataIcon size={18} />
                   Data Captured for Voice CDR
@@ -2515,8 +2518,8 @@ Content-Type: application/json`}</pre>
                     { field: 'recordingURL', desc: 'Call recording URL' },
                     { field: 'hangupCause', desc: 'USER/SYSTEM_INITIATED' },
                   ].map(({ field, desc }) => (
-                    <div key={field} style={{ padding: '0.75rem', background: '#ECFDF5', borderRadius: '0.375rem', borderLeft: '3px solid #059669' }}>
-                      <code style={{ fontSize: '0.85rem', color: '#059669' }}>{field}</code>
+                    <div key={field} style={{ padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem', borderLeft: '3px solid #1a3a2a' }}>
+                      <code style={{ fontSize: '0.85rem', color: '#1a3a2a' }}>{field}</code>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>{desc}</div>
                     </div>
                   ))}
@@ -2524,19 +2527,19 @@ Content-Type: application/json`}</pre>
               </div>
 
               {/* Airtel SMS Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #a7f3d0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' }}>
                     <SmsIcon size={24} />
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Airtel IQ SMS</h3>
-                    <span className="badge" style={{ background: '#ecfdf5', color: '#059669', marginTop: '4px' }}>DLT Compliant</span>
+                    <span className="badge" style={{ background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' }}>DLT Compliant</span>
                   </div>
                 </div>
                 
-                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #a7f3d0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#059669' }}>SMS API Endpoints</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1a3a2a' }}>SMS API Endpoints</h4>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Send SMS (via our API — supports v4/v5/v6)</label>
@@ -2563,7 +2566,7 @@ Content-Type: application/json`}</pre>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>GET/POST/DELETE https://api.wecare.digital/sms-in/airtel/templates</code>
                   </div>
 
-                  <h4 style={{ margin: '0.75rem 0 0.5rem 0', fontSize: '0.85rem', color: '#059669' }}>Airtel IQ Direct Endpoints (3 versions)</h4>
+                  <h4 style={{ margin: '0.75rem 0 0.5rem 0', fontSize: '0.85rem', color: '#1a3a2a' }}>Airtel IQ Direct Endpoints (3 versions)</h4>
                   {[
                     { label: 'v4 — Single / Multiple SMS', url: 'POST https://iqmessaging.airtel.in/api/v4/send-sms' },
                     { label: 'v5 — Content Moderation (no DLT fields needed)', url: 'POST https://iqmessaging.airtel.in/api/v5/send-sms-cm' },
@@ -2575,7 +2578,7 @@ Content-Type: application/json`}</pre>
                       <code style={{ fontSize: '0.8rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>{url}</code>
                     </div>
                   ))}
-                  <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#1a3a2a', marginTop: '0.5rem', fontStyle: 'italic' }}>
                     v4/v5/v6: Basic auth + customerId header · Bulk/Conduit: Basic auth only (no customerId)
                   </div>
                 </div>
@@ -2645,12 +2648,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Supported Message Types</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { type: 'SERVICE_EXPLICIT', desc: 'Service messages (opt-in)', color: '#059669' },
-                      { type: 'SERVICE_IMPLICIT', desc: 'Service messages (implicit)', color: '#059669' },
+                      { type: 'SERVICE_EXPLICIT', desc: 'Service messages (opt-in)', color: '#1a3a2a' },
+                      { type: 'SERVICE_IMPLICIT', desc: 'Service messages (implicit)', color: '#1a3a2a' },
                       { type: 'TRANSACTIONAL', desc: 'OTP, alerts, etc.', color: '#388E3C' },
-                      { type: 'PROMOTIONAL', desc: 'Marketing messages', color: '#059669' },
+                      { type: 'PROMOTIONAL', desc: 'Marketing messages', color: '#1a3a2a' },
                     ].map(({ type, desc, color }) => (
-                      <div key={type} style={{ background: '#ecfdf5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #a7f3d0' }}>
+                      <div key={type} style={{ background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{type}</span>
@@ -2663,21 +2666,21 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
               </div>
 
               {/* AWS Pinpoint SMS & Voice Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>AWS Pinpoint SMS & Voice v2</h3>
-                    <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px' }}>us-east-1 | Active</span>
+                    <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' }}>us-east-1 | Active</span>
                   </div>
                 </div>
                 
-                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>API Endpoints</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' }}>API Endpoints</h4>
                   {[
                     { label: 'Send SMS', method: 'POST', path: '/sms-aws/send' },
                     { label: 'List SMS Messages', method: 'GET', path: '/sms-aws/messages' },
@@ -2691,7 +2694,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div key={path} style={{ marginBottom: '0.5rem' }}>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
                       <code style={{ fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>
-                        <span style={{ color: method === 'POST' ? '#059669' : method === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
+                        <span style={{ color: method === 'POST' ? '#1a3a2a' : method === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
                       </code>
                     </div>
                   ))}
@@ -2731,10 +2734,10 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <label style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' }}>Lambda Functions</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                     {[
-                      { name: 'wecare-sms-aws', desc: 'SMS send + CRUD', color: '#059669' },
-                      { name: 'wecare-voice-aws', desc: 'Voice call + CRUD', color: '#059669' },
+                      { name: 'wecare-sms-aws', desc: 'SMS send + CRUD', color: '#1a3a2a' },
+                      { name: 'wecare-voice-aws', desc: 'Voice call + CRUD', color: '#1a3a2a' },
                     ].map(({ name, desc, color }) => (
-                      <div key={name} style={{ background: '#ECFDF5', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #A7F3D0' }}>
+                      <div key={name} style={{ background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
                           <span style={{ fontFamily: 'monospace', color: '#111827', fontWeight: 500 }}>{name}</span>
@@ -2749,17 +2752,17 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
               {/* WhatsApp Inbound Messages Webhook */}
               <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #25D366' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WhatsApp Inbound Messages</h3>
-                    <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px' }}>AWS EUM Managed | Active</span>
+                    <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' }}>AWS EUM Managed | Active</span>
                   </div>
                 </div>
 
-                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>Webhook Configuration</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' }}>Webhook Configuration</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Webhook URL</span><code style={{ color: '#111827' }}>https://api.wecare.digital/whatsapp/inbound</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Method</span><code style={{ color: '#111827' }}>POST</code></div>
@@ -2770,7 +2773,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA 2</span><code style={{ color: '#111827' }}>1633959101297902 (Manish Agarwal)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#065f46', marginTop: '0.75rem', fontStyle: 'italic' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#0f2a1d', marginTop: '0.75rem', fontStyle: 'italic' }}>
                     Managed by AWS End User Messaging (EUM) — webhook verification handled automatically by AWS.
                   </div>
                 </div>
@@ -2779,17 +2782,17 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
               {/* WhatsApp Calling Webhook */}
               <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #25D366' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #A7F3D0' }}>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WhatsApp Business Calling</h3>
-                    <span className="badge" style={{ background: '#D1FAE5', color: '#065f46', marginTop: '4px' }}>Meta Graph API + WebRTC | Active</span>
+                    <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' }}>Meta Graph API + WebRTC | Active</span>
                   </div>
                 </div>
 
-                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #A7F3D0' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#065f46' }}>Webhook Configuration (Meta App Dashboard)</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' }}>Webhook Configuration (Meta App Dashboard)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Callback URL</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>https://api.wecare.digital/whatsapp-calling</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>{WHATSAPP_CALLING_VERIFY_TOKEN || '(not configured)'}</code></div>
@@ -2816,7 +2819,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                         { m: 'DELETE', p: '/whatsapp-calling', d: 'Clear logs' },
                       ].map(({ m, p, d }) => (
                         <div key={`${m}${p}`} style={{ background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          <code><span style={{ color: m === 'POST' ? '#059669' : m === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600, fontSize: '0.7rem' }}>{m}</span> <span style={{ fontSize: '0.75rem' }}>{p}</span></code>
+                          <code><span style={{ color: m === 'POST' ? '#1a3a2a' : m === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600, fontSize: '0.7rem' }}>{m}</span> <span style={{ fontSize: '0.75rem' }}>{p}</span></code>
                           <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: '4px' }}>{d}</span>
                         </div>
                       ))}
@@ -2844,7 +2847,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     Copy Callback URL
                   </button>
                   <button onClick={() => { navigator.clipboard.writeText(WHATSAPP_CALLING_VERIFY_TOKEN || ''); toast.success('Verify token copied'); }}
-                    style={{ padding: '0.5rem 1rem', background: '#065f46', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
+                    style={{ padding: '0.5rem 1rem', background: '#0f2a1d', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
                     Copy Verify Token
                   </button>
                   <a href="https://developers.facebook.com/apps/891766673609917/webhooks/" target="_blank" rel="noopener noreferrer"
@@ -2855,38 +2858,38 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
               </div>
 
               {/* Wix Store Webhook Section */}
-              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #059669' }}>
+              <div className="section" style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ width: '40px', height: '40px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #6ee7b7' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="#059669" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <div style={{ width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #d1d5db' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><line x1="3" y1="6" x2="21" y2="6" stroke="#1a3a2a" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WECARE.DIGITAL Wix Store</h3>
-                    <span className="badge" style={{ background: '#ecfdf5', color: '#059669', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
+                    <span className="badge" style={{ background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' }}>Wix eCommerce + Velo | Active</span>
                   </div>
                 </div>
 
                 {/* Quick Links */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                  <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#059669', color: '#fff', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
+                  <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#d1f470', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}>
                     Live Store
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' }}>
                     Wix Products
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' }}>
                     Wix Orders
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' }}>
                     Media Manager
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#ecfdf5', color: '#059669', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #6ee7b7' }}>
+                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' }}>
                     Wix Dashboard
                   </a>
                 </div>
 
-                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #6ee7b7' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#059669' }}>API Endpoints (Lambda: wecare-wix-store)</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1a3a2a' }}>API Endpoints (Lambda: wecare-wix-store)</h4>
                   {[
                     { label: 'List Products', method: 'GET', path: '/wix-store/products' },
                     { label: 'Get Product (full)', method: 'GET', path: '/wix-store/products/{id}' },
@@ -2911,7 +2914,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div key={path} style={{ marginBottom: '0.5rem' }}>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>{label}</label>
                       <code style={{ fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' }}>
-                        <span style={{ color: method === 'POST' ? '#059669' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
+                        <span style={{ color: method === 'POST' ? '#1a3a2a' : '#1d4ed8', fontWeight: 600 }}>{method}</span> https://api.wecare.digital{path}
                       </code>
                     </div>
                   ))}
@@ -2938,7 +2941,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Custom Order ID Format</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-{'{'}<span style={{ color: '#059669' }}>UUID8</span>{'}'}-DD-MM-YYYY-HH:MM:SS-IST</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WD-ORD-{'{'}<span style={{ color: '#1a3a2a' }}>UUID8</span>{'}'}-DD-MM-YYYY-HH:MM:SS-IST</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DynamoDB Tables</label>
@@ -2947,42 +2950,42 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </div>
                 </div>
 
-                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #6ee7b7' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#065f46' }}>TWO REPOS — IMPORTANT</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#0f2a1d' }}>TWO REPOS — IMPORTANT</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Stack CRM Repo</div>
-                      <a href="https://github.com/wecaredigital/stack.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/stack.wecare.digital</a>
+                      <div style={{ fontWeight: 600, color: '#0f2a1d', marginBottom: '2px' }}>Stack CRM Repo</div>
+                      <a href="https://github.com/wecaredigital/stack.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/stack.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>stack</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
-                      <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#059669', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
+                      <div style={{ fontWeight: 600, color: '#0f2a1d', marginBottom: '2px' }}>Wix Velo Repo (LIVE)</div>
+                      <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' }}>wecaredigital/store.wecare.digital</a>
                       <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
                     </div>
                   </div>
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#065f46', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#0f2a1d', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
                     Shared code lives in <code>shared/wix-velo/</code> — sync script copies to both repos. Wix page files need internal IDs (e.g. <code>HOME.c1dmp.js</code>) — only the Wix Editor can create page files.
                   </div>
                 </div>
 
-                <div style={{ background: '#ecfdf5', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #a7f3d0' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#059669' }}>Wix Data Collections</h4>
+                <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1a3a2a' }}>Wix Data Collections</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' }}>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#059669', fontWeight: 600 }}>OrderIDs</code>
+                      <code style={{ color: '#1a3a2a', fontWeight: 600 }}>OrderIDs</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Written by Velo (Thank You page). Fields: orderId (WD-ORD), wixOrderId, orderNumber, buyerEmail, buyerPhone, totalAmount, orderDate</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#059669', fontWeight: 600 }}>OrderCustomIds</code>
+                      <code style={{ color: '#1a3a2a', fontWeight: 600 }}>OrderCustomIds</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Written by Velo + Lambda. Fields: orderId (Wix UUID), customOrderNumber (WD-ORD), memberId, buyerEmail</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#059669', fontWeight: 600 }}>Stores/Products</code>
+                      <code style={{ color: '#1a3a2a', fontWeight: 600 }}>Stores/Products</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Wix native. Read-only from REST API. SKU prefix: WD-</div>
                     </div>
                     <div style={{ background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' }}>
-                      <code style={{ color: '#059669', fontWeight: 600 }}>Stores/Orders</code>
+                      <code style={{ color: '#1a3a2a', fontWeight: 600 }}>Stores/Orders</code>
                       <div style={{ fontSize: '0.7rem', color: '#666' }}>Wix native. customField writable via Velo only. Native # hidden everywhere.</div>
                     </div>
                   </div>
@@ -3360,9 +3363,9 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                           <tr key={req.id} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{req.phone}</td>
                             <td style={{ padding: '8px 12px' }}>{req.senderName || '—'}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.requestNumber || '—'}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.invoiceNumber || '—'}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#059669' }}>{req.paymentReferenceId || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#1a3a2a' }}>{req.requestNumber || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#1a3a2a' }}>{req.invoiceNumber || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#1a3a2a' }}>{req.paymentReferenceId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>{req.orderId}</td>
                             <td style={{ padding: '8px 12px' }}>{req.subject || '—'}</td>
                             <td style={{ padding: '8px 12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={req.description}>{req.description || '—'}</td>
@@ -3375,21 +3378,21 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                                 borderRadius: '12px',
                                 fontSize: '11px',
                                 fontWeight: 600,
-                                background: req.paymentStatus === 'captured' ? '#d1fae5' : req.paymentStatus === 'failed' ? '#f3f4f6' : '#ecfdf5',
-                                color: req.paymentStatus === 'captured' ? '#065f46' : req.paymentStatus === 'failed' ? '#6b7280' : '#065f46',
+                                background: req.paymentStatus === 'captured' ? '#f3f4f6' : req.paymentStatus === 'failed' ? '#f3f4f6' : '#f9fafb',
+                                color: req.paymentStatus === 'captured' ? '#0f2a1d' : req.paymentStatus === 'failed' ? '#6b7280' : '#0f2a1d',
                               }}>
                                 {req.paymentStatus === 'captured' ? '✓ Paid' : req.paymentStatus === 'failed' ? '✗ Failed' : '⏳ Pending'}
                               </span>
                             </td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#059669' }}>{req.transactionId || '—'}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#1a3a2a' }}>{req.transactionId || '—'}</td>
                             <td style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                               <div>{req.createdAt ? new Date(req.createdAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</div>
                               <div style={{ display: 'flex', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
                                 {req.isExpired && (
-                                  <span style={{ padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#ecfdf5', color: '#065f46' }}>Expired</span>
+                                  <span style={{ padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#f9fafb', color: '#0f2a1d' }}>Expired</span>
                                 )}
                                 {typeof req.daysOld === 'number' && req.daysOld > 0 && (
-                                  <span style={{ fontSize: 10, color: req.daysOld > 7 ? '#059669' : '#059669' }}>{req.daysOld}d old</span>
+                                  <span style={{ fontSize: 10, color: req.daysOld > 7 ? '#1a3a2a' : '#1a3a2a' }}>{req.daysOld}d old</span>
                                 )}
                               </div>
                             </td>
@@ -3402,7 +3405,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                                     padding: '4px 10px', fontSize: '11px', fontWeight: 600,
                                     border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
                                     background: resendingPayment === req.id ? '#f3f4f6' : '#fff',
-                                    color: '#059669', whiteSpace: 'nowrap',
+                                    color: '#1a3a2a', whiteSpace: 'nowrap',
                                   }}
                                 >
                                   {resendingPayment === req.id ? '...' : 'Resend'}
@@ -3471,8 +3474,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                             <td style={{ padding: '8px 12px' }}>
                               <span style={{
                                 padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                                background: log.action === 'INIT' ? '#d1fae5' : log.action === 'data_exchange' ? '#f3e8ff' : '#f1f5f9',
-                                color: log.action === 'INIT' ? '#059669' : log.action === 'data_exchange' ? '#6b21a8' : '#475569',
+                                background: log.action === 'INIT' ? '#f3f4f6' : log.action === 'data_exchange' ? '#f3e8ff' : '#f1f5f9',
+                                color: log.action === 'INIT' ? '#1a3a2a' : log.action === 'data_exchange' ? '#6b21a8' : '#475569',
                               }}>
                                 {log.action}
                               </span>
@@ -3508,13 +3511,20 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
             </div>
             </TabErrorBoundary>
           )}
+
+          {/* APP BUILDER TAB */}
+          {activeTab === 'appbuilder' && (
+            <TabErrorBoundary tabName="App Builder">
+              <AppBuilderTab data={{ contacts, messages, billingData, apiConnected, apiLatency, lastRefresh, loading }} />
+            </TabErrorBoundary>
+          )}
         </div>
       </div>
 
       {/* Billing table expand styles - other styles in Dashboard.css */}
       <style jsx>{`
-        .billing-row.warning { background: #ECFDF5; }
-        .billing-row.paid { background: #ECFDF5; }
+        .billing-row.warning { background: #f9fafb; }
+        .billing-row.paid { background: #f9fafb; }
         .expand-cell { width: 30px; }
         .expand-btn { width: 28px; height: 28px; border: 1px solid var(--notion-border, #e9e9e7); border-radius: 6px; background: var(--notion-bg, #fff); cursor: pointer; font-size: 16px; color: var(--notion-text-secondary, #787774); }
         .expand-btn:hover { background: var(--notion-bg-hover, #efefef); color: var(--notion-text, #37352f); }

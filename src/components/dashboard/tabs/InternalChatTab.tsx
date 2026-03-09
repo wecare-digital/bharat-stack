@@ -247,9 +247,9 @@ const InternalChatTab: React.FC = () => {
         {(['chat', 'logs', 'controls'] as SubTab[]).map(t => (
           <button key={t} onClick={() => setSubTab(t)} style={{
             padding: '8px 16px', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', fontSize: '13px', fontWeight: 500,
-            background: subTab === t ? '#ECFDF5' : 'transparent',
-            color: subTab === t ? '#059669' : '#6b7280',
-            borderBottom: subTab === t ? '2px solid #059669' : '2px solid transparent',
+            background: subTab === t ? '#f9fafb' : 'transparent',
+            color: subTab === t ? '#1a3a2a' : '#6b7280',
+            borderBottom: subTab === t ? '2px solid #1a3a2a' : '2px solid transparent',
           }}>
             {t === 'chat' ? 'Chat' : t === 'logs' ? 'Logs' : 'Controls'}
           </button>
@@ -282,8 +282,8 @@ const InternalChatTab: React.FC = () => {
               { label: 'Send Flow', cmd: 'send submit request flow to ' },
             ].map(a => (
               <button key={a.label} onClick={() => quickAction(a.cmd)} style={{
-                padding: '4px 10px', border: '1px solid #d1fae5', borderRadius: '12px',
-                background: '#ECFDF5', color: '#059669', cursor: 'pointer', fontSize: '12px',
+                padding: '4px 10px', border: '1px solid #f3f4f6', borderRadius: '12px',
+                background: '#f9fafb', color: '#1a3a2a', cursor: 'pointer', fontSize: '12px',
               }}>
                 {a.label}
               </button>
@@ -302,7 +302,7 @@ const InternalChatTab: React.FC = () => {
               }}>
                 <div style={{
                   padding: '10px 14px', borderRadius: '12px', fontSize: '13px', lineHeight: '1.5',
-                  background: msg.role === 'user' ? '#059669' : '#ECFDF5',
+                  background: msg.role === 'user' ? '#1a3a2a' : '#f9fafb',
                   color: msg.role === 'user' ? 'white' : '#1f2937',
                   opacity: msg.status === 'sending' ? 0.6 : 1,
                 }}>
@@ -317,11 +317,11 @@ const InternalChatTab: React.FC = () => {
             ))}
             {statusMessage && (
               <div style={{
-                padding: '8px 12px', background: '#ECFDF5', border: '1px solid #a7f3d0',
-                borderRadius: '8px', color: '#059669', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 12px', background: '#f9fafb', border: '1px solid #e5e7eb',
+                borderRadius: '8px', color: '#1a3a2a', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px',
               }}>
                 <span style={{
-                  width: '10px', height: '10px', border: '2px solid #059669', borderTopColor: 'transparent',
+                  width: '10px', height: '10px', border: '2px solid #1a3a2a', borderTopColor: 'transparent',
                   borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block',
                 }} />
                 {statusMessage}
@@ -345,11 +345,11 @@ const InternalChatTab: React.FC = () => {
                 fontSize: '13px', resize: 'none', outline: 'none', fontFamily: 'inherit',
                 minHeight: '40px', maxHeight: '80px',
               }}
-              onFocus={e => (e.target.style.borderColor = '#059669')}
+              onFocus={e => (e.target.style.borderColor = '#1a3a2a')}
               onBlur={e => (e.target.style.borderColor = '#d1d5db')}
             />
             <button onClick={handleSend} disabled={!input.trim() || isLoading} style={{
-              padding: '10px 20px', background: !input.trim() || isLoading ? '#d1d5db' : '#059669',
+              padding: '10px 20px', background: !input.trim() || isLoading ? '#d1d5db' : '#1a3a2a',
               color: 'white', border: 'none', borderRadius: '8px', cursor: !input.trim() || isLoading ? 'not-allowed' : 'pointer',
               fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap',
             }}>
@@ -382,7 +382,7 @@ const InternalChatTab: React.FC = () => {
               {logs.map(log => (
                 <div key={log.id} style={{
                   padding: '12px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px',
-                  borderLeft: `3px solid ${log.status === 'success' ? '#059669' : '#059669'}`,
+                  borderLeft: `3px solid ${log.status === 'success' ? '#1a3a2a' : '#1a3a2a'}`,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <span style={{ fontSize: '12px', color: '#6b7280' }}>
@@ -390,8 +390,8 @@ const InternalChatTab: React.FC = () => {
                     </span>
                     <span style={{
                       fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
-                      background: log.status === 'success' ? '#ECFDF5' : '#f3f4f6',
-                      color: log.status === 'success' ? '#059669' : '#6b7280',
+                      background: log.status === 'success' ? '#f9fafb' : '#f3f4f6',
+                      color: log.status === 'success' ? '#1a3a2a' : '#6b7280',
                     }}>
                       {log.duration}ms
                     </span>
@@ -420,7 +420,7 @@ const InternalChatTab: React.FC = () => {
                 <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>Temperature: {temperature}</label>
                 <input type="range" min="0" max="1" step="0.1" value={temperature}
                   onChange={e => setTemperature(parseFloat(e.target.value))}
-                  style={{ width: '100%', accentColor: '#059669' }} />
+                  style={{ width: '100%', accentColor: '#1a3a2a' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#9ca3af' }}>
                   <span>Focused</span><span>Creative</span>
                 </div>
@@ -429,7 +429,7 @@ const InternalChatTab: React.FC = () => {
                 <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>Max Tokens: {maxTokens}</label>
                 <input type="range" min="512" max="4096" step="256" value={maxTokens}
                   onChange={e => setMaxTokens(parseInt(e.target.value))}
-                  style={{ width: '100%', accentColor: '#059669' }} />
+                  style={{ width: '100%', accentColor: '#1a3a2a' }} />
               </div>
             </div>
           </div>
@@ -450,18 +450,18 @@ const InternalChatTab: React.FC = () => {
             </div>
             {categories.map(cat => (
               <div key={cat} style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#059669', marginBottom: '6px' }}>{cat}</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#1a3a2a', marginBottom: '6px' }}>{cat}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {TOOLS_LIST.filter(t => t.category === cat).map(tool => (
                     <label key={tool.id} style={{
                       display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
-                      border: `1px solid ${enabledTools.has(tool.id) ? '#a7f3d0' : '#e5e7eb'}`,
+                      border: `1px solid ${enabledTools.has(tool.id) ? '#e5e7eb' : '#e5e7eb'}`,
                       borderRadius: '6px', cursor: 'pointer', fontSize: '12px',
-                      background: enabledTools.has(tool.id) ? '#ECFDF5' : 'white',
-                      color: enabledTools.has(tool.id) ? '#059669' : '#9ca3af',
+                      background: enabledTools.has(tool.id) ? '#f9fafb' : 'white',
+                      color: enabledTools.has(tool.id) ? '#1a3a2a' : '#9ca3af',
                     }}>
                       <input type="checkbox" checked={enabledTools.has(tool.id)} onChange={() => toggleTool(tool.id)}
-                        style={{ accentColor: '#059669', width: '12px', height: '12px' }} />
+                        style={{ accentColor: '#1a3a2a', width: '12px', height: '12px' }} />
                       {tool.name}
                     </label>
                   ))}

@@ -37,7 +37,7 @@ export default function FAQPage() {
             href={`https://wa.me/${brand.whatsapp.replace(/[^0-9]/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ padding: '12px 24px', background: '#059669', color: 'white', borderRadius: '13px', textDecoration: 'none', fontSize: '14px', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}
+            style={{ padding: '12px 24px', background: '#1a3a2a', color: 'white', borderRadius: '13px', textDecoration: 'none', fontSize: '14px', minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}
           >
             WhatsApp
           </a>

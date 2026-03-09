@@ -30,25 +30,25 @@
   --transition-normal: 0.2s ease;
   --transition-page: 0.25s ease-out;
   
-  /* Colors - Clean Emerald Theme (black text) */
-  --color-primary: #059669;
-  --color-secondary: #059669;
+  /* Colors - Clean Lime + Dark Green Theme (black text) */
+  --color-primary: #1a3a2a;
+  --color-secondary: #1a3a2a;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-bg: #fff;
-  --color-bg-secondary: #ECFDF5;
-  --color-bg-hover: #ecfdf5;
-  --color-bg-active: #d1fae5;
+  --color-bg-secondary: #f9fafb;
+  --color-bg-hover: #f9fafb;
+  --color-bg-active: #e5e7eb;
   
-  /* Semantic Colors - Clean Emerald */
-  --color-success: #059669;
-  --color-warning: #059669;
-  --color-danger: #059669;
+  /* Semantic Colors - Clean Lime + Dark Green */
+  --color-success: #1a3a2a;
+  --color-warning: #1a3a2a;
+  --color-danger: #1a3a2a;
   
-  /* Channel Colors - Emerald */
-  --color-whatsapp: #059669;
-  --color-sms: #059669;
-  --color-email: #059669;
+  /* Channel Colors - Lime + Dark Green */
+  --color-whatsapp: #1a3a2a;
+  --color-sms: #1a3a2a;
+  --color-email: #1a3a2a;
   
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -154,7 +154,7 @@
 
 /* ========================================
    BUTTONS - Unified Style System
-   Emerald theme, 13px radius, consistent sizing
+   Lime + Dark Green theme, 13px radius, consistent sizing
    ======================================== */
 
 /* Base Button Styles */
@@ -203,24 +203,24 @@
   transform: scale(0.98);
 }
 
-/* PRIMARY BUTTON - Main CTA (Emerald) */
+/* PRIMARY BUTTON - Main CTA (Lime) */
 .btn-primary {
-  background: #059669;
-  color: #ffffff;
-  border: 1.5px solid #059669;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+  background: #d1f470;
+  color: #1a3a2a;
+  border: 1.5px solid #1a3a2a;
+  box-shadow: 0 1px 3px rgba(26, 58, 42, 0.1);
 }
 
 .btn-primary:hover {
-  background: #059669;
-  border-color: #059669;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  background: #c5e866;
+  border-color: #0f2a1d;
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.15);
 }
 
 .btn-primary:active {
-  background: #047857;
-  border-color: #047857;
-  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+  background: #b8dc5a;
+  border-color: #0f2a1d;
+  box-shadow: 0 1px 2px rgba(26, 58, 42, 0.1);
 }
 
 /* Active/Selected Button State */
@@ -228,9 +228,9 @@
 .btn-primary.active,
 .btn-secondary.active,
 .btn-outline.active {
-  background: #d1fae5;
-  border-color: #059669;
-  color: #065f46;
+  background: #e5e7eb;
+  border-color: #1a3a2a;
+  color: #1a3a2a;
   font-weight: var(--font-semibold);
 }
 
@@ -238,7 +238,7 @@
 .btn-primary.active:hover,
 .btn-secondary.active:hover,
 .btn-outline.active:hover {
-  background: #a7f3d0;
+  background: #e5e7eb;
 }
 
 /* Disabled state */
@@ -291,8 +291,8 @@
 }
 
 .btn-danger:hover {
-  background: #ECFDF5;
-  border-color: #047857;
+  background: #f9fafb;
+  border-color: #0f2a1d;
 }
 
 /* Success button - outline style */
@@ -303,7 +303,7 @@
 }
 
 .btn-success:hover {
-  background: #ecfdf5;
+  background: #f9fafb;
 }
 
 /* Link style button */
@@ -388,8 +388,8 @@
 
 /* Error Banner */
 .error-banner {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
   padding: 10px 14px;
   border-radius: 6px;
   margin-bottom: 12px;
@@ -402,7 +402,7 @@
 .error-banner button {
   background: none;
   border: none;
-  color: #059669;
+  color: #1a3a2a;
   cursor: pointer;
   font-size: 14px;
   padding: 4px;
@@ -429,11 +429,11 @@
 }
 
 .status-dot.connected {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 .status-dot.disconnected {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 /* Stats Grid - Responsive */
@@ -483,7 +483,7 @@
 .stat-icon {
   font-size: 20px;
   margin-bottom: 8px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .stat-value {
@@ -590,7 +590,7 @@
 }
 
 .view-all-link, .link {
-  color: #059669;
+  color: #1a3a2a;
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -598,7 +598,7 @@
 }
 
 .view-all-link:hover, .link:hover {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 @media (max-width: 768px) {
@@ -653,7 +653,7 @@
 .qa-icon {
   font-size: 24px;
   margin-bottom: 8px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .qa-title {
@@ -787,7 +787,7 @@
   color: var(--danger);
 }
 
-/* Tabs - Consistent Button Style with Emerald Theme */
+/* Tabs - Consistent Button Style with Lime + Dark Green Theme */
 .tabs {
   display: flex;
   gap: 8px;
@@ -831,23 +831,23 @@
 }
 
 .tab:active {
-  background: #d1fae5;
+  background: #e5e7eb;
   transform: scale(0.98);
 }
 
 .tab.active {
   background: #ffffff;
-  border-color: #059669;
-  color: #065f46;
+  border-color: #1a3a2a;
+  color: #1a3a2a;
   font-weight: var(--font-semibold);
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 1px 3px rgba(26, 58, 42, 0.15);
 }
 
 .tab.active:hover {
-  background: #ecfdf5;
+  background: #f9fafb;
 }
 
-/* Form Styles - Unified with Emerald Focus */
+/* Form Styles - Unified with Lime + Dark Green Focus */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -879,15 +879,15 @@
 .form-group select:hover,
 .form-group input:hover,
 .form-group textarea:hover {
-  border-color: #059669;
+  border-color: #1a3a2a;
 }
 
 .form-group select:focus, 
 .form-group input:focus, 
 .form-group textarea:focus {
   outline: none;
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
 .form-group textarea {
@@ -1446,11 +1446,11 @@
 /* WhatsApp Inbox - Unified Chat */
 .whatsapp-inbox {
   display: flex;
-  height: calc(100vh - 60px);
+  height: calc(100vh - 20px);
   background: #fff;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   width: 100%;
 }
 
@@ -1458,13 +1458,13 @@
 .contacts-sidebar {
   width: 320px;
   background: #fff;
-  border-right: 1px solid #D1FAE5;
+  border-right: 1px solid #d1f470;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 }
 
-/* Themed Scrollbars — hide arrows, emerald thumb */
+/* Themed Scrollbars — hide arrows, lime + dark green thumb */
 .whatsapp-inbox ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -1475,16 +1475,16 @@
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb {
-  background: rgba(6, 95, 70, 0.15) !important;
+  background: rgba(26, 58, 42, 0.15) !important;
   border-radius: 10px !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb:hover {
-  background: #6EE7B7 !important;
+  background: #d1f470 !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-thumb:active {
-  background: #047857 !important;
+  background: #0f2a1d !important;
 }
 
 .whatsapp-inbox ::-webkit-scrollbar-button {
@@ -1500,7 +1500,7 @@
 /* Firefox scrollbar */
 .whatsapp-inbox * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(6, 95, 70, 0.15) transparent;
+  scrollbar-color: rgba(26, 58, 42, 0.15) transparent;
 }
 
 /* Page-level scrollbar — match theme */
@@ -1513,16 +1513,16 @@
 }
 
 .page-container ::-webkit-scrollbar-thumb {
-  background: rgba(6, 95, 70, 0.15) !important;
+  background: rgba(26, 58, 42, 0.15) !important;
   border-radius: 10px !important;
 }
 
 .page-container ::-webkit-scrollbar-thumb:hover {
-  background: #6EE7B7 !important;
+  background: #d1f470 !important;
 }
 
 .page-container ::-webkit-scrollbar-thumb:active {
-  background: #047857 !important;
+  background: #0f2a1d !important;
 }
 
 .page-container ::-webkit-scrollbar-button {
@@ -1544,19 +1544,19 @@
   border: none;
   border-radius: 8px;
   font-size: 24px;
-  color: #059669;
+  color: #1a3a2a;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s;
 }
 
 .mobile-back-btn:hover {
-  background: #ECFDF5;
+  background: #f9fafb;
 }
 
 /* Read receipt colors */
 .message-status.read {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .message-status.delivered {
@@ -1568,7 +1568,7 @@
 }
 
 .message-status.failed {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 @media (max-width: 768px) {
@@ -1578,7 +1578,7 @@
 
   .whatsapp-inbox {
     flex-direction: column;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 20px);
     border-radius: 0;
     position: relative;
   }
@@ -1713,13 +1713,13 @@
   
   /* Media */
   .message-media {
-    max-width: 200px;
-    max-height: 200px;
+    max-width: 260px;
+    max-height: 280px;
   }
   
   .message-sticker {
-    max-width: 80px;
-    max-height: 80px;
+    max-width: 100px;
+    max-height: 100px;
   }
   
   .message-video {
@@ -1852,7 +1852,7 @@
 
 .whatsapp-inbox .sidebar-header {
   padding: 12px 16px;
-  border-bottom: 1px solid #D1FAE5;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -1879,10 +1879,10 @@
   width: 38px;
   height: 38px;
   min-width: 38px;
-  background: #ECFDF5;
-  border: 1.5px solid #059669;
+  background: #f9fafb;
+  border: 1.5px solid #1a3a2a;
   border-radius: 10px;
-  color: #059669;
+  color: #1a3a2a;
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
@@ -1896,8 +1896,8 @@
 }
 
 .delete-all-btn:hover {
-  background: #D1FAE5;
-  border-color: #059669;
+  background: #e5e7eb;
+  border-color: #1a3a2a;
 }
 
 .delete-all-btn:disabled {
@@ -1917,8 +1917,8 @@
 
 .contacts-search:focus {
   outline: none;
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
 /* Pagination at top */
@@ -1938,19 +1938,19 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 12px;
-  color: #059669;
+  color: #1a3a2a;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .contacts-pagination button:hover:not(:disabled) {
-  background: #D1FAE5;
-  border-color: #059669;
-  color: #059669;
+  background: #e5e7eb;
+  border-color: #1a3a2a;
+  color: #1a3a2a;
 }
 
 .contacts-pagination button:disabled {
@@ -1963,7 +1963,7 @@
 
 .contacts-pagination .page-info {
   font-size: 12px;
-  color: #065f46;
+  color: #1a3a2a;
   padding: 0 8px;
   white-space: nowrap;
   font-weight: 500;
@@ -2005,15 +2005,15 @@
 }
 
 .contact-item.selected {
-  background: #ECFDF5;
-  border-left: 3px solid #059669;
+  background: #f9fafb;
+  border-left: 3px solid #1a3a2a;
 }
 
 .contact-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #059669;
+  background: #1a3a2a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2084,7 +2084,7 @@
 .contact-delete-btn {
   background: none;
   border: none;
-  color: #059669;
+  color: #1a3a2a;
   cursor: pointer;
   font-size: var(--text-xs);
   padding: 4px;
@@ -2093,8 +2093,8 @@
 }
 
 .contact-delete-btn:hover {
-  background: #ECFDF5;
-  color: #047857;
+  background: #f9fafb;
+  color: #0f2a1d;
 }
 
 /* Chat Area */
@@ -2153,8 +2153,8 @@
 
 .clear-chat-btn {
   background: none;
-  border: 1px solid #d1fae5;
-  color: #059669;
+  border: 1px solid #e5e7eb;
+  color: #1a3a2a;
   padding: 6px 8px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -2163,9 +2163,9 @@
 }
 
 .clear-chat-btn:hover {
-  background: #ECFDF5;
-  border-color: #059669;
-  color: #047857;
+  background: #f9fafb;
+  border-color: #1a3a2a;
+  color: #0f2a1d;
 }
 
 /* Messages Area */
@@ -2195,7 +2195,7 @@
 }
 
 .message-bubble {
-  max-width: 65%;
+  max-width: 75%;
   padding: 10px 14px;
   border-radius: 16px;
   position: relative;
@@ -2211,8 +2211,8 @@
 
 .message-bubble.outbound {
   align-self: flex-end;
-  background: #ECFDF5;
-  border: 1px solid #D1FAE5;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-bottom-right-radius: 4px;
 }
 
@@ -2283,7 +2283,7 @@
 .delete-msg-btn {
   background: transparent;
   border: none;
-  color: #059669;
+  color: #1a3a2a;
   padding: 4px 6px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -2292,13 +2292,13 @@
 }
 
 .reaction-btn:hover {
-  background: #ECFDF5;
-  color: #047857;
+  background: #f9fafb;
+  color: #0f2a1d;
 }
 
 .delete-msg-btn:hover {
-  background: #ECFDF5;
-  color: #047857;
+  background: #f9fafb;
+  color: #0f2a1d;
 }
 
 /* Media in messages */
@@ -2307,8 +2307,8 @@
 }
 
 .message-media {
-  max-width: 220px;
-  max-height: 220px;
+  max-width: 360px;
+  max-height: 400px;
   border-radius: var(--radius-md);
   object-fit: cover;
 }
@@ -2318,16 +2318,17 @@
 }
 
 .message-sticker {
-  max-width: 100px;
-  max-height: 100px;
+  max-width: 140px;
+  max-height: 140px;
 }
 
 .message-video {
-  max-width: 260px;
+  max-width: 420px;
+  max-height: 360px;
 }
 
 .message-audio {
-  max-width: 220px;
+  max-width: 320px;
 }
 
 .message-document {
@@ -2395,8 +2396,8 @@
 
 .clear-media-btn {
   background: #fff;
-  border: 1px solid #d1fae5;
-  color: #059669;
+  border: 1px solid #e5e7eb;
+  color: #1a3a2a;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -2406,9 +2407,9 @@
 }
 
 .clear-media-btn:hover {
-  background: #ECFDF5;
-  color: #047857;
-  border-color: #059669;
+  background: #f9fafb;
+  color: #0f2a1d;
+  border-color: #1a3a2a;
 }
 
 .input-wrapper {
@@ -2479,8 +2480,8 @@
 }
 
 .emoji-search-input:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 2px rgba(26, 58, 42, 0.12);
 }
 
 .emoji-grid-scroll {
@@ -2488,7 +2489,7 @@
   padding: 4px 8px 8px;
   flex: 1;
   scrollbar-width: thin;
-  scrollbar-color: rgba(6, 95, 70, 0.15) transparent;
+  scrollbar-color: rgba(26, 58, 42, 0.15) transparent;
 }
 
 .emoji-category {
@@ -2529,7 +2530,7 @@
 }
 
 .emoji-btn:hover {
-  background: #ecfdf5;
+  background: #f9fafb;
 }
 
 @media (max-width: 768px) {
@@ -2562,7 +2563,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 50%;
 }
 
@@ -2690,7 +2691,7 @@
   
   /* WhatsApp inbox tablet */
   .whatsapp-inbox {
-    height: calc(100vh - 80px);
+    height: calc(100vh - 20px);
   }
   
   .contacts-sidebar {
@@ -3103,8 +3104,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #059669;
-  background: #ecfdf5;
+  color: #1a3a2a;
+  background: #f9fafb;
   border-radius: 10px;
 }
 
@@ -3145,7 +3146,7 @@
 }
 
 .back-link:hover {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 
@@ -3273,23 +3274,23 @@ pre code {
 }
 
 .api-method.post {
-  background: #ECFDF5;
-  color: #065f46;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .api-method.get {
-  background: #ECFDF5;
-  color: #065f46;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .api-method.put {
-  background: #ECFDF5;
-  color: #065f46;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .api-method.delete {
-  background: #ECFDF5;
-  color: #065f46;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .api-url {
@@ -3449,7 +3450,7 @@ pre code {
   text-decoration: none;
   color: #111827;
   transition: all 0.2s ease;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid #d1f470;
   min-height: 140px;
   position: relative;
   overflow: hidden;
@@ -3474,14 +3475,14 @@ pre code {
 }
 
 .hub-card:hover {
-  background: #ecfdf5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 12px 24px rgba(26, 58, 42, 0.15);
 }
 
 .hub-card:hover::before {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 .hub-card:active {
@@ -3496,7 +3497,7 @@ pre code {
 
 .hub-card:hover .hub-icon {
   transform: scale(1.1);
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .hub-card .hub-label {
@@ -3511,7 +3512,7 @@ pre code {
   margin-top: 6px;
 }
 
-/* Hub card variants - emerald accent on hover */
+/* Hub card variants - lime + dark green accent on hover */
 .hub-card.hub-card-whatsapp:hover::before,
 .hub-card.hub-card-sms:hover::before,
 .hub-card.hub-card-email:hover::before,
@@ -3574,7 +3575,7 @@ pre code {
 
 /* ========================================
    DASHBOARD TABS - Consistent Button Style
-   Emerald theme with smooth transitions
+   Lime + Dark Green theme with smooth transitions
    ======================================== */
 
 .dash {
@@ -3643,13 +3644,13 @@ pre code {
 }
 
 .refresh-btn:hover {
-  background: #ecfdf5;
-  border-color: #059669;
-  color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
+  color: #1a3a2a;
 }
 
 .refresh-btn:active {
-  background: #d1fae5;
+  background: #e5e7eb;
   transform: scale(0.98);
 }
 
@@ -3704,20 +3705,20 @@ pre code {
 }
 
 .dash-tabs .tab:active {
-  background: #d1fae5;
+  background: #e5e7eb;
   transform: scale(0.98);
 }
 
 .dash-tabs .tab.active {
   background: #ffffff;
-  color: #065f46;
-  border-color: #059669;
+  color: #1a3a2a;
+  border-color: #1a3a2a;
   font-weight: var(--font-semibold);
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 1px 3px rgba(26, 58, 42, 0.15);
 }
 
 .dash-tabs .tab.active:hover {
-  background: #ecfdf5;
+  background: #f9fafb;
 }
 
 .dash-tabs .tab svg {
@@ -3771,7 +3772,7 @@ pre code {
 
 .action-card .icon {
   margin-bottom: 8px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .action-card span:last-child {
@@ -4309,7 +4310,7 @@ pre code {
 
 
 /* ========================================
-   SEARCH BAR - Unified Style with Emerald Focus
+   SEARCH BAR - Unified Style with Lime + Dark Green Focus
    ======================================== */
 
 .search-bar {
@@ -4332,14 +4333,14 @@ pre code {
 
 .search-bar .search-input:hover,
 .search-input:hover {
-  border-color: #059669;
+  border-color: #1a3a2a;
 }
 
 .search-bar .search-input:focus,
 .search-input:focus {
   outline: none;
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
 /* ========================================
@@ -4440,12 +4441,12 @@ pre code {
 }
 
 .action-buttons .btn-icon-danger {
-  color: #059669;
-  border-color: #059669;
+  color: #1a3a2a;
+  border-color: #1a3a2a;
 }
 
 .action-buttons .btn-icon-danger:hover {
-  background: #ECFDF5;
+  background: #f9fafb;
 }
 
 /* ========================================

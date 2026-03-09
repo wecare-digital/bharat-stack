@@ -28,7 +28,7 @@ interface PageProps {
 const QUALITY_COLORS: Record<string, string> = {
   GREEN: '#000',
   YELLOW: '#4a4a4a',
-  RED: '#059669',
+  RED: '#1a3a2a',
   UNKNOWN: '#6b6b6b',
 };
 
@@ -142,8 +142,8 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
           <div className="loading-state">Loading WABA data...</div>
         ) : loadError && wabas.length === 0 ? (
           <div className="loading-state">
-            <p style={{ color: '#059669', marginBottom: 8 }}>{loadError}</p>
-            <button onClick={loadData} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Retry</button>
+            <p style={{ color: '#1a3a2a', marginBottom: 8 }}>{loadError}</p>
+            <button onClick={loadData} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Retry</button>
           </div>
         ) : (
           <div className="dashboard-content">
@@ -513,7 +513,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
         }
 
         .info-item .value.disabled {
-          color: #059669;
+          color: #1a3a2a;
         }
 
         .phone-numbers-section h3 {

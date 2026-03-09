@@ -152,10 +152,10 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
   if (loadError && !config) {
     const errorContent = (
       <div style={{ textAlign: 'center', padding: 48, background: '#fff' }}>
-        <div style={{ marginBottom: 12 }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div style={{ marginBottom: 12 }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <p style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>AI Config Unavailable</p>
         <p style={{ fontSize: 13, color: '#6b7280', marginTop: 8 }}>{loadError}</p>
-        <button onClick={loadData} style={{ marginTop: 16, padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Retry</button>
+        <button onClick={loadData} style={{ marginTop: 16, padding: '8px 20px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Retry</button>
       </div>
     );
 
@@ -207,7 +207,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
               <div className="stat-label">Approval Rate</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: config?.enabled ? '#059669' : '#6b7280' }}>
+              <div className="stat-value" style={{ color: config?.enabled ? '#1a3a2a' : '#6b7280' }}>
                 {config?.enabled ? 'ON' : 'OFF'}
               </div>
               <div className="stat-label">AI Status</div>
@@ -511,12 +511,12 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
 
             {/* FAQ Results (instant, local) */}
             {faqResults.length > 0 && (
-              <div style={{ marginTop: '1rem', padding: '1rem', background: '#ecfdf5', borderRadius: '13px', border: '1px solid #a7f3d0' }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#065f46', fontSize: '0.9rem' }}>
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#f9fafb', borderRadius: '13px', border: '1px solid #e5e7eb' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#0f2a1d', fontSize: '0.9rem' }}>
                   Static FAQ Matches (Free, Instant)
                 </div>
                 {faqResults.map((r) => (
-                  <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #d1fae5' }}>
+                  <div key={r.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #f3f4f6' }}>
                     <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{r.question}</div>
                     <div style={{ fontSize: '0.85rem', color: '#444', marginTop: '0.25rem', whiteSpace: 'pre-line' }}>{r.answer}</div>
                     <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.25rem' }}>
@@ -528,7 +528,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             )}
 
             {faqResults.length === 0 && testMessage.trim() && !saving && (
-              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0', fontSize: '0.85rem', color: '#065f46' }}>
+              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', color: '#0f2a1d' }}>
                 No FAQ matches found for this query. The AI will generate a response using Bedrock.
               </div>
             )}
@@ -565,7 +565,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
                 const allFaqs = getAllFAQs();
                 return Object.entries(allFaqs).map(([category, faqs]) => (
                   <div key={category}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#059669', borderBottom: '2px solid #059669', paddingBottom: '0.25rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#1a3a2a', borderBottom: '2px solid #1a3a2a', paddingBottom: '0.25rem' }}>
                       {getCategoryName(category)} ({faqs.length})
                     </div>
                     {faqs.map((faq) => (
@@ -591,7 +591,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             bottom: '1rem',
             right: '1rem',
             padding: '0.75rem 1.5rem',
-            background: toast.type === 'success' ? '#059669' : '#6b7280',
+            background: toast.type === 'success' ? '#1a3a2a' : '#6b7280',
             color: 'white',
             borderRadius: '13px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -629,7 +629,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
           width: 40px;
           height: 40px;
           border: 3px solid #e5e7eb;
-          border-top-color: #059669;
+          border-top-color: #1a3a2a;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 1rem;

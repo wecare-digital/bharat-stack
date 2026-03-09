@@ -1,0 +1,49 @@
+{
+  "name": "Stack CRM by WECARE.DIGITAL",
+  "short_name": "Stack CRM",
+  "description": "Enterprise WhatsApp Business API Platform - Multi-Channel Messaging CRM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a3a2a",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "icons": []
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "url": "/dm",
+      "icons": []
+    },
+    {
+      "name": "Contacts",
+      "short_name": "Contacts",
+      "url": "/contacts",
+      "icons": []
+    }
+  ]
+}

@@ -28,13 +28,13 @@ const Header: React.FC = () => (
       .logo-img{width:64px;height:64px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain}
       .nav-dropdown{position:relative}
       .nav-trigger{background:none;border:none;cursor:pointer;padding:4px;margin:0;font-family:inherit;transition:all .25s;display:flex;align-items:center;line-height:1}
-      .nav-trigger:hover .nav-arrow{color:#059669}
-      .nav-arrow{font-size:14px;transition:all .2s;color:#6b7280}
-      .nav-dropdown:hover .nav-arrow{transform:rotate(180deg);color:#059669}
-      .nav-menu{position:absolute;top:100%;left:0;background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:8px 0;min-width:180px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+      .nav-trigger:hover .nav-arrow{color:#1a3a2a}
+      .nav-arrow{font-size:14px;transition:all .2s;color:#1a1a1a}
+      .nav-dropdown:hover .nav-arrow{transform:rotate(180deg);color:#1a3a2a}
+      .nav-menu{position:absolute;top:100%;left:0;background:#fff;border:2px solid #d1f470;border-radius:12px;padding:8px 0;min-width:180px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
       .nav-dropdown:hover .nav-menu{opacity:1;visibility:visible;transform:translateY(0)}
-      .nav-item{display:block;padding:10px 20px;font-size:21px;font-weight:500;color:#6b7280;text-decoration:none;transition:all .25s}
-      .nav-item:hover{color:#059669;background:#ecfdf5}
+      .nav-item{display:block;padding:10px 20px;font-size:21px;font-weight:500;color:#1a3a2a;text-decoration:none;transition:all .25s}
+      .nav-item:hover{color:#1a3a2a;background:rgba(209,244,112,0.2)}
     `}</style>
   </header>
 );

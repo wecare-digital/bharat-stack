@@ -25,7 +25,7 @@
   
   /* Backgrounds */
   --bg: #ffffff;
-  --bg-secondary: #ECFDF5;
+  --bg-secondary: #f9fafb;
   --bg-hover: #f5f5f5;
   --bg-active: #ebebeb;
   --surface: #ffffff;
@@ -42,26 +42,30 @@
   --border-dark: #d1d5db;
   --border-light: #f0f0f0;
   
-  /* Accent - Clean Emerald theme (black text) */
-  --accent: #059669;
-  --accent-light: #ecfdf5;
-  --accent-hover: #047857;
+  /* Accent - Dark forest green + lime */
+  --accent: #1a3a2a;
+  --accent-light: #f9fafb;
+  --accent-hover: #0f2a1d;
   
-  /* Semantic Colors - Distinct for each state */
-  --success: #059669;
-  --success-light: #ecfdf5;
-  --success-bg: #ecfdf5;
+  /* Lime accent */
+  --lime: #d1f470;
+  --lime-hover: #c5e866;
   
-  --danger: #059669;
-  --danger-light: #ecfdf5;
-  --danger-bg: #ecfdf5;
+  /* Semantic Colors */
+  --success: #1a3a2a;
+  --success-light: #f9fafb;
+  --success-bg: #f9fafb;
   
-  --warning: #059669;
-  --warning-light: #ecfdf5;
-  --warning-bg: #ecfdf5;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --danger-bg: #fef2f2;
   
-  --info: #059669;
-  --info-light: #ecfdf5;
+  --warning: #1a3a2a;
+  --warning-light: #f9fafb;
+  --warning-bg: #f9fafb;
+  
+  --info: #1a3a2a;
+  --info-light: #f9fafb;
   
   /* ========================================
    * TYPOGRAPHY - Home Page Style
@@ -69,7 +73,7 @@
    * ======================================== */
   
   /* Font Families */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', Monaco, Consolas, monospace;
   
   /* Font Sizes */
@@ -165,27 +169,27 @@
   --notion-text-light: var(--text-muted);
   --notion-border: var(--border);
   --notion-border-dark: var(--border-dark);
-  --notion-accent: #059669;
-  --notion-accent-light: #ecfdf5;
-  --notion-green: #059669;
-  --notion-green-light: #ecfdf5;
-  --notion-red: #059669;
-  --notion-red-light: #ecfdf5;
-  --notion-orange: #059669;
-  --notion-orange-light: #ecfdf5;
-  --notion-purple: #059669;
-  --notion-purple-light: #ecfdf5;
+  --notion-accent: #1a3a2a;
+  --notion-accent-light: #f9fafb;
+  --notion-green: #1a3a2a;
+  --notion-green-light: #f9fafb;
+  --notion-red: #dc2626;
+  --notion-red-light: #fef2f2;
+  --notion-orange: #1a3a2a;
+  --notion-orange-light: #f9fafb;
+  --notion-purple: #1a3a2a;
+  --notion-purple-light: #f9fafb;
   
   /* Pages.css compatibility */
-  --color-primary: #059669;
-  --color-secondary: #047857;
+  --color-primary: #1a3a2a;
+  --color-secondary: #0f2a1d;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-bg: #fff;
-  --color-bg-secondary: #ECFDF5;
-  --color-success: #059669;
-  --color-warning: #059669;
-  --color-danger: #059669;
+  --color-bg-secondary: #f9fafb;
+  --color-success: #1a3a2a;
+  --color-warning: #1a3a2a;
+  --color-danger: #dc2626;
 }
 
 /* ========================================
@@ -213,8 +217,8 @@ body {
  * White bg, black border, 13px radius
  * ======================================== */
 
+/* Base shared styles */
 .btn,
-.btn-primary,
 .btn-secondary,
 .btn-outline {
   display: inline-flex;
@@ -232,23 +236,49 @@ body {
   cursor: pointer;
   border-radius: var(--radius-btn);
   transition: all var(--transition-normal);
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--text);
+  background: #fff;
+  color: #1a3a2a;
+  border: 1.5px solid #1a3a2a;
+}
+
+/* PRIMARY: Lime bg, dark text — matches test page */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  min-height: 44px;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: var(--radius-btn);
+  transition: all var(--transition-normal);
+  background: #d1f470;
+  color: #1a3a2a;
+  border: 1.5px solid #1a3a2a;
 }
 
 .btn:hover,
-.btn-primary:hover,
 .btn-secondary:hover,
 .btn-outline:hover {
-  background: var(--bg-hover);
+  background: #f9fafb;
+  border-color: #0f2a1d;
+}
+
+.btn-primary:hover {
+  background: #c5e866;
+  border-color: #0f2a1d;
 }
 
 .btn:active,
 .btn-primary:active,
 .btn-secondary:active,
 .btn-outline:active {
-  background: var(--bg-active);
   transform: scale(0.98);
 }
 
@@ -263,10 +293,14 @@ body {
 
 /* Active/Selected state */
 .btn.active,
-.btn-primary.active,
 .btn-secondary.active,
 .btn-outline.active {
-  background: var(--bg-hover);
+  background: #f9fafb;
+  font-weight: var(--font-semibold);
+}
+
+.btn-primary.active {
+  background: #d1f470;
   font-weight: var(--font-semibold);
 }
 
@@ -281,7 +315,7 @@ textarea {
   font-size: var(--text-md);
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1.5px solid #d1f470;
   border-radius: var(--radius-md);
   padding: 10px 12px;
   min-height: 44px;
@@ -291,15 +325,15 @@ textarea {
 input:hover,
 select:hover,
 textarea:hover {
-  border-color: var(--border-dark);
+  border-color: #1a3a2a;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--text);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 
 /* ========================================
@@ -344,6 +378,76 @@ textarea:focus {
     --h3: 20px;
     --h4: 17px;
     --text-2xl: 18px;
+  }
+}
+
+/* ========================================
+ * MOBILE APP READINESS
+ * For iOS/Android WebView & PWA
+ * ======================================== */
+
+/* Prevent overscroll bounce (native app feel) */
+html {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection on UI elements (app-like) */
+button, a, label, .nav-item, .nav-subitem, .ps-tab, .dm-qa-btn, .dm-ch-btn {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Allow text selection in content areas */
+p, span, td, th, input, textarea, .main-content p, .main-content span {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Prevent double-tap zoom */
+* {
+  touch-action: manipulation;
+}
+
+/* Safe area insets for notch devices */
+@supports (padding: env(safe-area-inset-top)) {
+  .layout {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .main-content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Smooth momentum scrolling everywhere */
+.main-content,
+.sidebar-nav,
+.ps-content,
+.dm-channels {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Prevent pull-to-refresh in WebView */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Input zoom prevention on iOS (16px minimum) */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Larger touch targets for mobile app */
+  button, a, [role="button"] {
+    min-height: 44px;
   }
 }
 

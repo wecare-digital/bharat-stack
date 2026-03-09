@@ -147,7 +147,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {PHONES.map(p => (
             <button key={p.metaId} onClick={() => setSelectedPhone(p)}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.metaId === p.metaId ? '2px solid #059669' : '1px solid #ddd', background: selectedPhone.metaId === p.metaId ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedPhone.metaId === p.metaId ? '2px solid #1a3a2a' : '1px solid #ddd', background: selectedPhone.metaId === p.metaId ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {p.name} ({p.display})
             </button>
           ))}
@@ -203,7 +203,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
         <div style={{ ...cs.card }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Sections & Rows</span>
-            <button onClick={addSection} style={{ padding: '4px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>+ Add Section</button>
+            <button onClick={addSection} style={{ padding: '4px 12px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>+ Add Section</button>
           </div>
           {sections.map((section, si) => (
             <div key={si} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 10 }}>
@@ -211,7 +211,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
                 <input value={section.title} onChange={e => updateSection(si, 'title', e.target.value)} placeholder={`Section ${si + 1} title`}
                   style={{ flex: 1, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontWeight: 500 }} />
                 {sections.length > 1 && (
-                  <button onClick={() => removeSection(si)} style={{ padding: '4px 10px', background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Remove</button>
+                  <button onClick={() => removeSection(si)} style={{ padding: '4px 10px', background: '#f9fafb', color: '#1a3a2a', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Remove</button>
                 )}
               </div>
               {section.rows.map((row, ri) => (
@@ -222,7 +222,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
                   <input value={row.description || ''} onChange={e => updateRow(si, ri, 'description', e.target.value)} placeholder="Description (max 72)" maxLength={72}
                     style={{ flex: 2, padding: '5px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
                   {section.rows.length > 1 && (
-                    <button onClick={() => removeRow(si, ri)} style={{ padding: '2px 8px', background: 'none', color: '#059669', border: 'none', cursor: 'pointer', fontSize: 14 }}>×</button>
+                    <button onClick={() => removeRow(si, ri)} style={{ padding: '2px 8px', background: 'none', color: '#1a3a2a', border: 'none', cursor: 'pointer', fontSize: 14 }}>×</button>
                   )}
                 </div>
               ))}
@@ -234,7 +234,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
         {/* Actions */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
           <button onClick={handleSend} disabled={sending}
-            style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+            style={{ padding: '10px 24px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
             {sending ? 'Sending...' : 'Send List Message'}
           </button>
           <button onClick={() => setJsonPreview(!jsonPreview)}
@@ -259,9 +259,9 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
         {/* Last Result */}
         {lastResult && (
-          <div style={{ ...cs.card, background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#065f46' }}>Last Send Result</span>
-            <pre style={{ margin: '8px 0 0', fontSize: 12, color: '#047857' }}>{JSON.stringify(lastResult, null, 2)}</pre>
+          <div style={{ ...cs.card, background: '#f9fafb', border: '1px solid #e5e7eb' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#0f2a1d' }}>Last Send Result</span>
+            <pre style={{ margin: '8px 0 0', fontSize: 12, color: '#0f2a1d' }}>{JSON.stringify(lastResult, null, 2)}</pre>
           </div>
         )}
 
@@ -271,7 +271,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
           <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
             <div>Endpoint: <code style={{ fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>POST /{'<PHONE_NUMBER_ID>'}/messages</code></div>
             <div>Type: <code style={{ fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>interactive → list</code></div>
-            <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-list-messages" target="_blank" rel="noopener noreferrer" style={{ color: '#059669' }}>Meta Interactive List Messages ↗</a></div>
+            <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-list-messages" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a' }}>Meta Interactive List Messages ↗</a></div>
           </div>
         </div>
       </div>

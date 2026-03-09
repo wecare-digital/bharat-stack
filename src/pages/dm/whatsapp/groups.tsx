@@ -101,20 +101,20 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
       <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>WhatsApp Groups</h2>
-          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
             + Create Group
           </button>
         </div>
 
         {/* Note about Groups API */}
-        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 13 }}>
+        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 13 }}>
           <strong>Note:</strong> WhatsApp Business Groups API is in limited availability. Groups allow businesses to communicate with up to 512 participants. Messages sent to groups are free of charge.
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {WABAS.map(w => (
             <button key={w.id} onClick={() => { setSelectedWaba(w); setSelectedGroup(null); }}
-              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #059669' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 13 }}>
+              style={{ padding: '8px 16px', borderRadius: 6, border: selectedWaba.id === w.id ? '2px solid #1a3a2a' : '1px solid #ddd', background: selectedWaba.id === w.id ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13 }}>
               {w.name} ({w.display})
             </button>
           ))}
@@ -133,7 +133,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                 style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }} />
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
                 {creating ? 'Creating...' : 'Create'}
               </button>
               <button onClick={() => setShowCreate(false)} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
@@ -158,7 +158,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => viewDetails(group)} style={{ padding: '4px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>Details</button>
-                    <button onClick={() => handleDelete(group.id)} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#059669', color: '#fff', cursor: 'pointer' }}>Delete</button>
+                    <button onClick={() => handleDelete(group.id)} style={{ padding: '4px 10px', fontSize: 12, border: 'none', borderRadius: 4, background: '#d1f470', color: '#1a3a2a', cursor: 'pointer' }}>Delete</button>
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>ID: {group.id}</div>
@@ -191,14 +191,14 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                   {(groupDetail.participants.data || groupDetail.participants || []).map((p: any, i: number) => (
                     <span key={i} style={{ padding: '4px 10px', background: '#e5e7eb', borderRadius: 16, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                       {p.wa_id || p.phone || p}
-                      <button onClick={() => handleRemoveParticipant(p.wa_id || p.phone || p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#059669', fontSize: 14, padding: 0 }}>×</button>
+                      <button onClick={() => handleRemoveParticipant(p.wa_id || p.phone || p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a3a2a', fontSize: 14, padding: 0 }}>×</button>
                     </span>
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input value={addPhone} onChange={e => setAddPhone(e.target.value)} placeholder="Phone number(s) to add"
                     style={{ flex: 1, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
-                  <button onClick={handleAddParticipant} style={{ padding: '6px 14px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Add</button>
+                  <button onClick={handleAddParticipant} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Add</button>
                 </div>
               </div>
             )}
@@ -210,7 +210,7 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                 <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Type a message..."
                   style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }}
                   onKeyDown={e => e.key === 'Enter' && handleSendMessage()} />
-                <button onClick={handleSendMessage} disabled={sending} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+                <button onClick={handleSendMessage} disabled={sending} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
                   {sending ? '...' : 'Send'}
                 </button>
               </div>

@@ -8,8 +8,8 @@ const Footer: React.FC = () => (
     <style jsx>{`
       .ftr{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));background:#fff}
       .ftr-in{max-width:1300px;margin:0 auto;display:flex;justify-content:flex-start}
-      .ftr a{font-size:21px;color:#6b7280;text-decoration:none;font-weight:500;transition:all .25s}
-      .ftr a:hover{color:#059669}
+      .ftr a{font-size:21px;color:#1a1a1a;text-decoration:none;font-weight:500;transition:all .25s}
+      .ftr a:hover{color:#1a3a2a}
       @media(max-width:767px){
         .ftr{padding:28px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
         .ftr a{font-size:24px}

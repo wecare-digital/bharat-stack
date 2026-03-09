@@ -19,7 +19,7 @@ interface Contact { id: string; name: string; phone: string; unread: number; las
 interface RcsMessage { id: string; direction: 'inbound' | 'outbound'; content: string; timestamp: string; status: string; contactId: string; }
 
 const CONTACTS_PER_PAGE = 20;
-const AVATAR_COLORS = ['#059669','#047857','#065f46','#059669','#34d399','#059669','#047857','#065f46','#059669','#34d399'];
+const AVATAR_COLORS = ['#1a3a2a','#0f2a1d','#0f2a1d','#1a3a2a','#34d399','#1a3a2a','#0f2a1d','#0f2a1d','#1a3a2a','#34d399'];
 
 const getAvatarColor = (name: string): string => {
   let hash = 0;
@@ -35,10 +35,10 @@ const formatTime = (timestamp: string) => {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-// Trash icon — emerald themed
+// Trash icon — lime + dark green themed
 const TrashIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
-    <path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
+    <path fill="none" stroke="#1a3a2a" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
   </svg>
 );
 
@@ -166,7 +166,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           <div className="contacts-list">
             {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} style={{ padding: '12px 16px' }}><SkeletonContact /></div>) : paginatedContacts.map(contact => (
               <div key={contact.id} className={`contact-item ${selectedContact?.id === contact.id ? 'selected' : ''}`} onClick={() => { setSelectedContact(contact); setMobileShowChat(true); }}>
-                <input type="checkbox" checked={selectedIds.has(contact.id)} onChange={() => toggleSelect(contact.id)} onClick={e => e.stopPropagation()} style={{ accentColor: '#059669', width: 16, height: 16, flexShrink: 0 }} />
+                <input type="checkbox" checked={selectedIds.has(contact.id)} onChange={() => toggleSelect(contact.id)} onClick={e => e.stopPropagation()} style={{ accentColor: '#1a3a2a', width: 16, height: 16, flexShrink: 0 }} />
                 <div className="contact-avatar" style={{ background: getAvatarColor(contact.name), color: '#fff' }}>{contact.name.charAt(0).toUpperCase()}</div>
                 <div className="contact-info">
                   <div className="contact-name">{contact.name}</div>
@@ -188,7 +188,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="chat-header">
                 <div className="chat-contact-info">
                   <button className="mobile-back-btn" onClick={() => setMobileShowChat(false)} aria-label="Back to contacts">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
                   </button>
                   <div className="contact-avatar" style={{ width: 40, height: 40, fontSize: 16, background: getAvatarColor(selectedContact.name), color: '#fff' }}>{selectedContact.name.charAt(0).toUpperCase()}</div>
                   <div>
@@ -220,7 +220,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 {filteredMessages.length === 0 && (
                   <div className="empty-chat">
                     <div className="empty-chat-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     </div>
                     <h3>No RCS messages</h3>
                     <p>Messages with this contact will appear here</p>
@@ -232,7 +232,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           ) : (
             <div className="empty-chat">
               <div className="empty-chat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </div>
               <h3>RCS Inbox</h3>
               <p>Select a contact to view messages</p>

@@ -60,11 +60,11 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { bg: string; color: string }> = {
-      sent: { bg: '#ECFDF5', color: '#065f46' },
-      delivered: { bg: '#D1FAE5', color: '#065f46' },
-      opened: { bg: '#D1FAE5', color: '#065f46' },
-      failed: { bg: '#ECFDF5', color: '#059669' },
-      bounced: { bg: '#ECFDF5', color: '#059669' },
+      sent: { bg: '#f9fafb', color: '#0f2a1d' },
+      delivered: { bg: '#f3f4f6', color: '#0f2a1d' },
+      opened: { bg: '#f3f4f6', color: '#0f2a1d' },
+      failed: { bg: '#f9fafb', color: '#1a3a2a' },
+      bounced: { bg: '#f9fafb', color: '#1a3a2a' },
       pending: { bg: '#f5f5f5', color: '#6b7280' },
     };
     const s = styles[status] || styles.pending;
@@ -101,10 +101,10 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const getPaginationBtnStyle = (disabled: boolean) => ({
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     width: '28px', height: '28px',
-    background: disabled ? '#f9fafb' : '#ECFDF5',
-    border: `1px solid ${disabled ? '#e5e7eb' : '#A7F3D0'}`,
+    background: disabled ? '#f9fafb' : '#f9fafb',
+    border: `1px solid ${disabled ? '#e5e7eb' : '#e5e7eb'}`,
     borderRadius: '6px', fontSize: '12px',
-    color: disabled ? '#9ca3af' : '#059669',
+    color: disabled ? '#9ca3af' : '#1a3a2a',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.4 : 1
   });
@@ -127,16 +127,16 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '40px', height: '40px',
-              background: selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5',
-              border: `1.5px solid ${selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'}`,
+              background: selectedIds.size === 0 ? '#f9fafb' : '#f9fafb',
+              border: `1.5px solid ${selectedIds.size === 0 ? '#e5e7eb' : '#e5e7eb'}`,
               borderRadius: '10px',
               cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer',
               opacity: selectedIds.size === 0 ? 0.5 : 1,
               transition: 'all 0.15s ease',
-              color: selectedIds.size === 0 ? '#9ca3af' : '#059669'
+              color: selectedIds.size === 0 ? '#9ca3af' : '#1a3a2a'
             }}
-            onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#ECFDF5'; e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.color = '#059669'; }}}
-            onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#ECFDF5'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#A7F3D0'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#059669'; }}
+            onMouseEnter={e => { if (selectedIds.size > 0) { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#1a3a2a'; e.currentTarget.style.color = '#1a3a2a'; }}}
+            onMouseLeave={e => { e.currentTarget.style.background = selectedIds.size === 0 ? '#f9fafb' : '#f9fafb'; e.currentTarget.style.borderColor = selectedIds.size === 0 ? '#e5e7eb' : '#e5e7eb'; e.currentTarget.style.color = selectedIds.size === 0 ? '#9ca3af' : '#1a3a2a'; }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
@@ -169,9 +169,9 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               onClick={() => setFilter(f)}
               style={{
                 padding: '8px 16px',
-                border: '1.5px solid #059669',
+                border: '1.5px solid #1a3a2a',
                 borderRadius: '13px',
-                background: filter === f ? '#D1FAE5' : '#fff',
+                background: filter === f ? '#f3f4f6' : '#fff',
                 color: '#111827',
                 fontWeight: filter === f ? 600 : 500,
                 cursor: 'pointer',
@@ -187,7 +187,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '16px' }}>
           <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>««</button>
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>‹</button>
-          <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
+          <span style={{ fontSize: '12px', color: '#0f2a1d', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
           <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>›</button>
           <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
         </div>
@@ -211,7 +211,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                         setSelectedIds(newSet);
                       }
                     }}
-                    style={{ accentColor: '#059669' }}
+                    style={{ accentColor: '#1a3a2a' }}
                   />
                 </th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>To</th>
@@ -228,7 +228,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                       type="checkbox"
                       checked={selectedIds.has(m.messageId)}
                       onChange={() => toggleSelect(m.messageId)}
-                      style={{ accentColor: '#059669' }}
+                      style={{ accentColor: '#1a3a2a' }}
                     />
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '14px' }}>{m.contactId}</td>
@@ -248,7 +248,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>
           <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>««</button>
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={getPaginationBtnStyle(currentPage === 1)}>‹</button>
-          <span style={{ fontSize: '12px', color: '#065f46', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
+          <span style={{ fontSize: '12px', color: '#0f2a1d', padding: '0 8px', fontWeight: 500 }}>Page {currentPage} of {totalPages || 1}</span>
           <button onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>›</button>
           <button onClick={() => setCurrentPage(totalPages || 1)} disabled={currentPage >= (totalPages || 1)} style={getPaginationBtnStyle(currentPage >= (totalPages || 1))}>»»</button>
         </div>

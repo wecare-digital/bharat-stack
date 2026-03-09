@@ -136,7 +136,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
             <li>{contactMessages.length} messages</li>
             <li>{contactMessages.filter(m => m.s3Key).length} media files from S3</li>
           </ul>
-          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500 }}>This action cannot be undone!</p>
         </div>
       ),
       confirmInput: 'DELETE',
@@ -164,7 +164,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
       title: 'Clear All Data',
       message: (
         <div>
-          <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete ALL data</p>
           <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
             <li>All WhatsApp messages (inbound &amp; outbound)</li>
             <li>All SMS messages</li>
@@ -172,7 +172,7 @@ const DataTab: React.FC<DataTabProps> = ({ data, onRefresh }) => {
             <li>All {contacts.length} contacts</li>
             <li>All {messages.filter(m => m.s3Key).length} media files from S3</li>
           </ul>
-          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500 }}>This action cannot be undone!</p>
         </div>
       ),
       confirmInput: 'DELETE ALL',

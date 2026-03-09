@@ -7,7 +7,7 @@
 :root {
   /* Clean neutrals */
   --notion-bg: #ffffff;
-  --notion-bg-secondary: #ECFDF5;
+  --notion-bg-secondary: #f9fafb;
   --notion-bg-hover: #efefef;
   --notion-text: #000000;
   --notion-text-secondary: #4a4a4a;
@@ -24,10 +24,10 @@
   
   /* Accent colors - minimal */
   --accent-blue: #000000;
-  --accent-red: #059669;
-  --accent-orange: #059669;
-  --accent-yellow: #059669;
-  --accent-purple: #059669;
+  --accent-red: #1a3a2a;
+  --accent-orange: #1a3a2a;
+  --accent-yellow: #1a3a2a;
+  --accent-purple: #1a3a2a;
   
   /* Spacing */
   --space-xs: 4px;
@@ -113,13 +113,13 @@
   max-width: 44px;
   min-height: 44px;
   max-height: 44px;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   background: #ffffff;
   border-radius: 12px;
   font-size: 18px;
   cursor: pointer;
   transition: all 0.15s ease;
-  color: #059669;
+  color: #1a3a2a;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -127,9 +127,9 @@
 }
 
 .refresh-btn:hover {
-  background: #ECFDF5;
-  border-color: #059669;
-  color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
+  color: #1a3a2a;
 }
 
 .refresh-btn:disabled {
@@ -140,7 +140,7 @@
 .refresh-btn svg {
   width: 20px;
   height: 20px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* Tabs - Chip/Pill Style */
@@ -334,7 +334,7 @@
 .action-card .icon {
   font-size: 24px;
   margin-bottom: 4px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .action-card span:last-child {
@@ -609,8 +609,8 @@
 
 .data-table .badge.failed,
 .data-table .badge.error {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 /* Data Tab */
@@ -646,24 +646,24 @@
 }
 
 .delete-options button:hover {
-  background: #ecfdf5;
-  border-color: #059669;
-  color: #065f46;
+  background: #f9fafb;
+  border-color: #1a3a2a;
+  color: #1a3a2a;
 }
 
 .delete-options button.active {
-  background: #059669;
+  background: #1a3a2a;
   color: #ffffff;
-  border-color: #059669;
+  border-color: #1a3a2a;
 }
 
 .delete-options button.danger {
-  color: #065f46;
-  border-color: #059669;
+  color: #1a3a2a;
+  border-color: #1a3a2a;
 }
 
 .delete-options button.danger.active {
-  background: #059669;
+  background: #1a3a2a;
   color: white;
 }
 
@@ -676,18 +676,18 @@
 }
 
 .delete-panel.danger {
-  border-color: #059669;
+  border-color: #1a3a2a;
   border-width: 2px;
 }
 
 .delete-panel .warning {
   padding: 10px 12px;
-  background: #ecfdf5;
+  background: #f9fafb;
   border-radius: var(--radius-sm);
-  color: #065f46;
+  color: #1a3a2a;
   font-size: 12px;
   margin-bottom: var(--space-md);
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #d1f470;
 }
 
 .delete-panel .form-row {
@@ -804,23 +804,23 @@
 }
 
 .cleanup-item-count.has-data {
-  color: #059669;
+  color: #1a3a2a;
   font-weight: 600;
 }
 
 .cleanup-results {
   margin-top: var(--space-md);
   padding: 10px 12px;
-  background: #ecfdf5;
+  background: #f9fafb;
   border-radius: var(--radius-sm);
   font-size: 12px;
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #d1f470;
 }
 
 .cleanup-results-title {
   font-weight: 600;
   margin-bottom: 6px;
-  color: #065f46;
+  color: #1a3a2a;
 }
 
 .cleanup-result-row {
@@ -831,32 +831,32 @@
 }
 
 .cleanup-result-success {
-  color: #059669;
+  color: #1a3a2a;
   font-weight: 500;
 }
 
 .cleanup-result-error {
-  color: #059669;
+  color: #1a3a2a;
   font-weight: 500;
 }
 
 .cleanup-confirm {
   margin-top: var(--space-md);
   padding: 12px;
-  background: #ecfdf5;
+  background: #f9fafb;
   border-radius: var(--radius-sm);
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #d1f470;
 }
 
 .cleanup-confirm-text {
   font-size: 13px;
-  color: #065f46;
+  color: #1a3a2a;
   margin-bottom: 8px;
 }
 
 .cleanup-confirm-list {
   font-size: 11px;
-  color: #065f46;
+  color: #1a3a2a;
   margin: 0 0 8px 16px;
 }
 
@@ -866,11 +866,11 @@
 
 .delete-panel .cleanup-confirm input[type="text"] {
   margin-bottom: 8px;
-  border-color: #a7f3d0;
+  border-color: #d1f470;
 }
 
 .delete-panel .cleanup-confirm input[type="text"]:focus {
-  border-color: #059669;
+  border-color: #1a3a2a;
 }
 
 /* Message Selection */
@@ -982,7 +982,7 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #047857;
+  background: #0f2a1d;
 }
 
 .btn-danger:disabled {
@@ -991,7 +991,7 @@
 }
 
 .btn-danger.hard {
-  background: #047857;
+  background: #0f2a1d;
 }
 
 /* Billing Tab */
@@ -1113,14 +1113,14 @@
 
 .billing-table .status-badge.warning,
 .billing-table .badge.warning {
-  background: #ECFDF5;
-  color: #065f46;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .billing-table .status-badge.paid,
 .billing-table .badge.paid {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 /* Expand button for billing rows */
@@ -1175,8 +1175,8 @@
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: #059669;
-  color: white;
+  background: #d1f470;
+  color: #1a3a2a;
   border: none;
   border-radius: var(--radius-sm);
   font-size: 13px;
@@ -1187,7 +1187,7 @@
 }
 
 .btn-primary:hover {
-  background: #059669;
+  background: #c5e866;
 }
 
 .btn-primary:disabled {
@@ -1440,7 +1440,7 @@
 }
 
 .result-item .icon {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .result-item .name {
@@ -1468,7 +1468,7 @@
 .empty-state .icon {
   font-size: 32px;
   margin-bottom: var(--space-sm);
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .empty-state p {
@@ -2087,7 +2087,7 @@
 }
 
 .result-item .icon {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .result-item .name {
@@ -2193,7 +2193,7 @@
 
 
 /* ========================================
-   ISSUE CARDS - Emerald Theme
+   ISSUE CARDS - Lime + Dark Green Theme
    ======================================== */
 .issue-card {
   padding: 1rem;
@@ -2202,13 +2202,13 @@
 }
 
 .issue-card.error {
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  background: #f9fafb;
+  border: 1.5px solid #d1f470;
 }
 
 .issue-card.warning {
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  background: #f9fafb;
+  border: 1.5px solid #d1f470;
 }
 
 .issue-card-header {
@@ -2230,11 +2230,11 @@
 }
 
 .issue-badge.error {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 .issue-badge.warning {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 .issue-card p {
@@ -2252,7 +2252,7 @@
   display: inline-block;
   margin-top: 12px;
   padding: 10px 18px;
-  background: #059669;
+  background: #1a3a2a;
   color: white;
   border-radius: 13px;
   font-size: 14px;
@@ -2264,8 +2264,8 @@
 }
 
 .resolve-btn:hover {
-  background: #059669;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  background: #1a3a2a;
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.25);
 }
 
 /* Category Grid */
@@ -2279,7 +2279,7 @@
 .category-card {
   padding: 1rem;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #d1f470;
   background: #fff;
   text-align: center;
 }
@@ -2289,7 +2289,7 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 0.5rem;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .category-card .category-name {
@@ -2312,38 +2312,38 @@
 }
 
 .count-badge.error {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .count-badge.warning {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .count-badge.ok {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 /* Health Status Card */
 .health-status-card {
-  background: #ecfdf5;
+  background: #f9fafb;
   border-radius: 8px;
   text-align: center;
   padding: 3rem;
   margin-top: 1rem;
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #d1f470;
 }
 
 .health-status-card.healthy {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
+  background: #f9fafb;
+  border-color: #d1f470;
 }
 
 .health-status-card.info {
-  background: #ECFDF5;
-  border-color: #A7F3D0;
+  background: #f9fafb;
+  border-color: #d1f470;
 }
 
 .health-status-card .status-icon {
@@ -2351,20 +2351,20 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .health-status-card.info .status-icon {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .health-status-card h3 {
-  color: #059669;
+  color: #1a3a2a;
   margin: 0 0 0.5rem;
 }
 
 .health-status-card.info h3 {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .health-status-card p {
@@ -2376,10 +2376,10 @@
 .info-banner-blue {
   margin-top: 1rem;
   padding: 1rem;
-  background: #ecfdf5;
+  background: #f9fafb;
   border-radius: 8px;
-  border: 1px solid #a7f3d0;
-  border-left: 4px solid #059669;
+  border: 1.5px solid #d1f470;
+  border-left: 4px solid #d1f470;
 }
 
 .info-banner-blue p {
@@ -2390,7 +2390,7 @@
 
 .info-banner-blue a {
   margin-left: 8px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* Loading State */
@@ -2404,7 +2404,7 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .loading-state p {
@@ -2413,39 +2413,39 @@
 
 /* Stat Card Variants */
 .stat-card.error {
-  background: #ECFDF5;
-  border-left: 4px solid #059669;
+  background: #f9fafb;
+  border-left: 4px solid #1a3a2a;
 }
 
 .stat-card.error .stat-value {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .stat-card.warning {
-  background: #ECFDF5;
-  border-left: 4px solid #059669;
+  background: #f9fafb;
+  border-left: 4px solid #1a3a2a;
 }
 
 .stat-card.warning .stat-value {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .stat-card.success {
-  background: #ecfdf5;
-  border-left: 4px solid #059669;
+  background: #f9fafb;
+  border-left: 4px solid #1a3a2a;
 }
 
 .stat-card.success .stat-value {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .stat-card.accent {
-  background: #ECFDF5;
-  border-left: 4px solid #059669;
+  background: #f9fafb;
+  border-left: 4px solid #1a3a2a;
 }
 
 .stat-card.accent .stat-value {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .stat-card .status-icon {

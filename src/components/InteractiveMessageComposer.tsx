@@ -572,14 +572,14 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           width: 32px;
           height: 32px;
           border: none;
-          background: #ECFDF5;
-          color: #059669;
+          background: #f9fafb;
+          color: #1a3a2a;
           border-radius: 6px;
           cursor: pointer;
           font-size: 16px;
         }
         .remove-btn:hover {
-          background: #d1fae5;
+          background: #f3f4f6;
         }
         .remove-btn.small {
           width: 24px;
@@ -644,10 +644,10 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
           align-items: center;
           gap: 8px;
           padding: 12px;
-          background: #ECFDF5;
+          background: #f9fafb;
           border-radius: 8px;
           font-size: 13px;
-          color: #065f46;
+          color: #0f2a1d;
           margin-top: 16px;
         }
         .info-icon {

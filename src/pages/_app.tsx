@@ -23,6 +23,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { ToastProvider } from '../contexts/ToastContext';
 import { ConfirmProvider } from '../contexts/ConfirmContext';
+import { initCapacitor, isNative } from '../lib/capacitor';
 
 // Configure Amplify — all secrets from env vars
 Amplify.configure({
@@ -57,24 +58,24 @@ const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.s
 const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
 
-// Custom Amplify UI Theme - Emerald green matching site design
+// Custom Amplify UI Theme - Lime + Dark Green matching site design
 const authTheme: Theme = {
   name: 'stack-crm-theme',
   tokens: {
     colors: {
       brand: {
         primary: {
-          10: { value: '#ecfdf5' },
-          20: { value: '#d1fae5' },
-          40: { value: '#6ee7b7' },
-          60: { value: '#10b981' },
-          80: { value: '#059669' },
-          90: { value: '#047857' },
-          100: { value: '#065f46' },
+          10: { value: '#f9fafb' },
+          20: { value: '#f3f4f6' },
+          40: { value: '#d1f470' },
+          60: { value: '#d1f470' },
+          80: { value: '#1a3a2a' },
+          90: { value: '#0f2a1d' },
+          100: { value: '#0a1f15' },
         },
       },
       font: {
-        interactive: { value: '#10b981' },
+        interactive: { value: '#1a3a2a' },
       },
       background: {
         primary: { value: '#ffffff' },
@@ -90,40 +91,40 @@ const authTheme: Theme = {
       },
       button: {
         primary: {
-          backgroundColor: { value: '#10b981' },
-          color: { value: '#ffffff' },
+          backgroundColor: { value: '#d1f470' },
+          color: { value: '#1a3a2a' },
           _hover: {
-            backgroundColor: { value: '#059669' },
+            backgroundColor: { value: '#c5e866' },
           },
           _active: {
-            backgroundColor: { value: '#047857' },
+            backgroundColor: { value: '#b8dc5a' },
           },
         },
         link: {
-          color: { value: '#10b981' },
+          color: { value: '#1a3a2a' },
           _hover: {
-            color: { value: '#059669' },
+            color: { value: '#0f2a1d' },
             backgroundColor: { value: 'transparent' },
           },
         },
       },
       fieldcontrol: {
-        borderRadius: { value: '10px' },
-        borderColor: { value: '#d1fae5' },
+        borderRadius: { value: '13px' },
+        borderColor: { value: '#d1f470' },
         _focus: {
-          borderColor: { value: '#10b981' },
-          boxShadow: { value: '0 0 0 2px rgba(16, 185, 129, 0.15)' },
+          borderColor: { value: '#1a3a2a' },
+          boxShadow: { value: '0 0 0 3px rgba(209, 244, 112, 0.3)' },
         },
       },
       tabs: {
         item: {
           color: { value: '#6b7280' },
           _active: {
-            color: { value: '#10b981' },
-            borderColor: { value: '#10b981' },
+            color: { value: '#1a3a2a' },
+            borderColor: { value: '#d1f470' },
           },
           _hover: {
-            color: { value: '#059669' },
+            color: { value: '#0f2a1d' },
           },
         },
       },
@@ -378,10 +379,16 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   
-  const isPublic = router.pathname === '/' || router.pathname === '/crm' || router.pathname === '/studio' || router.pathname === '/sustainability';
+  const isPublic = router.pathname === '/' || router.pathname === '/crm' || router.pathname === '/studio' || router.pathname === '/sustainability' || router.pathname === '/contact-test';
 
   useEffect(() => {
     setMounted(true);
+    // Register service worker for PWA + offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+    // Init Capacitor native plugins
+    initCapacitor({ push: (p) => router.push(p), back: () => router.back() });
   }, []);
 
   // Wait for client-side mount
@@ -395,6 +402,9 @@ export default function App({ Component, pageProps }: AppProps) {
       <ErrorBoundary>
         <Head>
           <title>Stack CRM by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
           <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Start free today." />
           <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications, WECARE.DIGITAL, Stack CRM" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -429,6 +439,12 @@ export default function App({ Component, pageProps }: AppProps) {
           <meta name="geo.region" content="IN" />
           <meta name="geo.placename" content="India" />
           <meta name="theme-color" content="#000000" />
+          
+          {/* PWA / Mobile App */}
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="mobile-web-app-capable" content="yes" />
+          <link rel="manifest" href="/manifest.json" />
           
           {/* Structured Data */}
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
@@ -479,11 +495,19 @@ export default function App({ Component, pageProps }: AppProps) {
     <ErrorBoundary>
       <Head>
         <title>Stack CRM by WECARE.DIGITAL</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
         <meta name="description" content="Stack CRM Dashboard - Multi-channel messaging platform" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href={FAVICON_URL} />
         <link rel="apple-touch-icon" href={LOGO_URL} />
         <meta name="robots" content="noindex, nofollow" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#1a3a2a" />
+        <link rel="manifest" href="/manifest.json" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(getBreadcrumbSchema(pageName, pageUrl)) }} />
       </Head>
@@ -539,3 +563,4 @@ export default function App({ Component, pageProps }: AppProps) {
     </ErrorBoundary>
   );
 }
+

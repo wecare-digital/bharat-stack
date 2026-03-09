@@ -12,14 +12,14 @@ import { useToastContext } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import * as api from '../../api/client';
 
-// SVG Icons — emerald theme (#059669) — Fix #17: added aria-hidden for decorative icons
-const AddUserIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
-const UploadIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/></svg>);
-const RefreshIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="#059669" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/></svg>);
-const ExportIcon = () => (<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
-const EditIcon = ({ size = 18 }: { size?: number }) => (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
-const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
-const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#059669' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#059669' : '#d1d5db'} /></svg>);
+// SVG Icons — lime + dark green theme (#1a3a2a) — Fix #17: added aria-hidden for decorative icons
+const AddUserIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
+const UploadIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="none" stroke="#1a3a2a" strokeMiterlimit="10" strokeWidth="1.5" d="M12 2.5v17.14m7.62-9.52L12 2.5l-7.62 7.62m15.24 8.57v3.81H4.38v-3.81"/></svg>);
+const RefreshIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill="#1a3a2a" d="m13.146 11.05-.174-1.992 2.374-.208a5 5 0 1 0 .82 6.173l2.002.5a7 7 0 1 1-1.315-7.996l-.245-2.803L18.6 4.55l.523 5.977z"/></svg>);
+const ExportIcon = () => (<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
+const EditIcon = ({ size = 18 }: { size?: number }) => (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H6.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C2 6.28 2 7.12 2 8.8v8.4c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C4.28 22 5.12 22 6.8 22h8.4c1.68 0 2.52 0 3.162-.327a3 3 0 0 0 1.311-1.311C20 19.72 20 18.88 20 17.2V13M8 16h1.675c.489 0 .733 0 .963-.055.204-.05.4-.13.579-.24.201-.123.374-.296.72-.642L21.5 5.5a2.121 2.121 0 0 0-3-3l-9.563 9.563c-.346.346-.519.519-.642.72a2 2 0 0 0-.24.579c-.055.23-.055.474-.055.963z"/></svg>);
+const DeleteIcon = ({ size = 18 }: { size?: number }) => (<svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M3 6h18m-2 0-.701 10.52c-.106 1.583-.158 2.374-.499 2.98a3 3 0 0 1-1.298 1.215C16.56 21 15.767 21 14.182 21H9.818c-1.585 0-2.378 0-2.82-.285a3 3 0 0 1-1.298-1.215c-.341-.606-.393-1.397-.499-2.98L5 6m5 4.5v5m4-5v5"/></svg>);
+const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 4, opacity: dir ? 1 : 0.3 }}><path d="M6 1l3 4H3z" fill={dir === 'asc' ? '#1a3a2a' : '#d1d5db'} /><path d="M6 11l3-4H3z" fill={dir === 'desc' ? '#1a3a2a' : '#d1d5db'} /></svg>);
 const CloseIcon = () => (<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>);
 
 type SortKey = 'name' | 'phone' | 'email' | 'updatedAt';
@@ -27,14 +27,14 @@ type SortDir = 'asc' | 'desc';
 
 // Fix #20: SortHeader extracted outside component to avoid re-creation on every render
 const SortHeader = ({ label, sKey, sortKey, sortDir, onSort, style }: { label: string; sKey: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (key: SortKey) => void; style?: React.CSSProperties }) => (
-  <th onClick={() => onSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2, ...style }}>
+  <th onClick={() => onSort(sKey)} style={{ cursor: 'pointer', userSelect: 'none', padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2, ...style }}>
     <span style={{ display: 'inline-flex', alignItems: 'center' }}>{label}<SortIcon dir={sortKey === sKey ? sortDir : null} /></span>
   </th>
 );
 
 const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
-const TAG_COLORS: Record<string, string> = { VIP: '#065f46', Lead: '#047857', Customer: '#059669', Prospect: '#059669', Partner: '#34d399', Vendor: '#6ee7b7' };
+const TAG_COLORS: Record<string, string> = { VIP: '#0f2a1d', Lead: '#0f2a1d', Customer: '#1a3a2a', Prospect: '#1a3a2a', Partner: '#34d399', Vendor: '#d1d5db' };
 
 // Country codes for phone number parsing
 const COUNTRY_CODES = [
@@ -577,12 +577,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   // Inline styles for form (bypasses Next.js style jsx scoping)
   const S: Record<string, React.CSSProperties> = {
     label: { display: 'block', fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 5 },
-    input: { width: '100%', padding: '10px 14px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 15, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff' },
+    input: { width: '100%', padding: '10px 14px', border: '2px solid #f3f4f6', borderRadius: 13, fontSize: 15, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff' },
     row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
     hint: { fontSize: 12, color: '#9ca3af', marginTop: 3 },
   };
-  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)'; };
-  const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#D1FAE5'; e.target.style.boxShadow = 'none'; };
+  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#1a3a2a'; e.target.style.boxShadow = '0 0 0 3px rgba(26,58,42,0.1)'; };
+  const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { e.target.style.borderColor = '#f3f4f6'; e.target.style.boxShadow = 'none'; };
 
   const renderContactForm = (isEdit: boolean) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 24px' }}>
@@ -609,12 +609,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 setShowCountryDropdown(false);
               }}
               placeholder="Code"
-              style={{ width: '100%', padding: '8px 8px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff', color: '#374151', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '8px 8px', border: '2px solid #f3f4f6', borderRadius: 13, fontSize: 14, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s', background: '#fff', color: '#374151', cursor: 'pointer' }}
               onFocusCapture={focusStyle}
               onBlurCapture={blurStyle}
             />
             {showCountryDropdown && (
-              <div data-country-dropdown tabIndex={-1} style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
+              <div data-country-dropdown tabIndex={-1} style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 200, overflowY: 'auto', background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 1000 }}>
                 {COUNTRY_CODES
                   .filter(cc => 
                     cc.code.includes(countrySearch) || 
@@ -626,7 +626,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       tabIndex={-1}
                       onMouseDown={() => { setFormCountryCode(cc.code); setShowCountryDropdown(false); setCountrySearch(''); }}
                       style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', transition: 'background 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#ECFDF5'}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
                       onMouseLeave={e => e.currentTarget.style.background = '#fff'}
                     >
                       {cc.code} {cc.country}
@@ -662,7 +662,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               alignItems: 'center', 
               gap: 4, 
               fontSize: 11, 
-              color: '#059669', 
+              color: '#1a3a2a', 
               fontWeight: 600, 
               marginTop: 6, 
               cursor: formShippingAddress ? 'pointer' : 'not-allowed',
@@ -672,7 +672,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               padding: 0
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
@@ -682,12 +682,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
       {/* Opt-in toggle */}
       <div>
-        <button type="button" onClick={() => setShowOptIn(!showOptIn)} style={{ fontSize: 14, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
-          <span style={{ transform: showOptIn ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block', color: '#059669', fontSize: 16 }}>▶</span>
+        <button type="button" onClick={() => setShowOptIn(!showOptIn)} style={{ fontSize: 14, color: '#1a3a2a', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+          <span style={{ transform: showOptIn ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block', color: '#1a3a2a', fontSize: 16 }}>▶</span>
           Opt-in &amp; Allowlist
         </button>
         {showOptIn && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10, padding: 14, background: '#f9fafb', borderRadius: 13, border: '2px solid #D1FAE5' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10, padding: 14, background: '#f9fafb', borderRadius: 13, border: '2px solid #f3f4f6' }}>
             {[
               { label: 'WhatsApp Opt-in', val: formOptInWA, set: setFormOptInWA },
               { label: 'WhatsApp Allowlist', val: formAllowlistWA, set: setFormAllowlistWA },
@@ -697,7 +697,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
               { label: 'Email Allowlist', val: formAllowlistEmail, set: setFormAllowlistEmail },
             ].map(item => (
               <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
-                <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)} style={{ accentColor: '#059669', width: 16, height: 16 }} />
+                <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)} style={{ accentColor: '#1a3a2a', width: 16, height: 16 }} />
                 {item.label}
               </label>
             ))}
@@ -714,42 +714,42 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Toolbar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           {/* Contact count badge */}
-          <span style={{ background: '#ECFDF5', color: '#059669', fontWeight: 600, fontSize: 13, padding: '4px 12px', borderRadius: 13 }}>
+          <span style={{ background: '#f9fafb', color: '#1a3a2a', fontWeight: 600, fontSize: 13, padding: '4px 12px', borderRadius: 13 }}>
             {filteredSorted.length} contact{filteredSorted.length !== 1 ? 's' : ''}
           </span>
 
           {/* Search */}
           <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 320 }}>
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-              <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
+              <path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
             </svg>
-            <input ref={searchInputRef} aria-label="Search contacts" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search contacts..." style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
+            <input ref={searchInputRef} aria-label="Search contacts" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search contacts..." style={{ width: '100%', padding: '8px 12px 8px 34px', border: '2px solid #f3f4f6', borderRadius: 13, fontSize: 14, outline: 'none', background: '#fff' }} onFocus={focusStyle} onBlur={blurStyle} />
           </div>
 
           {/* Action buttons */}
-          <button onClick={() => { resetForm(); setShowModal(true); }} title="Add contact (N)" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, cursor: 'pointer' }}>
+          <button onClick={() => { resetForm(); setShowModal(true); }} title="Add contact (N)" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, cursor: 'pointer' }}>
             <AddUserIcon />
           </button>
-          <button onClick={() => setShowImport(!showImport)} title="Import contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+          <button onClick={() => setShowImport(!showImport)} title="Import contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer' }}>
             <UploadIcon />
           </button>
-          <button onClick={handleExport} title="Export all contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+          <button onClick={handleExport} title="Export all contacts" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', color: '#374151', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer' }}>
             <ExportIcon />
           </button>
-          <button onClick={() => loadContacts()} title="Refresh" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+          <button onClick={() => loadContacts()} title="Refresh" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer' }}>
             <RefreshIcon />
           </button>
 
           {/* Column visibility */}
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowColMenu(!showColMenu)} title="Toggle columns" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>
+            <button onClick={() => setShowColMenu(!showColMenu)} title="Toggle columns" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px', background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>
             </button>
             {showColMenu && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, padding: 8, zIndex: 50, minWidth: 160, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, padding: 8, zIndex: 50, minWidth: 160, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
                 {ALL_COLUMNS.map(col => (
                   <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer', borderRadius: 8 }}>
-                    <input type="checkbox" checked={colVisible(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#059669' }} />
+                    <input type="checkbox" checked={colVisible(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#1a3a2a' }} />
                     {col.label}
                   </label>
                 ))}
@@ -760,17 +760,17 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Bulk action bar — Fix #9: shows select-all-pages option */}
         {selectedIds.size > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 12, background: '#ECFDF5', borderRadius: 13, border: '2px solid #D1FAE5', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>{selectedIds.size} selected</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 12, background: '#f9fafb', borderRadius: 13, border: '2px solid #f3f4f6', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#1a3a2a' }}>{selectedIds.size} selected</span>
             {allPageSelected && !allFilteredSelected && filteredSorted.length > PAGE_SIZE && (
-              <button onClick={selectAllFiltered} style={{ fontSize: 12, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              <button onClick={selectAllFiltered} style={{ fontSize: 12, color: '#1a3a2a', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                 Select all {filteredSorted.length} contacts
               </button>
             )}
-            <button onClick={handleBulkExport} title="Export selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer' }}>
+            <button onClick={handleBulkExport} title="Export selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer' }}>
               <ExportIcon />
             </button>
-            <button onClick={handleBulkDelete} title="Delete selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #059669', borderRadius: 13, cursor: 'pointer' }}>
+            <button onClick={handleBulkDelete} title="Delete selected" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#fff', border: '2px solid #1a3a2a', borderRadius: 13, cursor: 'pointer' }}>
               <DeleteIcon size={14} />
             </button>
             <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>Clear selection</button>
@@ -779,35 +779,35 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Import section */}
         {showImport && (
-          <div style={{ marginBottom: 16, padding: 16, border: '2px solid #D1FAE5', borderRadius: 13, background: '#ECFDF5' }}>
+          <div style={{ marginBottom: 16, padding: 16, border: '2px solid #f3f4f6', borderRadius: 13, background: '#f9fafb' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <label title="Choose CSV/VCF file" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', color: '#059669', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+              <label title="Choose CSV/VCF file" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', color: '#1a3a2a', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
                 <UploadIcon /> Choose File
                 <input ref={fileInputRef} type="file" accept=".csv,.vcf" onChange={handleFileSelect} style={{ display: 'none' }} />
               </label>
-              <label onClick={downloadTemplate} title="Download template" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', color: '#059669', border: '2px solid #D1FAE5', borderRadius: 13, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+              <label onClick={downloadTemplate} title="Download template" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#fff', color: '#1a3a2a', border: '2px solid #f3f4f6', borderRadius: 13, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
                 <ExportIcon /> Template
               </label>
             </div>
             {previewData.length > 0 && (
               <div>
                 <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>{previewData.length} contacts ready to import</p>
-                <div style={{ maxHeight: 150, overflow: 'auto', border: '2px solid #D1FAE5', borderRadius: 13, marginBottom: 8 }}>
+                <div style={{ maxHeight: 150, overflow: 'auto', border: '2px solid #f3f4f6', borderRadius: 13, marginBottom: 8 }}>
                   <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                    <thead><tr>{['Name','Phone','Email'].map(h => <th key={h} style={{ padding: '6px 8px', background: '#ECFDF5', textAlign: 'left', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0 }}>{h}</th>)}</tr></thead>
-                    <tbody>{previewData.slice(0, 10).map((r, i) => <tr key={i}><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.name}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.phone}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #D1FAE5' }}>{r.email}</td></tr>)}</tbody>
+                    <thead><tr>{['Name','Phone','Email'].map(h => <th key={h} style={{ padding: '6px 8px', background: '#f9fafb', textAlign: 'left', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0 }}>{h}</th>)}</tr></thead>
+                    <tbody>{previewData.slice(0, 10).map((r, i) => <tr key={i}><td style={{ padding: '4px 8px', borderBottom: '1px solid #f3f4f6' }}>{r.name}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #f3f4f6' }}>{r.phone}</td><td style={{ padding: '4px 8px', borderBottom: '1px solid #f3f4f6' }}>{r.email}</td></tr>)}</tbody>
                   </table>
                 </div>
                 {previewData.length > 10 && (
                   <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>…and {previewData.length - 10} more</p>
                 )}
-                <button onClick={handleImport} disabled={importing} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: importing ? 0.6 : 1 }}>
+                <button onClick={handleImport} disabled={importing} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: importing ? 0.6 : 1 }}>
                   {importing ? 'Importing...' : `Import ${previewData.length} contacts`}
                 </button>
               </div>
             )}
             {importResult && (
-              <p style={{ fontSize: 13, color: '#059669', marginTop: 8 }}>
+              <p style={{ fontSize: 13, color: '#1a3a2a', marginTop: 8 }}>
                 Done: {importResult.created} created, {importResult.updated} updated, {importResult.failed} failed{importResult.errors.length > 0 ? `, ${importResult.errors.length} errors` : ''}
               </p>
             )}
@@ -818,22 +818,22 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         <div style={{ display: 'flex', gap: 0 }}>
           {/* Desktop Table View */}
           {!isMobile && (
-          <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #D1FAE5', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
+          <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #f3f4f6', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : loadError ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 <p style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Failed to load contacts</p>
-                <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+                <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
               </div>
             ) : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 {searchQuery ? (
                   <div>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No results for &quot;{searchQuery}&quot;</p>
-                    <button onClick={() => setSearchQuery('')} style={{ marginTop: 8, fontSize: 13, color: '#059669', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
+                    <button onClick={() => setSearchQuery('')} style={{ marginTop: 8, fontSize: 13, color: '#1a3a2a', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
                   </div>
                 ) : (
                   <div>
-                    <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
+                    <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Press <kbd style={{ padding: '2px 6px', background: '#f3f4f6', borderRadius: 4, fontSize: 11 }}>N</kbd> to add one</p>
                   </div>
@@ -844,48 +844,48 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
-                      <th style={{ width: 40, padding: '12px 10px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>
-                        <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ accentColor: '#059669', width: 16, height: 16 }} />
+                      <th style={{ width: 40, padding: '12px 10px', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>
+                        <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ accentColor: '#1a3a2a', width: 16, height: 16 }} />
                       </th>
                       <SortHeader label="Name" sKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                       <SortHeader label="Phone" sKey="phone" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                       <SortHeader label="Email" sKey="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                      {colVisible('shipping') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
-                      {colVisible('billing') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
+                      {colVisible('shipping') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
+                      {colVisible('billing') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
                       {colVisible('updated') && <SortHeader label="Updated" sKey="updatedAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />}
-                      {colVisible('tags') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
-                      <th style={{ width: 100, padding: '12px 10px', background: '#ECFDF5', borderBottom: '2px solid #D1FAE5', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
+                      {colVisible('tags') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
+                      <th style={{ width: 100, padding: '12px 10px', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedContacts.map((c, rowIndex) => (
-                      <tr key={c.contactId} onClick={() => setDetailContact(c)} style={{ cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#ECFDF5')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                        <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669', width: 16, height: 16 }} />
+                      <tr key={c.contactId} onClick={() => setDetailContact(c)} style={{ cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #f3f4f6', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#1a3a2a', width: 16, height: 16 }} />
                         </td>
                         {/* Name — inline editable (double-click) — Fix #18: cursor hint */}
-                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontWeight: 500, fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', fontWeight: 500, fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'name', value: c.name }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'name' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #1a3a2a', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.name || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>unnamed</span>)}
                         </td>
                         {/* Phone — inline editable (double-click) — Fix #8 */}
-                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'phone', value: c.phone || '' }); }}>
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'phone', value: c.phone || '' }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'phone' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #1a3a2a', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.phone || '—')}
                         </td>
                         {/* Email — inline editable (double-click) — Fix #18: cursor hint */}
-                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
+                        <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', fontSize: 14, cursor: 'text' }} title="Double-click to edit" onDoubleClick={e => { e.stopPropagation(); setInlineEdit({ id: c.contactId, field: 'email', value: c.email || '' }); }}>
                           {inlineEdit?.id === c.contactId && inlineEdit.field === 'email' ? (
-                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #059669', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                            <input autoFocus value={inlineEdit.value} onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })} onBlur={commitInlineEdit} onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') { inlineEditCancelled.current = true; setInlineEdit(null); } }} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 10px', border: '2px solid #1a3a2a', borderRadius: 8, fontSize: 14, outline: 'none' }} />
                           ) : (c.email || '—')}
                         </td>
-                        {colVisible('shipping') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.shippingAddress || '—'}</td>}
-                        {colVisible('billing') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.billingAddress || '—'}</td>}
-                        {colVisible('updated') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5', color: '#6b7280', fontSize: 13 }} title={c.updatedAt ? (() => { const n = Number(c.updatedAt); const d = new Date(!isNaN(n) && n < 1e12 ? n * 1000 : (!isNaN(n) ? n : c.updatedAt)); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })() : ''}>{timeAgo(c.updatedAt)}</td>}
+                        {colVisible('shipping') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.shippingAddress || '—'}</td>}
+                        {colVisible('billing') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.billingAddress || '—'}</td>}
+                        {colVisible('updated') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', color: '#6b7280', fontSize: 13 }} title={c.updatedAt ? (() => { const n = Number(c.updatedAt); const d = new Date(!isNaN(n) && n < 1e12 ? n * 1000 : (!isNaN(n) ? n : c.updatedAt)); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })() : ''}>{timeAgo(c.updatedAt)}</td>}
                         {colVisible('tags') && (
-                          <td style={{ padding: '10px 14px', borderBottom: '1px solid #D1FAE5' }} onClick={e => e.stopPropagation()}>
+                          <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                               {(contactTags[c.contactId] || []).map(tag => (
                                 <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
@@ -913,7 +913,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     width: 24, 
                                     height: 24, 
                                     borderRadius: '50%', 
-                                    border: '2px solid #059669', 
+                                    border: '2px solid #1a3a2a', 
                                     background: '#fff', 
                                     cursor: 'pointer', 
                                     display: 'flex', 
@@ -928,7 +928,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                                     position: 'absolute',
                                     fontSize: 18, 
                                     fontWeight: 300, 
-                                    color: '#059669',
+                                    color: '#1a3a2a',
                                     lineHeight: 1,
                                     fontFamily: 'Arial, sans-serif',
                                     userSelect: 'none'
@@ -938,7 +938,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                             </div>
                           </td>
                         )}
-                        <td style={{ padding: '10px', borderBottom: '1px solid #D1FAE5', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #f3f4f6', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                             <button onClick={() => handleEdit(c)} title="Edit" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><EditIcon size={18} /></button>
                             <button onClick={() => handleDelete(c.contactId, c.name)} title="Delete" style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}><DeleteIcon size={18} /></button>
@@ -959,18 +959,18 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={5} /></div> : loadError ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 <p style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Failed to load contacts</p>
-                <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+                <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
               </div>
             ) : filteredSorted.length === 0 ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
                 {searchQuery ? (
                   <div>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No results for &quot;{searchQuery}&quot;</p>
-                    <button onClick={() => setSearchQuery('')} style={{ marginTop: 8, fontSize: 13, color: '#059669', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
+                    <button onClick={() => setSearchQuery('')} style={{ marginTop: 8, fontSize: 13, color: '#1a3a2a', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
                   </div>
                 ) : (
                   <div>
-                    <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
+                    <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Tap + to add one</p>
                   </div>
@@ -982,7 +982,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   <div key={c.contactId} className="contact-card" onClick={() => setDetailContact(c)}>
                     <div className="contact-card-header">
                       <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
-                        <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#059669', width: 18, height: 18 }} />
+                        <input type="checkbox" checked={selectedIds.has(c.contactId)} onChange={() => toggleSelect(c.contactId)} style={{ accentColor: '#1a3a2a', width: 18, height: 18 }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div className="contact-card-name">{c.name || 'Unnamed'}</div>
@@ -1013,14 +1013,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
           {/* Detail side panel */}
           {detailContact && (
-            <div style={{ width: 340, flexShrink: 0, borderLeft: '2px solid #D1FAE5', background: '#fff', overflow: 'auto', marginLeft: -2, borderRadius: '0 13px 13px 0', maxHeight: 'calc(100vh - 200px)' }}>
-              <div style={{ padding: '16px 20px', background: '#ECFDF5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
+            <div style={{ width: 340, flexShrink: 0, borderLeft: '2px solid #f3f4f6', background: '#fff', overflow: 'auto', marginLeft: -2, borderRadius: '0 13px 13px 0', maxHeight: 'calc(100vh - 200px)' }}>
+              <div style={{ padding: '16px 20px', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f3f4f6' }}>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#374151' }}>Contact Details</h3>
                 <button onClick={() => setDetailContact(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
               </div>
               <div style={{ padding: 20 }}>
                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', fontSize: 24, color: '#059669', fontWeight: 700 }}>
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', fontSize: 24, color: '#1a3a2a', fontWeight: 700 }}>
                     {(detailContact.name || '?')[0]?.toUpperCase()}
                   </div>
                   <p style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0 }}>{detailContact.name || 'Unnamed'}</p>
@@ -1058,7 +1058,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       { label: 'SMS', on: detailContact.optInSms },
                       { label: 'Email', on: detailContact.optInEmail },
                     ].map(ch => (
-                      <span key={ch.label} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: ch.on ? '#ECFDF5' : '#f3f4f6', color: ch.on ? '#059669' : '#9ca3af' }}>
+                      <span key={ch.label} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: ch.on ? '#f9fafb' : '#f3f4f6', color: ch.on ? '#1a3a2a' : '#9ca3af' }}>
                         {ch.on ? '✓' : '✗'} {ch.label}
                       </span>
                     ))}
@@ -1073,7 +1073,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       { label: 'SMS', on: detailContact.allowlistSms },
                       { label: 'Email', on: detailContact.allowlistEmail },
                     ].map(ch => (
-                      <span key={`al-${ch.label}`} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: ch.on ? '#ECFDF5' : '#f3f4f6', color: ch.on ? '#059669' : '#9ca3af' }}>
+                      <span key={`al-${ch.label}`} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: ch.on ? '#f9fafb' : '#f3f4f6', color: ch.on ? '#1a3a2a' : '#9ca3af' }}>
                         {ch.on ? '✓' : '✗'} {ch.label}
                       </span>
                     ))}
@@ -1081,8 +1081,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                  <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => { const c = detailContact; setDetailContact(null); handleDelete(c.contactId, c.name); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#059669', border: '2px solid #059669', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                  <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => { const c = detailContact; setDetailContact(null); handleDelete(c.contactId, c.name); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#1a3a2a', border: '2px solid #1a3a2a', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                 </div>
               </div>
             </div>
@@ -1092,16 +1092,16 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Pagination */}
         {totalPages >= 1 && (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 16 }}>
-            <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage <= 1} title="First page" style={{ padding: '6px 10px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage <= 1 ? 'default' : 'pointer', opacity: safeCurrentPage <= 1 ? 0.4 : 1, fontSize: 13 }}>«</button>
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage <= 1} style={{ padding: '6px 12px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage <= 1 ? 'default' : 'pointer', opacity: safeCurrentPage <= 1 ? 0.4 : 1, fontSize: 13 }}>‹</button>
+            <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage <= 1} title="First page" style={{ padding: '6px 10px', border: '2px solid #f3f4f6', borderRadius: 13, background: '#fff', cursor: safeCurrentPage <= 1 ? 'default' : 'pointer', opacity: safeCurrentPage <= 1 ? 0.4 : 1, fontSize: 13 }}>«</button>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage <= 1} style={{ padding: '6px 12px', border: '2px solid #f3f4f6', borderRadius: 13, background: '#fff', cursor: safeCurrentPage <= 1 ? 'default' : 'pointer', opacity: safeCurrentPage <= 1 ? 0.4 : 1, fontSize: 13 }}>‹</button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1).map((p, idx, arr) => (
               <React.Fragment key={p}>
                 {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ color: '#9ca3af' }}>…</span>}
-                <button onClick={() => setCurrentPage(p)} style={{ padding: '6px 10px', border: '2px solid #D1FAE5', borderRadius: 13, background: p === safeCurrentPage ? '#059669' : '#fff', color: p === safeCurrentPage ? '#fff' : '#374151', fontWeight: p === safeCurrentPage ? 600 : 400, cursor: 'pointer', fontSize: 13 }}>{p}</button>
+                <button onClick={() => setCurrentPage(p)} style={{ padding: '6px 10px', border: '2px solid #f3f4f6', borderRadius: 13, background: p === safeCurrentPage ? '#1a3a2a' : '#fff', color: p === safeCurrentPage ? '#fff' : '#374151', fontWeight: p === safeCurrentPage ? 600 : 400, cursor: 'pointer', fontSize: 13 }}>{p}</button>
               </React.Fragment>
             ))}
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage >= totalPages} style={{ padding: '6px 12px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, fontSize: 13 }}>›</button>
-            <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage >= totalPages} title="Last page" style={{ padding: '6px 10px', border: '2px solid #D1FAE5', borderRadius: 13, background: '#fff', cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, fontSize: 13 }}>»</button>
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage >= totalPages} style={{ padding: '6px 12px', border: '2px solid #f3f4f6', borderRadius: 13, background: '#fff', cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, fontSize: 13 }}>›</button>
+            <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage >= totalPages} title="Last page" style={{ padding: '6px 10px', border: '2px solid #f3f4f6', borderRadius: 13, background: '#fff', cursor: safeCurrentPage >= totalPages ? 'default' : 'pointer', opacity: safeCurrentPage >= totalPages ? 0.4 : 1, fontSize: 13 }}>»</button>
           </div>
         )}
       </div>
@@ -1110,14 +1110,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       {showModal && (
         <div role="dialog" aria-modal="true" aria-label="Add Contact" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowModal(false)}>
           <div style={{ background: '#fff', borderRadius: 14, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '20px 24px', background: '#ECFDF5', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
+            <div style={{ padding: '20px 24px', background: '#f9fafb', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f3f4f6' }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#374151' }}>Add Contact</h2>
               <button onClick={() => setShowModal(false)} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
             </div>
             {renderContactForm(false)}
-            <div style={{ padding: '16px 24px', borderTop: '2px solid #D1FAE5', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setShowModal(false)} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
-              <button onClick={handleCreate} disabled={saving} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Create'}</button>
+            <div style={{ padding: '16px 24px', borderTop: '2px solid #f3f4f6', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowModal(false)} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
+              <button onClick={handleCreate} disabled={saving} style={{ padding: '8px 20px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Create'}</button>
             </div>
           </div>
         </div>
@@ -1127,14 +1127,14 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       {showEditModal && editingContact && (
         <div role="dialog" aria-modal="true" aria-label="Edit Contact" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowEditModal(false); setEditingContact(null); }}>
           <div style={{ background: '#fff', borderRadius: 14, width: 560, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '20px 24px', background: '#ECFDF5', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #D1FAE5' }}>
+            <div style={{ padding: '20px 24px', background: '#f9fafb', borderRadius: '14px 14px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f3f4f6' }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#374151' }}>Edit Contact</h2>
               <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><CloseIcon /></button>
             </div>
             {renderContactForm(true)}
-            <div style={{ padding: '16px 24px', borderTop: '2px solid #D1FAE5', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #D1FAE5', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
-              <button onClick={handleUpdate} disabled={saving} style={{ padding: '8px 20px', background: '#059669', color: '#fff', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Update'}</button>
+            <div style={{ padding: '16px 24px', borderTop: '2px solid #f3f4f6', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => { setShowEditModal(false); setEditingContact(null); }} style={{ padding: '8px 16px', background: '#fff', border: '2px solid #f3f4f6', borderRadius: 13, fontSize: 13, cursor: 'pointer', color: '#374151' }}>Cancel</button>
+              <button onClick={handleUpdate} disabled={saving} style={{ padding: '8px 20px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Update'}</button>
             </div>
           </div>
         </div>
@@ -1155,7 +1155,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             bottom: tagMenuPos.flipUp ? (window.innerHeight - tagMenuPos.top + 4) : 'auto',
             left: tagMenuPos.left,
             background: '#fff', 
-            border: '2px solid #D1FAE5', 
+            border: '2px solid #f3f4f6', 
             borderRadius: 13, 
             padding: 6, 
             zIndex: 1001, 
@@ -1167,10 +1167,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           {TAG_OPTIONS.map(tag => {
             const active = (contactTags[showTagMenu] || []).includes(tag);
             return (
-              <button key={tag} onClick={() => toggleTag(showTagMenu, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 10px', border: 'none', background: active ? '#ECFDF5' : 'transparent', borderRadius: 8, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+              <button key={tag} onClick={() => toggleTag(showTagMenu, tag)} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 10px', border: 'none', background: active ? '#f9fafb' : 'transparent', borderRadius: 8, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
                 <span style={{ width: 12, height: 12, borderRadius: '50%', background: TAG_COLORS[tag] }}></span>
                 {tag}
-                {active && <span style={{ marginLeft: 'auto', color: '#059669', fontWeight: 600 }}>✓</span>}
+                {active && <span style={{ marginLeft: 'auto', color: '#1a3a2a', fontWeight: 600 }}>✓</span>}
               </button>
             );
           })}

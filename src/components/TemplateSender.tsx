@@ -522,14 +522,14 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
           border-radius: 10px;
           color: white;
         }
-        .category-badge.utility { background: #059669; }
-        .category-badge.marketing { background: #059669; }
-        .category-badge.authentication { background: #065f46; }
+        .category-badge.utility { background: #1a3a2a; }
+        .category-badge.marketing { background: #1a3a2a; }
+        .category-badge.authentication { background: #0f2a1d; }
         .carousel-badge {
           font-size: 10px;
           padding: 2px 8px;
-          background: #ECFDF5;
-          color: #065f46;
+          background: #f9fafb;
+          color: #0f2a1d;
           border-radius: 10px;
         }
         .template-preview {
@@ -545,7 +545,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
         .back-btn {
           background: none;
           border: none;
-          color: #059669;
+          color: #1a3a2a;
           cursor: pointer;
           font-size: 13px;
           padding: 0;
@@ -642,8 +642,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
         .carousel-indicator {
           margin-top: 8px;
           font-size: 12px;
-          color: #065f46;
-          background: #ECFDF5;
+          color: #0f2a1d;
+          background: #f9fafb;
           padding: 6px 10px;
           border-radius: 6px;
           text-align: center;

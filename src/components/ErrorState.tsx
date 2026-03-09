@@ -21,7 +21,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
     maxWidth: 400,
     margin: '0 auto',
   }}>
-    <div style={{ marginBottom: 12 }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+    <div style={{ marginBottom: 12 }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
     <p style={{ fontSize: 16, fontWeight: 600, color: '#374151', margin: '0 0 8px' }}>{message}</p>
     {detail && <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>{detail}</p>}
     {onRetry && (
@@ -29,7 +29,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
         onClick={onRetry}
         style={{
           padding: '8px 20px',
-          background: '#059669',
+          background: '#1a3a2a',
           color: '#fff',
           border: 'none',
           borderRadius: 8,

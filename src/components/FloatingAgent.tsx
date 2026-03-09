@@ -441,7 +441,7 @@ const FloatingAgent: React.FC = () => {
                   onClick={() => retryMessage(msg.id)}
                   disabled={isLoading}
                   style={{
-                    background: 'none', border: 'none', color: '#059669', cursor: 'pointer',
+                    background: 'none', border: 'none', color: '#1a3a2a', cursor: 'pointer',
                     fontSize: '11px', padding: '0 4px', textDecoration: 'underline',
                   }}
                 >
@@ -455,10 +455,10 @@ const FloatingAgent: React.FC = () => {
           <div className="agent-status-message" style={{
             padding: '8px 12px',
             margin: '8px',
-            background: '#ECFDF5',
-            border: '1px solid #A7F3D0',
+            background: '#f9fafb',
+            border: '1px solid #e5e7eb',
             borderRadius: '8px',
-            color: '#059669',
+            color: '#1a3a2a',
             fontSize: '13px',
             display: 'flex',
             alignItems: 'center',
@@ -467,7 +467,7 @@ const FloatingAgent: React.FC = () => {
             <span className="status-spinner" style={{
               width: '12px',
               height: '12px',
-              border: '2px solid #059669',
+              border: '2px solid #1a3a2a',
               borderTopColor: 'transparent',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite'
@@ -493,8 +493,8 @@ const FloatingAgent: React.FC = () => {
             width: '28px',
             height: '28px',
             border: 'none',
-            background: isListening ? '#059669' : 'transparent',
-            color: isListening ? '#fff' : '#059669',
+            background: isListening ? '#1a3a2a' : 'transparent',
+            color: isListening ? '#fff' : '#1a3a2a',
             borderRadius: '50%',
             cursor: 'pointer',
             display: 'flex',

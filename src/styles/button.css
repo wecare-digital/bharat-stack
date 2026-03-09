@@ -73,52 +73,52 @@
 
 /* ========================================
    VARIANT: PRIMARY
-   Emerald background, white text
+   Lime background, dark text
    ======================================== */
 .btn-primary {
-  background: #059669;
-  color: #ffffff;
-  border: 2px solid #D1FAE5;
+  background: #d1f470;
+  color: #1a3a2a;
+  border: 2px solid #1a3a2a;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #059669;
-  border-color: #059669;
+  background: #c5e866;
+  border-color: #0f2a1d;
 }
 
 .btn-primary:active:not(:disabled) {
   transform: scale(0.98);
-  background: #047857;
-  border-color: #047857;
+  background: #b8dc5a;
+  border-color: #0f2a1d;
 }
 
 .btn-primary:focus-visible {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.3);
 }
 
 /* ========================================
    VARIANT: SECONDARY
-   White background, emerald border, black text
+   White background, lime + dark green border, black text
    ======================================== */
 .btn-secondary {
   background: #ffffff;
   color: #111827;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 
 .btn-secondary:active:not(:disabled) {
   transform: scale(0.98);
-  background: #D1FAE5;
-  border-color: #059669;
+  background: #f3f4f6;
+  border-color: #1a3a2a;
 }
 
 .btn-secondary:focus-visible {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.3);
 }
 
 /* ========================================
@@ -147,27 +147,27 @@
 
 /* ========================================
    VARIANT: DANGER
-   White background, emerald border, emerald text
+   Red background, white text — matches test page Delete button
    ======================================== */
 .btn-danger {
-  background: #ffffff;
-  color: #059669;
-  border: 2px solid #D1FAE5;
+  background: #dc2626;
+  color: #ffffff;
+  border: 2px solid #dc2626;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #ECFDF5;
-  border-color: #047857;
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .btn-danger:active:not(:disabled) {
   transform: scale(0.98);
-  background: #D1FAE5;
-  border-color: #059669;
+  background: #991b1b;
+  border-color: #991b1b;
 }
 
 .btn-danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3);
 }
 
 /* ========================================
@@ -194,38 +194,38 @@
 }
 
 /* ========================================
-   ICON STYLING - Emerald Green
+   ICON STYLING - Lime + Dark Green Green
    ======================================== */
 .btn svg {
   flex-shrink: 0;
 }
 
-/* Secondary button icons - emerald green */
+/* Secondary button icons - lime + dark green green */
 .btn-secondary svg {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .btn-secondary:hover:not(:disabled) svg {
-  color: #059669;
+  color: #1a3a2a;
 }
 
-/* Ghost button icons - emerald green always */
+/* Ghost button icons - lime + dark green green always */
 .btn-ghost svg {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .btn-ghost:hover:not(:disabled) svg {
-  color: #059669;
+  color: #1a3a2a;
 }
 
-/* Primary button icons - white */
+/* Primary button icons - dark green on lime */
 .btn-primary svg {
-  color: #ffffff;
+  color: #1a3a2a;
 }
 
-/* Danger button icons - emerald */
+/* Danger button icons - lime + dark green */
 .btn-danger svg {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* ========================================

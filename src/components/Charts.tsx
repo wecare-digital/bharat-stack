@@ -286,12 +286,12 @@ export const StatsMini: React.FC<StatsMiniProps> = ({ label, value, change, icon
           color: #6b7280;
         }
         .stats-mini-change.positive {
-          background: #ECFDF5;
-          color: #065f46;
+          background: #f9fafb;
+          color: #0f2a1d;
         }
         .stats-mini-change.negative {
-          background: #ECFDF5;
-          color: #065f46;
+          background: #f9fafb;
+          color: #0f2a1d;
         }
       `}</style>
     </div>

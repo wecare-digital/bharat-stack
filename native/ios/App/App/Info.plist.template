@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist Template - WECARE.DIGITAL Stack CRM
+  
+  After running `npx cap add ios`, merge these entries into
+  ios/App/App/Info.plist
+-->
+<plist version="1.0">
+<dict>
+  <!-- Deep Link: wecare:// scheme -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>digital.wecare.stackcrm</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>wecare</string>
+      </array>
+    </dict>
+  </array>
+
+  <!-- Universal Links: stack.wecare.digital + r.wecare.digital -->
+  <key>com.apple.developer.associated-domains</key>
+  <array>
+    <string>applinks:stack.wecare.digital</string>
+    <string>applinks:r.wecare.digital</string>
+    <string>webcredentials:stack.wecare.digital</string>
+  </array>
+
+  <!-- Push Notifications -->
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>remote-notification</string>
+  </array>
+
+  <!-- Camera / Microphone (for WhatsApp media + voice) -->
+  <key>NSCameraUsageDescription</key>
+  <string>Stack CRM needs camera access to capture photos for WhatsApp messages</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Stack CRM needs microphone access for voice calls and audio messages</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>Stack CRM needs photo library access to send media via WhatsApp</string>
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>Stack CRM needs to save received media to your photo library</string>
+
+  <!-- Contacts (for contact sync) -->
+  <key>NSContactsUsageDescription</key>
+  <string>Stack CRM can sync your device contacts for quick messaging</string>
+
+  <!-- Face ID -->
+  <key>NSFaceIDUsageDescription</key>
+  <string>Stack CRM uses Face ID for secure authentication</string>
+
+  <!-- Status Bar -->
+  <key>UIStatusBarStyle</key>
+  <string>UIStatusBarStyleDarkContent</string>
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <true/>
+
+  <!-- Orientation -->
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+</dict>
+</plist>

@@ -188,7 +188,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         <div className="sidebar-search">
           <div className="sidebar-search-input-wrapper">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 10, flexShrink: 0 }}>
-              <path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
+              <path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
             </svg>
             <input
               type="text"

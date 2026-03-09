@@ -64,14 +64,14 @@ const WABA_CONFIG = {
 
 // Avatar color palette - consistent per contact
 const AVATAR_COLORS = [
-  '#059669', '#047857', '#065f46', '#059669', '#34d399',
-  '#059669', '#047857', '#065f46', '#059669', '#34d399',
+  '#1a3a2a', '#0f2a1d', '#0f2a1d', '#1a3a2a', '#34d399',
+  '#1a3a2a', '#0f2a1d', '#0f2a1d', '#1a3a2a', '#34d399',
 ];
 
-// Delete/clear icon — trash can (emerald themed)
+// Delete/clear icon — trash can (lime + dark green themed)
 const DeleteIcon: React.FC<{ size?: number; className?: string }> = ({ size = 14, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={{ display: 'block' }}>
-    <path fill="none" stroke="#059669" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
+    <path fill="none" stroke="#1a3a2a" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
   </svg>
 );
 
@@ -117,7 +117,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       title: 'Clear All Inbox Data',
       message: (
         <div>
-          <p style={{ color: '#065f46', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete:</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500, marginBottom: 12 }}>WARNING: This will permanently delete:</p>
           <ul style={{ margin: '0 0 12px 20px', lineHeight: 1.6 }}>
             <li>All WhatsApp messages (inbound &amp; outbound)</li>
             <li>All SMS messages (inbound &amp; outbound)</li>
@@ -127,7 +127,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             <li>All contacts</li>
             <li>All media files from S3</li>
           </ul>
-          <p style={{ color: '#065f46', fontWeight: 500 }}>This action cannot be undone!</p>
+          <p style={{ color: '#0f2a1d', fontWeight: 500 }}>This action cannot be undone!</p>
         </div>
       ),
       confirmInput: 'DELETE ALL',
@@ -648,6 +648,21 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                           content.includes('[Unsupported') || 
                           content.includes('[Message type not supported');
     
+    // Check if this is a disappearing/ephemeral message
+    const isEphemeral = msgType === 'ephemeral' || 
+                        content.includes('[Disappearing Message') ||
+                        content.includes('disappearing');
+    
+    // For ephemeral/disappearing messages
+    if (isEphemeral && !msg.mediaUrl) {
+      return (
+        <span className="unsupported-msg ephemeral-notice">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Disappearing message — ask sender to disable disappearing messages for this chat
+        </span>
+      );
+    }
+    
     // For unsupported messages with media, show download link
     if (isUnsupported && msg.mediaUrl) {
       return (
@@ -673,6 +688,16 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         return (
           <span className="unsupported-msg otp-notice">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> OTP / verification message — content hidden by WhatsApp
+          </span>
+        );
+      }
+      // Detect disappearing message errors in unsupported type
+      const isDisappearing = content.toLowerCase().includes('disappearing') || content.toLowerCase().includes('ephemeral');
+      if (isDisappearing) {
+        return (
+          <span className="unsupported-msg ephemeral-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Disappearing message — disable disappearing messages in this chat to fix
           </span>
         );
       }
@@ -1253,7 +1278,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
           ) : (
             <div className="empty-chat">
               <div className="empty-chat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
               </div>

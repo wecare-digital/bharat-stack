@@ -1,0 +1,24 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.digital.wecare.stackcrm",
+        "paths": [
+          "/dashboard/*",
+          "/dm/*",
+          "/contacts/*",
+          "/pay/*",
+          "/crm",
+          "/r/*",
+          "/"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "TEAM_ID.digital.wecare.stackcrm"
+    ]
+  }
+}

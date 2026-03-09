@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Voice Mega Page - AWS Pinpoint + Airtel IN (C2C/OBD/CDR)
  * Uses PageShell for section header + scrollable tab bar
  */
@@ -164,7 +164,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   const shellContent = (
     <>
-      <PageShell title="Voice" subtitle="AWS Pinpoint & Airtel IQ — Calls, OBD, CDR" tabs={TABS} defaultTab="aws">
+      <PageShell title="Voice" subtitle="AWS Pinpoint & Airtel IQ � Calls, OBD, CDR" tabs={TABS} defaultTab="aws">
         {(activeTab) => (
           <>
             {/* ===== AWS PINPOINT TAB ===== */}
@@ -189,7 +189,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 </div>
                 <div className="table-area">{loading ? <div className="loading-state">Loading...</div> : (
                   <table><thead><tr><th>Time</th><th>Dir</th><th>Contact</th><th className="hide-mobile">Phone</th><th>Duration</th><th>Type</th><th>Status</th></tr></thead><tbody>
-                    {paginatedCalls.map(call => (<tr key={call.callId}><td className="time-cell">{new Date(call.createdAt).toLocaleString()}</td><td><span className={call.direction === 'INBOUND' ? 'dir-in' : 'dir-out'}>{call.direction === 'INBOUND' ? '↙' : '↗'}</span></td><td>{call.contactName || '-'}</td><td className="phone-cell hide-mobile">{call.phoneNumber}</td><td>{formatDuration(call.duration)}</td><td><span className="type-badge">{call.callType}</span></td><td><span className={`st-badge ${call.status?.toLowerCase()}`}>{call.status}</span></td></tr>))}
+                    {paginatedCalls.map(call => (<tr key={call.callId}><td className="time-cell">{new Date(call.createdAt).toLocaleString()}</td><td><span className={call.direction === 'INBOUND' ? 'dir-in' : 'dir-out'}>{call.direction === 'INBOUND' ? '?' : '?'}</span></td><td>{call.contactName || '-'}</td><td className="phone-cell hide-mobile">{call.phoneNumber}</td><td>{formatDuration(call.duration)}</td><td><span className="type-badge">{call.callType}</span></td><td><span className={`st-badge ${call.status?.toLowerCase()}`}>{call.status}</span></td></tr>))}
                     {paginatedCalls.length === 0 && <tr><td colSpan={7} className="empty-row">No calls</td></tr>}
                   </tbody></table>
                 )}</div>
@@ -232,7 +232,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="form-group"><label>Name *</label><input type="text" value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="My Campaign" /></div>
               <div className="form-group"><label>Voice Message (TTS) *</label><textarea value={campaignMessage} onChange={e => setCampaignMessage(e.target.value)} placeholder="Message to be spoken..." rows={3} /></div>
               <div className="form-group"><label>Recipients ({selectedContacts.length})</label><button type="button" className="pick-btn full-w" onClick={() => setShowContactPicker('campaign')}>Select Contacts</button>
-                {selectedContacts.length > 0 && (<div className="tags">{selectedContacts.map(id => { const c = contacts.find(x => x.contactId === id); return c ? <span key={id} className="tag">{c.name} <button onClick={() => setSelectedContacts(prev => prev.filter(x => x !== id))}>×</button></span> : null; })}</div>)}
+                {selectedContacts.length > 0 && (<div className="tags">{selectedContacts.map(id => { const c = contacts.find(x => x.contactId === id); return c ? <span key={id} className="tag">{c.name} <button onClick={() => setSelectedContacts(prev => prev.filter(x => x !== id))}>�</button></span> : null; })}</div>)}
               </div>
               <div className="modal-actions"><Button variant="secondary" onClick={() => setShowCampaignModal(false)}>Cancel</Button><Button variant="primary" onClick={handleSendCampaign} loading={campaignSending} disabled={!campaignName || !campaignMessage || selectedContacts.length === 0}>Call {selectedContacts.length}</Button></div>
             </div></div>)}
@@ -241,7 +241,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <h3>Select Contact{showContactPicker === 'campaign' ? 's' : ''}</h3>
               <input type="text" placeholder="Search..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} className="contact-search" />
               <div className="contact-list">{loadingContacts ? <div className="loading-state">Loading...</div> : filteredContacts.length === 0 ? <div className="loading-state">No contacts</div> : (
-                filteredContacts.slice(0, 50).map(contact => (<div key={contact.contactId} className={`contact-row ${selectedContacts.includes(contact.contactId) ? 'selected' : ''}`} onClick={() => selectContact(contact)}><div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div><div className="contact-details"><div className="c-name">{contact.name}</div><div className="c-phone">{contact.phone}</div></div>{showContactPicker === 'campaign' && selectedContacts.includes(contact.contactId) && <span className="check">✓</span>}</div>))
+                filteredContacts.slice(0, 50).map(contact => (<div key={contact.contactId} className={`contact-row ${selectedContacts.includes(contact.contactId) ? 'selected' : ''}`} onClick={() => selectContact(contact)}><div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div><div className="contact-details"><div className="c-name">{contact.name}</div><div className="c-phone">{contact.phone}</div></div>{showContactPicker === 'campaign' && selectedContacts.includes(contact.contactId) && <span className="check">?</span>}</div>))
               )}</div>
               <div className="modal-actions"><Button variant="secondary" onClick={() => setShowContactPicker(null)}>{showContactPicker === 'campaign' ? 'Done' : 'Cancel'}</Button></div>
             </div></div>)}
@@ -254,14 +254,14 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .tab-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
         .tab-header-left { display: flex; align-items: center; gap: 8px; }
         .tab-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-        .provider-badge { background: #059669; color: #fff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+        .provider-badge { background: #1a3a2a; color: #fff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
         .region-badge { background: #f3f4f6; color: #6b7280; padding: 3px 8px; border-radius: 4px; font-size: 10px; }
         .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
         .filter-tabs { display: flex; gap: 4px; }
-        .filter-tabs button { padding: 6px 12px; border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; }
-        .filter-tabs button.active { background: #059669; color: #fff; border-color: #059669; }
-        .v-search { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; width: 200px; font-size: 13px; }
-        .v-search:focus { outline: none; border-color: #059669; }
+        .filter-tabs button { padding: 6px 12px; border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; min-height: 44px; }
+        .filter-tabs button.active { background: #d1f470; color: #1a3a2a; border-color: #1a3a2a; }
+        .v-search { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; width: 200px; max-width: 100%; font-size: 16px; min-height: 44px; box-sizing: border-box; }
+        .v-search:focus { outline: none; border-color: #1a3a2a; box-shadow: 0 0 0 3px rgba(209,244,112,0.3); }
         .table-area { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: auto; }
         .loading-state { padding: 40px; text-align: center; color: #6b7280; }
         table { width: 100%; border-collapse: collapse; }
@@ -269,17 +269,17 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         th { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 1; }
         tr:hover { background: #f9fafb; }
         .time-cell { font-size: 11px; color: #6b7280; }
-        .phone-cell { font-family: monospace; color: #059669; font-size: 11px; }
+        .phone-cell { font-family: monospace; color: #1a3a2a; font-size: 11px; }
         .name-cell { font-weight: 500; color: #111827; }
-        .success-cell { color: #059669; font-weight: 500; }
-        .failed-cell { color: #059669; font-weight: 500; }
-        .dir-in { background: #059669; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .success-cell { color: #1a3a2a; font-weight: 500; }
+        .failed-cell { color: #1a3a2a; font-weight: 500; }
+        .dir-in { background: #1a3a2a; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .dir-out { background: #6b7280; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .type-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #f3f4f6; color: #374151; }
         .st-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #f1f5f9; color: #6b7280; }
-        .st-badge.connected, .st-badge.completed { background: #ecfdf5; color: #059669; }
+        .st-badge.connected, .st-badge.completed { background: #f9fafb; color: #1a3a2a; }
         .st-badge.initiated, .st-badge.sent { background: #eff6ff; color: #1d4ed8; }
-        .st-badge.failed { background: #ECFDF5; color: #059669; }
+        .st-badge.failed { background: #f9fafb; color: #1a3a2a; }
         .empty-row { text-align: center; color: #6b7280; padding: 30px !important; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
         .modal-content { background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
@@ -288,11 +288,11 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; color: #374151; }
         .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #059669; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #1a3a2a; }
         .input-row { display: flex; gap: 6px; }
         .input-row input { flex: 1; }
-        .pick-btn { padding: 8px 12px; background: #f9fafb; border: 1px solid #059669; border-radius: 8px; color: #065f46; font-size: 12px; cursor: pointer; }
-        .pick-btn:hover { background: #ecfdf5; }
+        .pick-btn { padding: 8px 12px; background: #f9fafb; border: 1px solid #1a3a2a; border-radius: 8px; color: #0f2a1d; font-size: 12px; cursor: pointer; }
+        .pick-btn:hover { background: #f9fafb; }
         .pick-btn.full-w { width: 100%; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
         .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -301,19 +301,33 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .contact-picker { max-width: 360px; }
         .contact-search { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
         .contact-list { max-height: 280px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
-        .contact-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+        .contact-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; min-height: 44px; }
         .contact-row:hover { background: #f9fafb; }
-        .contact-row.selected { background: #ecfdf5; }
-        .contact-avatar { width: 32px; height: 32px; background: #059669; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; }
+        .contact-row.selected { background: #f9fafb; }
+        .contact-avatar { width: 36px; height: 36px; background: #1a3a2a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
         .contact-details { flex: 1; }
         .c-name { font-size: 13px; font-weight: 500; color: #111827; }
         .c-phone { font-size: 11px; color: #6b7280; font-family: monospace; }
-        .check { color: #059669; font-weight: bold; }
-        @media (max-width: 480px) {
+        .check { color: #1a3a2a; font-weight: bold; }
+        @media (max-width: 768px) {
           .tab-header { flex-direction: column; align-items: flex-start; }
           .controls-row { flex-direction: column; align-items: stretch; }
           .v-search { width: 100%; }
+          .filter-tabs { flex-wrap: wrap; }
+          .modal-overlay { align-items: flex-end; padding: 0; }
+          .modal-content { max-width: 100%; border-radius: 16px 16px 0 0; max-height: 85vh; }
+          .modal-content.campaign-modal { max-width: 100%; }
+          .contact-picker { max-width: 100%; }
+          .modal-actions { flex-direction: column; }
+          .modal-actions button { width: 100%; }
           .hide-mobile { display: none; }
+          th, td { padding: 8px 10px; font-size: 11px; }
+        }
+        @media (max-width: 480px) {
+          .tab-header-actions { width: 100%; }
+          .tab-header-actions button { flex: 1; }
+          .filter-tabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+          .filter-tabs button { flex-shrink: 0; }
         }
       `}</style>
     </>
@@ -323,7 +337,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Voice | WECARE.DIGITAL" description="Voice — AWS Pinpoint & Airtel IQ" />
+      <SEO title="Voice | WECARE.DIGITAL" description="Voice � AWS Pinpoint & Airtel IQ" />
       {shellContent}
     </Layout>
   );

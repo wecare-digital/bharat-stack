@@ -377,7 +377,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     if (!names.some(n => n.includes('green') && n.includes('pack'))) items.push({ name:'Green Packing', unitPrice:'49', quantity:'1', gstRate:'18' });
                     if (!names.some(n => n.includes('notification') || n.includes('alert'))) items.push({ name:'Notification Fee', unitPrice:'19', quantity:'1', gstRate:'18' });
                     setInvForm({...invForm, items});
-                  }} style={{marginBottom:4,fontSize:12,color:'#059669'}}>+ Green Packing & Notification Fee</Button>
+                  }} style={{marginBottom:4,fontSize:12,color:'#1a3a2a'}}>+ Green Packing & Notification Fee</Button>
                   <h4 style={{margin:'12px 0 8px',fontSize:15}}>Additional Charges</h4>
                   <div className="pf-form-grid">
                     <div className="form-group"><label>Express / Shipping ({'\u20B9'})</label><input type="number" value={invForm.shipping} onChange={e=>setInvForm({...invForm,shipping:e.target.value})} /></div>
@@ -443,7 +443,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                             <td style={{fontWeight:600}}>{inv.customerName||inv.customerPhone||'\u2014'}</td>
                             <td>{fmtMoney(inv.total)}</td>
                             <td><span className={`status-badge ${badgeClass(inv)}`}>{inv.status}</span></td>
-                            <td><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:'#ecfdf5',color:'#059669'}}>{inv.entryPoint||'manual'}</span></td>
+                            <td><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:'#f9fafb',color:'#1a3a2a'}}>{inv.entryPoint||'manual'}</span></td>
                             <td>{fmtDate(inv.createdAt)}</td>
                           </tr>
                         ))}
@@ -460,7 +460,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                       <button onClick={()=>setSelInvoice(null)} className="pf-close-btn">{'\u2715'}</button>
                     </div>
                     <div className={`status-badge ${badgeClass(selInvoice)}`} style={{marginBottom:12}}>{selInvoice.status}</div>
-                    <div className="pf-detail-row"><span className="label">Source</span><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:'#ecfdf5',color:'#059669'}}>{selInvoice.entryPoint||'manual'}</span></div>
+                    <div className="pf-detail-row"><span className="label">Source</span><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:'#f9fafb',color:'#1a3a2a'}}>{selInvoice.entryPoint||'manual'}</span></div>
                     <div className="pf-detail-row"><span className="label">Ref</span><span className="mono">{selInvoice.referenceId||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Customer</span><span>{selInvoice.customerName||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Phone</span><span>{selInvoice.customerPhone||'\u2014'}</span></div>

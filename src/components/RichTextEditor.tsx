@@ -633,16 +633,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                       onChange={e => { setPayPasswordInput(e.target.value); setPayPasswordError(''); }}
                       onKeyDown={e => e.key === 'Enter' && handlePayPhoneUnlock()}
                       placeholder="Enter password"
-                      style={{ flex: 1, borderColor: payPasswordError ? '#059669' : undefined }}
+                      style={{ flex: 1, borderColor: payPasswordError ? '#1a3a2a' : undefined }}
                     />
-                    <button onClick={handlePayPhoneUnlock} style={{ padding: '4px 12px', borderRadius: '6px', background: '#059669', color: '#fff', border: 'none', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Unlock</button>
+                    <button onClick={handlePayPhoneUnlock} style={{ padding: '4px 12px', borderRadius: '6px', background: '#d1f470', color: '#1a3a2a', border: 'none', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Unlock</button>
                   </div>
-                  {payPasswordError && <span style={{ color: '#059669', fontSize: '11px' }}>{payPasswordError}</span>}
+                  {payPasswordError && <span style={{ color: '#1a3a2a', fontSize: '11px' }}>{payPasswordError}</span>}
                 </div>
               )}
               {!isPayPhoneLocked() && PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.paymentProtected && (
                 <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
-                  <span style={{ color: '#059669', fontSize: '11px' }}>Unlocked for this session</span>
+                  <span style={{ color: '#1a3a2a', fontSize: '11px' }}>Unlocked for this session</span>
                 </div>
               )}
               <div className={styles['variable-input-row']}>
@@ -746,7 +746,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
                 <button
                   onClick={() => setPaymentForm({...paymentForm, items: [...paymentForm.items, { name: '', amount: '', quantity: '1', gstRate: '0' }]})}
-                  style={{ padding: '4px 12px', borderRadius: '6px', background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', fontSize: '12px', cursor: 'pointer' }}
+                  style={{ padding: '4px 12px', borderRadius: '6px', background: '#f9fafb', color: '#1a3a2a', border: '1px solid #e5e7eb', fontSize: '12px', cursor: 'pointer' }}
                 >+ Add Item</button>
               </div>
               <div className={styles['variable-input-row']}>
@@ -796,7 +796,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 const express = parseFloat(paymentForm.express) || 0;
                 const grand = subtotal + totalGst + convTotal - promo + express;
                 return (
-                  <div className={`${styles['variable-input-row']} ${styles['full-width']}`} style={{ background: '#ecfdf5', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', color: '#374151', lineHeight: '1.6' }}>
+                  <div className={`${styles['variable-input-row']} ${styles['full-width']}`} style={{ background: '#f9fafb', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', color: '#374151', lineHeight: '1.6' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal ({items.length} item{items.length > 1 ? 's' : ''})</span><span>₹{subtotal.toFixed(2)}</span></div>
                     {totalGst > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>GST (itemwise)</span><span>₹{totalGst.toFixed(2)}</span></div>}
                     {totalGst > 0 && items.filter(i => (parseInt(i.gstRate) || 0) > 0).map((i, idx) => {
@@ -805,9 +805,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                       return <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '10px', fontSize: '11px', color: '#6b7280' }}><span>{i.name || `Item ${idx+1}`} @ {i.gstRate}%</span><span>₹{g.toFixed(2)}</span></div>;
                     })}
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Conv. Fee (2%+18%GST)</span><span>₹{convTotal.toFixed(2)}</span></div>
-                    {promo > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669' }}><span>Promo</span><span>-₹{promo.toFixed(2)}</span></div>}
+                    {promo > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1a3a2a' }}><span>Promo</span><span>-₹{promo.toFixed(2)}</span></div>}
                     {express > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Express</span><span>₹{express.toFixed(2)}</span></div>}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #A7F3D0', paddingTop: '4px', marginTop: '4px', color: '#059669' }}><span>Total</span><span>₹{grand.toFixed(2)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1px solid #e5e7eb', paddingTop: '4px', marginTop: '4px', color: '#1a3a2a' }}><span>Total</span><span>₹{grand.toFixed(2)}</span></div>
                   </div>
                 );
               })()}
@@ -942,7 +942,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowTemplates(!showTemplates); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); setShowTTSPanel(false); }}
             title="Templates (can send outside 24h window)"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#059669" viewBox="0 0 16 16"><path d="M3 4.5h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2m0 1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zM1 2a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 2m0 12a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 14"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#1a3a2a" viewBox="0 0 16 16"><path d="M3 4.5h10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2m0 1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1zM1 2a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 2m0 12a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 14"/></svg>
           </button>
         )}
 
@@ -968,7 +968,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Send Payment Request (UPI)"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#059669" viewBox="0 0 16 16"><path d="M11 5.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm13 2v5H1V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1m-1 9H2a1 1 0 0 1-1-1v-1h14v1a1 1 0 0 1-1 1"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="#1a3a2a" viewBox="0 0 16 16"><path d="M11 5.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm13 2v5H1V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1m-1 9H2a1 1 0 0 1-1-1v-1h14v1a1 1 0 0 1-1 1"/></svg>
           </button>
         )}
 
@@ -979,7 +979,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={() => { setShowVariables(!showVariables); setShowTemplates(false); setShowFormatting(false); setShowPaymentDialog(false); setShowTTSPanel(false); }}
           title="Insert Variable"
         >
-          <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M5 4C2.5 9 2.5 14 5 20M19 4c2.5 5 2.5 10 0 16M9 9h1c1 0 1 1 2.016 3.527C13 15 13 16 14 16h1"/><path d="M8 16c1.5 0 3-2 4-3.5S14.5 9 16 9"/></svg>
+          <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M5 4C2.5 9 2.5 14 5 20M19 4c2.5 5 2.5 10 0 16M9 9h1c1 0 1 1 2.016 3.527C13 15 13 16 14 16h1"/><path d="M8 16c1.5 0 3-2 4-3.5S14.5 9 16 9"/></svg>
         </button>
 
         {/* Formatting Button (WhatsApp only) */}
@@ -990,7 +990,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowFormatting(!showFormatting); setShowTemplates(false); setShowVariables(false); setShowPaymentDialog(false); setShowTTSPanel(false); }}
             title="Formatting"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7c0-.932 0-1.398.152-1.765a2 2 0 0 1 1.083-1.083C5.602 4 6.068 4 7 4h10c.932 0 1.398 0 1.765.152a2 2 0 0 1 1.083 1.083C20 5.602 20 6.068 20 7M9 20h6M12 4v16"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7c0-.932 0-1.398.152-1.765a2 2 0 0 1 1.083-1.083C5.602 4 6.068 4 7 4h10c.932 0 1.398 0 1.765.152a2 2 0 0 1 1.083 1.083C20 5.602 20 6.068 20 7M9 20h6M12 4v16"/></svg>
           </button>
         )}
 
@@ -1019,7 +1019,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             title="Attach File"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 15v1.2c0 1.68 0 2.52-.327 3.162a3 3 0 0 1-1.311 1.311C18.72 21 17.88 21 16.2 21H7.8c-1.68 0-2.52 0-3.162-.327a3 3 0 0 1-1.311-1.311C3 18.72 3 17.88 3 16.2V15m14-7-5-5m0 0L7 8m5-5v12"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 15v1.2c0 1.68 0 2.52-.327 3.162a3 3 0 0 1-1.311 1.311C18.72 21 17.88 21 16.2 21H7.8c-1.68 0-2.52 0-3.162-.327a3 3 0 0 1-1.311-1.311C3 18.72 3 17.88 3 16.2V15m14-7-5-5m0 0L7 8m5-5v12"/></svg>
           </button>
         )}
 
@@ -1031,7 +1031,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={() => { setShowTTSPanel(!showTTSPanel); setShowTemplates(false); setShowVariables(false); setShowFormatting(false); setShowPaymentDialog(false); }}
             title="Text-to-Speech (Polly)"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 10v2a7 7 0 0 1-7 7m-7-9v2a7 7 0 0 0 7 7m0 0v3m-4 0h8m-4-7a3 3 0 0 1-3-3V5a3 3 0 1 1 6 0v7a3 3 0 0 1-3 3"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 10v2a7 7 0 0 1-7 7m-7-9v2a7 7 0 0 0 7 7m0 0v3m-4 0h8m-4-7a3 3 0 0 1-3-3V5a3 3 0 1 1 6 0v7a3 3 0 0 1-3 3"/></svg>
           </button>
         )}
 
@@ -1043,7 +1043,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={onEmojiClick}
             title="Emoji"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 9h.01M9 9h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10m-6.5-3a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m-6 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m2.5 8.5c2.5 0 4.5-1.833 4.5-3.5h-9c0 1.667 2 3.5 4.5 3.5"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 9h.01M9 9h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10m-6.5-3a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m-6 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m2.5 8.5c2.5 0 4.5-1.833 4.5-3.5h-9c0 1.667 2 3.5 4.5 3.5"/></svg>
           </button>
         )}
 
@@ -1055,7 +1055,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={onInteractiveClick}
             title="Interactive Message (List / Buttons)"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 12H9m12-6H9m12 12H9m-4-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0m0-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0m0 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 12H9m12-6H9m12 12H9m-4-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0m0-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0m0 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
           </button>
         )}
 
@@ -1067,7 +1067,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onClick={onLocationClick}
             title="Request Location"
           >
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.5 5h.434c3.048 0 4.571 0 5.15.547a2 2 0 0 1 .586 1.845c-.156.781-1.4 1.66-3.888 3.42l-4.064 2.876c-2.488 1.76-3.732 2.639-3.888 3.42a2 2 0 0 0 .586 1.845c.579.547 2.102.547 5.15.547h.934M8 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m14 14a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/></svg>
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.5 5h.434c3.048 0 4.571 0 5.15.547a2 2 0 0 1 .586 1.845c-.156.781-1.4 1.66-3.888 3.42l-4.064 2.876c-2.488 1.76-3.732 2.639-3.888 3.42a2 2 0 0 0 .586 1.845c.579.547 2.102.547 5.15.547h.934M8 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m14 14a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/></svg>
           </button>
         )}
 
@@ -1080,7 +1080,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             disabled={loadingAI}
             title={aiError || "Get AI Suggestion (Bedrock)"}
           >
-            {loadingAI ? '...' : <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#059669" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 2 4.093 12.688c-.348.418-.523.628-.525.804a.5.5 0 0 0 .185.397c.138.111.41.111.955.111H12l-1 8 8.907-10.688c.348-.418.523-.628.525-.804a.5.5 0 0 0-.185-.397c-.138-.111-.41-.111-.955-.111H12z"/></svg>}
+            {loadingAI ? '...' : <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 2 4.093 12.688c-.348.418-.523.628-.525.804a.5.5 0 0 0 .185.397c.138.111.41.111.955.111H12l-1 8 8.907-10.688c.348-.418.523-.628.525-.804a.5.5 0 0 0-.185-.397c-.138-.111-.41-.111-.955-.111H12z"/></svg>}
           </button>
         )}
 

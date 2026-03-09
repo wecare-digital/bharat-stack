@@ -802,7 +802,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const detail = content?.replace(/^\[Referral: ?\w*\]\s*/, '').trim();
       return (
         <div className="referral-message">
-          <span className="referral-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
+          <span className="referral-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
           <span className="referral-text">{detail || 'Came from an ad or referral'}</span>
         </div>
       );
@@ -812,7 +812,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     if (messageType === 'ad_click' || content?.startsWith('[Ad Click')) {
       return (
         <div className="referral-message">
-          <span className="referral-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
+          <span className="referral-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
           <span className="referral-text">Clicked a WhatsApp ad</span>
         </div>
       );
@@ -823,7 +823,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const detail = content?.replace(/[\[\]]/g, '') || 'Product inquiry';
       return (
         <div className="product-message">
-          <span className="product-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
+          <span className="product-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
           <span className="product-text">{detail}</span>
         </div>
       );
@@ -834,7 +834,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const question = content?.match(/\[Poll: (.+?)\]/)?.[1] || 'Poll';
       return (
         <div className="poll-message">
-          <span className="poll-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="3" width="4" height="18"/><rect x="17" y="8" width="4" height="13"/></svg></span>
+          <span className="poll-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="3" width="4" height="18"/><rect x="17" y="8" width="4" height="13"/></svg></span>
           <span className="poll-text">{question}</span>
         </div>
       );
@@ -1245,7 +1245,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .chat-name { font-weight: 500; }
         .chat-phone { font-size: 12px; color: #666; }
         .window-badge { font-size: 12px; padding: 4px 12px; border-radius: 12px; }
-        .window-badge.open { background: #ECFDF5; color: #065f46; }
+        .window-badge.open { background: #f9fafb; color: #0f2a1d; }
         .window-badge.closed { background: #f3f4f6; color: #6b7280; }
         .messages-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
         .message { display: flex; align-items: flex-end; gap: 4px; max-width: 70%; }
@@ -1306,25 +1306,25 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .contact-card-hint { font-size: 11px; color: #666; }
         
         /* Interactive messages (button/list/flow replies) */
-        .interactive-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #ecfdf5; border-radius: 8px; border-left: 3px solid #059669; }
+        .interactive-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f9fafb; border-radius: 8px; border-left: 3px solid #1a3a2a; }
         .interactive-icon { font-size: 18px; }
         .interactive-content { display: flex; flex-direction: column; }
-        .interactive-label { font-size: 11px; color: #059669; font-weight: 500; text-transform: uppercase; }
+        .interactive-label { font-size: 11px; color: #1a3a2a; font-weight: 500; text-transform: uppercase; }
         .interactive-value { font-size: 14px; color: #333; }
         
         /* Order messages */
-        .order-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #ecfdf5; border-radius: 8px; border-left: 3px solid #059669; }
+        .order-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; border-left: 3px solid #1a3a2a; }
         .order-icon { font-size: 24px; }
         .order-info { display: flex; flex-direction: column; }
-        .order-label { font-size: 13px; font-weight: 500; color: #065f46; }
-        .order-hint { font-size: 11px; color: #047857; }
+        .order-label { font-size: 13px; font-weight: 500; color: #0f2a1d; }
+        .order-hint { font-size: 11px; color: #0f2a1d; }
         
         /* Payment messages */
-        .payment-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #d1fae5; border-radius: 8px; border-left: 3px solid #059669; }
+        .payment-message { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f3f4f6; border-radius: 8px; border-left: 3px solid #1a3a2a; }
         .payment-icon { font-size: 24px; }
         .payment-info { display: flex; flex-direction: column; }
-        .payment-label { font-size: 11px; color: #065f46; font-weight: 500; text-transform: uppercase; }
-        .payment-content { font-size: 14px; color: #065f46; }
+        .payment-label { font-size: 11px; color: #0f2a1d; font-weight: 500; text-transform: uppercase; }
+        .payment-content { font-size: 14px; color: #0f2a1d; }
         
         /* Template messages (OTP, authentication, marketing, utility) */
         .template-message { display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
@@ -1335,15 +1335,15 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .template-text { font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
         
         /* OTP/Authentication template */
-        .otp-template .template-header { border-color: #A7F3D0; }
-        .otp-template .template-label { color: #065f46; }
+        .otp-template .template-header { border-color: #e5e7eb; }
+        .otp-template .template-label { color: #0f2a1d; }
         .otp-template .template-body { text-align: center; padding: 8px 0; }
-        .otp-code { font-size: 28px; font-weight: 700; font-family: monospace; letter-spacing: 4px; color: #065f46; background: #ECFDF5; padding: 12px 20px; border-radius: 8px; margin-bottom: 8px; }
+        .otp-code { font-size: 28px; font-weight: 700; font-family: monospace; letter-spacing: 4px; color: #0f2a1d; background: #f9fafb; padding: 12px 20px; border-radius: 8px; margin-bottom: 8px; }
         .otp-text { font-size: 13px; color: #666; }
-        .template-button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-        .template-button:hover { background: #D1FAE5; border-color: #059669; }
+        .template-button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .template-button:hover { background: #f3f4f6; border-color: #1a3a2a; }
         .template-button .btn-icon { font-size: 14px; }
-        .copy-code-btn { color: #065f46; font-weight: 500; font-size: 13px; }
+        .copy-code-btn { color: #0f2a1d; font-weight: 500; font-size: 13px; }
         
         /* Utility template (transactional) */
         .utility-template .template-header { border-color: #d1d5db; }
@@ -1358,25 +1358,25 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .ref-copy:hover { opacity: 1; }
         
         /* Marketing template (promotional) */
-        .marketing-template .template-header { border-color: #a7f3d0; }
-        .marketing-template .template-label { color: #065f46; }
-        .marketing-template { background: #ecfdf5; margin: -8px -12px; padding: 8px 12px; border-radius: 8px; }
+        .marketing-template .template-header { border-color: #e5e7eb; }
+        .marketing-template .template-label { color: #0f2a1d; }
+        .marketing-template { background: #f9fafb; margin: -8px -12px; padding: 8px 12px; border-radius: 8px; }
         .template-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto; }
-        .template-badge.urgent { background: #ECFDF5; color: #059669; }
-        .coupon-code { display: flex; align-items: center; gap: 8px; background: #d1fae5; padding: 8px 12px; border-radius: 6px; margin-top: 8px; cursor: pointer; border: 1px dashed #059669; }
-        .coupon-code:hover { background: #a7f3d0; }
-        .coupon-label { font-size: 11px; color: #065f46; }
-        .coupon-value { font-size: 16px; font-weight: 700; font-family: monospace; color: #047857; letter-spacing: 1px; }
+        .template-badge.urgent { background: #f9fafb; color: #1a3a2a; }
+        .coupon-code { display: flex; align-items: center; gap: 8px; background: #f3f4f6; padding: 8px 12px; border-radius: 6px; margin-top: 8px; cursor: pointer; border: 1px dashed #1a3a2a; }
+        .coupon-code:hover { background: #e5e7eb; }
+        .coupon-label { font-size: 11px; color: #0f2a1d; }
+        .coupon-value { font-size: 16px; font-weight: 700; font-family: monospace; color: #0f2a1d; letter-spacing: 1px; }
         .coupon-copy { font-size: 14px; margin-left: auto; opacity: 0.6; }
         .coupon-code:hover .coupon-copy { opacity: 1; }
-        .template-cta-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; background: #059669; color: #fff; border-radius: 6px; margin-top: 8px; text-decoration: none; font-size: 13px; font-weight: 500; transition: background 0.2s; }
-        .template-cta-btn:hover { background: #059669; }
+        .template-cta-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; background: #d1f470; color: #1a3a2a; border-radius: 6px; margin-top: 8px; text-decoration: none; font-size: 13px; font-weight: 500; transition: background 0.2s; }
+        .template-cta-btn:hover { background: #c5e866; }
         
         /* Button messages (quick reply) */
-        .button-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #d1fae5; border-radius: 8px; border-left: 3px solid #059669; }
+        .button-message { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; border-left: 3px solid #1a3a2a; }
         .button-icon { font-size: 18px; }
         .button-content { display: flex; flex-direction: column; }
-        .button-text { font-size: 14px; color: #065f46; }
+        .button-text { font-size: 14px; color: #0f2a1d; }
         
         /* Reaction messages */
         .reaction-message { display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
@@ -1389,15 +1389,15 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .system-text { font-style: italic; }
         
         /* Welcome messages */
-        .welcome-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #ECFDF5; border-radius: 8px; }
+        .welcome-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9fafb; border-radius: 8px; }
         .welcome-icon { font-size: 20px; }
-        .welcome-text { font-size: 13px; color: #065f46; }
+        .welcome-text { font-size: 13px; color: #0f2a1d; }
         
         /* Unsupported messages */
         .unsupported-message { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; }
         .unsupported-icon { font-size: 16px; }
         .unsupported-text { font-size: 13px; color: #6b7280; font-style: italic; }
-        .unsupported-download { font-size: 12px; color: #059669; text-decoration: none; margin-left: auto; }
+        .unsupported-download { font-size: 12px; color: #1a3a2a; text-decoration: none; margin-left: auto; }
         .unsupported-download:hover { text-decoration: underline; }
         
         /* Generic media fallback */
@@ -1408,18 +1408,18 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .message-footer { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
         .message-time { font-size: 11px; color: #999; }
         .message-status { font-size: 12px; }
-        .message-status.read, .message-status.delivered { color: #059669; }
-        .message-status.failed { color: #059669; }
+        .message-status.read, .message-status.delivered { color: #1a3a2a; }
+        .message-status.failed { color: #1a3a2a; }
         .reaction-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.5; }
         .reaction-btn:hover { opacity: 1; }
         
         /* Compose area */
         .compose-area { padding: 12px 16px; background: #f0f0f0; }
-        .window-closed-warning { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #ecfdf5; border-radius: 8px; margin-bottom: 10px; border: 1px solid #a7f3d0; }
+        .window-closed-warning { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e5e7eb; }
         .warning-icon { font-size: 16px; }
-        .warning-text { flex: 1; font-size: 13px; color: #065f46; }
-        .template-btn { background: #059669; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
-        .template-btn:hover { background: #059669; }
+        .warning-text { flex: 1; font-size: 13px; color: #0f2a1d; }
+        .template-btn { background: #1a3a2a; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
+        .template-btn:hover { background: #1a3a2a; }
         .compose-row { display: flex; align-items: flex-end; gap: 8px; }
         .compose-input { flex: 1; }
         .voice-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
@@ -1434,7 +1434,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .cancel-record-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: #6b7280; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .cancel-record-btn:hover { background: #4b5563; }
         .recording-indicator { flex: 1; display: flex; align-items: center; gap: 8px; }
-        .recording-dot { color: #059669; font-size: 12px; animation: pulse 1s infinite; }
+        .recording-dot { color: #1a3a2a; font-size: 12px; animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .recording-time { font-size: 16px; font-weight: 500; color: #333; font-family: monospace; }
         .stop-record-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #000; background: #fff; color: #000; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -1471,7 +1471,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         /* Star button */
         .star-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.3; transition: all 0.2s; padding: 2px; }
         .star-btn:hover { opacity: 0.7; }
-        .star-btn.starred { opacity: 1; color: #059669; }
+        .star-btn.starred { opacity: 1; color: #1a3a2a; }
         
         /* No contacts message */
         .no-contacts { padding: 20px; text-align: center; color: #999; font-size: 13px; }

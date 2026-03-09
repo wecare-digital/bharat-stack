@@ -7,7 +7,7 @@
 .rich-text-editor {
   position: relative;
   background: var(--bg, #fff);
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   overflow: visible;
 }
@@ -18,8 +18,8 @@
   align-items: center;
   gap: 4px;
   padding: 8px 12px;
-  border-bottom: 2px solid #D1FAE5;
-  background: #ECFDF5;
+  border-bottom: 1.5px solid #d1f470;
+  background: #f9fafb;
 }
 
 .toolbar-btn {
@@ -51,7 +51,7 @@
 }
 
 .toolbar-btn.has-vars {
-  color: var(--info, #059669);
+  color: var(--info, #1a3a2a);
 }
 
 .toolbar-btn.ai-btn {
@@ -71,7 +71,7 @@
 }
 
 .toolbar-btn.ai-btn.error {
-  background: var(--danger, #059669);
+  background: var(--danger, #1a3a2a);
   animation: shake 0.3s ease-in-out;
 }
 
@@ -92,14 +92,14 @@
 }
 
 .char-counter.over-limit {
-  color: var(--danger, #059669);
+  color: var(--danger, #1a3a2a);
   font-weight: 600;
 }
 
 .var-indicator {
   font-size: 13px;
-  color: var(--info, #059669);
-  background: var(--info-light, #ECFDF5);
+  color: var(--info, #1a3a2a);
+  background: var(--info-light, #f9fafb);
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
@@ -197,9 +197,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--info-light, #ECFDF5);
+  background: var(--info-light, #f9fafb);
   border-radius: 6px;
-  color: var(--info, #059669);
+  color: var(--info, #1a3a2a);
   font-weight: 600;
 }
 
@@ -325,12 +325,12 @@
 }
 
 .editor-textarea.over-limit {
-  color: var(--danger, #059669);
+  color: var(--danger, #1a3a2a);
 }
 
 .send-btn {
-  background: #059669;
-  color: #fff;
+  background: #d1f470;
+  color: #1a3a2a;
   border: none;
   width: 36px;
   height: 36px;
@@ -345,12 +345,12 @@
 }
 
 .send-btn:hover {
-  background: #047857;
+  background: #c5e866;
   transform: scale(1.05);
 }
 
 .send-btn:disabled {
-  background: #D1FAE5;
+  background: #e5e7eb;
   color: #9ca3af;
   cursor: not-allowed;
   transform: none;
@@ -410,8 +410,8 @@
 }
 
 .template-status.rejected {
-  background: var(--danger-light, #ECFDF5);
-  color: var(--danger, #059669);
+  background: var(--danger-light, #f9fafb);
+  color: var(--danger, #1a3a2a);
 }
 
 .template-info {
@@ -569,8 +569,8 @@
 .variable-input-row label {
   font-size: 13px;
   font-weight: 600;
-  color: var(--info, #059669);
-  background: var(--info-light, #ECFDF5);
+  color: var(--info, #1a3a2a);
+  background: var(--info-light, #f9fafb);
   padding: 6px 10px;
   border-radius: 6px;
   min-width: 50px;
@@ -646,7 +646,7 @@
 /* Variable count in template list */
 .var-count {
   font-size: 13px;
-  color: var(--info, #059669);
+  color: var(--info, #1a3a2a);
   font-weight: 600;
 }
 

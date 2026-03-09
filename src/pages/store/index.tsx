@@ -279,12 +279,12 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
     { key: 'collections', header: 'Collections', render: (p: api.WixProduct) => (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {(p.collections || []).map(c => (
-          <span key={c._id} style={{ background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: 12, fontSize: 11 }}>{c.name}</span>
+          <span key={c._id} style={{ background: '#f9fafb', color: '#1a3a2a', padding: '2px 8px', borderRadius: 12, fontSize: 11 }}>{c.name}</span>
         ))}
       </div>
     )},
     { key: 'stock', header: 'Stock', render: (p: api.WixProduct) => (
-      <span style={{ color: p.inStock ? '#059669' : '#059669', fontWeight: 500, fontSize: 13 }}>
+      <span style={{ color: p.inStock ? '#1a3a2a' : '#1a3a2a', fontWeight: 500, fontSize: 13 }}>
         {p.inStock ? (p.quantityInStock !== undefined ? `${p.quantityInStock} in stock` : 'In Stock') : 'Out of Stock'}
       </span>
     )},
@@ -323,12 +323,12 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
     }},
     { key: 'payment', header: 'Payment', render: (o: api.WixOrder) => {
       const status = o.paymentStatus || o._summary?.paymentStatus || '';
-      const color = status === 'PAID' ? '#059669' : status === 'NOT_PAID' ? '#059669' : '#059669';
+      const color = status === 'PAID' ? '#1a3a2a' : status === 'NOT_PAID' ? '#1a3a2a' : '#1a3a2a';
       return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ')}</span>;
     }},
     { key: 'fulfillment', header: 'Fulfillment', render: (o: api.WixOrder) => {
       const status = o.fulfillmentStatus || o._summary?.fulfillmentStatus || '';
-      const color = status === 'FULFILLED' ? '#059669' : status === 'NOT_FULFILLED' ? '#6b7280' : '#059669';
+      const color = status === 'FULFILLED' ? '#1a3a2a' : status === 'NOT_FULFILLED' ? '#6b7280' : '#1a3a2a';
       return <span style={{ color, fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>{status.replace(/_/g, ' ') || '—'}</span>;
     }},
     { key: 'date', header: 'Date', render: (o: api.WixOrder) => {
@@ -463,13 +463,13 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
               <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                 <button
                   onClick={() => setManageMode('single')}
-                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'single' ? '2px solid #059669' : '1px solid #d1d5db', background: manageMode === 'single' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'single' ? 600 : 400, fontSize: 13 }}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'single' ? '2px solid #1a3a2a' : '1px solid #d1d5db', background: manageMode === 'single' ? '#f9fafb' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'single' ? 600 : 400, fontSize: 13 }}
                 >
                   Single Product
                 </button>
                 <button
                   onClick={() => setManageMode('bulk')}
-                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'bulk' ? '2px solid #059669' : '1px solid #d1d5db', background: manageMode === 'bulk' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'bulk' ? 600 : 400, fontSize: 13 }}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: manageMode === 'bulk' ? '2px solid #1a3a2a' : '1px solid #d1d5db', background: manageMode === 'bulk' ? '#f9fafb' : '#fff', cursor: 'pointer', fontWeight: manageMode === 'bulk' ? 600 : 400, fontSize: 13 }}
                 >
                   Bulk Create (JSON)
                 </button>
@@ -477,10 +477,10 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
               {/* Sample Products */}
               {sampleProducts.length > 0 && (
-                <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>BNB CLUB Templates</span>
-                    <button onClick={handleLoadAllSamples} style={{ fontSize: 12, padding: '4px 12px', border: '1px solid #86efac', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#059669' }}>
+                    <button onClick={handleLoadAllSamples} style={{ fontSize: 12, padding: '4px 12px', border: '1px solid #86efac', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#1a3a2a' }}>
                       Load All → Bulk
                     </button>
                   </div>
@@ -559,7 +559,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button onClick={handleCreateProduct} disabled={creating || !newProduct.name || !newProduct.price}
-                      style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !newProduct.name || !newProduct.price ? 0.5 : 1 }}>
+                      style={{ padding: '10px 24px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !newProduct.name || !newProduct.price ? 0.5 : 1 }}>
                       {creating ? 'Creating...' : 'Create Product'}
                     </button>
                   </div>
@@ -575,7 +575,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                     style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 12, outline: 'none', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
                   <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button onClick={handleBulkCreate} disabled={creating || !bulkJson.trim()}
-                      style={{ padding: '10px 24px', background: '#059669', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !bulkJson.trim() ? 0.5 : 1 }}>
+                      style={{ padding: '10px 24px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: creating || !bulkJson.trim() ? 0.5 : 1 }}>
                       {creating ? 'Creating...' : 'Bulk Create'}
                     </button>
                   </div>
@@ -584,8 +584,8 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
 
               {/* Result */}
               {createResult && (
-                <div style={{ marginTop: 16, background: createResult.success ? '#ecfdf5' : '#f3f4f6', border: `1px solid ${createResult.success ? '#a7f3d0' : '#e5e7eb'}`, borderRadius: 12, padding: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: createResult.success ? '#059669' : '#6b7280', marginBottom: 8 }}>
+                <div style={{ marginTop: 16, background: createResult.success ? '#f9fafb' : '#f3f4f6', border: `1px solid ${createResult.success ? '#e5e7eb' : '#e5e7eb'}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: createResult.success ? '#1a3a2a' : '#6b7280', marginBottom: 8 }}>
                     {createResult.success ? (createResult.bulk ? `Bulk: ${createResult.succeeded}/${createResult.total} created` : 'Product Created') : 'Error'}
                   </div>
                   <pre style={{ fontSize: 12, margin: 0, whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto', color: '#374151' }}>
@@ -604,15 +604,15 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Wix Site</h3>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: '#059669', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
+                    style={{ fontSize: 12, color: '#1a3a2a', textDecoration: 'none', padding: '4px 12px', border: '1px solid #f3f4f6', borderRadius: 8 }}>
                     Open Wix Dashboard →
                   </a>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                   <div style={adminCard}><span style={adminLabel}>Site Name</span><span style={adminVal}>WECARE.DIGITAL</span></div>
                   <div style={adminCard}><span style={adminLabel}>Site ID</span><span style={{ ...adminVal, fontSize: 11, fontFamily: 'monospace' }}>461dece3-613a</span></div>
-                  <div style={adminCard}><span style={adminLabel}>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ ...adminVal, color: '#059669', textDecoration: 'none' }}>wecare.digital</a></div>
-                  <div style={adminCard}><span style={adminLabel}>Status</span><span style={{ ...adminVal, color: '#059669' }}>Published</span></div>
+                  <div style={adminCard}><span style={adminLabel}>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={{ ...adminVal, color: '#1a3a2a', textDecoration: 'none' }}>wecare.digital</a></div>
+                  <div style={adminCard}><span style={adminLabel}>Status</span><span style={{ ...adminVal, color: '#1a3a2a' }}>Published</span></div>
                   <div style={adminCard}><span style={adminLabel}>Currency</span><span style={adminVal}>INR (₹)</span></div>
                   <div style={adminCard}><span style={adminLabel}>Conv. Fee</span><span style={adminVal}>2% + 18% GST</span></div>
                 </div>
@@ -623,7 +623,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Velo Code Files</h3>
                   <a href="https://editor.wix.com/html/editor/web/renderer/edit/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: '#059669', textDecoration: 'none', padding: '4px 12px', border: '1px solid #d1fae5', borderRadius: 8 }}>
+                    style={{ fontSize: 12, color: '#1a3a2a', textDecoration: 'none', padding: '4px 12px', border: '1px solid #f3f4f6', borderRadius: 8 }}>
                     Open in Wix Editor →
                   </a>
                 </div>
@@ -651,8 +651,8 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                         </div>
                         <span style={{
                           fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500,
-                          background: f.status === 'active' ? '#d1fae5' : '#ecfdf5',
-                          color: f.status === 'active' ? '#059669' : '#059669',
+                          background: f.status === 'active' ? '#f3f4f6' : '#f9fafb',
+                          color: f.status === 'active' ? '#1a3a2a' : '#1a3a2a',
                         }}>
                           {f.status === 'active' ? 'Active' : 'Pending Merge'}
                         </span>
@@ -672,12 +672,12 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                       { name: 'site-hygiene.js', desc: 'Site maintenance & cleanup' },
                     ].map(f => (
                       <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
-                        <span style={{ fontSize: 16, width: 24, textAlign: 'center', color: '#059669' }}>File</span>
+                        <span style={{ fontSize: 16, width: 24, textAlign: 'center', color: '#1a3a2a' }}>File</span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>{f.name}</div>
                           <div style={{ fontSize: 11, color: '#6b7280' }}>{f.desc}</div>
                         </div>
-                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#d1fae5', color: '#059669' }}>Active</span>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#f3f4f6', color: '#1a3a2a' }}>Active</span>
                       </div>
                     ))}
                   </div>
@@ -687,12 +687,12 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Service Plugins</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 }}>
-                    <span style={{ fontSize: 16, width: 24, textAlign: 'center', color: '#059669' }}>Ext</span>
+                    <span style={{ fontSize: 16, width: 24, textAlign: 'center', color: '#1a3a2a' }}>Ext</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: 13, fontFamily: 'monospace' }}>automations-velo-action-provider</div>
                       <div style={{ fontSize: 11, color: '#6b7280' }}>Custom automation actions for Wix Automations</div>
                     </div>
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#d1fae5', color: '#059669' }}>Active</span>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#f3f4f6', color: '#1a3a2a' }}>Active</span>
                   </div>
                 </div>
               </div>
@@ -702,27 +702,27 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }}>Quick Actions</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Manage Products</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Manage Orders</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/inventory" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Inventory</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/coupons" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Coupons</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/analytics" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><polyline points="18 20 12 10 6 20"/><polyline points="4 14 12 6 20 14"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><polyline points="18 20 12 10 6 20"/><polyline points="4 14 12 6 20 14"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Analytics</div><div style={{ fontSize: 11, color: '#6b7280' }}>Wix Dashboard</div></div>
                   </a>
                   <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/developer-tools/secrets-manager" target="_blank" rel="noopener noreferrer" style={actionBtn}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                     <div><div style={{ fontWeight: 500, fontSize: 13 }}>Secrets Manager</div><div style={{ fontSize: 11, color: '#6b7280' }}>API Keys & Secrets</div></div>
                   </a>
                 </div>
@@ -766,11 +766,11 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                           <div style={{ fontWeight: 500 }}>{s.displayName}</div>
                           <div style={{ fontSize: 12, color: '#6b7280' }}>ID: {s.id}</div>
                         </div>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: s.published ? '#d1fae5' : '#ecfdf5', color: s.published ? '#059669' : '#059669' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: s.published ? '#f3f4f6' : '#f9fafb', color: s.published ? '#1a3a2a' : '#1a3a2a' }}>
                           {s.published ? 'Published' : 'Draft'}
                         </span>
                         {s.viewUrl && (
-                          <a href={s.viewUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#059669' }}>Visit →</a>
+                          <a href={s.viewUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1a3a2a' }}>Visit →</a>
                         )}
                       </div>
                     ))}
@@ -807,7 +807,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
                     <div><span style={{ fontSize: 12, color: '#6b7280' }}>Price</span><br /><span style={{ fontWeight: 600, fontSize: 18 }}>{selectedProduct.formattedPrice || `₹${selectedProduct.price}`}</span></div>
                     <div><span style={{ fontSize: 12, color: '#6b7280' }}>SKU</span><br /><span style={{ fontWeight: 500 }}>{selectedProduct.sku || '—'}</span></div>
-                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Stock</span><br /><span style={{ fontWeight: 500, color: selectedProduct.inStock ? '#059669' : '#059669' }}>{selectedProduct.inStock ? `${selectedProduct.quantityInStock ?? 'Yes'}` : 'Out'}</span></div>
+                    <div><span style={{ fontSize: 12, color: '#6b7280' }}>Stock</span><br /><span style={{ fontWeight: 500, color: selectedProduct.inStock ? '#1a3a2a' : '#1a3a2a' }}>{selectedProduct.inStock ? `${selectedProduct.quantityInStock ?? 'Yes'}` : 'Out'}</span></div>
                     <div><span style={{ fontSize: 12, color: '#6b7280' }}>Type</span><br /><span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{selectedProduct.productType}</span></div>
                   </div>
                 </div>
@@ -817,7 +817,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                   <span style={{ fontSize: 12, color: '#6b7280' }}>Collections</span>
                   <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                     {selectedProduct.collections.map(c => (
-                      <span key={c._id} style={{ background: '#ecfdf5', color: '#059669', padding: '3px 10px', borderRadius: 12, fontSize: 12 }}>{c.name}</span>
+                      <span key={c._id} style={{ background: '#f9fafb', color: '#1a3a2a', padding: '3px 10px', borderRadius: 12, fontSize: 12 }}>{c.name}</span>
                     ))}
                   </div>
                 </div>
@@ -868,7 +868,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                   <div style={statBox}><span style={statLabel}>Order ID</span><span style={statValue}>{customNum || `#${selectedOrder.number || s.orderNumber || '—'}`}</span></div>
                   <div style={statBox}><span style={statLabel}>Total</span><span style={statValue}>{currency === 'INR' ? '₹' : currency + ' '}{total}</span></div>
-                  <div style={statBox}><span style={statLabel}>Payment</span><span style={{ ...statValue, color: (selectedOrder.paymentStatus || s.paymentStatus) === 'PAID' ? '#059669' : '#059669' }}>{(selectedOrder.paymentStatus || s.paymentStatus || '').replace(/_/g, ' ')}</span></div>
+                  <div style={statBox}><span style={statLabel}>Payment</span><span style={{ ...statValue, color: (selectedOrder.paymentStatus || s.paymentStatus) === 'PAID' ? '#1a3a2a' : '#1a3a2a' }}>{(selectedOrder.paymentStatus || s.paymentStatus || '').replace(/_/g, ' ')}</span></div>
                   <div style={statBox}><span style={statLabel}>Fulfillment</span><span style={statValue}>{(selectedOrder.fulfillmentStatus || s.fulfillmentStatus || '—').replace(/_/g, ' ')}</span></div>
                   <div style={statBox}><span style={statLabel}>Date</span><span style={statValue}>{new Date(selectedOrder.dateCreated || (selectedOrder as any).createdDate || s.createdDate || '').toLocaleDateString('en-IN')}</span></div>
                 </div>

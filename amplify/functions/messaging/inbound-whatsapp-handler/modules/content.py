@@ -110,8 +110,38 @@ def _request_welcome(_m: Dict) -> str:
     return '[User requested to start conversation]'
 
 
-def _ephemeral(_m: Dict) -> str:
-    return '[Disappearing Message]'
+def _ephemeral(m: Dict) -> str:
+    """Handle ephemeral (disappearing) messages.
+    
+    When a chat has disappearing messages enabled, Meta may deliver the
+    message with type='ephemeral'.  The actual content is sometimes nested
+    inside the ephemeral object or carried as a sibling field.  We try to
+    extract it; if nothing is found, we label it clearly.
+    """
+    # Some ephemeral messages carry the real payload inside an 'ephemeral' key
+    inner = m.get('ephemeral', {})
+    if isinstance(inner, dict):
+        # Check for nested text
+        body = inner.get('text', {}).get('body', '') if isinstance(inner.get('text'), dict) else ''
+        if body:
+            return body
+        # Check for nested message type
+        for mtype in ('text', 'image', 'video', 'audio', 'document', 'sticker'):
+            if mtype in inner:
+                extractor = _EXTRACTORS.get(mtype)
+                if extractor:
+                    return extractor(inner)
+    
+    # Fallback: check if text/image/video etc. exist at the top level alongside type=ephemeral
+    for mtype in ('text', 'image', 'video', 'audio', 'document'):
+        if mtype in m and mtype != 'ephemeral':
+            extractor = _EXTRACTORS.get(mtype)
+            if extractor:
+                result = extractor(m)
+                if result and result not in ('[Image]', '[Video]', '[Audio]', '[Document]'):
+                    return result
+    
+    return '[Disappearing Message — content not available via Business API]'
 
 
 def _referral(m: Dict) -> str:
@@ -145,6 +175,13 @@ def extract_unsupported_content(message: Dict) -> str:
     Business API webhook, most notably OTP / authentication templates
     sent by Meta itself.  We detect common patterns so the inbox can
     render a friendlier label instead of a generic error.
+    
+    Common causes of unsupported:
+    - OTP / authentication templates (error 131051)
+    - Disappearing / ephemeral messages sent to API numbers
+    - Multi-image bundles
+    - Polls, view-once, some interactive subtypes
+    - Messages between two WABA/Cloud API numbers
     """
     errors = message.get('errors', [])
 
@@ -156,12 +193,20 @@ def extract_unsupported_content(message: Dict) -> str:
         code = error.get('code', 0)
         details = error.get('details', '')
         title = error.get('title', '')
+        error_text = (details or title or '').lower()
 
         # Error 131051 is the canonical "unsupported message type" code
         # that Meta uses for authentication / OTP templates delivered to
         # business numbers.
-        if code == 131051 or 'not supported' in (details or title or '').lower():
-            return '[Unsupported: OTP or authentication message — content hidden by WhatsApp for security]'
+        if code == 131051 or 'not supported' in error_text:
+            # Check if it's specifically an OTP/auth message
+            if any(kw in error_text for kw in ('otp', 'authentication', 'security', 'verification')):
+                return '[Unsupported: OTP or authentication message — content hidden by WhatsApp for security]'
+            return f'[Unsupported: {details or title or "Message type not supported (error 131051)"}]'
+
+        # Ephemeral / disappearing message error
+        if 'ephemeral' in error_text or 'disappearing' in error_text:
+            return '[Unsupported: Disappearing message — disable disappearing messages in this chat to fix]'
 
         if details:
             return f'[Unsupported: {details}]'
@@ -185,6 +230,13 @@ def extract_unsupported_content(message: Dict) -> str:
                 return body
         elif isinstance(val, str) and val:
             return val
+
+    # Log the full message keys for debugging unknown unsupported types
+    logger.warning(json.dumps({
+        'event': 'unsupported_message_no_detail',
+        'messageKeys': list(message.keys()),
+        'errors': errors,
+    }))
 
     return '[Message type not supported by WhatsApp Business API]'
 

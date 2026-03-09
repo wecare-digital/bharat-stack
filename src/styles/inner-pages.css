@@ -1,6 +1,6 @@
 /**
  * Inner Pages Theme - WECARE.DIGITAL
- * Emerald color scheme - Clean, Modern, Professional
+ * Lime + Dark Green color scheme - Clean, Modern, Professional
  * Only affects pages using Layout component (not home page)
  */
 
@@ -24,7 +24,7 @@
 .layout .sidebar .nav-subitem:hover,
 .layout .nav-item:hover,
 .layout .nav-subitem:hover {
-  background: #ECFDF5 !important;
+  background: rgba(209,244,112,0.2) !important;
   border: none !important;
 }
 
@@ -32,14 +32,14 @@
 .layout .sidebar .nav-item.active,
 .layout .nav-item-active,
 .layout .nav-item--active {
-  background: #D1FAE5 !important;
+  background: rgba(209,244,112,0.3) !important;
   border: none !important;
-  border-left: 3px solid #059669 !important;
+  border-left: 3px solid #d1f470 !important;
 }
 
 /* ========================================
-   CONTENT BUTTONS - Emerald theme
-   White bg, black text, emerald border
+   CONTENT BUTTONS - Lime + Dark Green theme
+   White bg, black text, lime + dark green border
    ======================================== */
 .layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm),
 .layout .main-content .btn,
@@ -51,7 +51,7 @@
 .layout .main-content .action-btn {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 2px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
   padding: 10px 18px !important;
   font-weight: 500 !important;
@@ -64,28 +64,29 @@
 .layout .main-content .refresh-btn:hover,
 .layout .main-content .tab-btn:hover,
 .layout .main-content .action-btn:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content button:active:not([class*="ct-"]),
 .layout .main-content .btn:active {
-  background: #D1FAE5 !important;
-  border-color: #059669 !important;
+  background: #e5e7eb !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content button:focus-visible:not([class*="ct-"]),
 .layout .main-content .btn:focus-visible {
   outline: none !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.3) !important;
 }
 
 .layout .main-content button.active,
 .layout .main-content .btn.active,
 .layout .main-content .tab-btn.active,
 .layout .main-content .tab.active {
-  background: #D1FAE5 !important;
-  border-color: #059669 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
 }
 
@@ -102,20 +103,21 @@
 .layout .main-content .tabs-nav button {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 2px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .tab:hover,
 .layout .main-content .tabs button:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content .tab.active,
 .layout .main-content .tabs button.active {
-  background: #D1FAE5 !important;
-  border-color: #059669 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
 }
 
@@ -125,7 +127,7 @@
 .layout .main-content .dialer-key {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 2px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 16px !important;
   padding: 20px !important;
   font-size: 24px !important;
@@ -133,8 +135,8 @@
 }
 
 .layout .main-content .dialer-key:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
 /* ========================================
@@ -144,18 +146,18 @@
 .layout .main-content .filter-select {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
   padding: 10px 14px !important;
 }
 
 .layout .main-content select:hover {
-  border-color: #059669 !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content select:focus {
-  border-color: #059669 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #1a3a2a !important;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
   outline: none !important;
 }
 
@@ -165,14 +167,14 @@
 .layout .main-content textarea {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content input:focus,
 .layout .main-content textarea:focus {
-  border-color: #059669 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #1a3a2a !important;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
   outline: none !important;
 }
 
@@ -181,38 +183,38 @@
    ======================================== */
 .layout .main-content .section {
   background: #ffffff !important;
-  border: 1px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 16px !important;
 }
 
 .layout .main-content .stat-card {
   background: #ffffff !important;
-  border: 1px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 12px !important;
 }
 
 .layout .main-content .stat-card:hover {
-  border-color: #059669 !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.accent,
 .layout .main-content .stat-card.success {
-  border-left: 4px solid #059669 !important;
+  border-left: 4px solid #d1f470 !important;
 }
 
 .layout .main-content .hub-card,
 .layout .main-content .action-card,
 .layout .main-content .quick-action-card {
   background: #ffffff !important;
-  border: 1px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .hub-card:hover,
 .layout .main-content .action-card:hover,
 .layout .main-content .quick-action-card:hover {
-  border-color: #059669 !important;
-  background: #ecfdf5 !important;
+  border-color: #1a3a2a !important;
+  background: #f9fafb !important;
 }
 
 /* ========================================
@@ -220,8 +222,8 @@
    ======================================== */
 .layout .main-content .badge.success,
 .layout .main-content .status-badge.free {
-  background: #ECFDF5 !important;
-  color: #059669 !important;
+  background: #f9fafb !important;
+  color: #1a3a2a !important;
 }
 
 /* ========================================
@@ -229,20 +231,20 @@
    ======================================== */
 .layout .main-content .contact-row:hover,
 .layout .main-content .contact-item:hover {
-  background: #ECFDF5 !important;
+  background: #f9fafb !important;
 }
 
 .layout .main-content .contact-row.active,
 .layout .main-content .contact-item.active {
-  background: #D1FAE5 !important;
-  border-left: 3px solid #059669 !important;
+  background: #e5e7eb !important;
+  border-left: 3px solid #1a3a2a !important;
 }
 
 /* ========================================
    TABLES
    ======================================== */
 .layout .main-content tbody tr:hover {
-  background: #ECFDF5 !important;
+  background: #f9fafb !important;
 }
 
 /* ========================================
@@ -388,15 +390,15 @@
 }
 /* Refresh button icon color - match border */
 .layout .main-content .refresh-btn {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .refresh-btn svg {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .refresh-btn:hover svg {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 
@@ -409,7 +411,7 @@
   gap: 8px;
   margin-bottom: 20px;
   padding: 4px;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 14px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -441,15 +443,15 @@
 .layout .main-content .sub-tab:hover {
   background: #ffffff !important;
   color: #374151 !important;
-  border-color: #D1FAE5 !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .sub-tab.active {
-  background: #ffffff !important;
-  border-color: #059669 !important;
-  color: #065f46 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+  box-shadow: none;
 }
 
 /* ========================================
@@ -467,8 +469,8 @@
   display: flex;
   gap: 8px;
   padding: 16px 20px;
-  background: #ECFDF5;
-  border-bottom: 1px solid #D1FAE5;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -500,27 +502,27 @@
 }
 
 .layout .main-content .health-status-card {
-  background: #ecfdf5;
+  background: #f9fafb;
   border-radius: 8px;
   text-align: center;
   padding: 3rem;
   margin-top: 1rem;
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .health-status-card.healthy {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
+  background: #f9fafb;
+  border-color: #d1f470;
 }
 
 .layout .main-content .health-status-card.warning {
-  background: #ECFDF5;
-  border-color: #A7F3D0;
+  background: #f9fafb;
+  border-color: #d1f470;
 }
 
 .layout .main-content .health-status-card.error {
-  background: #ECFDF5;
-  border-color: #A7F3D0;
+  background: #f9fafb;
+  border-color: #d1f470;
 }
 
 .layout .main-content .health-status-card .status-icon {
@@ -529,16 +531,16 @@
 }
 
 .layout .main-content .health-status-card h3 {
-  color: #059669;
+  color: #1a3a2a;
   margin: 0 0 0.5rem;
 }
 
 .layout .main-content .health-status-card.warning h3 {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .layout .main-content .health-status-card.error h3 {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .layout .main-content .health-status-card p {
@@ -549,9 +551,9 @@
 .layout .main-content .info-banner-blue {
   margin-top: 1rem;
   padding: 1rem;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 8px;
-  border: 1px solid #A7F3D0;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .info-banner-blue p {
@@ -562,7 +564,7 @@
 
 .layout .main-content .info-banner-blue a {
   margin-left: 8px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* Issue Card */
@@ -573,13 +575,13 @@
 }
 
 .layout .main-content .issue-card.error {
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  background: #f9fafb;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .issue-card.warning {
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
+  background: #f9fafb;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .issue-card-header {
@@ -601,11 +603,11 @@
 }
 
 .layout .main-content .issue-badge.error {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 .layout .main-content .issue-badge.warning {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 .layout .main-content .issue-card p {
@@ -623,7 +625,7 @@
   display: inline-block;
   margin-top: 12px;
   padding: 8px 16px;
-  background: #059669;
+  background: #1a3a2a;
   color: white;
   border-radius: 6px;
   font-size: 13px;
@@ -633,7 +635,7 @@
 }
 
 .layout .main-content .resolve-btn:hover {
-  background: #059669;
+  background: #1a3a2a;
 }
 
 /* Category Cards for Advisor */
@@ -647,7 +649,7 @@
 .layout .main-content .category-card {
   padding: 1rem;
   border-radius: 8px;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   background: #fff;
   text-align: center;
 }
@@ -677,18 +679,18 @@
 }
 
 .layout .main-content .count-badge.error {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .layout .main-content .count-badge.warning {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .layout .main-content .count-badge.ok {
-  background: #ecfdf5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 /* ========================================
@@ -762,7 +764,7 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #D1FAE5;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .layout .main-content .campaign-header h2 {
@@ -778,7 +780,7 @@
   gap: 8px;
   margin-bottom: 20px;
   padding: 4px;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 14px;
 }
 
@@ -798,15 +800,15 @@
 .layout .main-content .campaign-page .sub-tab:hover {
   background: #ffffff !important;
   color: #374151 !important;
-  border-color: #D1FAE5 !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .campaign-page .sub-tab.active {
-  background: #ffffff !important;
-  border-color: #059669 !important;
-  color: #065f46 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+  box-shadow: none;
 }
 
 /* Campaign Form Styles */
@@ -834,7 +836,7 @@
 .layout .main-content .campaign-page .form-group textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1.5px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   font-size: 14px;
   background: #ffffff;
@@ -845,24 +847,24 @@
 .layout .main-content .campaign-page .form-group input:hover,
 .layout .main-content .campaign-page .form-group select:hover,
 .layout .main-content .campaign-page .form-group textarea:hover {
-  border-color: #059669;
+  border-color: #1a3a2a;
 }
 
 .layout .main-content .campaign-page .form-group input:focus,
 .layout .main-content .campaign-page .form-group select:focus,
 .layout .main-content .campaign-page .form-group textarea:focus {
   outline: none;
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
 /* Campaign Contacts Section */
 .layout .main-content .campaign-page .contacts-section {
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 24px;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .campaign-page .contacts-header {
@@ -889,7 +891,7 @@
 
 .layout .main-content .campaign-page .search-input {
   padding: 10px 14px;
-  border: 1.5px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   font-size: 14px;
   min-width: 200px;
@@ -898,7 +900,7 @@
 .layout .main-content .campaign-page .select-all-btn {
   padding: 10px 18px;
   background: #ffffff;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -909,8 +911,8 @@
 }
 
 .layout .main-content .campaign-page .select-all-btn:hover {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 
 .layout .main-content .campaign-page .contacts-grid {
@@ -927,25 +929,25 @@
   gap: 10px;
   padding: 12px 14px;
   background: #ffffff;
-  border: 1.5px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .campaign-page .contact-item:hover {
-  border-color: #059669;
+  border-color: #1a3a2a;
 }
 
 .layout .main-content .campaign-page .contact-item.selected {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 
 .layout .main-content .campaign-page .contact-item input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #059669;
+  accent-color: #1a3a2a;
 }
 
 .layout .main-content .campaign-page .contact-name {
@@ -968,8 +970,8 @@
 
 .layout .main-content .campaign-page .send-btn {
   padding: 14px 32px;
-  background: #059669;
-  color: #ffffff;
+  background: #d1f470;
+  color: #1a3a2a;
   border: none;
   border-radius: 13px;
   font-size: 16px;
@@ -980,8 +982,8 @@
 }
 
 .layout .main-content .campaign-page .send-btn:hover {
-  background: #059669;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  background: #c5e866;
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.15);
 }
 
 .layout .main-content .campaign-page .send-btn:disabled {
@@ -1003,15 +1005,15 @@
 }
 
 .layout .main-content .campaign-page .msg-bar.success {
-  background: #D1FAE5;
-  color: #065f46;
-  border: 1px solid #A7F3D0;
+  background: #fff;
+  color: #1a3a2a;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .campaign-page .msg-bar.error {
-  background: #ECFDF5;
-  color: #059669;
-  border: 1px solid #A7F3D0;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1.5px solid #dc2626;
 }
 
 .layout .main-content .campaign-page .msg-bar button {
@@ -1031,36 +1033,36 @@
   background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #D1FAE5;
+  border: 2px solid #d1f470;
 }
 
 .layout .main-content .campaign-page .logs-table th,
 .layout .main-content .campaign-page .logs-table td {
   padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid #D1FAE5;
+  border-bottom: 1px solid #d1f470;
 }
 
 .layout .main-content .campaign-page .logs-table th {
-  background: #ECFDF5;
+  background: #d1f470;
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #6b7280;
+  color: #1a3a2a;
 }
 
 .layout .main-content .campaign-page .logs-table tbody tr:hover {
-  background: #ECFDF5;
+  background: #f9fafb;
 }
 
 .layout .main-content .campaign-page .logs-table .success {
-  color: #059669;
+  color: #1a3a2a;
   font-weight: 600;
 }
 
 .layout .main-content .campaign-page .logs-table .error {
-  color: #059669;
+  color: #1a3a2a;
   font-weight: 600;
 }
 
@@ -1122,7 +1124,7 @@
   gap: 8px;
   margin-bottom: 24px;
   padding: 4px;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 14px;
   overflow-x: auto;
 }
@@ -1144,23 +1146,23 @@
 .layout .main-content .store-page .tab-btn:hover {
   background: #ffffff !important;
   color: #374151 !important;
-  border-color: #D1FAE5 !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .store-page .tab-btn.active {
-  background: #ffffff !important;
-  border-color: #059669 !important;
-  color: #065f46 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15);
+  box-shadow: none;
 }
 
 .layout .main-content .store-page .info-banner {
-  background: #ECFDF5;
+  background: #f9fafb;
   padding: 24px;
   border-radius: 16px;
   margin-bottom: 24px;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
 }
 
 .layout .main-content .store-page .info-banner h3 {
@@ -1177,13 +1179,13 @@
 }
 
 .layout .main-content .store-page .docs-link {
-  color: #059669;
+  color: #1a3a2a;
   font-weight: 500;
   text-decoration: none;
 }
 
 .layout .main-content .store-page .docs-link:hover {
-  color: #059669;
+  color: #1a3a2a;
   text-decoration: underline;
 }
 
@@ -1197,13 +1199,13 @@
   background: #ffffff;
   padding: 24px;
   border-radius: 16px;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .store-page .feature-card:hover {
-  border-color: #059669;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+  border-color: #1a3a2a;
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.1);
 }
 
 .layout .main-content .store-page .feature-icon {
@@ -1212,10 +1214,10 @@
   justify-content: center;
   width: 52px;
   height: 52px;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 12px;
   margin-bottom: 16px;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .layout .main-content .store-page .feature-card h4 {
@@ -1249,7 +1251,7 @@
   padding: 10px 20px;
   background: #ffffff;
   color: #111827;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -1259,8 +1261,8 @@
 }
 
 .layout .main-content .store-page .add-btn:hover {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 
 .layout .main-content .store-page .products-grid {
@@ -1272,19 +1274,19 @@
 .layout .main-content .store-page .product-card {
   background: #ffffff;
   border-radius: 16px;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   overflow: hidden;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .store-page .product-card:hover {
-  border-color: #059669;
+  border-color: #1a3a2a;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .layout .main-content .store-page .product-image {
   height: 160px;
-  background: #ECFDF5;
+  background: #f9fafb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1339,13 +1341,13 @@
 }
 
 .layout .main-content .store-page .stock.in {
-  background: #D1FAE5;
-  color: #065f46;
+  background: #e5e7eb;
+  color: #1a3a2a;
 }
 
 .layout .main-content .store-page .stock.out {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .layout .main-content .store-page .empty-state {
@@ -1361,7 +1363,7 @@
   width: 80px;
   height: 80px;
   margin: 0 auto 16px;
-  background: #ECFDF5;
+  background: #f9fafb;
   border-radius: 50%;
   color: #9ca3af;
 }
@@ -1394,34 +1396,34 @@
    STAT CARD VARIANTS - Health/Advisor Tabs
    ======================================== */
 .layout .main-content .stat-card.error {
-  background: #ECFDF5 !important;
-  border-left: 4px solid #059669 !important;
+  background: #f9fafb !important;
+  border-left: 4px solid #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.error .stat-value {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.warning {
-  background: #ECFDF5 !important;
-  border-left: 4px solid #059669 !important;
+  background: #f9fafb !important;
+  border-left: 4px solid #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.warning .stat-value {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.success .stat-value {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.accent .stat-value {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.accent {
-  background: #ECFDF5 !important;
-  border-left: 4px solid #059669 !important;
+  background: #f9fafb !important;
+  border-left: 4px solid #1a3a2a !important;
 }
 
 .layout .main-content .stat-card .status-icon {
@@ -1433,12 +1435,12 @@
 
 /* Health Status Card - Info variant */
 .layout .main-content .health-status-card.info {
-  background: #ECFDF5;
-  border-color: #A7F3D0;
+  background: #f9fafb;
+  border-color: #d1f470;
 }
 
 .layout .main-content .health-status-card.info h3 {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .layout .main-content .health-status-card .status-icon {
@@ -1446,15 +1448,15 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .layout .main-content .health-status-card.info .status-icon {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .layout .main-content .health-status-card.healthy .status-icon {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* Issues Section */
@@ -1474,15 +1476,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #059669;
+  color: #1a3a2a;
 }
 
-/* Resolve Button - Emerald theme */
+/* Resolve Button - Lime + Dark Green theme */
 .layout .main-content .resolve-btn {
   display: inline-block;
   margin-top: 12px;
   padding: 10px 18px;
-  background: #059669 !important;
+  background: #1a3a2a !important;
   color: white !important;
   border-radius: 13px;
   font-size: 14px;
@@ -1494,8 +1496,8 @@
 }
 
 .layout .main-content .resolve-btn:hover {
-  background: #059669 !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  background: #1a3a2a !important;
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.25);
 }
 
 
@@ -1506,8 +1508,8 @@
 .layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
 .layout .main-content .tab-content .whatsapp-inbox,
 .layout .main-content .ps-content .whatsapp-inbox {
-  height: calc(100vh - var(--inner-header-h, 64px) - var(--inner-footer-h, 40px) - 200px) !important;
-  max-height: calc(100vh - var(--inner-header-h, 64px) - var(--inner-footer-h, 40px) - 200px) !important;
+  height: calc(100vh - var(--inner-header-h, 64px) - 20px) !important;
+  max-height: calc(100vh - var(--inner-header-h, 64px) - 20px) !important;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
@@ -1535,17 +1537,17 @@
 }
 
 /* ========================================
-   ISSUE BADGE COLORS - Emerald Theme
-   Override orange/amber with emerald variants
+   ISSUE BADGE COLORS - Lime + Dark Green Theme
+   Override orange/amber with lime + dark green variants
    ======================================== */
 .layout .main-content .issue-badge.warning {
-  background: #ECFDF5 !important;
-  color: #065f46 !important;
+  background: #f9fafb !important;
+  color: #1a3a2a !important;
 }
 
-/* Keep error badges emerald for unified theme */
+/* Keep error badges lime + dark green for unified theme */
 .layout .main-content .issue-badge.error {
-  background: #059669 !important;
+  background: #1a3a2a !important;
   color: white !important;
 }
 
@@ -1624,7 +1626,7 @@
     max-height: 35vh;
     min-height: 200px;
     border-right: none;
-    border-bottom: 1px solid #D1FAE5;
+    border-bottom: 1px solid #e5e7eb;
   }
   
   .layout .main-content .whatsapp-inbox .chat-area {
@@ -1641,61 +1643,61 @@
 
 
 /* ========================================
-   SMS/VOICE PAGES - Emerald Theme Override
-   Apply emerald theme to messaging pages
+   SMS/VOICE PAGES - Lime + Dark Green Theme Override
+   Apply lime + dark green theme to messaging pages
    ======================================== */
 .layout .main-content .sms-page,
 .layout .main-content .voice-page {
   height: 100% !important;
 }
 
-/* Sidebar search input - emerald focus */
+/* Sidebar search input - lime + dark green focus */
 .layout .main-content .sms-sidebar input,
 .layout .main-content .voice-sidebar input,
 .layout .main-content .sidebar-search input {
-  border: 1.5px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .sms-sidebar input:focus,
 .layout .main-content .voice-sidebar input:focus,
 .layout .main-content .sidebar-search input:focus {
-  border-color: #059669 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #1a3a2a !important;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
 }
 
-/* Contact row active state - emerald */
+/* Contact row active state - lime + dark green */
 .layout .main-content .contact-row.active,
 .layout .main-content .contact-item.active {
-  background: #D1FAE5 !important;
-  border-left: 3px solid #059669 !important;
+  background: #e5e7eb !important;
+  border-left: 3px solid #1a3a2a !important;
 }
 
 .layout .main-content .contact-row:hover,
 .layout .main-content .contact-item:hover {
-  background: #ECFDF5 !important;
+  background: #f9fafb !important;
 }
 
-/* Message bubbles - emerald outbound */
+/* Message bubbles - lime + dark green outbound */
 .layout .main-content .message.outbound .message-bubble {
-  background: #D1FAE5 !important;
-  border-color: #059669 !important;
+  background: #e5e7eb !important;
+  border-color: #1a3a2a !important;
 }
 
-/* Info panel links - emerald */
+/* Info panel links - lime + dark green */
 .layout .main-content .info-panel a,
 .layout .main-content .info-section a {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .info-panel a:hover,
 .layout .main-content .info-section a:hover {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 /* ========================================
-   PAY PAGES - Emerald Theme Override
-   Apply emerald theme to payment pages
+   PAY PAGES - Lime + Dark Green Theme Override
+   Apply lime + dark green theme to payment pages
    ======================================== */
 .layout .main-content .pay-page,
 .layout .main-content .pay-link-page,
@@ -1705,12 +1707,12 @@
   margin: 0 !important;
 }
 
-/* Pay page inputs - emerald focus */
+/* Pay page inputs - lime + dark green focus */
 .layout .main-content .pay-page input,
 .layout .main-content .pay-page select,
 .layout .main-content .pay-link-page input,
 .layout .main-content .pay-link-page select {
-  border: 1.5px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
@@ -1718,18 +1720,18 @@
 .layout .main-content .pay-page select:focus,
 .layout .main-content .pay-link-page input:focus,
 .layout .main-content .pay-link-page select:focus {
-  border-color: #059669 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #1a3a2a !important;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
 }
 
 .layout .main-content .pay-page input:hover,
 .layout .main-content .pay-page select:hover,
 .layout .main-content .pay-link-page input:hover,
 .layout .main-content .pay-link-page select:hover {
-  border-color: #059669 !important;
+  border-color: #1a3a2a !important;
 }
 
-/* Pay page buttons - emerald theme */
+/* Pay page buttons - lime + dark green theme */
 .layout .main-content .pay-page .gen-btn,
 .layout .main-content .pay-page .send-btn,
 .layout .main-content .pay-page .copy-btn,
@@ -1738,7 +1740,7 @@
 .layout .main-content .pay-link-page .generate-btn,
 .layout .main-content .pay-link-page .copy-btn,
 .layout .main-content .pay-link-page .share-btn {
-  border: 2px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
   background: #ffffff !important;
   color: #111827 !important;
@@ -1752,37 +1754,37 @@
 .layout .main-content .pay-link-page .generate-btn:hover:not(:disabled),
 .layout .main-content .pay-link-page .copy-btn:hover,
 .layout .main-content .pay-link-page .share-btn:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
-/* Pay page sender notice - emerald */
+/* Pay page sender notice - lime + dark green */
 .layout .main-content .sender-notice {
-  border: 2px solid #D1FAE5 !important;
-  background: #ECFDF5 !important;
+  border: 1.5px solid #d1f470 !important;
+  background: #f9fafb !important;
 }
 
 .layout .main-content .sender-badge {
-  background: #059669 !important;
+  background: #1a3a2a !important;
 }
 
-/* Pay page preview card - emerald */
+/* Pay page preview card - lime + dark green */
 .layout .main-content .preview-card {
-  border: 2px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
 }
 
 .layout .main-content .preview-total {
-  background: #059669 !important;
+  background: #1a3a2a !important;
 }
 
-/* Pay page coming soon banner - emerald */
+/* Pay page coming soon banner - lime + dark green */
 .layout .main-content .coming-soon-banner {
-  border: 2px solid #D1FAE5 !important;
-  background: #ECFDF5 !important;
+  border: 1.5px solid #d1f470 !important;
+  background: #f9fafb !important;
 }
 
 /* ========================================
-   ALL FORM INPUTS - Emerald Theme
+   ALL FORM INPUTS - Lime + Dark Green Theme
    Global override for all form elements
    ======================================== */
 .layout .main-content .form-section input,
@@ -1794,7 +1796,7 @@
 .layout .main-content .form-group input,
 .layout .main-content .form-group select,
 .layout .main-content .form-group textarea {
-  border: 1.5px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
@@ -1804,7 +1806,7 @@
 .layout .main-content .form-field select:hover,
 .layout .main-content .form-group input:hover,
 .layout .main-content .form-group select:hover {
-  border-color: #059669 !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content .form-section input:focus,
@@ -1816,13 +1818,13 @@
 .layout .main-content .form-group input:focus,
 .layout .main-content .form-group select:focus,
 .layout .main-content .form-group textarea:focus {
-  border-color: #059669 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #1a3a2a !important;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
   outline: none !important;
 }
 
 /* ========================================
-   ALL CARDS/SECTIONS - Emerald Hover
+   ALL CARDS/SECTIONS - Lime + Dark Green Hover
    ======================================== */
 .layout .main-content .order-form,
 .layout .main-content .link-form,
@@ -1830,7 +1832,7 @@
 .layout .main-content .info-banner,
 .layout .main-content .feature-card,
 .layout .main-content .product-card {
-  border: 1px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 16px !important;
 }
 
@@ -1838,20 +1840,20 @@
 .layout .main-content .link-form:hover,
 .layout .main-content .feature-card:hover,
 .layout .main-content .product-card:hover {
-  border-color: #059669 !important;
+  border-color: #1a3a2a !important;
 }
 
 /* ========================================
-   LINKS - Emerald Color
+   LINKS - Lime + Dark Green Color
    ======================================== */
 .layout .main-content a.docs-link,
 .layout .main-content .docs-link {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content a.docs-link:hover,
 .layout .main-content .docs-link:hover {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 
@@ -1935,7 +1937,7 @@
 }
 
 /* ========================================
-   COMING SOON PAGES - Emerald Theme
+   COMING SOON PAGES - Lime + Dark Green Theme
    ======================================== */
 .layout .main-content .coming-soon {
   width: 100% !important;
@@ -1943,50 +1945,50 @@
 }
 
 .layout .main-content .coming-soon .feature-list li::before {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .coming-soon a {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .coming-soon a:hover {
-  color: #059669 !important;
+  color: #1a3a2a !important;
 }
 
 /* ========================================
-   CONTACTS PAGE - Emerald Theme
+   CONTACTS PAGE - Lime + Dark Green Theme
    ======================================== */
 .layout .main-content .badge-active {
-  background: #D1FAE5 !important;
-  color: #065f46 !important;
+  background: #e5e7eb !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .badge-pending {
-  background: #ECFDF5 !important;
-  color: #065f46 !important;
+  background: #f9fafb !important;
+  color: #1a3a2a !important;
 }
 
 .layout .main-content .btn-primary {
-  background: #ffffff !important;
-  color: #111827 !important;
-  border: 2px solid #D1FAE5 !important;
+  background: #d1f470 !important;
+  color: #1a3a2a !important;
+  border: 1.5px solid #1a3a2a !important;
 }
 
 .layout .main-content .btn-primary:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #c5e866 !important;
+  border-color: #0f2a1d !important;
 }
 
 .layout .main-content .btn-secondary {
   background: #ffffff !important;
   color: #111827 !important;
-  border: 1.5px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
 }
 
 .layout .main-content .btn-secondary:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
 /* ========================================
@@ -1994,42 +1996,42 @@
    ======================================== */
 .layout .main-content .error-banner,
 .layout .main-content .error-bar {
-  background: #ECFDF5 !important;
-  color: #059669 !important;
-  border: 1px solid #A7F3D0 !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1.5px solid #dc2626 !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .success-banner,
 .layout .main-content .message-bar.success {
-  background: #ECFDF5 !important;
-  color: #065f46 !important;
-  border: 1px solid #A7F3D0 !important;
+  background: #fff !important;
+  color: #1a3a2a !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
 /* ========================================
-   MODAL - Emerald Theme
+   MODAL - Lime + Dark Green Theme
    ======================================== */
 .layout .main-content .modal {
   border-radius: 16px !important;
 }
 
 .layout .main-content .modal .btn-primary {
-  background: #059669 !important;
-  color: #ffffff !important;
-  border: none !important;
+  background: #d1f470 !important;
+  color: #1a3a2a !important;
+  border: 1.5px solid #1a3a2a !important;
 }
 
 .layout .main-content .modal .btn-primary:hover {
-  background: #059669 !important;
+  background: #c5e866 !important;
 }
 
 .layout .main-content .modal input:focus,
 .layout .main-content .modal select:focus,
 .layout .main-content .modal textarea:focus {
-  border-color: #059669 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #1a3a2a !important;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
 }
 
 /* ========================================
@@ -2047,8 +2049,8 @@
   display: flex;
   gap: 8px;
   padding: 16px 20px;
-  background: #ECFDF5;
-  border-bottom: 1px solid #D1FAE5;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
   overflow-x: auto;
   position: relative;
@@ -2057,7 +2059,7 @@
 
 .layout .main-content .wa-tab-btn {
   padding: 10px 18px !important;
-  border: 2px solid #D1FAE5 !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
   background: #fff !important;
   cursor: pointer !important;
@@ -2072,13 +2074,14 @@
 }
 
 .layout .main-content .wa-tab-btn:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content .wa-tab-btn.active {
-  background: #D1FAE5 !important;
-  border-color: #059669 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
 }
 
@@ -2124,7 +2127,7 @@
 
 .layout .main-content .waba-dashboard .tab {
   background: #fff !important;
-  border: 1px solid #059669 !important;
+  border: 1px solid #1a3a2a !important;
   padding: 10px 20px !important;
   cursor: pointer !important;
   border-radius: 13px !important;
@@ -2136,13 +2139,14 @@
 }
 
 .layout .main-content .waba-dashboard .tab:hover {
-  background: #ECFDF5 !important;
-  border-color: #059669 !important;
+  background: #f9fafb !important;
+  border-color: #1a3a2a !important;
 }
 
 .layout .main-content .waba-dashboard .tab.active {
-  background: #D1FAE5 !important;
-  border-color: #059669 !important;
+  background: #d1f470 !important;
+  border-color: #d1f470 !important;
+  color: #1a3a2a !important;
   font-weight: 600 !important;
 }
 
@@ -2162,7 +2166,7 @@
 
 .board-tab {
   background: #fff;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   padding: 10px 20px;
   cursor: pointer;
   border-radius: 13px;
@@ -2175,12 +2179,13 @@
 }
 
 .board-tab:hover {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 
 .board-tab.active {
-  background: #D1FAE5;
-  border-color: #059669;
+  background: #d1f470;
+  border-color: #d1f470;
+  color: #1a3a2a;
   font-weight: 600;
 }

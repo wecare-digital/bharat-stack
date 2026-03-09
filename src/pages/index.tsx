@@ -269,7 +269,7 @@ response = requests.post(
 
         <style jsx>{`
           /* ========== BASE STYLES ========== */
-          .page{min-height:100vh;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
+          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
@@ -282,7 +282,7 @@ response = requests.post(
           .hero-left p{font-size:21px;color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
           .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px;transition:all .25s;cursor:default}
-          .stat:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .stat:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
           .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
           
@@ -330,7 +330,7 @@ response = requests.post(
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .pill:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
@@ -341,7 +341,7 @@ response = requests.post(
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:17px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
-          .tab.active{background:#059669;color:#fff}
+          .tab.active{background:#d1f470;color:#1a3a2a}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
@@ -349,7 +349,7 @@ response = requests.post(
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .capability-card:hover{border-color:#059669;color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+          .capability-card:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:20px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
@@ -414,7 +414,7 @@ response = requests.post(
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
-            .mockup-wrapper:hover{border-color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(16,185,129,0.2)}
+            .mockup-wrapper:hover{border-color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}

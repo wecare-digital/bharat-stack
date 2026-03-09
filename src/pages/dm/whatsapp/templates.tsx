@@ -44,7 +44,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   APPROVED: '#1a1a1a',
   PENDING: '#6b6b6b',
-  REJECTED: '#059669',
+  REJECTED: '#1a3a2a',
 };
 
 const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -1214,7 +1214,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .template-card.library {
-          border-left: 4px solid #059669;
+          border-left: 4px solid #1a3a2a;
         }
 
         .template-header {
@@ -1288,7 +1288,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-delete:hover {
-          background: #ECFDF5;
+          background: #f9fafb;
         }
 
         .loading-state, .empty-state {
@@ -1599,9 +1599,9 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-remove-card {
-          background: #ecfdf5;
-          color: #065f46;
-          border: 1px solid #a7f3d0;
+          background: #f9fafb;
+          color: #0f2a1d;
+          border: 1px solid #e5e7eb;
           width: 28px;
           height: 28px;
           border-radius: 6px;
@@ -1610,8 +1610,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .btn-remove-card:hover {
-          background: #d1fae5;
-          border-color: #059669;
+          background: #f3f4f6;
+          border-color: #1a3a2a;
         }
 
         .card-media {
@@ -1741,7 +1741,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .preview-media.has-media {
-          background: #d1fae5;
+          background: #f3f4f6;
           color: #111827;
         }
 
@@ -1756,7 +1756,7 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
           padding: 8px 10px;
           text-align: center;
           font-size: 12px;
-          color: #059669;
+          color: #1a3a2a;
           border-top: 1px solid #eee;
           cursor: pointer;
         }
@@ -1919,18 +1919,18 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .rate-badge.good {
-          background: #ECFDF5;
-          color: #065f46;
+          background: #f9fafb;
+          color: #0f2a1d;
         }
 
         .rate-badge.ok {
-          background: #D1FAE5;
-          color: #065f46;
+          background: #f3f4f6;
+          color: #0f2a1d;
         }
 
         .rate-badge.bad {
-          background: #ECFDF5;
-          color: #059669;
+          background: #f9fafb;
+          color: #1a3a2a;
         }
 
         /* Scheduled Section Styles */
@@ -1997,18 +1997,18 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
         }
 
         .scheduled-status .status-badge.pending {
-          background: #D1FAE5;
-          color: #065f46;
+          background: #f3f4f6;
+          color: #0f2a1d;
         }
 
         .scheduled-status .status-badge.sent {
-          background: #ECFDF5;
-          color: #065f46;
+          background: #f9fafb;
+          color: #0f2a1d;
         }
 
         .scheduled-status .status-badge.failed {
-          background: #ECFDF5;
-          color: #059669;
+          background: #f9fafb;
+          color: #1a3a2a;
         }
 
         .scheduled-status .status-badge.cancelled {

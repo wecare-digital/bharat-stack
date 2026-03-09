@@ -17,9 +17,9 @@
   --base-font: 17px;
   --line: 1.55;
   --radius: 12px;
-  --hover: #f5f5f5;
-  --active: #ededed;
-  --muted: #6b7280;
+  --hover: rgba(209,244,112,0.2);
+  --active: rgba(209,244,112,0.35);
+  --muted: #1a3a2a;
 }
 
 * {
@@ -39,10 +39,10 @@ html, body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   scrollbar-width: thin;
-  scrollbar-color: rgba(6, 95, 70, 0.15) transparent;
+  scrollbar-color: rgba(26, 58, 42, 0.15) transparent;
 }
 
-/* Global scrollbar — emerald theme, no arrows */
+/* Global scrollbar — lime + dark green theme, no arrows */
 ::-webkit-scrollbar {
   width: 5px !important;
   height: 5px !important;
@@ -53,16 +53,16 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(6, 95, 70, 0.15) !important;
+  background: rgba(26, 58, 42, 0.15) !important;
   border-radius: 10px !important;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6EE7B7 !important;
+  background: #d1f470 !important;
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: #047857 !important;
+  background: #0f2a1d !important;
 }
 
 ::-webkit-scrollbar-button {
@@ -173,7 +173,7 @@ input, textarea, select {
   transition: color 0.25s;
 }
 .inner-header-sub:hover {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* =========================
@@ -210,7 +210,7 @@ input, textarea, select {
   transition: all 0.25s;
 }
 .inner-footer-link:hover {
-  color: #059669;
+  color: #1a3a2a;
 }
 
 /* =========================
@@ -298,7 +298,7 @@ input, textarea, select {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   background: #fff;
   border-radius: 8px;
   cursor: pointer;
@@ -307,8 +307,8 @@ input, textarea, select {
   margin-left: auto;
 }
 .sidebar-collapse-btn:hover {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 .sidebar.collapsed .sidebar-collapse-btn {
   margin: 0 auto;
@@ -388,7 +388,7 @@ input, textarea, select {
   align-items: center;
   width: 100%;
   padding: 0;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   background: #fff;
   transition: all 0.15s ease;
@@ -396,8 +396,8 @@ input, textarea, select {
 }
 
 .sidebar-search-input-wrapper:focus-within {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 
 .sidebar-search-input {
@@ -439,7 +439,7 @@ input, textarea, select {
   left: 8px;
   right: 8px;
   background: #fff;
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   border-radius: 13px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
@@ -454,7 +454,7 @@ input, textarea, select {
   padding: 10px 12px;
   cursor: pointer;
   transition: background 0.1s ease;
-  border-bottom: 1px solid #ECFDF5;
+  border-bottom: 1px solid #f9fafb;
 }
 
 .sidebar-search-item:last-child {
@@ -462,7 +462,7 @@ input, textarea, select {
 }
 
 .sidebar-search-item:hover {
-  background: #ECFDF5;
+  background: #f9fafb;
 }
 
 .sidebar-search-item-label {
@@ -474,7 +474,7 @@ input, textarea, select {
 .sidebar-search-item-parent {
   font-size: 11px;
   color: #6b7280;
-  background: #ECFDF5;
+  background: #f9fafb;
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -616,7 +616,7 @@ input, textarea, select {
   margin-right: 0;
   font-size: 16px;
   text-align: center;
-  color: #059669;
+  color: #1a3a2a;
 }
 
 .nav-label {
@@ -681,7 +681,7 @@ input, textarea, select {
   gap: 10px;
   padding: 8px 10px;
   margin-bottom: 1px;
-  color: #059669;
+  color: #1a3a2a;
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 500;
@@ -777,7 +777,7 @@ input, textarea, select {
 .btn-signout {
   background: var(--bg);
   color: var(--text);
-  border: 2px solid #D1FAE5;
+  border: 1.5px solid #d1f470;
   padding: 8px 12px;
   border-radius: var(--radius);
   font-size: var(--text-xs);
@@ -788,8 +788,8 @@ input, textarea, select {
 }
 
 .btn-signout:hover {
-  background: #ECFDF5;
-  border-color: #059669;
+  background: #f9fafb;
+  border-color: #1a3a2a;
 }
 
 /* Main Content */
@@ -1132,7 +1132,7 @@ input, textarea, select {
   width: 68px;
   height: 68px;
   border-radius: 50%;
-  background: #D1FAE5;
+  background: #e5e7eb;
   border: none;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
@@ -1149,7 +1149,7 @@ input, textarea, select {
 .agent-fab:hover {
   transform: scale(1.05);
   box-shadow: var(--shadow-xl);
-  background: #D1FAE5;
+  background: #e5e7eb;
 }
 
 .agent-fab-logo {
@@ -1185,7 +1185,7 @@ input, textarea, select {
   background: var(--bg);
   border-radius: 13px;
   box-shadow: var(--shadow-xl);
-  border: 2px solid #059669;
+  border: 2px solid #1a3a2a;
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -1198,8 +1198,8 @@ input, textarea, select {
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  background: #ECFDF5;
-  border-bottom: 2px solid #059669;
+  background: #f9fafb;
+  border-bottom: 2px solid #1a3a2a;
 }
 
 .agent-header-info {
@@ -1260,13 +1260,13 @@ input, textarea, select {
 .agent-header-actions button,
 .agent-close {
   background: var(--bg);
-  border: 2px solid #059669;
+  border: 2px solid #1a3a2a;
   width: 28px;
   height: 28px;
   border-radius: 13px;
   cursor: pointer;
   font-size: 16px;
-  color: #059669;
+  color: #1a3a2a;
   transition: background var(--transition-fast);
   display: flex;
   align-items: center;
@@ -1275,8 +1275,8 @@ input, textarea, select {
 
 .agent-header-actions button:hover,
 .agent-close:hover {
-  background: #ECFDF5;
-  color: #059669;
+  background: #f9fafb;
+  color: #1a3a2a;
 }
 
 .floating-agent-messages,
@@ -1317,13 +1317,13 @@ input, textarea, select {
 
 .floating-message.user .floating-message-content,
 .agent-message.user .agent-message-content {
-  background: #059669;
+  background: #1a3a2a;
   color: white;
 }
 
 .floating-message.assistant .floating-message-content,
 .agent-message.assistant .agent-message-content {
-  background: #ECFDF5;
+  background: #f9fafb;
   color: var(--text);
 }
 
@@ -1342,14 +1342,14 @@ input, textarea, select {
   gap: 0;
   padding: 10px 12px;
   background: var(--bg);
-  border-top: 2px solid #059669;
+  border-top: 2px solid #1a3a2a;
 }
 
 .floating-agent-input input,
 .agent-input-area textarea {
   flex: 1;
   padding: 8px 42px 8px 12px;
-  border: 2px solid #059669;
+  border: 2px solid #1a3a2a;
   border-radius: 13px;
   font-size: 14px;
   outline: none;
@@ -1360,8 +1360,8 @@ input, textarea, select {
 
 .floating-agent-input input:focus,
 .agent-input-area textarea:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.1);
 }
 
 .floating-agent-input button,
@@ -1371,7 +1371,7 @@ input, textarea, select {
   border-radius: 0;
   background: transparent;
   border: none;
-  color: #059669;
+  color: #1a3a2a;
   font-size: 14px;
   cursor: pointer;
   transition: color var(--transition-normal), transform var(--transition-normal);
@@ -1391,7 +1391,7 @@ input, textarea, select {
 .floating-agent-input button:hover:not(:disabled),
 .agent-send-btn:hover:not(:disabled) {
   background: transparent;
-  color: #047857;
+  color: #0f2a1d;
   transform: scale(1.1);
 }
 
@@ -1609,7 +1609,7 @@ input, textarea, select {
 .tabs {
   display: inline-flex;
   gap: 6px;
-  border: 1px solid var(--border);
+  border: 2px solid #d1f470;
   border-radius: var(--radius);
   padding: 6px;
   background: var(--bg);
@@ -1633,7 +1633,8 @@ input, textarea, select {
 
 .tab--active,
 .tab.active {
-  background: var(--hover);
+  background: #d1f470;
+  color: #1a3a2a;
   font-weight: 600;
 }
 
@@ -1657,7 +1658,7 @@ input[type="checkbox"]:active {
 .checkbox-no-outline {
   outline: none !important;
   box-shadow: none !important;
-  accent-color: #059669;
+  accent-color: #1a3a2a;
 }
 
 .checkbox-no-outline:focus,
@@ -1685,7 +1686,7 @@ input[type="checkbox"]:active {
   
   .contact-card {
     background: #fff;
-    border: 2px solid #D1FAE5;
+    border: 1.5px solid #d1f470;
     border-radius: 13px;
     padding: 16px;
     margin-bottom: 12px;
@@ -1693,7 +1694,7 @@ input[type="checkbox"]:active {
   }
   
   .contact-card:active {
-    background: #ECFDF5;
+    background: #f9fafb;
     transform: scale(0.98);
   }
   
@@ -1713,7 +1714,7 @@ input[type="checkbox"]:active {
   
   .contact-card-phone {
     font-size: 14px;
-    color: #059669;
+    color: #1a3a2a;
     margin-bottom: 2px;
   }
   

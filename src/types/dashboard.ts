@@ -22,7 +22,8 @@ export type TabType =
   | 'webhook'
   | 'guide'
   | 'requests'
-  | 'internalchat';
+  | 'internalchat'
+  | 'appbuilder';
 
 export interface DashboardData {
   contacts: api.Contact[];

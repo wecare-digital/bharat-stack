@@ -1,0 +1,236 @@
+"""
+URL Shortener Lambda - WECARE.DIGITAL
+Domain: r.wecare.digital
+
+Creates short links with optional deep link support for iOS/Android.
+Tracks clicks with device/geo info.
+
+Tables:
+- ShortLinksTable: shortCode (PK)
+- LinkClicksTable: shortCode (PK), clickedAt (SK)
+"""
+
+import json
+import os
+import time
+import uuid
+import random
+import string
+import boto3
+from datetime import datetime
+
+dynamodb = boto3.resource("dynamodb")
+SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "ShortLinksTable")
+LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "LinkClicksTable")
+SHORT_DOMAIN = os.environ.get("SHORT_DOMAIN", "r.wecare.digital")
+
+links_table = dynamodb.Table(SHORT_LINKS_TABLE)
+clicks_table = dynamodb.Table(LINK_CLICKS_TABLE)
+
+HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+}
+
+
+def handler(event, context):
+    method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
+    path = event.get("path", event.get("rawPath", ""))
+    body = json.loads(event.get("body", "{}") or "{}")
+
+    try:
+        if method == "OPTIONS":
+            return {"statusCode": 200, "headers": HEADERS, "body": ""}
+
+        # Redirect: GET /r/:code
+        if "/r/" in path:
+            code = path.split("/r/")[-1].strip("/")
+            return redirect(code, event)
+
+        # CRUD: /links
+        if method == "POST" and "links" in path:
+            return create_link(body)
+        if method == "GET" and "links" in path:
+            code = path.split("/links/")[-1].strip("/") if "/links/" in path else None
+            if code:
+                return get_link(code)
+            return list_links()
+        if method == "DELETE" and "links" in path:
+            code = path.split("/links/")[-1].strip("/")
+            return delete_link(code)
+
+        return {"statusCode": 404, "headers": HEADERS, "body": json.dumps({"error": "Not found"})}
+
+    except Exception as e:
+        return {"statusCode": 500, "headers": HEADERS, "body": json.dumps({"error": str(e)})}
+
+
+def generate_code(length=6):
+    chars = string.ascii_lowercase + string.digits
+    return "".join(random.choices(chars, k=length))
+
+
+def create_link(body):
+    original_url = body.get("originalUrl")
+    if not original_url:
+        return {"statusCode": 400, "headers": HEADERS, "body": json.dumps({"error": "originalUrl required"})}
+
+    short_code = body.get("shortCode", generate_code())
+    now = datetime.utcnow().isoformat()
+
+    item = {
+        "shortCode": short_code,
+        "originalUrl": original_url,
+        "shortUrl": f"https://{SHORT_DOMAIN}/{short_code}",
+        "title": body.get("title", original_url),
+        "clicks": 0,
+        "createdAt": now,
+        "createdBy": body.get("userId", "admin"),
+        "deepLink": body.get("deepLink", False),
+        "iosUrl": body.get("iosUrl", ""),
+        "androidUrl": body.get("androidUrl", ""),
+        "expiresAt": body.get("expiresAt", ""),
+        "active": True,
+    }
+
+    links_table.put_item(Item=item)
+
+    return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"success": True, "link": item})}
+
+
+def list_links():
+    result = links_table.scan(Limit=200)
+    items = result.get("Items", [])
+    # Sort by createdAt desc
+    items.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"links": items}, default=str)}
+
+
+def get_link(code):
+    item = links_table.get_item(Key={"shortCode": code}).get("Item")
+    if not item:
+        return {"statusCode": 404, "headers": HEADERS, "body": json.dumps({"error": "Link not found"})}
+
+    # Get click analytics
+    clicks_result = clicks_table.query(
+        KeyConditionExpression="shortCode = :sc",
+        ExpressionAttributeValues={":sc": code},
+        ScanIndexForward=False,
+        Limit=50,
+    )
+
+    return {
+        "statusCode": 200,
+        "headers": HEADERS,
+        "body": json.dumps({"link": item, "recentClicks": clicks_result.get("Items", [])}, default=str),
+    }
+
+
+def delete_link(code):
+    links_table.delete_item(Key={"shortCode": code})
+    return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"success": True})}
+
+
+def redirect(code, event):
+    """Redirect to original URL, track click, handle deep links."""
+    item = links_table.get_item(Key={"shortCode": code}).get("Item")
+    if not item or not item.get("active", True):
+        return {
+            "statusCode": 302,
+            "headers": {**HEADERS, "Location": "https://stack.wecare.digital/"},
+            "body": "",
+        }
+
+    # Check expiry
+    expires = item.get("expiresAt")
+    if expires and expires < datetime.utcnow().isoformat():
+        return {
+            "statusCode": 302,
+            "headers": {**HEADERS, "Location": "https://stack.wecare.digital/"},
+            "body": "",
+        }
+
+    # Track click
+    user_agent = ""
+    source_ip = ""
+    try:
+        headers_map = event.get("headers", {})
+        user_agent = headers_map.get("user-agent", headers_map.get("User-Agent", ""))
+        source_ip = (
+            event.get("requestContext", {}).get("http", {}).get("sourceIp", "")
+            or headers_map.get("x-forwarded-for", "").split(",")[0].strip()
+        )
+    except Exception:
+        pass
+
+    # Detect platform from user agent
+    ua_lower = user_agent.lower()
+    platform = "web"
+    if "iphone" in ua_lower or "ipad" in ua_lower:
+        platform = "ios"
+    elif "android" in ua_lower:
+        platform = "android"
+
+    clicks_table.put_item(
+        Item={
+            "shortCode": code,
+            "clickedAt": datetime.utcnow().isoformat(),
+            "platform": platform,
+            "userAgent": user_agent[:500],
+            "sourceIp": source_ip,
+        }
+    )
+
+    # Increment click counter
+    links_table.update_item(
+        Key={"shortCode": code},
+        UpdateExpression="SET clicks = clicks + :inc",
+        ExpressionAttributeValues={":inc": 1},
+    )
+
+    # Deep link routing
+    if item.get("deepLink"):
+        if platform == "ios" and item.get("iosUrl"):
+            # Return HTML that tries app scheme first, falls back to web
+            return deep_link_html(item["iosUrl"], item["originalUrl"], "ios")
+        elif platform == "android" and item.get("androidUrl"):
+            return deep_link_html(item["androidUrl"], item["originalUrl"], "android")
+
+    # Standard redirect
+    return {
+        "statusCode": 302,
+        "headers": {**HEADERS, "Location": item["originalUrl"]},
+        "body": "",
+    }
+
+
+def deep_link_html(app_url, fallback_url, platform):
+    """Return HTML page that attempts app deep link, falls back to web."""
+    html = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Redirecting...</title>
+<script>
+  var appUrl = "{app_url}";
+  var webUrl = "{fallback_url}";
+  var start = Date.now();
+  window.location.href = appUrl;
+  setTimeout(function() {{
+    if (Date.now() - start < 2000) window.location.href = webUrl;
+  }}, 1500);
+</script>
+</head>
+<body style="font-family:sans-serif;text-align:center;padding:60px 20px;color:#1a3a2a">
+<p>Redirecting to Stack CRM...</p>
+<p style="font-size:13px;color:#6b7280;margin-top:12px">
+  <a href="{fallback_url}" style="color:#1a3a2a">Click here</a> if not redirected
+</p>
+</body></html>"""
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"},
+        "body": html,
+    }

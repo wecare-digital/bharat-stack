@@ -107,15 +107,15 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
       </div>
 
       <div className="stats-grid small">
-        <div className="stat-card" style={{ borderLeft: '4px solid #059669' }}>
+        <div className="stat-card" style={{ borderLeft: '4px solid #1a3a2a' }}>
           <div className="stat-value">{capturedPayments}</div>
           <div className="stat-label">Captured</div>
         </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid #059669' }}>
+        <div className="stat-card" style={{ borderLeft: '4px solid #1a3a2a' }}>
           <div className="stat-value">{failedPayments}</div>
           <div className="stat-label">Failed</div>
         </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid #059669' }}>
+        <div className="stat-card" style={{ borderLeft: '4px solid #1a3a2a' }}>
           <div className="stat-value">{pendingPayments}</div>
           <div className="stat-label">Pending</div>
         </div>
@@ -150,8 +150,8 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {waba.configurations.map((cfg, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: cfg.canReceivePayments ? '#ecfdf5' : '#f3f4f6', borderRadius: 6, fontSize: '0.8rem' }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.canReceivePayments ? '#059669' : cfg.status === 'local_only' ? '#059669' : '#059669', flexShrink: 0 }} />
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: cfg.canReceivePayments ? '#f9fafb' : '#f3f4f6', borderRadius: 6, fontSize: '0.8rem' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.canReceivePayments ? '#1a3a2a' : cfg.status === 'local_only' ? '#1a3a2a' : '#1a3a2a', flexShrink: 0 }} />
                         <span style={{ fontWeight: 600, minWidth: 140 }}>{cfg.name}</span>
                         <span className={`badge ${cfg.canReceivePayments ? 'captured' : 'failed'}`} style={{ fontSize: '0.7rem' }}>
                           {cfg.status}
@@ -159,7 +159,7 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
                         <span style={{ color: '#6b7280' }}>{cfg.gateway}</span>
                         {cfg.mid && <span style={{ color: '#9ca3af', fontFamily: 'monospace', fontSize: '0.7rem' }}>MID: {cfg.mid}</span>}
                         {cfg.mcc && <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>MCC: {cfg.mcc}</span>}
-                        {cfg.note && <span style={{ color: '#059669', fontSize: '0.7rem' }}>{cfg.note}</span>}
+                        {cfg.note && <span style={{ color: '#1a3a2a', fontSize: '0.7rem' }}>{cfg.note}</span>}
                       </div>
                     ))}
                   </div>
