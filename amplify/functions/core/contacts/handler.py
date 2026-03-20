@@ -44,7 +44,7 @@ ALLOWED_UPDATE_FIELDS = {
     'name', 'phone', 'email', 'shippingAddress', 'billingAddress',
     'optInWhatsApp', 'optInSms', 'optInEmail',
     'allowlistWhatsApp', 'allowlistSms', 'allowlistEmail',
-    'tags',
+    'tags', 'bsuid', 'parentBsuid', 'username', 'contactBookName',
 }
 OPT_IN_FIELDS = {
     'optInWhatsApp', 'optInSms', 'optInEmail',
@@ -162,6 +162,10 @@ def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str
         'name': body.get('name', '').strip(),
         'phone': phone,
         'email': email,
+        'bsuid': body.get('bsuid', '').strip() if body.get('bsuid') else None,
+        'parentBsuid': body.get('parentBsuid', '').strip() if body.get('parentBsuid') else None,
+        'username': body.get('username', '').strip() if body.get('username') else None,
+        'contactBookName': body.get('contactBookName', '').strip() if body.get('contactBookName') else None,
         'shippingAddress': body.get('shippingAddress', '').strip() if body.get('shippingAddress') else None,
         'billingAddress': body.get('billingAddress', '').strip() if body.get('billingAddress') else None,
         'optInWhatsApp': body.get('optInWhatsApp', True) if isinstance(body.get('optInWhatsApp'), bool) else True,
@@ -459,10 +463,15 @@ def _matches(item: Dict[str, Any], query: str) -> bool:
     name = str(item.get('name', '')).lower()
     phone = str(item.get('phone', '')).lower()
     email = str(item.get('email', '')).lower()
+    bsuid = str(item.get('bsuid', '')).lower()
+    username = str(item.get('username', '')).lower()
+    contact_book_name = str(item.get('contactBookName', '')).lower()
     tags = [str(t).lower() for t in (item.get('tags') or [])]
     clean_q = query.lstrip('+')
     clean_p = phone.lstrip('+')
-    return query in name or query in phone or query in email or clean_q in clean_p or any(query in t for t in tags)
+    return (query in name or query in phone or query in email or clean_q in clean_p
+            or query in bsuid or query in username or query in contact_book_name
+            or any(query in t for t in tags))
 
 
 def _delete_s3(stored_key: str):

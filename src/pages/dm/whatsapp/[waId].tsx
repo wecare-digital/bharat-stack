@@ -35,12 +35,17 @@ interface Message {
   messageType?: string;
   receivingPhone?: string;
   awsPhoneNumberId?: string;
+  transcription?: string;       // English transcription of voice notes
+  detectedLanguage?: string;    // Detected language of voice note
 }
 
 interface Contact {
   id: string;
   name: string;
   phone: string;
+  bsuid?: string;
+  username?: string;
+  contactBookName?: string;
   hasName: boolean;  // Track if contact has a real name vs using phone as display
   windowOpen: boolean;
   windowExpiresAt: number;  // Timestamp when window expires
@@ -51,6 +56,106 @@ interface Contact {
 const WABA_INFO: Record<string, { name: string; phone: string }> = {
   [WHATSAPP_PHONES.primary.id]: { name: WHATSAPP_PHONES.primary.name, phone: WHATSAPP_PHONES.primary.display },
   [WHATSAPP_PHONES.secondary.id]: { name: WHATSAPP_PHONES.secondary.name, phone: WHATSAPP_PHONES.secondary.display },
+};
+
+// ── Language code to human-readable label ──
+const LANG_LABELS: Record<string, string> = {
+  'en-US': 'English', 'en-GB': 'English', 'en-IN': 'English',
+  'en-AU': 'English', 'en-NZ': 'English', 'en-ZA': 'English',
+  'hi-IN': 'Hindi', 'ar-SA': 'Arabic', 'es-US': 'Spanish',
+  'es-ES': 'Spanish', 'es-MX': 'Spanish', 'fr-FR': 'French',
+  'fr-CA': 'French', 'de-DE': 'German', 'ja-JP': 'Japanese',
+  'ko-KR': 'Korean', 'pt-BR': 'Portuguese', 'pt-PT': 'Portuguese',
+  'zh-CN': 'Chinese', 'it-IT': 'Italian', 'tr-TR': 'Turkish',
+  'ru-RU': 'Russian', 'nl-NL': 'Dutch', 'pl-PL': 'Polish',
+  'sv-SE': 'Swedish', 'da-DK': 'Danish', 'nb-NO': 'Norwegian',
+  'fi-FI': 'Finnish', 'ca-ES': 'Catalan', 'ro-RO': 'Romanian',
+  'id-ID': 'Indonesian', 'ms-MY': 'Malay', 'th-TH': 'Thai',
+  'vi-VN': 'Vietnamese', 'ta-IN': 'Tamil', 'te-IN': 'Telugu',
+  'bn-IN': 'Bengali', 'mr-IN': 'Marathi', 'gu-IN': 'Gujarati',
+  'kn-IN': 'Kannada', 'ml-IN': 'Malayalam', 'ur-IN': 'Urdu',
+  'pa-IN': 'Punjabi', 'arb': 'Arabic', 'cy-GB': 'Welsh',
+};
+
+// ── Voice Note Transcription sub-component ──
+const VoiceTranscript: React.FC<{ msg: Message }> = ({ msg }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [transcription, setTranscription] = useState(msg.transcription || '');
+  const [detectedLang, setDetectedLang] = useState(msg.detectedLanguage || '');
+  const [loading, setLoading] = useState(false);
+
+  const handleTranscribe = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const result = await api.transcribeVoiceNote({
+        messageId: msg.id,
+        s3Key: msg.s3Key || undefined,
+        direction: msg.direction === 'inbound' ? 'INBOUND' : 'OUTBOUND',
+      });
+      if (result?.transcription) {
+        setTranscription(result.transcription);
+        setDetectedLang(result.detectedLanguage || '');
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (transcription) {
+    const langLabel = LANG_LABELS[detectedLang] || detectedLang || '';
+    return (
+      <div className="voice-transcription" style={{ marginTop: 4, width: '100%' }}>
+        <button
+          className="transcription-toggle"
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '0.75rem', color: '#6b7280', display: 'flex',
+            alignItems: 'center', gap: 4, padding: '2px 0',
+          }}
+        >
+          <span style={{ fontSize: '0.7rem' }}>📝</span>
+          {expanded ? 'Hide transcript' : 'Show transcript'}
+          {langLabel && <span style={{
+            fontSize: '0.65rem', background: '#e5e7eb', borderRadius: 4,
+            padding: '1px 4px', marginLeft: 4,
+          }}>{langLabel}</span>}
+        </button>
+        {expanded && (
+          <p style={{
+            margin: '4px 0 0', fontSize: '0.8rem', color: '#374151',
+            lineHeight: 1.4, fontStyle: 'italic', padding: '4px 8px',
+            background: 'rgba(0,0,0,0.03)', borderRadius: 6,
+            borderLeft: '2px solid #9ca3af',
+          }}>
+            {transcription}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // No transcription yet — show "Transcribe" button
+  return (
+    <div className="voice-transcription" style={{ marginTop: 4 }}>
+      <button
+        onClick={handleTranscribe}
+        disabled={loading}
+        style={{
+          background: 'none', border: '1px solid #d1d5db', borderRadius: 4,
+          cursor: loading ? 'wait' : 'pointer', fontSize: '0.72rem',
+          color: '#6b7280', padding: '2px 8px', display: 'flex',
+          alignItems: 'center', gap: 4,
+        }}
+      >
+        <span style={{ fontSize: '0.7rem' }}>{loading ? '⏳' : '📝'}</span>
+        {loading ? 'Transcribing...' : 'Transcribe'}
+      </button>
+    </div>
+  );
 };
 
 const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
@@ -150,8 +255,9 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       const contactIdsWithMessages = new Set(wabaMessages.map(m => m.contactId));
 
       // Only show contacts that have messages in this specific WABA
+      // Include BSUID-only contacts (no phone) that have messages
       const displayContacts: Contact[] = contactsData
-        .filter(c => c.phone && contactIdsWithMessages.has(c.contactId))
+        .filter(c => (c.phone || c.bsuid) && contactIdsWithMessages.has(c.contactId))
         .map(c => {
           const contactMsgs = wabaMessages.filter(m => m.contactId === c.contactId);
           const lastMsg = contactMsgs[0];
@@ -161,8 +267,11 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
           const displayName = c.name && c.name.trim() && c.name !== '~' ? c.name : '';
           return {
             id: c.contactId,
-            name: displayName || c.phone,  // For display in sidebar
+            name: displayName || c.phone || c.username || c.bsuid || 'Unknown',
             phone: c.phone,
+            bsuid: c.bsuid || '',
+            username: c.username || '',
+            contactBookName: c.contactBookName || '',
             hasName: !!displayName,  // Track if contact has a real name
             windowOpen: Date.now() < windowEnd,
             windowExpiresAt: windowEnd,
@@ -184,6 +293,8 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         mediaUrl: m.mediaUrl || (m.s3Key ? `https://app.wecare.digital.s3.amazonaws.com/${m.s3Key}` : undefined),
         s3Key: m.s3Key,
         messageType: m.messageType || (m.s3Key ? 'media' : 'text'),
+        transcription: m.transcription,
+        detectedLanguage: m.detectedLanguage,
       })));
     } catch (err) {
       toast.error('Failed to load data');
@@ -239,11 +350,15 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
     return true;
   });
 
-  // Filter contacts by search
+  // Filter contacts by search (includes BSUID, username, contactBookName)
   const filteredContacts = contacts.filter(c => {
     if (!contactSearchQuery.trim()) return true;
     const q = contactSearchQuery.toLowerCase();
-    return c.name.toLowerCase().includes(q) || c.phone.includes(q);
+    return c.name.toLowerCase().includes(q) ||
+      c.phone.includes(contactSearchQuery) ||
+      (c.bsuid && c.bsuid.toLowerCase().includes(q)) ||
+      (c.username && c.username.toLowerCase().includes(q)) ||
+      (c.contactBookName && c.contactBookName.toLowerCase().includes(q));
   });
 
   // Toggle star on message
@@ -293,6 +408,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         contactId: selectedContact.id,
         content: messageText,
         phoneNumberId: waId as string,
+        recipientBsuid: selectedContact.bsuid || undefined,
       });
 
       if (result) {
@@ -317,6 +433,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         reactionMessageId: whatsappMessageId,
         reactionEmoji: '👍',
         phoneNumberId: waId as string,
+        recipientBsuid: selectedContact.bsuid || undefined,
       });
     } catch (err) {
       console.error('Reaction failed:', err);
@@ -403,6 +520,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
           mediaFile: base64Audio,
           mediaType: 'audio/ogg',
           mediaFileName: `voice-note-${Date.now()}.ogg`,
+          recipientBsuid: selectedContact.bsuid || undefined,
         });
 
         if (result) {
@@ -486,6 +604,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="audio-icon">{isVoiceNote ? 'Voice' : 'Audio'}</div>
           <audio src={mediaUrl} controls className="message-audio" preload="metadata" />
           {renderDownloadButton(mediaUrl)}
+          <VoiceTranscript msg={msg} />
         </div>
       );
     }
@@ -976,12 +1095,15 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                   <div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div>
                   <div className="contact-details">
                     <div className="contact-name">
-                      {contact.name}
+                      {contact.name}{contact.username ? <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 12, marginLeft: 4 }}>{contact.username}</span> : null}
                       {contact.unread > 0 && <span className="unread">{contact.unread}</span>}
                     </div>
                     {/* Show phone below name if contact has a real name */}
-                    {contact.hasName && (
+                    {contact.hasName && contact.phone && (
                       <div className="contact-phone-sub">{contact.phone}</div>
+                    )}
+                    {!contact.phone && contact.bsuid && (
+                      <div className="contact-phone-sub" style={{ color: '#9ca3af', fontSize: 11 }}>{contact.bsuid} (BSUID)</div>
                     )}
                     <div className="contact-preview">{contact.lastMessage || 'No messages'}</div>
                   </div>
@@ -1005,10 +1127,12 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                     <div className="contact-avatar large">{selectedContact.name.charAt(0).toUpperCase()}</div>
                     <div>
                       <div className="chat-name">{selectedContact.name}</div>
-                      {/* Only show phone separately if contact has a real name */}
-                      {selectedContact.hasName && (
-                        <div className="chat-phone">{selectedContact.phone}</div>
-                      )}
+                      {/* Show phone/BSUID and username */}
+                      <div className="chat-phone">
+                        {selectedContact.phone || selectedContact.bsuid || 'No identifier'}
+                        {selectedContact.username ? ` · ${selectedContact.username}` : ''}
+                        {!selectedContact.phone && selectedContact.bsuid ? ' (BSUID)' : ''}
+                      </div>
                     </div>
                   </div>
                   <div className="chat-header-actions">
@@ -1185,6 +1309,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                     <InteractiveMessageComposer
                       contactId={selectedContact.id}
                       phoneNumberId={waId as string}
+                      recipientBsuid={selectedContact.bsuid || undefined}
                       onClose={() => setShowInteractiveComposer(false)}
                       onSent={() => loadData()}
                       onError={(msg) => toast.error(msg)}
@@ -1197,6 +1322,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
                       contactId={selectedContact.id}
                       contactName={selectedContact.name}
                       phoneNumberId={waId as string}
+                      recipientBsuid={selectedContact.bsuid || undefined}
                       onClose={() => setShowTemplateSender(false)}
                       onSent={() => loadData()}
                       onError={(msg) => toast.error(msg)}

@@ -425,9 +425,11 @@ def _send_interactive_list(phone_id: str, body: Dict) -> Dict:
 # CALLING SETTINGS (Enable/Disable calling on a phone number)
 # ============================================================================
 def _get_calling_settings(phone_id: str) -> Dict:
-    """Get current calling settings for a phone number."""
+    """Get current calling settings for a phone number, including SIP config and credentials."""
+    # include_sip_credentials=true returns the Meta-generated SIP password
     result = _graph_api(f'{phone_id}/settings', params={
-        'fields': 'calling'
+        'fields': 'calling',
+        'include_sip_credentials': 'true',
     }, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
@@ -437,17 +439,32 @@ def _get_calling_settings(phone_id: str) -> Dict:
 def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
     """
     Enable or update calling settings on a phone number.
+    Supports full Meta Calling API settings including SIP configuration.
     Body: {
       callIconVisibility: 'default' | 'disable_all',
-      restrictToCountries: ['IN', 'AE'],  // optional
-      callHours: { timezone, sun, mon, ... },  // optional
-      callbackRequest: { enabled: bool, bodyText: str }  // optional
+      restrictToCountries: ['IN', 'AE'],
+      callHours: { timezone, sun, mon, ... },
+      callbackRequest: { enabled: bool, bodyText: str },
+      sip: { status: 'ENABLED'|'DISABLED', servers: [{ hostname, port?, request_uri_user_params? }] },
+      srtpKeyExchangeProtocol: 'DTLS' | 'SDES',
+      status: 'ENABLED' | 'DISABLED',
+      callbackPermissionStatus: 'ENABLED' | 'DISABLED',
     }
     """
     calling: Dict = {}
 
-    visibility = body.get('callIconVisibility', 'default')
-    calling['call_icon_visibility'] = visibility
+    # Basic calling settings
+    visibility = body.get('callIconVisibility')
+    if visibility:
+        calling['call_icon_visibility'] = visibility
+
+    status = body.get('status')
+    if status:
+        calling['status'] = status
+
+    callback_perm = body.get('callbackPermissionStatus')
+    if callback_perm:
+        calling['callback_permission_status'] = callback_perm
 
     countries = body.get('restrictToCountries')
     if countries:
@@ -460,6 +477,25 @@ def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
     callback = body.get('callbackRequest')
     if callback:
         calling['callback_request'] = callback
+
+    # SIP configuration (per Meta SIP Configuration Guide)
+    sip = body.get('sip')
+    if sip:
+        sip_config: Dict = {}
+        if 'status' in sip:
+            sip_config['status'] = sip['status']  # ENABLED or DISABLED
+        if 'servers' in sip:
+            sip_config['servers'] = sip['servers']  # [{ hostname, port?, request_uri_user_params? }]
+        if sip_config:
+            calling['sip'] = sip_config
+
+    # SRTP key exchange protocol (DTLS default, SDES for shorter call setup)
+    srtp = body.get('srtpKeyExchangeProtocol')
+    if srtp and srtp in ('DTLS', 'SDES'):
+        calling['srtp_key_exchange_protocol'] = srtp
+
+    if not calling:
+        return _resp(400, {'error': 'No calling settings provided'})
 
     result = _graph_api(f'{phone_id}/settings', method='POST', payload={
         'calling': calling
@@ -488,6 +524,94 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True})
+
+
+# ============================================================================
+# USERNAME MANAGEMENT
+# Meta Graph API endpoints for WhatsApp Business usernames.
+# GET /<phone_id>/username — current username + status
+# GET /<phone_id>/username_suggestions — reserved suggestions
+# POST /<phone_id>/username — claim a username
+# DELETE /<phone_id>/username — delete current username
+# ============================================================================
+
+def _get_username(phone_id: str) -> Dict:
+    """Get current business username for a phone number."""
+    result = _graph_api(f'{phone_id}/username', phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, result)
+
+
+def _get_username_suggestions(phone_id: str) -> Dict:
+    """Get reserved username suggestions for a phone number."""
+    result = _graph_api(f'{phone_id}/username_suggestions', phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    suggestions = []
+    for item in result.get('data', []):
+        suggestions.extend(item.get('username_suggestions', []))
+    return _resp(200, {'suggestions': suggestions, 'raw': result})
+
+
+def _claim_username(phone_id: str, body: Dict) -> Dict:
+    """Claim/set a username for a phone number. Body: { "username": "desired_username" }"""
+    username = body.get('username', '').strip()
+    if not username:
+        return _resp(400, {'error': 'username is required'})
+    result = _graph_api(f'{phone_id}/username', method='POST',
+                        payload={'username': username}, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'username': username, 'result': result})
+
+
+def _delete_username(phone_id: str) -> Dict:
+    """Delete the current username for a phone number."""
+    result = _graph_api(f'{phone_id}/username', method='DELETE', phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'result': result})
+
+
+# ============================================================================
+# BLOCK USERS API
+# Per Meta BSUID docs: block/unblock users by phone or user_id (BSUID)
+# ============================================================================
+
+def _block_users(waba_id: str, body: Dict) -> Dict:
+    """Block users on a WABA. Accepts phone numbers and/or BSUIDs."""
+    users = body.get('users', [])
+    if not users:
+        return _resp(400, {'error': 'users array required'})
+    # Build payload per Meta API: POST /<WABA_ID>/block_users
+    # Each user can have 'phone' and/or 'user_id' (BSUID)
+    payload = {'messaging_product': 'whatsapp', 'block_users': users}
+    result = _graph_api(f'{waba_id}/block_users', method='POST', payload=payload, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'result': result})
+
+
+def _unblock_users(waba_id: str, body: Dict) -> Dict:
+    """Unblock users on a WABA. Accepts phone numbers and/or BSUIDs."""
+    users = body.get('users', [])
+    if not users:
+        return _resp(400, {'error': 'users array required'})
+    payload = {'messaging_product': 'whatsapp', 'block_users': users}
+    result = _graph_api(f'{waba_id}/unblock_users', method='POST', payload=payload, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'result': result})
+
+
+def _get_blocked_users(waba_id: str) -> Dict:
+    """Get list of blocked users for a WABA."""
+    result = _graph_api(f'{waba_id}/block_users', method='GET', waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, result)
+
 
 # ============================================================================
 # PAYMENT CONFIGURATION
@@ -1615,6 +1739,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'GET':
                 return _get_phone_settings(phone_id)
             return _update_phone_settings(phone_id, body)
+
+        elif '/username/suggestions' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            return _get_username_suggestions(phone_id)
+
+        elif '/username' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'GET':
+                return _get_username(phone_id)
+            elif method == 'POST':
+                return _claim_username(phone_id, body)
+            elif method == 'DELETE':
+                return _delete_username(phone_id)
+
+        elif '/block-users' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId') or ''
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            if method == 'GET':
+                return _get_blocked_users(waba_id)
+            elif method == 'POST':
+                return _block_users(waba_id, body)
+
+        elif '/unblock-users' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId') or ''
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            if method == 'POST':
+                return _unblock_users(waba_id, body)
 
         elif '/flow-data' in path:
             if method == 'POST':

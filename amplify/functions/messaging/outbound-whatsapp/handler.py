@@ -123,6 +123,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Direct phone number (fallback when contactId not available)
         recipient_phone_direct = body.get('recipientPhone')
         
+        # BSUID recipient (for sending to users without phone numbers)
+        recipient_bsuid = body.get('recipientBsuid', '')
+        
         # Reaction support
         is_reaction = body.get('isReaction', False)
         reaction_message_id = body.get('reactionMessageId')  # WhatsApp message ID to react to
@@ -142,6 +145,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not contact:
                 return _error_response(404, 'Contact not found')
             recipient_phone = contact.get('phone')
+            # Auto-resolve BSUID from contact if not explicitly provided
+            if not recipient_bsuid and contact.get('bsuid'):
+                recipient_bsuid = contact.get('bsuid', '')
         
         # Validate reaction request
         if is_reaction and not reaction_message_id:
@@ -190,21 +196,24 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if is_reaction:
             return _handle_reaction_send(
                 message_id, contact_id, recipient_phone, phone_number_id,
-                reaction_message_id, reaction_emoji, request_id
+                reaction_message_id, reaction_emoji, request_id,
+                recipient_bsuid=recipient_bsuid
             )
         
         # Handle order_status messages (payment confirmation)
         if is_order_status and order_status_details:
             return _handle_order_status_send(
                 message_id, contact_id, recipient_phone, phone_number_id,
-                order_status_details, request_id
+                order_status_details, request_id,
+                recipient_bsuid=recipient_bsuid
             )
         
         # Handle interactive messages (list, buttons, location request)
         if is_interactive and interactive_type:
             return _handle_interactive_send(
                 message_id, contact_id, recipient_phone, phone_number_id,
-                interactive_type, interactive_data, request_id
+                interactive_type, interactive_data, request_id,
+                recipient_bsuid=recipient_bsuid
             )
         
         # Requirement 5.2: LIVE mode - call API
@@ -212,7 +221,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             message_id, contact_id, recipient_phone, phone_number_id,
             content, media_file, media_type, media_filename, is_template, template_name,
             template_params, within_window, request_id, is_payment_template, order_details, 
-            header_image_url, is_interactive_payment, is_otp_template, otp_code, otp_button_type
+            header_image_url, is_interactive_payment, is_otp_template, otp_code, otp_button_type,
+            recipient_bsuid=recipient_bsuid
         )
         
     except json.JSONDecodeError:
@@ -293,7 +303,8 @@ def _handle_dry_run_reaction(message_id: str, contact_id: str, recipient_phone: 
 
 def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str,
                           phone_number_id: str, reaction_message_id: str, 
-                          reaction_emoji: str, request_id: str) -> Dict[str, Any]:
+                          reaction_emoji: str, request_id: str,
+                          recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
     Send a reaction to a WhatsApp message.
     Uses AWS EUM Social SendWhatsAppMessage API with reaction type.
@@ -317,6 +328,9 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
                 'emoji': reaction_emoji
             }
         }
+        # Add BSUID recipient if available (per Meta BSUID docs)
+        if recipient_bsuid:
+            reaction_payload['recipient'] = recipient_bsuid
         
         logger.info(json.dumps({
             'event': 'reaction_payload',
@@ -382,7 +396,8 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
 
 def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone: str,
                                phone_number_id: str, order_status_details: Dict,
-                               request_id: str) -> Dict[str, Any]:
+                               request_id: str,
+                               recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
     Send order_status interactive message to confirm payment status.
     
@@ -458,6 +473,9 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
                 }
             }
         }
+        # Add BSUID recipient if available (per Meta BSUID docs)
+        if recipient_bsuid:
+            order_status_payload['recipient'] = recipient_bsuid
         
         logger.info(json.dumps({
             'event': 'order_status_payload',
@@ -485,7 +503,8 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
             status='sent',
             is_template=False,
             whatsapp_message_id=whatsapp_message_id,
-            phone_number_id=phone_number_id
+            phone_number_id=phone_number_id,
+            recipient_bsuid=recipient_bsuid,
         )
         
         logger.info(json.dumps({
@@ -530,7 +549,8 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
 
 def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: str,
                               phone_number_id: str, interactive_type: str,
-                              interactive_data: Dict, request_id: str) -> Dict[str, Any]:
+                              interactive_data: Dict, request_id: str,
+                              recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
     Send interactive messages (list, buttons, location request, CTA URL).
     
@@ -557,6 +577,9 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             'to': whatsapp_phone,
             'type': 'interactive'
         }
+        # Add BSUID recipient if available (per Meta BSUID docs)
+        if recipient_bsuid:
+            payload['recipient'] = recipient_bsuid
         
         # Build interactive payload based on type
         if interactive_type == 'list':
@@ -791,7 +814,8 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             status='sent',
             is_template=False,
             whatsapp_message_id=whatsapp_message_id,
-            phone_number_id=phone_number_id
+            phone_number_id=phone_number_id,
+            recipient_bsuid=recipient_bsuid,
         )
         
         logger.info(json.dumps({
@@ -839,7 +863,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       is_payment_template: bool = False, order_details: Optional[Dict] = None,
                       header_image_url: Optional[str] = None, is_interactive_payment: bool = False,
                       is_otp_template: bool = False, otp_code: Optional[str] = None,
-                      otp_button_type: Optional[str] = None) -> Dict[str, Any]:
+                      otp_button_type: Optional[str] = None,
+                      recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
     Handle LIVE mode - call AWS EUM Social API.
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
@@ -866,7 +891,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             is_template, template_name, template_params, stored_filename,
             is_payment_template, order_details, header_image_url, is_interactive_payment,
             is_otp_template, otp_code, otp_button_type,
-            phone_number_id=phone_number_id
+            phone_number_id=phone_number_id,
+            recipient_bsuid=recipient_bsuid
         )
         
         logger.info(json.dumps({
@@ -937,7 +963,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             s3_key=s3_key,
             phone_number_id=phone_number_id,
             payment_reference_id=payment_ref_id,
-            payment_amount=payment_amount
+            payment_amount=payment_amount,
+            recipient_bsuid=recipient_bsuid,
         )
         
         # Store payment_request record for invoice generator lookup
@@ -1442,23 +1469,33 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            is_interactive_payment: bool = False,
                            is_otp_template: bool = False, otp_code: Optional[str] = None,
                            otp_button_type: Optional[str] = None,
-                           phone_number_id: Optional[str] = None) -> Dict[str, Any]:
-    """Build WhatsApp Cloud API message payload."""
+                           phone_number_id: Optional[str] = None,
+                           recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
+    """Build WhatsApp Cloud API message payload. Supports BSUID recipient."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
-    formatted_phone = _normalize_phone_number(recipient_phone)
+    formatted_phone = _normalize_phone_number(recipient_phone) if recipient_phone else ''
     
-    # Validate phone number format
-    if not formatted_phone or not formatted_phone.isdigit() or len(formatted_phone) < 10:
+    # Validate phone number format (skip if sending to BSUID only)
+    if formatted_phone and (not formatted_phone.isdigit() or len(formatted_phone) < 10):
         logger.warning(f"Invalid phone number after normalization: {recipient_phone} -> {formatted_phone}")
     
     # WhatsApp requires + prefix with country code in the message payload
-    whatsapp_phone = f"+{formatted_phone}"
+    whatsapp_phone = f"+{formatted_phone}" if formatted_phone else ''
     
     payload = {
         'messaging_product': 'whatsapp',
         'recipient_type': 'individual',
-        'to': whatsapp_phone
     }
+    
+    # Support both phone number and BSUID recipients (per Meta BSUID docs)
+    # If both provided, 'to' (phone) takes precedence
+    if whatsapp_phone:
+        payload['to'] = whatsapp_phone
+    if recipient_bsuid:
+        payload['recipient'] = recipient_bsuid
+    # Fallback: at least one must be set
+    if not whatsapp_phone and not recipient_bsuid:
+        payload['to'] = whatsapp_phone  # Will fail at API level with clear error
     
     # Default header image for interactive payments
     DEFAULT_PAYMENT_HEADER_IMAGE = 'https://app.wecare.digital/stream/media/m/wecare-digital.png'
@@ -1873,7 +1910,8 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
                           is_template: bool = False, whatsapp_message_id: str = None,
                           media_id: str = None, s3_key: str = None,
                           error_details: Dict = None, phone_number_id: str = None,
-                          payment_reference_id: str = None, payment_amount: float = None) -> None:
+                          payment_reference_id: str = None, payment_amount: float = None,
+                          recipient_bsuid: str = None) -> None:
     """Store message record in DynamoDB with WABA tracking."""
     now = int(time.time())
     expires_at = now + MESSAGE_TTL_SECONDS
@@ -1929,6 +1967,8 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         'paymentReferenceId': payment_reference_id,
         'paymentAmount': Decimal(str(payment_amount * 100)) if payment_amount else None,  # Store in paise
         'paymentOffset': Decimal('100') if payment_amount else None,
+        # BSUID recipient tracking (for BSUID-only sends)
+        'recipientBsuid': recipient_bsuid or None,
     }
     
     try:

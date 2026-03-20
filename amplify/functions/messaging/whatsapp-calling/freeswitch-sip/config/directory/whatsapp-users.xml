@@ -1,0 +1,27 @@
+<include>
+  <domain name="sip.wecare.digital">
+    <params>
+      <param name="dial-string" value="{presence_id=${dialed_user}@${dialed_domain}}${sofia_contact(${dialed_user}@${dialed_domain})}"/>
+    </params>
+    <groups>
+      <group name="whatsapp">
+        <users>
+          <!-- Phone1: +919330994400 (Meta ID: 960395407161423) -->
+          <!-- SIP username = phone number without '+' -->
+          <!-- SIP password = Meta-generated sip_user_password (set after enabling SIP) -->
+          <user id="919330994400">
+            <params>
+              <param name="password" value="AD0cdCBw9dxUXg87z2s8zQ6odxXZvkQe"/>
+            </params>
+          </user>
+          <!-- Phone2: +919903300044 (Meta ID: 997428863451102) -->
+          <user id="919903300044">
+            <params>
+              <param name="password" value="HSz1K4Ecf95TcS9OlxZRvDAgl4XMZHas"/>
+            </params>
+          </user>
+        </users>
+      </group>
+    </groups>
+  </domain>
+</include>

@@ -174,6 +174,7 @@ def _create_scheduled(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
         'contactId': contact_id,
         'contactName': contact_name or '',
         'contactPhone': contact_phone or '',
+        'recipientBsuid': body.get('recipientBsuid', ''),
         'templateName': template_name,
         'templateParams': body.get('templateParams', []),
         'phoneNumberId': body.get('phoneNumberId', ''),
@@ -338,7 +339,8 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
                         'isTemplate': True,
                         'templateName': item['templateName'],
                         'templateParams': item.get('templateParams', []),
-                        'phoneNumberId': item.get('phoneNumberId', '')
+                        'phoneNumberId': item.get('phoneNumberId', ''),
+                        'recipientBsuid': item.get('recipientBsuid', ''),
                     })
                 }
                 

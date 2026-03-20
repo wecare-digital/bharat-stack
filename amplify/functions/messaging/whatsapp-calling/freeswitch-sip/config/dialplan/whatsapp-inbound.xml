@@ -1,0 +1,31 @@
+<include>
+  <context name="whatsapp-inbound">
+    <!-- All incoming WhatsApp calls route to the AI bridge -->
+    <extension name="whatsapp-ai">
+      <condition field="destination_number" expression="^(.*)$">
+        <action application="log" data="INFO WhatsApp call from ${caller_id_number} to ${destination_number}"/>
+        <action application="answer"/>
+        <action application="sleep" data="500"/>
+        
+        <!-- Extract official Meta custom SIP headers -->
+        <!-- Per Meta SIP Configuration Guide: custom headers on INVITE and BYE -->
+        <action application="set" data="wa_call_id=${sip_h_x-wa-meta-wacid}"/>
+        <action application="set" data="wa_call_duration=${sip_h_x-wa-meta-call-duration}"/>
+        <action application="set" data="wa_cta_payload=${sip_h_x-wa-meta-cta-payload}"/>
+        <action application="set" data="wa_deeplink_payload=${sip_h_x-wa-meta-deeplink-payload}"/>
+        
+        <!-- Extract BSUID SIP headers from Meta's WhatsApp SIP INVITE -->
+        <!-- Per Meta docs, user-initiated SIP INVITEs include these headers -->
+        <action application="set" data="wa_user_id=${sip_h_x-wa-meta-user-id}"/>
+        <action application="set" data="wa_parent_user_id=${sip_h_x-wa-meta-parent-user-id}"/>
+        <action application="set" data="wa_username=${sip_h_x-wa-meta-user-name}"/>
+        <action application="log" data="INFO WhatsApp call_id: ${wa_call_id}, BSUID: ${wa_user_id}, parent: ${wa_parent_user_id}, username: ${wa_username}, cta: ${wa_cta_payload}, deeplink: ${wa_deeplink_payload}"/>
+        
+        <!-- Play greeting while AI pipeline initializes -->
+        <action application="playback" data="/opt/freeswitch/sounds/greeting.wav"/>
+        <!-- Bridge to AI via socket - the Python ESL script handles the conversation -->
+        <action application="socket" data="127.0.0.1:9090 async full"/>
+      </condition>
+    </extension>
+  </context>
+</include>

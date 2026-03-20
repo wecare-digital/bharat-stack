@@ -42,7 +42,15 @@
  * Auto-Pickup Modes (configurable via SystemConfig):
  *   manual - Connect call, human answers via browser WebRTC
  *   ivr    - Auto-answer, play IVR audio greeting, then hang up (default)
- *   ai     - Auto-answer, AI bot conversation loop (Transcribe → Bedrock → Polly)
+ *   ai     - Forward to Pipecat voice bot (real-time AI conversation via WebRTC)
+ *            Fallback: voice-note redirect if bot server unreachable
+ * 
+ * Pipecat Voice Bot (AI mode):
+ *   PIPECAT_BOT_URL: URL of the Pipecat bot server (e.g. http://1.2.3.4:8765)
+ *   Also configurable via SystemConfig key: pipecat_bot_url
+ *   Bot runs on Lightsail $3.50/mo — handles WebRTC SDP + audio pipeline:
+ *     Caller audio → AWS Transcribe STT → Bedrock Nova Lite → Polly Kajal TTS → Caller
+ *   Source: pipecat-bot/bot.py (deployed separately)
  * 
  * DynamoDB Tables:
  *   stack-wecare-digital-WhatsAppCallingTable (partition key: id)

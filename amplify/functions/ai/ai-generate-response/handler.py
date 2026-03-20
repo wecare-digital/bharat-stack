@@ -130,6 +130,18 @@ SUPPORTED_LANGUAGES = {
     'french': 'French', 'fr': 'French', 'francais': 'French',
     'spanish': 'Spanish', 'es': 'Spanish', 'espanol': 'Spanish',
     'portuguese': 'Portuguese', 'pt': 'Portuguese', 'portugues': 'Portuguese',
+    'italian': 'Italian', 'it': 'Italian', 'italiano': 'Italian',
+    'german': 'German', 'de': 'German', 'deutsch': 'German',
+    'dutch': 'Dutch', 'nl': 'Dutch', 'nederlands': 'Dutch',
+    'polish': 'Polish', 'pl': 'Polish', 'polski': 'Polish',
+    'swedish': 'Swedish', 'sv': 'Swedish', 'svenska': 'Swedish',
+    'danish': 'Danish', 'da': 'Danish', 'dansk': 'Danish',
+    'norwegian': 'Norwegian', 'no': 'Norwegian', 'norsk': 'Norwegian',
+    'finnish': 'Finnish', 'fi': 'Finnish', 'suomi': 'Finnish',
+    'catalan': 'Catalan', 'ca': 'Catalan', 'catala': 'Catalan',
+    'romanian': 'Romanian', 'ro': 'Romanian', 'romana': 'Romanian',
+    'malay': 'Malay', 'ms': 'Malay', 'melayu': 'Malay',
+    'welsh': 'Welsh', 'cy': 'Welsh', 'cymraeg': 'Welsh',
 }
 
 # -- Two-step language picker: Step 1 = Region, Step 2 = Languages --
@@ -138,7 +150,7 @@ LANGUAGE_REGION_PICKER = [
     {'id': 'region_popular', 'title': '\u2b50 Popular', 'description': 'English, Hindi, Bengali, Tamil & more'},
     {'id': 'region_asian', 'title': '\U0001f30f Asian', 'description': '\u4e2d\u6587, \u65e5\u672c\u8a9e, \ud55c\uad6d\uc5b4, \u0e44\u0e17\u0e22 & more'},
     {'id': 'region_middle_east', 'title': '\U0001f30d Middle East', 'description': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629, T\u00fcrk\u00e7e, \u0420\u0443\u0441\u0441\u043a\u0438\u0439, \u0627\u0631\u062f\u0648'},
-    {'id': 'region_european', 'title': '\U0001f1ea\U0001f1fa European', 'description': 'Fran\u00e7ais, Espa\u00f1ol, Portugu\u00eas'},
+    {'id': 'region_european', 'title': '\U0001f1ea\U0001f1fa European', 'description': 'Fran\u00e7ais, Espa\u00f1ol, Italiano, Deutsch & more'},
 ]
 
 LANGUAGE_BY_REGION = {
@@ -161,6 +173,7 @@ LANGUAGE_BY_REGION = {
         {'id': 'lang_thai', 'title': '??? / Thai'},
         {'id': 'lang_vietnamese', 'title': 'Ti?ng Vi?t / Vietnamese'},
         {'id': 'lang_indonesian', 'title': 'Indonesia / Indonesian'},
+        {'id': 'lang_malay', 'title': 'Melayu / Malay'},
         {'id': 'lang_sinhala', 'title': '????? / Sinhala'},
     ],
     'region_middle_east': [
@@ -174,6 +187,17 @@ LANGUAGE_BY_REGION = {
         {'id': 'lang_french', 'title': 'Francais / French'},
         {'id': 'lang_spanish', 'title': 'Espanol / Spanish'},
         {'id': 'lang_portuguese', 'title': 'Portugues / Portuguese'},
+        {'id': 'lang_italian', 'title': 'Italiano / Italian'},
+        {'id': 'lang_german', 'title': 'Deutsch / German'},
+        {'id': 'lang_dutch', 'title': 'Nederlands / Dutch'},
+        {'id': 'lang_polish', 'title': 'Polski / Polish'},
+        {'id': 'lang_swedish', 'title': 'Svenska / Swedish'},
+        {'id': 'lang_danish', 'title': 'Dansk / Danish'},
+        {'id': 'lang_norwegian', 'title': 'Norsk / Norwegian'},
+        {'id': 'lang_finnish', 'title': 'Suomi / Finnish'},
+        {'id': 'lang_catalan', 'title': 'Catala / Catalan'},
+        {'id': 'lang_romanian', 'title': 'Romana / Romanian'},
+        {'id': 'lang_welsh', 'title': 'Cymraeg / Welsh'},
     ],
 }
 
@@ -209,6 +233,18 @@ LANGUAGE_CONFIRMATIONS = {
     'French': "Langue definie sur le francais ! \U0001f1eb\U0001f1f7 Comment puis-je vous aider ?",
     'Spanish': "Idioma configurado en espanol! \U0001f1ea\U0001f1f8 Como puedo ayudarte?",
     'Portuguese': "Idioma definido para portugues! \U0001f1e7\U0001f1f7 Como posso ajudar?",
+    'Italian': "Lingua impostata su italiano! \U0001f1ee\U0001f1f9 Come posso aiutarti?",
+    'German': "Sprache auf Deutsch eingestellt! \U0001f1e9\U0001f1ea Wie kann ich Ihnen helfen?",
+    'Dutch': "Taal ingesteld op Nederlands! \U0001f1f3\U0001f1f1 Hoe kan ik u helpen?",
+    'Polish': "Jezyk ustawiony na polski! \U0001f1f5\U0001f1f1 Jak moge pomoc?",
+    'Swedish': "Spraket ar installt pa svenska! \U0001f1f8\U0001f1ea Hur kan jag hjalpa dig?",
+    'Danish': "Sproget er sat til dansk! \U0001f1e9\U0001f1f0 Hvordan kan jeg hjaelpe?",
+    'Norwegian': "Spraket er satt til norsk! \U0001f1f3\U0001f1f4 Hvordan kan jeg hjelpe?",
+    'Finnish': "Kieli asetettu suomeksi! \U0001f1eb\U0001f1ee Miten voin auttaa?",
+    'Catalan': "Idioma configurat en catala! \U0001f310 Com puc ajudar-te?",
+    'Romanian': "Limba setata pe romana! \U0001f1f7\U0001f1f4 Cum va pot ajuta?",
+    'Malay': "Bahasa ditetapkan ke Melayu! \U0001f1f2\U0001f1fe Bagaimana saya boleh membantu?",
+    'Welsh': "Iaith wedi'i gosod i Gymraeg! \U0001f3f4\U000e0067\U000e0062\U000e0077\U000e006c\U000e0073\U000e007f Sut alla i helpu?",
 }
 
 

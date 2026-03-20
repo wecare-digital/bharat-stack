@@ -44,6 +44,28 @@ META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
+# Meta WhatsApp Calling error codes (from Meta Troubleshooting docs)
+# Used for actionable error logging and frontend display
+META_CALLING_ERRORS = {
+    138000: {'msg': 'Calling not enabled', 'action': 'Enable calling on this phone number via POST /{phone_id}/settings'},
+    138001: {'msg': 'Receiver uncallable', 'action': 'User not on WhatsApp, old ToS, or unsupported client'},
+    138002: {'msg': 'Concurrent calls limit reached (max 1000)', 'action': 'Wait for active calls to end'},
+    138005: {'msg': 'Call rate limit exceeded', 'action': 'Reduce call frequency'},
+    138006: {'msg': 'No approved call permission', 'action': 'Send call_permission_request first'},
+    138007: {'msg': 'Connect timeout (SDP not applied in time)', 'action': 'Check SDP answer generation speed'},
+    138009: {'msg': 'Call permission request limit hit', 'action': 'Wait before sending more permission requests'},
+    138012: {'msg': 'Business-initiated calls limit (100 connected/24h)', 'action': 'Daily outbound call limit reached'},
+    138013: {'msg': 'Business-initiated calling not available', 'action': 'Feature not enabled for this WABA'},
+    138014: {'msg': 'Calling temporarily disabled (low quality)', 'action': 'Improve call quality metrics'},
+    138017: {'msg': 'Permanent permission already exists', 'action': 'User already granted permanent call permission'},
+    138018: {'msg': 'Technical prerequisites not met', 'action': 'Configure SIP or subscribe to calls webhook field'},
+    138019: {'msg': 'WhatsApp client failed to set up call', 'action': 'Retry — client-side issue'},
+    138020: {'msg': 'Relay connection failed', 'action': 'Check network/firewall — media relay unreachable'},
+    138021: {'msg': 'Media receive timeout', 'action': 'Check media pipeline — no audio received from caller'},
+    138022: {'msg': 'Media transmit timeout', 'action': 'Check media pipeline — no audio sent to caller'},
+    138023: {'msg': 'Call accepted but no media signals', 'action': 'SDP answer may be invalid or media path broken'},
+}
+
 # Dual WABA token support
 WABA1_ID = '1912405516040025'
 WABA2_ID = '1633959101297902'
@@ -121,8 +143,22 @@ def _meta_api_call(endpoint: str, method: str = 'POST', payload: Dict = None, ph
             return json.loads(body) if body else {'success': True}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
-        logger.error(f"Meta API error {e.code}: {error_body}")
-        return {'error': True, 'status': e.code, 'detail': error_body}
+        # Parse Meta error code for actionable logging
+        error_code = None
+        error_msg = ''
+        try:
+            err_data = json.loads(error_body)
+            error_obj = err_data.get('error', {})
+            error_code = error_obj.get('code')
+            error_msg = error_obj.get('message', '')
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if error_code and error_code in META_CALLING_ERRORS:
+            meta_err = META_CALLING_ERRORS[error_code]
+            logger.error(f"Meta API error {e.code} — Code {error_code}: {meta_err['msg']} | Action: {meta_err['action']} | Detail: {error_msg}")
+        else:
+            logger.error(f"Meta API error {e.code}: {error_body}")
+        return {'error': True, 'status': e.code, 'detail': error_body, 'errorCode': error_code, 'errorMessage': error_msg}
     except Exception as e:
         logger.error(f"Meta API call failed: {e}")
         return {'error': True, 'detail': str(e)}
@@ -254,7 +290,7 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list, request_id: str) -> None:
-    """Handle a single call event from webhook."""
+    """Handle a single call event from webhook. Extracts BSUID and username."""
     event_type = call.get('event', '')
     call_id = call.get('id', call.get('call_id', ''))
     from_number = call.get('from', '')
@@ -264,10 +300,24 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
     display_phone = metadata.get('display_phone_number', '')
     timestamp = call.get('timestamp', str(int(time.time())))
 
-    # Extract caller name from contacts
+    # Extract BSUID from call event (from_user_id for user-initiated, to_user_id for biz-initiated)
+    from_bsuid = call.get('from_user_id', '')
+    to_bsuid = call.get('to_user_id', '')
+    from_parent_bsuid = call.get('from_parent_user_id', '')
+    to_parent_bsuid = call.get('to_parent_user_id', '')
+    caller_bsuid = from_bsuid if direction == 'USER_INITIATED' else to_bsuid
+    caller_parent_bsuid = from_parent_bsuid if direction == 'USER_INITIATED' else to_parent_bsuid
+
+    # Extract caller name and username from contacts array
     caller_name = ''
+    caller_username = ''
     if contacts:
-        caller_name = contacts[0].get('profile', {}).get('name', '')
+        contact_info = contacts[0]
+        caller_name = contact_info.get('profile', {}).get('name', '')
+        caller_username = contact_info.get('profile', {}).get('username', '')
+        # Also get BSUID from contacts if not in call event
+        if not caller_bsuid:
+            caller_bsuid = contact_info.get('user_id', '')
 
     now = int(time.time())
 
@@ -275,6 +325,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         'event': 'call_event', 'type': event_type, 'call_id': call_id,
         'from': from_number, 'to': to_number, 'direction': direction,
         'phone_number_id': phone_number_id, 'caller_name': caller_name,
+        'caller_bsuid': caller_bsuid, 'caller_username': caller_username,
     }))
 
     if event_type == 'connect':
@@ -291,6 +342,9 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'fromNumber': from_number,
             'toNumber': to_number,
             'callerName': caller_name,
+            'fromBsuid': caller_bsuid or None,
+            'fromParentBsuid': caller_parent_bsuid or None,
+            'callerUsername': caller_username or None,
             'direction': direction,
             'eventType': 'connect',
             'status': 'ringing',
@@ -300,49 +354,84 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
-        logger.info(f"INBOUND CALL from {caller_name or from_number} — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
+        logger.info(f"INBOUND CALL from {caller_name or from_number} (BSUID: {caller_bsuid or 'N/A'}) — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
 
-        # Auto-pickup: if enabled, send pre_accept to hold the call open
-        # The actual accept with SDP answer is handled by the frontend (browser WebRTC).
-        # Lambda sends pre_accept to tell Meta we intend to answer — this extends
-        # the timeout window so the frontend has time to poll and generate SDP.
+        # Auto-pickup: behaviour depends on mode (manual / ivr / ai)
+        # - manual: pre_accept only, wait for frontend browser to answer via WebRTC
+        # - ivr: pre_accept, send IVR audio message, terminate after delay
+        # - ai: forward to Pipecat voice bot (real-time AI conversation via WebRTC)
+        #        fallback: voice-note redirect if Pipecat server is unreachable
         if _is_auto_pickup_enabled() and phone_number_id:
-            logger.info(f"AUTO-PICKUP pre_accept — holding call {call_id} for frontend pickup")
-            try:
-                pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-                    'messaging_product': 'whatsapp',
+            pickup_mode = _get_auto_pickup_mode()
+            logger.info(f"AUTO-PICKUP mode={pickup_mode} — call {call_id} from {caller_name or from_number}")
+
+            if pickup_mode == 'ai':
+                # AI mode via SIP: Do NOT terminate or pre_accept the call here.
+                # When SIP is enabled on the phone number, Meta sends the webhook
+                # first, then forwards the call as a SIP INVITE to our FreeSWITCH
+                # server (sip.wecare.digital:5061). If we terminate/pre_accept here,
+                # Meta cancels the SIP INVITE before it's sent.
+                #
+                # FreeSWITCH handles the call entirely:
+                # Answer → Greeting → Record → Transcribe STT → Bedrock → Polly TTS → Play
+                #
+                # We just log the event and let SIP handle it.
+                logger.info(json.dumps({
+                    'event': 'ai_sip_passthrough',
                     'call_id': call_id,
-                    'action': 'pre_accept',
-                }, phone_number_id=phone_number_id)
-                logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
-                if pre_result.get('error'):
-                    logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
-                    if pre_result.get('status') == 403:
-                        logger.error(
-                            f"403 on pre_accept for phone_number_id={phone_number_id}. "
-                            f"Check: 1) System User token has whatsapp_business_messaging permission, "
-                            f"2) Calling is enabled on this phone number, "
-                            f"3) Token belongs to the correct WABA for this phone number."
-                        )
-                    _update_call_status(call_id, 'pre_accept_failed', pre_result)
-                else:
-                    _update_call_status(call_id, 'pre_accepted')
-            except Exception as e:
-                logger.error(f"Auto pre_accept failed: {e}", exc_info=True)
+                    'from': from_number,
+                    'caller_name': caller_name,
+                    'phone_number_id': phone_number_id,
+                    'note': 'Letting SIP handle this call - no Graph API action taken',
+                }))
+                _update_call_status(call_id, 'sip_pending')
+            else:
+                # manual/ivr: pre_accept to hold call open for frontend or IVR playback
+                try:
+                    pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+                        'messaging_product': 'whatsapp',
+                        'call_id': call_id,
+                        'action': 'pre_accept',
+                    }, phone_number_id=phone_number_id)
+                    logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
+                    if pre_result.get('error'):
+                        logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
+                        if pre_result.get('status') == 403:
+                            logger.error(
+                                f"403 on pre_accept for phone_number_id={phone_number_id}. "
+                                f"Check: 1) System User token has whatsapp_business_messaging permission, "
+                                f"2) Calling is enabled on this phone number, "
+                                f"3) Token belongs to the correct WABA for this phone number."
+                            )
+                        _update_call_status(call_id, 'pre_accept_failed', pre_result)
+                    else:
+                        _update_call_status(call_id, 'pre_accepted')
+                except Exception as e:
+                    logger.error(f"Auto pre_accept failed: {e}", exc_info=True)
 
     elif event_type == 'terminate':
         reason = call.get('reason', 'unknown')
         duration = call.get('duration', 0)
+        # Extract Meta error code from terminate event if present
+        error_code = call.get('error_code', call.get('code', ''))
+        if error_code and int(error_code) in META_CALLING_ERRORS:
+            meta_err = META_CALLING_ERRORS[int(error_code)]
+            logger.warning(f"Call {call_id} terminated with Meta error {error_code}: "
+                           f"{meta_err['msg']} | Action: {meta_err['action']}")
         _store_call_log({
             'callId': call_id,
             'wabaId': waba_id,
             'phoneNumberId': phone_number_id,
             'fromNumber': from_number,
             'toNumber': to_number,
+            'fromBsuid': caller_bsuid or None,
+            'fromParentBsuid': caller_parent_bsuid or None,
+            'callerUsername': caller_username or None,
             'direction': direction,
             'eventType': 'terminate',
             'status': 'ended',
             'terminateReason': reason,
+            'errorCode': str(error_code) if error_code else None,
             'duration': duration,
             'timestamp': timestamp,
             'createdAt': Decimal(str(now)),
@@ -370,6 +459,9 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'phoneNumberId': phone_number_id,
             'fromNumber': from_number or recipient,
             'toNumber': to_number,
+            'fromBsuid': caller_bsuid or None,
+            'fromParentBsuid': caller_parent_bsuid or None,
+            'callerUsername': caller_username or None,
             'direction': direction,
             'eventType': 'permission_response',
             'status': f'permission_{permission.lower() if permission else "unknown"}',
@@ -395,6 +487,157 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         })
 
 
+def _redirect_call_to_voice_notes(call_id: str, phone_number_id: str,
+                                   from_number: str, caller_name: str) -> None:
+    """
+    AI mode: Instead of establishing a real-time voice call (which requires
+    WebRTC infrastructure), gracefully redirect the caller to send a voice note.
+
+    The inbound WhatsApp handler already processes audio messages through the
+    full multimodal AI pipeline (Bedrock Converse API → Nova Lite) and can
+    reply with text + optional Polly TTS audio message. This gives the caller
+    an AI voice conversation experience at zero additional infrastructure cost.
+
+    Flow:
+    1. Terminate the call immediately (no pre_accept needed)
+    2. Send a friendly WhatsApp message explaining to send a voice note
+    3. Caller sends voice note → inbound handler → AI pipeline → auto-reply
+    """
+    logger.info(json.dumps({
+        'event': 'ai_redirect_to_voice_notes',
+        'call_id': call_id,
+        'from': from_number,
+        'caller_name': caller_name,
+        'phone_number_id': phone_number_id,
+    }))
+
+    # Step 1: Try to terminate the call (may fail with 403 if WABA is managed
+    # by AWS EUM Social — that's OK, call will end naturally when caller hangs up)
+    try:
+        term_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+            'messaging_product': 'whatsapp',
+            'call_id': call_id,
+            'action': 'terminate',
+        }, phone_number_id=phone_number_id)
+        if term_result.get('error'):
+            logger.info(f"AI-REDIRECT terminate skipped (expected with AWS EUM): status={term_result.get('status')}")
+        else:
+            logger.info(f"AI-REDIRECT terminate success: {json.dumps(term_result)}")
+    except Exception as e:
+        logger.info(f"AI-REDIRECT terminate skipped: {e}")
+
+    _update_call_status(call_id, 'ai_redirected')
+
+    # Step 2: Send a friendly redirect message via WhatsApp
+    aws_phone_id = _get_aws_phone_id(phone_number_id)
+    greeting = caller_name or 'there'
+
+    redirect_text = (
+        f"📞 Hey {greeting}! I noticed you tried to call.\n\n"
+        f"🎙️ I'm an AI assistant — send me a *voice note* and I'll respond "
+        f"instantly with a voice reply!\n\n"
+        f"You can also just type your question. I'm here to help 😊"
+    )
+
+    result = _send_via_aws(aws_phone_id, from_number, {
+        'type': 'text',
+        'text': {'body': redirect_text},
+    })
+
+    if result.get('error'):
+        error_detail = result.get('detail', '')
+        if any(kw in error_detail.lower() for kw in ('outside', 'window', '131047')):
+            # No 24h messaging window — try sending a template instead
+            logger.warning(f"AI-REDIRECT: No 24h window for {from_number}, "
+                           f"redirect message not sent. Caller will see missed call.")
+        else:
+            logger.error(f"AI-REDIRECT message failed: {json.dumps(result)}")
+    else:
+        logger.info(f"AI-REDIRECT message sent to {from_number}: messageId={result.get('messageId')}")
+
+
+def _get_pipecat_bot_url() -> str:
+    """Get Pipecat bot URL from SystemConfig (allows runtime updates) or env var."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': 'pipecat_bot_url'})
+        item = result.get('Item')
+        if item and item.get('configValue'):
+            return str(item['configValue']).strip().rstrip('/')
+    except Exception:
+        pass
+    return PIPECAT_BOT_URL.strip().rstrip('/')
+
+
+def _forward_to_pipecat_bot(call_id: str, phone_number_id: str,
+                             from_number: str, caller_name: str,
+                             sdp_offer: str, caller_bsuid: str = '',
+                             caller_username: str = '') -> None:
+    """
+    Forward an incoming call to the Pipecat voice bot server for real-time
+    AI conversation over WebRTC.
+
+    The bot server handles:
+    1. SDP answer generation (WebRTC negotiation with Meta)
+    2. Real-time audio: Transcribe STT → Bedrock Nova Lite → Polly Kajal TTS
+    3. Auto-hangup after configured timeout (default 30s)
+
+    If the bot server is unreachable, falls back to voice-note redirect.
+    """
+    bot_url = _get_pipecat_bot_url()
+    if not bot_url:
+        logger.warning("PIPECAT_BOT_URL not configured — falling back to voice-note redirect")
+        _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
+        return
+
+    logger.info(json.dumps({
+        'event': 'forward_to_pipecat',
+        'call_id': call_id,
+        'from': from_number,
+        'caller_name': caller_name,
+        'phone_number_id': phone_number_id,
+        'bot_url': bot_url,
+        'has_sdp': bool(sdp_offer),
+    }))
+
+    try:
+        payload = json.dumps({
+            'call_id': call_id,
+            'phone_number_id': phone_number_id,
+            'from_number': from_number,
+            'caller_name': caller_name,
+            'sdp_offer': sdp_offer,
+            'event_type': 'connect',
+            'from_bsuid': caller_bsuid,
+            'caller_username': caller_username,
+        }).encode('utf-8')
+
+        req = urllib.request.Request(
+            f"{bot_url}/call",
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+            logger.info(f"Pipecat bot response: {json.dumps(result)}")
+
+            if result.get('success'):
+                _update_call_status(call_id, 'ai_bot_connected')
+                logger.info(f"Call {call_id} forwarded to Pipecat bot successfully")
+            else:
+                logger.error(f"Pipecat bot rejected call: {json.dumps(result)}")
+                _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
+
+    except urllib.error.URLError as e:
+        logger.error(f"Pipecat bot unreachable ({bot_url}): {e}")
+        logger.info("Falling back to voice-note redirect")
+        _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
+    except Exception as e:
+        logger.error(f"Failed to forward to Pipecat bot: {e}", exc_info=True)
+        _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
+
+
 def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: str,
                               reason: str, duration: int, direction: str) -> None:
     """
@@ -402,11 +645,30 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
     Uses AWS EUM Social Messaging to send a text message with call details.
     - Completed calls (duration > 0): ✅ with duration
     - Missed/rejected/no-answer: ❌ with reason
+    - AI-redirected calls: skip (redirect message already sent)
     
     Note: Requires an open 24-hour messaging window. If the window is closed
     (e.g. caller never messaged this business number), the send will fail silently.
     """
     try:
+        # Skip post-call reaction if the call was AI-redirected or handled by Pipecat bot
+        try:
+            table = dynamodb.Table(CALL_LOG_TABLE)
+            result_check = table.scan(
+                FilterExpression='#cid = :cid AND (#s = :s1 OR #s = :s2)',
+                ExpressionAttributeNames={'#cid': 'callId', '#s': 'status'},
+                ExpressionAttributeValues={
+                    ':cid': call_id,
+                    ':s1': 'ai_redirected',
+                    ':s2': 'ai_bot_connected',
+                },
+            )
+            if result_check.get('Items'):
+                logger.info(f"Post-call reaction skipped: call {call_id} was AI-handled")
+                return
+        except Exception:
+            pass  # If check fails, send the reaction anyway
+
         aws_phone_id = _get_aws_phone_id(phone_number_id)
         # Determine the recipient — for inbound calls, reply to the caller (from_number)
         to_number = from_number
@@ -503,8 +765,11 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
         if pre_accept_result.get('error'):
             _update_call_status(call_id, 'pre_accept_failed', pre_accept_result)
+            error_code = pre_accept_result.get('errorCode')
             hint = ''
-            if pre_accept_result.get('status') == 403:
+            if error_code and error_code in META_CALLING_ERRORS:
+                hint = f"Error {error_code}: {META_CALLING_ERRORS[error_code]['msg']} — {META_CALLING_ERRORS[error_code]['action']}"
+            elif pre_accept_result.get('status') == 403:
                 hint = ('Token lacks calling permission. Ensure the System User token '
                         'has whatsapp_business_messaging permission AND calling is '
                         'enabled on this phone number via POST /{phone_number_id}/settings '
@@ -513,6 +778,7 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
             return _response(200, {
                 'success': False, 'step': 'pre_accept',
                 'error': pre_accept_result,
+                'errorCode': error_code,
                 'hint': hint,
                 'phone_number_id_used': phone_number_id,
             })
@@ -579,20 +845,21 @@ def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
 def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Initiate outbound call or send call permission request.
-    Body: { phoneNumberId, to, action: 'permission_request' | 'create', sdpOffer?, bodyText? }
+    Body: { phoneNumberId, to, action: 'permission_request' | 'create', sdpOffer?, bodyText?, recipientBsuid? }
     """
     body = json.loads(event.get('body', '{}'))
     phone_number_id = body.get('phoneNumberId', '')
     to_number = body.get('to', '')
     action = body.get('action', 'permission_request')
+    recipient_bsuid = body.get('recipientBsuid', '')
 
-    if not phone_number_id or not to_number:
-        return _response(400, {'error': 'phoneNumberId and to required'})
+    if not phone_number_id or (not to_number and not recipient_bsuid):
+        return _response(400, {'error': 'phoneNumberId and to (or recipientBsuid) required'})
 
     if action == 'permission_request':
         # Send interactive call permission request message
         body_text = body.get('bodyText', 'Can we call you to discuss your query?')
-        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
+        payload = {
             'messaging_product': 'whatsapp',
             'to': to_number,
             'type': 'interactive',
@@ -600,7 +867,11 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
                 'type': 'call_permission_request',
                 'body': {'text': body_text},
             },
-        }, phone_number_id=phone_number_id)
+        }
+        # Add BSUID recipient if available (per Meta BSUID docs)
+        if recipient_bsuid:
+            payload['recipient'] = recipient_bsuid
+        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', payload, phone_number_id=phone_number_id)
         return _response(200, {'success': not result.get('error'), 'action': 'permission_request', 'result': result})
 
     elif action == 'create':
@@ -608,12 +879,16 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
         sdp_offer = body.get('sdpOffer', '')
         if not sdp_offer:
             return _response(400, {'error': 'sdpOffer required for outbound call'})
-        result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+        payload = {
             'messaging_product': 'whatsapp',
             'action': 'create',
             'to': to_number,
             'sdp_offer': sdp_offer,
-        }, phone_number_id=phone_number_id)
+        }
+        # Add BSUID recipient if available (per Meta Calling API BSUID docs)
+        if recipient_bsuid:
+            payload['recipient'] = recipient_bsuid
+        result = _meta_api_call(f"{phone_number_id}/calls", 'POST', payload, phone_number_id=phone_number_id)
         return _response(200, {'success': not result.get('error'), 'action': 'create', 'result': result})
 
     return _response(400, {'error': f'Unknown action: {action}'})
@@ -624,6 +899,9 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 # IVR greeting is sent as a WhatsApp audio message to the caller, then call disconnects.
 # Default: ON — auto-pickup is enabled by default.
 # Toggle via SystemConfig table or environment variable.
+
+# Pipecat Voice Bot server URL (Lightsail / EC2)
+PIPECAT_BOT_URL = os.environ.get('PIPECAT_BOT_URL', '')  # e.g. http://1.2.3.4:8765
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')

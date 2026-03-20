@@ -174,6 +174,12 @@ export interface Contact {
   name: string;
   phone: string;
   email?: string;
+  // WhatsApp BSUID (Business-Scoped User ID) — unique per WABA portfolio
+  bsuid?: string;
+  // WhatsApp username (e.g. "@pablomorales")
+  username?: string;
+  // Contact book name — auto-populated by Meta's contact book feature
+  contactBookName?: string;
   shippingAddress?: string;
   billingAddress?: string;
   // Opt-in fields (Requirement 3.2)
@@ -245,6 +251,9 @@ function normalizeContact(item: any): Contact {
     name: item.name || '',
     phone: item.phone || '',
     email: item.email || '',
+    bsuid: item.bsuid || '',
+    username: item.username || '',
+    contactBookName: item.contactBookName || '',
     shippingAddress: item.shippingAddress || '',
     billingAddress: item.billingAddress || '',
     // Opt-in fields
@@ -304,8 +313,12 @@ export interface Message {
   messageType?: string;
   senderPhone?: string;
   senderName?: string;
+  senderBsuid?: string;
+  senderUsername?: string;
   receivingPhone?: string;
   awsPhoneNumberId?: string;
+  transcription?: string;       // English transcription of voice notes
+  detectedLanguage?: string;    // Detected language of voice note (e.g. "hi-IN")
 }
 
 export async function listMessages(contactId?: string, channel?: string): Promise<Message[]> {
@@ -364,8 +377,12 @@ function normalizeMessage(item: any): Message {
     messageType: item.messageType,  // image, video, audio, document, text
     senderPhone: item.senderPhone,
     senderName: item.senderName,
+    senderBsuid: item.senderBsuid,
+    senderUsername: item.senderUsername,
     receivingPhone: item.receivingPhone,
     awsPhoneNumberId: item.awsPhoneNumberId,
+    transcription: item.transcription,
+    detectedLanguage: item.detectedLanguage,
   };
 }
 
@@ -374,6 +391,7 @@ export interface SendMessageRequest {
   contactId: string;
   content: string;
   phoneNumberId?: string;
+  recipientBsuid?: string; // Send to BSUID instead of phone number
   isTemplate?: boolean;
   templateName?: string;
   templateParams?: string[];
@@ -388,6 +406,7 @@ export interface SendReactionRequest {
   reactionMessageId: string;  // WhatsApp message ID to react to
   reactionEmoji?: string;     // Default: thumbs up
   phoneNumberId?: string;
+  recipientBsuid?: string;    // Send reaction to BSUID recipient
 }
 
 export async function sendWhatsAppMessage(request: SendMessageRequest): Promise<{ messageId: string; status: string } | null> {
@@ -419,6 +438,7 @@ export async function sendWhatsAppReaction(request: SendReactionRequest): Promis
       reactionMessageId: request.reactionMessageId,
       reactionEmoji: request.reactionEmoji || '\uD83D\uDC4D',  // Default: thumbs up
       phoneNumberId: request.phoneNumberId,
+      recipientBsuid: request.recipientBsuid,
     }),
   });
 }
@@ -437,6 +457,7 @@ export interface InteractiveButton {
 export interface SendInteractiveRequest {
   contactId: string;
   phoneNumberId?: string;
+  recipientBsuid?: string;    // Send to BSUID recipient
   interactiveType: 'list' | 'button' | 'location_request' | 'cta_url' | 'flow';
   interactiveData: {
     header?: string;
@@ -467,6 +488,7 @@ export async function sendWhatsAppInteractive(request: SendInteractiveRequest): 
     body: JSON.stringify({
       contactId: request.contactId,
       phoneNumberId: request.phoneNumberId,
+      recipientBsuid: request.recipientBsuid,
       isInteractive: true,
       interactiveType: request.interactiveType,
       interactiveData: request.interactiveData,
@@ -906,6 +928,7 @@ export interface SendWhatsAppTTSRequest {
   languageCode?: string;
   engine?: string;
   phoneNumberId?: string;
+  recipientBsuid?: string;    // Send to BSUID recipient
 }
 
 export interface SendWhatsAppAudioRequest {
@@ -915,6 +938,7 @@ export interface SendWhatsAppAudioRequest {
   s3Key?: string;
   audioBase64?: string;
   contentType?: string;
+  recipientBsuid?: string;    // Send to BSUID recipient
 }
 
 export async function sendWhatsAppTTS(request: SendWhatsAppTTSRequest): Promise<{
@@ -940,9 +964,57 @@ export async function listWhatsAppVoiceLogs(): Promise<WhatsAppVoiceLog[]> {
   return data?.logs || [];
 }
 
-export async function getPollyVoices(): Promise<Record<string, { id: string; gender: string; engine: string }[]>> {
+export async function getPollyVoices(): Promise<{
+  voices: Record<string, { id: string; gender: string; engine: string }[]>;
+  transcribeLanguages?: Record<string, string>;
+}> {
   const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/voices`);
-  return data?.voices || {};
+  return {
+    voices: data?.voices || {},
+    transcribeLanguages: data?.transcribeLanguages || {},
+  };
+}
+
+// Transcribe a voice note — returns English transcription + detected language
+export interface TranscribeResult {
+  transcription: string;
+  originalTranscription?: string;
+  detectedLanguage: string;
+  messageId?: string;
+  cached: boolean;
+}
+
+export async function transcribeVoiceNote(params: {
+  messageId?: string;
+  s3Key?: string;
+  direction?: 'INBOUND' | 'OUTBOUND';
+}): Promise<TranscribeResult | null> {
+  return apiCall<TranscribeResult>(`${API_BASE}/whatsapp-voice/transcribe`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+// Voice language configuration
+export interface VoiceLanguageConfig {
+  autoTranscribe: boolean;
+  enabledLanguages: string[];
+  defaultVoices: Record<string, string>;
+  autoReplyWithVoice: boolean;
+  transcribeLanguages: string[];
+}
+
+export async function getVoiceLanguageConfig(): Promise<VoiceLanguageConfig | null> {
+  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/language-config`);
+  return data?.config || null;
+}
+
+export async function updateVoiceLanguageConfig(config: Partial<VoiceLanguageConfig>): Promise<boolean> {
+  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/language-config`, {
+    method: 'PUT',
+    body: JSON.stringify({ config }),
+  });
+  return data?.success === true;
 }
 
 // ============================================================================
@@ -1264,6 +1336,7 @@ export async function sendWhatsAppTemplateMessage(request: {
   components?: any[];
   phoneNumberId?: string;
   templateParams?: string[];  // Variable values like OTP code
+  recipientBsuid?: string;    // Send to BSUID recipient
 }): Promise<{ messageId: string; status: string } | null> {
   // Build template params array - include language as first param for Lambda
   const params: string[] = [];
@@ -1286,6 +1359,7 @@ export async function sendWhatsAppTemplateMessage(request: {
       templateName: request.templateName,
       templateParams: params,
       phoneNumberId: request.phoneNumberId,
+      recipientBsuid: request.recipientBsuid,
     }),
   });
 }
@@ -1383,6 +1457,7 @@ export interface PaymentOrderItem {
 export interface SendPaymentMessageRequest {
   contactId: string;
   phoneNumberId: string;
+  recipientBsuid?: string;    // Send to BSUID recipient
   templateName?: string;
   referenceId: string;
   items: PaymentOrderItem[];
@@ -1456,6 +1531,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
       body: JSON.stringify({
         contactId: request.contactId,
         phoneNumberId: request.phoneNumberId,
+        recipientBsuid: request.recipientBsuid,
         isInteractivePayment: true,
         orderDetails: orderDetails,
         headerImageUrl: request.headerImageUrl,
@@ -1470,6 +1546,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
     body: JSON.stringify({
       contactId: request.contactId,
       phoneNumberId: request.phoneNumberId,
+      recipientBsuid: request.recipientBsuid,
       isTemplate: true,
       templateName: request.templateName || '02_wd_order_payment',
       templateParams: request.bodyText ? [request.bodyText] : [],
@@ -2264,6 +2341,7 @@ export async function sendCarouselTemplateMessage(request: {
   templateName: string;
   language?: string;
   phoneNumberId?: string;
+  recipientBsuid?: string;    // Send to BSUID recipient
   // Body text variables (for the main body above carousel)
   bodyParams?: string[];
   // Card-specific variables (array of arrays, one per card)
@@ -2304,6 +2382,7 @@ export async function sendCarouselTemplateMessage(request: {
       templateName: request.templateName,
       templateParams: request.bodyParams || [],
       phoneNumberId: request.phoneNumberId,
+      recipientBsuid: request.recipientBsuid,
       components: components.length > 0 ? components : undefined,
     }),
   });
@@ -2361,11 +2440,14 @@ export function isMessageStarred(messageId: string): boolean {
  * Export contacts to CSV
  */
 export function exportContactsToCSV(contacts: Contact[]): string {
-  const headers = ['Name', 'Phone', 'Email', 'Shipping Address', 'Billing Address', 'Tags', 'WhatsApp Opt-In', 'SMS Opt-In', 'Email Opt-In', 'Created At'];
+  const headers = ['Name', 'Phone', 'Email', 'BSUID', 'Username', 'Contact Book Name', 'Shipping Address', 'Billing Address', 'Tags', 'WhatsApp Opt-In', 'SMS Opt-In', 'Email Opt-In', 'Created At'];
   const rows = contacts.map(c => [
     c.name || '',
     c.phone || '',
     c.email || '',
+    c.bsuid || '',
+    c.username || '',
+    c.contactBookName || '',
     c.shippingAddress || '',
     c.billingAddress || '',
     (c.tags || []).join('; '),
@@ -3039,6 +3121,62 @@ export async function updatePhoneSettings(phoneId: string, settings: Record<stri
   return data?.success === true;
 }
 
+// Username Management (Meta Graph API)
+export interface UsernameInfo {
+  username?: string;
+  status?: string; // 'approved' | 'reserved'
+}
+
+export async function getUsername(phoneId: string): Promise<UsernameInfo | null> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/username?phoneId=${phoneId}`);
+  if (data?.error) return null;
+  return { username: data?.username, status: data?.status };
+}
+
+export async function getUsernameSuggestions(phoneId: string): Promise<string[]> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/username/suggestions?phoneId=${phoneId}`);
+  return data?.suggestions || [];
+}
+
+export async function claimUsername(phoneId: string, username: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/username`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneId, username }),
+  });
+  return data?.success === true;
+}
+
+export async function deleteUsername(phoneId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/username?phoneId=${phoneId}`, {
+    method: 'DELETE',
+  });
+  return data?.success === true;
+}
+
+// Block Users API (per Meta BSUID docs — block/unblock by phone or BSUID)
+export interface BlockUser {
+  phone?: string;
+  user_id?: string; // BSUID
+}
+
+export async function blockUsers(wabaId: string, users: BlockUser[]): Promise<any> {
+  return apiCall<any>(`${WA_BIZ_BASE}/block-users`, {
+    method: 'POST',
+    body: JSON.stringify({ wabaId, users }),
+  });
+}
+
+export async function unblockUsers(wabaId: string, users: BlockUser[]): Promise<any> {
+  return apiCall<any>(`${WA_BIZ_BASE}/unblock-users`, {
+    method: 'POST',
+    body: JSON.stringify({ wabaId, users }),
+  });
+}
+
+export async function getBlockedUsers(wabaId: string): Promise<any> {
+  return apiCall<any>(`${WA_BIZ_BASE}/block-users?wabaId=${wabaId}`);
+}
+
 // Interactive List Messages
 export async function sendInteractiveList(phoneId: string, to: string, bodyText: string, buttonText: string, sections: any[], headerText?: string, footerText?: string): Promise<{ messageId: string } | null> {
   const data = await apiCall<any>(`${WA_BIZ_BASE}/interactive-list`, {
@@ -3059,6 +3197,10 @@ export async function updateCallingSettings(phoneId: string, settings: {
   restrictToCountries?: string[];
   callHours?: Record<string, any>;
   callbackRequest?: { enabled: boolean; bodyText?: string };
+  sip?: { status: 'ENABLED' | 'DISABLED'; servers?: Array<{ hostname: string; port?: string; request_uri_user_params?: Record<string, string> }> };
+  srtpKeyExchangeProtocol?: 'DTLS' | 'SDES';
+  status?: 'ENABLED' | 'DISABLED';
+  callbackPermissionStatus?: 'ENABLED' | 'DISABLED';
 }): Promise<boolean> {
   const data = await apiCall<any>(`${WA_BIZ_BASE}/calling-settings`, {
     method: 'POST',

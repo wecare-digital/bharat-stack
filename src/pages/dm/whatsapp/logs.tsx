@@ -10,7 +10,7 @@ import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
-interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; content: string; status: string; timestamp: string; templateName?: string; }
+interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; bsuid?: string; username?: string; content: string; status: string; timestamp: string; templateName?: string; messageType?: string; transcription?: string; detectedLanguage?: string; }
 
 const LOGS_PER_PAGE = 50;
 
@@ -39,10 +39,15 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false
         contactId: m.contactId,
         contactName: contactMap.get(m.contactId)?.name,
         phone: contactMap.get(m.contactId)?.phone,
+        bsuid: contactMap.get(m.contactId)?.bsuid,
+        username: contactMap.get(m.contactId)?.username,
         content: m.content || '',
         status: m.status || 'unknown',
         timestamp: m.timestamp,
-        templateName: (m as any).templateName
+        templateName: (m as any).templateName,
+        messageType: m.messageType,
+        transcription: m.transcription,
+        detectedLanguage: m.detectedLanguage,
       })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (err) { toast.error('Failed to load logs'); } finally { setLoading(false); }
   }, [toast]);
@@ -56,7 +61,7 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false
     if (filter === 'outbound' && log.direction !== 'OUTBOUND') return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return log.contactName?.toLowerCase().includes(q) || log.phone?.includes(q) || log.content.toLowerCase().includes(q);
+      return log.contactName?.toLowerCase().includes(q) || log.phone?.includes(q) || log.content.toLowerCase().includes(q) || log.bsuid?.includes(q) || log.username?.toLowerCase().includes(q);
     }
     return true;
   });
@@ -90,20 +95,21 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false
         <div className="pagination-row"><Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>
         <div className="table-container">
           <table>
-            <thead><tr><th>Time</th><th>Direction</th><th>Contact</th><th>Phone</th><th>Content</th><th>Template</th><th>Status</th></tr></thead>
+            <thead><tr><th>Time</th><th>Direction</th><th>Contact</th><th>Phone</th><th>Type</th><th>Content</th><th>Template</th><th>Status</th></tr></thead>
             <tbody>
               {paginatedLogs.map(log => (
                 <tr key={log.id}>
                   <td>{new Date(log.timestamp).toLocaleString()}</td>
                   <td><span className={log.direction === 'INBOUND' ? 'badge-inbound' : 'badge-outbound'}>{log.direction === 'INBOUND' ? '↙ In' : '↗ Out'}</span></td>
-                  <td>{log.contactName || '-'}</td>
-                  <td>{log.phone || '-'}</td>
-                  <td className="content-cell">{log.content.substring(0, 50)}{log.content.length > 50 ? '...' : ''}</td>
+                  <td>{log.contactName || log.username ? `@${log.username}` : '-'}</td>
+                  <td>{log.phone || (log.bsuid ? '🆔 ' + log.bsuid.slice(0, 16) + '...' : '-')}</td>
+                  <td>{log.messageType === 'audio' ? '🎤' : log.messageType === 'image' ? '🖼️' : log.messageType === 'video' ? '🎬' : log.messageType === 'document' ? '📄' : '💬'}</td>
+                  <td className="content-cell" title={log.transcription || log.content}>{log.messageType === 'audio' && log.transcription ? `📝 ${log.transcription.substring(0, 40)}${log.transcription.length > 40 ? '...' : ''}` : log.content.substring(0, 50)}{!log.transcription && log.content.length > 50 ? '...' : ''}</td>
                   <td>{log.templateName || '-'}</td>
                   <td className={getStatusColor(log.status)}>{log.status}</td>
                 </tr>
               ))}
-              {paginatedLogs.length === 0 && <tr><td colSpan={7} className="empty-state">{loading ? 'Loading...' : 'No logs found'}</td></tr>}
+              {paginatedLogs.length === 0 && <tr><td colSpan={8} className="empty-state">{loading ? 'Loading...' : 'No logs found'}</td></tr>}
             </tbody>
           </table>
         </div>

@@ -613,7 +613,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       if (data.success) {
         toast.success('Call connected — audio active');
       } else {
-        toast.error(`Accept failed: ${data.step || 'unknown'} — ${JSON.stringify(data.error || {})}`);
+        toast.error(`Accept failed: ${data.step || 'unknown'} — ${data.hint || JSON.stringify(data.error || {})}`);
         cleanupWebRTC();
       }
       loadActiveCalls();
@@ -1080,6 +1080,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                             {call.callerName || call.fromNumber || 'Unknown'}
                           </span>
                           {call.callerName && <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>{call.fromNumber}</span>}
+                          {call.fromBsuid && <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px' }} title={`BSUID: ${call.fromBsuid}`}>🆔</span>}
                           <span style={{ ...badge(call.status === 'ringing' ? 'planned' : call.status === 'connected' ? 'active' : 'default'), marginLeft: '8px' }}>
                             {call.status === 'ringing' ? 'Ringing' : call.status === 'connected' ? 'Connected' : call.status}
                           </span>
@@ -1274,8 +1275,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                       <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
                         <th style={thStyle}>Time</th>
                         <th style={thStyle}>From</th>
+                        <th style={thStyle}>BSUID</th>
                         <th style={thStyle}>Event</th>
                         <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Reason</th>
                         <th style={thStyle}>Duration</th>
                       </tr>
                     </thead>
@@ -1285,12 +1288,16 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                           <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                             {log.createdAt ? new Date(parseFloat(log.createdAt) * 1000).toLocaleString() : '-'}
                           </td>
-                          <td style={tdStyle}>{log.callerName || log.fromNumber || '-'}</td>
+                          <td style={tdStyle}>{log.callerName || log.fromNumber || '-'}{log.callerUsername ? ` (${log.callerUsername})` : ''}</td>
+                          <td style={{ ...tdStyle, fontSize: '11px', color: '#6b7280', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.fromBsuid || ''}>{log.fromBsuid || '-'}</td>
                           <td style={tdStyle}>{log.eventType || '-'}</td>
                           <td style={tdStyle}>
                             <span style={badge(log.status === 'connected' ? 'active' : log.status === 'ringing' ? 'planned' : 'default')}>
                               {log.status || '-'}
                             </span>
+                          </td>
+                          <td style={{ ...tdStyle, fontSize: '11px', color: log.errorCode ? '#dc2626' : '#6b7280' }} title={log.errorCode ? `Meta error ${log.errorCode}` : ''}>
+                            {log.terminateReason || log.errorCode || '-'}
                           </td>
                           <td style={tdStyle}>{log.duration ? `${log.duration}s` : '-'}</td>
                         </tr>

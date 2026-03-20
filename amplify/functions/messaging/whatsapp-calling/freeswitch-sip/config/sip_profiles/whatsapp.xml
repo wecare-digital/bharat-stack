@@ -1,0 +1,66 @@
+<profile name="whatsapp">
+  <settings>
+    <!-- SIP over TLS on port 5061 (Meta requirement) -->
+    <param name="sip-port" value="5061"/>
+    <param name="sip-ip" value="0.0.0.0"/>
+    <param name="ext-sip-ip" value="98.80.207.92"/>
+    <param name="ext-rtp-ip" value="98.80.207.92"/>
+    <param name="rtp-ip" value="0.0.0.0"/>
+
+    <!-- TLS settings (Meta requires TLS, rejects self-signed) -->
+    <!-- Meta does NOT support mTLS — do NOT request client certificate -->
+    <param name="tls" value="true"/>
+    <param name="tls-bind-params" value="transport=tls"/>
+    <param name="tls-sip-port" value="5061"/>
+    <param name="tls-cert-dir" value="/etc/freeswitch/certs"/>
+    <param name="tls-version" value="tlsv1.2"/>
+    <param name="tls-only" value="true"/>
+    <param name="tls-verify-policy" value="none"/>
+    <param name="tls-verify-in-subjects" value=""/>
+
+    <!-- RTP port range -->
+    <param name="rtp-start-port" value="16384"/>
+    <param name="rtp-end-port" value="32768"/>
+
+    <!-- Codec: Meta WhatsApp uses Opus exclusively -->
+    <param name="inbound-codec-prefs" value="OPUS"/>
+    <param name="outbound-codec-prefs" value="OPUS"/>
+    <param name="inbound-codec-negotiation" value="generous"/>
+
+    <!-- SRTP media encryption — SDES mode (Meta SIP FAQ: use SDES, not DTLS-SRTP for SIP) -->
+    <!-- Meta returns 488 Not Acceptable Here if server tries WebRTC ICE/DTLS -->
+    <param name="rtp-secure-media" value="true"/>
+    <param name="rtp-secure-media-inbound" value="true"/>
+    <param name="rtp-secure-media-outbound" value="true"/>
+    <param name="rtp-secure-media-suites" value="AEAD_AES_256_GCM_8,AEAD_AES_128_GCM_8,AES_CM_256_HMAC_SHA1_80,AES_CM_128_HMAC_SHA1_80"/>
+
+    <!-- NAT traversal -->
+    <param name="local-network-acl" value="localnet.auto"/>
+    <param name="apply-nat-acl" value="nat.auto"/>
+    <param name="aggressive-nat-detection" value="true"/>
+    <param name="NDLB-received-in-nat-reg-contact" value="true"/>
+
+    <!-- Context for incoming calls from WhatsApp -->
+    <param name="context" value="whatsapp-inbound"/>
+    <param name="dialplan" value="XML"/>
+
+    <!-- Digest auth — Meta sends SIP INVITE, gets 401, re-sends with Authorization header -->
+    <!-- Username = business phone number (without +), password = Meta sip_user_password -->
+    <param name="challenge-realm" value="sip.wecare.digital"/>
+    <param name="accept-blind-auth" value="false"/>
+
+    <!-- Do NOT send REGISTER to Meta (Meta FAQ: 403 Forbidden on REGISTER) -->
+    <param name="disable-register" value="true"/>
+
+    <!-- Disable re-INVITEs — Meta returns 500 Internal Server Error on re-INVITE -->
+    <param name="disable-hold" value="true"/>
+    <param name="rtp-rewrite-timestamps" value="true"/>
+
+    <!-- Misc -->
+    <param name="nonce-ttl" value="60"/>
+    <param name="auth-calls" value="true"/>
+    <param name="log-auth-failures" value="true"/>
+    <param name="manage-presence" value="false"/>
+    <param name="inbound-reg-force-matching-username" value="true"/>
+  </settings>
+</profile>

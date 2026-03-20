@@ -15,6 +15,15 @@ const schema = a.schema({
       name: a.string(),
       phone: a.string(),
       email: a.string(),
+      // WhatsApp BSUID (Business-Scoped User ID) — unique per WABA portfolio
+      // Format: CC.alphanumeric (e.g. "US.13491208655302741918")
+      bsuid: a.string(),
+      // Parent BSUID — for linked accounts (e.g. parent business account)
+      parentBsuid: a.string(),
+      // WhatsApp username (optional, user-set, e.g. "@pablomorales")
+      username: a.string(),
+      // Contact book name — auto-populated by Meta's contact book feature
+      contactBookName: a.string(),
       // Opt-in fields (Requirement 3.2: defaults to false)
       optInWhatsApp: a.boolean().default(false),
       optInSms: a.boolean().default(false),
@@ -33,6 +42,7 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('phone'),
       index('email'),
+      index('bsuid'),
     ])
     .authorization((allow) => [allow.authenticated()]),
 
@@ -53,8 +63,13 @@ const schema = a.schema({
       mediaUrl: a.string(), // Pre-signed URL for media access
       senderPhone: a.string(), // Sender's phone number (inbound)
       senderName: a.string(), // Sender's WhatsApp profile name (inbound)
+      senderBsuid: a.string(), // Sender's BSUID (inbound)
+      senderParentBsuid: a.string(), // Sender's parent BSUID (inbound, for linked accounts)
+      senderUsername: a.string(), // Sender's WhatsApp username (inbound)
       receivingPhone: a.string(), // Receiving phone number (outbound)
       awsPhoneNumberId: a.string(), // WABA phone number ID
+      transcription: a.string(), // English transcription of voice notes (audio messages)
+      detectedLanguage: a.string(), // Detected language of voice note (e.g. "hi-IN", "en-US")
       expiresAt: a.integer(), // TTL: Unix epoch seconds (30 days)
     })
     .identifier(['messageId'])
@@ -456,6 +471,7 @@ const schema = a.schema({
       contactId: a.string().required(),
       contactName: a.string(),
       contactPhone: a.string(),
+      recipientBsuid: a.string(), // Recipient's BSUID for BSUID-only sends
       templateName: a.string().required(),
       templateParams: a.string().array(), // template variable values
       phoneNumberId: a.string(),
@@ -479,6 +495,7 @@ const schema = a.schema({
       messageId: a.id().required(),
       contactId: a.string(),
       phoneNumber: a.string(),
+      recipientBsuid: a.string(), // Recipient's BSUID for voice messages
       messageText: a.string(),
       voiceId: a.string(), // Polly voice ID
       languageCode: a.string(),
@@ -488,6 +505,8 @@ const schema = a.schema({
       whatsappMessageId: a.string(),
       status: a.string(), // sent, failed
       type: a.string().default('tts'), // tts, audio
+      transcription: a.string(), // English transcription of voice note
+      detectedLanguage: a.string(), // Detected source language
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL
     })
@@ -529,15 +548,23 @@ const schema = a.schema({
       callId: a.string(),
       wabaId: a.string(),
       phoneNumberId: a.string(),
+      displayPhone: a.string(), // Display phone number from webhook metadata
       fromNumber: a.string(),
       toNumber: a.string(),
+      callerName: a.string(), // Caller's profile name from contacts array
+      fromBsuid: a.string(), // Caller's BSUID (from webhook from_user_id / to_user_id)
+      fromParentBsuid: a.string(), // Caller's parent BSUID (from webhook from_parent_user_id / to_parent_user_id)
+      callerUsername: a.string(), // Caller's WhatsApp username
       direction: a.string(), // inbound, outbound
       eventType: a.string(), // connect, terminate, permission_response
       status: a.string(), // ringing, ended, logged
       terminateReason: a.string(),
+      errorCode: a.string(), // Meta error code (138000-138023) from terminate events
+      permission: a.string(), // GRANTED/REJECTED/REVOKED for permission events
       duration: a.integer(),
       sdpOffer: a.string(),
       sdpType: a.string(),
+      apiResponse: a.string(), // Truncated API response for debugging
       rawEvent: a.string(),
       timestamp: a.string(),
       createdAt: a.integer(),
@@ -556,6 +583,9 @@ const schema = a.schema({
       contactId: a.string(),
       phone: a.string(),
       senderName: a.string(),
+      senderBsuid: a.string(), // Sender's BSUID (from webhook user_id)
+      senderParentBsuid: a.string(), // Sender's parent BSUID (from webhook parent_user_id)
+      senderUsername: a.string(), // Sender's WhatsApp username (from webhook)
       messageType: a.string(), // text, image, video, audio, document, location, sticker, reaction
       content: a.string(),
       mediaId: a.string(),
@@ -565,6 +595,8 @@ const schema = a.schema({
       whatsappMessageId: a.string(),
       status: a.string(), // received, read, processed
       templateName: a.string(),
+      transcription: a.string(), // English transcription of inbound voice notes
+      detectedLanguage: a.string(), // Detected language of voice note
       timestamp: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL
@@ -582,6 +614,8 @@ const schema = a.schema({
       id: a.id().required(),
       contactId: a.string(),
       phone: a.string(),
+      recipientBsuid: a.string(), // Recipient's BSUID (when sending to BSUID)
+      parentRecipientBsuid: a.string(), // Recipient's parent BSUID (from status webhooks)
       templateName: a.string(),
       templateCategory: a.string(), // UTILITY, MARKETING, AUTHENTICATION
       templateParams: a.string(), // JSON array
@@ -593,6 +627,8 @@ const schema = a.schema({
       status: a.string(), // sent, delivered, read, failed
       errorDetails: a.string(),
       phoneNumberId: a.string(),
+      transcription: a.string(), // English transcription of outbound voice notes
+      detectedLanguage: a.string(), // Language of outbound voice note
       timestamp: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL

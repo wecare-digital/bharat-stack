@@ -123,6 +123,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
+  const [formBsuid, setFormBsuid] = useState('');
+  const [formUsername, setFormUsername] = useState('');
+  const [formContactBookName, setFormContactBookName] = useState('');
   const [formShippingAddress, setFormShippingAddress] = useState('');
   const [formBillingAddress, setFormBillingAddress] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
@@ -285,6 +288,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   const resetForm = () => {
     setFormName(''); setFormPhone(''); setFormEmail('');
+    setFormBsuid(''); setFormUsername(''); setFormContactBookName('');
     setFormShippingAddress(''); setFormBillingAddress(''); setFormCountryCode('+91');
     setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
     setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
@@ -326,6 +330,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     try {
       const result = await api.createContact({
         name: formName, phone: fullPhone || undefined, email: formEmail || undefined,
+        bsuid: formBsuid || undefined, username: formUsername || undefined, contactBookName: formContactBookName || undefined,
         shippingAddress: formShippingAddress || undefined, billingAddress: formBillingAddress || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
@@ -360,6 +365,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormCountryCode(matchedCode);
     setFormPhone(phoneNumber);
     setFormEmail(contact.email || '');
+    setFormBsuid(contact.bsuid || ''); setFormUsername(contact.username || ''); setFormContactBookName(contact.contactBookName || '');
     setFormShippingAddress(contact.shippingAddress || ''); setFormBillingAddress(contact.billingAddress || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
     setFormAllowlistWA(contact.allowlistWhatsApp || false); setFormAllowlistSms(contact.allowlistSms || false); setFormAllowlistEmail(contact.allowlistEmail || false);
@@ -382,6 +388,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     try {
       const result = await api.updateContact(editingContact.contactId, {
         name: formName, phone: fullPhone || undefined, email: formEmail || undefined,
+        bsuid: formBsuid || undefined, username: formUsername || undefined, contactBookName: formContactBookName || undefined,
         shippingAddress: formShippingAddress || undefined, billingAddress: formBillingAddress || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
@@ -643,6 +650,21 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       <div>
         <label htmlFor="contact-email" style={S.label}>Email</label>
         <input id="contact-email" style={S.input} type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="[email]" onFocus={focusStyle} onBlur={blurStyle} />
+      </div>
+      {/* WhatsApp Identity row — BSUID, Username, Contact Book Name */}
+      <div style={S.row}>
+        <div>
+          <label htmlFor="contact-bsuid" style={S.label}>BSUID <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 11 }}>(auto-filled)</span></label>
+          <input id="contact-bsuid" style={{ ...S.input, background: '#f9fafb', color: '#6b7280' }} value={formBsuid} onChange={e => setFormBsuid(e.target.value)} placeholder="e.g. IN.13491208655302741918" onFocus={focusStyle} onBlur={blurStyle} />
+        </div>
+        <div>
+          <label htmlFor="contact-username" style={S.label}>Username <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 11 }}>(auto-filled)</span></label>
+          <input id="contact-username" style={{ ...S.input, background: '#f9fafb', color: '#6b7280' }} value={formUsername} onChange={e => setFormUsername(e.target.value)} placeholder="e.g. @pablomorales" onFocus={focusStyle} onBlur={blurStyle} />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="contact-book-name" style={S.label}>Contact Book Name <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 11 }}>(auto from Meta)</span></label>
+        <input id="contact-book-name" style={{ ...S.input, background: '#f9fafb', color: '#6b7280' }} value={formContactBookName} onChange={e => setFormContactBookName(e.target.value)} placeholder="Auto-populated by Meta contact book" onFocus={focusStyle} onBlur={blurStyle} />
       </div>
       {/* Shipping + Billing row */}
       <div style={S.row}>
@@ -1028,6 +1050,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
                 {[
                   { label: 'Email', value: detailContact.email },
+                  { label: 'BSUID', value: detailContact.bsuid },
+                  { label: 'Parent BSUID', value: detailContact.parentBsuid },
+                  { label: 'Username', value: detailContact.username },
+                  { label: 'Contact Book Name', value: detailContact.contactBookName },
                   { label: 'Shipping', value: detailContact.shippingAddress },
                   { label: 'Billing', value: detailContact.billingAddress },
                   { label: 'Created', value: detailContact.createdAt ? (() => { const ts = Number(detailContact.createdAt); const d = new Date(!isNaN(ts) && ts < 1e12 ? ts * 1000 : (!isNaN(ts) ? ts : detailContact.createdAt)); return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); })() : '—' },

@@ -1,0 +1,18 @@
+<!--
+  Core switch settings — optimized for low memory (1GB instance).
+-->
+<configuration name="switch.conf" description="Core Configuration">
+  <settings>
+    <!-- Reduce max sessions for low memory -->
+    <param name="max-sessions" value="10"/>
+    <param name="sessions-per-second" value="5"/>
+    
+    <!-- RTP port range -->
+    <param name="rtp-start-port" value="16384"/>
+    <param name="rtp-end-port" value="16484"/>
+    
+    <!-- Logging -->
+    <param name="loglevel" value="warning"/>
+    <param name="colorize-console" value="false"/>
+  </settings>
+</configuration>

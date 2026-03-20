@@ -13,6 +13,7 @@ import * as api from '../api/client';
 interface InteractiveMessageComposerProps {
   contactId: string;
   phoneNumberId: string;
+  recipientBsuid?: string;
   onClose: () => void;
   onSent: () => void;
   onError: (msg: string) => void;
@@ -39,6 +40,7 @@ type InteractiveType = 'list' | 'button' | 'location_request' | 'cta_url' | 'flo
 const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
   contactId,
   phoneNumberId,
+  recipientBsuid,
   onClose,
   onSent,
   onError,
@@ -192,6 +194,7 @@ const InteractiveMessageComposer: React.FC<InteractiveMessageComposerProps> = ({
       const result = await api.sendWhatsAppInteractive({
         contactId,
         phoneNumberId,
+        recipientBsuid,
         interactiveType: messageType,
         interactiveData,
       });

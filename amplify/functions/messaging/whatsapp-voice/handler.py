@@ -1,15 +1,19 @@
 """
 WhatsApp Voice Lambda Function
 
-Purpose: Generate TTS audio via Amazon Polly and send as WhatsApp audio messages
-Uses: Amazon Polly (TTS) + AWS EUM Social (WhatsApp) + S3 (storage)
+Purpose: Generate TTS audio via Amazon Polly, transcribe voice notes via Amazon Transcribe,
+         and send as WhatsApp audio messages. Full multi-language support with English translation.
+Uses: Amazon Polly (TTS) + Amazon Transcribe (STT) + Amazon Translate + AWS EUM Social (WhatsApp) + S3 (storage)
 
 Endpoints:
-  POST /whatsapp-voice/tts     - Generate TTS and send as WhatsApp audio
-  POST /whatsapp-voice/send    - Send existing audio file as WhatsApp message
-  GET  /whatsapp-voice/voices  - List available Polly voices
-  GET  /whatsapp-voice/logs    - List sent voice messages
-  DELETE /whatsapp-voice/clear-logs - Clear all logs
+  POST   /whatsapp-voice/tts             - Generate TTS and send as WhatsApp audio
+  POST   /whatsapp-voice/send            - Send existing audio file as WhatsApp message
+  POST   /whatsapp-voice/transcribe      - Transcribe voice note from S3 (returns English text)
+  GET    /whatsapp-voice/voices          - List available Polly voices
+  GET    /whatsapp-voice/language-config  - Get voice language configuration
+  PUT    /whatsapp-voice/language-config  - Update voice language configuration
+  GET    /whatsapp-voice/logs            - List sent voice messages
+  DELETE /whatsapp-voice/clear-logs      - Clear all logs
 """
 
 import os
@@ -33,11 +37,15 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 polly = boto3.client('polly', region_name=REGION)
 s3 = boto3.client('s3', region_name=REGION)
 social_messaging = boto3.client('socialmessaging', region_name=REGION)
+transcribe = boto3.client('transcribe', region_name=REGION)
 
 # Environment
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'stack-wecare-digital-WhatsAppVoiceTable')
+INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+UNIFIED_MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'stack/whatsapp-media/voice/')
 
@@ -118,6 +126,62 @@ POLLY_VOICES = {
         {'id': 'Tatyana', 'gender': 'Female', 'engine': 'standard'},
         {'id': 'Maxim', 'gender': 'Male', 'engine': 'standard'},
     ],
+    'nl-NL': [
+        {'id': 'Laura', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Lotte', 'gender': 'Female', 'engine': 'standard'},
+    ],
+    'pl-PL': [
+        {'id': 'Ola', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Jacek', 'gender': 'Male', 'engine': 'standard'},
+    ],
+    'sv-SE': [
+        {'id': 'Elin', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Astrid', 'gender': 'Female', 'engine': 'standard'},
+    ],
+    'da-DK': [
+        {'id': 'Sofie', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Naja', 'gender': 'Female', 'engine': 'standard'},
+    ],
+    'nb-NO': [
+        {'id': 'Ida', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Liv', 'gender': 'Female', 'engine': 'standard'},
+    ],
+    'ca-ES': [
+        {'id': 'Arlet', 'gender': 'Female', 'engine': 'neural'},
+    ],
+    'cy-GB': [
+        {'id': 'Gwyneth', 'gender': 'Female', 'engine': 'standard'},
+    ],
+    'fi-FI': [
+        {'id': 'Suvi', 'gender': 'Female', 'engine': 'neural'},
+    ],
+    'ro-RO': [
+        {'id': 'Carmen', 'gender': 'Female', 'engine': 'standard'},
+    ],
+    'es-ES': [
+        {'id': 'Lucia', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Sergio', 'gender': 'Male', 'engine': 'neural'},
+    ],
+    'es-MX': [
+        {'id': 'Mia', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Andres', 'gender': 'Male', 'engine': 'neural'},
+    ],
+    'pt-PT': [
+        {'id': 'Ines', 'gender': 'Female', 'engine': 'neural'},
+    ],
+    'fr-CA': [
+        {'id': 'Gabrielle', 'gender': 'Female', 'engine': 'neural'},
+        {'id': 'Liam', 'gender': 'Male', 'engine': 'neural'},
+    ],
+    'en-AU': [
+        {'id': 'Olivia', 'gender': 'Female', 'engine': 'neural'},
+    ],
+    'en-NZ': [
+        {'id': 'Aria', 'gender': 'Female', 'engine': 'neural'},
+    ],
+    'en-ZA': [
+        {'id': 'Ayanda', 'gender': 'Female', 'engine': 'neural'},
+    ],
 }
 
 
@@ -147,6 +211,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'DELETE' and 'clear-logs' in path:
             return _clear_logs(request_id)
 
+        # GET/PUT /whatsapp-voice/language-config
+        if 'language-config' in path:
+            body = json.loads(event.get('body', '{}')) if http_method == 'PUT' else {}
+            return _handle_language_config(http_method, body, request_id)
+
         # GET /whatsapp-voice/voices
         if http_method == 'GET' and 'voices' in path:
             return _list_voices()
@@ -159,6 +228,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'POST' and 'tts' in path:
             body = json.loads(event.get('body', '{}'))
             return _handle_tts(body, request_id)
+
+        # POST /whatsapp-voice/transcribe
+        if http_method == 'POST' and 'transcribe' in path:
+            body = json.loads(event.get('body', '{}'))
+            return _handle_transcribe(body, request_id)
 
         # POST /whatsapp-voice/send (send existing audio)
         if http_method == 'POST':
@@ -183,6 +257,7 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
     language_code = body.get('languageCode', 'en-IN')
     engine = body.get('engine', 'neural')
     phone_number_id = body.get('phoneNumberId', PHONE_NUMBER_ID_1)
+    recipient_bsuid = body.get('recipientBsuid', '')
 
     if not message_text:
         return _response(400, {'error': 'messageText is required'})
@@ -261,7 +336,8 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
 
         # Step 4: Send WhatsApp audio message
         wa_message_id = _send_whatsapp_audio(
-            phone_e164, media_id, phone_number_id, request_id
+            phone_e164, media_id, phone_number_id, request_id,
+            recipient_bsuid=recipient_bsuid
         )
 
         # Step 5: Store log
@@ -270,6 +346,7 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
             'messageId': msg_id,
             'contactId': contact_id,
             'phoneNumber': phone_e164,
+            'recipientBsuid': recipient_bsuid or None,
             'messageText': message_text[:500],
             'voiceId': voice_id,
             'languageCode': language_code,
@@ -281,6 +358,8 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
             'phoneNumberId': phone_number_id,
             'status': 'sent' if wa_message_id else 'failed',
             'type': 'tts',
+            'transcription': message_text,
+            'detectedLanguage': language_code,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
@@ -289,7 +368,9 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
         _store_message_record(
             msg_id, contact_id, f'[Voice Note] {message_text[:100]}',
             'sent' if wa_message_id else 'failed',
-            phone_number_id, phone_e164, s3_key, wa_message_id
+            phone_number_id, phone_e164, s3_key, wa_message_id,
+            transcription=message_text,  # TTS text is the transcription
+            language_code=language_code,
         )
 
         return _response(200, {
@@ -322,18 +403,22 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
             )
             media_id = _upload_to_whatsapp(s3_key, phone_number_id, request_id)
             wa_message_id = _send_whatsapp_audio(
-                phone_e164, media_id, phone_number_id, request_id
+                phone_e164, media_id, phone_number_id, request_id,
+                recipient_bsuid=recipient_bsuid
             ) if media_id else None
 
             now = int(time.time())
             _store_log({
                 'messageId': msg_id, 'contactId': contact_id,
-                'phoneNumber': phone_e164, 'messageText': message_text[:500],
+                'phoneNumber': phone_e164, 'recipientBsuid': recipient_bsuid or None,
+                'messageText': message_text[:500],
                 'voiceId': voice_id, 'languageCode': language_code,
                 's3Key': s3_key, 'whatsappMediaId': media_id or '',
                 'whatsappMessageId': wa_message_id or '',
                 'status': 'sent' if wa_message_id else 'failed',
-                'type': 'tts', 'createdAt': Decimal(str(now)),
+                'type': 'tts', 'transcription': message_text,
+                'detectedLanguage': language_code,
+                'createdAt': Decimal(str(now)),
                 'ttl': Decimal(str(now + TTL_SECONDS)),
             })
             return _response(200, {
@@ -357,6 +442,7 @@ def _handle_send_audio(body: Dict, request_id: str) -> Dict[str, Any]:
     s3_key = body.get('s3Key')
     audio_base64 = body.get('audioBase64')
     content_type = body.get('contentType', 'audio/ogg')
+    recipient_bsuid = body.get('recipientBsuid', '')
 
     if not phone_number and contact_id:
         contact = _get_contact(contact_id)
@@ -390,13 +476,15 @@ def _handle_send_audio(body: Dict, request_id: str) -> Dict[str, Any]:
 
         # Send audio message
         wa_message_id = _send_whatsapp_audio(
-            phone_e164, media_id, phone_number_id, request_id
+            phone_e164, media_id, phone_number_id, request_id,
+            recipient_bsuid=recipient_bsuid
         )
 
         now = int(time.time())
         _store_log({
             'messageId': msg_id, 'contactId': contact_id,
-            'phoneNumber': phone_e164, 's3Key': s3_key,
+            'phoneNumber': phone_e164, 'recipientBsuid': recipient_bsuid or None,
+            's3Key': s3_key,
             'whatsappMediaId': media_id,
             'whatsappMessageId': wa_message_id or '',
             'phoneNumberId': phone_number_id,
@@ -419,6 +507,263 @@ def _handle_send_audio(body: Dict, request_id: str) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Send audio error: {str(e)}", exc_info=True)
+        return _response(500, {'error': str(e)})
+
+
+# ── Supported Transcribe language codes (Amazon Transcribe) ──
+TRANSCRIBE_LANGUAGES = {
+    'en-US': 'English (US)',
+    'en-GB': 'English (UK)',
+    'en-IN': 'English (Indian)',
+    'hi-IN': 'Hindi',
+    'ar-SA': 'Arabic',
+    'es-US': 'Spanish (US)',
+    'es-ES': 'Spanish (Spain)',
+    'fr-FR': 'French',
+    'de-DE': 'German',
+    'ja-JP': 'Japanese',
+    'ko-KR': 'Korean',
+    'pt-BR': 'Portuguese (BR)',
+    'zh-CN': 'Chinese (Mandarin)',
+    'it-IT': 'Italian',
+    'tr-TR': 'Turkish',
+    'ru-RU': 'Russian',
+    'nl-NL': 'Dutch',
+    'pl-PL': 'Polish',
+    'sv-SE': 'Swedish',
+    'da-DK': 'Danish',
+    'id-ID': 'Indonesian',
+    'ms-MY': 'Malay',
+    'th-TH': 'Thai',
+    'vi-VN': 'Vietnamese',
+    'ta-IN': 'Tamil',
+    'te-IN': 'Telugu',
+    'bn-IN': 'Bengali',
+    'mr-IN': 'Marathi',
+    'gu-IN': 'Gujarati',
+    'kn-IN': 'Kannada',
+    'ml-IN': 'Malayalam',
+    'ur-IN': 'Urdu',
+    'pa-IN': 'Punjabi',
+}
+
+
+def _handle_transcribe(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Transcribe a voice note from S3 using Amazon Transcribe.
+    Returns English transcription + detected language.
+
+    Supports two modes:
+    1. s3Key provided — transcribe from existing S3 object
+    2. messageId provided — look up s3Key from inbound/outbound tables, transcribe, and update record
+
+    Always produces English text (uses auto language detection + translation if needed).
+    """
+    s3_key = body.get('s3Key', '')
+    message_id = body.get('messageId', '')
+    direction = body.get('direction', 'INBOUND')  # INBOUND or OUTBOUND
+    source_table = None
+    source_record = None
+
+    # If messageId provided, look up s3Key from the appropriate table
+    if message_id and not s3_key:
+        try:
+            if direction == 'INBOUND':
+                table = dynamodb.Table(INBOUND_TABLE)
+                result = table.get_item(Key={'id': message_id})
+            else:
+                table = dynamodb.Table(MESSAGES_TABLE)
+                result = table.get_item(Key={'id': message_id})
+            source_record = result.get('Item', {})
+            s3_key = source_record.get('s3Key', '')
+            source_table = table
+        except Exception as e:
+            logger.warning(f"Could not look up message {message_id}: {e}")
+
+    if not s3_key:
+        return _response(400, {'error': 's3Key or messageId required'})
+
+    # Check if already transcribed (cached in record)
+    if source_record and source_record.get('transcription'):
+        return _response(200, {
+            'transcription': source_record['transcription'],
+            'detectedLanguage': source_record.get('detectedLanguage', ''),
+            'cached': True,
+            'messageId': message_id,
+        })
+
+    try:
+        job_name = f"wecare-{uuid.uuid4().hex[:12]}"
+        media_uri = f"s3://{MEDIA_BUCKET}/{s3_key}"
+
+        logger.info(json.dumps({
+            'event': 'transcribe_start',
+            's3Key': s3_key,
+            'jobName': job_name,
+            'requestId': request_id,
+        }))
+
+        # Start transcription with auto language detection
+        transcribe.start_transcription_job(
+            TranscriptionJobName=job_name,
+            Media={'MediaFileUri': media_uri},
+            IdentifyLanguage=True,
+            LanguageOptions=list(TRANSCRIBE_LANGUAGES.keys()),
+            OutputBucketName=MEDIA_BUCKET,
+            OutputKey=f"stack/whatsapp-media/transcriptions/{job_name}.json",
+        )
+
+        # Poll for completion (max ~60s for short voice notes)
+        max_wait = 60
+        poll_interval = 3
+        elapsed = 0
+        while elapsed < max_wait:
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+            status_resp = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+            job = status_resp['TranscriptionJob']
+            status = job['TranscriptionJobStatus']
+
+            if status == 'COMPLETED':
+                break
+            elif status == 'FAILED':
+                reason = job.get('FailureReason', 'Unknown')
+                logger.error(f"Transcription failed: {reason}")
+                return _response(500, {'error': f'Transcription failed: {reason}'})
+
+        if status != 'COMPLETED':
+            return _response(504, {'error': 'Transcription timed out', 'jobName': job_name})
+
+        # Read transcription result from S3
+        result_key = f"stack/whatsapp-media/transcriptions/{job_name}.json"
+        result_obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=result_key)
+        result_data = json.loads(result_obj['Body'].read().decode('utf-8'))
+
+        transcripts = result_data.get('results', {}).get('transcripts', [])
+        transcript_text = transcripts[0].get('transcript', '') if transcripts else ''
+        detected_lang = result_data.get('results', {}).get('language_code', '')
+
+        logger.info(json.dumps({
+            'event': 'transcribe_complete',
+            'detectedLanguage': detected_lang,
+            'transcriptLength': len(transcript_text),
+            'jobName': job_name,
+            'requestId': request_id,
+        }))
+
+        # If detected language is not English, translate to English
+        english_text = transcript_text
+        if detected_lang and not detected_lang.startswith('en'):
+            try:
+                translate_client = boto3.client('translate', region_name=REGION)
+                # Map Transcribe lang code to Translate source code
+                src_lang = detected_lang.split('-')[0]  # e.g. "hi-IN" -> "hi"
+                translate_resp = translate_client.translate_text(
+                    Text=transcript_text,
+                    SourceLanguageCode=src_lang,
+                    TargetLanguageCode='en',
+                )
+                english_text = translate_resp.get('TranslatedText', transcript_text)
+                logger.info(json.dumps({
+                    'event': 'translate_complete',
+                    'sourceLanguage': src_lang,
+                    'translatedLength': len(english_text),
+                }))
+            except Exception as te:
+                logger.warning(f"Translation failed, using original: {te}")
+                # Fall back to original transcript
+
+        # Update the source record with transcription
+        if source_table and message_id:
+            try:
+                key = {'id': message_id}
+                source_table.update_item(
+                    Key=key,
+                    UpdateExpression='SET transcription = :t, detectedLanguage = :l',
+                    ExpressionAttributeValues={
+                        ':t': english_text,
+                        ':l': detected_lang,
+                    },
+                )
+            except Exception as ue:
+                logger.warning(f"Could not update record with transcription: {ue}")
+
+        # Also update the unified Messages table (messageId key)
+        if message_id:
+            try:
+                msg_table = dynamodb.Table(UNIFIED_MESSAGES_TABLE)
+                msg_table.update_item(
+                    Key={'messageId': message_id},
+                    UpdateExpression='SET transcription = :t, detectedLanguage = :l',
+                    ExpressionAttributeValues={
+                        ':t': english_text,
+                        ':l': detected_lang,
+                    },
+                )
+            except Exception as ue2:
+                logger.warning(f"Could not update unified Messages table: {ue2}")
+
+        # Clean up transcription output from S3 (optional, keep it small)
+        try:
+            s3.delete_object(Bucket=MEDIA_BUCKET, Key=result_key)
+        except Exception:
+            pass
+
+        return _response(200, {
+            'transcription': english_text,
+            'originalTranscription': transcript_text if english_text != transcript_text else None,
+            'detectedLanguage': detected_lang,
+            'messageId': message_id,
+            'cached': False,
+        })
+
+    except Exception as e:
+        logger.error(f"Transcribe error: {str(e)}", exc_info=True)
+        return _response(500, {'error': str(e)})
+
+
+def _handle_language_config(http_method: str, body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    GET: Return voice language configuration (enabled languages, default voices, auto-transcribe setting).
+    PUT: Update voice language configuration.
+    Stored in SystemConfigTable under key 'voice_language_config'.
+    """
+    config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+    config_key = 'voice_language_config'
+
+    if http_method == 'GET':
+        try:
+            result = config_table.get_item(Key={'configKey': config_key})
+            item = result.get('Item', {})
+            config_value = item.get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            # Merge with defaults
+            defaults = {
+                'autoTranscribe': True,
+                'enabledLanguages': list(POLLY_VOICES.keys()),
+                'defaultVoices': {lang: voices[0]['id'] for lang, voices in POLLY_VOICES.items()},
+                'autoReplyWithVoice': False,
+                'transcribeLanguages': list(TRANSCRIBE_LANGUAGES.keys()),
+            }
+            for k, v in defaults.items():
+                if k not in config:
+                    config[k] = v
+            return _response(200, {'config': config})
+        except Exception as e:
+            logger.error(f"Get language config error: {e}")
+            return _response(500, {'error': str(e)})
+
+    # PUT — update config
+    try:
+        new_config = body.get('config', body)
+        config_table.put_item(Item={
+            'configKey': config_key,
+            'configValue': json.dumps(new_config, default=str),
+            'updatedAt': str(int(time.time())),
+        })
+        return _response(200, {'success': True, 'config': new_config})
+    except Exception as e:
+        logger.error(f"Update language config error: {e}")
         return _response(500, {'error': str(e)})
 
 
@@ -446,8 +791,9 @@ def _upload_to_whatsapp(s3_key: str, phone_number_id: str,
 
 def _send_whatsapp_audio(phone: str, media_id: str,
                          phone_number_id: str,
-                         request_id: str) -> Optional[str]:
-    """Send audio message via EUM Social SendWhatsAppMessage."""
+                         request_id: str,
+                         recipient_bsuid: str = '') -> Optional[str]:
+    """Send audio message via EUM Social SendWhatsAppMessage. Supports BSUID recipient."""
     try:
         # WhatsApp Cloud API audio message payload
         digits = ''.join(c for c in phone if c.isdigit())
@@ -458,6 +804,9 @@ def _send_whatsapp_audio(phone: str, media_id: str,
             'type': 'audio',
             'audio': {'id': media_id}
         }
+        # Add BSUID recipient if available (per Meta BSUID docs)
+        if recipient_bsuid:
+            wa_payload['recipient'] = recipient_bsuid
 
         message_bytes = json.dumps(wa_payload).encode('utf-8')
 
@@ -480,8 +829,11 @@ def _send_whatsapp_audio(phone: str, media_id: str,
 
 
 def _list_voices() -> Dict[str, Any]:
-    """Return available Polly voices grouped by language."""
-    return _response(200, {'voices': POLLY_VOICES})
+    """Return available Polly voices grouped by language + transcribe languages."""
+    return _response(200, {
+        'voices': POLLY_VOICES,
+        'transcribeLanguages': TRANSCRIBE_LANGUAGES,
+    })
 
 
 def _list_logs(params: Dict, request_id: str) -> Dict[str, Any]:
@@ -530,12 +882,14 @@ def _store_log(item: Dict) -> None:
 def _store_message_record(msg_id: str, contact_id: str, content: str,
                           status: str, phone_number_id: str,
                           recipient_phone: str, s3_key: str,
-                          wa_message_id: Optional[str]) -> None:
+                          wa_message_id: Optional[str],
+                          transcription: str = '',
+                          language_code: str = '') -> None:
     """Store in messages table so it shows in WhatsApp inbox."""
     try:
         table = dynamodb.Table(MESSAGES_TABLE)
         now = int(time.time())
-        table.put_item(Item={
+        item = {
             'id': msg_id,
             'messageId': msg_id,
             'contactId': contact_id,
@@ -552,7 +906,12 @@ def _store_message_record(msg_id: str, contact_id: str, content: str,
             'createdAt': Decimal(str(now)),
             'updatedAt': Decimal(str(now)),
             'ttl': Decimal(str(now + 30 * 24 * 60 * 60)),
-        })
+        }
+        if transcription:
+            item['transcription'] = transcription
+        if language_code:
+            item['detectedLanguage'] = language_code
+        table.put_item(Item=item)
     except Exception as e:
         logger.error(f"Store message error: {str(e)}")
 
@@ -572,6 +931,8 @@ def _normalize_log(item: Dict) -> Dict:
         'whatsappMessageId': item.get('whatsappMessageId', ''),
         'status': item.get('status', ''),
         'type': item.get('type', 'tts'),
+        'transcription': item.get('transcription', ''),
+        'detectedLanguage': item.get('detectedLanguage', ''),
         'createdAt': int(float(item.get('createdAt', 0))),
     }
 

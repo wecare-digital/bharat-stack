@@ -1,0 +1,11 @@
+# Pipecat AI Voice Bot for WhatsApp Calling
+# Deploy on Lightsail micro $7/mo (1GB RAM) or t4g.micro ~$5/mo
+# Python 3.11+
+
+pipecat-ai[aws,webrtc]==0.0.105
+aiohttp>=3.9.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.0.0
+boto3>=1.34.0
+openai>=1.0.0

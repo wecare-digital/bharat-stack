@@ -35,12 +35,18 @@ interface Message {
   awsPhoneNumberId?: string | null;
   senderName?: string | null;
   senderPhone?: string | null;
+  s3Key?: string | null;
+  transcription?: string | null;       // English transcription of voice notes
+  detectedLanguage?: string | null;    // Detected language of voice note
 }
 
 interface Contact {
   id: string;
   name: string;
   phone: string;
+  bsuid?: string;
+  username?: string;
+  contactBookName?: string;
   lastMessage?: string;
   lastMessageTime?: string;
   lastWabaId?: string;
@@ -81,6 +87,106 @@ const getAvatarColor = (name: string): string => {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
+// ── Language code to human-readable label ──
+const LANG_LABELS: Record<string, string> = {
+  'en-US': 'English', 'en-GB': 'English', 'en-IN': 'English',
+  'en-AU': 'English', 'en-NZ': 'English', 'en-ZA': 'English',
+  'hi-IN': 'Hindi', 'ar-SA': 'Arabic', 'es-US': 'Spanish',
+  'es-ES': 'Spanish', 'es-MX': 'Spanish', 'fr-FR': 'French',
+  'fr-CA': 'French', 'de-DE': 'German', 'ja-JP': 'Japanese',
+  'ko-KR': 'Korean', 'pt-BR': 'Portuguese', 'pt-PT': 'Portuguese',
+  'zh-CN': 'Chinese', 'it-IT': 'Italian', 'tr-TR': 'Turkish',
+  'ru-RU': 'Russian', 'nl-NL': 'Dutch', 'pl-PL': 'Polish',
+  'sv-SE': 'Swedish', 'da-DK': 'Danish', 'nb-NO': 'Norwegian',
+  'fi-FI': 'Finnish', 'ca-ES': 'Catalan', 'ro-RO': 'Romanian',
+  'id-ID': 'Indonesian', 'ms-MY': 'Malay', 'th-TH': 'Thai',
+  'vi-VN': 'Vietnamese', 'ta-IN': 'Tamil', 'te-IN': 'Telugu',
+  'bn-IN': 'Bengali', 'mr-IN': 'Marathi', 'gu-IN': 'Gujarati',
+  'kn-IN': 'Kannada', 'ml-IN': 'Malayalam', 'ur-IN': 'Urdu',
+  'pa-IN': 'Punjabi', 'arb': 'Arabic', 'cy-GB': 'Welsh',
+};
+
+// ── Voice Note Transcription sub-component ──
+const VoiceNoteTranscription: React.FC<{ msg: Message }> = ({ msg }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [transcription, setTranscription] = useState(msg.transcription || '');
+  const [detectedLang, setDetectedLang] = useState(msg.detectedLanguage || '');
+  const [loading, setLoading] = useState(false);
+
+  const handleTranscribe = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const result = await api.transcribeVoiceNote({
+        messageId: msg.id,
+        s3Key: msg.s3Key || undefined,
+        direction: msg.direction === 'inbound' ? 'INBOUND' : 'OUTBOUND',
+      });
+      if (result?.transcription) {
+        setTranscription(result.transcription);
+        setDetectedLang(result.detectedLanguage || '');
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (transcription) {
+    const langLabel = LANG_LABELS[detectedLang] || detectedLang || '';
+    return (
+      <div className="voice-transcription" style={{ marginTop: 4 }}>
+        <button
+          className="transcription-toggle"
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '0.75rem', color: '#6b7280', display: 'flex',
+            alignItems: 'center', gap: 4, padding: '2px 0',
+          }}
+        >
+          <span style={{ fontSize: '0.7rem' }}>📝</span>
+          {expanded ? 'Hide transcript' : 'Show transcript'}
+          {langLabel && <span style={{
+            fontSize: '0.65rem', background: '#e5e7eb', borderRadius: 4,
+            padding: '1px 4px', marginLeft: 4,
+          }}>{langLabel}</span>}
+        </button>
+        {expanded && (
+          <p style={{
+            margin: '4px 0 0', fontSize: '0.8rem', color: '#374151',
+            lineHeight: 1.4, fontStyle: 'italic', padding: '4px 8px',
+            background: 'rgba(0,0,0,0.03)', borderRadius: 6,
+            borderLeft: '2px solid #9ca3af',
+          }}>
+            {transcription}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // No transcription yet — show "Transcribe" button
+  return (
+    <div className="voice-transcription" style={{ marginTop: 4 }}>
+      <button
+        onClick={handleTranscribe}
+        disabled={loading}
+        style={{
+          background: 'none', border: '1px solid #d1d5db', borderRadius: 4,
+          cursor: loading ? 'wait' : 'pointer', fontSize: '0.72rem',
+          color: '#6b7280', padding: '2px 8px', display: 'flex',
+          alignItems: 'center', gap: 4,
+        }}
+      >
+        <span style={{ fontSize: '0.7rem' }}>{loading ? '⏳' : '📝'}</span>
+        {loading ? 'Transcribing...' : 'Transcribe'}
+      </button>
+    </div>
+  );
 };
 
 const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
@@ -189,7 +295,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       });
 
       const displayContacts: Contact[] = contactsData
-        .filter(c => c.phone)
+        .filter(c => c.phone || c.bsuid)
         .map(c => {
           const msgInfo = contactMsgMap.get(c.contactId);
           // Use contact name, or sender name from messages, or phone as fallback
@@ -225,6 +331,9 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
             id: c.contactId,
             name: displayName,
             phone: c.phone,
+            bsuid: c.bsuid || '',
+            username: c.username || '',
+            contactBookName: c.contactBookName || '',
             lastMessage: lastMsgPreview,
             lastMessageTime: msgInfo?.lastMsg?.timestamp,
             lastWabaId: msgInfo?.lastWabaId || '',
@@ -252,6 +361,9 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         awsPhoneNumberId: m.awsPhoneNumberId,
         senderName: m.senderName,  // Sender's WhatsApp profile name
         senderPhone: m.senderPhone,  // Sender's phone number
+        s3Key: m.s3Key,
+        transcription: m.transcription,
+        detectedLanguage: m.detectedLanguage,
       })));
 
       // Auto-select WABA based on last message
@@ -298,10 +410,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     })
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-  const filteredContacts = contacts.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.phone.includes(searchQuery)
-  );
+  const filteredContacts = contacts.filter(c => {
+    const q = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(q) ||
+      c.phone.includes(searchQuery) ||
+      (c.bsuid && c.bsuid.toLowerCase().includes(q)) ||
+      (c.username && c.username.toLowerCase().includes(q)) ||
+      (c.contactBookName && c.contactBookName.toLowerCase().includes(q));
+  });
 
   // Pagination for contacts
   const totalContactPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE);
@@ -343,6 +459,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         contactId: selectedContact.id,
         content: messageText,
         phoneNumberId: selectedWaba,
+        recipientBsuid: selectedContact.bsuid || undefined,
         mediaFile: mediaBase64,
         mediaType: mediaFile?.type,
         mediaFileName: mediaFileName, // Pass real filename
@@ -425,6 +542,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         languageCode: data.languageCode,
         engine: data.engine,
         phoneNumberId: selectedWaba,
+        recipientBsuid: selectedContact.bsuid || undefined,
       });
       if (result?.messageId) {
         toast.success('Voice note sent via Polly TTS');
@@ -448,6 +566,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         reactionMessageId: whatsappMessageId,
         reactionEmoji: '👍',
         phoneNumberId: wabaId || selectedWaba,
+        recipientBsuid: selectedContact.bsuid || undefined,
       });
     } catch (err) {
       console.error('Reaction failed:', err);
@@ -464,6 +583,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       const result = await api.sendWhatsAppInteractive({
         contactId: selectedContact.id,
         phoneNumberId: selectedWaba,
+        recipientBsuid: selectedContact.bsuid || undefined,
         interactiveType: 'location_request',
         interactiveData: {
           body: 'Please share your location so we can assist you better.',
@@ -902,7 +1022,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                     {contact.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="contact-info">
-                    <div className="contact-name">{contact.name}</div>
+                    <div className="contact-name">{contact.name}{contact.username ? <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 12, marginLeft: 4 }}>{contact.username}</span> : null}</div>
                     <div className="contact-last-msg">
                       {wabaInfo && (
                         <span 
@@ -962,7 +1082,11 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                   </div>
                   <div>
                     <div className="chat-contact-name">{selectedContact.name}</div>
-                    <div className="chat-contact-phone">{selectedContact.phone}</div>
+                    <div className="chat-contact-phone">
+                      {selectedContact.phone || selectedContact.bsuid || 'No identifier'}
+                      {selectedContact.username ? ` · ${selectedContact.username}` : ''}
+                      {!selectedContact.phone && selectedContact.bsuid ? ' (BSUID)' : ''}
+                    </div>
                   </div>
                 </div>
                 
@@ -1057,15 +1181,18 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                               
                               if (mediaType === 'audio') {
                                 return (
-                                  <audio 
-                                    src={msg.mediaUrl} 
-                                    controls 
-                                    className="message-media message-audio"
-                                    onError={(e) => {
-                                      console.error('Audio load error:', msg.mediaUrl);
-                                      (e.target as HTMLAudioElement).style.display = 'none';
-                                    }}
-                                  />
+                                  <div className="voice-note-container">
+                                    <audio 
+                                      src={msg.mediaUrl} 
+                                      controls 
+                                      className="message-media message-audio"
+                                      onError={(e) => {
+                                        console.error('Audio load error:', msg.mediaUrl);
+                                        (e.target as HTMLAudioElement).style.display = 'none';
+                                      }}
+                                    />
+                                    <VoiceNoteTranscription msg={msg} />
+                                  </div>
                                 );
                               }
                               
@@ -1268,6 +1395,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                   <InteractiveMessageComposer
                     contactId={selectedContact.id}
                     phoneNumberId={selectedWaba}
+                    recipientBsuid={selectedContact.bsuid || undefined}
                     onClose={() => setShowInteractiveComposer(false)}
                     onSent={() => loadData()}
                     onError={(msg) => toast.error(msg)}

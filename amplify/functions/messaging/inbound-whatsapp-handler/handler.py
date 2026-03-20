@@ -156,22 +156,49 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 # Determine AWS phone number ID for this WABA
                 aws_phone_number_id = _get_aws_phone_number_id(display_phone_number, phone_number_id)
                 
-                # Extract contacts info (contains profile names)
-                # WhatsApp webhook format: contacts array has wa_id and profile.name
+                # Extract contacts info (contains profile names, BSUIDs, usernames)
+                # WhatsApp webhook format: contacts array has wa_id, user_id, profile.name, profile.username
                 contacts_info = value.get('contacts', [])
                 contacts_map = {}
                 for contact_info in contacts_info:
                     wa_id = contact_info.get('wa_id', '')
-                    profile_name = contact_info.get('profile', {}).get('name', '')
+                    user_id = contact_info.get('user_id', '')  # BSUID
+                    parent_user_id = contact_info.get('parent_user_id', '')
+                    profile = contact_info.get('profile', {})
+                    profile_name = profile.get('name', '')
+                    username = profile.get('username', '')  # WhatsApp username (e.g. @pablomorales)
+                    # Map by wa_id (phone) and user_id (BSUID) for flexible lookup
+                    entry = {
+                        'name': profile_name,
+                        'bsuid': user_id,
+                        'parent_bsuid': parent_user_id,
+                        'username': username,
+                        'contact_book_name': profile.get('contact_book_name', ''),
+                        'wa_id': wa_id,
+                    }
                     if wa_id:
-                        contacts_map[wa_id] = profile_name
+                        contacts_map[wa_id] = entry
+                    if user_id:
+                        contacts_map[user_id] = entry
                 
                 # Process incoming messages
                 for message in value.get('messages', []):
                     try:
-                        # Get sender's profile name from contacts array
+                        # Get sender info from contacts array (BSUID-aware)
                         sender_phone = message.get('from', '')
-                        sender_profile_name = contacts_map.get(sender_phone, '')
+                        sender_bsuid = message.get('from_user_id', '')  # BSUID from message
+                        sender_parent_bsuid = message.get('from_parent_user_id', '')  # Parent BSUID from message
+                        # Lookup contact info by phone or BSUID
+                        contact_entry = contacts_map.get(sender_phone) or contacts_map.get(sender_bsuid) or {}
+                        sender_profile_name = contact_entry.get('name', '') if isinstance(contact_entry, dict) else contact_entry
+                        sender_username = contact_entry.get('username', '') if isinstance(contact_entry, dict) else ''
+                        sender_contact_book_name = contact_entry.get('contact_book_name', '') if isinstance(contact_entry, dict) else ''
+                        # Use BSUID from contacts_map if not in message directly
+                        if not sender_bsuid and isinstance(contact_entry, dict):
+                            sender_bsuid = contact_entry.get('bsuid', '')
+                        # Use parent BSUID from contacts_map if not in message directly
+                        if not sender_parent_bsuid and isinstance(contact_entry, dict):
+                            sender_parent_bsuid = contact_entry.get('parent_bsuid', '')
                         
                         _process_message(
                             message=message,
@@ -180,7 +207,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             receiving_phone=display_phone_number,
                             aws_phone_number_id=aws_phone_number_id,
                             meta_waba_ids=meta_waba_ids,
-                            sender_profile_name=sender_profile_name
+                            sender_profile_name=sender_profile_name,
+                            sender_bsuid=sender_bsuid,
+                            sender_parent_bsuid=sender_parent_bsuid,
+                            sender_username=sender_username,
+                            sender_contact_book_name=sender_contact_book_name,
                         )
                         processed_count += 1
                     except Exception as e:
@@ -195,7 +226,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 # Process status updates
                 for status in value.get('statuses', []):
                     try:
-                        _process_status(status, request_id)
+                        _process_status(status, request_id, contacts_map=contacts_map)
                     except Exception as e:
                         logger.error(json.dumps({
                             'event': 'status_processing_error',
@@ -234,6 +265,53 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     except Exception as e:
                         logger.error(json.dumps({
                             'event': 'account_update_processing_error',
+                            'error': str(e),
+                            'requestId': request_id
+                        }))
+                
+                # Process BSUID changes (user_id_update) — separate webhook field
+                if field == 'user_id_update':
+                    for uid_update in value.get('user_id_update', []):
+                        try:
+                            _process_user_id_update(uid_update, contacts_map, request_id)
+                        except Exception as e:
+                            logger.error(json.dumps({
+                                'event': 'user_id_update_error',
+                                'error': str(e),
+                                'requestId': request_id
+                            }))
+                
+                # Process business_username_update webhook
+                if field == 'business_username_update':
+                    try:
+                        _store_system_event('business_username_update', value, request_id)
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': 'business_username_update_error',
+                            'error': str(e),
+                            'requestId': request_id
+                        }))
+                
+                # Process user_preferences webhook (marketing message opt-in/out with BSUID)
+                if field == 'user_preferences':
+                    try:
+                        _store_system_event('user_preferences', value, request_id)
+                        # Also enrich contact BSUID from user_preferences contacts array
+                        for pref in value.get('user_preferences', []):
+                            pref_bsuid = pref.get('user_id', '')
+                            pref_phone = pref.get('wa_id', '')
+                            if pref_bsuid and pref_phone:
+                                try:
+                                    contact = _get_contact_by_phone(pref_phone)
+                                    if contact:
+                                        CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
+                                        ct = dynamodb.Table(CONTACTS_TABLE)
+                                        _update_contact_bsuid_fields(ct, contact, '', '', phone=pref_phone, bsuid=pref_bsuid)
+                                except Exception:
+                                    pass
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': 'user_preferences_error',
                             'error': str(e),
                             'requestId': request_id
                         }))
@@ -292,14 +370,23 @@ def _process_message(
     receiving_phone: str,
     aws_phone_number_id: str,
     meta_waba_ids: list,
-    sender_profile_name: str = ''
+    sender_profile_name: str = '',
+    sender_bsuid: str = '',
+    sender_parent_bsuid: str = '',
+    sender_username: str = '',
+    sender_contact_book_name: str = '',
 ) -> None:
     """
     Process a single inbound message.
     Stores which WABA/phone number received the message.
+    Supports BSUID (Business-Scoped User ID), parent BSUID, and username from webhook.
     """
     whatsapp_message_id = message.get('id')
-    sender_phone = message.get('from')
+    sender_phone = message.get('from', '')
+    # BSUID: from_user_id in message takes precedence over contacts array
+    msg_bsuid = message.get('from_user_id', '') or sender_bsuid
+    # Parent BSUID: from_parent_user_id in message takes precedence over contacts array
+    msg_parent_bsuid = message.get('from_parent_user_id', '') or sender_parent_bsuid
     msg_type = message.get('type', 'text')
     timestamp = int(message.get('timestamp', time.time()))
     
@@ -335,8 +422,8 @@ def _process_message(
         }))
         return
     
-    # Lookup or create contact with sender name
-    contact = _get_or_create_contact(sender_phone, sender_name)
+    # Lookup or create contact with sender name, BSUID, parent BSUID, and username
+    contact = _get_or_create_contact(sender_phone, sender_name, bsuid=msg_bsuid, username=sender_username, contact_book_name=sender_contact_book_name, parent_bsuid=msg_parent_bsuid)
     contact_id = contact.get('contactId') or contact.get('id')
     
     # Extract message content based on type
@@ -388,6 +475,9 @@ def _process_message(
         's3Key': s3_key,
         'senderPhone': sender_phone,
         'senderName': sender_name,  # Sender's WhatsApp profile name
+        'senderBsuid': msg_bsuid or None,  # Sender's BSUID (Business-Scoped User ID)
+        'senderParentBsuid': msg_parent_bsuid or None,  # Sender's parent BSUID (linked account)
+        'senderUsername': sender_username or None,  # Sender's WhatsApp username
         # WABA tracking - which number received this message
         'receivingPhone': receiving_phone,
         'awsPhoneNumberId': aws_phone_number_id,
@@ -439,6 +529,79 @@ def _process_message(
                 aws_phone_number_id=aws_phone_number_id,
                 interactive=interactive,
             )
+    
+    # Handle system status messages with user_changed_user_id
+    # Per Meta BSUID docs: system messages can have type=user_changed_user_id
+    # when a user changes their phone number, triggering a new BSUID
+    if msg_type == 'system':
+        system_data = message.get('system', {})
+        system_type = system_data.get('type', '')
+        if system_type == 'user_changed_user_id':
+            new_bsuid = system_data.get('user_id', '')
+            new_parent_bsuid = system_data.get('parent_user_id', '')
+            new_wa_id = system_data.get('wa_id', '')
+            logger.info(json.dumps({
+                'event': 'system_user_changed_user_id',
+                'senderPhone': sender_phone,
+                'newBsuid': new_bsuid,
+                'newParentBsuid': new_parent_bsuid,
+                'newWaId': new_wa_id,
+                'systemBody': system_data.get('body', ''),
+                'requestId': request_id
+            }))
+            # Update contact with new BSUID and phone if available
+            if new_bsuid and contact_id:
+                try:
+                    CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
+                    ct = dynamodb.Table(CONTACTS_TABLE)
+                    update_expr = 'SET bsuid = :b'
+                    expr_vals = {':b': new_bsuid}
+                    if new_wa_id:
+                        update_expr += ', phone = :p'
+                        expr_vals[':p'] = new_wa_id
+                    ct.update_item(
+                        Key={'id': contact_id},
+                        UpdateExpression=update_expr,
+                        ExpressionAttributeValues=expr_vals
+                    )
+                except Exception as sys_err:
+                    logger.warning(f'System user_changed_user_id update failed: {sys_err}')
+            _store_system_event('user_changed_user_id', {
+                'senderPhone': sender_phone,
+                'contactId': contact_id,
+                'newBsuid': new_bsuid,
+                'newWaId': new_wa_id,
+                'body': system_data.get('body', ''),
+            }, request_id)
+    
+    # Handle REQUEST_CONTACT_INFO button response (contacts message with origin=contact_request)
+    # Per Meta BSUID docs (May 2026): when user taps REQUEST_CONTACT_INFO button,
+    # a contacts message is sent with origin "contact_request/other" containing vCard + phone
+    if msg_type == 'contacts':
+        msg_origin = message.get('origin', '')
+        if 'contact_request' in msg_origin:
+            msg_contacts = message.get('contacts', [])
+            for mc in msg_contacts:
+                phones = mc.get('phones', [])
+                shared_phone = phones[0].get('phone', '') if phones else ''
+                if shared_phone and contact_id:
+                    try:
+                        CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
+                        ct = dynamodb.Table(CONTACTS_TABLE)
+                        ct.update_item(
+                            Key={'id': contact_id},
+                            UpdateExpression='SET phone = :p',
+                            ExpressionAttributeValues={':p': shared_phone}
+                        )
+                        logger.info(json.dumps({
+                            'event': 'contact_request_phone_captured',
+                            'contactId': contact_id,
+                            'sharedPhone': shared_phone,
+                            'origin': msg_origin,
+                            'requestId': request_id
+                        }))
+                    except Exception as cr_err:
+                        logger.warning(f'Contact request phone update failed: {cr_err}')
     
     # Update Contact.lastInboundMessageAt for 24-hour window
     _update_contact_timestamp(contact_id, now)
@@ -497,6 +660,11 @@ def _process_message(
     # Process AI automation for supported message types
     # Now includes media types (image, audio, video, document) for multimodal AI
     ai_eligible_types = ['text', 'interactive', 'button', 'location', 'image', 'video', 'audio', 'document']
+
+    # Auto-transcribe voice notes (audio messages) for English transcription display
+    if msg_type == 'audio' and s3_key:
+        _auto_transcribe_voice_note(message_id, s3_key, request_id)
+
     if msg_type in ai_eligible_types and (content or s3_key):
         _process_ai_automation(
             message_id=message_id,
@@ -505,6 +673,7 @@ def _process_message(
             message_type=msg_type,
             phone_number_id=aws_phone_number_id,
             sender_phone=sender_phone,
+            sender_bsuid=msg_bsuid,
             s3_key=s3_key,
             mime_type=message.get(msg_type, {}).get('mime_type', '') if msg_type in ('image', 'video', 'audio', 'document') else '',
             request_id=request_id
@@ -548,33 +717,52 @@ def _message_exists(whatsapp_message_id: str) -> bool:
             return False
 
 
-def _get_or_create_contact(phone: str, sender_name: str = '') -> Dict[str, Any]:
-    """Get existing contact or create new one."""
+def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', username: str = '', contact_book_name: str = '', parent_bsuid: str = '') -> Dict[str, Any]:
+    """Get existing contact or create new one. Supports BSUID and parent BSUID lookup and storage."""
     contacts_table = dynamodb.Table(CONTACTS_TABLE)
     
+    # Try BSUID lookup first (most reliable identifier going forward)
+    if bsuid:
+        try:
+            response = contacts_table.query(
+                IndexName='bsuid-index',
+                KeyConditionExpression='bsuid = :bsuid',
+                ExpressionAttributeValues={':bsuid': bsuid},
+                Limit=10
+            )
+            bsuid_items = [i for i in response.get('Items', []) if not i.get('deletedAt')]
+            if bsuid_items:
+                contact = sorted(bsuid_items, key=lambda x: x.get('createdAt', 0))[0]
+                # Update name/username/phone if available and contact doesn't have them
+                _update_contact_bsuid_fields(contacts_table, contact, sender_name, username, phone, contact_book_name=contact_book_name, parent_bsuid=parent_bsuid)
+                return contact
+        except Exception as e:
+            logger.warning(f"BSUID index query failed for {bsuid}: {str(e)}")
+    
     # Clean phone for search - remove + prefix if present
-    clean_phone = phone.lstrip('+')
-    phone_with_plus = f'+{clean_phone}'
+    clean_phone = phone.lstrip('+') if phone else ''
+    phone_with_plus = f'+{clean_phone}' if clean_phone else ''
     
     # Use GSI query on phone-index for O(1) lookup (try both formats)
     items = []
-    for phone_variant in [phone_with_plus, clean_phone]:
-        try:
-            response = contacts_table.query(
-                IndexName='phone-index',
-                KeyConditionExpression='phone = :phone',
-                ExpressionAttributeValues={':phone': phone_variant},
-                Limit=10
-            )
-            variant_items = response.get('Items', [])
-            # Filter out deleted contacts
-            variant_items = [i for i in variant_items if not i.get('deletedAt')]
-            items.extend(variant_items)
-        except Exception as e:
-            logger.warning(f"GSI phone-index query failed for {phone_variant}: {str(e)}")
+    if clean_phone:
+        for phone_variant in [phone_with_plus, clean_phone]:
+            try:
+                response = contacts_table.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :phone',
+                    ExpressionAttributeValues={':phone': phone_variant},
+                    Limit=10
+                )
+                variant_items = response.get('Items', [])
+                # Filter out deleted contacts
+                variant_items = [i for i in variant_items if not i.get('deletedAt')]
+                items.extend(variant_items)
+            except Exception as e:
+                logger.warning(f"GSI phone-index query failed for {phone_variant}: {str(e)}")
     
     # Fallback to scan if GSI not ready
-    if not items:
+    if not items and clean_phone:
         try:
             response = contacts_table.scan(
                 FilterExpression='(phone = :phone1 OR phone = :phone2) AND (attribute_not_exists(deletedAt) OR deletedAt = :null)',
@@ -602,19 +790,8 @@ def _get_or_create_contact(phone: str, sender_name: str = '') -> Dict[str, Any]:
         
         # Return the first (oldest) contact to avoid duplicates
         contact = sorted(items, key=lambda x: x.get('createdAt', 0))[0]
-        # Update name if sender provided a name and contact doesn't have one or has placeholder
-        current_name = contact.get('name', '')
-        if sender_name and (not current_name or current_name in ['', '~', 'Unknown']):
-            try:
-                contacts_table.update_item(
-                    Key={'id': contact.get('id')},
-                    UpdateExpression='SET #name = :name, updatedAt = :now',
-                    ExpressionAttributeNames={'#name': 'name'},
-                    ExpressionAttributeValues={':name': sender_name, ':now': Decimal(str(int(time.time())))}
-                )
-                contact['name'] = sender_name
-            except Exception as e:
-                logger.warning(f"Failed to update contact name: {str(e)}")
+        # Update name/BSUID/username if available
+        _update_contact_bsuid_fields(contacts_table, contact, sender_name, username, phone, bsuid, contact_book_name, parent_bsuid)
         return contact
     
     # Create new contact
@@ -622,14 +799,20 @@ def _get_or_create_contact(phone: str, sender_name: str = '') -> Dict[str, Any]:
     now = int(time.time())
     
     # Ensure phone has + prefix for international format (easier for SMS)
-    formatted_phone = phone if phone.startswith('+') else f'+{phone}'
+    formatted_phone = ''
+    if phone:
+        formatted_phone = phone if phone.startswith('+') else f'+{phone}'
     
     contact = {
         'id': contact_id,
         'contactId': contact_id,
         'name': sender_name or '',
-        'phone': formatted_phone,
+        'phone': formatted_phone or None,
         'email': None,
+        'bsuid': bsuid or None,  # Business-Scoped User ID
+        'parentBsuid': parent_bsuid or None,  # Parent BSUID (linked account)
+        'username': username or None,  # WhatsApp username
+        'contactBookName': contact_book_name or None,  # Meta contact book name
         'optInWhatsApp': True,
         'optInSms': True,
         'optInEmail': True,
@@ -641,16 +824,172 @@ def _get_or_create_contact(phone: str, sender_name: str = '') -> Dict[str, Any]:
         'updatedAt': Decimal(str(now)),
     }
     
-    contacts_table.put_item(Item=contact)
+    contacts_table.put_item(Item={k: v for k, v in contact.items() if v is not None})
     
     logger.info(json.dumps({
         'event': 'contact_auto_created',
         'contactId': contact_id,
         'phone': phone,
-        'name': sender_name
+        'name': sender_name,
+        'bsuid': bsuid,
+        'username': username,
     }))
     
     return contact
+
+
+def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str, username: str, phone: str = '', bsuid: str = '', contact_book_name: str = '', parent_bsuid: str = '') -> None:
+    """Update contact with BSUID, parentBsuid, username, contactBookName, and name if they're new or changed."""
+    updates = {}
+    names = {}
+    values = {}
+    idx = 0
+    
+    current_name = contact.get('name', '')
+    if sender_name and (not current_name or current_name in ['', '~', 'Unknown']):
+        updates[f'#n{idx}'] = 'name'
+        names[f'#n{idx}'] = 'name'
+        values[f':v{idx}'] = sender_name
+        contact['name'] = sender_name
+        idx += 1
+    
+    if bsuid and not contact.get('bsuid'):
+        names[f'#n{idx}'] = 'bsuid'
+        values[f':v{idx}'] = bsuid
+        contact['bsuid'] = bsuid
+        idx += 1
+    
+    # Store parent BSUID if provided and different from current
+    if parent_bsuid and contact.get('parentBsuid') != parent_bsuid:
+        names[f'#n{idx}'] = 'parentBsuid'
+        values[f':v{idx}'] = parent_bsuid
+        contact['parentBsuid'] = parent_bsuid
+        idx += 1
+    
+    if username and contact.get('username') != username:
+        names[f'#n{idx}'] = 'username'
+        values[f':v{idx}'] = username
+        contact['username'] = username
+        idx += 1
+    
+    # If contact has no phone but we have one now (BSUID-first contact getting phone)
+    if phone and not contact.get('phone'):
+        formatted = phone if phone.startswith('+') else f'+{phone.lstrip("+")}'
+        names[f'#n{idx}'] = 'phone'
+        values[f':v{idx}'] = formatted
+        contact['phone'] = formatted
+        idx += 1
+    
+    # Update contactBookName if provided and different
+    if contact_book_name and contact.get('contactBookName') != contact_book_name:
+        names[f'#n{idx}'] = 'contactBookName'
+        values[f':v{idx}'] = contact_book_name
+        contact['contactBookName'] = contact_book_name
+        idx += 1
+    
+    if not names:
+        return
+    
+    values[':now'] = Decimal(str(int(time.time())))
+    set_parts = [f'{k} = :v{i}' for i, k in enumerate(names.keys())]
+    set_parts.append('updatedAt = :now')
+    
+    try:
+        contacts_table.update_item(
+            Key={'id': contact.get('id')},
+            UpdateExpression='SET ' + ', '.join(set_parts),
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to update contact BSUID fields: {str(e)}")
+
+
+def _process_user_id_update(uid_update: Dict, contacts_map: Dict, request_id: str) -> None:
+    """
+    Handle user_id_update webhook — a user's BSUID has changed.
+    Per Meta docs (field: user_id_update), the payload contains:
+      user_id: { previous: "<OLD_BSUID>", current: "<NEW_BSUID>" }
+      parent_user_id: { previous: "<OLD>", current: "<NEW>" }  (optional)
+      wa_id: "<PHONE>" (optional)
+    Updates the contact's BSUID and parentBsuid in DynamoDB.
+    """
+    user_id_obj = uid_update.get('user_id', {})
+    old_user_id = user_id_obj.get('previous', '')
+    new_user_id = user_id_obj.get('current', '')
+    parent_id_obj = uid_update.get('parent_user_id', {})
+    new_parent_id = parent_id_obj.get('current', '') if isinstance(parent_id_obj, dict) else ''
+    wa_id = uid_update.get('wa_id', '')
+    
+    if not old_user_id or not new_user_id:
+        logger.warning(json.dumps({
+            'event': 'user_id_update_missing_ids',
+            'old_user_id': old_user_id,
+            'new_user_id': new_user_id,
+            'requestId': request_id,
+        }))
+        return
+    
+    logger.info(json.dumps({
+        'event': 'user_id_update_processing',
+        'old_user_id': old_user_id,
+        'new_user_id': new_user_id,
+        'new_parent_id': new_parent_id,
+        'requestId': request_id,
+    }))
+    
+    contacts_table = dynamodb.Table(CONTACTS_TABLE)
+    
+    # Find contact by old BSUID
+    try:
+        response = contacts_table.query(
+            IndexName='bsuid-index',
+            KeyConditionExpression='bsuid = :bsuid',
+            ExpressionAttributeValues={':bsuid': old_user_id},
+            Limit=10
+        )
+        items = [i for i in response.get('Items', []) if not i.get('deletedAt')]
+        
+        if not items:
+            logger.warning(json.dumps({
+                'event': 'user_id_update_contact_not_found',
+                'old_user_id': old_user_id,
+                'requestId': request_id,
+            }))
+            return
+        
+        for contact in items:
+            update_expr = 'SET bsuid = :new_bsuid, updatedAt = :now'
+            expr_vals = {
+                ':new_bsuid': new_user_id,
+                ':now': Decimal(str(int(time.time()))),
+            }
+            # Also update parentBsuid if provided
+            if new_parent_id:
+                update_expr += ', parentBsuid = :new_parent'
+                expr_vals[':new_parent'] = new_parent_id
+            
+            contacts_table.update_item(
+                Key={'id': contact['id']},
+                UpdateExpression=update_expr,
+                ExpressionAttributeValues=expr_vals,
+            )
+            logger.info(json.dumps({
+                'event': 'user_id_updated',
+                'contactId': contact['id'],
+                'old_bsuid': old_user_id,
+                'new_bsuid': new_user_id,
+                'new_parent_bsuid': new_parent_id,
+                'requestId': request_id,
+            }))
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'user_id_update_failed',
+            'old_user_id': old_user_id,
+            'new_user_id': new_user_id,
+            'error': str(e),
+            'requestId': request_id,
+        }))
 
 
 def _update_contact_timestamp(contact_id: str, timestamp: int) -> None:
@@ -911,10 +1250,14 @@ def _store_media_record(message_id: str, s3_key: str, media_data: Dict, whatsapp
         return None
 
 
-def _process_status(status: Dict, request_id: str) -> None:
+def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) -> None:
     """
     Process message status update (sent|delivered|read|failed|payment).
     Checks BOTH InboundTable and OutboundTable using GSI for O(1) lookup.
+    Extracts BSUID (recipient_user_id) and parent_recipient_user_id from status webhooks.
+    
+    Per Meta BSUID docs (Mar 2026): status webhooks now include a contacts array
+    with user_id, username, wa_id, parent_user_id for sent/delivered/read statuses.
     
     Payment status webhooks have type='payment' with payment object containing:
     - reference_id: Order/invoice reference
@@ -927,6 +1270,8 @@ def _process_status(status: Dict, request_id: str) -> None:
     status_type = status.get('type', '')  # 'payment' for payment webhooks
     timestamp = int(status.get('timestamp', time.time()))
     recipient_id = status.get('recipient_id', '')
+    recipient_user_id = status.get('recipient_user_id', '')  # BSUID
+    parent_recipient_user_id = status.get('parent_recipient_user_id', '')  # Parent BSUID
     
     # Log all status updates for debugging
     logger.info(json.dumps({
@@ -979,14 +1324,24 @@ def _process_status(status: Dict, request_id: str) -> None:
             items = response.get('Items', [])
             if items:
                 message_id = items[0].get('id') or items[0].get('messageId')
+                # Build update expression — include recipientBsuid and parentRecipientBsuid if available
+                update_expr = 'SET #status = :status, statusUpdatedAt = :ts'
+                expr_values = {
+                    ':status': status_value,
+                    ':ts': Decimal(str(timestamp))
+                }
+                if recipient_user_id:
+                    update_expr += ', recipientBsuid = :rbsuid'
+                    expr_values[':rbsuid'] = recipient_user_id
+                if parent_recipient_user_id:
+                    update_expr += ', parentRecipientBsuid = :prbsuid'
+                    expr_values[':prbsuid'] = parent_recipient_user_id
+                
                 table.update_item(
                     Key={'id': message_id},
-                    UpdateExpression='SET #status = :status, statusUpdatedAt = :ts',
+                    UpdateExpression=update_expr,
                     ExpressionAttributeNames={'#status': 'status'},
-                    ExpressionAttributeValues={
-                        ':status': status_value,
-                        ':ts': Decimal(str(timestamp))
-                    }
+                    ExpressionAttributeValues=expr_values
                 )
                 
                 logger.info(json.dumps({
@@ -1016,6 +1371,42 @@ def _process_status(status: Dict, request_id: str) -> None:
             'status': status_value,
             'requestId': request_id
         }))
+    
+    # Enrich contact records from status webhook contacts array
+    # Per Meta BSUID docs: sent/delivered/read status webhooks include a contacts
+    # array with user_id (BSUID), username, wa_id, parent_user_id
+    if contacts_map and status_value in ('sent', 'delivered', 'read'):
+        for ckey, centry in contacts_map.items():
+            if not isinstance(centry, dict):
+                continue
+            c_bsuid = centry.get('bsuid', '')
+            c_username = centry.get('username', '')
+            c_phone = centry.get('wa_id', '') if 'wa_id' in centry else ''
+            c_parent_bsuid = centry.get('parent_bsuid', '')
+            if not c_bsuid:
+                continue
+            try:
+                # Try to find contact by BSUID and update username/phone if new
+                CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
+                contacts_table = dynamodb.Table(CONTACTS_TABLE)
+                bsuid_resp = contacts_table.query(
+                    IndexName='bsuid-index',
+                    KeyConditionExpression='bsuid = :b',
+                    ExpressionAttributeValues={':b': c_bsuid},
+                    Limit=1
+                )
+                if bsuid_resp.get('Items'):
+                    existing = bsuid_resp['Items'][0]
+                    _update_contact_bsuid_fields(
+                        contacts_table, existing,
+                        sender_name=centry.get('name', ''),
+                        username=c_username,
+                        phone=c_phone,
+                        bsuid=c_bsuid,
+                        parent_bsuid=c_parent_bsuid,
+                    )
+            except Exception as enrich_err:
+                logger.debug(f'Status contact enrichment skipped: {enrich_err}')
 
 
 def _sanitize_reference_id(reference_id: str) -> str:
@@ -2401,7 +2792,8 @@ def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Di
         }))
 
 
-def _send_audio_response(contact_id: str, phone_number_id: str, text: str, language: str, request_id: str) -> None:
+def _send_audio_response(contact_id: str, phone_number_id: str, text: str, language: str, request_id: str,
+                         sender_phone: str = '', sender_bsuid: str = '') -> None:
     """
     Invoke the whatsapp-voice Lambda to generate TTS audio and send it.
     Called when user has audioEnabled=True.
@@ -2430,6 +2822,7 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
         'thai': ('Kajal', 'en-IN'),          # No native voice
         'vietnamese': ('Kajal', 'en-IN'),    # No native voice
         'indonesian': ('Kajal', 'en-IN'),    # No native voice
+        'malay': ('Kajal', 'en-IN'),         # No native voice
         'sinhala': ('Kajal', 'en-IN'),       # No native voice
         # ── Middle East ──
         'arabic': ('Hala', 'arb'),
@@ -2441,6 +2834,17 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
         'french': ('Lea', 'fr-FR'),
         'spanish': ('Lupe', 'es-US'),
         'portuguese': ('Camila', 'pt-BR'),
+        'italian': ('Bianca', 'it-IT'),
+        'german': ('Vicki', 'de-DE'),
+        'dutch': ('Laura', 'nl-NL'),
+        'polish': ('Ola', 'pl-PL'),
+        'swedish': ('Elin', 'sv-SE'),
+        'danish': ('Sofie', 'da-DK'),
+        'norwegian': ('Ida', 'nb-NO'),
+        'finnish': ('Suvi', 'fi-FI'),
+        'catalan': ('Arlet', 'ca-ES'),
+        'romanian': ('Carmen', 'ro-RO'),
+        'welsh': ('Gwyneth', 'cy-GB'),
     }
     voice_id, lang_code = LANG_TO_POLLY.get(language.lower(), ('Kajal', 'en-IN'))
 
@@ -2451,11 +2855,13 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
             'rawPath': '/whatsapp-voice/tts',
             'body': json.dumps({
                 'contactId': contact_id,
+                'phoneNumber': sender_phone,
                 'messageText': text[:500],  # Polly limit
                 'voiceId': voice_id,
                 'languageCode': lang_code,
                 'engine': 'neural',
                 'phoneNumberId': phone_number_id,
+                'recipientBsuid': sender_bsuid,
             })
         }
 
@@ -2481,6 +2887,59 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
             'contactId': contact_id,
             'error': str(e),
             'requestId': request_id
+        }))
+
+
+def _auto_transcribe_voice_note(message_id: str, s3_key: str, request_id: str) -> None:
+    """
+    Async-invoke the whatsapp-voice Lambda to transcribe a voice note.
+    The transcription result is stored back in the message record.
+    Non-blocking (InvocationType='Event').
+    """
+    try:
+        # Check if auto-transcribe is enabled in system config
+        config_table = dynamodb.Table(
+            os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
+        )
+        try:
+            cfg_result = config_table.get_item(Key={'configKey': 'voice_language_config'})
+            cfg_value = cfg_result.get('Item', {}).get('configValue', '{}')
+            voice_config = json.loads(cfg_value) if isinstance(cfg_value, str) else cfg_value
+            if not voice_config.get('autoTranscribe', True):
+                return  # Auto-transcribe disabled
+        except Exception:
+            pass  # Default: auto-transcribe enabled
+
+        transcribe_payload = {
+            'requestContext': {'http': {'method': 'POST'}},
+            'rawPath': '/whatsapp-voice/transcribe',
+            'body': json.dumps({
+                'messageId': message_id,
+                's3Key': s3_key,
+                'direction': 'INBOUND',
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=WHATSAPP_VOICE_FUNCTION,
+            InvocationType='Event',  # Async — don't block inbound processing
+            Payload=json.dumps(transcribe_payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'auto_transcribe_triggered',
+            'messageId': message_id,
+            's3Key': s3_key,
+            'statusCode': response.get('StatusCode'),
+            'requestId': request_id,
+        }))
+
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'auto_transcribe_error',
+            'messageId': message_id,
+            'error': str(e),
+            'requestId': request_id,
         }))
 
 
@@ -3577,7 +4036,7 @@ def _is_ai_enabled() -> bool:
     return config.get('enabled', False) and config.get('autoReplyEnabled', False)
 
 
-def _process_ai_automation(message_id: str, contact_id: str, content: str, message_type: str, phone_number_id: str, sender_phone: str, s3_key: str, mime_type: str, request_id: str) -> Optional[Dict]:
+def _process_ai_automation(message_id: str, contact_id: str, content: str, message_type: str, phone_number_id: str, sender_phone: str, s3_key: str, mime_type: str, request_id: str, sender_bsuid: str = '') -> Optional[Dict]:
     """
     Process AI automation for inbound message and send auto-reply.
     
@@ -3988,7 +4447,9 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                                 phone_number_id=phone_number_id,
                                 text=suggestion_text,
                                 language=user_lang,
-                                request_id=request_id
+                                request_id=request_id,
+                                sender_phone=sender_phone,
+                                sender_bsuid=sender_bsuid,
                             )
                 except Exception as audio_err:
                     logger.warning(json.dumps({

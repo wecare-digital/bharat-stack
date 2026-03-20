@@ -41,7 +41,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
     setLoading(true);
     try {
       const contactsData = await api.listContacts();
-      setContacts(contactsData.filter(c => c.phone));
+      setContacts(contactsData.filter(c => c.phone || c.bsuid));
       const response = await fetch(API_BASE + '/whatsapp/templates?wabaId=' + selectedWaba);
       if (response.ok) {
         const data = await response.json();
@@ -73,7 +73,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filteredContacts = contacts.filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone?.includes(searchQuery));
+  const filteredContacts = contacts.filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone?.includes(searchQuery) || c.bsuid?.includes(searchQuery) || c.username?.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSelectAll = () => {
     if (selectAll) { setSelectedContacts([]); }
@@ -97,12 +97,12 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
       let sent = 0, failed = 0;
       for (const contactId of selectedContacts) {
         const contact = contacts.find(c => c.contactId === contactId);
-        if (!contact?.phone) { failed++; continue; }
+        if (!contact?.phone && !contact?.bsuid) { failed++; continue; }
         try {
           const response = await fetch(API_BASE + '/whatsapp/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wabaId: selectedWaba, to: contact.phone, templateName: selectedTemplate, languageCode: template?.language || 'en', campaignId, campaignName, contactId })
+            body: JSON.stringify({ wabaId: selectedWaba, to: contact.phone || '', recipientBsuid: contact.bsuid || '', templateName: selectedTemplate, languageCode: template?.language || 'en', campaignId, campaignName, contactId })
           });
           if (response.ok) sent++; else failed++;
         } catch (e) { failed++; }
@@ -176,8 +176,9 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
               {filteredContacts.slice(0, 100).map(c => (
                 <label key={c.contactId} className={'contact-item' + (selectedContacts.includes(c.contactId) ? ' selected' : '')}>
                   <input type="checkbox" checked={selectedContacts.includes(c.contactId)} onChange={() => toggleContact(c.contactId)} />
-                  <span className="contact-name">{c.name || c.phone}</span>
-                  <span className="contact-phone">{c.phone}</span>
+                  <span className="contact-name">{c.name || c.phone || c.username || c.bsuid}</span>
+                  <span className="contact-phone">{c.phone || (c.bsuid ? '🆔 ' + c.bsuid.slice(0, 16) + '...' : '-')}</span>
+                  {c.username && <span className="contact-username" style={{ fontSize: '0.75rem', color: '#888' }}>@{c.username}</span>}
                 </label>
               ))}
               {filteredContacts.length === 0 && <div className="empty-state">No contacts found</div>}

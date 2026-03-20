@@ -11,6 +11,7 @@ interface TemplateSenderProps {
   contactId: string;
   contactName: string;
   phoneNumberId: string;
+  recipientBsuid?: string;
   onClose: () => void;
   onSent: () => void;
   onError: (msg: string) => void;
@@ -26,6 +27,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
   contactId,
   contactName,
   phoneNumberId,
+  recipientBsuid,
   onClose,
   onSent,
   onError,
@@ -193,6 +195,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
             templateName: selectedTemplate.name,
             language: selectedTemplate.language,
             phoneNumberId,
+            recipientBsuid,
             bodyParams: variables.map(v => v.value),
             cardParams: cardVariables.map(card => card.map(v => v.value)),
           });
@@ -203,6 +206,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
             language: selectedTemplate.language,
             templateParams: variables.map(v => v.value),
             phoneNumberId,
+            recipientBsuid,
           });
         }
 
