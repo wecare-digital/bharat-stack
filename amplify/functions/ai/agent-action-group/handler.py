@@ -422,12 +422,15 @@ def _update_contact(params: Dict, request_id: str) -> Dict:
         
         expr_names = {'#n': 'name'} if params.get('name') else {}
         
-        contacts_table.update_item(
-            Key={'id': contact_id},
-            UpdateExpression='SET ' + ', '.join(update_expr_parts),
-            ExpressionAttributeValues=expr_values,
-            ExpressionAttributeNames=expr_names if expr_names else None
-        )
+        update_kwargs = {
+            'Key': {'id': contact_id},
+            'UpdateExpression': 'SET ' + ', '.join(update_expr_parts),
+            'ExpressionAttributeValues': expr_values,
+        }
+        if expr_names:
+            update_kwargs['ExpressionAttributeNames'] = expr_names
+        
+        contacts_table.update_item(**update_kwargs)
         
         return {
             'success': True,
@@ -481,13 +484,20 @@ def _search_contacts(params: Dict, request_id: str) -> Dict:
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
         
-        response = contacts_table.scan(
-            FilterExpression='(attribute_not_exists(deletedAt) OR deletedAt = :null)',
-            ExpressionAttributeValues={':null': None}
-        )
+        all_items = []
+        scan_kwargs = {
+            'FilterExpression': '(attribute_not_exists(deletedAt) OR deletedAt = :null)',
+            'ExpressionAttributeValues': {':null': None}
+        }
+        while True:
+            response = contacts_table.scan(**scan_kwargs)
+            all_items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         contacts = []
-        for item in response.get('Items', []):
+        for item in all_items:
             name = (item.get('name') or '').lower()
             phone = (item.get('phone') or '').lower()
             email = (item.get('email') or '').lower()
@@ -591,15 +601,21 @@ def _get_messages(params: Dict, request_id: str) -> Dict:
     try:
         messages = []
         
-        # Get inbound messages
+        # Get inbound messages (paginate, collect up to limit)
         inbound_table = dynamodb.Table(MESSAGES_INBOUND_TABLE)
-        inbound_response = inbound_table.scan(
-            FilterExpression='contactId = :cid',
-            ExpressionAttributeValues={':cid': contact_id},
-            Limit=limit
-        )
+        inbound_items = []
+        scan_kwargs = {
+            'FilterExpression': 'contactId = :cid',
+            'ExpressionAttributeValues': {':cid': contact_id},
+        }
+        while True:
+            inbound_response = inbound_table.scan(**scan_kwargs)
+            inbound_items.extend(inbound_response.get('Items', []))
+            if 'LastEvaluatedKey' not in inbound_response or len(inbound_items) >= limit:
+                break
+            scan_kwargs['ExclusiveStartKey'] = inbound_response['LastEvaluatedKey']
         
-        for item in inbound_response.get('Items', []):
+        for item in inbound_items[:limit]:
             messages.append({
                 'id': item.get('id'),
                 'direction': 'inbound',
@@ -608,15 +624,21 @@ def _get_messages(params: Dict, request_id: str) -> Dict:
                 'status': item.get('status')
             })
         
-        # Get outbound messages
+        # Get outbound messages (paginate, collect up to limit)
         outbound_table = dynamodb.Table(MESSAGES_OUTBOUND_TABLE)
-        outbound_response = outbound_table.scan(
-            FilterExpression='contactId = :cid',
-            ExpressionAttributeValues={':cid': contact_id},
-            Limit=limit
-        )
+        outbound_items = []
+        scan_kwargs = {
+            'FilterExpression': 'contactId = :cid',
+            'ExpressionAttributeValues': {':cid': contact_id},
+        }
+        while True:
+            outbound_response = outbound_table.scan(**scan_kwargs)
+            outbound_items.extend(outbound_response.get('Items', []))
+            if 'LastEvaluatedKey' not in outbound_response or len(outbound_items) >= limit:
+                break
+            scan_kwargs['ExclusiveStartKey'] = outbound_response['LastEvaluatedKey']
         
-        for item in outbound_response.get('Items', []):
+        for item in outbound_items[:limit]:
             messages.append({
                 'id': item.get('id'),
                 'direction': 'outbound',
@@ -671,17 +693,39 @@ def _get_stats(request_id: str) -> Dict:
         inbound_table = dynamodb.Table(MESSAGES_INBOUND_TABLE)
         outbound_table = dynamodb.Table(MESSAGES_OUTBOUND_TABLE)
         
-        # Count contacts
-        contacts_response = contacts_table.scan(
-            FilterExpression='attribute_not_exists(deletedAt) OR deletedAt = :null',
-            ExpressionAttributeValues={':null': None},
-            Select='COUNT'
-        )
-        total_contacts = contacts_response.get('Count', 0)
+        # Count contacts (paginate)
+        total_contacts = 0
+        scan_kwargs = {
+            'FilterExpression': 'attribute_not_exists(deletedAt) OR deletedAt = :null',
+            'ExpressionAttributeValues': {':null': None},
+            'Select': 'COUNT'
+        }
+        while True:
+            contacts_response = contacts_table.scan(**scan_kwargs)
+            total_contacts += contacts_response.get('Count', 0)
+            if 'LastEvaluatedKey' not in contacts_response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = contacts_response['LastEvaluatedKey']
         
-        # Count messages
-        inbound_count = inbound_table.scan(Select='COUNT').get('Count', 0)
-        outbound_count = outbound_table.scan(Select='COUNT').get('Count', 0)
+        # Count inbound messages (paginate)
+        inbound_count = 0
+        scan_kwargs = {'Select': 'COUNT'}
+        while True:
+            resp = inbound_table.scan(**scan_kwargs)
+            inbound_count += resp.get('Count', 0)
+            if 'LastEvaluatedKey' not in resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+        
+        # Count outbound messages (paginate)
+        outbound_count = 0
+        scan_kwargs = {'Select': 'COUNT'}
+        while True:
+            resp = outbound_table.scan(**scan_kwargs)
+            outbound_count += resp.get('Count', 0)
+            if 'LastEvaluatedKey' not in resp:
+                break
+            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
         
         return {
             'success': True,

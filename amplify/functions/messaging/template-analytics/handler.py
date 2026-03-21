@@ -79,20 +79,25 @@ def _get_analytics_summary(query_params: Dict[str, str], request_id: str) -> Dic
     start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     
     try:
-        # Scan outbound messages for template messages
-        response = table.scan(
-            FilterExpression='#isTemplate = :true AND #timestamp >= :start',
-            ExpressionAttributeNames={
+        # Scan outbound messages for template messages — paginate fully
+        items = []
+        scan_kwargs = {
+            'FilterExpression': '#isTemplate = :true AND #timestamp >= :start',
+            'ExpressionAttributeNames': {
                 '#isTemplate': 'isTemplate',
                 '#timestamp': 'timestamp'
             },
-            ExpressionAttributeValues={
+            'ExpressionAttributeValues': {
                 ':true': True,
                 ':start': start_date
             }
-        )
-        
-        items = response.get('Items', [])
+        }
+        while True:
+            response = table.scan(**scan_kwargs)
+            items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         # Aggregate by template
         template_stats = defaultdict(lambda: {
@@ -167,19 +172,24 @@ def _get_template_analytics(template_name: str, query_params: Dict[str, str], re
     start_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     
     try:
-        response = table.scan(
-            FilterExpression='#templateName = :name AND #timestamp >= :start',
-            ExpressionAttributeNames={
+        items = []
+        scan_kwargs = {
+            'FilterExpression': '#templateName = :name AND #timestamp >= :start',
+            'ExpressionAttributeNames': {
                 '#templateName': 'templateName',
                 '#timestamp': 'timestamp'
             },
-            ExpressionAttributeValues={
+            'ExpressionAttributeValues': {
                 ':name': template_name,
                 ':start': start_date
             }
-        )
-        
-        items = response.get('Items', [])
+        }
+        while True:
+            response = table.scan(**scan_kwargs)
+            items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         total_sent = len(items)
         delivered = sum(1 for i in items if i.get('status', '').lower() in ['delivered', 'read', 'sent'])

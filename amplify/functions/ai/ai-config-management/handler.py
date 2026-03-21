@@ -434,11 +434,20 @@ def _get_interactions(query_params: Dict, request_id: str) -> Dict[str, Any]:
         ai_table = dynamodb.Table(AI_INTERACTIONS_TABLE)
         limit = int(query_params.get('limit', 50))
         
-        response = ai_table.scan(Limit=limit)
-        interactions = response.get('Items', [])
+        interactions = []
+        scan_kwargs = {}
+        while True:
+            response = ai_table.scan(**scan_kwargs)
+            interactions.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         # Sort by timestamp descending
         interactions.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        
+        # Limit results after sorting
+        interactions = interactions[:limit]
         
         # Convert Decimal to int for JSON serialization
         for item in interactions:
@@ -463,9 +472,15 @@ def _get_stats(request_id: str) -> Dict[str, Any]:
     try:
         ai_table = dynamodb.Table(AI_INTERACTIONS_TABLE)
         
-        # Scan all interactions for stats
-        response = ai_table.scan()
-        interactions = response.get('Items', [])
+        # Scan all interactions for stats with pagination
+        interactions = []
+        scan_kwargs = {}
+        while True:
+            response = ai_table.scan(**scan_kwargs)
+            interactions.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         total = len(interactions)
         approved = sum(1 for i in interactions if i.get('approved'))

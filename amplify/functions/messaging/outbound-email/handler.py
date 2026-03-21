@@ -176,6 +176,7 @@ def _store_message(message_id: str, contact_id: str, subject: str, content: str,
         table = dynamodb.Table(MESSAGES_TABLE)
         
         item = {
+            'id': message_id,
             'messageId': message_id,
             'contactId': contact_id,
             'channel': 'EMAIL',

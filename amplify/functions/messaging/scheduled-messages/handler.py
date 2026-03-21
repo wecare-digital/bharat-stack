@@ -96,19 +96,31 @@ def _list_scheduled(query_params: Dict[str, str], request_id: str) -> Dict[str, 
     
     try:
         if status_filter:
-            # Query by status using GSI
-            response = table.query(
-                IndexName='status-scheduledAt-index',
-                KeyConditionExpression='#status = :status',
-                ExpressionAttributeNames={'#status': 'status'},
-                ExpressionAttributeValues={':status': status_filter},
-                ScanIndexForward=True  # Oldest first
-            )
+            # Query by status using GSI — paginate fully
+            items = []
+            query_kwargs = {
+                'IndexName': 'status-scheduledAt-index',
+                'KeyConditionExpression': '#status = :status',
+                'ExpressionAttributeNames': {'#status': 'status'},
+                'ExpressionAttributeValues': {':status': status_filter},
+                'ScanIndexForward': True  # Oldest first
+            }
+            while True:
+                response = table.query(**query_kwargs)
+                items.extend(response.get('Items', []))
+                if 'LastEvaluatedKey' not in response:
+                    break
+                query_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         else:
-            # Scan all
-            response = table.scan()
-        
-        items = response.get('Items', [])
+            # Scan all — paginate fully
+            items = []
+            scan_kwargs = {}
+            while True:
+                response = table.scan(**scan_kwargs)
+                items.extend(response.get('Items', []))
+                if 'LastEvaluatedKey' not in response:
+                    break
+                scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         # Convert Decimal to int/float for JSON serialization
         scheduled_messages = []
@@ -314,16 +326,24 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
     logger.info(f'Processing due messages at {now}')
     
     try:
-        # Query PENDING messages where scheduledAt <= now
-        response = table.query(
-            IndexName='status-scheduledAt-index',
-            KeyConditionExpression='#status = :status AND #scheduledAt <= :now',
-            ExpressionAttributeNames={'#status': 'status', '#scheduledAt': 'scheduledAt'},
-            ExpressionAttributeValues={':status': 'PENDING', ':now': now},
-            Limit=50  # Process up to 50 at a time
-        )
-        
+        # Query PENDING messages where scheduledAt <= now — paginate fully
+        items = []
+        query_kwargs = {
+            'IndexName': 'status-scheduledAt-index',
+            'KeyConditionExpression': '#status = :status AND #scheduledAt <= :now',
+            'ExpressionAttributeNames': {'#status': 'status', '#scheduledAt': 'scheduledAt'},
+            'ExpressionAttributeValues': {':status': 'PENDING', ':now': now},
+            'Limit': 50  # Process up to 50 at a time
+        }
+        response = table.query(**query_kwargs)
         items = response.get('Items', [])
+        # For due messages, we cap at 50 per invocation (Limit applies to evaluated items)
+        while 'LastEvaluatedKey' in response and len(items) < 50:
+            query_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+            response = table.query(**query_kwargs)
+            items.extend(response.get('Items', []))
+        items = items[:50]
+        
         logger.info(f'Found {len(items)} due messages')
         
         sent_count = 0

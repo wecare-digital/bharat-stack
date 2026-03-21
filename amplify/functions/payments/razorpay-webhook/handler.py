@@ -288,18 +288,25 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
 
 
 def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
-    """Check if a Razorpay webhook event was already processed (idempotency)."""
+    """Check if a Razorpay webhook event was already processed (idempotency).
+    Uses a scan with full pagination to avoid false negatives from DynamoDB Limit behavior."""
     if not razorpay_event_id:
         return False
     try:
         from boto3.dynamodb.conditions import Attr
         table = dynamodb.Table(WEBHOOK_LOG_TABLE)
-        response = table.scan(
-            FilterExpression=Attr('razorpayEventId').eq(razorpay_event_id),
-            Limit=1,
-            ProjectionExpression='id',
-        )
-        return len(response.get('Items', [])) > 0
+        scan_kwargs = {
+            'FilterExpression': Attr('razorpayEventId').eq(razorpay_event_id),
+            'ProjectionExpression': 'id',
+        }
+        while True:
+            response = table.scan(**scan_kwargs)
+            if response.get('Items'):
+                return True
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        return False
     except Exception as e:
         logger.warning(json.dumps({'event': 'idempotency_check_failed', 'error': str(e), 'requestId': request_id}))
         return False  # Fail open on check errors — better to process twice than miss

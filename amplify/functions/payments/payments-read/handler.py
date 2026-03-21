@@ -69,8 +69,9 @@ def _list_payments(params: Dict, request_id: str) -> Dict[str, Any]:
     """List payments with optional filters."""
     try:
         table = dynamodb.Table(PAYMENTS_TABLE)
+        max_results = int(params.get('limit', 100))
         
-        scan_kwargs = {'Limit': int(params.get('limit', 100))}
+        scan_kwargs = {}
         filter_expressions = []
         
         if params.get('status'):
@@ -88,8 +89,17 @@ def _list_payments(params: Dict, request_id: str) -> Dict[str, Any]:
                 combined = combined & expr
             scan_kwargs['FilterExpression'] = combined
         
-        result = table.scan(**scan_kwargs)
-        payments = result.get('Items', [])
+        # Full pagination to collect up to max_results matching items
+        payments = []
+        while len(payments) < max_results:
+            result = table.scan(**scan_kwargs)
+            payments.extend(result.get('Items', []))
+            if 'LastEvaluatedKey' not in result:
+                break
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
+        
+        # Trim to requested limit
+        payments = payments[:max_results]
         
         # Sort by createdAt descending
         payments.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)

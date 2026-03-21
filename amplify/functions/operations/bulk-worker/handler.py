@@ -95,12 +95,19 @@ def _process_job(body: Dict, request_id: str) -> Dict:
             ExpressionAttributeValues={':s': 'IN_PROGRESS', ':u': int(time.time())}
         )
 
-        # Get pending recipients
-        response = recipients_table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('jobId').eq(job_id),
-            FilterExpression=boto3.dynamodb.conditions.Attr('status').eq('PENDING')
-        )
-        recipients = response.get('Items', [])
+        # Get pending recipients (with full pagination)
+        all_recipients = []
+        query_kwargs = {
+            'KeyConditionExpression': boto3.dynamodb.conditions.Key('jobId').eq(job_id),
+            'FilterExpression': boto3.dynamodb.conditions.Attr('status').eq('PENDING'),
+        }
+        while True:
+            response = recipients_table.query(**query_kwargs)
+            all_recipients.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            query_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        recipients = all_recipients
 
         channel = job.get('channel', 'WHATSAPP')
         template_name = body.get('templateName')
@@ -129,9 +136,11 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
                 if SEND_MODE == 'LIVE' and channel == 'WHATSAPP':
                     # Check DynamoDB-backed rate limit before sending
-                    if not check_rate_limit('whatsapp', phone_number_id, max_per_second=RATE_LIMIT_PER_SECOND):
+                    for _retry in range(3):
+                        if check_rate_limit('whatsapp', phone_number_id, max_per_second=RATE_LIMIT_PER_SECOND):
+                            break
                         logger.warning(f'[{request_id}] Rate limit exceeded for {phone_number_id}, throttling')
-                        time.sleep(1.0)
+                        time.sleep(0.5)
                     _send_whatsapp(phone, phone_number_id, template_name, template_params, content, contact_id, request_id)
 
                 # Update recipient status

@@ -165,12 +165,17 @@ def send_push(body, headers):
         if item:
             endpoints.append(item)
     elif target_user:
-        # Send to all devices of a user
-        result = table.scan(
-            FilterExpression="userId = :uid",
-            ExpressionAttributeValues={":uid": target_user},
-        )
-        endpoints = result.get("Items", [])
+        # Send to all devices of a user (paginate)
+        scan_kwargs = {
+            "FilterExpression": "userId = :uid",
+            "ExpressionAttributeValues": {":uid": target_user},
+        }
+        while True:
+            result = table.scan(**scan_kwargs)
+            endpoints.extend(result.get("Items", []))
+            if "LastEvaluatedKey" not in result:
+                break
+            scan_kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]
 
     if not endpoints:
         return {

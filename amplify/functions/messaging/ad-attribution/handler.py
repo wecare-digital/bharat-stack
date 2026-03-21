@@ -138,20 +138,26 @@ def _record_attribution(body: Dict, request_id: str) -> Dict:
 def _list_attributions(params: Dict, request_id: str) -> Dict:
     """List ad click attributions with optional filters."""
     table = dynamodb.Table(AD_ATTRIBUTION_TABLE)
-    limit = int(params.get('limit', '50'))
+    max_results = int(params.get('limit', '50'))
 
     # Filter by sourceId (ad ID) if provided
     source_id = params.get('sourceId', '')
+    scan_kwargs = {}
     if source_id:
-        response = table.scan(
-            FilterExpression='sourceId = :sid',
-            ExpressionAttributeValues={':sid': source_id},
-            Limit=limit,
-        )
-    else:
-        response = table.scan(Limit=limit)
+        scan_kwargs['FilterExpression'] = 'sourceId = :sid'
+        scan_kwargs['ExpressionAttributeValues'] = {':sid': source_id}
 
-    items = response.get('Items', [])
+    # Full pagination to collect up to max_results matching items
+    items = []
+    while len(items) < max_results:
+        response = table.scan(**scan_kwargs)
+        items.extend(response.get('Items', []))
+        if 'LastEvaluatedKey' not in response:
+            break
+        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+
+    items = items[:max_results]
+
     # Mask phone numbers in response
     for item in items:
         if item.get('phone'):
@@ -164,9 +170,15 @@ def _get_stats(params: Dict, request_id: str) -> Dict:
     """Get aggregated attribution stats."""
     table = dynamodb.Table(AD_ATTRIBUTION_TABLE)
 
-    # Scan all (for small datasets; for large scale, use GSI + query)
-    response = table.scan(Limit=1000)
-    items = response.get('Items', [])
+    # Full pagination scan for accurate stats
+    items = []
+    scan_kwargs = {}
+    while True:
+        response = table.scan(**scan_kwargs)
+        items.extend(response.get('Items', []))
+        if 'LastEvaluatedKey' not in response:
+            break
+        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
 
     # Aggregate by sourceId
     by_source = {}
