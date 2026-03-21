@@ -2196,6 +2196,24 @@ export async function untagWABAResource(resourceArn: string, tagKeys: string[]):
 
 
 // ============================================================================
+// AD ATTRIBUTION API
+// ============================================================================
+
+export async function getAdAttributionStats(): Promise<{ stats: any } | null> {
+  const data = await apiCall<any>(`${API_BASE}/ad-attribution/stats`);
+  return data ? { stats: data } : null;
+}
+
+export async function getAdAttributionClicks(params?: { limit?: number; sourceId?: string }): Promise<{ attributions: any[]; count: number } | null> {
+  const qs = new URLSearchParams();
+  if (params?.limit) qs.append('limit', String(params.limit));
+  if (params?.sourceId) qs.append('sourceId', params.sourceId);
+  const url = `${API_BASE}/ad-attribution${qs.toString() ? '?' + qs : ''}`;
+  return apiCall<{ attributions: any[]; count: number }>(url);
+}
+
+
+// ============================================================================
 // TEMPLATE ANALYTICS API
 // ============================================================================
 
