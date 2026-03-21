@@ -170,6 +170,7 @@ def _create_scheduled(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
     
     item = {
+        'id': scheduled_id,
         'scheduledId': scheduled_id,
         'contactId': contact_id,
         'contactName': contact_name or '',
@@ -207,7 +208,7 @@ def _update_scheduled(scheduled_id: str, body: Dict[str, Any], request_id: str) 
     
     # Get existing item
     try:
-        response = table.get_item(Key={'scheduledId': scheduled_id})
+        response = table.get_item(Key={'id': scheduled_id})
         if 'Item' not in response:
             return _error_response(404, 'Scheduled message not found')
         
@@ -250,7 +251,7 @@ def _update_scheduled(scheduled_id: str, body: Dict[str, Any], request_id: str) 
     
     try:
         response = table.update_item(
-            Key={'scheduledId': scheduled_id},
+            Key={'id': scheduled_id},
             UpdateExpression='SET ' + ', '.join(update_parts),
             ExpressionAttributeNames=expr_names,
             ExpressionAttributeValues=expr_values,
@@ -276,7 +277,7 @@ def _cancel_scheduled(scheduled_id: str, request_id: str) -> Dict[str, Any]:
     
     try:
         # Get existing item
-        response = table.get_item(Key={'scheduledId': scheduled_id})
+        response = table.get_item(Key={'id': scheduled_id})
         if 'Item' not in response:
             return _error_response(404, 'Scheduled message not found')
         
@@ -287,7 +288,7 @@ def _cancel_scheduled(scheduled_id: str, request_id: str) -> Dict[str, Any]:
         # Update status to CANCELLED
         now = datetime.now(timezone.utc).isoformat()
         table.update_item(
-            Key={'scheduledId': scheduled_id},
+            Key={'id': scheduled_id},
             UpdateExpression='SET #status = :status, #updatedAt = :updatedAt',
             ExpressionAttributeNames={'#status': 'status', '#updatedAt': 'updatedAt'},
             ExpressionAttributeValues={':status': 'CANCELLED', ':updatedAt': now}
@@ -355,7 +356,7 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
                 if response.get('StatusCode') == 200 and result.get('statusCode') in [200, 201]:
                     # Mark as SENT
                     table.update_item(
-                        Key={'scheduledId': scheduled_id},
+                        Key={'id': scheduled_id},
                         UpdateExpression='SET #status = :status, #sentAt = :sentAt, #updatedAt = :updatedAt',
                         ExpressionAttributeNames={
                             '#status': 'status',
@@ -374,7 +375,7 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
                     # Mark as FAILED
                     error_msg = result.get('body', 'Unknown error')
                     table.update_item(
-                        Key={'scheduledId': scheduled_id},
+                        Key={'id': scheduled_id},
                         UpdateExpression='SET #status = :status, #errorMessage = :error, #updatedAt = :updatedAt',
                         ExpressionAttributeNames={
                             '#status': 'status',
@@ -393,7 +394,7 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
             except Exception as e:
                 # Mark as FAILED
                 table.update_item(
-                    Key={'scheduledId': scheduled_id},
+                    Key={'id': scheduled_id},
                     UpdateExpression='SET #status = :status, #errorMessage = :error, #updatedAt = :updatedAt',
                     ExpressionAttributeNames={
                         '#status': 'status',

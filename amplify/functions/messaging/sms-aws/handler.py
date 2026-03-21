@@ -130,7 +130,7 @@ def _get_message(message_id: str, request_id: str) -> Dict[str, Any]:
     """Get a single SMS message."""
     try:
         table = dynamodb.Table(SMS_TABLE)
-        result = table.get_item(Key={'messageId': message_id})
+        result = table.get_item(Key={'id': message_id})
         item = result.get('Item')
         if item:
             return _response(200, {'message': _normalize(item)})
@@ -144,7 +144,7 @@ def _delete_message(message_id: str, request_id: str) -> Dict[str, Any]:
     """Delete a single SMS message."""
     try:
         table = dynamodb.Table(SMS_TABLE)
-        table.delete_item(Key={'messageId': message_id})
+        table.delete_item(Key={'id': message_id})
         return _response(200, {'success': True, 'deleted': message_id})
     except Exception as e:
         logger.error(f"Delete message error: {str(e)}")
@@ -155,12 +155,12 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
     """Clear all SMS logs."""
     try:
         table = dynamodb.Table(SMS_TABLE)
-        result = table.scan(ProjectionExpression='messageId')
+        result = table.scan(ProjectionExpression='id')
         items = result.get('Items', [])
         deleted = 0
         with table.batch_writer() as batch:
             for item in items:
-                batch.delete_item(Key={'messageId': item['messageId']})
+                batch.delete_item(Key={'id': item['id']})
                 deleted += 1
         return _response(200, {'success': True, 'deletedCount': deleted})
     except Exception as e:
@@ -285,7 +285,7 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
     """Get contact from DynamoDB."""
     try:
         table = dynamodb.Table(CONTACTS_TABLE)
-        response = table.get_item(Key={'contactId': contact_id})
+        response = table.get_item(Key={'id': contact_id})
         return response.get('Item', {})
     except Exception as e:
         logger.error(f"Get contact error: {str(e)}")

@@ -42,14 +42,17 @@ def check_rate_limit(
         window_key = f"{channel}:{resource_id}"
 
         response = table.update_item(
-            Key={'channel': window_key, 'windowStart': str(now)},
+            Key={'id': f"{window_key}:{now}"},
             UpdateExpression=(
                 'SET messageCount = if_not_exists(messageCount, :zero) + :inc, '
+                'channel = :ch, windowStart = :ws, '
                 'lastUpdatedAt = :ttl'
             ),
             ExpressionAttributeValues={
                 ':zero': Decimal('0'),
                 ':inc': Decimal('1'),
+                ':ch': window_key,
+                ':ws': str(now),
                 ':ttl': Decimal(str(now + TTL_SECONDS)),
             },
             ReturnValues='UPDATED_NEW',

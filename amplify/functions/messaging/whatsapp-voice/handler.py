@@ -693,7 +693,7 @@ def _handle_transcribe(body: Dict, request_id: str) -> Dict[str, Any]:
             try:
                 msg_table = dynamodb.Table(UNIFIED_MESSAGES_TABLE)
                 msg_table.update_item(
-                    Key={'messageId': message_id},
+                    Key={'id': message_id},
                     UpdateExpression='SET transcription = :t, detectedLanguage = :l',
                     ExpressionAttributeValues={
                         ':t': english_text,
@@ -733,7 +733,7 @@ def _handle_language_config(http_method: str, body: Dict, request_id: str) -> Di
 
     if http_method == 'GET':
         try:
-            result = config_table.get_item(Key={'configKey': config_key})
+            result = config_table.get_item(Key={'id': config_key})
             item = result.get('Item', {})
             config_value = item.get('configValue', '{}')
             config = json.loads(config_value) if isinstance(config_value, str) else config_value
@@ -757,6 +757,7 @@ def _handle_language_config(http_method: str, body: Dict, request_id: str) -> Di
     try:
         new_config = body.get('config', body)
         config_table.put_item(Item={
+            'id': config_key,
             'configKey': config_key,
             'configValue': json.dumps(new_config, default=str),
             'updatedAt': str(int(time.time())),

@@ -1980,14 +1980,17 @@ def _check_rate_limit(phone_number_id: str) -> bool:
         rate_table = dynamodb.Table(RATE_LIMIT_TABLE)
         now = int(time.time())
         window_key = f"whatsapp:{phone_number_id}"
+        rate_id = f"{window_key}:{now}"
         
         # Atomic increment
         response = rate_table.update_item(
-            Key={'channel': window_key, 'windowStart': now},
-            UpdateExpression='SET messageCount = if_not_exists(messageCount, :zero) + :inc, lastUpdatedAt = :now',
+            Key={'id': rate_id},
+            UpdateExpression='SET messageCount = if_not_exists(messageCount, :zero) + :inc, channel = :ch, windowStart = :ws, lastUpdatedAt = :now',
             ExpressionAttributeValues={
                 ':zero': Decimal('0'),
                 ':inc': Decimal('1'),
+                ':ch': window_key,
+                ':ws': str(now),
                 ':now': Decimal(str(now + 86400))  # TTL: 24 hours
             },
             ReturnValues='UPDATED_NEW'
@@ -2014,7 +2017,7 @@ def _check_pair_rate_limit(phone_number_id: str, recipient_phone: str) -> Tuple[
         now = int(time.time())
         pair_key = f"pair:{phone_number_id}:{recipient_phone}"
         
-        response = rate_table.get_item(Key={'channel': pair_key, 'windowStart': 'pair'})
+        response = rate_table.get_item(Key={'id': pair_key})
         item = response.get('Item')
         
         if item:
@@ -2038,6 +2041,7 @@ def _check_pair_rate_limit(phone_number_id: str, recipient_phone: str) -> Tuple[
         
         # Update last-sent timestamp, reset violations on success
         rate_table.put_item(Item={
+            'id': pair_key,
             'channel': pair_key,
             'windowStart': 'pair',
             'messageCount': Decimal(str(now)),
@@ -2059,12 +2063,14 @@ def _record_pair_rate_violation(phone_number_id: str, recipient_phone: str) -> N
         pair_key = f"pair:{phone_number_id}:{recipient_phone}"
         
         rate_table.update_item(
-            Key={'channel': pair_key, 'windowStart': 'pair'},
-            UpdateExpression='SET violations = if_not_exists(violations, :zero) + :inc, messageCount = :now, lastUpdatedAt = :ttl',
+            Key={'id': pair_key},
+            UpdateExpression='SET violations = if_not_exists(violations, :zero) + :inc, messageCount = :now, channel = :ch, windowStart = :ws, lastUpdatedAt = :ttl',
             ExpressionAttributeValues={
                 ':zero': Decimal('0'),
                 ':inc': Decimal('1'),
                 ':now': Decimal(str(now)),
+                ':ch': pair_key,
+                ':ws': 'pair',
                 ':ttl': Decimal(str(now + 86400)),
             },
         )

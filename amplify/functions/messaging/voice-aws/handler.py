@@ -127,7 +127,7 @@ def _get_call(call_id: str, request_id: str) -> Dict[str, Any]:
     """Get a single voice call."""
     try:
         table = dynamodb.Table(VOICE_TABLE)
-        result = table.get_item(Key={'callId': call_id})
+        result = table.get_item(Key={'id': call_id})
         item = result.get('Item')
         if item:
             return _response(200, {'call': _normalize(item)})
@@ -141,7 +141,7 @@ def _delete_call(call_id: str, request_id: str) -> Dict[str, Any]:
     """Delete a single call record."""
     try:
         table = dynamodb.Table(VOICE_TABLE)
-        table.delete_item(Key={'callId': call_id})
+        table.delete_item(Key={'id': call_id})
         return _response(200, {'success': True, 'deleted': call_id})
     except Exception as e:
         logger.error(f"Delete call error: {str(e)}")
@@ -152,12 +152,12 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
     """Clear all voice call logs."""
     try:
         table = dynamodb.Table(VOICE_TABLE)
-        result = table.scan(ProjectionExpression='callId')
+        result = table.scan(ProjectionExpression='id, callId')
         items = result.get('Items', [])
         deleted = 0
         with table.batch_writer() as batch:
             for item in items:
-                batch.delete_item(Key={'callId': item['callId']})
+                batch.delete_item(Key={'id': item.get('id', item.get('callId'))})
                 deleted += 1
         return _response(200, {'success': True, 'deletedCount': deleted})
     except Exception as e:
@@ -197,6 +197,7 @@ def _make_call(body: Dict, request_id: str) -> Dict[str, Any]:
 
     now = int(time.time())
     _store_call({
+        'id': call_id,
         'callId': call_id,
         'contactId': contact_id,
         'phoneNumber': phone_e164,
@@ -284,7 +285,7 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
     """Get contact from DynamoDB."""
     try:
         table = dynamodb.Table(CONTACTS_TABLE)
-        response = table.get_item(Key={'contactId': contact_id})
+        response = table.get_item(Key={'id': contact_id})
         return response.get('Item', {})
     except Exception as e:
         logger.error(f"Get contact error: {str(e)}")

@@ -3114,7 +3114,7 @@ def _auto_transcribe_voice_note(message_id: str, s3_key: str, request_id: str) -
             os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
         )
         try:
-            cfg_result = config_table.get_item(Key={'configKey': 'voice_language_config'})
+            cfg_result = config_table.get_item(Key={'id': 'voice_language_config'})
             cfg_value = cfg_result.get('Item', {}).get('configValue', '{}')
             voice_config = json.loads(cfg_value) if isinstance(cfg_value, str) else cfg_value
             if not voice_config.get('autoTranscribe', True):

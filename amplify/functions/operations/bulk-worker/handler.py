@@ -80,7 +80,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
     try:
         # Get job details
-        job = jobs_table.get_item(Key={'jobId': job_id}).get('Item')
+        job = jobs_table.get_item(Key={'id': job_id}).get('Item')
         if not job:
             return {'error': f'Job {job_id} not found'}
 
@@ -89,7 +89,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
         # Update job status to IN_PROGRESS
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #s = :s, updatedAt = :u',
             ExpressionAttributeNames={'#s': 'status'},
             ExpressionAttributeValues={':s': 'IN_PROGRESS', ':u': int(time.time())}
@@ -113,7 +113,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
         for recipient in recipients:
             # Check if job was cancelled
-            current_job = jobs_table.get_item(Key={'jobId': job_id}).get('Item', {})
+            current_job = jobs_table.get_item(Key={'id': job_id}).get('Item', {})
             if current_job.get('status') == 'CANCELLED':
                 break
 
@@ -136,7 +136,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
                 # Update recipient status
                 recipients_table.update_item(
-                    Key={'jobId': job_id, 'recipientId': recipient_id},
+                    Key={'id': recipient_id},
                     UpdateExpression='SET #s = :s, sentAt = :t',
                     ExpressionAttributeNames={'#s': 'status'},
                     ExpressionAttributeValues={':s': 'SENT', ':t': int(time.time())}
@@ -145,7 +145,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
             except Exception as e:
                 logger.error(f'[{request_id}] Failed to send to {contact_id}: {e}')
                 recipients_table.update_item(
-                    Key={'jobId': job_id, 'recipientId': recipient_id},
+                    Key={'id': recipient_id},
                     UpdateExpression='SET #s = :s, errorDetails = :e',
                     ExpressionAttributeNames={'#s': 'status'},
                     ExpressionAttributeValues={':s': 'FAILED', ':e': str(e)}
@@ -158,7 +158,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
         # Update job final status
         final_status = 'COMPLETED'
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #s = :s, sentCount = :sc, failedCount = :fc, updatedAt = :u',
             ExpressionAttributeNames={'#s': 'status'},
             ExpressionAttributeValues={
@@ -171,7 +171,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
     except Exception as e:
         logger.error(f'[{request_id}] Job {job_id} error: {e}')
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #s = :s, updatedAt = :u',
             ExpressionAttributeNames={'#s': 'status'},
             ExpressionAttributeValues={':s': 'FAILED', ':u': int(time.time())}

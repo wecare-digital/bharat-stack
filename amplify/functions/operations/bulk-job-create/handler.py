@@ -127,7 +127,7 @@ def _get_job(job_id: str, request_id: str) -> Dict[str, Any]:
     """Get a single bulk job with recipient stats."""
     try:
         table = dynamodb.Table(BULK_JOBS_TABLE)
-        result = table.get_item(Key={'jobId': job_id})
+        result = table.get_item(Key={'id': job_id})
         job = result.get('Item')
         
         if job:
@@ -170,6 +170,7 @@ def _create_job(body: Dict, request_id: str) -> Dict[str, Any]:
     
     # Create job record
     job = {
+        'id': job_id,
         'jobId': job_id,
         'channel': channel,
         'totalRecipients': len(recipients),
@@ -227,6 +228,7 @@ def _store_recipients(job_id: str, recipients: List[Dict]) -> None:
         with table.batch_writer() as batch:
             for idx, recipient in enumerate(recipients):
                 item = {
+                    'id': f"{job_id}-{idx}",
                     'jobId': job_id,
                     'recipientId': f"{job_id}-{idx}",
                     'contactId': recipient.get('contactId', ''),
@@ -271,7 +273,7 @@ def _enqueue_job(job_id: str, channel: str, content: str, template_name: str,
         # Update job status to in_progress
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #status = :status, updatedAt = :now',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={

@@ -279,7 +279,7 @@ def _get_or_create_dlq_record(message_id: str, queue_name: str, payload: Dict) -
     """Get or create DLQ tracking record."""
     try:
         dlq_table = dynamodb.Table(DLQ_MESSAGES_TABLE)
-        response = dlq_table.get_item(Key={'dlqMessageId': message_id})
+        response = dlq_table.get_item(Key={'id': message_id})
         
         if response.get('Item'):
             return response['Item']
@@ -287,6 +287,7 @@ def _get_or_create_dlq_record(message_id: str, queue_name: str, payload: Dict) -
         # Create new record
         now = int(time.time())
         record = {
+            'id': message_id,
             'dlqMessageId': message_id,
             'originalMessageId': message_id,
             'queueName': queue_name,
@@ -311,7 +312,7 @@ def _increment_retry_count(message_id: str, queue_name: str, payload: Dict) -> N
         now = int(time.time())
         
         dlq_table.update_item(
-            Key={'dlqMessageId': message_id},
+            Key={'id': message_id},
             UpdateExpression='SET retryCount = if_not_exists(retryCount, :zero) + :inc, lastAttemptAt = :now',
             ExpressionAttributeValues={
                 ':zero': Decimal('0'),
@@ -327,7 +328,7 @@ def _delete_dlq_record(message_id: str) -> None:
     """Delete DLQ tracking record on success."""
     try:
         dlq_table = dynamodb.Table(DLQ_MESSAGES_TABLE)
-        dlq_table.delete_item(Key={'dlqMessageId': message_id})
+        dlq_table.delete_item(Key={'id': message_id})
     except Exception as e:
         logger.error(f"Delete DLQ record error: {str(e)}")
 

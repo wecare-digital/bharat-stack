@@ -87,7 +87,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
                 # Mark as cleaned up
                 table.update_item(
-                    Key={'fileId': file_id},
+                    Key={'id': file_id},
                     UpdateExpression='SET cleanedUp = :t, cleanedUpAt = :now',
                     ExpressionAttributeValues={
                         ':t': True,

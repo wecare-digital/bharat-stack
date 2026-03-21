@@ -288,6 +288,7 @@ def _store_payment(payload: Dict, status: str, request_id: str) -> None:
         payment_id = f'payu_{payu_id}' if payu_id else f'payu_txn_{txn_id}'
 
         table.put_item(Item={
+            'id': payment_id,
             'paymentId': payment_id,
             'gateway': 'payu',
             'gatewayPaymentId': payu_id,

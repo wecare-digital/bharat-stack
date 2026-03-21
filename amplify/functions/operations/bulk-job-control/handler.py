@@ -172,7 +172,7 @@ def _get_job(job_id: str) -> Dict[str, Any]:
     """Get bulk job record."""
     try:
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
-        response = jobs_table.get_item(Key={'jobId': job_id})
+        response = jobs_table.get_item(Key={'id': job_id})
         return response.get('Item', {})
     except Exception:
         return {}
@@ -183,7 +183,7 @@ def _pause_job(job_id: str, request_id: str) -> Dict[str, Any]:
     try:
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #status = :status, pausedAt = :now, updatedAt = :now',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
@@ -205,7 +205,7 @@ def _resume_job(job_id: str, job: Dict, request_id: str) -> Dict[str, Any]:
         # Update status to pending
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #status = :status, resumedAt = :now, updatedAt = :now',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
@@ -256,7 +256,7 @@ def _cancel_job(job_id: str, job: Dict, request_id: str) -> Dict[str, Any]:
         # Update status to cancelled
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET #status = :status, cancelledAt = :now, updatedAt = :now',
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
@@ -318,7 +318,7 @@ def _cancel_pending_recipients(job_id: str) -> None:
         
         for item in response.get('Items', []):
             recipients_table.update_item(
-                Key={'jobId': job_id, 'recipientId': item.get('recipientId')},
+                Key={'id': item.get('id', item.get('recipientId'))},
                 UpdateExpression='SET #status = :status, updatedAt = :now',
                 ExpressionAttributeNames={'#status': 'status'},
                 ExpressionAttributeValues={
@@ -378,7 +378,7 @@ def _generate_partial_report(job_id: str, job: Dict, request_id: str) -> None:
         # Update job with report location
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
         jobs_table.update_item(
-            Key={'jobId': job_id},
+            Key={'id': job_id},
             UpdateExpression='SET reportS3Key = :key',
             ExpressionAttributeValues={':key': report_key}
         )
@@ -408,7 +408,7 @@ def _delete_job(job_id: str, request_id: str) -> Dict[str, Any]:
     try:
         # Delete job record
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
-        jobs_table.delete_item(Key={'jobId': job_id})
+        jobs_table.delete_item(Key={'id': job_id})
         
         # Delete recipients (optional - could be expensive for large jobs)
         try:
@@ -421,8 +421,7 @@ def _delete_job(job_id: str, request_id: str) -> Dict[str, Any]:
             with recipients_table.batch_writer() as batch:
                 for item in response.get('Items', []):
                     batch.delete_item(Key={
-                        'jobId': job_id,
-                        'recipientId': item.get('recipientId')
+                        'id': item.get('id', item.get('recipientId'))
                     })
         except Exception as e:
             logger.warning(f"Failed to delete recipients: {str(e)}")

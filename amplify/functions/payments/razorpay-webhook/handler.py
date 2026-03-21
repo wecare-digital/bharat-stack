@@ -775,7 +775,7 @@ def _handle_refund(event_type: str, event_data: Dict, request_id: str) -> None:
             table = dynamodb.Table(PAYMENTS_TABLE)
             import time as _time
             table.update_item(
-                Key={'paymentId': payment_id},
+                Key={'id': payment_id},
                 UpdateExpression='SET #st = :st, #refundId = :rid, #refundAmount = :ra, #ua = :now',
                 ExpressionAttributeNames={'#st': 'status', '#refundId': 'refundId', '#refundAmount': 'refundAmount', '#ua': 'updatedAt'},
                 ExpressionAttributeValues={':st': 'refunded', ':rid': refund_id, ':ra': Decimal(str(amount)), ':now': Decimal(str(int(_time.time())))},

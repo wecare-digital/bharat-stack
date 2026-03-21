@@ -5530,7 +5530,7 @@ def _tool_send_whatsapp_flow(params: Dict, request_id: str) -> Dict:
         flow_config = {}
         try:
             config_table = dynamodb.Table(os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable'))
-            config_resp = config_table.get_item(Key={'configKey': 'botFlowConfig'})
+            config_resp = config_table.get_item(Key={'id': 'botFlowConfig'})
             bot_config = config_resp.get('Item', {}).get('configValue', {})
             if isinstance(bot_config, str):
                 bot_config = json.loads(bot_config)

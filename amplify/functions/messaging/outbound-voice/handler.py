@@ -182,6 +182,7 @@ def _store_call(call_id, contact_id, to_number, provider_call_id, call_type, req
     table = dynamodb.Table(VOICE_TABLE)
     now = int(time.time())
     table.put_item(Item={
+        'id': call_id,
         'callId': call_id, 'contactId': contact_id, 'phoneNumber': to_number,
         'providerCallId': provider_call_id, 'provider': 'airtel', 'callType': call_type,
         'status': 'initiated', 'direction': 'OUTBOUND', 'duration': 0,
@@ -192,7 +193,7 @@ def _store_call(call_id, contact_id, to_number, provider_call_id, call_type, req
 def _delete_call(call_id: str, request_id: str) -> Dict:
     table = dynamodb.Table(VOICE_TABLE)
     try:
-        table.delete_item(Key={'callId': call_id})
+        table.delete_item(Key={'id': call_id})
         return _response(200, {'success': True, 'callId': call_id})
     except Exception as e:
         return _response(500, {'error': str(e)})
