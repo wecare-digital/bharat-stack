@@ -157,7 +157,7 @@ def _create_scheduled(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
     contact_name = None
     contact_phone = None
     try:
-        contact_response = contacts_table.get_item(Key={'contactId': contact_id})
+        contact_response = contacts_table.get_item(Key={'id': contact_id})
         if 'Item' in contact_response:
             contact = contact_response['Item']
             contact_name = contact.get('name', '')

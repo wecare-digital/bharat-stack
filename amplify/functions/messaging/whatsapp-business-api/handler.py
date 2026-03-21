@@ -273,7 +273,19 @@ def _get_webhook_subscriptions(waba_id: str) -> Dict:
     return _resp(200, {'subscriptions': result.get('data', [])})
 
 def _subscribe_webhook(waba_id: str, body: Dict) -> Dict:
-    result = _graph_api(f'{waba_id}/subscribed_apps', method='POST', waba_id=waba_id)
+    payload = {}
+    if body.get('override_callback_uri'):
+        payload['override_callback_uri'] = body['override_callback_uri']
+    if body.get('verify_token'):
+        payload['verify_token'] = body['verify_token']
+    if body.get('subscribed_fields'):
+        fields = body['subscribed_fields']
+        # Meta expects subscribed_fields as comma-separated string
+        if isinstance(fields, list):
+            payload['subscribed_fields'] = ','.join(fields)
+        else:
+            payload['subscribed_fields'] = fields
+    result = _graph_api(f'{waba_id}/subscribed_apps', method='POST', payload=payload or None, waba_id=waba_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True, 'result': result})
@@ -283,6 +295,74 @@ def _unsubscribe_webhook(waba_id: str, body: Dict) -> Dict:
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True})
+
+# ============================================================================
+# ASSIGNED USERS
+# ============================================================================
+def _list_assigned_users(waba_id: str, params: Dict) -> Dict:
+    """GET /{WABA-ID}/assigned_users — list users assigned to WABA."""
+    business_id = params.get('business')
+    if not business_id:
+        return _resp(400, {'error': 'business parameter required'})
+    query = {'business': business_id}
+    if params.get('fields'):
+        query['fields'] = params['fields']
+    if params.get('limit'):
+        query['limit'] = params['limit']
+    if params.get('after'):
+        query['after'] = params['after']
+    if params.get('before'):
+        query['before'] = params['before']
+    result = _graph_api(f'{waba_id}/assigned_users', params=query, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {
+        'users': result.get('data', []),
+        'paging': result.get('paging', {}),
+        'summary': result.get('summary', {}),
+    })
+
+def _add_assigned_user(waba_id: str, body: Dict) -> Dict:
+    """POST /{WABA-ID}/assigned_users — add user with permission tasks."""
+    user_id = body.get('user')
+    tasks = body.get('tasks', [])
+    if not user_id:
+        return _resp(400, {'error': 'user (user ID) required'})
+    if not tasks:
+        return _resp(400, {'error': 'tasks array required'})
+    result = _graph_api(
+        f'{waba_id}/assigned_users', method='POST',
+        payload={'user': user_id, 'tasks': tasks}, waba_id=waba_id,
+    )
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+def _remove_assigned_user(waba_id: str, body: Dict) -> Dict:
+    """DELETE /{WABA-ID}/assigned_users — revoke user access."""
+    user_id = body.get('user')
+    if not user_id:
+        return _resp(400, {'error': 'user (user ID) required'})
+    result = _graph_api(
+        f'{waba_id}/assigned_users', method='DELETE',
+        payload={'user': user_id}, waba_id=waba_id,
+    )
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+# ============================================================================
+# BOT DETAILS
+# ============================================================================
+def _get_bot_details(bot_id: str, params: Dict) -> Dict:
+    """GET /{WABA-Bot-ID} — retrieve bot prompts, commands, welcome message config."""
+    if not bot_id:
+        return _resp(400, {'error': 'botId required'})
+    fields = params.get('fields', 'id,prompts,commands,enable_welcome_message')
+    result = _graph_api(bot_id, params={'fields': fields})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'bot': result})
 
 # ============================================================================
 # GROUPS
@@ -1625,6 +1705,50 @@ def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
 origin = ''
 
 
+def _verify_webhook_signature(event: Dict[str, Any], request_id: str) -> bool:
+    """
+    Verify X-Hub-Signature-256 header on incoming Meta webhooks.
+    Meta signs every webhook POST with HMAC-SHA256 using the app secret.
+    Returns True if valid, False if invalid.
+    Fails open (returns True) only if app_secret is not configured.
+    """
+    headers = event.get('headers', {})
+    signature_header = (
+        headers.get('x-hub-signature-256')
+        or headers.get('X-Hub-Signature-256')
+        or ''
+    )
+    if not signature_header:
+        logger.warning(json.dumps({'event': 'webhook_no_signature', 'requestId': request_id}))
+        return False
+
+    app_secret = _get_app_secret()
+    if not app_secret:
+        logger.error(json.dumps({'event': 'webhook_no_app_secret', 'requestId': request_id}))
+        return True  # Fail open only if secret not configured (dev/test)
+
+    raw_body = event.get('body', '')
+    if event.get('isBase64Encoded') and raw_body:
+        import base64
+        raw_body = base64.b64decode(raw_body).decode('utf-8')
+
+    expected_sig = 'sha256=' + hmac.new(
+        app_secret.encode('utf-8'),
+        (raw_body or '').encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+    is_valid = hmac.compare_digest(expected_sig, signature_header)
+    if not is_valid:
+        logger.warning(json.dumps({
+            'event': 'webhook_signature_mismatch',
+            'expectedPrefix': expected_sig[:20],
+            'receivedPrefix': signature_header[:20],
+            'requestId': request_id,
+        }))
+    return is_valid
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     global origin
@@ -1642,6 +1766,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     if method == 'OPTIONS':
         return _resp(200, {})
+
+    # P0 Security: Verify X-Hub-Signature-256 on flow-data webhook POSTs from Meta
+    if method == 'POST' and '/flow-data' in path:
+        if not _verify_webhook_signature(event, request_id):
+            logger.warning(json.dumps({'event': 'flow_data_signature_rejected', 'requestId': request_id}))
+            return _resp(401, {'error': 'Invalid webhook signature'})
 
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
@@ -1687,6 +1817,24 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _subscribe_webhook(waba_id, body)
             elif method == 'DELETE':
                 return _unsubscribe_webhook(waba_id, body)
+
+        elif '/assigned-users' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId')
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            if method == 'GET':
+                return _list_assigned_users(waba_id, params)
+            elif method == 'POST':
+                return _add_assigned_user(waba_id, body)
+            elif method == 'DELETE':
+                return _remove_assigned_user(waba_id, body)
+
+        elif '/bot' in path:
+            bot_id = params.get('botId') or body.get('botId')
+            if not bot_id:
+                return _resp(400, {'error': 'botId required'})
+            if method == 'GET':
+                return _get_bot_details(bot_id, params)
 
         elif '/groups/participants' in path:
             return _manage_group_participants(params.get('groupId') or body.get('groupId') or '', body)

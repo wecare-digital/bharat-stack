@@ -28,10 +28,7 @@ const backend = defineBackend({
  * 
  * Enable TTL on tables that have expiresAt/ttl fields.
  * Amplify Gen 2 doesn't support TTL natively, so we use CDK overrides.
- * 
- * Note: Temporarily disabled due to type issues. Configure TTL manually in AWS Console if needed.
  */
-/*
 const TTL_CONFIG: Record<string, string> = {
   Message: 'expiresAt',
   DLQMessage: 'expiresAt',
@@ -47,18 +44,26 @@ const TTL_CONFIG: Record<string, string> = {
   WhatsAppVoice: 'expiresAt',
   WhatsAppInbound: 'expiresAt',
   WhatsAppOutbound: 'expiresAt',
+  WebhookDedup: 'ttl',
+  SystemEvent: 'ttl',
+  CatalogCache: 'ttl',
+  AdClickAttribution: 'ttl',
 };
 
-const dataStack = backend.data.resources.cfnResources;
-for (const [modelName, ttlAttribute] of Object.entries(TTL_CONFIG)) {
-  const table = dataStack.amplifyDynamoDbTables[modelName];
-  if (table) {
-    (table as any).addPropertyOverride('TimeToLiveSpecification', {
-      AttributeName: ttlAttribute,
-      Enabled: true,
-    });
+try {
+  const dataStack = backend.data.resources.cfnResources;
+  for (const [modelName, ttlAttribute] of Object.entries(TTL_CONFIG)) {
+    const table = dataStack.amplifyDynamoDbTables[modelName];
+    if (table) {
+      (table as any).addPropertyOverride('TimeToLiveSpecification', {
+        AttributeName: ttlAttribute,
+        Enabled: true,
+      });
+    }
   }
+} catch (e) {
+  // TTL override may fail in some Amplify Gen 2 versions — log and continue
+  console.warn('TTL CDK override skipped:', e);
 }
-*/
 
 export default backend;

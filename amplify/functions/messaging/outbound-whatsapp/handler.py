@@ -21,6 +21,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
+from lambda_utils.privacy import mask_phone, redact_pii
 
 logger = get_logger(__name__)
 
@@ -32,10 +33,10 @@ cloudwatch = boto3.client('cloudwatch', region_name=os.environ.get('AWS_REGION',
 
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'Contact')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'Message')
-MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'MediaFile')
-RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'RateLimitTracker')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
+MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
+RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'stack-wecare-digital-RateLimitTrackerTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/outgoing/')
 
@@ -64,6 +65,45 @@ PHONE_PAYMENT_CONFIG = {
     PHONE_NUMBER_ID_2: 'WECARE-RAZOR-PAY',       # +919903300044
 }
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
+
+# Meta WhatsApp Cloud API error codes (from official error reference docs)
+# Used for actionable error handling, retry logic, and frontend display
+META_MESSAGE_ERRORS = {
+    # Rate limiting
+    130429: {'msg': 'Rate limit hit', 'action': 'Implement exponential backoff', 'retry': True},
+    131045: {'msg': 'Message rate limit hit', 'action': 'Slow down message sending', 'retry': True},
+    131056: {'msg': 'Pair rate limit hit (1 msg/6s per user)', 'action': 'Wait 4^X seconds before retry', 'retry': True},
+    # Messaging window
+    131047: {'msg': 'Re-engagement message outside 24h window', 'action': 'Send template message instead', 'retry': False},
+    131051: {'msg': 'Unsupported message type', 'action': 'Check message type compatibility', 'retry': False},
+    # Template errors
+    132000: {'msg': 'Template param count mismatch', 'action': 'Verify template parameter count', 'retry': False},
+    132001: {'msg': 'Template does not exist', 'action': 'Check template name and language', 'retry': False},
+    132005: {'msg': 'Template hydrated text too long', 'action': 'Shorten parameter values', 'retry': False},
+    132007: {'msg': 'Template format mismatch', 'action': 'Check component types match template', 'retry': False},
+    132012: {'msg': 'Template paused', 'action': 'Template quality too low — fix or use another', 'retry': False},
+    132015: {'msg': 'Template disabled', 'action': 'Template was disabled — create new one', 'retry': False},
+    # Media errors
+    131052: {'msg': 'Media download error', 'action': 'Check media URL accessibility', 'retry': True},
+    131053: {'msg': 'Media upload error', 'action': 'Retry media upload', 'retry': True},
+    # Account errors
+    131031: {'msg': 'Account locked', 'action': 'Contact Meta support', 'retry': False},
+    131048: {'msg': 'Spam rate limit', 'action': 'Improve message quality', 'retry': False},
+    131049: {'msg': 'Message not sent — user not on WhatsApp', 'action': 'Verify recipient number', 'retry': False},
+    # Generic
+    100: {'msg': 'Invalid parameter', 'action': 'Check request payload', 'retry': False},
+    131009: {'msg': 'Parameter missing or invalid', 'action': 'Check required fields', 'retry': False},
+    131026: {'msg': 'Message undeliverable', 'action': 'Recipient may have blocked you', 'retry': False},
+    131042: {'msg': 'Business eligibility payment issue', 'action': 'Check payment method on WABA', 'retry': False},
+    # Additional codes from official Meta error reference (2025-2026)
+    130472: {'msg': 'User part of experiment', 'action': 'User number is in a Meta experiment — retry later', 'retry': True},
+    131000: {'msg': 'Something went wrong', 'action': 'Retry; if persists, open Direct Support ticket', 'retry': True},
+    131008: {'msg': 'Required parameter missing', 'action': 'Check endpoint reference for required params', 'retry': False},
+    131016: {'msg': 'Service unavailable', 'action': 'Service temporarily unavailable — retry', 'retry': True},
+    131021: {'msg': 'Recipient cannot be sender', 'action': 'Cannot send message to yourself', 'retry': False},
+    131037: {'msg': 'Display name approval needed', 'action': 'Approve display name before sending', 'retry': False},
+    131050: {'msg': 'User stopped marketing messages', 'action': 'Do not retry — user opted out of marketing', 'retry': False},
+}
 
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''
@@ -1773,11 +1813,25 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'bodyParamCount': len(actual_params)
             }))
         # Add body parameters if provided (for templates with variables like {{1}}, {{2}})
+        # Supports both positional params (list of values) and named params (dict of name:value)
         elif actual_params and len(actual_params) > 0:
-            payload['template']['components'].append({
-                'type': 'body',
-                'parameters': [{'type': 'text', 'text': str(p)} for p in actual_params]
-            })
+            # Check if params are named (dict) or positional (list of strings)
+            if len(actual_params) == 1 and isinstance(actual_params[0], dict):
+                # Named parameters: {"name": "John", "order_id": "WD-123"}
+                # Convert to positional per Meta API (named params are for readability only)
+                named = actual_params[0]
+                payload['template']['components'].append({
+                    'type': 'body',
+                    'parameters': [
+                        {'type': 'text', 'text': str(v), 'parameter_name': str(k)}
+                        for k, v in named.items()
+                    ]
+                })
+            else:
+                payload['template']['components'].append({
+                    'type': 'body',
+                    'parameters': [{'type': 'text', 'text': str(p)} for p in actual_params]
+                })
         
         logger.info(json.dumps({
             'event': 'template_payload_built',
@@ -1818,10 +1872,51 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'length': len(sanitized_filename)
             }))
     else:
-        # Text message — enable link preview when content contains a URL
-        has_url = 'http://' in content or 'https://' in content
-        payload['type'] = 'text'
-        payload['text'] = {'body': content, 'preview_url': has_url}
+        # Check for special message types passed via content JSON
+        try:
+            content_data = json.loads(content) if content and content.startswith('{') else None
+        except (json.JSONDecodeError, TypeError):
+            content_data = None
+
+        if content_data and content_data.get('_type') == 'contacts':
+            # Contact card message — per WhatsApp Cloud API contacts spec
+            payload['type'] = 'contacts'
+            payload['contacts'] = content_data.get('contacts', [])
+        elif content_data and content_data.get('_type') == 'location':
+            # Location message — per WhatsApp Cloud API location spec
+            payload['type'] = 'location'
+            payload['location'] = {
+                'latitude': str(content_data.get('latitude', 0)),
+                'longitude': str(content_data.get('longitude', 0)),
+            }
+            if content_data.get('name'):
+                payload['location']['name'] = content_data['name']
+            if content_data.get('address'):
+                payload['location']['address'] = content_data['address']
+        elif content_data and content_data.get('_type') == 'location_request':
+            # Location request message — interactive type
+            payload['type'] = 'interactive'
+            payload['interactive'] = {
+                'type': 'location_request_message',
+                'body': {'text': content_data.get('body', 'Please share your location')},
+                'action': {'name': 'send_location'},
+            }
+        elif content_data and content_data.get('_type') == 'address':
+            # Address message — interactive type
+            payload['type'] = 'interactive'
+            payload['interactive'] = {
+                'type': 'address_message',
+                'body': {'text': content_data.get('body', 'Please provide your delivery address')},
+                'action': {
+                    'name': 'address_message',
+                    'parameters': content_data.get('parameters', {}),
+                },
+            }
+        else:
+            # Text message — enable link preview when content contains a URL
+            has_url = 'http://' in content or 'https://' in content
+            payload['type'] = 'text'
+            payload['text'] = {'body': content, 'preview_url': has_url}
     
     return payload
 
@@ -1904,6 +1999,77 @@ def _check_rate_limit(phone_number_id: str) -> bool:
     except Exception:
         # Allow on error (fail open for rate limiting)
         return True
+
+
+def _check_pair_rate_limit(phone_number_id: str, recipient_phone: str) -> Tuple[bool, int]:
+    """
+    Check per-recipient pair rate limit (Meta error 131056).
+    Meta allows 1 message per 6 seconds per (sender, recipient) pair.
+    Uses 4^X exponential backoff on repeated violations.
+    
+    Returns (allowed: bool, retry_after_seconds: int).
+    """
+    try:
+        rate_table = dynamodb.Table(RATE_LIMIT_TABLE)
+        now = int(time.time())
+        pair_key = f"pair:{phone_number_id}:{recipient_phone}"
+        
+        response = rate_table.get_item(Key={'channel': pair_key, 'windowStart': 'pair'})
+        item = response.get('Item')
+        
+        if item:
+            last_sent = int(item.get('messageCount', 0))  # reuse field as last-sent timestamp
+            violations = int(item.get('violations', 0))
+            # Base cooldown: 6 seconds, exponential: 4^violations (capped at 4^4 = 256s)
+            backoff = min(6 * (4 ** violations), 256)
+            elapsed = now - last_sent
+            
+            if elapsed < backoff:
+                retry_after = backoff - elapsed
+                logger.warning(json.dumps({
+                    'event': 'pair_rate_limit_hit',
+                    'pair': pair_key,
+                    'elapsed': elapsed,
+                    'backoff': backoff,
+                    'violations': violations,
+                    'retryAfter': retry_after,
+                }))
+                return False, retry_after
+        
+        # Update last-sent timestamp, reset violations on success
+        rate_table.put_item(Item={
+            'channel': pair_key,
+            'windowStart': 'pair',
+            'messageCount': Decimal(str(now)),
+            'violations': Decimal('0'),
+            'lastUpdatedAt': Decimal(str(now + 86400)),
+        })
+        return True, 0
+        
+    except Exception as e:
+        logger.warning(f'Pair rate limit check failed: {e}')
+        return True, 0  # Fail open
+
+
+def _record_pair_rate_violation(phone_number_id: str, recipient_phone: str) -> None:
+    """Record a pair rate limit violation (called when Meta returns 131056)."""
+    try:
+        rate_table = dynamodb.Table(RATE_LIMIT_TABLE)
+        now = int(time.time())
+        pair_key = f"pair:{phone_number_id}:{recipient_phone}"
+        
+        rate_table.update_item(
+            Key={'channel': pair_key, 'windowStart': 'pair'},
+            UpdateExpression='SET violations = if_not_exists(violations, :zero) + :inc, messageCount = :now, lastUpdatedAt = :ttl',
+            ExpressionAttributeValues={
+                ':zero': Decimal('0'),
+                ':inc': Decimal('1'),
+                ':now': Decimal(str(now)),
+                ':ttl': Decimal(str(now + 86400)),
+            },
+        )
+    except Exception as e:
+        logger.warning(f'Pair rate violation record failed: {e}')
 
 
 def _store_message_record(message_id: str, contact_id: str, content: str, status: str,

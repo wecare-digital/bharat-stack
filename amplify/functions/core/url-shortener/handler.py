@@ -20,8 +20,8 @@ import boto3
 from datetime import datetime
 
 dynamodb = boto3.resource("dynamodb")
-SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "ShortLinksTable")
-LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "LinkClicksTable")
+SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-ShortLinksTable")
+LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "stack-wecare-digital-LinkClicksTable")
 SHORT_DOMAIN = os.environ.get("SHORT_DOMAIN", "r.wecare.digital")
 
 links_table = dynamodb.Table(SHORT_LINKS_TABLE)

@@ -33,6 +33,7 @@ export const IAM_POLICIES = {
         ],
         Resource: [
           `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/stack-wecare-digital-*`,
+          `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/stack-wecare-digital-*/index/*`,
         ],
       },
       {
@@ -377,4 +378,13 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
 
   // === Core (additional) ===
   'wecare-faq-handler': ['common'],
+
+  // === Analytics ===
+  'wecare-meta-analytics': ['common', 'secrets'],
+
+  // === Ecommerce (additional) ===
+  'wecare-catalog-management': ['common', 'secrets'],
+
+  // === Ads ===
+  'wecare-ad-attribution': ['common'],
 };

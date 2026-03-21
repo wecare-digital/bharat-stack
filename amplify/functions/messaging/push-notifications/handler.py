@@ -20,7 +20,7 @@ from datetime import datetime
 sns = boto3.client("sns")
 dynamodb = boto3.resource("dynamodb")
 
-PUSH_TOKENS_TABLE = os.environ.get("PUSH_TOKENS_TABLE", "PushTokensTable")
+PUSH_TOKENS_TABLE = os.environ.get("PUSH_TOKENS_TABLE", "stack-wecare-digital-PushTokensTable")
 SNS_ANDROID_ARN = os.environ.get("SNS_PLATFORM_APP_ARN_ANDROID", "")
 SNS_IOS_ARN = os.environ.get("SNS_PLATFORM_APP_ARN_IOS", "")
 

@@ -10,6 +10,8 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Duration } from 'aws-cdk-lib';
 
 const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
@@ -121,6 +123,97 @@ export function addBackendResources(stack: Stack) {
     ],
   });
 
+  // ─── CloudWatch Log Retention Policies ───────────────────────────────
+  // Set 90-day retention on all Lambda log groups to control costs
+  const LAMBDA_FUNCTIONS = [
+    'wecare-inbound-whatsapp', 'wecare-outbound-whatsapp', 'wecare-whatsapp-calling',
+    'wecare-whatsapp-business-api', 'wecare-whatsapp-voice', 'wecare-whatsapp-template-management',
+    'wecare-scheduled-messages', 'wecare-bulk-job-create', 'wecare-bulk-worker',
+    'wecare-ai-query-kb', 'wecare-ai-generate-response', 'wecare-razorpay-webhook',
+    'wecare-dlq-replay', 'wecare-contacts', 'wecare-meta-analytics',
+    'wecare-catalog-management', 'wecare-ad-attribution',
+  ];
+
+  for (const fnName of LAMBDA_FUNCTIONS) {
+    new logs.LogGroup(stack, `LogRetention-${fnName}`, {
+      logGroupName: `/aws/lambda/${fnName}`,
+      retention: logs.RetentionDays.THREE_MONTHS,
+    });
+  }
+
+  // ─── Per-Lambda Error Rate Alarms ──────────────────────────────────
+  const CRITICAL_LAMBDAS = [
+    'wecare-inbound-whatsapp', 'wecare-outbound-whatsapp', 'wecare-whatsapp-calling',
+    'wecare-razorpay-webhook', 'wecare-bulk-worker',
+  ];
+
+  const perLambdaAlarms: cloudwatch.Alarm[] = [];
+  for (const fnName of CRITICAL_LAMBDAS) {
+    const alarm = new cloudwatch.Alarm(stack, `ErrorAlarm-${fnName}`, {
+      alarmName: `wecare-${fnName}-errors`,
+      alarmDescription: `Error rate for ${fnName} exceeds threshold`,
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/Lambda',
+        metricName: 'Errors',
+        dimensionsMap: { FunctionName: fnName },
+        statistic: 'Sum',
+        period: Duration.minutes(5),
+      }),
+      threshold: 5,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    alarm.addAlarmAction(new cloudwatch_actions.SnsAction(alarmTopic));
+    perLambdaAlarms.push(alarm);
+  }
+
+  // ─── WAF Web ACL for Webhook Endpoints ─────────────────────────────
+  const webhookWaf = new wafv2.CfnWebACL(stack, 'WebhookWAF', {
+    name: 'wecare-webhook-waf',
+    scope: 'REGIONAL',
+    defaultAction: { allow: {} },
+    visibilityConfig: {
+      cloudWatchMetricsEnabled: true,
+      metricName: 'wecare-webhook-waf',
+      sampledRequestsEnabled: true,
+    },
+    rules: [
+      {
+        name: 'RateLimit',
+        priority: 1,
+        action: { block: {} },
+        visibilityConfig: {
+          cloudWatchMetricsEnabled: true,
+          metricName: 'wecare-waf-rate-limit',
+          sampledRequestsEnabled: true,
+        },
+        statement: {
+          rateBasedStatement: {
+            limit: 2000,
+            aggregateKeyType: 'IP',
+          },
+        },
+      },
+      {
+        name: 'AWSManagedRulesCommonRuleSet',
+        priority: 2,
+        overrideAction: { none: {} },
+        visibilityConfig: {
+          cloudWatchMetricsEnabled: true,
+          metricName: 'wecare-waf-common-rules',
+          sampledRequestsEnabled: true,
+        },
+        statement: {
+          managedRuleGroupStatement: {
+            vendorName: 'AWS',
+            name: 'AWSManagedRulesCommonRuleSet',
+          },
+        },
+      },
+    ],
+  });
+
   return {
     queues: {
       inboundDlq,
@@ -131,6 +224,8 @@ export function addBackendResources(stack: Stack) {
     alarms: {
       lambdaErrorAlarm,
       dlqDepthAlarm,
+      perLambdaAlarms,
     },
+    waf: webhookWaf,
   };
 }

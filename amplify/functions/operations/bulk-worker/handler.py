@@ -122,7 +122,7 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
             try:
                 # Get contact phone
-                contact = contacts_table.get_item(Key={'contactId': contact_id}).get('Item', {})
+                contact = contacts_table.get_item(Key={'id': contact_id}).get('Item', {})
                 phone = contact.get('phone', '')
                 if not phone:
                     raise ValueError('No phone number')

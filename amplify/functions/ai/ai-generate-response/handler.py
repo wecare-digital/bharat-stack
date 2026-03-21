@@ -58,6 +58,8 @@ bedrock_runtime = boto3.client(
 )
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'),
+                             config=Config(read_timeout=60, retries={'max_attempts': 0}))
 
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
@@ -1826,7 +1828,6 @@ def _tool_send_whatsapp(params: Dict, request_id: str) -> Dict:
                 })
             }
             
-            lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
             response = lambda_client.invoke(
                 FunctionName='wecare-outbound-whatsapp',
                 InvocationType='RequestResponse',
@@ -4448,7 +4449,6 @@ def _tool_send_whatsapp_buttons(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-whatsapp',
             InvocationType='RequestResponse',
@@ -4517,7 +4517,6 @@ def _tool_send_whatsapp_list(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-whatsapp',
             InvocationType='RequestResponse',
@@ -4577,7 +4576,6 @@ def _tool_send_whatsapp_pay(params: Dict, request_id: str) -> Dict:
             })
         }
 
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-whatsapp',
             InvocationType='RequestResponse',
@@ -4635,7 +4633,6 @@ def _tool_make_voice_call(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-voice-aws',
             InvocationType='RequestResponse',
@@ -4676,7 +4673,6 @@ def _tool_send_sms(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-sms',
             InvocationType='RequestResponse',
@@ -4719,7 +4715,6 @@ def _tool_send_email(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-email',
             InvocationType='RequestResponse',
@@ -4759,7 +4754,6 @@ def _tool_schedule_message(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-scheduled-messages',
             InvocationType='RequestResponse',
@@ -4780,23 +4774,100 @@ def _tool_schedule_message(params: Dict, request_id: str) -> Dict:
 
 
 def _tool_list_scheduled_messages(params: Dict, request_id: str) -> Dict:
-    """List scheduled messages tool implementation."""
-    # Placeholder - would query scheduled messages table
-    return {
-        'success': True,
-        'scheduledMessages': [],
-        'message': 'No scheduled messages found'
-    }
+    """List scheduled messages for a contact or all pending."""
+    try:
+        dynamodb_res = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        table = dynamodb_res.Table(os.environ.get('SCHEDULED_MESSAGES_TABLE', 'stack-wecare-digital-ScheduledMessagesTable'))
+        contact_id = params.get('contactId', '')
+        status_filter = params.get('status', 'PENDING')
+
+        if contact_id:
+            response = table.query(
+                IndexName='contactId-index',
+                KeyConditionExpression='contactId = :cid',
+                FilterExpression='#s = :st',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':cid': contact_id, ':st': status_filter},
+                Limit=50,
+            )
+        else:
+            response = table.query(
+                IndexName='status-index',
+                KeyConditionExpression='#s = :st',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':st': status_filter},
+                Limit=50,
+            )
+
+        items = response.get('Items', [])
+        messages = []
+        for item in items:
+            messages.append({
+                'scheduledId': item.get('scheduledId', item.get('id', '')),
+                'contactId': item.get('contactId', ''),
+                'contactName': item.get('contactName', ''),
+                'templateName': item.get('templateName', ''),
+                'scheduledAt': item.get('scheduledAt', ''),
+                'status': item.get('status', ''),
+            })
+
+        return {
+            'success': True,
+            'scheduledMessages': messages,
+            'count': len(messages),
+        }
+    except Exception as e:
+        logger.warning(f'[{request_id}] list_scheduled_messages error: {e}')
+        return {'success': True, 'scheduledMessages': [], 'message': f'Could not query: {e}'}
 
 
 def _tool_list_templates(params: Dict, request_id: str) -> Dict:
-    """List WhatsApp templates tool implementation."""
-    # Placeholder - would query templates from Meta API
-    return {
-        'success': True,
-        'templates': [],
-        'message': 'No templates found'
-    }
+    """List WhatsApp message templates from Meta Graph API."""
+    try:
+        waba_id = params.get('wabaId', os.environ.get('WABA1_ID', '1912405516040025'))
+        status_filter = params.get('status', '')  # APPROVED, PENDING, REJECTED
+        limit = int(params.get('limit', 50))
+
+        secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        meta_secret = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
+        resp = secrets_client.get_secret_value(SecretId=meta_secret)
+        secret_data = json.loads(resp['SecretString'])
+        token = (secret_data.get('access_token') or '').strip()
+        app_secret = (secret_data.get('app_secret') or '').strip()
+
+        api_version = os.environ.get('META_API_VERSION', 'v20.0')
+        url = f'https://graph.facebook.com/{api_version}/{waba_id}/message_templates?limit={limit}'
+        if status_filter:
+            url += f'&status={status_filter}'
+        url += '&fields=name,status,category,language,components'
+
+        if app_secret:
+            import hmac as _hmac, hashlib as _hashlib
+            proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+            url += f'&appsecret_proof={proof}'
+
+        import urllib.request
+        req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            result = json.loads(r.read().decode('utf-8'))
+
+        templates = []
+        for t in result.get('data', []):
+            templates.append({
+                'name': t.get('name', ''),
+                'status': t.get('status', ''),
+                'category': t.get('category', ''),
+                'language': t.get('language', ''),
+            })
+
+        return {
+            'success': True,
+            'templates': templates,
+            'count': len(templates),
+        }
+    except Exception as e:
+        logger.warning(f'[{request_id}] list_templates error: {e}')
+        return {'success': True, 'templates': [], 'message': f'Could not query: {e}'}
 
 
 def _tool_send_template(params: Dict, request_id: str) -> Dict:
@@ -4817,7 +4888,6 @@ def _tool_send_template(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-whatsapp',
             InvocationType='RequestResponse',
@@ -5171,8 +5241,6 @@ def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
 def _tool_get_voice_cdr(params: Dict, request_id: str) -> Dict:
     """Get voice call detail records."""
     try:
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        
         query_params = {}
         if params.get('callType'):
             query_params['callType'] = params['callType']
@@ -5228,8 +5296,6 @@ def _tool_get_voice_cdr(params: Dict, request_id: str) -> Dict:
 def _tool_get_billing_summary(params: Dict, request_id: str) -> Dict:
     """Get AWS billing summary."""
     try:
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        
         month = params.get('month', 0)
         payload = {
             'httpMethod': 'GET',
@@ -5262,8 +5328,6 @@ def _tool_get_billing_summary(params: Dict, request_id: str) -> Dict:
 def _tool_get_invoice_list(params: Dict, request_id: str) -> Dict:
     """List invoices."""
     try:
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        
         query_params = {}
         if params.get('contactId'):
             query_params['contactId'] = params['contactId']
@@ -5316,8 +5380,6 @@ def _tool_create_invoice(params: Dict, request_id: str) -> Dict:
         return {'success': False, 'error': 'contactId and items are required'}
     
     try:
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        
         invoice_data = {
             'contactId': contact_id,
             'items': items,
@@ -5357,8 +5419,6 @@ def _tool_create_invoice(params: Dict, request_id: str) -> Dict:
 def _tool_get_wix_products(params: Dict, request_id: str) -> Dict:
     """List Wix store products."""
     try:
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        
         query_params = {}
         if params.get('query'):
             query_params['search'] = params['query']
@@ -5402,8 +5462,6 @@ def _tool_get_wix_products(params: Dict, request_id: str) -> Dict:
 def _tool_get_wix_orders(params: Dict, request_id: str) -> Dict:
     """List Wix store orders."""
     try:
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        
         query_params = {}
         if params.get('status'):
             query_params['status'] = params['status']
@@ -5519,7 +5577,6 @@ def _tool_send_whatsapp_flow(params: Dict, request_id: str) -> Dict:
             })
         }
         
-        lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         response = lambda_client.invoke(
             FunctionName='wecare-outbound-whatsapp',
             InvocationType='RequestResponse',

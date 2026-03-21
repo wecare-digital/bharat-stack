@@ -29,7 +29,7 @@ sqs = boto3.client('sqs', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
-DLQ_MESSAGES_TABLE = os.environ.get('DLQ_MESSAGES_TABLE', 'DLQMessages')
+DLQ_MESSAGES_TABLE = os.environ.get('DLQ_MESSAGES_TABLE', 'stack-wecare-digital-DLQMessagesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
 BULK_DLQ_URL = os.environ.get('BULK_DLQ_URL', '')
 

@@ -65,6 +65,24 @@ class TestExtractContent:
         msg = {'poll': {'question': 'Favorite color?'}}
         assert 'Favorite color' in extract_content(msg, 'poll')
 
+    def test_edit_with_text(self):
+        msg = {'text': {'body': 'new text'}, 'context': {'id': 'wamid.xxx'}}
+        result = extract_content(msg, 'edit')
+        assert result == '[Edited] new text'
+
+    def test_edit_no_text(self):
+        msg = {'context': {'id': 'wamid.abc123'}}
+        result = extract_content(msg, 'edit')
+        assert result == '[Message edited: wamid.abc123]'
+
+    def test_edit_empty(self):
+        result = extract_content({}, 'edit')
+        assert result == '[Message edited]'
+
+    def test_revoke(self):
+        result = extract_content({}, 'revoke')
+        assert result == '[Message deleted by sender]'
+
     def test_unknown_type(self):
         result = extract_content({}, 'some_new_type')
         assert result == '[some_new_type]'

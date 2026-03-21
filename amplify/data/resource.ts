@@ -894,6 +894,108 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table 37: WhatsAppGroup - WhatsApp Groups state tracking
+  WhatsAppGroup: a
+    .model({
+      id: a.id().required(),
+      groupId: a.string().required(), // Meta group ID
+      wabaId: a.string(),
+      phoneNumberId: a.string(),
+      subject: a.string(), // Group name/subject
+      description: a.string(),
+      creatorPhone: a.string(),
+      participantCount: a.integer().default(0),
+      participantsJson: a.string(), // JSON array of participants
+      status: a.string().default('active'), // active, archived, deleted
+      lastMessageAt: a.integer(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('groupId'),
+      index('wabaId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 38: WebhookDedup - Webhook idempotency tracking for inbound events
+  WebhookDedup: a
+    .model({
+      eventId: a.string().required(), // Unique event identifier
+      source: a.string().required(), // whatsapp, razorpay, payu
+      processedAt: a.integer(),
+      expiresAt: a.integer(), // TTL: 7 days
+      ttl: a.integer(), // TTL attribute for backend.ts override
+    })
+    .identifier(['eventId'])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 39: SystemEvent - Persistent system event log (template status, quality, account updates)
+  SystemEvent: a
+    .model({
+      id: a.id().required(),
+      eventType: a.string().required(), // template_status, phone_quality, account_update, user_id_update
+      wabaId: a.string(),
+      phoneNumberId: a.string(),
+      eventData: a.string(), // JSON string
+      severity: a.string().default('info'), // info, warning, error, critical
+      acknowledged: a.boolean().default(false),
+      createdAt: a.integer(),
+      ttl: a.integer(), // TTL: 180 days
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('eventType'),
+      index('wabaId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 40: CatalogCache - WhatsApp Commerce catalog product cache
+  CatalogCache: a
+    .model({
+      id: a.id().required(),
+      catalogId: a.string().required(),
+      retailerId: a.string(), // Retailer/product ID
+      name: a.string(),
+      description: a.string(),
+      price: a.string(),
+      currency: a.string(),
+      imageUrl: a.string(),
+      availability: a.string(), // in_stock, out_of_stock
+      rawData: a.string(), // Full product JSON
+      syncedAt: a.integer(),
+      ttl: a.integer(), // TTL: 7 days (cache refresh)
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('catalogId'),
+      index('retailerId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 41: AdClickAttribution - Ads that Click to WhatsApp tracking
+  AdClickAttribution: a
+    .model({
+      id: a.id().required(),
+      adId: a.string(),
+      campaignId: a.string(),
+      referralSource: a.string(), // ctwa (click-to-whatsapp)
+      referralBody: a.string(), // Referral message body
+      referralUrl: a.string(), // Source URL
+      senderPhone: a.string(),
+      contactId: a.string(),
+      convertedAt: a.integer(), // When user performed target action
+      conversionType: a.string(), // message_sent, purchase, signup
+      createdAt: a.integer(),
+      ttl: a.integer(), // TTL: 180 days
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('adId'),
+      index('contactId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
 });
 
 export type Schema = ClientSchema<typeof schema>;

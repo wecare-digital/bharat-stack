@@ -22,6 +22,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import extract_origin
+from lambda_utils.privacy import mask_phone, redact_pii
 
 # Sub-modules (monolith decomposition)
 from modules.content import extract_content as _extract_content_v2
@@ -117,6 +118,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     origin = extract_origin(event)
     processed_count = 0
     error_count = 0
+    
+    # Timeout guard: reserve 15s for cleanup/response to avoid Lambda timeout
+    _lambda_deadline_ms = (context.get_remaining_time_in_millis() if context else 120000)
+    _start_time = time.time()
 
     # ── Direct invoke: create_invoice from dashboard ──
     if event.get('action') == 'create_invoice':
@@ -184,6 +189,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 # Process incoming messages
                 for message in value.get('messages', []):
                     try:
+                        # Timeout guard: skip remaining messages if <15s left
+                        if context and context.get_remaining_time_in_millis() < 15000:
+                            logger.warning(json.dumps({
+                                'event': 'timeout_guard_triggered',
+                                'remainingMs': context.get_remaining_time_in_millis(),
+                                'processedCount': processed_count,
+                                'requestId': request_id
+                            }))
+                            _send_to_dlq({'messages': value.get('messages', [])[processed_count:]}, 'timeout_guard', request_id)
+                            break
+                        
                         # Get sender info from contacts array (BSUID-aware)
                         sender_phone = message.get('from', '')
                         sender_bsuid = message.get('from_user_id', '')  # BSUID from message
@@ -304,7 +320,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                 try:
                                     contact = _get_contact_by_phone(pref_phone)
                                     if contact:
-                                        CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
                                         ct = dynamodb.Table(CONTACTS_TABLE)
                                         _update_contact_bsuid_fields(ct, contact, '', '', phone=pref_phone, bsuid=pref_bsuid)
                                 except Exception:
@@ -314,6 +329,57 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             'event': 'user_preferences_error',
                             'error': str(e),
                             'requestId': request_id
+                        }))
+                
+                # Process group webhook events (group_participant_change, group_membership_approval_request)
+                if field == 'group_participant_change':
+                    try:
+                        _store_system_event('group_participant_change', value, request_id)
+                        _process_group_event(value, 'participant_change', request_id)
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': 'group_participant_change_error',
+                            'error': str(e),
+                            'requestId': request_id
+                        }))
+                
+                if field == 'group_membership_approval_request':
+                    try:
+                        _store_system_event('group_membership_approval_request', value, request_id)
+                        _process_group_event(value, 'membership_approval', request_id)
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': 'group_membership_approval_error',
+                            'error': str(e),
+                            'requestId': request_id
+                        }))
+                
+                # ── Additional Meta webhook fields (per official docs) ──
+                # These are informational/system-level events that we log to SystemEvent
+                # for audit trail and operational awareness.
+                # Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/components
+                _SYSTEM_EVENT_FIELDS = {
+                    'account_alerts', 'account_review_update',
+                    'business_capability_update', 'history',
+                    'message_template_components_update',
+                    'message_template_quality_update',
+                    'payment_configuration_update',
+                    'phone_number_name_update', 'security',
+                    'template_category_update',
+                }
+                if field in _SYSTEM_EVENT_FIELDS:
+                    try:
+                        _store_system_event(field, value, request_id)
+                        logger.info(json.dumps({
+                            'event': f'webhook_{field}_stored',
+                            'field': field,
+                            'requestId': request_id,
+                        }))
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': f'webhook_{field}_error',
+                            'error': str(e),
+                            'requestId': request_id,
                         }))
                         
         except Exception as e:
@@ -395,7 +461,8 @@ def _process_message(
         'text', 'image', 'video', 'audio', 'document', 'sticker',
         'location', 'contacts', 'reaction', 'interactive', 'button',
         'order', 'system', 'request_welcome', 'ephemeral',
-        'referral', 'ad_click', 'product', 'product_inquiry', 'poll'
+        'referral', 'ad_click', 'product', 'product_inquiry', 'poll',
+        'edit', 'revoke',
     ):
         logger.warning(json.dumps({
             'event': 'unsupported_or_new_message_type',
@@ -497,11 +564,31 @@ def _process_message(
         message_record['referralBody'] = referral.get('body', '')
         logger.info(json.dumps({
             'event': 'referral_context',
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'sourceType': referral.get('source_type', ''),
             'sourceUrl': referral.get('source_url', ''),
             'requestId': request_id
         }))
+        
+        # Fire-and-forget: record ad attribution for analytics
+        try:
+            lambda_client.invoke(
+                FunctionName=os.environ.get('AD_ATTRIBUTION_FUNCTION', 'wecare-ad-attribution'),
+                InvocationType='Event',  # async
+                Payload=json.dumps({
+                    'requestContext': {'http': {'method': 'POST', 'path': '/ad-attribution'}},
+                    'body': json.dumps({
+                        'phone': sender_phone,
+                        'contactId': contact_id,
+                        'referral': referral,
+                        'wabaId': waba_id if 'waba_id' in dir() else '',
+                        'phoneNumberId': phone_number_id if 'phone_number_id' in dir() else '',
+                        'whatsappMessageId': whatsapp_message_id,
+                    }),
+                }),
+            )
+        except Exception as e:
+            logger.warning(f'Ad attribution invoke failed (non-blocking): {e}')
     
     # Capture message context (reply-to, forwarded)
     msg_context = message.get('context')
@@ -529,6 +616,16 @@ def _process_message(
                 aws_phone_number_id=aws_phone_number_id,
                 interactive=interactive,
             )
+        # IVR button responses — route to appropriate department/action
+        elif interactive_type == 'button_reply':
+            button_id = interactive.get('button_reply', {}).get('id', '')
+            if button_id.startswith('ivr_'):
+                _handle_ivr_response(
+                    sender_phone=sender_phone,
+                    aws_phone_number_id=aws_phone_number_id,
+                    button_id=button_id,
+                    request_id=request_id,
+                )
     
     # Handle system status messages with user_changed_user_id
     # Per Meta BSUID docs: system messages can have type=user_changed_user_id
@@ -552,7 +649,6 @@ def _process_message(
             # Update contact with new BSUID and phone if available
             if new_bsuid and contact_id:
                 try:
-                    CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
                     ct = dynamodb.Table(CONTACTS_TABLE)
                     update_expr = 'SET bsuid = :b'
                     expr_vals = {':b': new_bsuid}
@@ -586,7 +682,6 @@ def _process_message(
                 shared_phone = phones[0].get('phone', '') if phones else ''
                 if shared_phone and contact_id:
                     try:
-                        CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
                         ct = dynamodb.Table(CONTACTS_TABLE)
                         ct.update_item(
                             Key={'id': contact_id},
@@ -1387,7 +1482,6 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
                 continue
             try:
                 # Try to find contact by BSUID and update username/phone if new
-                CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactTable')
                 contacts_table = dynamodb.Table(CONTACTS_TABLE)
                 bsuid_resp = contacts_table.query(
                     IndexName='bsuid-index',
@@ -1568,6 +1662,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                 resp = outbound_table.query(
                     IndexName='paymentReferenceId-index',
                     KeyConditionExpression='paymentReferenceId = :ref',
+                    ExpressionAttributeValues={':ref': reference_id},
                     Limit=1,
                 )
                 items = resp.get('Items', [])
@@ -2504,6 +2599,123 @@ def _forward_call_permission_to_calling_table(sender_phone: str, receiving_phone
         }))
     except Exception as e:
         logger.error(f"Failed to forward call permission: {e}")
+
+
+def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
+                          button_id: str, request_id: str) -> None:
+    """
+    Handle IVR button responses from the calling IVR menu.
+    Button IDs are prefixed with 'ivr_' (e.g. ivr_sales, ivr_support, ivr_ai, ivr_callback).
+    Sends the appropriate follow-up message and optionally notifies the team.
+    """
+    # IVR response definitions
+    IVR_RESPONSES = {
+        'ivr_sales': {
+            'text': (
+                "🛒 *Sales & Orders*\n\n"
+                "How can we help?\n\n"
+                "• Send your *order number* to check status\n"
+                "• Send a *product name* to browse our catalog\n"
+                "• Type *\"new order\"* to place an order\n\n"
+                "A team member will also be notified to assist you."
+            ),
+            'notify': True,
+            'dept': 'sales',
+        },
+        'ivr_support': {
+            'text': (
+                "🔧 *Support*\n\n"
+                "Please describe your issue and we'll get back to you shortly.\n\n"
+                "You can:\n"
+                "• Type your question\n"
+                "• Send a screenshot\n"
+                "• Send a voice note\n\n"
+                "Our AI assistant will try to help immediately, "
+                "and a human agent will follow up if needed."
+            ),
+            'notify': True,
+            'dept': 'support',
+        },
+        'ivr_ai': {
+            'text': (
+                "🤖 *AI Assistant*\n\n"
+                "I'm ready to help! You can:\n\n"
+                "• Type your question\n"
+                "• Send a *voice note* — I'll listen and reply with voice\n"
+                "• Send a *photo* — I can analyze images too\n\n"
+                "Ask me anything about our products, services, or orders."
+            ),
+            'notify': False,
+            'dept': 'ai',
+        },
+        'ivr_callback': {
+            'text': (
+                "📞 *Callback Request*\n\n"
+                "Got it! We'll call you back as soon as possible.\n\n"
+                "If you'd like to specify a preferred time, just type it "
+                "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\").\n\n"
+                "Otherwise, we'll call you within the next 30 minutes during "
+                "business hours (9 AM – 9 PM IST)."
+            ),
+            'notify': True,
+            'dept': 'callback',
+        },
+    }
+
+    response_config = IVR_RESPONSES.get(button_id)
+    if not response_config:
+        logger.warning(f"Unknown IVR button: {button_id}")
+        return
+
+    logger.info(json.dumps({
+        'event': 'ivr_response',
+        'senderPhone': sender_phone,
+        'buttonId': button_id,
+        'department': response_config['dept'],
+        'requestId': request_id,
+    }))
+
+    try:
+        # Send the follow-up message
+        if not sender_phone.startswith('+'):
+            to_number = f'+{sender_phone}'
+        else:
+            to_number = sender_phone
+
+        social_messaging.send_whatsapp_message(
+            originationPhoneNumberId=aws_phone_number_id,
+            message=json.dumps({
+                'messaging_product': 'whatsapp',
+                'to': to_number,
+                'type': 'text',
+                'text': {'body': response_config['text']},
+            }).encode('utf-8'),
+            metaApiVersion=META_API_VERSION,
+        )
+        logger.info(f"IVR response sent to {sender_phone} for {button_id}")
+
+        # Store IVR selection in SystemEvent table for tracking/analytics
+        try:
+            now = int(time.time())
+            system_events_table = dynamodb.Table(
+                os.environ.get('SYSTEM_EVENTS_TABLE', 'stack-wecare-digital-SystemEventTable')
+            )
+            system_events_table.put_item(Item={
+                'id': f"ivr_{sender_phone}_{now}",
+                'eventType': 'ivr_selection',
+                'phoneNumber': sender_phone,
+                'phoneNumberId': aws_phone_number_id,
+                'buttonId': button_id,
+                'department': response_config['dept'],
+                'notifyTeam': response_config['notify'],
+                'createdAt': Decimal(str(now)),
+                'ttl': Decimal(str(now + 90 * 24 * 60 * 60)),
+            })
+        except Exception as e:
+            logger.warning(f"Failed to store IVR event: {e}")
+
+    except Exception as e:
+        logger.error(f"Failed to send IVR response for {button_id}: {e}")
 
 
 def _send_auto_reaction(contact_id: str, whatsapp_message_id: str, 
@@ -4574,7 +4786,14 @@ def _invoke_ai_generate_response_v2(
             'requestId': request_id
         }))
 
-        response = lambda_client.invoke(
+        # Use a shorter boto3 read timeout for AI invocation to prevent
+        # this Lambda from timing out waiting for the AI Lambda.
+        # Default boto3 read_timeout is 60s; we cap at 45s here.
+        import botocore.config
+        _ai_lambda_config = botocore.config.Config(read_timeout=45, retries={'max_attempts': 0})
+        _ai_lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'), config=_ai_lambda_config)
+        
+        response = _ai_lambda_client.invoke(
             FunctionName=AI_GENERATE_RESPONSE_FUNCTION,
             InvocationType='RequestResponse',
             Payload=json.dumps(payload)
@@ -4933,4 +5152,77 @@ def _store_system_event(event_type: str, event_data: Dict, request_id: str) -> N
             'eventType': event_type,
             'error': str(e),
             'requestId': request_id
+        }))
+
+
+def _process_group_event(value: Dict, event_subtype: str, request_id: str) -> None:
+    """
+    Process group webhook events and update WhatsAppGroup table.
+    Handles: group_participant_change, group_membership_approval_request.
+    Per Meta Groups API docs.
+    """
+    try:
+        GROUP_TABLE = os.environ.get('GROUP_TABLE', 'stack-wecare-digital-WhatsAppGroupTable')
+        group_table = dynamodb.Table(GROUP_TABLE)
+        now = int(time.time())
+
+        # Extract group info from webhook value
+        groups = value.get('groups', [value]) if isinstance(value.get('groups'), list) else [value]
+        for group_data in groups:
+            group_id = group_data.get('group_id', group_data.get('id', ''))
+            if not group_id:
+                continue
+
+            subject = group_data.get('subject', '')
+            participants = group_data.get('participants', [])
+            action = group_data.get('action', event_subtype)
+
+            # Upsert group record
+            update_expr = 'SET updatedAt = :now'
+            expr_vals: Dict[str, Any] = {':now': Decimal(str(now))}
+
+            if subject:
+                update_expr += ', subject = :subj'
+                expr_vals[':subj'] = subject
+            if participants:
+                update_expr += ', lastParticipantEvent = :pe'
+                expr_vals[':pe'] = json.dumps({
+                    'action': action,
+                    'participants': participants[:20],  # Limit stored participants
+                    'timestamp': now,
+                })
+
+            try:
+                group_table.update_item(
+                    Key={'id': group_id},
+                    UpdateExpression=update_expr,
+                    ExpressionAttributeValues=expr_vals,
+                )
+            except Exception:
+                # Table may not exist yet — create item instead
+                group_table.put_item(Item={
+                    'id': group_id,
+                    'groupId': group_id,
+                    'subject': subject,
+                    'lastParticipantEvent': json.dumps({
+                        'action': action,
+                        'participants': participants[:20],
+                        'timestamp': now,
+                    }),
+                    'createdAt': Decimal(str(now)),
+                    'updatedAt': Decimal(str(now)),
+                })
+
+            logger.info(json.dumps({
+                'event': 'group_event_processed',
+                'groupId': group_id,
+                'action': action,
+                'participantCount': len(participants),
+                'requestId': request_id,
+            }))
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'group_event_processing_error',
+            'error': str(e),
+            'requestId': request_id,
         }))

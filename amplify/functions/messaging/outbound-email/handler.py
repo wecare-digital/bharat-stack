@@ -122,7 +122,7 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
     """Get contact from DynamoDB."""
     try:
         table = dynamodb.Table(CONTACTS_TABLE)
-        response = table.get_item(Key={'contactId': contact_id})
+        response = table.get_item(Key={'id': contact_id})
         return response.get('Item', {})
     except Exception as e:
         logger.error(f"Get contact error: {str(e)}")

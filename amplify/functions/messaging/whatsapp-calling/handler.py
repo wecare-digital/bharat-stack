@@ -31,6 +31,7 @@ from typing import Dict, Any, Optional
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.privacy import mask_phone, redact_pii
 
 logger = get_logger(__name__)
 
@@ -204,6 +205,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'POST':
             # Default POST with no sub-path = webhook event from Meta (no auth)
             if not any(x in path for x in ['/config', '/accept', '/reject', '/hangup', '/outbound', '/ai-respond']):
+                # P0 Security: Verify X-Hub-Signature-256 before processing
+                if not _verify_webhook_signature(event, request_id):
+                    logger.warning(json.dumps({'event': 'webhook_signature_rejected', 'requestId': request_id}))
+                    return _response(401, {'error': 'Invalid webhook signature'})
                 body_str = event.get('body', '{}')
                 if event.get('isBase64Encoded'):
                     import base64
@@ -253,8 +258,127 @@ def _verify_webhook(params: Dict, request_id: str) -> Dict[str, Any]:
 
 # ─── Webhook Event Processing ───────────────────────────────────────
 
+def _verify_webhook_signature(event: Dict[str, Any], request_id: str) -> bool:
+    """
+    Verify X-Hub-Signature-256 header on incoming Meta webhooks.
+    Meta signs every webhook POST with HMAC-SHA256 using the app secret.
+    Returns True if valid, False if invalid.
+    Fails open (returns True) only if app_secret is not configured.
+    """
+    headers = event.get('headers', {})
+    signature_header = (
+        headers.get('x-hub-signature-256')
+        or headers.get('X-Hub-Signature-256')
+        or ''
+    )
+    if not signature_header:
+        logger.warning(json.dumps({'event': 'webhook_no_signature', 'requestId': request_id}))
+        return False
+
+    # Load both app secrets (dual WABA support — webhook may be signed by either app)
+    _load_meta_secrets()
+    app_secret_1 = _token_cache.get('app_secret1', '')
+    app_secret_2 = _token_cache.get('app_secret2', '')
+
+    if not app_secret_1 and not app_secret_2:
+        logger.error(json.dumps({'event': 'webhook_no_app_secret', 'requestId': request_id}))
+        # Fail open only if no secrets configured (dev/test)
+        return True
+
+    raw_body = event.get('body', '')
+    if event.get('isBase64Encoded') and raw_body:
+        import base64
+        raw_body = base64.b64decode(raw_body).decode('utf-8')
+
+    body_bytes = (raw_body or '').encode('utf-8')
+
+    # Try both app secrets — webhook may come from either WABA's app
+    for label, secret in [('app_secret1', app_secret_1), ('app_secret2', app_secret_2)]:
+        if not secret:
+            continue
+        expected_sig = 'sha256=' + hmac.new(
+            secret.encode('utf-8'),
+            body_bytes,
+            hashlib.sha256
+        ).hexdigest()
+        if hmac.compare_digest(expected_sig, signature_header):
+            return True
+
+    # Neither secret matched — log for debugging
+    # Compute expected with primary secret for the log
+    primary_secret = app_secret_1 or app_secret_2
+    expected_sig = 'sha256=' + hmac.new(
+        primary_secret.encode('utf-8'),
+        body_bytes,
+        hashlib.sha256
+    ).hexdigest()
+    logger.warning(json.dumps({
+        'event': 'webhook_signature_mismatch',
+        'expectedPrefix': expected_sig[:20],
+        'receivedPrefix': signature_header[:20],
+        'bodyLen': len(raw_body or ''),
+        'isBase64': event.get('isBase64Encoded', False),
+        'requestId': request_id,
+    }))
+    return False
+
+
+# Maximum age for webhook events (replay protection)
+WEBHOOK_MAX_AGE_SECONDS = 300  # 5 minutes
+
+
+def _validate_webhook_timestamp(body: Dict, request_id: str) -> bool:
+    """
+    Reject webhook events older than 5 minutes (replay protection).
+    Checks entry[].changes[].value.metadata.timestamp or entry[].time.
+    Returns True if timestamp is valid (recent), False if stale.
+    """
+    try:
+        now = int(time.time())
+        entries = body.get('entry', [])
+        for entry in entries:
+            # Check entry-level timestamp
+            entry_time = entry.get('time')
+            if entry_time:
+                age = now - int(entry_time)
+                if age > WEBHOOK_MAX_AGE_SECONDS:
+                    logger.warning(json.dumps({
+                        'event': 'webhook_timestamp_stale',
+                        'entryTime': entry_time,
+                        'age': age,
+                        'maxAge': WEBHOOK_MAX_AGE_SECONDS,
+                        'requestId': request_id,
+                    }))
+                    return False
+            # Check value-level timestamps
+            for change in entry.get('changes', []):
+                value = change.get('value', {})
+                calls = value.get('calls', [value])
+                for call in calls:
+                    ts = call.get('timestamp')
+                    if ts:
+                        age = now - int(ts)
+                        if age > WEBHOOK_MAX_AGE_SECONDS:
+                            logger.warning(json.dumps({
+                                'event': 'webhook_call_timestamp_stale',
+                                'callTimestamp': ts,
+                                'age': age,
+                                'requestId': request_id,
+                            }))
+                            return False
+    except (ValueError, TypeError) as e:
+        logger.warning(f'Webhook timestamp validation error: {e}')
+        # Fail open on parse errors — don't block legitimate events
+    return True
+
+
 def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
     """Process incoming WhatsApp webhook events."""
+    # Replay protection: reject events older than 5 minutes
+    if not _validate_webhook_timestamp(body, request_id):
+        logger.warning(json.dumps({'event': 'webhook_replay_rejected', 'requestId': request_id}))
+        return _response(200, {'status': 'rejected', 'reason': 'stale_timestamp'})
+
     logger.info(json.dumps({
         'event': 'webhook_received', 'requestId': request_id,
         'body_preview': json.dumps(body)[:2000],
@@ -366,25 +490,55 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             logger.info(f"AUTO-PICKUP mode={pickup_mode} — call {call_id} from {caller_name or from_number}")
 
             if pickup_mode == 'ai':
-                # AI mode via SIP: Do NOT terminate or pre_accept the call here.
-                # When SIP is enabled on the phone number, Meta sends the webhook
-                # first, then forwards the call as a SIP INVITE to our FreeSWITCH
-                # server (sip.wecare.digital:5061). If we terminate/pre_accept here,
-                # Meta cancels the SIP INVITE before it's sent.
+                # AI mode: Two strategies depending on Pipecat bot availability.
                 #
-                # FreeSWITCH handles the call entirely:
-                # Answer → Greeting → Record → Transcribe STT → Bedrock → Polly TTS → Play
+                # Strategy 1 (preferred): Forward to Pipecat voice bot for real-time
+                # AI conversation over WebRTC. Pipecat handles SDP answer generation,
+                # STT → Bedrock → TTS in real-time.
                 #
-                # We just log the event and let SIP handle it.
+                # Strategy 2 (fallback): If Pipecat is unreachable, pre_accept the
+                # call to stop ringing, then send a friendly WhatsApp message
+                # redirecting the caller to send a voice note. The inbound handler's
+                # AI pipeline (Transcribe → Bedrock → Polly) handles the rest.
+                #
+                # This replaces the old SIP-only passthrough which silently failed
+                # when FreeSWITCH was not running.
                 logger.info(json.dumps({
-                    'event': 'ai_sip_passthrough',
+                    'event': 'ai_mode_handling',
                     'call_id': call_id,
                     'from': from_number,
                     'caller_name': caller_name,
                     'phone_number_id': phone_number_id,
-                    'note': 'Letting SIP handle this call - no Graph API action taken',
                 }))
-                _update_call_status(call_id, 'sip_pending')
+
+                bot_url = _get_pipecat_bot_url()
+                if bot_url and sdp_offer:
+                    # Strategy 1: Forward to Pipecat bot (handles SDP + real-time AI)
+                    _forward_to_pipecat_bot(
+                        call_id=call_id,
+                        phone_number_id=phone_number_id,
+                        from_number=from_number,
+                        caller_name=caller_name,
+                        sdp_offer=sdp_offer,
+                        caller_bsuid=caller_bsuid,
+                        caller_username=caller_username,
+                    )
+                else:
+                    # Strategy 2: Pre-accept + voice-note redirect
+                    try:
+                        pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+                            'messaging_product': 'whatsapp',
+                            'call_id': call_id,
+                            'action': 'pre_accept',
+                        }, phone_number_id=phone_number_id)
+                        logger.info(f"AI-MODE pre_accept result: {json.dumps(pre_result)}")
+                        if not pre_result.get('error'):
+                            _update_call_status(call_id, 'pre_accepted')
+                    except Exception as e:
+                        logger.error(f"AI-MODE pre_accept failed: {e}")
+
+                    # Redirect to voice notes (terminates call + sends message)
+                    _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
             else:
                 # manual/ivr: pre_accept to hold call open for frontend or IVR playback
                 try:
@@ -958,105 +1112,228 @@ def _get_auto_pickup_audio_url() -> Optional[str]:
 
 def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:
     """
-    Auto-pickup: pre_accept → accept the call, then send the greeting audio
-    as a WhatsApp audio message to the caller.
+    IVR mode: Pre-accept the call, send an interactive IVR menu via WhatsApp
+    message, then terminate the call. The caller taps a button to route to
+    the right department/action.
 
-    IMPORTANT: Meta's Calling API requires an SDP answer for the accept action
-    to establish WebRTC media. Without a valid SDP answer, the call will NOT
-    connect and will timeout with a "terminate" webhook.
+    WhatsApp Calling cannot play in-call audio from Lambda (no WebRTC stack),
+    so the IVR is delivered as an interactive message. This is the standard
+    pattern for WhatsApp Business IVR systems.
 
-    Current limitation: Server-side Lambda cannot generate a WebRTC SDP answer
-    without a WebRTC stack (e.g., GStreamer, Opal, Opal, or a headless browser).
-    As a workaround, we send pre_accept (to stop ringing) and then send an
-    audio message to the caller via WhatsApp messaging API. The actual voice
-    call will NOT connect — the caller hears ringing then disconnect.
-
-    For true auto-pickup, you need either:
-    1. A browser-based WebRTC client (frontend) to generate SDP answer
-    2. A server-side WebRTC stack (e.g., Opal/GStreamer/Opal) to generate SDP
-    3. SIP integration (if enabled on the WABA) with a SIP server like Opal/FreeSWITCH
+    Flow:
+    1. Pre-accept → stops ringing on caller's end
+    2. Send IVR greeting audio (optional) + interactive button menu
+    3. Terminate the call after a short delay
+    4. Caller taps a button → inbound handler processes the button_reply
     """
     logger.info(json.dumps({
-        'event': 'auto_pickup_start',
+        'event': 'ivr_start',
         'call_id': call_id,
         'from': from_number,
         'phone_number_id': phone_number_id,
-        'has_sdp_offer': bool(sdp_offer),
-        'sdp_offer_length': len(sdp_offer) if sdp_offer else 0,
     }))
 
-    # Step 1: Pre-accept — tells Meta we intend to answer (stops ringing on user's end)
+    # Step 1: Pre-accept to stop ringing
     pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'pre_accept',
     }, phone_number_id=phone_number_id)
-    logger.info(f"AUTO-PICKUP pre_accept: {json.dumps(pre_result)}")
+    logger.info(f"IVR pre_accept: {json.dumps(pre_result)}")
 
     if pre_result.get('error'):
-        logger.error(json.dumps({
-            'event': 'auto_pickup_pre_accept_failed',
+        logger.error(f"IVR pre_accept failed: {json.dumps(pre_result)}")
+        _update_call_status(call_id, 'ivr_failed', {'failStep': 'pre_accept'})
+        # Still send IVR menu even if pre_accept fails
+    else:
+        _update_call_status(call_id, 'ivr_active')
+
+    # Step 2: Send IVR menu via WhatsApp interactive message
+    _send_ivr_menu(phone_number_id, from_number, call_id)
+
+    # Step 3: Terminate the call after a short delay
+    time.sleep(3)
+    try:
+        term_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+            'messaging_product': 'whatsapp',
             'call_id': call_id,
-            'error': pre_result,
-            'phone_number_id': phone_number_id,
-        }))
-        _update_call_status(call_id, 'auto_pickup_failed', {
-            'failStep': 'pre_accept',
-            'error': json.dumps(pre_result)[:500],
-        })
-        return
+            'action': 'terminate',
+        }, phone_number_id=phone_number_id)
+        logger.info(f"IVR terminate: {json.dumps(term_result)}")
+    except Exception as e:
+        logger.info(f"IVR terminate skipped: {e}")
 
-    # Step 2: Accept — requires SDP answer for WebRTC media establishment
-    # Without SDP answer, Meta will NOT connect the call audio.
-    # We still send accept to complete the signaling, but the call won't have audio.
-    accept_payload = {
-        'messaging_product': 'whatsapp',
-        'call_id': call_id,
-        'action': 'accept',
-    }
-    # NOTE: sdp_answer is NOT included because Lambda cannot generate one.
-    # This means the call will likely terminate with "no_answer" or "timeout".
+    _update_call_status(call_id, 'ivr_completed')
 
-    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST',
-                                    accept_payload, phone_number_id=phone_number_id)
-    logger.info(f"AUTO-PICKUP accept: {json.dumps(accept_result)}")
 
-    if accept_result.get('error'):
-        logger.error(json.dumps({
-            'event': 'auto_pickup_accept_failed',
-            'call_id': call_id,
-            'error': accept_result,
-            'phone_number_id': phone_number_id,
-            'note': 'Accept without SDP answer — call audio will NOT connect',
-        }))
-        _update_call_status(call_id, 'auto_pickup_failed', {
-            'failStep': 'accept',
-            'error': json.dumps(accept_result)[:500],
-        })
-        return
+# ─── IVR Menu System ────────────────────────────────────────────────
+# Configurable IVR menus per phone number (tenant).
+# Each menu has a greeting text and interactive buttons.
+# Button IDs are prefixed with 'ivr_' so the inbound handler can route them.
 
-    _update_call_status(call_id, 'auto_answered')
+IVR_MENUS = {
+    PHONE1_META_ID: {
+        'greeting': (
+            "📞 *WECARE.DIGITAL* — Thanks for calling!\n\n"
+            "We're here to help. Please select an option below:"
+        ),
+        'buttons': [
+            {'id': 'ivr_sales', 'title': '🛒 Sales & Orders'},
+            {'id': 'ivr_support', 'title': '🔧 Support'},
+            {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
+        ],
+        'footer': 'Reply anytime or send a voice note for instant AI help',
+    },
+    PHONE2_META_ID: {
+        'greeting': (
+            "📞 *Manish Agarwal* — Thanks for calling!\n\n"
+            "How can I help you today?"
+        ),
+        'buttons': [
+            {'id': 'ivr_callback', 'title': '📞 Request Callback'},
+            {'id': 'ivr_support', 'title': '💬 Chat Support'},
+            {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
+        ],
+        'footer': 'You can also send a voice note for instant AI help',
+    },
+}
 
-    # Step 3: Send greeting audio message to the caller via WhatsApp messaging API
-    # This is a regular WhatsApp audio message, NOT in-call audio.
+# Default IVR menu for unknown phone numbers
+IVR_DEFAULT_MENU = {
+    'greeting': (
+        "📞 Thanks for calling!\n\n"
+        "Please select an option:"
+    ),
+    'buttons': [
+        {'id': 'ivr_support', 'title': '💬 Support'},
+        {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
+        {'id': 'ivr_callback', 'title': '📞 Callback'},
+    ],
+    'footer': 'Send a voice note for instant AI help',
+}
+
+# IVR response handlers — what to send when user taps each button
+IVR_RESPONSES = {
+    'ivr_sales': {
+        'text': (
+            "🛒 *Sales & Orders*\n\n"
+            "How can we help?\n\n"
+            "• Send your *order number* to check status\n"
+            "• Send a *product name* to browse our catalog\n"
+            "• Type *\"new order\"* to place an order\n\n"
+            "A team member will also be notified to assist you."
+        ),
+        'notify_team': True,
+        'department': 'sales',
+    },
+    'ivr_support': {
+        'text': (
+            "🔧 *Support*\n\n"
+            "Please describe your issue and we'll get back to you shortly.\n\n"
+            "You can:\n"
+            "• Type your question\n"
+            "• Send a screenshot\n"
+            "• Send a voice note\n\n"
+            "Our AI assistant will try to help immediately, "
+            "and a human agent will follow up if needed."
+        ),
+        'notify_team': True,
+        'department': 'support',
+    },
+    'ivr_ai': {
+        'text': (
+            "🤖 *AI Assistant*\n\n"
+            "I'm ready to help! You can:\n\n"
+            "• Type your question\n"
+            "• Send a *voice note* — I'll listen and reply with voice\n"
+            "• Send a *photo* — I can analyze images too\n\n"
+            "Ask me anything about our products, services, or orders."
+        ),
+        'notify_team': False,
+        'department': 'ai',
+    },
+    'ivr_callback': {
+        'text': (
+            "📞 *Callback Request*\n\n"
+            "Got it! We'll call you back as soon as possible.\n\n"
+            "If you'd like to specify a preferred time, just type it "
+            "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\").\n\n"
+            "Otherwise, we'll call you within the next 30 minutes during "
+            "business hours (9 AM – 9 PM IST)."
+        ),
+        'notify_team': True,
+        'department': 'callback',
+    },
+}
+
+
+def _get_ivr_menu(phone_number_id: str) -> Dict:
+    """Get the IVR menu config for a phone number. Falls back to default."""
+    # Check SystemConfig for custom IVR menu (allows runtime updates)
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': f'ivr_menu_{phone_number_id}'})
+        item = result.get('Item')
+        if item and item.get('configValue'):
+            custom = json.loads(str(item['configValue']))
+            if custom.get('greeting') and custom.get('buttons'):
+                return custom
+    except Exception:
+        pass
+    return IVR_MENUS.get(phone_number_id, IVR_DEFAULT_MENU)
+
+
+def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
+    """Send the IVR interactive button menu to the caller via WhatsApp."""
+    menu = _get_ivr_menu(phone_number_id)
+    aws_phone_id = _get_aws_phone_id(phone_number_id)
+
+    # Send greeting audio first (if configured)
     audio_url = _get_auto_pickup_audio_url()
     if audio_url:
-        _send_audio_to_caller(phone_number_id, from_number, audio_url, call_id)
-    else:
-        logger.warning("AUTO-PICKUP: No greeting audio configured, call answered silently")
+        _send_audio_to_caller(phone_number_id, to_number, audio_url, call_id)
 
-    # Step 4: Terminate after a delay (let audio message send)
-    # Use synchronous sleep — daemon threads get killed when Lambda freezes
-    # the execution context after handler returns.
-    time.sleep(15)
-    logger.info(f"AUTO-PICKUP: Hanging up call {call_id}")
-    hangup_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-        'messaging_product': 'whatsapp',
-        'call_id': call_id,
-        'action': 'terminate',
-    }, phone_number_id=phone_number_id)
-    logger.info(f"AUTO-PICKUP hangup result: {json.dumps(hangup_result)}")
-    _update_call_status(call_id, 'auto_completed')
+    # Build interactive button message (max 3 buttons per Meta API)
+    buttons = []
+    for btn in menu.get('buttons', [])[:3]:
+        buttons.append({
+            'type': 'reply',
+            'reply': {'id': btn['id'], 'title': btn['title'][:20]},  # 20 char limit
+        })
+
+    interactive_msg = {
+        'type': 'interactive',
+        'interactive': {
+            'type': 'button',
+            'body': {'text': menu.get('greeting', 'How can we help?')},
+            'action': {'buttons': buttons},
+        },
+    }
+
+    footer = menu.get('footer')
+    if footer:
+        interactive_msg['interactive']['footer'] = {'text': footer[:60]}  # 60 char limit
+
+    result = _send_via_aws(aws_phone_id, to_number, interactive_msg)
+
+    if result.get('error'):
+        # Fallback: send as plain text if interactive fails (e.g. outside 24h window)
+        logger.warning(f"IVR interactive failed, trying text fallback: {result}")
+        fallback_text = menu.get('greeting', 'How can we help?')
+        for btn in menu.get('buttons', []):
+            fallback_text += f"\n\nReply *{btn['id'].replace('ivr_', '').upper()}* for {btn['title']}"
+        _send_via_aws(aws_phone_id, to_number, {
+            'type': 'text',
+            'text': {'body': fallback_text},
+        })
+    else:
+        logger.info(f"IVR menu sent to {to_number}: messageId={result.get('messageId')}")
+
+    # Store IVR session in call log for tracking
+    _update_call_status(call_id, 'ivr_menu_sent', {
+        'ivrMenu': phone_number_id,
+        'buttonsOffered': [b['id'] for b in menu.get('buttons', [])],
+    })
 
 
 def _get_aws_phone_id(meta_phone_number_id: str) -> str:

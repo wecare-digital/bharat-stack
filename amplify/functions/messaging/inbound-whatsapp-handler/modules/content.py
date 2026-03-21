@@ -3,7 +3,8 @@ Message content extraction from WhatsApp webhook payloads.
 
 Handles all WhatsApp message types: text, image, video, audio, document,
 location, contacts, sticker, reaction, interactive, button, order, system,
-unsupported, request_welcome, ephemeral, referral, ad_click, product, poll.
+unsupported, request_welcome, ephemeral, referral, ad_click, product, poll,
+edit, revoke.
 """
 
 import json
@@ -168,6 +169,21 @@ def _poll(m: Dict) -> str:
     return f'[Poll: {q[:60]}]' if q else '[Poll]'
 
 
+def _edit(m: Dict) -> str:
+    """Handle edit message webhook — user edited a previously sent message."""
+    edit_data = m.get('text', {})
+    new_body = edit_data.get('body', '')
+    edited_msg_id = m.get('context', {}).get('id', '')
+    if new_body:
+        return f'[Edited] {new_body}'
+    return f'[Message edited: {edited_msg_id}]' if edited_msg_id else '[Message edited]'
+
+
+def _revoke(m: Dict) -> str:
+    """Handle revoke message webhook — user deleted a previously sent message."""
+    return '[Message deleted by sender]'
+
+
 def extract_unsupported_content(message: Dict) -> str:
     """Extract info from unsupported message types.
 
@@ -251,4 +267,5 @@ _EXTRACTORS = {
     'request_welcome': _request_welcome, 'ephemeral': _ephemeral,
     'referral': _referral, 'ad_click': _ad_click,
     'product': _product, 'product_inquiry': _product, 'poll': _poll,
+    'edit': _edit, 'revoke': _revoke,
 }
