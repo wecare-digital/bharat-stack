@@ -24,6 +24,7 @@ from decimal import Decimal
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.validation import normalize_phone
 
 logger = get_logger(__name__)
 
@@ -180,6 +181,12 @@ def _make_call(body: Dict, request_id: str) -> Dict[str, Any]:
     voice_id = (body.get('voiceId') or VOICE_ID).upper()
     campaign_id = body.get('campaignId', '')
     campaign_name = body.get('campaignName', '')
+
+    # Normalize phone input to consistent digits-only format
+    if phone_number:
+        normalized = normalize_phone(phone_number)
+        if normalized:
+            phone_number = f'+{normalized}'
 
     if not phone_number and contact_id:
         contact = _get_contact(contact_id)

@@ -211,9 +211,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'success': False, 'action': 'typing_indicator', 'error': str(e)})
                 }
         
-        # All contacts are allowed by default - no opt-in/allowlist checks
-        # Customer service window check - always allow (within_window = True)
+        # Opt-in enforcement: all contacts allowed by default (permissive)
+        # Service window check: outside 24h window, only templates are allowed (WhatsApp policy)
         within_window = True
+        if contact and contact.get('id'):
+            within_window = _is_within_service_window(contact)
+        if not within_window and not is_template:
+            return _error_response(403, 'Outside 24h service window — only template messages allowed')
         
         # Requirement 5.4: Validate text length (skip for reactions)
         if not is_reaction and content and len(content) > MAX_TEXT_LENGTH:
@@ -960,6 +964,20 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             'requestId': request_id
         }))
         
+        # Idempotency: check if this message_id was already sent (prevents duplicates on retry)
+        try:
+            messages_table = dynamodb.Table(MESSAGES_TABLE)
+            existing = messages_table.get_item(Key={'id': message_id}, ProjectionExpression='id,whatsappMessageId,#s', ExpressionAttributeNames={'#s': 'status'})
+            if existing.get('Item') and existing['Item'].get('whatsappMessageId'):
+                logger.info(json.dumps({'event': 'idempotent_skip', 'messageId': message_id, 'requestId': request_id}))
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers(''),
+                    'body': json.dumps({'success': True, 'messageId': message_id, 'whatsappMessageId': existing['Item']['whatsappMessageId'], 'idempotent': True})
+                }
+        except Exception as e:
+            logger.warning(f'Idempotency check failed (proceeding): {e}')
+
         # Retry with exponential backoff for transient failures
         max_retries = 3
         last_error = None

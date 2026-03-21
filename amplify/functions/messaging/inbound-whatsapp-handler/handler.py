@@ -23,6 +23,7 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
+from lambda_utils.validation import normalize_phone
 
 # Sub-modules (monolith decomposition)
 from modules.content import extract_content as _extract_content_v2
@@ -834,8 +835,10 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
         except Exception as e:
             logger.warning(f"BSUID index query failed for {bsuid}: {str(e)}")
     
-    # Clean phone for search - remove + prefix if present
-    clean_phone = phone.lstrip('+') if phone else ''
+    # Clean phone for search - normalize to digits-only E.164
+    clean_phone = normalize_phone(phone) if phone else ''
+    if not clean_phone:
+        clean_phone = phone.lstrip('+') if phone else ''
     phone_with_plus = f'+{clean_phone}' if clean_phone else ''
     
     # Use GSI query on phone-index for O(1) lookup (try both formats)
@@ -996,6 +999,7 @@ def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str
             UpdateExpression='SET ' + ', '.join(set_parts),
             ExpressionAttributeNames=names,
             ExpressionAttributeValues=values,
+            ConditionExpression='attribute_exists(id)',
         )
     except Exception as e:
         logger.warning(json.dumps({
@@ -1786,18 +1790,19 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
         now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
         paid_at_ts = int(now_ist.timestamp())
 
-        # Scan for invoice with this referenceId
-        scan_kwargs = {
-            'FilterExpression': 'referenceId = :ref',
+        # Use referenceId GSI instead of table scan
+        found = []
+        query_kwargs = {
+            'IndexName': 'referenceId-index',
+            'KeyConditionExpression': 'referenceId = :ref',
             'ExpressionAttributeValues': {':ref': reference_id},
         }
-        found = []
-        while True:
-            resp = table.scan(**scan_kwargs)
+        resp = table.query(**query_kwargs)
+        found.extend(resp.get('Items', []))
+        while 'LastEvaluatedKey' in resp:
+            query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            resp = table.query(**query_kwargs)
             found.extend(resp.get('Items', []))
-            if found or 'LastEvaluatedKey' not in resp:
-                break
-            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
         for inv in found:
             if inv.get('status') != 'paid':

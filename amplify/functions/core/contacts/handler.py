@@ -28,7 +28,7 @@ from botocore.exceptions import ClientError
 
 from lambda_utils.response import cors_response, options_response, extract_origin
 from lambda_utils.logging import get_logger, log_event
-from lambda_utils.validation import sanitize_html, sanitize_dict
+from lambda_utils.validation import sanitize_html, sanitize_dict, normalize_phone
 
 logger = get_logger(__name__)
 
@@ -144,6 +144,12 @@ def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str
 
     phone = body.get('phone', '').strip() if body.get('phone') else None
     email = body.get('email', '').strip().lower() if body.get('email') else None
+
+    # Normalize phone to digits-only E.164 before validation/storage
+    if phone:
+        normalized = normalize_phone(phone)
+        if normalized:
+            phone = f'+{normalized}'
 
     if not phone and not email:
         return cors_response(400, {'error': 'At least one of phone or email is required'}, origin)
@@ -296,8 +302,12 @@ def _update(contact_id: str, body: Dict[str, Any], request_id: str, origin: str 
         if f in updates and not isinstance(updates[f], bool):
             return cors_response(400, {'error': f'{f} must be a boolean value'}, origin)
 
-    if 'phone' in updates and updates['phone'] and not _validate_phone(updates['phone']):
-        return cors_response(400, {'error': 'Invalid phone number format'}, origin)
+    if 'phone' in updates and updates['phone']:
+        normalized = normalize_phone(updates['phone'])
+        if normalized:
+            updates['phone'] = f'+{normalized}'
+        if not _validate_phone(updates['phone']):
+            return cors_response(400, {'error': 'Invalid phone number format'}, origin)
     if 'email' in updates and updates['email']:
         updates['email'] = updates['email'].strip().lower()
         if not _validate_email(updates['email']):
@@ -326,6 +336,7 @@ def _update(contact_id: str, body: Dict[str, Any], request_id: str, origin: str 
             UpdateExpression='SET ' + ', '.join(set_parts),
             ExpressionAttributeNames=names,
             ExpressionAttributeValues=values,
+            ConditionExpression='attribute_exists(id)',
             ReturnValues='ALL_NEW',
         )
     except Exception as e:

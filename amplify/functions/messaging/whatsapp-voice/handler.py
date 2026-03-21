@@ -27,6 +27,7 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.validation import normalize_phone
 
 from lambda_utils.logging import get_logger
 
@@ -262,6 +263,12 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
     if not message_text:
         return _response(400, {'error': 'messageText is required'})
 
+    # Normalize phone input to consistent digits-only format
+    if phone_number:
+        normalized = normalize_phone(phone_number)
+        if normalized:
+            phone_number = f'+{normalized}'
+
     # Resolve phone number from contact if needed
     if not phone_number and contact_id:
         contact = _get_contact(contact_id)
@@ -443,6 +450,12 @@ def _handle_send_audio(body: Dict, request_id: str) -> Dict[str, Any]:
     audio_base64 = body.get('audioBase64')
     content_type = body.get('contentType', 'audio/ogg')
     recipient_bsuid = body.get('recipientBsuid', '')
+
+    # Normalize phone input
+    if phone_number:
+        normalized = normalize_phone(phone_number)
+        if normalized:
+            phone_number = f'+{normalized}'
 
     if not phone_number and contact_id:
         contact = _get_contact(contact_id)

@@ -86,8 +86,8 @@ def _load_logo_bytes() -> Optional[bytes]:
         try:
             with open(cache_path, 'wb') as f:
                 f.write(data)
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug(f"Logo cache write failed: {_e}")
         return data
     except Exception as e:
         logger.warning(f"Logo load error: {e}")
@@ -101,8 +101,8 @@ def _load_s3_image(key: str):
     try:
         from PIL import Image as PILImage
         return PILImage.open(cache_path).convert('RGBA')
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug(f"S3 image cache miss: {_e}")
     try:
         from PIL import Image as PILImage
         obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=key)
@@ -110,8 +110,8 @@ def _load_s3_image(key: str):
         img = PILImage.open(io.BytesIO(data)).convert('RGBA')
         try:
             img.save(cache_path, 'PNG')
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug(f"S3 image cache write failed: {_e}")
         return img
     except Exception as e:
         logger.warning(f"S3 image load error ({key}): {e}")
@@ -754,8 +754,8 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
             import base64
             b64 = base64.b64encode(logo_bytes).decode('ascii')
             logo_html = f'<img src="data:image/png;base64,{b64}" style="width:60px;height:60px;object-fit:contain;margin-bottom:6px" alt="Logo">'
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug(f"HTML logo embed failed: {_e}")
 
     # Extract Green Packing and Notification Fee from items (stored as charge line items)
     green_packing_amt = 0.0
@@ -957,7 +957,8 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
             try:
                 obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
                 _font_cache[key] = obj['Body'].read()
-            except Exception:
+            except Exception as _e:
+                logger.debug(f"Font S3 load failed ({s3_key}): {_e}")
                 _font_cache[key] = None
         return _font_cache[key]
 
@@ -967,14 +968,15 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         if fb:
             try:
                 return ImageFont.truetype(io.BytesIO(fb), size)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug(f"Font truetype from S3 bytes failed: {_e}")
         # 2. Try system fonts (Windows dev)
         names = ['consolab.ttf', 'courbd.ttf'] if bold else ['consola.ttf', 'cour.ttf']
         for n in names:
             try:
                 return ImageFont.truetype(n, size)
-            except Exception:
+            except Exception as _e:
+                logger.debug(f"System font {n} not available: {_e}")
                 continue
         # 3. Pillow 10.1+ built-in default at requested size
         try:
@@ -998,7 +1000,8 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         try:
             bb = draw.textbbox((0, 0), text, font=font)
             return bb[2] - bb[0]
-        except Exception:
+        except Exception as _e:
+            logger.debug(f"textbbox fallback: {_e}")
             return len(text) * 8
 
     # ── Build receipt lines ──
@@ -1146,7 +1149,8 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     try:
         bb = tmp_draw.textbbox((0, 0), 'M', font=F)
         CW = bb[2] - bb[0]
-    except Exception:
+    except Exception as _e:
+        logger.debug(f"Char width measurement fallback: {_e}")
         CW = 9
 
     W = CHARS * CW + PX * 2
@@ -1168,8 +1172,8 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
                     logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
                     logo_img = logo_img.resize((ls, ls), Image.LANCZOS)
                     img.paste(logo_img, (PX, y), logo_img)
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug(f"Receipt logo paste failed: {_e}")
             hdr_lines = [
                 (COMPANY['name'], FLG),
                 (f"GSTIN: {COMPANY['gstin']}", FXS),

@@ -511,18 +511,19 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
         now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
         paid_at_ts = int(now_ist.timestamp())
 
-        # Scan for invoice with this referenceId
-        scan_kwargs = {
-            'FilterExpression': 'referenceId = :ref',
+        # Use referenceId GSI instead of table scan
+        found = []
+        query_kwargs = {
+            'IndexName': 'referenceId-index',
+            'KeyConditionExpression': 'referenceId = :ref',
             'ExpressionAttributeValues': {':ref': reference_id},
         }
-        found = []
-        while True:
-            resp = table.scan(**scan_kwargs)
+        resp = table.query(**query_kwargs)
+        found.extend(resp.get('Items', []))
+        while 'LastEvaluatedKey' in resp:
+            query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            resp = table.query(**query_kwargs)
             found.extend(resp.get('Items', []))
-            if found or 'LastEvaluatedKey' not in resp:
-                break
-            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
         for inv in found:
             if inv.get('status') != 'paid':
