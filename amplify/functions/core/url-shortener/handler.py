@@ -101,11 +101,17 @@ def create_link(body):
 
 
 def list_links():
-    result = links_table.scan(Limit=200)
-    items = result.get("Items", [])
+    all_items = []
+    scan_kwargs = {}
+    while True:
+        result = links_table.scan(**scan_kwargs)
+        all_items.extend(result.get("Items", []))
+        if 'LastEvaluatedKey' not in result:
+            break
+        scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
     # Sort by createdAt desc
-    items.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
-    return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"links": items}, default=str)}
+    all_items.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"links": all_items}, default=str)}
 
 
 def get_link(code):

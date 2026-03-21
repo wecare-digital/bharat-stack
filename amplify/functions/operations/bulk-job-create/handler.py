@@ -109,6 +109,11 @@ def _list_jobs(params: Dict, request_id: str) -> Dict[str, Any]:
         
         result = table.scan(**scan_kwargs)
         jobs = result.get('Items', [])
+        # Paginate through all results
+        while 'LastEvaluatedKey' in result:
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
+            result = table.scan(**scan_kwargs)
+            jobs.extend(result.get('Items', []))
         
         # Sort by createdAt descending
         jobs.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)

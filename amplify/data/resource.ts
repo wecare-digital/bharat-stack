@@ -3,8 +3,8 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 /**
  * WECARE.DIGITAL DynamoDB Schema
  * 
- * 24 Tables with PAY_PER_REQUEST billing mode
- * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), AirtelSMS (90d), AirtelC2C (90d), OBDCampaign (90d)
+ * 41 Tables with PAY_PER_REQUEST billing mode
+ * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), AirtelSMS (90d), AirtelC2C (90d), OBDCampaign (90d), RazorpayWebhookLog (180d), PayUWebhookLog (180d)
  */
 const schema = a.schema({
   // Table 1: Contacts - Contact records with opt-in preferences
@@ -861,6 +861,7 @@ const schema = a.schema({
       rawPayload: a.string(), // JSON string
       processedAt: a.integer(),
       createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
@@ -885,6 +886,7 @@ const schema = a.schema({
       rawPayload: a.string(), // JSON string
       processedAt: a.integer(),
       createdAt: a.integer(),
+      expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [

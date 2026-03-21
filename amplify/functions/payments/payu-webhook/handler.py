@@ -215,6 +215,7 @@ def _log_webhook(payload: Dict, status: str, txn_id: str, payu_id: str, request_
             'rawPayload': json.dumps(payload, default=str),
             'processedAt': now,
             'createdAt': now,
+            'expiresAt': now + 180 * 24 * 60 * 60,  # TTL: 180 days
         })
     except Exception as e:
         logger.error(json.dumps({'event': 'payu_log_error', 'error': str(e), 'requestId': request_id}))

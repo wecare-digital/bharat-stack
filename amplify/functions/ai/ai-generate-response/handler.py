@@ -2757,11 +2757,11 @@ def _lookup_contact(phone: str, request_id: str) -> str:
         clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
 
         # Query using phone GSI or scan with filter
-        # Try GSI first (phoneNumber-index), fall back to scan
+        # Try GSI first (phone-index), fall back to scan
         try:
             response = contacts_table.query(
-                IndexName='phoneNumber-index',
-                KeyConditionExpression='phoneNumber = :phone',
+                IndexName='phone-index',
+                KeyConditionExpression='phone = :phone',
                 ExpressionAttributeValues={':phone': clean_phone},
                 Limit=1
             )
@@ -2769,7 +2769,7 @@ def _lookup_contact(phone: str, request_id: str) -> str:
         except Exception:
             # GSI may not exist - fall back to scan (less efficient but works)
             response = contacts_table.scan(
-                FilterExpression='phoneNumber = :phone OR phone = :phone OR contains(phoneNumbers, :phone)',
+                FilterExpression='phone = :phone OR contains(phone, :phone)',
                 ExpressionAttributeValues={':phone': clean_phone},
                 Limit=1
             )

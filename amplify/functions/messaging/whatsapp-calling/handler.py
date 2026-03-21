@@ -895,12 +895,13 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
     already_pre_accepted = False
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        result = table.scan(
-            FilterExpression='#cid = :cid AND #et = :et',
-            ExpressionAttributeNames={'#cid': 'callId', '#et': 'eventType'},
-            ExpressionAttributeValues={':cid': call_id, ':et': 'connect'},
+        # Use callId GSI for efficient lookup instead of scan
+        from boto3.dynamodb.conditions import Key as DDBKey
+        result = table.query(
+            IndexName='callId-index',
+            KeyConditionExpression=DDBKey('callId').eq(call_id),
         )
-        items = result.get('Items', [])
+        items = [i for i in result.get('Items', []) if i.get('eventType') == 'connect']
         if items and items[0].get('status') == 'pre_accepted':
             already_pre_accepted = True
             logger.info(f"Call {call_id} already pre_accepted by auto-pickup, skipping pre_accept")
@@ -1702,13 +1703,13 @@ def _update_call_status(call_id: str, new_status: str, extra: Dict = None) -> No
     """Update the status of the most recent log entry for a call."""
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        # Find the connect record for this call
-        result = table.scan(
-            FilterExpression='#cid = :cid AND #et = :et',
-            ExpressionAttributeNames={'#cid': 'callId', '#et': 'eventType'},
-            ExpressionAttributeValues={':cid': call_id, ':et': 'connect'},
+        # Use callId GSI for efficient lookup instead of scan
+        from boto3.dynamodb.conditions import Key as DDBKey
+        result = table.query(
+            IndexName='callId-index',
+            KeyConditionExpression=DDBKey('callId').eq(call_id),
         )
-        items = result.get('Items', [])
+        items = [i for i in result.get('Items', []) if i.get('eventType') == 'connect']
         if items:
             item = items[0]
             update_expr = 'SET #s = :s, #ua = :ua'
@@ -1747,16 +1748,23 @@ def _list_logs(params: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _clear_logs(request_id: str) -> Dict[str, Any]:
-    """Clear all call logs."""
+    """Clear all call logs (paginated to handle large tables)."""
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        result = table.scan(ProjectionExpression='id')
-        items = result.get('Items', [])
         deleted = 0
-        with table.batch_writer() as batch:
-            for item in items:
-                batch.delete_item(Key={'id': item['id']})
-                deleted += 1
+        scan_kwargs = {'ProjectionExpression': 'id'}
+        while True:
+            result = table.scan(**scan_kwargs)
+            items = result.get('Items', [])
+            if not items:
+                break
+            with table.batch_writer() as batch:
+                for item in items:
+                    batch.delete_item(Key={'id': item['id']})
+                    deleted += 1
+            if 'LastEvaluatedKey' not in result:
+                break
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         return _response(200, {'success': True, 'deletedCount': deleted})
     except Exception as e:
         return _response(200, {'success': False, 'error': str(e)})

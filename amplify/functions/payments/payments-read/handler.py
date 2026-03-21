@@ -124,10 +124,12 @@ def _get_payment(payment_id: str, request_id: str) -> Dict[str, Any]:
         if payment:
             return _response(200, {'payment': _normalize_payment(payment)})
         
-        # Try by paymentId (Razorpay ID)
-        result = table.scan(
-            FilterExpression=Attr('paymentId').eq(payment_id),
-            Limit=1
+        # Try by paymentId GSI (Razorpay ID)
+        from boto3.dynamodb.conditions import Key as DDBKey
+        result = table.query(
+            IndexName='paymentId-index',
+            KeyConditionExpression=DDBKey('paymentId').eq(payment_id),
+            Limit=1,
         )
         items = result.get('Items', [])
         if items:

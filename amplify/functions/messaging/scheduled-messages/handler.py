@@ -440,7 +440,7 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f'Process due messages error: {str(e)}')
-        return {'statusCode': 500, 'body': json.dumps({'error': str(e)})}
+        return {'statusCode': 500, 'headers': cors_headers(origin), 'body': json.dumps({'error': str(e)})}
 
 
 def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:

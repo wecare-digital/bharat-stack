@@ -1695,7 +1695,7 @@ def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
             'requestId': request_id,
         }))
 
-    return {'statusCode': 200, 'body': json.dumps({'status': 'ok'})}
+    return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'status': 'ok'})}
 
 
 # ============================================================================

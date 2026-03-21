@@ -11,7 +11,7 @@ import { storage } from './storage/resource';
  * 
  * This backend defines:
  * - Auth: Cognito (existing user pool)
- * - Data: DynamoDB (38 tables)
+ * - Data: DynamoDB (41 tables)
  * - Storage: S3 (existing buckets)
  * 
  * Lambda functions (42 Python functions) are deployed separately
@@ -48,6 +48,8 @@ const TTL_CONFIG: Record<string, string> = {
   SystemEvent: 'ttl',
   CatalogCache: 'ttl',
   AdClickAttribution: 'ttl',
+  RazorpayWebhookLog: 'expiresAt',
+  PayUWebhookLog: 'expiresAt',
 };
 
 try {

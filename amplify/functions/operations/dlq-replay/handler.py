@@ -86,14 +86,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 def _list_dlq_messages(request_id: str) -> Dict[str, Any]:
-    """List all DLQ messages from tracking table."""
+    """List all DLQ messages from tracking table (paginated)."""
     try:
         dlq_table = dynamodb.Table(DLQ_MESSAGES_TABLE)
-        response = dlq_table.scan(Limit=100)
-        items = response.get('Items', [])
+        all_items = []
+        scan_kwargs = {}
+        while True:
+            response = dlq_table.scan(**scan_kwargs)
+            all_items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
         messages = []
-        for item in items:
+        for item in all_items:
             messages.append({
                 'id': item.get('dlqMessageId'),
                 'queueName': item.get('queueName'),

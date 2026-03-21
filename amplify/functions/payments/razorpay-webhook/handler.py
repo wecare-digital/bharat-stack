@@ -278,6 +278,7 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
             'requestId': request_id,
             'payload': json.dumps(event_data, default=str)[:4000],  # Truncate large payloads
             'createdAt': Decimal(str(int(time.time()))),
+            'expiresAt': Decimal(str(int(time.time()) + 180 * 24 * 60 * 60)),  # TTL: 180 days
         }
         if razorpay_event_id:
             item['razorpayEventId'] = razorpay_event_id

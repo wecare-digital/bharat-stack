@@ -35,24 +35,24 @@ def check_rate_limit(
 
     Returns True if under the limit, False if exceeded.
     Fails open (returns True) on errors to avoid blocking traffic.
+
+    Uses composite key (channel, windowStart) matching the DynamoDB schema.
     """
     try:
         table = dynamodb.Table(table_name or RATE_LIMIT_TABLE)
         now = int(time.time())
         window_key = f"{channel}:{resource_id}"
+        window_start = str(now)
 
         response = table.update_item(
-            Key={'id': f"{window_key}:{now}"},
+            Key={'channel': window_key, 'windowStart': window_start},
             UpdateExpression=(
                 'SET messageCount = if_not_exists(messageCount, :zero) + :inc, '
-                'channel = :ch, windowStart = :ws, '
                 'lastUpdatedAt = :ttl'
             ),
             ExpressionAttributeValues={
                 ':zero': Decimal('0'),
                 ':inc': Decimal('1'),
-                ':ch': window_key,
-                ':ws': str(now),
                 ':ttl': Decimal(str(now + TTL_SECONDS)),
             },
             ReturnValues='UPDATED_NEW',

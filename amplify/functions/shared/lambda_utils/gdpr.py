@@ -51,22 +51,35 @@ def export_user_data(dynamodb_resource, contact_id: str, phone: str,
             if config['index'] and config['key_field'] in ('contactId', 'phone'):
                 lookup_value = contact_id if config['key_field'] == 'contactId' else phone
                 if lookup_value:
-                    resp = table.query(
-                        IndexName=f'{config["index"]}-index',
-                        KeyConditionExpression=f'{config["key_field"]} = :val',
-                        ExpressionAttributeValues={':val': lookup_value},
-                        Limit=1000,
-                    )
-                    items = resp.get('Items', [])
+                    all_query_items = []
+                    query_kwargs = {
+                        'IndexName': f'{config["index"]}-index',
+                        'KeyConditionExpression': f'{config["key_field"]} = :val',
+                        'ExpressionAttributeValues': {':val': lookup_value},
+                        'Limit': 1000,
+                    }
+                    while True:
+                        resp = table.query(**query_kwargs)
+                        all_query_items.extend(resp.get('Items', []))
+                        if 'LastEvaluatedKey' not in resp:
+                            break
+                        query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                    items = all_query_items
             else:
                 # Fallback: scan with filter (less efficient but covers all tables)
                 if phone:
-                    resp = table.scan(
-                        FilterExpression=f'contains({config["key_field"]}, :val)',
-                        ExpressionAttributeValues={':val': phone},
-                        Limit=500,
-                    )
-                    items = resp.get('Items', [])
+                    all_scan_items = []
+                    scan_kwargs = {
+                        'FilterExpression': f'contains({config["key_field"]}, :val)',
+                        'ExpressionAttributeValues': {':val': phone},
+                    }
+                    while True:
+                        resp = table.scan(**scan_kwargs)
+                        all_scan_items.extend(resp.get('Items', []))
+                        if 'LastEvaluatedKey' not in resp:
+                            break
+                        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                    items = all_scan_items
 
             if items:
                 # Convert Decimal to float for JSON serialization

@@ -170,8 +170,15 @@ def _generate_hmac_headers(body: str, app_id: str, api_key: str) -> Dict[str, st
 def _list_calls(params: Dict, request_id: str) -> Dict:
     table = dynamodb.Table(VOICE_TABLE)
     try:
-        response = table.scan(Limit=100)
-        calls = [_normalize(item) for item in response.get('Items', [])]
+        all_calls = []
+        scan_kwargs = {}
+        while True:
+            response = table.scan(**scan_kwargs)
+            all_calls.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        calls = [_normalize(item) for item in all_calls]
         calls.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
         return _response(200, {'calls': calls, 'count': len(calls)})
     except Exception as e:

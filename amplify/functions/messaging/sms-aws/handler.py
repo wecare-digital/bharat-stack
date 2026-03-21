@@ -152,16 +152,23 @@ def _delete_message(message_id: str, request_id: str) -> Dict[str, Any]:
 
 
 def _clear_logs(request_id: str) -> Dict[str, Any]:
-    """Clear all SMS logs."""
+    """Clear all SMS logs (paginated to handle large tables)."""
     try:
         table = dynamodb.Table(SMS_TABLE)
-        result = table.scan(ProjectionExpression='id')
-        items = result.get('Items', [])
         deleted = 0
-        with table.batch_writer() as batch:
-            for item in items:
-                batch.delete_item(Key={'id': item['id']})
-                deleted += 1
+        scan_kwargs = {'ProjectionExpression': 'id'}
+        while True:
+            result = table.scan(**scan_kwargs)
+            items = result.get('Items', [])
+            if not items:
+                break
+            with table.batch_writer() as batch:
+                for item in items:
+                    batch.delete_item(Key={'id': item['id']})
+                    deleted += 1
+            if 'LastEvaluatedKey' not in result:
+                break
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         return _response(200, {'success': True, 'deletedCount': deleted})
     except Exception as e:
         logger.error(f"Clear logs error: {str(e)}")
