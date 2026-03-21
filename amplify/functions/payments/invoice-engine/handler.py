@@ -591,8 +591,8 @@ def update_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
             ex_ps = existing.get('paymentStatus', '')
             if ex_status in ('paid', 'cancelled') or ex_ps in ('captured', 'refunded'):
                 return _resp(400, {'error': f'Cannot modify amounts on {ex_status} invoice (paymentStatus={ex_ps})'})
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f'Invoice status guard check failed for {invoice_id}: {e}')
 
     update_parts = []
     values = {}
@@ -1609,8 +1609,8 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
             ExpressionAttributeNames={'#st': 'status', '#ua': 'updatedAt'},
             ExpressionAttributeValues={':st': 'pending_payment', ':now': int(time.time())},
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f'Failed to update invoice {invoice_id} status to pending_payment: {e}')
 
     # NOTE: Do NOT send invoice image here — receipt with PAID stamp
     # is generated and sent AFTER payment is captured (in inbound handler).
@@ -1715,8 +1715,8 @@ def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
             IndexName='invoiceId-index',
             KeyConditionExpression=boto3.dynamodb.conditions.Key('invoiceId').eq(invoice_id),
         ) if False else {'Items': []}  # Assets are in same table as nested or separate
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f'Invoice asset query failed for {invoice_id}: {e}')
 
     # Try to delete S3 files for this invoice
     try:

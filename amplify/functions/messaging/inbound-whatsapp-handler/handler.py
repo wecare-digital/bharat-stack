@@ -322,8 +322,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                     if contact:
                                         ct = dynamodb.Table(CONTACTS_TABLE)
                                         _update_contact_bsuid_fields(ct, contact, '', '', phone=pref_phone, bsuid=pref_bsuid)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.warning(f'BSUID enrichment failed for {pref_phone[:6]}***: {e}')
                     except Exception as e:
                         logger.error(json.dumps({
                             'event': 'user_preferences_error',
@@ -4154,8 +4154,8 @@ def _get_region_language_list(region_id: str) -> Optional[Dict]:
             db_region_lists = config.get('regionLanguageLists', {})
             if region_id in db_region_lists:
                 return db_region_lists[region_id]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f'Region language config lookup failed: {e}')
     return REGION_LANGUAGE_LISTS.get(region_id)
 
 
@@ -4705,8 +4705,8 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 phone_number_id=phone_number_id,
                 request_id=request_id
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f'AI fallback auto-reply send failed: {e}')
         return None
 
 

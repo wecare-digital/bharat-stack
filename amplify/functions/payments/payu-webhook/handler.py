@@ -78,8 +78,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if event.get('isBase64Encoded') and body_raw:
             try:
                 body_raw = _b64.b64decode(body_raw).decode('utf-8')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f'Base64 decode failed, using raw body: {e}')
 
         # PayU sends form-encoded or JSON
         payload = {}

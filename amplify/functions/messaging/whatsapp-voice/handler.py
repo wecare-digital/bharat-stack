@@ -706,8 +706,8 @@ def _handle_transcribe(body: Dict, request_id: str) -> Dict[str, Any]:
         # Clean up transcription output from S3 (optional, keep it small)
         try:
             s3.delete_object(Bucket=MEDIA_BUCKET, Key=result_key)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"S3 transcription cleanup failed for {result_key}: {e}")
 
         return _response(200, {
             'transcription': english_text,

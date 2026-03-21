@@ -412,13 +412,13 @@ def _hard_delete(contact_id: str, request_id: str, origin: str = '') -> Dict[str
                         try:
                             _delete_s3(s3_key)
                             media_deleted += 1
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"S3 media delete failed for {s3_key}: {e}")
                     try:
                         tbl.delete_item(Key={'id': msg.get('id') or msg.get('messageId')})
                         msgs_deleted += 1
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Message delete failed: {e}")
                 if 'LastEvaluatedKey' not in resp:
                     break
                 scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']

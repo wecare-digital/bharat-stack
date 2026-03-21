@@ -647,8 +647,8 @@ def _clear_logs(body: Dict, request_id: str) -> Dict[str, Any]:
                 try:
                     table.delete_item(Key={'id': cid})
                     deleted_count += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f'Campaign delete failed for {cid}: {e}')
         else:
             return _response(400, {'error': 'campaignIds or clearAll is required'})
         

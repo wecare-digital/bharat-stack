@@ -505,8 +505,8 @@ def _list_messages(params: Dict, request_id: str) -> Dict[str, Any]:
                 import base64
                 decoded = json.loads(base64.b64decode(params['nextToken']).decode('utf-8'))
                 scan_kwargs['ExclusiveStartKey'] = decoded
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f'Invalid pagination token: {e}')
         
         # Filter by status if provided
         if params.get('status'):

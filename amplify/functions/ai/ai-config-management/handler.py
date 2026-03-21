@@ -760,8 +760,8 @@ def _delete_botflow_configs(request_id: str) -> Dict[str, Any]:
             try:
                 config_table.delete_item(Key={'id': key})
                 deleted.append(key)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f'Config key delete failed for {key}: {e}')
         logger.info(json.dumps({
             'event': 'botflow_configs_reset',
             'deleted': deleted,

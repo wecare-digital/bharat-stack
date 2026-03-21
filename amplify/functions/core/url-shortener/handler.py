@@ -13,6 +13,7 @@ Tables:
 import json
 import os
 import time
+import logging
 import uuid
 import random
 import string
@@ -171,8 +172,8 @@ def redirect(code, event):
             event.get("requestContext", {}).get("http", {}).get("sourceIp", "")
             or headers_map.get("x-forwarded-for", "").split(",")[0].strip()
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger(__name__).debug(f'Header extraction failed: {e}')
 
     # Detect platform from user agent
     ua_lower = user_agent.lower()

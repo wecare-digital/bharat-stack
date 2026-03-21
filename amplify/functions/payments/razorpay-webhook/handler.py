@@ -57,8 +57,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if event.get('isBase64Encoded') and body:
             try:
                 body = _b64.b64decode(body).decode('utf-8')
-            except Exception:
-                pass  # keep original if decode fails
+            except Exception as e:
+                logger.warning(f'Base64 decode failed, using raw body: {e}')
         
         signature = headers.get('x-razorpay-signature') or headers.get('X-Razorpay-Signature', '')
         

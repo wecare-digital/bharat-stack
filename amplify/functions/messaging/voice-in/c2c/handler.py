@@ -715,8 +715,8 @@ def _delete_calls(call_ids: list, hard_delete: bool, request_id: str) -> Dict[st
             result = _delete_call(call_id, hard_delete, request_id)
             if json.loads(result.get('body', '{}')).get('success'):
                 deleted_count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f'C2C call delete failed for {call_id}: {e}')
 
     return _response(200, {
         'success': True,
@@ -738,8 +738,8 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
                 if item.get('s3RecordingKey'):
                     try:
                         s3.delete_object(Bucket=S3_BUCKET, Key=item['s3RecordingKey'])
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"S3 recording cleanup failed for {item['s3RecordingKey']}: {e}")
                 table.delete_item(Key={'callId': item['callId']})
                 deleted_count += 1
 

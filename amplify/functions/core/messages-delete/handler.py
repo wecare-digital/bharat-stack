@@ -133,8 +133,8 @@ def handler(event, context):
                     item = response.get('Item')
                     if item:
                         s3_key = item.get('s3Key')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f'Fallback message lookup by messageId failed: {e}')
             if not item:
                 try:
                     resp = table.scan(
@@ -146,8 +146,8 @@ def handler(event, context):
                     if items:
                         item = items[0]
                         s3_key = item.get('s3Key')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f'Scan fallback for message {message_id} failed: {e}')
         
         # Delete media from S3 if exists
         media_deleted = False
@@ -156,8 +156,8 @@ def handler(event, context):
                 actual_key = _find_and_delete_s3_file(s3_key, message_id)
                 if actual_key:
                     media_deleted = True
-            except Exception:
-                pass  # Continue with DynamoDB deletion even if S3 fails
+            except Exception as e:
+                logger.warning(f'S3 media delete failed for message {message_id}: {e}')
         
         # Delete the message from DynamoDB using proper key schema
         try:
@@ -169,8 +169,8 @@ def handler(event, context):
                     table.delete_item(Key={'id': message_id})
                 except ClientError:
                     table.delete_item(Key={'messageId': message_id})
-        except Exception:
-            pass  # Best effort delete
+        except Exception as e:
+            logger.warning(f'DynamoDB delete failed for message {message_id}: {e}')
 
         return cors_response(200, {
             'success': True,

@@ -1045,8 +1045,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         request_id=request_id, request_number=request_number,
                         payment_ref_id=payment_ref_id
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f'[{request_id}] Invoice/confirmation send failed for order {order_id}: {e}')
 
             # Navigate to THANK_YOU screen with generated IDs
             # THANK_YOU is terminal:true — it closes the flow when user taps "Done"
@@ -1185,8 +1185,8 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
             table = dynamodb.Table(CONTACTS_TABLE)
             resp = table.get_item(Key={'id': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
             sender_name = resp.get('Item', {}).get('name', '')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f'Contact name lookup failed for {contact_id}: {e}')
 
     # Step 1: Create invoice via invoice-engine Lambda
     invoice_body = {
@@ -1439,8 +1439,8 @@ def _find_contact_by_phone(phone: str) -> str:
                 items = resp.get('Items', [])
                 if items:
                     return items[0].get('id', '')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Contact query variant failed: {e}')
     except Exception as e:
         logger.warning(f'Contact lookup failed for {phone[:6]}***: {e}')
     return ''
@@ -1593,8 +1593,8 @@ def _log_flow_event(flow_token: str, phone: str, action: str, screen: str,
             # Store full data snapshot as JSON string (for any extra fields)
             try:
                 item['flowData'] = json.dumps(data, default=str)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Flow data serialization failed: {e}')
 
         table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
     except Exception as e:

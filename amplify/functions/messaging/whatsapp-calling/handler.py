@@ -730,8 +730,8 @@ def _get_pipecat_bot_url() -> str:
         item = result.get('Item')
         if item and item.get('configValue'):
             return str(item['configValue']).strip().rstrip('/')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f'Pipecat bot URL config lookup failed: {e}')
     return PIPECAT_BOT_URL.strip().rstrip('/')
 
 
@@ -1300,8 +1300,8 @@ def _get_ivr_menu(phone_number_id: str) -> Dict:
             custom = json.loads(str(item['configValue']))
             if custom.get('greeting') and custom.get('buttons'):
                 return custom
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f'IVR menu config lookup failed for {phone_number_id}: {e}')
     return IVR_MENUS.get(phone_number_id, IVR_DEFAULT_MENU)
 
 
@@ -1617,8 +1617,8 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
             try:
                 s3.delete_object(Bucket=MEDIA_BUCKET, Key=s3_key)
                 s3.delete_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Transcription S3 cleanup failed: {e}')
             return text.strip()
         elif job_status == 'FAILED':
             reason = status['TranscriptionJob'].get('FailureReason', 'unknown')

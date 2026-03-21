@@ -139,8 +139,8 @@ def unregister_token(body, headers):
         item = table.get_item(Key={"deviceToken": device_token, "userId": user_id}).get("Item")
         if item and item.get("endpointArn"):
             sns.delete_endpoint(EndpointArn=item["endpointArn"])
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"SNS endpoint cleanup failed for {device_token}: {e}")
 
     # Remove from DynamoDB
     table.delete_item(Key={"deviceToken": device_token, "userId": user_id})

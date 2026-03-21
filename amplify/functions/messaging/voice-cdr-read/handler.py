@@ -113,8 +113,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = {}
             try:
                 body = json.loads(event.get('body', '{}') or '{}')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Body parse failed in CDR read: {e}')
             if 'clear' in path or body.get('clearAll') or body.get('_action') == 'clear-logs':
                 return _clear_cdr_logs(request_id)
         
