@@ -213,7 +213,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 if event.get('isBase64Encoded'):
                     import base64
                     body_str = base64.b64decode(body_str).decode('utf-8')
-                return _handle_webhook_event(json.loads(body_str), request_id)
+                try:
+                    return _handle_webhook_event(json.loads(body_str), request_id)
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    logger.warning(json.dumps({'event': 'webhook_invalid_json', 'requestId': request_id}))
+                    return _response(400, {'error': 'Invalid JSON in webhook body'})
 
             if '/config' in path:
                 return _update_config(event, request_id)
@@ -808,16 +812,16 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
         # Skip post-call reaction if the call was AI-redirected or handled by Pipecat bot
         try:
             table = dynamodb.Table(CALL_LOG_TABLE)
-            result_check = table.scan(
-                FilterExpression='#cid = :cid AND (#s = :s1 OR #s = :s2)',
-                ExpressionAttributeNames={'#cid': 'callId', '#s': 'status'},
-                ExpressionAttributeValues={
-                    ':cid': call_id,
-                    ':s1': 'ai_redirected',
-                    ':s2': 'ai_bot_connected',
-                },
+            from boto3.dynamodb.conditions import Key as DDBKey
+            result_check = table.query(
+                IndexName='callId-index',
+                KeyConditionExpression=DDBKey('callId').eq(call_id),
             )
-            if result_check.get('Items'):
+            ai_handled = any(
+                i.get('status') in ('ai_redirected', 'ai_bot_connected')
+                for i in result_check.get('Items', [])
+            )
+            if ai_handled:
                 logger.info(f"Post-call reaction skipped: call {call_id} was AI-handled")
                 return
         except Exception:
@@ -881,7 +885,10 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
     Frontend sends: { callId, phoneNumberId, sdpAnswer }
     Skips pre_accept if the call was already pre_accepted by auto-pickup.
     """
-    body = json.loads(event.get('body', '{}'))
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _response(400, {'error': 'Invalid JSON in request body'})
     call_id = body.get('callId', '')
     phone_number_id = body.get('phoneNumberId', '')
     sdp_answer = body.get('sdpAnswer', '')
@@ -973,7 +980,10 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
     """Reject or hang up a call."""
-    body = json.loads(event.get('body', '{}'))
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _response(400, {'error': 'Invalid JSON in request body'})
     call_id = body.get('callId', '')
     phone_number_id = body.get('phoneNumberId', '')
 
@@ -1002,7 +1012,10 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
     Initiate outbound call or send call permission request.
     Body: { phoneNumberId, to, action: 'permission_request' | 'create', sdpOffer?, bodyText?, recipientBsuid? }
     """
-    body = json.loads(event.get('body', '{}'))
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _response(400, {'error': 'Invalid JSON in request body'})
     phone_number_id = body.get('phoneNumberId', '')
     to_number = body.get('to', '')
     action = body.get('action', 'permission_request')
@@ -1440,7 +1453,10 @@ def _get_auto_pickup_mode() -> str:
 
 def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
     """Update auto-pickup configuration (toggle + IVR URL + mode)."""
-    body = json.loads(event.get('body', '{}'))
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _response(400, {'error': 'Invalid JSON in request body'})
     enabled = body.get('autoPickup')
     ivr_url = body.get('ivrUrl')
     mode = body.get('autoPickupMode')  # 'manual' | 'ivr' | 'ai'
@@ -1502,7 +1518,10 @@ def _ai_respond(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     import base64 as b64
 
-    body = json.loads(event.get('body', '{}'))
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _response(400, {'error': 'Invalid JSON in request body'})
     audio_base64 = body.get('audioBase64', '')
     caller_phone = body.get('callerPhone', 'unknown')
     mime_type = body.get('mimeType', 'audio/webm')

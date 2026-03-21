@@ -186,7 +186,7 @@ def _store_message(message_id: str, contact_id: str, subject: str, content: str,
             'status': status,
             'timestamp': Decimal(str(now)),
             'createdAt': Decimal(str(now)),
-            'ttl': Decimal(str(now + MESSAGE_TTL_SECONDS)),
+            'expiresAt': Decimal(str(now + MESSAGE_TTL_SECONDS)),
         }
         
         if error:

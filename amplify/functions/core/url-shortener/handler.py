@@ -38,7 +38,10 @@ HEADERS = {
 def handler(event, context):
     method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
     path = event.get("path", event.get("rawPath", ""))
-    body = json.loads(event.get("body", "{}") or "{}")
+    try:
+        body = json.loads(event.get("body", "{}") or "{}")
+    except (json.JSONDecodeError, TypeError, ValueError):
+        body = {}
 
     try:
         if method == "OPTIONS":

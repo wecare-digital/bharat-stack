@@ -285,7 +285,10 @@ def _handle_update(event, origin):
         if not message_id:
             return cors_response(400, {'error': 'messageId required'}, origin)
 
-        body = json.loads(event.get('body', '{}'))
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return cors_response(400, {'error': 'Invalid JSON in request body'}, origin)
         # Allowed editable fields
         ALLOWED = {
             'paymentItemName', 'paymentQuantity', 'paymentGstRate',
@@ -325,7 +328,10 @@ def _handle_update(event, origin):
 def _handle_create_invoice(event, origin):
     """Create an invoice from dashboard — invokes inbound-whatsapp handler to generate & send."""
     try:
-        body = json.loads(event.get('body', '{}'))
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return cors_response(400, {'error': 'Invalid JSON in request body'}, origin)
 
         # Required fields
         contact_id = body.get('contactId', '')

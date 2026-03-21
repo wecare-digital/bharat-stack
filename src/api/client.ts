@@ -337,8 +337,12 @@ export async function listMessages(contactId?: string, channel?: string): Promis
 }
 
 export async function getMessage(messageId: string): Promise<Message | null> {
-  const messages = await listMessages();
-  return messages.find(m => m.messageId === messageId) || null;
+  const data = await apiCall<any>(`${API_BASE}/messages/${messageId}`);
+  if (data) {
+    const msg = data.message || data;
+    return msg && (msg.id || msg.messageId) ? normalizeMessage(msg) : null;
+  }
+  return null;
 }
 
 export async function deleteMessage(messageId: string, direction: 'INBOUND' | 'OUTBOUND' = 'INBOUND'): Promise<boolean> {

@@ -134,14 +134,29 @@ def _process_job(body: Dict, request_id: str) -> Dict:
                 if not phone:
                     raise ValueError('No phone number')
 
-                if SEND_MODE == 'LIVE' and channel == 'WHATSAPP':
-                    # Check DynamoDB-backed rate limit before sending
-                    for _retry in range(3):
-                        if check_rate_limit('whatsapp', phone_number_id, max_per_second=RATE_LIMIT_PER_SECOND):
-                            break
-                        logger.warning(f'[{request_id}] Rate limit exceeded for {phone_number_id}, throttling')
-                        time.sleep(0.5)
-                    _send_whatsapp(phone, phone_number_id, template_name, template_params, content, contact_id, request_id)
+                if SEND_MODE == 'LIVE':
+                    if channel == 'WHATSAPP':
+                        # Check DynamoDB-backed rate limit before sending
+                        for _retry in range(3):
+                            if check_rate_limit('whatsapp', phone_number_id, max_per_second=RATE_LIMIT_PER_SECOND):
+                                break
+                            logger.warning(f'[{request_id}] Rate limit exceeded for {phone_number_id}, throttling')
+                            time.sleep(0.5)
+                        _send_whatsapp(phone, phone_number_id, template_name, template_params, content, contact_id, request_id)
+                    elif channel == 'SMS':
+                        _send_via_lambda('wecare-outbound-sms', {
+                            'contactId': contact_id, 'phoneNumber': phone, 'content': content,
+                        }, request_id)
+                    elif channel == 'EMAIL':
+                        email = contact.get('email', '')
+                        if not email:
+                            raise ValueError('No email address')
+                        _send_via_lambda('wecare-outbound-email', {
+                            'contactId': contact_id, 'subject': body.get('subject', 'Message from WECARE.DIGITAL'),
+                            'content': content,
+                        }, request_id)
+                    else:
+                        raise ValueError(f'Unsupported channel: {channel}')
 
                 # Update recipient status
                 recipients_table.update_item(
@@ -219,6 +234,29 @@ def _send_whatsapp(phone: str, phone_number_id: str, template_name: str,
         metaApiVersion='v20.0'
     )
     logger.info(f'[{request_id}] Sent to {formatted_phone}: {response.get("messageId")}')
+
+
+def _send_via_lambda(function_name: str, payload: Dict, request_id: str):
+    """Invoke another Lambda function for SMS/Email sending."""
+    try:
+        response = lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType='RequestResponse',
+            Payload=json.dumps({
+                'body': json.dumps(payload),
+                'requestContext': {'http': {'method': 'POST'}},
+                'headers': {},
+            }).encode('utf-8'),
+        )
+        resp_payload = json.loads(response['Payload'].read())
+        status = resp_payload.get('statusCode', 500)
+        if status >= 400:
+            body = json.loads(resp_payload.get('body', '{}'))
+            raise ValueError(body.get('error', f'{function_name} returned {status}'))
+        logger.info(f'[{request_id}] {function_name} invoked successfully')
+    except Exception as e:
+        logger.error(f'[{request_id}] {function_name} invoke error: {e}')
+        raise
 
 
 def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:

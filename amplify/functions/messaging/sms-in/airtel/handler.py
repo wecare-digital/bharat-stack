@@ -625,7 +625,7 @@ def _store_message(message_id: str, phone: str, content: str, status: str,
             'recipientCount': recipient_count,
             'apiVersion': api_version,
             'createdAt': Decimal(str(now)),
-            'ttl': Decimal(str(now + MESSAGE_TTL_SECONDS))
+            'expiresAt': Decimal(str(now + MESSAGE_TTL_SECONDS))
         }
         
         if provider_msg_id:

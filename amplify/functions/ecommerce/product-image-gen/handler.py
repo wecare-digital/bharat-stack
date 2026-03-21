@@ -109,6 +109,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _preview_svg(params, request_id)
 
         return _resp(404, {'error': 'Not found', 'path': path})
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _resp(400, {'error': 'Invalid JSON in request body'})
     except Exception as e:
         logger.error(json.dumps({'action': 'image_gen_error', 'error': str(e), 'requestId': request_id}))
         return _resp(500, {'error': str(e), 'requestId': request_id})

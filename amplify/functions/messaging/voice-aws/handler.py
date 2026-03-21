@@ -220,7 +220,7 @@ def _make_call(body: Dict, request_id: str) -> Dict[str, Any]:
         'errorDetails': result.get('error', ''),
         'createdAt': Decimal(str(now)),
         'updatedAt': Decimal(str(now)),
-        'ttl': Decimal(str(now + CALL_TTL_SECONDS)),
+        'expiresAt': Decimal(str(now + CALL_TTL_SECONDS)),
     })
 
     if not result.get('success'):

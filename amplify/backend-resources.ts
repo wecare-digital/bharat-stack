@@ -132,6 +132,16 @@ export function addBackendResources(stack: Stack) {
     'wecare-ai-query-kb', 'wecare-ai-generate-response', 'wecare-razorpay-webhook',
     'wecare-dlq-replay', 'wecare-contacts', 'wecare-meta-analytics',
     'wecare-catalog-management', 'wecare-ad-attribution',
+    'wecare-outbound-sms', 'wecare-outbound-email', 'wecare-outbound-voice',
+    'wecare-sms-aws', 'wecare-voice-aws', 'wecare-sms-in-airtel',
+    'wecare-voice-in-c2c', 'wecare-voice-in-obd', 'wecare-voice-in-cdr',
+    'wecare-voice-cdr-read', 'wecare-billing', 'wecare-system-cleanup',
+    'wecare-bulk-job-control', 'wecare-payu-webhook', 'wecare-payments-read',
+    'wecare-invoice-engine', 'wecare-wix-store', 'wecare-product-image-gen',
+    'wecare-auth-middleware', 'wecare-faq-handler', 'wecare-messages-read',
+    'wecare-messages-delete', 'wecare-ai-config-management', 'wecare-waba-management',
+    'wecare-push-notifications', 'wecare-media-cleanup', 'wecare-template-analytics',
+    'wecare-whatsapp-templates', 'wecare-agent-action-group',
   ];
 
   for (const fnName of LAMBDA_FUNCTIONS) {
@@ -144,7 +154,8 @@ export function addBackendResources(stack: Stack) {
   // ─── Per-Lambda Error Rate Alarms ──────────────────────────────────
   const CRITICAL_LAMBDAS = [
     'wecare-inbound-whatsapp', 'wecare-outbound-whatsapp', 'wecare-whatsapp-calling',
-    'wecare-razorpay-webhook', 'wecare-bulk-worker',
+    'wecare-razorpay-webhook', 'wecare-bulk-worker', 'wecare-payu-webhook',
+    'wecare-invoice-engine', 'wecare-scheduled-messages',
   ];
 
   const perLambdaAlarms: cloudwatch.Alarm[] = [];

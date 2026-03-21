@@ -48,6 +48,7 @@ const TTL_CONFIG: Record<string, string> = {
   SystemEvent: 'ttl',
   CatalogCache: 'ttl',
   AdClickAttribution: 'ttl',
+  WhatsAppCalling: 'ttl',
   RazorpayWebhookLog: 'expiresAt',
   PayUWebhookLog: 'expiresAt',
 };

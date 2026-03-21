@@ -204,6 +204,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
     now = int(time.time())
     _store_message({
+        'id': message_id,
         'messageId': message_id,
         'contactId': contact_id,
         'phoneNumber': phone_e164,
@@ -217,7 +218,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
         'campaignName': campaign_name,
         'errorDetails': result.get('error', ''),
         'createdAt': Decimal(str(now)),
-        'ttl': Decimal(str(now + MESSAGE_TTL_SECONDS)),
+        'expiresAt': Decimal(str(now + MESSAGE_TTL_SECONDS)),
     })
 
     if not result.get('success'):
@@ -303,6 +304,9 @@ def _store_message(item: Dict) -> None:
     """Store message in dedicated SMS table."""
     try:
         table = dynamodb.Table(SMS_TABLE)
+        # Ensure 'id' key exists (DynamoDB PK)
+        if 'id' not in item and 'messageId' in item:
+            item['id'] = item['messageId']
         # Remove empty string values (DynamoDB doesn't allow them)
         clean = {k: v for k, v in item.items() if v is not None and v != ''}
         table.put_item(Item=clean)
@@ -313,7 +317,8 @@ def _store_message(item: Dict) -> None:
 def _normalize(item: Dict) -> Dict:
     """Normalize message for API response."""
     return {
-        'messageId': item.get('messageId', ''),
+        'id': item.get('id', item.get('messageId', '')),
+        'messageId': item.get('messageId', item.get('id', '')),
         'contactId': item.get('contactId', ''),
         'phoneNumber': item.get('phoneNumber', ''),
         'content': item.get('content', ''),

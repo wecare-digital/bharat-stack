@@ -569,6 +569,7 @@ const schema = a.schema({
       timestamp: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
+      ttl: a.integer(), // TTL: Unix epoch seconds (90 days)
     })
     .identifier(['id'])
     .secondaryIndexes((index) => [
