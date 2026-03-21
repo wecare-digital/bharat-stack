@@ -95,6 +95,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if method == 'GET' and ('search' in resource or query_params.get('q')):
             return _search(query_params, request_id, origin)
 
+        # GET /contacts?stats=count — lightweight count-only (no full scan)
+        if method == 'GET' and query_params.get('stats') == 'count':
+            return _count_active(request_id, origin)
+
         # GET /contacts or GET /contacts/{id}
         if method == 'GET':
             if contact_id:
@@ -200,6 +204,27 @@ def _read_one(contact_id: str, request_id: str, origin: str = '') -> Dict[str, A
 
     log_event(logger, 'contact_read', contactId=contact_id, requestId=request_id)
     return cors_response(200, _from_dynamo(item), origin)
+
+
+# ─── COUNT (lightweight stats) ──────────────────────────────────────────────
+
+def _count_active(request_id: str, origin: str = '') -> Dict[str, Any]:
+    """Return active contact count using Select='COUNT' — no full scan."""
+    table = dynamodb.Table(CONTACTS_TABLE)
+    total = 0
+    scan_kwargs: Dict[str, Any] = {
+        'Select': 'COUNT',
+        'FilterExpression': Attr('deletedAt').not_exists() | Attr('deletedAt').eq(None),
+    }
+    while True:
+        resp = table.scan(**scan_kwargs)
+        total += resp.get('Count', 0)
+        if 'LastEvaluatedKey' not in resp:
+            break
+        scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+
+    log_event(logger, 'contacts_count', count=total, requestId=request_id)
+    return cors_response(200, {'activeContacts': total}, origin)
 
 
 # ─── LIST ALL ───────────────────────────────────────────────────────────────

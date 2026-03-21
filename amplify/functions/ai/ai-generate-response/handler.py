@@ -704,12 +704,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
 
-    headers = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS'
-    }
+    headers = cors_headers(origin)
+    headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
 
     # Handle OPTIONS preflight
     http_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', '')

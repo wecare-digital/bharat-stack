@@ -648,44 +648,46 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  // Fetch real data from contacts, messages, and bulk jobs
-  const [contacts, messages, bulkJobs] = await Promise.all([
-    listContacts(),
-    listMessages(),
-    listBulkJobs()
-  ]);
-  
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const weekStart = todayStart - 7 * 24 * 60 * 60 * 1000;
-  
-  const messagesToday = messages.filter(m => new Date(m.timestamp).getTime() >= todayStart).length;
-  const messagesWeek = messages.filter(m => new Date(m.timestamp).getTime() >= weekStart).length;
-  const activeContacts = contacts.filter(c => !c.deletedAt).length;
-  
-  // Calculate delivery rate from outbound messages
-  const outboundMessages = messages.filter(m => m.direction === 'OUTBOUND');
-  const deliveredMessages = outboundMessages.filter(m => 
-    m.status === 'delivered' || m.status === 'read' || m.status === 'sent'
-  );
-  const deliveryRate = outboundMessages.length > 0 
-    ? Math.round((deliveredMessages.length / outboundMessages.length) * 100) 
-    : 100;
-  
-  // Count active bulk jobs
-  const activeBulkJobs = bulkJobs.filter(j => 
-    j.status === 'PENDING' || j.status === 'IN_PROGRESS'
-  ).length;
-  
-  return {
-    messagesToday,
-    messagesWeek,
-    activeContacts,
-    bulkJobs: activeBulkJobs,
-    deliveryRate,
-    aiResponses: 0, // Would need AI interactions table query
-    dlqDepth: 0, // Would need DLQ depth API
-  };
+  // Use lightweight count-only endpoints to avoid fetching all records
+  try {
+    const [msgStats, contactStats, bulkJobs] = await Promise.all([
+      apiCall<any>(`${API_BASE}/messages?stats=count`),
+      apiCall<any>(`${API_BASE}/contacts?stats=count`),
+      listBulkJobs(),
+    ]);
+
+    const activeBulkJobs = bulkJobs.filter(j =>
+      j.status === 'PENDING' || j.status === 'IN_PROGRESS'
+    ).length;
+
+    // Try to get DLQ depth
+    let dlqDepth = 0;
+    try {
+      const dlqData = await apiCall<any>(`${API_BASE}/dlq`);
+      dlqDepth = dlqData?.count ?? dlqData?.messages?.length ?? 0;
+    } catch { /* non-critical */ }
+
+    return {
+      messagesToday: msgStats?.messagesToday ?? 0,
+      messagesWeek: msgStats?.messagesWeek ?? 0,
+      activeContacts: contactStats?.activeContacts ?? 0,
+      bulkJobs: activeBulkJobs,
+      deliveryRate: msgStats?.deliveryRate ?? 100,
+      aiResponses: 0,
+      dlqDepth,
+    };
+  } catch {
+    // Fallback: return safe defaults on any error
+    return {
+      messagesToday: 0,
+      messagesWeek: 0,
+      activeContacts: 0,
+      bulkJobs: 0,
+      deliveryRate: 100,
+      aiResponses: 0,
+      dlqDepth: 0,
+    };
+  }
 }
 
 // ============================================================================
@@ -710,14 +712,14 @@ export interface SystemHealth {
 }
 
 export async function getSystemHealth(): Promise<SystemHealth> {
-  // Real AWS Resource IDs
-  return {
+  // Defaults (used as fallback if any call fails)
+  const defaults: SystemHealth = {
     whatsapp: { status: 'active', phoneNumbers: 2, qualityRating: 'GREEN' },
     sms: { status: 'active', poolId: 'TBD' },
     email: { status: 'active', verified: true },
-    ai: { 
-      status: 'active', 
-      internalKbId: 'static-faq', 
+    ai: {
+      status: 'active',
+      internalKbId: 'static-faq',
       internalAgentId: 'QIEEHEBTZO',
       internalAgentAlias: 'ASCBD7YPUT',
       externalKbId: 'static-faq',
@@ -726,6 +728,44 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     },
     dlq: { depth: 0 },
   };
+
+  try {
+    // Fetch real data from existing endpoints in parallel
+    const [billingData, dlqData, wabaData] = await Promise.all([
+      apiCall<any>(`${API_BASE}/billing?health=true&advisor=false`).catch(() => null),
+      apiCall<any>(`${API_BASE}/dlq`).catch(() => null),
+      apiCall<any>(`${API_BASE}/waba`).catch(() => null),
+    ]);
+
+    // DLQ depth
+    if (dlqData) {
+      defaults.dlq.depth = dlqData.count ?? dlqData.messages?.length ?? 0;
+      if (dlqData.messages?.length > 0) {
+        defaults.dlq.oldestMessage = dlqData.messages[dlqData.messages.length - 1]?.lastAttemptAt
+          ? new Date(dlqData.messages[dlqData.messages.length - 1].lastAttemptAt * 1000).toISOString()
+          : undefined;
+      }
+    }
+
+    // AWS Health status from billing endpoint
+    if (billingData?.health) {
+      const h = billingData.health;
+      if (h.status === 'issues' || h.openIssues > 0) {
+        defaults.whatsapp.status = 'warning';
+      }
+    }
+
+    // WABA phone quality from waba endpoint
+    if (wabaData && Array.isArray(wabaData.wabas)) {
+      defaults.whatsapp.phoneNumbers = wabaData.wabas.reduce(
+        (sum: number, w: any) => sum + (w.phoneNumbers?.length ?? 0), 0
+      ) || defaults.whatsapp.phoneNumbers;
+    }
+  } catch {
+    // Return defaults on any error
+  }
+
+  return defaults;
 }
 
 
