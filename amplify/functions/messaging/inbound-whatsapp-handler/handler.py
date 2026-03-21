@@ -581,8 +581,8 @@ def _process_message(
                         'phone': sender_phone,
                         'contactId': contact_id,
                         'referral': referral,
-                        'wabaId': waba_id if 'waba_id' in dir() else '',
-                        'phoneNumberId': phone_number_id if 'phone_number_id' in dir() else '',
+                        'wabaId': meta_waba_ids[0] if meta_waba_ids else '',
+                        'phoneNumberId': aws_phone_number_id,
                         'whatsappMessageId': whatsapp_message_id,
                     }),
                 }),
@@ -986,8 +986,9 @@ def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str
         return
     
     values[':now'] = Decimal(str(int(time.time())))
-    set_parts = [f'{k} = :v{i}' for i, k in enumerate(names.keys())]
-    set_parts.append('updatedAt = :now')
+    names['#updatedAt'] = 'updatedAt'
+    set_parts = [f'{k} = :v{i}' for i, k in enumerate(names.keys()) if k != '#updatedAt']
+    set_parts.append('#updatedAt = :now')
     
     try:
         contacts_table.update_item(
@@ -997,7 +998,11 @@ def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str
             ExpressionAttributeValues=values,
         )
     except Exception as e:
-        logger.warning(f"Failed to update contact BSUID fields: {str(e)}")
+        logger.warning(json.dumps({
+            'event': 'contact_bsuid_update_failed',
+            'contactId': contact.get('id', ''),
+            'error': str(e),
+        }))
 
 
 def _process_user_id_update(uid_update: Dict, contacts_map: Dict, request_id: str) -> None:
@@ -3173,6 +3178,15 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
     Falls back to single item_name/amount/quantity/gst_rate if items not provided.
     """
     if not contact_id or amount <= 0:
+        return
+    # Validate amount upper bound (₹10,00,000 = 10 lakh INR)
+    if amount > 1000000:
+        logger.warning(json.dumps({
+            'event': 'payment_amount_exceeds_limit',
+            'contactId': contact_id,
+            'amount': amount,
+            'requestId': request_id,
+        }))
         return
 
     try:

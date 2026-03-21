@@ -384,7 +384,8 @@ def _get_table_count(table_name: str) -> int:
                 break
             scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
         return count
-    except Exception:
+    except Exception as e:
+        logger.warning(f'{{"event":"table_count_error","table":"{table_name}","error":"{e}"}}')
         return -1
 
 
@@ -398,7 +399,8 @@ def _get_s3_count(prefix: str) -> int:
                 if not obj['Key'].endswith('/'):
                     count += 1
         return count
-    except Exception:
+    except Exception as e:
+        logger.warning(f'{{"event":"s3_count_error","prefix":"{prefix}","error":"{e}"}}')
         return -1
 
 
@@ -408,7 +410,8 @@ def _get_sqs_count(queue_name: str) -> int:
         url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
         attrs = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible'])
         return int(attrs['Attributes'].get('ApproximateNumberOfMessages', 0)) + int(attrs['Attributes'].get('ApproximateNumberOfMessagesNotVisible', 0))
-    except Exception:
+    except Exception as e:
+        logger.warning(f'{{"event":"sqs_count_error","queue":"{queue_name}","error":"{e}"}}')
         return -1
 
 

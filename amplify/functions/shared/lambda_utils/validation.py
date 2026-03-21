@@ -113,3 +113,30 @@ def sanitize_dict(data: Dict[str, Any], fields: List[str], max_length: int = 100
         if field in result and isinstance(result[field], str):
             result[field] = sanitize_html(result[field], max_length)
     return result
+
+
+def normalize_phone(phone: Optional[str]) -> str:
+    """
+    Normalize a phone number to digits-only E.164 format (no + prefix).
+    Strips whitespace, dashes, parentheses, and leading + sign.
+    Returns empty string if input is invalid.
+    """
+    if not phone or not isinstance(phone, str):
+        return ''
+    # Strip all non-digit characters
+    digits = re.sub(r'[^\d]', '', phone.strip())
+    if len(digits) < 7 or len(digits) > 15:
+        return ''
+    return digits
+
+
+def validate_amount(amount: Any, min_val: float = 0.01, max_val: float = 1000000.0) -> bool:
+    """
+    Validate a payment amount is within acceptable bounds.
+    Returns True if valid, False otherwise.
+    """
+    try:
+        val = float(amount)
+        return min_val <= val <= max_val
+    except (TypeError, ValueError):
+        return False

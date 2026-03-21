@@ -115,13 +115,20 @@ def delete_user_data(dynamodb_resource, contact_id: str, phone: str,
             if config['index'] and config['key_field'] in ('contactId', 'phone'):
                 lookup_value = contact_id if config['key_field'] == 'contactId' else phone
                 if lookup_value:
-                    resp = table.query(
-                        IndexName=f'{config["index"]}-index',
-                        KeyConditionExpression=f'{config["key_field"]} = :val',
-                        ExpressionAttributeValues={':val': lookup_value},
-                        Limit=1000,
-                    )
-                    items = resp.get('Items', [])
+                    all_delete_items = []
+                    query_kwargs = {
+                        'IndexName': f'{config["index"]}-index',
+                        'KeyConditionExpression': f'{config["key_field"]} = :val',
+                        'ExpressionAttributeValues': {':val': lookup_value},
+                        'Limit': 1000,
+                    }
+                    while True:
+                        resp = table.query(**query_kwargs)
+                        all_delete_items.extend(resp.get('Items', []))
+                        if 'LastEvaluatedKey' not in resp:
+                            break
+                        query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                    items = all_delete_items
 
             count = len(items)
             if count > 0 and not dry_run:

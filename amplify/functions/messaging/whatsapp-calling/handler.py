@@ -40,6 +40,8 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', '')
+if not VERIFY_TOKEN:
+    logging.getLogger(__name__).warning('VERIFY_TOKEN not set — webhook verification will reject all requests')
 CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'stack-wecare-digital-WhatsAppCallingTable')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
@@ -237,8 +239,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _response(200, {'message': 'OK'})
 
     except Exception as e:
-        logger.error(f"Handler error: {str(e)}", exc_info=True)
-        return _response(200, {'error': str(e)})
+        logger.error(json.dumps({
+            'event': 'handler_error',
+            'error': str(e),
+            'method': http_method,
+            'path': path,
+            'requestId': request_id,
+        }), exc_info=True)
+        return _response(500, {'error': 'Internal server error'})
 
 
 # ─── Webhook Verification ───────────────────────────────────────────
@@ -286,8 +294,8 @@ def _verify_webhook_signature(event: Dict[str, Any], request_id: str) -> bool:
 
     if not app_secret_1 and not app_secret_2:
         logger.error(json.dumps({'event': 'webhook_no_app_secret', 'requestId': request_id}))
-        # Fail open only if no secrets configured (dev/test)
-        return True
+        # P0 Security: Never fail open — reject if no secrets configured
+        return False
 
     raw_body = event.get('body', '')
     if event.get('isBase64Encoded') and raw_body:
@@ -1542,7 +1550,7 @@ def _ai_respond(event: Dict, request_id: str) -> Dict[str, Any]:
             transcribed_text = _transcribe_audio(audio_base64, mime_type, session_id, request_id)
 
         if not transcribed_text:
-            return _response(200, {'error': 'No speech detected', 'audioUrl': None})
+            return _response(200, {'error': 'No speech detected', 'audioUrl': None, 'noSpeech': True})
 
         logger.info(f"[AI-RESPOND] Transcribed: {transcribed_text[:200]}")
 
@@ -1564,8 +1572,12 @@ def _ai_respond(event: Dict, request_id: str) -> Dict[str, Any]:
         })
 
     except Exception as e:
-        logger.error(f"[AI-RESPOND] Error: {e}", exc_info=True)
-        return _response(200, {'error': str(e), 'audioUrl': None})
+        logger.error(json.dumps({
+            'event': 'ai_respond_error',
+            'error': str(e),
+            'requestId': request_id,
+        }), exc_info=True)
+        return _response(500, {'error': 'AI response generation failed', 'audioUrl': None})
 
 
 def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, request_id: str) -> str:

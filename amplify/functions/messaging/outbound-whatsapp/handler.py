@@ -960,11 +960,53 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             'requestId': request_id
         }))
         
-        response = social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=message_json,
-            metaApiVersion=META_API_VERSION
-        )
+        # Retry with exponential backoff for transient failures
+        max_retries = 3
+        last_error = None
+        for attempt in range(max_retries + 1):
+            try:
+                response = social_messaging.send_whatsapp_message(
+                    originationPhoneNumberId=phone_number_id,
+                    message=message_json,
+                    metaApiVersion=META_API_VERSION
+                )
+                last_error = None
+                break
+            except social_messaging.exceptions.ThrottledRequestException as e:
+                last_error = e
+                if attempt < max_retries:
+                    wait_time = min(2 ** attempt, 8)  # 1s, 2s, 4s
+                    logger.warning(json.dumps({
+                        'event': 'send_throttled_retry',
+                        'attempt': attempt + 1,
+                        'waitSeconds': wait_time,
+                        'messageId': message_id,
+                        'requestId': request_id
+                    }))
+                    time.sleep(wait_time)
+                else:
+                    raise
+            except Exception as e:
+                # Only retry on transient errors (service unavailable, timeout)
+                error_str = str(e).lower()
+                is_transient = any(kw in error_str for kw in ['timeout', 'service unavailable', '503', '429', 'throttl'])
+                if is_transient and attempt < max_retries:
+                    wait_time = min(2 ** attempt, 8)
+                    logger.warning(json.dumps({
+                        'event': 'send_transient_retry',
+                        'attempt': attempt + 1,
+                        'waitSeconds': wait_time,
+                        'error': str(e)[:200],
+                        'messageId': message_id,
+                        'requestId': request_id
+                    }))
+                    time.sleep(wait_time)
+                    last_error = e
+                else:
+                    raise
+        
+        if last_error:
+            raise last_error
         
         whatsapp_message_id = response.get('messageId', '')
         
