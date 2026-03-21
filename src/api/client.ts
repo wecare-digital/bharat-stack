@@ -372,7 +372,7 @@ function normalizeMessage(item: any): Message {
     channel: (item.channel || 'WHATSAPP').toUpperCase() as 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS',
     direction: (item.direction || 'INBOUND').toUpperCase() as 'INBOUND' | 'OUTBOUND',
     content: item.content || item.text || '',
-    timestamp: timestamp ? (typeof timestamp === 'number' ? new Date(timestamp * 1000).toISOString() : timestamp) : new Date().toISOString(),
+    timestamp: normalizeTimestamp(timestamp) || new Date().toISOString(),
     status: item.status || 'received',
     whatsappMessageId: item.whatsappMessageId,
     mediaId: item.mediaId,
@@ -800,8 +800,8 @@ function normalizeVoiceCall(item: any): VoiceCall {
     direction: (item.direction || 'OUTBOUND').toUpperCase() as 'INBOUND' | 'OUTBOUND',
     duration: item.duration || 0,
     recordingUrl: item.recordingUrl,
-    createdAt: item.createdAt ? new Date(Number(item.createdAt) * 1000).toISOString() : new Date().toISOString(),
-    updatedAt: item.updatedAt ? new Date(Number(item.updatedAt) * 1000).toISOString() : new Date().toISOString(),
+    createdAt: normalizeTimestamp(item.createdAt) || new Date().toISOString(),
+    updatedAt: normalizeTimestamp(item.updatedAt) || new Date().toISOString(),
   };
 }
 

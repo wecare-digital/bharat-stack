@@ -89,7 +89,7 @@ def _list_jobs(params: Dict, request_id: str) -> Dict[str, Any]:
     try:
         table = dynamodb.Table(BULK_JOBS_TABLE)
         
-        scan_kwargs = {'Limit': int(params.get('limit', 100))}
+        scan_kwargs = {}
         filter_expressions = []
         
         from boto3.dynamodb.conditions import Attr
@@ -256,6 +256,7 @@ def _enqueue_job(job_id: str, channel: str, content: str, template_name: str,
     try:
         # Chunk recipients
         chunks = [recipients[i:i+CHUNK_SIZE] for i in range(0, len(recipients), CHUNK_SIZE)]
+        enqueued = 0
         
         for chunk_idx, chunk in enumerate(chunks):
             message = {
@@ -269,11 +270,17 @@ def _enqueue_job(job_id: str, channel: str, content: str, template_name: str,
                 'recipients': chunk,
             }
             
-            sqs.send_message(
-                QueueUrl=BULK_QUEUE_URL,
-                MessageBody=json.dumps(message, default=str),
-                MessageGroupId=job_id if '.fifo' in BULK_QUEUE_URL else None,
-            )
+            try:
+                send_kwargs = {
+                    'QueueUrl': BULK_QUEUE_URL,
+                    'MessageBody': json.dumps(message, default=str),
+                }
+                if '.fifo' in BULK_QUEUE_URL:
+                    send_kwargs['MessageGroupId'] = job_id
+                sqs.send_message(**send_kwargs)
+                enqueued += 1
+            except Exception as chunk_err:
+                logger.error(f"Failed to enqueue chunk {chunk_idx} for job {job_id}: {str(chunk_err)}")
         
         # Update job status to in_progress
         jobs_table = dynamodb.Table(BULK_JOBS_TABLE)
@@ -287,7 +294,7 @@ def _enqueue_job(job_id: str, channel: str, content: str, template_name: str,
             }
         )
         
-        logger.info(f"Enqueued {len(chunks)} chunks for job {job_id}")
+        logger.info(f"Enqueued {enqueued}/{len(chunks)} chunks for job {job_id}")
         
     except Exception as e:
         logger.error(f"Enqueue job error: {str(e)}")
@@ -297,12 +304,22 @@ def _get_recipient_stats(job_id: str) -> Dict[str, int]:
     """Get recipient statistics for a job."""
     try:
         table = dynamodb.Table(BULK_RECIPIENTS_TABLE)
-        response = table.query(
-            KeyConditionExpression='jobId = :jid',
-            ExpressionAttributeValues={':jid': job_id}
-        )
+        from boto3.dynamodb.conditions import Attr
+        # Use scan with filter since jobId is not the PK (PK is 'id')
+        all_items = []
+        scan_kwargs = {
+            'FilterExpression': Attr('jobId').eq(job_id),
+            'ProjectionExpression': '#s',
+            'ExpressionAttributeNames': {'#s': 'status'},
+        }
+        while True:
+            response = table.scan(**scan_kwargs)
+            all_items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         
-        recipients = response.get('Items', [])
+        recipients = all_items
         
         stats = {
             'pendingCount': 0,

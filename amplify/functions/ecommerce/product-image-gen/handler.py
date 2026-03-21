@@ -84,10 +84,14 @@ WHITE = (255, 255, 255)
 WHITE_DIM = (255, 255, 255, 150)
 WHITE_FAINT = (255, 255, 255, 60)
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Main Lambda handler."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET'))
@@ -488,9 +492,11 @@ def _preview_svg(params: dict, request_id: str) -> Dict[str, Any]:
   <rect x="0" y="996" width="1000" height="4" fill="{v_hex}" opacity="0.8"/>
 </svg>'''
 
+    svg_headers = cors_headers(origin)
+    svg_headers['Content-Type'] = 'image/svg+xml'
     return {
         'statusCode': 200,
-        'headers': {'Content-Type': 'image/svg+xml', 'Access-Control-Allow-Origin': '*'},
+        'headers': svg_headers,
         'body': svg,
     }
 
@@ -573,11 +579,6 @@ def _convert_flag_to_png(body: dict, request_id: str) -> Dict[str, Any]:
 def _resp(status_code: int, body: dict) -> Dict[str, Any]:
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str),
     }

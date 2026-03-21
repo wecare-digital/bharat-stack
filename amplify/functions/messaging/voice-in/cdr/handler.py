@@ -828,10 +828,10 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
-def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': cors_headers(origin),
+        'headers': cors_headers(resp_origin or origin),
         'body': json.dumps(body, default=str)
     }

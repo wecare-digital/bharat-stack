@@ -200,10 +200,10 @@ def _store_message(message_id: str, contact_id: str, subject: str, content: str,
         logger.error(f"Store message error: {str(e)}")
 
 
-def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': cors_headers(origin),
+        'headers': cors_headers(resp_origin or origin),
         'body': json.dumps(body)
     }

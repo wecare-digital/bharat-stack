@@ -9,6 +9,7 @@ import logging
 import time
 import uuid
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
 from typing import Dict, Any, Optional
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
@@ -98,8 +99,8 @@ def _process_job(body: Dict, request_id: str) -> Dict:
         # Get pending recipients (with full pagination)
         all_recipients = []
         query_kwargs = {
-            'KeyConditionExpression': boto3.dynamodb.conditions.Key('jobId').eq(job_id),
-            'FilterExpression': boto3.dynamodb.conditions.Attr('status').eq('PENDING'),
+            'KeyConditionExpression': Key('jobId').eq(job_id),
+            'FilterExpression': Attr('status').eq('PENDING'),
         }
         while True:
             response = recipients_table.query(**query_kwargs)
@@ -259,5 +260,5 @@ def _send_via_lambda(function_name: str, payload: Dict, request_id: str):
         raise
 
 
-def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
-    return {'statusCode': status_code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}
+def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
+    return {'statusCode': status_code, 'headers': cors_headers(resp_origin or origin), 'body': json.dumps(body, default=str)}

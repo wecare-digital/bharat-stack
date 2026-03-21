@@ -427,9 +427,58 @@ def _validate_email(email: str) -> bool:
 
 def _check_duplicate(phone: Optional[str], email: Optional[str], exclude_id: Optional[str] = None) -> Optional[str]:
     """Server-side duplicate detection by phone or email.
-    Note: For large tables, consider adding GSIs on phone and email for O(1) lookups.
-    Currently uses scan with ProjectionExpression to minimize data transfer.
+    Uses GSIs on phone and email for efficient O(1) lookups.
     """
+    if not phone and not email:
+        return None
+    table = dynamodb.Table(CONTACTS_TABLE)
+    
+    # Check phone duplicate using GSI
+    if phone:
+        try:
+            resp = table.query(
+                IndexName='phone-index',
+                KeyConditionExpression='phone = :ph',
+                ExpressionAttributeValues={':ph': phone},
+                Limit=5,
+            )
+            for item in resp.get('Items', []):
+                item_id = item.get('id') or item.get('contactId')
+                if exclude_id and item_id == exclude_id:
+                    continue
+                if item.get('deletedAt') is not None:
+                    continue
+                return f"Phone {phone} already exists ({item.get('name', 'unnamed')})"
+        except Exception as e:
+            # GSI may not exist yet — fall through to scan
+            logger.warning(f"Phone GSI query failed, falling back to scan: {e}")
+            return _check_duplicate_scan(phone, email, exclude_id)
+    
+    # Check email duplicate using GSI
+    if email:
+        try:
+            resp = table.query(
+                IndexName='email-index',
+                KeyConditionExpression='email = :em',
+                ExpressionAttributeValues={':em': email.lower()},
+                Limit=5,
+            )
+            for item in resp.get('Items', []):
+                item_id = item.get('id') or item.get('contactId')
+                if exclude_id and item_id == exclude_id:
+                    continue
+                if item.get('deletedAt') is not None:
+                    continue
+                return f"Email {email} already exists ({item.get('name', 'unnamed')})"
+        except Exception as e:
+            logger.warning(f"Email GSI query failed, falling back to scan: {e}")
+            return _check_duplicate_scan(phone, email, exclude_id)
+    
+    return None
+
+
+def _check_duplicate_scan(phone: Optional[str], email: Optional[str], exclude_id: Optional[str] = None) -> Optional[str]:
+    """Fallback duplicate detection using scan (for when GSIs are not available)."""
     if not phone and not email:
         return None
     table = dynamodb.Table(CONTACTS_TABLE)

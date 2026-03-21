@@ -55,6 +55,9 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 INVOICE_PREFIX = 'stack/invoices/'
 CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
 # Company details for invoice
 COMPANY = {
     'name': 'WECARE.DIGITAL',
@@ -118,6 +121,7 @@ def _load_s3_image(key: str):
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Route invoice engine requests."""
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
     method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
 
@@ -2134,11 +2138,6 @@ def _resp(status_code: int, body: Dict) -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str),
     }

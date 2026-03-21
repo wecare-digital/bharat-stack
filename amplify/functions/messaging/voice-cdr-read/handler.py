@@ -546,10 +546,10 @@ def _clear_cdr_logs(request_id: str) -> Dict[str, Any]:
     return _response(200, {'success': True, 'totalDeleted': deleted})
 
 
-def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
+def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
     """Return HTTP response with CORS headers."""
     return {
         'statusCode': status_code,
-        'headers': cors_headers(origin),
+        'headers': cors_headers(resp_origin or origin),
         'body': json.dumps(body, cls=DecimalEncoder)
     }

@@ -350,15 +350,39 @@ def _process_due_messages(request_id: str) -> Dict[str, Any]:
         failed_count = 0
         
         for item in items:
-            scheduled_id = item['scheduledId']
+            scheduled_id = item.get('scheduledId', item.get('id', ''))
+            if not scheduled_id:
+                logger.warning('Skipping item with no scheduledId')
+                continue
             
             try:
+                contact_id = item.get('contactId')
+                template_name = item.get('templateName')
+                if not contact_id or not template_name:
+                    logger.warning(f'Skipping scheduled message {scheduled_id}: missing contactId or templateName')
+                    table.update_item(
+                        Key={'id': scheduled_id},
+                        UpdateExpression='SET #status = :status, #errorMessage = :error, #updatedAt = :updatedAt',
+                        ExpressionAttributeNames={
+                            '#status': 'status',
+                            '#errorMessage': 'errorMessage',
+                            '#updatedAt': 'updatedAt'
+                        },
+                        ExpressionAttributeValues={
+                            ':status': 'FAILED',
+                            ':error': 'Missing contactId or templateName',
+                            ':updatedAt': now
+                        }
+                    )
+                    failed_count += 1
+                    continue
+                
                 # Send the message via outbound Lambda
                 payload = {
                     'body': json.dumps({
-                        'contactId': item['contactId'],
+                        'contactId': contact_id,
                         'isTemplate': True,
-                        'templateName': item['templateName'],
+                        'templateName': template_name,
                         'templateParams': item.get('templateParams', []),
                         'phoneNumberId': item.get('phoneNumberId', ''),
                         'recipientBsuid': item.get('recipientBsuid', ''),

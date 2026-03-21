@@ -217,5 +217,5 @@ def _normalize(item: Dict) -> Dict:
     }
 
 
-def _response(status_code: int, body: Dict, origin: str = '') -> Dict[str, Any]:
-    return {'statusCode': status_code, 'headers': cors_headers(origin), 'body': json.dumps(body, default=str)}
+def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
+    return {'statusCode': status_code, 'headers': cors_headers(resp_origin or origin), 'body': json.dumps(body, default=str)}

@@ -49,6 +49,9 @@ PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'stack-wecare-
 ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'stack-wecare-digital-WixOrdersCache')
 ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'stack-wecare-digital-WixOrderIds')
 
+# Module-level origin for CORS (set per-invocation in handler)
+origin = ''
+
 
 # ===================================================================
 # HANDLER
@@ -83,6 +86,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
       POST /backfill-order-ids           - Backfill WD-ORD numbers for all existing orders
     """
     request_id = context.aws_request_id if context else 'local'
+    global origin
     origin = extract_origin(event)
 
     try:
@@ -1344,12 +1348,7 @@ def _response(status_code: int, body: dict) -> Dict[str, Any]:
     """Build API Gateway response."""
     return {
         'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        },
+        'headers': cors_headers(origin),
         'body': json.dumps(body, default=str),
     }
 

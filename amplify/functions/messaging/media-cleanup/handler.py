@@ -53,13 +53,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     try:
         table = dynamodb.Table(MEDIA_FILES_TABLE)
-        response = table.scan(
-            FilterExpression='uploadedAt < :cutoff AND attribute_exists(whatsappMediaId)',
-            ExpressionAttributeValues={':cutoff': Decimal(str(cutoff))},
-            Limit=MAX_DELETIONS * 2
-        )
-
-        items = response.get('Items', [])
+        # Paginate fully — Limit restricts evaluated items, not filtered results
+        items = []
+        scan_kwargs = {
+            'FilterExpression': 'uploadedAt < :cutoff AND attribute_exists(whatsappMediaId)',
+            'ExpressionAttributeValues': {':cutoff': Decimal(str(cutoff))},
+        }
+        while True:
+            response = table.scan(**scan_kwargs)
+            items.extend(response.get('Items', []))
+            if len(items) >= MAX_DELETIONS or 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         logger.info(json.dumps({
             'event': 'media_cleanup_scan',
             'foundCount': len(items),
