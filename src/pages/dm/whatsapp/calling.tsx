@@ -669,42 +669,6 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
     });
   };
 
-  // Helper: record remote audio from peer connection for a few seconds
-  const recordRemoteAudio = (pc: RTCPeerConnection, durationMs: number): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const receivers = pc.getReceivers().filter(r => r.track?.kind === 'audio');
-      if (receivers.length === 0) { resolve(new Blob()); return; }
-      const stream = new MediaStream(receivers.map(r => r.track!));
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => resolve(new Blob(chunks, { type: 'audio/webm' }));
-      recorder.start();
-      setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, durationMs);
-    });
-  };
-
-  // AI Bot: send recorded audio to backend for transcription → Bedrock → Polly TTS → get audio URL back
-  const getAiBotResponse = async (audioBlob: Blob, callerPhone: string): Promise<string | null> => {
-    try {
-      // Convert blob to base64
-      const buffer = await audioBlob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-
-      const res = await fetch(`${API_BASE}/whatsapp-calling/ai-respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioBase64: base64, callerPhone, mimeType: 'audio/webm' }),
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data.audioUrl || null; // URL of Polly-generated response audio
-    } catch (e) {
-      console.error('[AI-BOT] Response error:', e);
-      return null;
-    }
-  };
-
   // Auto-answer: when autoPickup is ON and a ringing call with SDP arrives, answer it automatically
   const autoAnswerCall = React.useCallback(async (call: any) => {
     const { callId, phoneNumberId, sdpOffer } = call;
