@@ -15,7 +15,11 @@ import json
 import uuid
 import time
 import logging
+import hmac
+import hashlib
 import boto3
+import urllib.request
+import urllib.error
 from typing import Dict, Any, Optional
 from decimal import Decimal
 
@@ -93,6 +97,77 @@ DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_3}
 def _is_direct_api_phone(phone_number_id: str) -> bool:
     """Check if a phone number ID belongs to a Direct API WABA (no EUM)."""
     return phone_number_id in DIRECT_API_PHONE_IDS
+
+
+# ── WABA3 Direct API support ────────────────────────────────────────
+# WABA3 doesn't use EUM — send messages via Meta Graph API directly.
+# Token loaded from Secrets Manager (same secret as calling handler).
+META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
+WABA3_PHONE_META_ID = '945798751960485'
+_direct_api_token_cache = {}
+secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+
+def _load_direct_api_token() -> str:
+    """Load Meta access token for WABA3 Direct API calls (cached)."""
+    if 'token' in _direct_api_token_cache:
+        return _direct_api_token_cache['token']
+    try:
+        resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
+        secret = resp.get('SecretString', '')
+        try:
+            data = json.loads(secret)
+            _direct_api_token_cache['token'] = (data.get('access_token') or '').strip()
+            _direct_api_token_cache['app_secret'] = (data.get('app_secret') or '').strip()
+        except (json.JSONDecodeError, TypeError):
+            _direct_api_token_cache['token'] = secret.strip()
+            _direct_api_token_cache['app_secret'] = ''
+        return _direct_api_token_cache.get('token', '')
+    except Exception as e:
+        logger.error(f"Failed to load Direct API token: {e}")
+        return ''
+
+
+def _send_direct_api_message(to_number: str, message_payload: Dict) -> Dict:
+    """Send a WhatsApp message via Meta Graph API for WABA3 (Direct API)."""
+    token = _load_direct_api_token()
+    if not token:
+        return {'error': True, 'detail': 'No Direct API token available'}
+
+    if not to_number.startswith('+'):
+        to_number = f'+{to_number}'
+    message_payload['to'] = to_number
+    message_payload['messaging_product'] = 'whatsapp'
+
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{WABA3_PHONE_META_ID}/messages"
+    app_secret = _direct_api_token_cache.get('app_secret', '')
+    if app_secret:
+        proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+    data = json.dumps(message_payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode('utf-8')
+            result = json.loads(body) if body else {}
+            msg_id = ''
+            messages = result.get('messages', [])
+            if messages:
+                msg_id = messages[0].get('id', '')
+            return {'success': True, 'messageId': msg_id}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(f"Direct API send failed {e.code}: {error_body}")
+        return {'error': True, 'status': e.code, 'detail': error_body}
+    except Exception as e:
+        logger.error(f"Direct API send failed: {e}")
+        return {'error': True, 'detail': str(e)}
 
 # TTL: 30 days in seconds
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60
@@ -2713,17 +2788,27 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
         else:
             to_number = sender_phone
 
-        social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=aws_phone_number_id,
-            message=json.dumps({
-                'messaging_product': 'whatsapp',
-                'to': to_number,
-                'type': 'text',
-                'text': {'body': response_config['text']},
-            }).encode('utf-8'),
-            metaApiVersion=META_API_VERSION,
-        )
-        logger.info(f"IVR response sent to {sender_phone} for {button_id}")
+        msg_payload = {
+            'messaging_product': 'whatsapp',
+            'to': to_number,
+            'type': 'text',
+            'text': {'body': response_config['text']},
+        }
+
+        # Use Direct API for WABA3, EUM for others
+        if _is_direct_api_phone(aws_phone_number_id):
+            result = _send_direct_api_message(to_number, msg_payload)
+            if result.get('error'):
+                logger.error(f"IVR Direct API send failed for {button_id}: {result}")
+            else:
+                logger.info(f"IVR response sent via Direct API to {sender_phone} for {button_id}")
+        else:
+            social_messaging.send_whatsapp_message(
+                originationPhoneNumberId=aws_phone_number_id,
+                message=json.dumps(msg_payload).encode('utf-8'),
+                metaApiVersion=META_API_VERSION,
+            )
+            logger.info(f"IVR response sent to {sender_phone} for {button_id}")
 
         # Store IVR selection in SystemEvent table for tracking/analytics
         try:
@@ -4874,6 +4959,11 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
     to the customer that their message was seen and a response is coming.
     """
     if not sender_phone or not phone_number_id:
+        return
+
+    # Skip EUM operations for Direct API phones (WABA3) — EUM won't work
+    if _is_direct_api_phone(phone_number_id):
+        logger.info(f"Skipping typing indicator for Direct API phone {phone_number_id}")
         return
 
     try:
