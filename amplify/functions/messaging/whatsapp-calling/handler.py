@@ -91,20 +91,21 @@ _token_cache = {}
 
 
 def _get_meta_token(phone_number_id: str = None) -> str:
-    """Get the correct Meta token based on phone number ID (dual WABA support)."""
+    """Get the Meta token for calling operations.
+    
+    Calling is set up under the primary Meta App (token1) for ALL WABAs.
+    Token2 is only for WABA2 messaging — calling always uses token1.
+    """
     _load_meta_secrets()
-    use_waba2 = phone_number_id in WABA2_IDS if phone_number_id else False
-    cache_key = 'token2' if use_waba2 else 'token1'
-    token = _token_cache.get(cache_key, _token_cache.get('token1', ''))
-    logger.info(f"Using {cache_key} for phone_number_id={phone_number_id} (use_waba2={use_waba2})")
+    token = _token_cache.get('token1', '')
+    logger.info(f"Using token1 for calling (phone_number_id={phone_number_id})")
     return token
 
 
 def _get_app_secret(phone_number_id: str = None) -> str:
-    """Get the correct app secret for appsecret_proof."""
+    """Get the app secret for appsecret_proof (always app_secret1 for calling)."""
     _load_meta_secrets()
-    use_waba2 = phone_number_id in WABA2_IDS if phone_number_id else False
-    return _token_cache.get('app_secret2' if use_waba2 else 'app_secret1', '')
+    return _token_cache.get('app_secret1', '')
 
 
 def _load_meta_secrets():
@@ -760,10 +761,10 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
         # Skip post-call reaction if the call was AI-redirected
         try:
             table = dynamodb.Table(CALL_LOG_TABLE)
-            from boto3.dynamodb.conditions import Key as DDBKey
-            result_check = table.query(
-                IndexName='callId-index',
-                KeyConditionExpression=DDBKey('callId').eq(call_id),
+            from boto3.dynamodb.conditions import Attr as DDBAttr
+            result_check = table.scan(
+                FilterExpression=DDBAttr('callId').eq(call_id),
+                Limit=10,
             )
             ai_handled = any(
                 i.get('status') in ('ai_redirected',)
@@ -850,13 +851,12 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
     already_pre_accepted = False
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        # Use callId GSI for efficient lookup instead of scan
-        from boto3.dynamodb.conditions import Key as DDBKey
-        result = table.query(
-            IndexName='callId-index',
-            KeyConditionExpression=DDBKey('callId').eq(call_id),
+        from boto3.dynamodb.conditions import Attr as DDBAttr2
+        result = table.scan(
+            FilterExpression=DDBAttr2('callId').eq(call_id) & DDBAttr2('eventType').eq('connect'),
+            Limit=10,
         )
-        items = [i for i in result.get('Items', []) if i.get('eventType') == 'connect']
+        items = result.get('Items', [])
         if items and items[0].get('status') == 'pre_accepted':
             already_pre_accepted = True
             logger.info(f"Call {call_id} already pre_accepted by auto-pickup, skipping pre_accept")
@@ -1709,13 +1709,13 @@ def _update_call_status(call_id: str, new_status: str, extra: Dict = None) -> No
     """Update the status of the most recent log entry for a call."""
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        # Use callId GSI for efficient lookup instead of scan
-        from boto3.dynamodb.conditions import Key as DDBKey
-        result = table.query(
-            IndexName='callId-index',
-            KeyConditionExpression=DDBKey('callId').eq(call_id),
+        # Scan with filter — no GSI on callId
+        from boto3.dynamodb.conditions import Attr
+        result = table.scan(
+            FilterExpression=Attr('callId').eq(call_id) & Attr('eventType').eq('connect'),
+            Limit=10,
         )
-        items = [i for i in result.get('Items', []) if i.get('eventType') == 'connect']
+        items = result.get('Items', [])
         if items:
             item = items[0]
             update_expr = 'SET #s = :s, #ua = :ua'
