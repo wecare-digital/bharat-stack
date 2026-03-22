@@ -570,8 +570,11 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             pickup_mode = _get_auto_pickup_mode()
             logger.info(f"AUTO-PICKUP mode={pickup_mode} — call {call_id} from {caller_name or from_number}")
 
-            if pickup_mode in ('manual', 'ivr'):
-                # manual/ivr: pre_accept to hold call open for frontend or IVR playback
+            if pickup_mode == 'ivr':
+                # IVR mode: pre_accept → send IVR menu → terminate
+                _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
+            elif pickup_mode == 'manual':
+                # manual: pre_accept only, wait for frontend browser to answer via WebRTC
                 try:
                     pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
                         'messaging_product': 'whatsapp',

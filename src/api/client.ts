@@ -3766,3 +3766,18 @@ export async function resendSubmitRequestPayment(invoiceId: string): Promise<boo
     return !!data;
   } catch { return false; }
 }
+
+// ── WhatsApp Commerce Catalog ──
+
+const CATALOG_BASE = `${API_BASE}/catalog`;
+
+export async function getCatalogProducts(params?: { wabaId?: string; phoneNumberId?: string; catalogId?: string; limit?: number }): Promise<{ products: any[]; paging?: any } | null> {
+  const qs = new URLSearchParams();
+  if (params?.wabaId) qs.set('wabaId', params.wabaId);
+  if (params?.phoneNumberId) qs.set('phoneNumberId', params.phoneNumberId);
+  if (params?.catalogId) qs.set('catalogId', params.catalogId);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  const data = await apiCall<any>(`${CATALOG_BASE}/products${query ? '?' + query : ''}`);
+  return data || { products: [] };
+}
