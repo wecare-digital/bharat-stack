@@ -2918,10 +2918,10 @@ def _detect_language_selection(message_content: str, message_type: str) -> Optio
 
     # Text command: "language hindi", "lang bengali", "change language to tamil"
     lang_patterns = [
-        r'^(?:language|lang|bhasha|????)[:\s]+(\w+)',
+        r'^(?:language|lang|bhasha|भाषा)[:\s]+(\w+)',
         r'^change\s+language\s+(?:to\s+)?(\w+)',
         r'^switch\s+(?:to\s+)?(\w+)',
-        r'^(\w+)\s+(?:mein|me|???)\s+(?:baat|bolo|reply|jawab)',
+        r'^(\w+)\s+(?:mein|me|में)\s+(?:baat|bolo|reply|jawab)',
     ]
     for pattern in lang_patterns:
         match = re.match(pattern, content_lower)

@@ -16,6 +16,7 @@ interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 const PHONE_NUMBERS = [
   { id: 'phone-number-id-5e020cecd221429996f6ae721cc42206', metaId: '960395407161423', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_2K', quality: 'GREEN', callingReady: true },
   { id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c', metaId: '997428863451102', display: '+91 99033 00044', name: 'Manish Agarwal', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true },
+  { id: 'phone-number-id-waba3-direct-945798751960485', metaId: '945798751960485', display: '+91 81003 30063', name: 'WABA3 (Direct API)', country: 'IN', tier: 'TIER_2K', quality: 'GREEN', callingReady: true },
 ];
 
 // Webhook configuration — LIVE
@@ -36,7 +37,7 @@ const META_TOKEN = {
   appName_waba2: 'Manish Agarwal',
   secretName: 'wecare/meta-system-user-token',
   scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
-  wabaAccess: ['1912405516040025', '1633959101297902'],
+  wabaAccess: ['1912405516040025', '1633959101297902', '2094615664435155'],
   tokenType: 'System User',
   status: 'active',
 };
@@ -185,7 +186,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [autoPickup, setAutoPickup] = useState(true);
   const [autoPickupLoading, setAutoPickupLoading] = useState(false);
-  const [autoPickupMode, setAutoPickupMode] = useState<'manual' | 'ivr' | 'ai'>('ivr');
+  const [autoPickupMode, setAutoPickupMode] = useState<'manual' | 'ivr'>('ivr');
   const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/IVR+1.mp3');
   const [activeCalls, setActiveCalls] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<any[]>([]);
@@ -437,7 +438,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         const data = await res.json();
         setAutoPickup(data.autoPickup !== false); // default true
         if (data.ivrUrl) setIvrUrl(data.ivrUrl);
-        if (data.autoPickupMode && ['manual', 'ivr', 'ai'].includes(data.autoPickupMode)) {
+        if (data.autoPickupMode && ['manual', 'ivr'].includes(data.autoPickupMode)) {
           setAutoPickupMode(data.autoPickupMode);
         }
       }
@@ -810,56 +811,6 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         cleanupWebRTC();
         toast.info('IVR call completed');
 
-      } else if (mode === 'ai') {
-        // AI Bot mode: listen → transcribe → Bedrock → Polly → play response → loop
-        // Play initial greeting first
-        try {
-          await playAudioIntoPeer(pc, ivrUrl);
-        } catch { /* greeting optional */ }
-
-        // Conversation loop (max 5 turns)
-        for (let turn = 0; turn < 5; turn++) {
-          if (pc.connectionState !== 'connected') break;
-
-          // Record caller's speech for 8 seconds
-          toast.info(`AI Bot: listening (turn ${turn + 1})...`);
-          const audioBlob = await recordRemoteAudio(pc, 8000);
-
-          if (audioBlob.size < 1000) {
-            // Silence or very short — caller may have hung up
-            toast.info('No speech detected — ending call');
-            break;
-          }
-
-          // Send to backend for AI processing
-          toast.info('AI Bot: thinking...');
-          const responseAudioUrl = await getAiBotResponse(audioBlob, call.fromNumber || '');
-
-          if (!responseAudioUrl) {
-            toast.error('AI Bot: no response generated');
-            break;
-          }
-
-          // Play AI response into the call
-          if (pc.connectionState !== 'connected') break;
-          toast.info('AI Bot: speaking...');
-          try {
-            await playAudioIntoPeer(pc, responseAudioUrl);
-          } catch (e) {
-            console.error('[AI-BOT] Play response error:', e);
-            break;
-          }
-        }
-
-        // End call after conversation
-        await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callId, phoneNumberId }),
-        });
-        cleanupWebRTC();
-        toast.info('AI Bot call completed');
-
       }
       // mode === 'manual': just connect, don't play anything — human takes over
 
@@ -1001,7 +952,6 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   {([
                     { value: 'manual' as const, label: 'Manual', desc: 'Connect call, human answers' },
                     { value: 'ivr' as const, label: 'IVR', desc: 'Play audio greeting, then hang up' },
-                    { value: 'ai' as const, label: 'AI Bot', desc: 'Bedrock AI answers the call' },
                   ]).map((m) => (
                     <button key={m.value} onClick={async () => {
                       setAutoPickupMode(m.value);
@@ -1022,7 +972,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     </button>
                   ))}
                   <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '4px' }}>
-                    {autoPickupMode === 'manual' ? 'Call connects, you talk' : autoPickupMode === 'ivr' ? 'Plays IVR audio → disconnects' : 'AI listens → Bedrock → Polly → speaks back'}
+                    {autoPickupMode === 'manual' ? 'Call connects, you talk' : 'Plays IVR audio → disconnects'}
                   </span>
                 </div>
               </div>

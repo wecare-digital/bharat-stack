@@ -32,6 +32,7 @@
  *   AUTO_PICKUP_IVR_URL: https://app.wecare.digital/stream/media/ivr/IVR+1.mp3
  *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-5e020cecd221429996f6ae721cc42206
  *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c
+ *   INBOUND_HANDLER_FUNCTION: wecare-inbound-whatsapp (for forwarding WABA3 messages)
  *   AI_AGENT_ID: Z4YAK0ZLBO (external Bedrock agent)
  *   AI_AGENT_ALIAS: WANPKHQGIB
  *   AI_KB_ID: static-faq (static knowledge base, free)
@@ -42,15 +43,6 @@
  * Auto-Pickup Modes (configurable via SystemConfig):
  *   manual - Connect call, human answers via browser WebRTC
  *   ivr    - Auto-answer, play IVR audio greeting, then hang up (default)
- *   ai     - Forward to Pipecat voice bot (real-time AI conversation via WebRTC)
- *            Fallback: voice-note redirect if bot server unreachable
- * 
- * Pipecat Voice Bot (AI mode):
- *   PIPECAT_BOT_URL: URL of the Pipecat bot server (e.g. http://1.2.3.4:8765)
- *   Also configurable via SystemConfig key: pipecat_bot_url
- *   Bot runs on Lightsail $3.50/mo — handles WebRTC SDP + audio pipeline:
- *     Caller audio → AWS Transcribe STT → Bedrock Nova Lite → Polly Kajal TTS → Caller
- *   Source: pipecat-bot/bot.py (deployed separately)
  * 
  * DynamoDB Tables:
  *   stack-wecare-digital-WhatsAppCallingTable (partition key: id)

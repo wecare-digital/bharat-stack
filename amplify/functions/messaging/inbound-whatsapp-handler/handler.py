@@ -73,10 +73,26 @@ PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-i
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
 
 # Map display phone numbers to AWS phone number IDs for reference
+# WABA3 (+918100330063) uses Direct API (no EUM) — synthetic ID for tracking
+PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 PHONE_NUMBER_MAP = {
-    '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400
-    '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044
+    '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400 (WABA1, EUM)
+    '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044 (WABA2, EUM)
+    '918100330063': PHONE_NUMBER_ID_3,  # +91 81003 30063 (WABA3, Direct API)
 }
+
+# Meta phone number ID to AWS phone number ID mapping (for Direct API WABAs)
+META_PHONE_ID_MAP = {
+    '945798751960485': PHONE_NUMBER_ID_3,  # WABA3 phone
+}
+
+# Direct API phone IDs — these don't use EUM, so EUM operations should be skipped
+DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_3}
+
+
+def _is_direct_api_phone(phone_number_id: str) -> bool:
+    """Check if a phone number ID belongs to a Direct API WABA (no EUM)."""
+    return phone_number_id in DIRECT_API_PHONE_IDS
 
 # TTL: 30 days in seconds
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60
@@ -412,6 +428,7 @@ def _get_aws_phone_number_id(display_phone: str, meta_phone_id: str) -> str:
     """
     Map display phone number or Meta phone ID to AWS EUM phone number ID.
     Returns the appropriate AWS phone number ID for sending reactions.
+    For WABA3 (Direct API), returns a synthetic ID for tracking purposes.
     """
     # Clean display phone number (remove + and spaces)
     clean_phone = display_phone.replace('+', '').replace(' ', '').replace('-', '')
@@ -419,6 +436,10 @@ def _get_aws_phone_number_id(display_phone: str, meta_phone_id: str) -> str:
     # Check if we have a mapping for this phone number
     if clean_phone in PHONE_NUMBER_MAP:
         return PHONE_NUMBER_MAP[clean_phone]
+    
+    # Check Meta phone number ID mapping (for Direct API WABAs)
+    if meta_phone_id in META_PHONE_ID_MAP:
+        return META_PHONE_ID_MAP[meta_phone_id]
     
     # Default to first phone number ID if no mapping found
     logger.warning(json.dumps({
@@ -503,9 +524,10 @@ def _process_message(
     expires_at = now + MESSAGE_TTL_SECONDS
     
     # Handle media messages (including stickers)
+    # Skip EUM media download for Direct API phones (WABA3) — EUM API won't work
     media_id = None
     s3_key = None
-    if msg_type in ['image', 'video', 'audio', 'document', 'sticker']:
+    if msg_type in ['image', 'video', 'audio', 'document', 'sticker'] and not _is_direct_api_phone(aws_phone_number_id):
         media_data = message.get(msg_type, {})
         whatsapp_media_id = media_data.get('id')
         mime_type_hint = media_data.get('mime_type', '')
@@ -515,7 +537,7 @@ def _process_message(
                 media_id = _store_media_record(message_id, s3_key, media_data, whatsapp_media_id)
     
     # Ephemeral messages may carry media nested inside — try to extract
-    if msg_type == 'ephemeral' and not s3_key:
+    if msg_type == 'ephemeral' and not s3_key and not _is_direct_api_phone(aws_phone_number_id):
         ephemeral_data = message.get('ephemeral', {})
         if isinstance(ephemeral_data, dict):
             for etype in ('image', 'video', 'audio', 'document', 'sticker'):
@@ -718,7 +740,8 @@ def _process_message(
     
     # Auto-react with thumbs up (skip reactions to avoid loops)
     # Use the same phone number that received the message
-    if msg_type != 'reaction':
+    # Skip EUM operations for Direct API phones (WABA3)
+    if msg_type != 'reaction' and not _is_direct_api_phone(aws_phone_number_id):
         _send_auto_reaction(
             contact_id=contact_id,
             whatsapp_message_id=whatsapp_message_id,

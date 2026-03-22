@@ -76,6 +76,14 @@ PHONE1_META_ID = '960395407161423'
 PHONE2_META_ID = '997428863451102'
 WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
 
+# WABA3 (Direct API, no EUM) — messages arrive via override_callback_uri webhook
+WABA3_ID = '2094615664435155'
+WABA3_PHONE_META_ID = '945798751960485'
+
+# Inbound handler Lambda for forwarding non-call webhook events (messages, statuses)
+INBOUND_HANDLER_FUNCTION = os.environ.get('INBOUND_HANDLER_FUNCTION', 'wecare-inbound-whatsapp')
+lambda_client = boto3.client('lambda', region_name=REGION)
+
 # Cache Meta tokens (dual)
 _token_cache = {}
 
@@ -419,10 +427,73 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
                             f"display_phone={metadata.get('display_phone_number', 'N/A')}")
                 for call in calls:
                     _handle_call_event(waba_id, call, metadata, contacts, request_id)
+            elif field == 'messages':
+                # Forward message events to inbound handler (WABA3 Direct API)
+                _forward_to_inbound_handler(entry, waba_id, request_id)
             else:
                 logger.info(f"Non-call field: {field}")
 
     return _response(200, {'status': 'processed', 'entries': len(entries)})
+
+
+def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> None:
+    """
+    Forward non-call webhook events (messages, statuses) to the inbound handler.
+    WABA3 uses Direct API with override_callback_uri, so messages arrive here
+    instead of via AWS EUM → SNS. We wrap them in the SNS/EUM format the
+    inbound handler expects and invoke it asynchronously.
+    """
+    try:
+        # Extract metadata for context
+        changes = entry.get('changes', [])
+        meta_phone_ids = []
+        for change in changes:
+            value = change.get('value', {})
+            metadata = value.get('metadata', {})
+            pid = metadata.get('phone_number_id', '')
+            if pid and pid not in meta_phone_ids:
+                meta_phone_ids.append(pid)
+
+        # Build the SNS/EUM format the inbound handler expects
+        sns_message = {
+            'context': {
+                'MetaWabaIds': [waba_id],
+                'MetaPhoneNumberIds': meta_phone_ids,
+            },
+            'whatsAppWebhookEntry': json.dumps(entry),
+            'messageId': request_id,
+        }
+
+        # Wrap in SNS Records format
+        inbound_event = {
+            'Records': [{
+                'Sns': {
+                    'Message': json.dumps(sns_message),
+                    'MessageId': request_id,
+                }
+            }]
+        }
+
+        result = lambda_client.invoke(
+            FunctionName=INBOUND_HANDLER_FUNCTION,
+            InvocationType='Event',  # async — don't wait
+            Payload=json.dumps(inbound_event),
+        )
+
+        logger.info(json.dumps({
+            'event': 'forwarded_to_inbound_handler',
+            'wabaId': waba_id,
+            'phoneNumberIds': meta_phone_ids,
+            'statusCode': result.get('StatusCode'),
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'forward_to_inbound_handler_failed',
+            'wabaId': waba_id,
+            'error': str(e),
+            'requestId': request_id,
+        }), exc_info=True)
 
 
 def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list, request_id: str) -> None:
@@ -492,66 +563,14 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         })
         logger.info(f"INBOUND CALL from {caller_name or from_number} (BSUID: {caller_bsuid or 'N/A'}) — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
 
-        # Auto-pickup: behaviour depends on mode (manual / ivr / ai)
+        # Auto-pickup: behaviour depends on mode (manual / ivr)
         # - manual: pre_accept only, wait for frontend browser to answer via WebRTC
         # - ivr: pre_accept, send IVR audio message, terminate after delay
-        # - ai: forward to Pipecat voice bot (real-time AI conversation via WebRTC)
-        #        fallback: voice-note redirect if Pipecat server is unreachable
         if _is_auto_pickup_enabled() and phone_number_id:
             pickup_mode = _get_auto_pickup_mode()
             logger.info(f"AUTO-PICKUP mode={pickup_mode} — call {call_id} from {caller_name or from_number}")
 
-            if pickup_mode == 'ai':
-                # AI mode: Two strategies depending on Pipecat bot availability.
-                #
-                # Strategy 1 (preferred): Forward to Pipecat voice bot for real-time
-                # AI conversation over WebRTC. Pipecat handles SDP answer generation,
-                # STT → Bedrock → TTS in real-time.
-                #
-                # Strategy 2 (fallback): If Pipecat is unreachable, pre_accept the
-                # call to stop ringing, then send a friendly WhatsApp message
-                # redirecting the caller to send a voice note. The inbound handler's
-                # AI pipeline (Transcribe → Bedrock → Polly) handles the rest.
-                #
-                # This replaces the old SIP-only passthrough which silently failed
-                # when FreeSWITCH was not running.
-                logger.info(json.dumps({
-                    'event': 'ai_mode_handling',
-                    'call_id': call_id,
-                    'from': from_number,
-                    'caller_name': caller_name,
-                    'phone_number_id': phone_number_id,
-                }))
-
-                bot_url = _get_pipecat_bot_url()
-                if bot_url and sdp_offer:
-                    # Strategy 1: Forward to Pipecat bot (handles SDP + real-time AI)
-                    _forward_to_pipecat_bot(
-                        call_id=call_id,
-                        phone_number_id=phone_number_id,
-                        from_number=from_number,
-                        caller_name=caller_name,
-                        sdp_offer=sdp_offer,
-                        caller_bsuid=caller_bsuid,
-                        caller_username=caller_username,
-                    )
-                else:
-                    # Strategy 2: Pre-accept + voice-note redirect
-                    try:
-                        pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-                            'messaging_product': 'whatsapp',
-                            'call_id': call_id,
-                            'action': 'pre_accept',
-                        }, phone_number_id=phone_number_id)
-                        logger.info(f"AI-MODE pre_accept result: {json.dumps(pre_result)}")
-                        if not pre_result.get('error'):
-                            _update_call_status(call_id, 'pre_accepted')
-                    except Exception as e:
-                        logger.error(f"AI-MODE pre_accept failed: {e}")
-
-                    # Redirect to voice notes (terminates call + sends message)
-                    _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
-            else:
+            if pickup_mode in ('manual', 'ivr'):
                 # manual/ivr: pre_accept to hold call open for frontend or IVR playback
                 try:
                     pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
@@ -722,88 +741,6 @@ def _redirect_call_to_voice_notes(call_id: str, phone_number_id: str,
         logger.info(f"AI-REDIRECT message sent to {from_number}: messageId={result.get('messageId')}")
 
 
-def _get_pipecat_bot_url() -> str:
-    """Get Pipecat bot URL from SystemConfig (allows runtime updates) or env var."""
-    try:
-        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        result = table.get_item(Key={'id': 'pipecat_bot_url'})
-        item = result.get('Item')
-        if item and item.get('configValue'):
-            return str(item['configValue']).strip().rstrip('/')
-    except Exception as e:
-        logger.debug(f'Pipecat bot URL config lookup failed: {e}')
-    return PIPECAT_BOT_URL.strip().rstrip('/')
-
-
-def _forward_to_pipecat_bot(call_id: str, phone_number_id: str,
-                             from_number: str, caller_name: str,
-                             sdp_offer: str, caller_bsuid: str = '',
-                             caller_username: str = '') -> None:
-    """
-    Forward an incoming call to the Pipecat voice bot server for real-time
-    AI conversation over WebRTC.
-
-    The bot server handles:
-    1. SDP answer generation (WebRTC negotiation with Meta)
-    2. Real-time audio: Transcribe STT → Bedrock Nova Lite → Polly Kajal TTS
-    3. Auto-hangup after configured timeout (default 30s)
-
-    If the bot server is unreachable, falls back to voice-note redirect.
-    """
-    bot_url = _get_pipecat_bot_url()
-    if not bot_url:
-        logger.warning("PIPECAT_BOT_URL not configured — falling back to voice-note redirect")
-        _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
-        return
-
-    logger.info(json.dumps({
-        'event': 'forward_to_pipecat',
-        'call_id': call_id,
-        'from': from_number,
-        'caller_name': caller_name,
-        'phone_number_id': phone_number_id,
-        'bot_url': bot_url,
-        'has_sdp': bool(sdp_offer),
-    }))
-
-    try:
-        payload = json.dumps({
-            'call_id': call_id,
-            'phone_number_id': phone_number_id,
-            'from_number': from_number,
-            'caller_name': caller_name,
-            'sdp_offer': sdp_offer,
-            'event_type': 'connect',
-            'from_bsuid': caller_bsuid,
-            'caller_username': caller_username,
-        }).encode('utf-8')
-
-        req = urllib.request.Request(
-            f"{bot_url}/call",
-            data=payload,
-            headers={'Content-Type': 'application/json'},
-            method='POST',
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read().decode('utf-8'))
-            logger.info(f"Pipecat bot response: {json.dumps(result)}")
-
-            if result.get('success'):
-                _update_call_status(call_id, 'ai_bot_connected')
-                logger.info(f"Call {call_id} forwarded to Pipecat bot successfully")
-            else:
-                logger.error(f"Pipecat bot rejected call: {json.dumps(result)}")
-                _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
-
-    except urllib.error.URLError as e:
-        logger.error(f"Pipecat bot unreachable ({bot_url}): {e}")
-        logger.info("Falling back to voice-note redirect")
-        _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
-    except Exception as e:
-        logger.error(f"Failed to forward to Pipecat bot: {e}", exc_info=True)
-        _redirect_call_to_voice_notes(call_id, phone_number_id, from_number, caller_name)
-
-
 def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: str,
                               reason: str, duration: int, direction: str) -> None:
     """
@@ -817,7 +754,7 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
     (e.g. caller never messaged this business number), the send will fail silently.
     """
     try:
-        # Skip post-call reaction if the call was AI-redirected or handled by Pipecat bot
+        # Skip post-call reaction if the call was AI-redirected
         try:
             table = dynamodb.Table(CALL_LOG_TABLE)
             from boto3.dynamodb.conditions import Key as DDBKey
@@ -826,7 +763,7 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
                 KeyConditionExpression=DDBKey('callId').eq(call_id),
             )
             ai_handled = any(
-                i.get('status') in ('ai_redirected', 'ai_bot_connected')
+                i.get('status') in ('ai_redirected',)
                 for i in result_check.get('Items', [])
             )
             if ai_handled:
@@ -1076,9 +1013,6 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 # Default: ON — auto-pickup is enabled by default.
 # Toggle via SystemConfig table or environment variable.
 
-# Pipecat Voice Bot server URL (Lightsail / EC2)
-PIPECAT_BOT_URL = os.environ.get('PIPECAT_BOT_URL', '')  # e.g. http://1.2.3.4:8765
-
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr-greeting.mp3')
@@ -1217,6 +1151,18 @@ IVR_MENUS = {
             {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
         ],
         'footer': 'You can also send a voice note for instant AI help',
+    },
+    WABA3_PHONE_META_ID: {
+        'greeting': (
+            "📞 *WECARE.DIGITAL* — Thanks for calling!\n\n"
+            "We're here to help. Please select an option below:"
+        ),
+        'buttons': [
+            {'id': 'ivr_sales', 'title': '🛒 Sales & Orders'},
+            {'id': 'ivr_support', 'title': '🔧 Support'},
+            {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
+        ],
+        'footer': 'Reply anytime or send a voice note for instant AI help',
     },
 }
 
@@ -1447,16 +1393,18 @@ def _get_config(request_id: str) -> Dict[str, Any]:
 
 
 def _get_auto_pickup_mode() -> str:
-    """Get auto-pickup mode from SystemConfig: 'manual' | 'ivr' | 'ai'."""
+    """Get auto-pickup mode from SystemConfig: 'manual' | 'ivr'.
+    AI mode removed — IVR-only approach matching WABA3 config.
+    """
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         result = table.get_item(Key={'id': 'whatsapp_calling_auto_pickup_mode'})
         item = result.get('Item')
-        if item and item.get('configValue') in ('manual', 'ivr', 'ai'):
+        if item and item.get('configValue') in ('manual', 'ivr'):
             return str(item['configValue'])
     except Exception as e:
         logger.warning(f"Failed to read auto-pickup mode: {e}")
-    return 'ivr'  # default
+    return 'ivr'  # default — IVR-only like WABA3
 
 
 def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
@@ -1467,7 +1415,7 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
         return _response(400, {'error': 'Invalid JSON in request body'})
     enabled = body.get('autoPickup')
     ivr_url = body.get('ivrUrl')
-    mode = body.get('autoPickupMode')  # 'manual' | 'ivr' | 'ai'
+    mode = body.get('autoPickupMode')  # 'manual' | 'ivr'
 
     table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
 
@@ -1495,7 +1443,7 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update IVR URL config: {e}")
             return _response(500, {'error': str(e)})
 
-    if mode is not None and mode in ('manual', 'ivr', 'ai'):
+    if mode is not None and mode in ('manual', 'ivr'):
         try:
             table.put_item(Item={
                 'id': 'whatsapp_calling_auto_pickup_mode',

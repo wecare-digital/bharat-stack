@@ -319,7 +319,7 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   // === WhatsApp ===
   'wecare-inbound-whatsapp': ['common', 'whatsapp', 'sqs', 'sns', 'lambdaInvoke'],
   'wecare-outbound-whatsapp': ['common', 'whatsapp', 'sqs'],
-  'wecare-whatsapp-calling': ['common', 'whatsapp', 'secrets'],
+  'wecare-whatsapp-calling': ['common', 'whatsapp', 'secrets', 'lambdaInvoke'],
   'wecare-whatsapp-voice': ['common', 'whatsapp', 'polly'],
   'wecare-whatsapp-template-management': ['common', 'whatsapp', 'secrets'],
   'wecare-whatsapp-templates': ['common', 'whatsapp', 'secrets'], // alias
