@@ -176,6 +176,8 @@ export interface Contact {
   email?: string;
   // WhatsApp BSUID (Business-Scoped User ID) — unique per WABA portfolio
   bsuid?: string;
+  // Parent BSUID (linked account)
+  parentBsuid?: string;
   // WhatsApp username (e.g. "@pablomorales")
   username?: string;
   // Contact book name — auto-populated by Meta's contact book feature
@@ -393,7 +395,7 @@ function normalizeMessage(item: any): Message {
 // Send WhatsApp message via Lambda
 export interface SendMessageRequest {
   contactId: string;
-  content: string;
+  content?: string;
   phoneNumberId?: string;
   recipientBsuid?: string; // Send to BSUID instead of phone number
   isTemplate?: boolean;
@@ -402,6 +404,9 @@ export interface SendMessageRequest {
   mediaFile?: string;
   mediaType?: string;
   mediaFileName?: string; // Real filename for documents
+  isOtpTemplate?: boolean;
+  otpCode?: string;
+  otpButtonType?: string;
 }
 
 // Send WhatsApp reaction via Lambda
