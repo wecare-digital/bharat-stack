@@ -1929,9 +1929,15 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
     s3_key = body.get('s3Key', '')
     media_type = body.get('mediaType', '')
     mime_type = body.get('mimeType', '')
+    phone_number_id = body.get('phoneNumberId', '')
 
     # Hash phone for DynamoDB key (privacy)
-    phone_hash = _hash_phone(sender_phone) if sender_phone else contact_id
+    # Include phoneNumberId to separate AI sessions per WABA
+    base_phone_hash = _hash_phone(sender_phone) if sender_phone else contact_id
+    if phone_number_id:
+        phone_hash = _hash_phone(f"{sender_phone}:{phone_number_id}") if sender_phone else f"{contact_id}:{phone_number_id}"
+    else:
+        phone_hash = base_phone_hash
 
     logger.info(json.dumps({
         'event': 'external_handler_start',

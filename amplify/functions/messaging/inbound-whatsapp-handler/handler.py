@@ -2686,9 +2686,7 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
                 "📞 *Callback Request*\n\n"
                 "Got it! We'll call you back as soon as possible.\n\n"
                 "If you'd like to specify a preferred time, just type it "
-                "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\").\n\n"
-                "Otherwise, we'll call you within the next 30 minutes during "
-                "business hours (9 AM – 9 PM IST)."
+                "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\")."
             ),
             'notify': True,
             'dept': 'callback',
@@ -4374,7 +4372,8 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             message_type=message_type,
             s3_key=s3_key,
             mime_type=mime_type,
-            request_id=request_id
+            request_id=request_id,
+            phone_number_id=phone_number_id,
         )
         
         # Check if processing was locked (another message being processed)
@@ -4799,12 +4798,14 @@ def _invoke_ai_generate_response(content: str, kb_context: Optional[Dict],
 
 def _invoke_ai_generate_response_v2(
     content: str, message_id: str, contact_id: str, sender_phone: str,
-    message_type: str, s3_key: str, mime_type: str, request_id: str
+    message_type: str, s3_key: str, mime_type: str, request_id: str,
+    phone_number_id: str = '',
 ) -> Optional[Dict]:
     """
     Invoke ai-generate-response Lambda with multimodal payload.
     Passes sender phone, message type, S3 key, and mime type for
     the Converse API path to handle images, audio, video, documents.
+    Passes phoneNumberId so AI sessions are separated per WABA.
     """
     try:
         payload = {
@@ -4818,6 +4819,7 @@ def _invoke_ai_generate_response_v2(
             'mediaType': message_type if message_type in ('image', 'audio', 'video', 'document') else '',
             'mimeType': mime_type,
             'requestId': request_id,
+            'phoneNumberId': phone_number_id,
         }
 
         logger.info(json.dumps({

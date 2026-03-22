@@ -1035,6 +1035,10 @@ bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
 # Phone number ID mapping for outbound audio via EUM
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
+PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
+
+# WABA3 uses Direct Meta API (no EUM) — track which phone IDs are Direct API
+DIRECT_API_META_PHONE_IDS = {WABA3_PHONE_META_ID}
 
 
 def _is_auto_pickup_enabled() -> bool:
@@ -1225,9 +1229,7 @@ IVR_RESPONSES = {
             "📞 *Callback Request*\n\n"
             "Got it! We'll call you back as soon as possible.\n\n"
             "If you'd like to specify a preferred time, just type it "
-            "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\").\n\n"
-            "Otherwise, we'll call you within the next 30 minutes during "
-            "business hours (9 AM – 9 PM IST)."
+            "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\")."
         ),
         'notify_team': True,
         'department': 'callback',
@@ -1309,17 +1311,39 @@ def _get_aws_phone_id(meta_phone_number_id: str) -> str:
     META_TO_AWS = {
         PHONE1_META_ID: PHONE_NUMBER_ID_1,
         PHONE2_META_ID: PHONE_NUMBER_ID_2,
+        WABA3_PHONE_META_ID: PHONE_NUMBER_ID_3,
     }
     return META_TO_AWS.get(meta_phone_number_id, PHONE_NUMBER_ID_1)
 
 
 def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> Dict:
-    """Send a WhatsApp message via AWS Social Messaging SDK."""
+    """Send a WhatsApp message via AWS Social Messaging SDK or Direct Meta API for WABA3."""
     # AWS requires '+' prefix on phone numbers
     if not to_number.startswith('+'):
         to_number = f'+{to_number}'
     message_payload['to'] = to_number
     message_payload['messaging_product'] = 'whatsapp'
+
+    # WABA3 (Direct API) — send via Meta Graph API directly, not EUM
+    if aws_phone_id == PHONE_NUMBER_ID_3:
+        try:
+            result = _meta_api_call(
+                f"{WABA3_PHONE_META_ID}/messages", 'POST',
+                message_payload, phone_number_id=WABA3_PHONE_META_ID
+            )
+            if result.get('error'):
+                logger.error(f"WABA3 Direct API send failed: {result}")
+                return result
+            msg_id = ''
+            messages = result.get('messages', [])
+            if messages:
+                msg_id = messages[0].get('id', '')
+            logger.info(f"WABA3 Direct API send success: messageId={msg_id}")
+            return {'success': True, 'messageId': msg_id}
+        except Exception as e:
+            logger.error(f"WABA3 Direct API send failed: {e}")
+            return {'error': True, 'detail': str(e)}
+
     try:
         result = social_messaging.send_whatsapp_message(
             originationPhoneNumberId=aws_phone_id,
