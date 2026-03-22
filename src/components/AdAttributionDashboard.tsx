@@ -44,7 +44,7 @@ const AdAttributionDashboard: React.FC<AdAttributionDashboardProps> = ({ onClose
         api.getAdAttributionClicks({ limit: 50 }),
       ]);
       setStats(statsRes?.stats || null);
-      setClicks(clicksRes?.clicks || []);
+      setClicks(clicksRes?.attributions || []);
     } catch {
       // Silently handle — dashboard is informational
     } finally {
