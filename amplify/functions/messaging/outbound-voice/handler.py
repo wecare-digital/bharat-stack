@@ -3,8 +3,34 @@ Outbound Voice Lambda Function
 Purpose: Make outbound voice calls via Airtel IQ (C2C + OBD)
 Unified endpoint for all Airtel voice call types
 
-C2C API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
+C2C API Formats:
+━━━━━━━━━━━━━━━
+1. Simplified Kong v2 (default):
+   POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
+   Simple from/to/caller_id payload — Airtel wraps into workflow internally
+
+2. Full Workflow (advanced — per Airtel C2C API Spec):
+   POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/execute/workflow
+   Full callFlowConfiguration with initiateCall, addParticipant, record components
+   Supports: merging strategies (SEQUENTIAL/ROUND_ROBIN/PARALLEL), per-component
+   callbacks, maxRetries per participant (max 3), enableEarlyMedia, maxTime
+
 Auth: HMAC-SHA256 via Kong gateway (app_id as username, api_key as signing key)
+
+C2C Call Flow (per Airtel spec):
+1. Airtel initiates call to Party A (initiateCall_1.participants[0])
+2. Once Party A answers, recording starts (record.enabled=true)
+3. New call initiated to Party B (addParticipant_1.participants[0])
+4. Both parties patched together when Party B answers
+5. Real-time events posted to callbackURLs during call
+6. CDR posted to callbackURL after call ends (includes recordingURL)
+
+Callback Event Types: ALL, CALL, MEDIA, DTMF, RECORD, CDR, API, SUBMITTED, DELIVERED, ERROR
+
+Call Response: {"status": "success", "correlationId": "Xchange123863"}
+Error Codes: INCORRECT_CALL_FLOW_ID, CUSTOMER_DETAILS_NOT_AVAILABLE,
+  INCORRECT_CUSTOMER_ID, INVALID_CALLER_ID, DUPLICATE_PARTICIPANT_ADDRESS_FOUND,
+  FROM_NUMBER_NULL_ERROR, TO_NUMBER_NULL_ERROR, FROM_PARTICIPANT_MAX_RETRIES_GREATER_THAN_REQUIRED_VALUE (max 3)
 """
 import os
 import json
@@ -87,14 +113,34 @@ def handler(event, context):
 
 
 def _make_c2c_call(body: Dict, request_id: str) -> Dict:
+    """
+    Make a Click-to-Call via Airtel Kong API.
+    
+    Supports two modes:
+    1. Simple (default): Uses /v2/click-to-call with from/to/caller_id
+    2. Workflow: Uses /v2/execute/workflow with full callFlowConfiguration
+       Set body.useWorkflow=true and optionally body.callFlowId
+    
+    Per Airtel C2C spec:
+    - maxRetries per participant: max 3
+    - mergingStrategy: SEQUENTIAL (default), ROUND_ROBIN, PARALLEL
+    - enableEarlyMedia: plays actual network announcements
+    - record.enabled: true by default
+    - callbackURLs: CDR + ALL events
+    """
     secrets = _get_secrets()
     app_id = secrets.get('app_id', '')
     api_key = secrets.get('api_key', '')
     caller_id = secrets.get('caller_id', '8047311032')
+    call_flow_id = secrets.get('call_flow_id', '')
 
     from_number = body.get('fromNumber', '')
     to_number = body.get('toNumber', body.get('phoneNumber', ''))
     contact_id = body.get('contactId', '')
+    use_workflow = body.get('useWorkflow', False)
+    retry_count = min(int(body.get('retryCount', 1)), 3)  # max 3 per Airtel spec
+    enable_early_media = body.get('enableEarlyMedia', True)
+    enable_recording = body.get('enableRecording', True)
 
     if not to_number:
         return _response(400, {'error': 'toNumber/phoneNumber required'})
@@ -103,37 +149,104 @@ def _make_c2c_call(body: Dict, request_id: str) -> Dict:
         return _response(400, {'error': 'fromNumber required'})
 
     call_id = str(uuid.uuid4())
-    payload = json.dumps({
-        'from': from_number,
-        'to': to_number,
-        'caller_id': caller_id,
-        'to_caller_id': caller_id,
-        'record': True,
-        'early_media': True,
-        'retry': {'count': 1},
-        'callbacks': [
-            {
-                'event_type': 'CDR',
-                'notify_url': CDR_WEBHOOK_URL,
-                'method': 'POST',
-                'headers': {'Content-Type': 'application/json'},
-                'serviceId': 'wecareCDRDetailsService_c2c',
-                'projectId': 'We_CareCDRDetails_c2c'
+
+    if use_workflow and call_flow_id:
+        # Full workflow format per Airtel C2C API Spec Section 1.3
+        payload = json.dumps({
+            'callFlowId': body.get('callFlowId', call_flow_id),
+            'customerId': secrets.get('customer_id', app_id),
+            'callType': 'OUTBOUND',
+            'callerId': caller_id,
+            'callFlowConfiguration': {
+                'initiateCall_1': {
+                    'callerId': caller_id,
+                    'mergingStrategy': body.get('mergingStrategy', 'SEQUENTIAL'),
+                    'participants': [{
+                        'participantAddress': from_number,
+                        'callerId': caller_id,
+                        'participantName': 'A',
+                        'maxRetries': retry_count,
+                        'maxTime': 0
+                    }],
+                    'maxTime': 0,
+                    'callBackURLs': [
+                        {
+                            'eventType': 'CDR',
+                            'notifyURL': CDR_WEBHOOK_URL,
+                            'method': 'POST',
+                            'headers': {}
+                        },
+                        {
+                            'eventType': 'ALL',
+                            'notifyURL': CDR_WEBHOOK_URL,
+                            'method': 'POST',
+                            'headers': {}
+                        }
+                    ]
+                },
+                'addParticipant_1': {
+                    'mergingStrategy': 'SEQUENTIAL',
+                    'maxTime': 0,
+                    'participants': [{
+                        'participantAddress': to_number,
+                        'callerId': caller_id,
+                        'participantName': 'B',
+                        'maxRetries': retry_count,
+                        'maxTime': 0,
+                        'enableEarlyMedia': enable_early_media
+                    }]
+                },
+                'record': {
+                    'enabled': enable_recording
+                }
             }
-        ]
-    })
+        })
+        url = 'https://iqvoice.airtel.in/gateway/airtel-xchange/v2/execute/workflow'
+    else:
+        # Simplified Kong v2 format
+        payload = json.dumps({
+            'from': from_number,
+            'to': to_number,
+            'caller_id': caller_id,
+            'to_caller_id': caller_id,
+            'record': enable_recording,
+            'early_media': enable_early_media,
+            'retry': {'count': retry_count},
+            'callbacks': [
+                {
+                    'event_type': 'CDR',
+                    'notify_url': CDR_WEBHOOK_URL,
+                    'method': 'POST',
+                    'headers': {'Content-Type': 'application/json'},
+                    'serviceId': 'wecareCDRDetailsService_c2c',
+                    'projectId': 'We_CareCDRDetails_c2c'
+                }
+            ]
+        })
+        url = 'https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call'
 
     headers = _generate_hmac_headers(payload, app_id, api_key)
     headers['Content-Type'] = 'application/json'
 
     try:
-        url = 'https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call'
         req = urllib.request.Request(url, data=payload.encode(), headers=headers, method='POST')
         with urllib.request.urlopen(req, timeout=15) as resp:
             result = json.loads(resp.read().decode())
 
-        _store_call(call_id, contact_id, to_number, result.get('correlationId', result.get('vmSessionId', '')), 'click_to_call', request_id)
-        return _response(200, {'callId': call_id, 'status': 'initiated', 'provider': 'airtel', 'callType': 'click_to_call'})
+        correlation_id = result.get('correlationId', result.get('vmSessionId', ''))
+        _store_call(call_id, contact_id, to_number, correlation_id, 'click_to_call', request_id)
+        return _response(200, {
+            'callId': call_id,
+            'correlationId': correlation_id,
+            'status': 'initiated',
+            'provider': 'airtel',
+            'callType': 'click_to_call',
+            'mode': 'workflow' if (use_workflow and call_flow_id) else 'simple'
+        })
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(f'[{request_id}] C2C call failed: {e.code} - {error_body}')
+        return _response(e.code, {'error': f'Airtel C2C error: {error_body[:300]}'})
     except Exception as e:
         logger.error(f'[{request_id}] C2C call failed: {e}')
         return _response(500, {'error': f'Call failed: {str(e)}'})

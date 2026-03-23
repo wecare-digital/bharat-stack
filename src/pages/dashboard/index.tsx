@@ -2392,8 +2392,9 @@ Content-Type: application/json`}</pre>
                   </div>
                   
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>C2C API (Click-to-Call) — also accepts CDR callbacks</label>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>C2C API (Click-to-Call) — CDR callbacks + our API</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-in/c2c</code>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>Airtel C2C endpoints: /v2/click-to-call (simple) · /v2/execute/workflow (full callFlowConfiguration)</div>
                   </div>
 
                   <div style={{ marginBottom: '0.75rem' }}>

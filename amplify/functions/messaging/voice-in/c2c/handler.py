@@ -34,7 +34,7 @@ HMAC Signing Process:
 3. HMAC-SHA256 sign with api_key -> base64 encode -> signature param
 4. Authorization: hmac username="<app_id>", algorithm="hmac-sha256", headers="x-date digest", signature="<sig>"
 
-Airtel C2C Request Payload:
+Airtel C2C Request Payload (Simplified Kong v2):
 {
   "from": "8130078559",          // Party A (first to be called)
   "to": "8852066369",            // Party B (connected after A answers)
@@ -52,6 +52,46 @@ Airtel C2C Request Payload:
     "projectId": "We_CareCDRDetails_c2c"
   }]
 }
+
+Airtel C2C Request Payload (Full Workflow — /v2/execute/workflow):
+{
+  "callFlowId": "<from Airtel>",
+  "customerId": "<customer_id>",
+  "callType": "OUTBOUND",
+  "callerId": "8047311032",
+  "callFlowConfiguration": {
+    "initiateCall_1": {
+      "callerId": "8047311032",
+      "mergingStrategy": "SEQUENTIAL",
+      "participants": [{"participantAddress": "Party_A", "callerId": "8047311032",
+        "participantName": "A", "maxRetries": 1, "maxTime": 0}],
+      "maxTime": 0,
+      "callBackURLs": [
+        {"eventType": "CDR", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}},
+        {"eventType": "ALL", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}}
+      ]
+    },
+    "addParticipant_1": {
+      "mergingStrategy": "SEQUENTIAL",
+      "maxTime": 0,
+      "participants": [{"participantAddress": "Party_B", "callerId": "8047311032",
+        "participantName": "B", "maxRetries": 1, "maxTime": 0, "enableEarlyMedia": true}]
+    },
+    "record": {"enabled": true}
+  }
+}
+
+C2C Call Flow:
+1. Airtel calls Party A (initiateCall_1) with configured callerId
+2. Party A answers → recording starts (record.enabled=true)
+3. Airtel calls Party B (addParticipant_1) with enableEarlyMedia
+4. Party B answers → both parties patched together
+5. Real-time events posted to callBackURLs (CALL, MEDIA, DTMF, RECORD)
+6. CDR posted after call ends (includes recordingURL)
+
+Callback Event Types: ALL, CALL, MEDIA, DTMF, RECORD, CDR, API, SUBMITTED, DELIVERED, ERROR
+Merging Strategies: SEQUENTIAL (default), ROUND_ROBIN, PARALLEL
+Max Retries: 3 per participant
 
 CDR Webhook: https://api.wecare.digital/voice-in/c2c
 CDR callbacks are sent by Airtel to the notify_url configured in the callbacks array.
