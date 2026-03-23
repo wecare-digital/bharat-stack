@@ -7,7 +7,7 @@ Purpose: Receive and store Call Detail Records (CDR) from Airtel Cloud Communica
 Webhook Configuration:
 - URL: POST /voice-cdr-webhook
 - Full URL: https://api.wecare.digital/voice-cdr-webhook
-- Inbound Number: +91 9319767034
+- Inbound Number: +91 9319767034 (Mobile · Delhi · Outbound/Inbound)
 - Email: voice@wecare.digital
 
 Recording Storage: s3://app.wecare.digital/stack/voice/
@@ -16,6 +16,14 @@ Airtel IP Whitelist (if 403 errors):
 - 125.19.17.212
 - 125.17.6.54
 - 122.187.47.153
+
+Airtel NAT Gateway IPs (current — do NOT remove):
+- Voice/Platform: 65.1.125.210, 3.108.104.147
+- WhatsApp: 3.109.177.16
+
+Airtel NAT Gateway IPs (new — whitelist by 20 Sep 2025):
+- firewall-vpc-NAT-1a: 13.126.42.108
+- firewall-vpc-NAT-1b: 3.108.90.203
 
 NOTE: We do NOT need to whitelist IPs for sending SMS traffic.
       The above IPs only need whitelisting if receiving 403 errors on API calls.

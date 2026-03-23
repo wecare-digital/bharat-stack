@@ -326,7 +326,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()]),
 
   // Table 15: AirtelC2C - Airtel Click-to-Call Records (TTL: 90 days)
-  // Caller ID: 8047311032 | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
+  // Caller ID: 8047311032 (Fixed Line · Karnataka) | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
   AirtelC2C: a
     .model({
       callId: a.id().required(),
@@ -356,7 +356,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()]),
 
   // Table 13: VoiceCDR - Airtel Voice CDR Records (TTL: 90 days)
-  // Inbound Number: +91 9319767034 | Email: voice@wecare.digital
+  // Inbound Number: +91 9319767034 (Mobile · Delhi) | Email: voice@wecare.digital
   VoiceCDR: a
     .model({
       id: a.id().required(),

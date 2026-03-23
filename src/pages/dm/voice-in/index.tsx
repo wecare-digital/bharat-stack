@@ -380,7 +380,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
               </div>
             </div>
             <div className="form-group checkbox-group"><label><input type="checkbox" checked={c2cRecording} onChange={e => setC2cRecording(e.target.checked)} />Enable Recording</label></div>
-            <div className="info-box"><strong>Config:</strong> Caller ID: 8047311032 | App: WECAREDIG_fD4BKqUbC8k90jNrPR0n</div>
+            <div className="info-box"><strong>Config:</strong> Caller ID: 8047311032 (Fixed Line · Karnataka) | App: WECAREDIG_fD4BKqUbC8k90jNrPR0n</div>
             <div className="modal-actions"><Button variant="secondary" onClick={() => setShowC2CModal(false)}>Cancel</Button><Button variant="primary" onClick={handleC2CCall} loading={c2cCalling} disabled={!c2cFromNumber || !c2cToNumber}>Call</Button></div>
           </div>
         </div>
@@ -419,7 +419,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
             </div>
             <div className="info-box">
               <strong>Airtel OBD:</strong> Info-Only call flow | 16bits 8000Hz Mono audio | TRANSACTIONAL<br/>
-              <strong>Config:</strong> Caller ID: 8040761117 | Flow: dfbeda76-f641-420f-95e7-b78d562a941f
+              <strong>Config:</strong> Caller ID: 8040761117 (Fixed Line · Karnataka) | Flow: dfbeda76-f641-420f-95e7-b78d562a941f
             </div>
             <div className="modal-actions"><Button variant="secondary" onClick={() => setShowOBDModal(false)}>Cancel</Button><Button variant="primary" onClick={handleOBDCreate} loading={obdCreating} disabled={!obdNumbers || !obdCampaignName}>Create</Button></div>
           </div>

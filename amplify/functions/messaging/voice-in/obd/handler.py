@@ -10,33 +10,44 @@ Features:
 
 API Endpoints (Airtel):
 - Upload Audio: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
-  Headers: requester-id: ironman, Authorization: Basic {auth}
+  Headers: requester-id: ironman, Authorization: Basic {upload_auth}
   Body: multipart/form-data with files=@"/path/to/file.wav"
+  Response: { audioUrl: "..." } → inject into Create Campaign inputVariables audioURL
 
 - Upload CSV: POST https://openapi.airtel.in/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload?customerId={customerId}&campaignType=OBD_CALL
-  Headers: app-id: IRONMAN, Authorization: Basic {auth}
+  Headers: app-id: IRONMAN, Authorization: Basic {upload_auth}
   Body: multipart/form-data with file=@"contacts.csv"
-  CSV Column: Number (mapped via inputCsvMappings to participantAddress)
+  Response: { fileName, headers, firstRow, totalCount } → use fileName in sheetFileNames,
+            headers to build inputCsvMappings
 
 - Create Campaign: POST https://iqtelephony.airtel.in/gateway/airtel-xchange/campaign-manager/v2/createCampaign
   Headers: app-id: IRONMAN, Authorization: Basic {campaign_auth}
-  Body: JSON with callFlowConfigV2, inputCsvMappings: {"participantAddress": "Number"}
+  Body: JSON with callFlowConfigV2, inputCsvMappings from upload response
 
 Airtel OBD Requirements:
 - Call Flow: Voice (Info-Only)
 - Audio: 16bits 8000Hz Mono WAV only
 - Campaign Type: TRANSACTIONAL always
-- CSV Column: Number (not participantNumber)
-- inputCsvMappings: {"participantAddress": "Number"}
+- CSV Column: Number (mapped to participantAddress via inputCsvMappings)
+- inputCsvMappings: {"participantAddress": "Number"} (built from upload response headers)
+
+Literal Placeholder Rule (Do NOT Substitute):
+  The following MUST be treated as fixed literal strings in metaData and must NOT be
+  substituted, interpolated, or mapped from any source:
+  ${campaignId}, ${campaignName}, ${campaignEndTime}, ${dsrId}, ${participantAddress}
+
+CDR Callback: https://api.wecare.digital/voice-in/obd
+  serviceId: We_careCDRDetailsService_obd
+  projectId: We_CareCDRDetails_obd
 
 Secrets: wecare/airtel/obd
 Expected secret keys:
 - customer_id: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-- auth: Basic auth token for upload APIs
-- campaign_auth: Basic auth token for createCampaign API
+- upload_auth: Base64 token for upload APIs (audio + CSV)
+- campaign_auth: Base64 token for createCampaign API
 - app_id: IRONMAN
 - call_flow_id: dfbeda76-f641-420f-95e7-b78d562a941f
-- caller_id: 8040761117
+- caller_id: 8040761117 (Fixed Line · Karnataka · Outbound/Inbound)
 - template_id: 69818654d9e8e260e60b16a7
 """
 
@@ -165,10 +176,13 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
     Upload audio prompt to Airtel for OBD campaigns.
     
     Airtel API: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
-    Headers: requester-id: ironman, Authorization: Basic {auth}
+    Headers: requester-id: ironman, Authorization: Basic {upload_auth}
     Body: multipart/form-data with files=@"/path/to/file.wav"
     
     Audio Requirements: 16bits 8000Hz Mono WAV only
+    
+    The audioUrl from the response MUST be injected into the Create Campaign API
+    inputVariables as the "audioURL" value.
     
     Request body options:
     - audioData: base64-encoded WAV file content
@@ -178,7 +192,7 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
     try:
         secrets = _get_secrets()
         customer_id = secrets.get('customer_id')
-        auth_token = secrets.get('auth')
+        auth_token = secrets.get('upload_auth', secrets.get('auth', ''))
         
         if not customer_id or not auth_token:
             return _response(500, {'error': 'Airtel OBD credentials not configured'})
@@ -258,11 +272,18 @@ def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
     
     CSV column must be 'Number' (not 'participantNumber').
     The inputCsvMappings in createCampaign maps: {"participantAddress": "Number"}
+    
+    Response includes fileName, headers, firstRow, totalCount which should be used
+    when creating the campaign:
+    - fileName → sheetFileNames array
+    - headers → build inputCsvMappings (e.g. {"participantAddress": "Number"})
+    - firstRow → sample values for validation
+    - totalCount → validate > 0 before creating campaign
     """
     try:
         secrets = _get_secrets()
         customer_id = secrets.get('customer_id')
-        auth_token = secrets.get('auth')
+        auth_token = secrets.get('upload_auth', secrets.get('auth', ''))
         app_id = secrets.get('app_id', 'IRONMAN')
         
         if not customer_id or not auth_token:
@@ -327,9 +348,15 @@ def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
         with urllib.request.urlopen(req, timeout=60) as response:
             result = json.loads(response.read().decode('utf-8'))
             uploaded_name = result.get('fileName') or result.get('sheetFileName') or file_name
+            resp_headers = result.get('headers', [])
+            first_row = result.get('firstRow', {})
+            total_count = result.get('totalCount', len(contacts) if contacts else 0)
             return _response(200, {
                 'success': True,
                 'fileName': uploaded_name,
+                'headers': resp_headers,
+                'firstRow': first_row,
+                'totalCount': total_count,
                 'contactCount': len(contacts) if contacts else None,
                 'variableColumns': var_names if var_names else None,
                 'result': result
@@ -349,7 +376,15 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
     - Audio: 16bits 8000Hz Mono WAV only
     - Campaign Type: TRANSACTIONAL always
     - CSV Column: Number (mapped to participantAddress via inputCsvMappings)
-    - inputCsvMappings: {"participantAddress": "Number"}
+    
+    Uses upload response data:
+    - response.fileName → sheetFileNames array
+    - response.headers → build inputCsvMappings (e.g. {"participantAddress": "Number"})
+    - Validate response.totalCount > 0 before creating
+    
+    Literal Placeholder Rule (Do NOT Substitute):
+    ${campaignId}, ${campaignName}, ${campaignEndTime}, ${dsrId}, ${participantAddress}
+    These are fixed literal strings resolved by Airtel at runtime.
     """
     try:
         secrets = _get_secrets()
@@ -367,11 +402,16 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         contacts = body.get('contacts', [])
         variables = body.get('variables', {})  # {phone: {var1: val1, var2: val2}}
         sheet_file_names = body.get('sheetFileNames', [])
+        input_csv_mappings = body.get('inputCsvMappings', {})
         caller_id = body.get('callerId', caller_id)
         retry_count = body.get('retryCount', 2)
         
         # Use custom audio URL if provided, otherwise default Airtel jingle
         audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
+        
+        # Start/end time (epoch ms UTC)
+        start_time = body.get('startTime', int(time.time() * 1000) + 60000)  # default: 1 min from now
+        end_time = body.get('endTime', start_time + (3600 * 1000))  # default: 1 hour duration
         
         # Upload CSV if contacts provided (with 'Number' column)
         if contacts and not sheet_file_names:
@@ -379,40 +419,47 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
             if not csv_result.get('success'):
                 return _response(500, {'error': csv_result.get('error', 'Failed to upload contacts')})
             sheet_file_names = [csv_result.get('fileName')]
+            # Build inputCsvMappings from upload response headers if not provided
+            if not input_csv_mappings:
+                upload_headers = csv_result.get('headers', [])
+                if 'Number' in upload_headers:
+                    input_csv_mappings = {"participantAddress": "Number"}
+                else:
+                    input_csv_mappings = {"participantAddress": "Number"}
+            # Validate totalCount > 0
+            total_count = csv_result.get('totalCount', 0)
+            if total_count == 0 and contacts:
+                logger.warning(f"Upload returned totalCount=0 but {len(contacts)} contacts were sent")
         
         if not sheet_file_names:
             return _response(400, {'error': 'contacts or sheetFileNames is required'})
         
+        # Default inputCsvMappings if not set
+        if not input_csv_mappings:
+            input_csv_mappings = {"participantAddress": "Number"}
+        
         campaign_id = str(uuid.uuid4())
         
         # Build input variables for call flow
-        # Per Airtel API: participantAddress value is a sample number (CSV mapping handles substitution)
+        # participantAddress uses a sample number — CSV mapping handles actual substitution
         input_variables = [
             {"name": "participantAddress", "value": caller_id, "type": "phoneNumber"},
             {"name": "callerId", "value": caller_id, "type": "phoneNumber"},
             {"name": "audioURL", "value": audio_url, "type": "string"}
         ]
         
-        # Add custom variables if provided
-        if variables:
-            var_names = set()
-            for phone_vars in variables.values():
-                var_names.update(phone_vars.keys())
-            for var_name in var_names:
-                input_variables.append({
-                    "name": var_name,
-                    "value": f"${{{var_name}}}",
-                    "type": "string"
-                })
-        
+        # IMPORTANT: metaData placeholders are LITERAL strings resolved by Airtel at runtime.
+        # Do NOT substitute, interpolate, or map these from any source.
         payload = {
             "customerId": customer_id,
             "templateId": template_id,
             "campaignName": campaign_name,
+            "startTime": start_time,
+            "endTime": end_time,
             "sheetFileNames": sheet_file_names,
             "campaignData": {
                 "customerId": customer_id,
-                "messageType": "TRANSACTIONAL",  # Always TRANSACTIONAL for OBD
+                "messageType": "TRANSACTIONAL",
                 "callBackQueueActive": True,
                 "callType": "OUTBOUND",
                 "additionalObjectsForRequestBody": {
@@ -420,7 +467,6 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
                         "Channel": "OBD",
                         "campaignId": "${campaignId}",
                         "campaignName": "${campaignName}",
-                        "highPriority": "${highPriority}",
                         "campaignEndTime": "${campaignEndTime}",
                         "dsrId": "${dsrId}",
                         "isV2": True
@@ -428,11 +474,21 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
                     "callFlowConfigV2": {
                         "callFlowId": call_flow_id,
                         "inputVariables": input_variables,
-                        "callBackURLs": [{"notifyURL": "queue", "eventType": "CALL"}]
+                        "callBackURLs": [
+                            {"notifyURL": "queue", "eventType": "CALL"},
+                            {
+                                "eventType": "CDR",
+                                "notifyURL": "https://api.wecare.digital/voice-in/obd",
+                                "method": "POST",
+                                "serviceId": "We_careCDRDetailsService_obd",
+                                "projectId": "We_CareCDRDetails_obd",
+                                "headers": {"a": "b"}
+                            }
+                        ]
                     }
                 }
             },
-            "inputCsvMappings": {"participantAddress": "Number"},
+            "inputCsvMappings": input_csv_mappings,
             "campaignType": "OBD_CALL",
             "retryDetail": {
                 "maxRetryCount": retry_count,
@@ -483,10 +539,13 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, request_id: str) -> Dict[str, Any]:
-    """Internal CSV upload helper with variable support. CSV column: Number."""
+    """Internal CSV upload helper with variable support. CSV column: Number.
+    
+    Returns: {success, fileName, headers, firstRow, totalCount}
+    """
     try:
         customer_id = secrets.get('customer_id')
-        auth_token = secrets.get('auth')
+        auth_token = secrets.get('upload_auth', secrets.get('auth', ''))
         app_id = secrets.get('app_id', 'IRONMAN')
         
         # Get variable names
@@ -533,7 +592,13 @@ def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, re
         
         with urllib.request.urlopen(req, timeout=60) as response:
             result = json.loads(response.read().decode('utf-8'))
-            return {'success': True, 'fileName': result.get('fileName') or result.get('sheetFileName') or file_name}
+            return {
+                'success': True,
+                'fileName': result.get('fileName') or result.get('sheetFileName') or file_name,
+                'headers': result.get('headers', []),
+                'firstRow': result.get('firstRow', {}),
+                'totalCount': result.get('totalCount', len(contacts))
+            }
     except Exception as e:
         return {'success': False, 'error': str(e)}
 

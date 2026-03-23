@@ -27,7 +27,13 @@ Headers (Bulk/Conduit): Authorization, Content-Type: application/json (NO custom
 DLT Requirements:
 - PE ID (entityId): 1201161991108627443
 - Sender ID (sourceAddress/header): WDBEEP
+  DLT Registration: ID 1405170900886606599 · Category: COMMUNICATION/BROADCAST/ENTERTAINMENT/IT
+  Status: REGISTERED · Domain: bsnl.com · Validity: Permanent
 - Content Template ID (dltTemplateId): registered on DLT portal
+- Default Template: 1007974344269130859 (WDBEEP / Service Implicit — Self-Service IVR)
+  Text: "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our
+  online Self Service Portal at https://wecare.digital/selfservice. Once we receive it,
+  we'll review it and contact you if anything else is needed."
 - MSISDN: 10 or 12 digits
 
 Secrets: wecare/airtel/sms
@@ -297,7 +303,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
                 'customer_id': customer_id,
                 'auth_token_prefix': auth_token[:20] if auth_token else 'NONE',
                 'note': 'Check: 1) Auth credentials valid? 2) Account activated? 3) IP whitelisted on Airtel side?',
-                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153']
+                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153', '65.1.125.210', '3.108.104.147', '3.109.177.16', '13.126.42.108', '3.108.90.203']
             }))
         
         return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})

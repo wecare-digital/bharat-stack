@@ -2,6 +2,9 @@
 Outbound Voice Lambda Function
 Purpose: Make outbound voice calls via Airtel IQ (C2C + OBD)
 Unified endpoint for all Airtel voice call types
+
+C2C API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
+Auth: HMAC-SHA256 via Kong gateway (app_id as username, api_key as signing key)
 """
 import os
 import json
@@ -10,6 +13,7 @@ import time
 import uuid
 import hashlib
 import hmac
+import base64
 import boto3
 import urllib.request
 from typing import Dict, Any, Optional
@@ -25,8 +29,8 @@ secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_
 
 VOICE_TABLE = os.environ.get('VOICE_TABLE', 'stack-wecare-digital-VoiceCalls')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
-SECRET_NAME = os.environ.get('AIRTEL_SECRET', 'wecare/airtel-iq')
-CDR_WEBHOOK_URL = os.environ.get('CDR_WEBHOOK_URL', 'https://api.wecare.digital/voice-cdr-webhook')
+SECRET_NAME = os.environ.get('AIRTEL_SECRET', 'wecare/airtel/c2c')
+CDR_WEBHOOK_URL = os.environ.get('CDR_WEBHOOK_URL', 'https://api.wecare.digital/voice-in/c2c')
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
 
@@ -86,22 +90,36 @@ def _make_c2c_call(body: Dict, request_id: str) -> Dict:
     secrets = _get_secrets()
     app_id = secrets.get('app_id', '')
     api_key = secrets.get('api_key', '')
-    customer_id = secrets.get('customer_id', '')
+    caller_id = secrets.get('caller_id', '8047311032')
 
-    from_number = body.get('fromNumber', '8047311032')
+    from_number = body.get('fromNumber', '')
     to_number = body.get('toNumber', body.get('phoneNumber', ''))
     contact_id = body.get('contactId', '')
 
     if not to_number:
         return _response(400, {'error': 'toNumber/phoneNumber required'})
 
+    if not from_number:
+        return _response(400, {'error': 'fromNumber required'})
+
     call_id = str(uuid.uuid4())
     payload = json.dumps({
-        'callerId': from_number,
-        'destination': to_number,
-        'callBackURLs': [
-            {'eventType': 'CDR', 'notifyURL': CDR_WEBHOOK_URL, 'method': 'POST', 'headers': {}},
-            {'eventType': 'ALL', 'notifyURL': CDR_WEBHOOK_URL, 'method': 'POST', 'headers': {}}
+        'from': from_number,
+        'to': to_number,
+        'caller_id': caller_id,
+        'to_caller_id': caller_id,
+        'record': True,
+        'early_media': True,
+        'retry': {'count': 1},
+        'callbacks': [
+            {
+                'event_type': 'CDR',
+                'notify_url': CDR_WEBHOOK_URL,
+                'method': 'POST',
+                'headers': {'Content-Type': 'application/json'},
+                'serviceId': 'wecareCDRDetailsService_c2c',
+                'projectId': 'We_CareCDRDetails_c2c'
+            }
         ]
     })
 
@@ -109,12 +127,12 @@ def _make_c2c_call(body: Dict, request_id: str) -> Dict:
     headers['Content-Type'] = 'application/json'
 
     try:
-        url = f'https://iqvoice.airtel.in/api/v1/customers/{customer_id}/c2c'
+        url = 'https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call'
         req = urllib.request.Request(url, data=payload.encode(), headers=headers, method='POST')
         with urllib.request.urlopen(req, timeout=15) as resp:
             result = json.loads(resp.read().decode())
 
-        _store_call(call_id, contact_id, to_number, result.get('vmSessionId', ''), 'click_to_call', request_id)
+        _store_call(call_id, contact_id, to_number, result.get('correlationId', result.get('vmSessionId', '')), 'click_to_call', request_id)
         return _response(200, {'callId': call_id, 'status': 'initiated', 'provider': 'airtel', 'callType': 'click_to_call'})
     except Exception as e:
         logger.error(f'[{request_id}] C2C call failed: {e}')
@@ -161,10 +179,27 @@ def _make_obd_call(body: Dict, request_id: str) -> Dict:
 
 
 def _generate_hmac_headers(body: str, app_id: str, api_key: str) -> Dict[str, str]:
-    timestamp = str(int(time.time() * 1000))
-    signature_string = f'{body}{timestamp}'
-    signature = hmac.new(api_key.encode(), signature_string.encode(), hashlib.sha256).hexdigest()
-    return {'X-App-Id': app_id, 'X-Timestamp': timestamp, 'X-Signature': signature}
+    """Generate HMAC-SHA256 auth headers for Airtel Kong API (C2C format)."""
+    from datetime import datetime, timezone
+    x_date = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+    body_hash = hashlib.sha256(body.encode('utf-8')).digest()
+    body_hash_b64 = base64.b64encode(body_hash).decode('utf-8')
+    digest = f'SHA-256={body_hash_b64}'
+
+    signature_raw = f'x-date: {x_date}\ndigest: {digest}'
+    signature = hmac.new(
+        api_key.encode('utf-8'),
+        signature_raw.encode('utf-8'),
+        hashlib.sha256
+    ).digest()
+    signature_b64 = base64.b64encode(signature).decode('utf-8')
+
+    return {
+        'Authorization': f'hmac username="{app_id}", algorithm="hmac-sha256", headers="x-date digest", signature="{signature_b64}"',
+        'X-Date': x_date,
+        'Digest': digest
+    }
 
 
 def _list_calls(params: Dict, request_id: str) -> Dict:

@@ -4,7 +4,7 @@ Voice CDR Read Lambda Function
 Purpose: Read Airtel Call Detail Records from DynamoDB for dashboard display
          Aligned with Airtel CDR spec Sections 2-6 (UI display, status matrix, dashboard)
 
-Inbound Number: +91 9319767034
+Inbound Number: +91 9319767034 (Mobile · Delhi · Outbound/Inbound)
 Email: voice@wecare.digital
 
 Query Parameters:

@@ -11,7 +11,7 @@ export const outboundVoice = defineFunction({
     LOG_LEVEL: 'INFO',
     VOICE_TABLE: 'stack-wecare-digital-VoiceCalls',
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
-    AIRTEL_SECRET: 'wecare/airtel-iq',
-    CDR_WEBHOOK_URL: 'https://api.wecare.digital/voice-cdr-webhook',
+    AIRTEL_SECRET: 'wecare/airtel/c2c',
+    CDR_WEBHOOK_URL: 'https://api.wecare.digital/voice-in/c2c',
   },
 });

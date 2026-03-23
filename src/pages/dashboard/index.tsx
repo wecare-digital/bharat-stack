@@ -287,7 +287,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'AWS Secrets Manager': { 
     arn: `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
     accountId: AWS_ACCOUNT_ID,
-    details: ['wecare/airtel-iq (Airtel IQ API credentials)']
+    details: ['wecare/airtel/c2c (Airtel C2C — Kong API)', 'wecare/airtel/obd (Airtel OBD — campaign + upload auth)', 'wecare/airtel/sms (Airtel SMS — Kong API)']
   },
   'AWS KMS': { 
     arn: `arn:aws:kms:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
@@ -2372,7 +2372,7 @@ Content-Type: application/json`}</pre>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>Airtel Cloud Communication Platform</h3>
-                    <span className="badge" style={{ background: '#FFEBEE', color: '#C62828', marginTop: '4px' }}>Voice CDR (Inbound + Outbound) + C2C + OBD</span>
+                    <span className="badge" style={{ background: '#FFEBEE', color: '#C62828', marginTop: '4px' }}>Voice CDR + C2C + OBD + SMS</span>
                   </div>
                 </div>
                 
@@ -2399,6 +2399,11 @@ Content-Type: application/json`}</pre>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>OBD API (Outbound Dialer) — also accepts CDR callbacks</label>
                     <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/voice-in/obd</code>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>SMS Inbound (Airtel SMS delivery reports + inbound)</label>
+                    <code style={{ fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' }}>https://api.wecare.digital/sms-in/airtel</code>
                   </div>
 
                   <div style={{ marginBottom: '0.75rem' }}>
@@ -2434,10 +2439,50 @@ Content-Type: application/json`}</pre>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>WECAREDIG_v6J1SyLLI2auy7Lw9JrW</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>App ID</label>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>App ID (C2C)</label>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>WECAREDIG_fD4BKqUbC8k90jNrPR0n</code>
                     </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DLT Sender ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>WDBEEP</code>
+                      <div style={{ fontSize: '0.65rem', color: '#6b7280' }}>ID: 1405170900886606599 · REGISTERED · bsnl.com · Permanent</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>DLT Entity ID</label>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>1201161991108627443</code>
+                    </div>
                   </div>
+                </div>
+
+                {/* Airtel Voice Phone Numbers */}
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Airtel Voice Phone Numbers</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+                    {[
+                      { number: '8047311032', type: 'Fixed Line', circle: 'Karnataka', usage: 'C2C Caller ID (Outbound/Inbound)' },
+                      { number: '8040761117', type: 'Fixed Line', circle: 'Karnataka', usage: 'OBD Caller ID (Outbound/Inbound)' },
+                      { number: '9319767034', type: 'Mobile', circle: 'Delhi', usage: 'Inbound Number (Outbound/Inbound)' },
+                    ].map(({ number, type, circle, usage }) => (
+                      <div key={number} style={{ background: '#fff', padding: '0.5rem 0.75rem', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <code style={{ fontSize: '0.85rem', color: '#111827', fontWeight: 600 }}>{number}</code>
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{type} · {circle} · {usage}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Airtel NAT Gateway IPs */}
+                <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Airtel IP Whitelist</h4>
+                  <div style={{ fontSize: '0.85rem', color: '#C62828', fontWeight: 600, marginBottom: '0.5rem', background: '#FFEBEE', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #FFCDD2' }}>
+                    📌 Our Static IP (give to Airtel for whitelisting): <code style={{ fontSize: '0.95rem', fontWeight: 700 }}>52.3.44.165</code>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' }}>Lightsail instance: wecare-voice-bot (us-east-1, Amazon Linux 2023) — SSH: <code>ssh -i lightsail_key.pem ec2-user@52.3.44.165</code></div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' }}>Used for: SMS API, C2C API, OBD API, WhatsApp Calling (Asterisk SIP PBX)</div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px', color: '#E65100' }}>⚠ Status: Airtel must whitelist this IP before SMS/Voice APIs work from this server</div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>Legacy IPs (do NOT remove): 125.19.17.212, 125.17.6.54, 122.187.47.153</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>NAT Gateway (current — do NOT remove): 65.1.125.210, 3.108.104.147 (Voice/Platform) · 3.109.177.16 (WhatsApp)</div>
+                  <div style={{ fontSize: '0.75rem', color: '#E65100', fontWeight: 600 }}>NAT Gateway (new — whitelist by 20 Sep 2025): 13.126.42.108 (1a) · 3.108.90.203 (1b)</div>
                 </div>
 
                 {/* Sample callBackURLs Config */}
@@ -2591,6 +2636,10 @@ Content-Type: application/json`}</pre>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>WDBEEP</code>
                     </div>
                     <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Sender ID — DLT Registration</label>
+                      <code style={{ fontSize: '0.75rem', color: '#111827' }}>ID: 1405170900886606599 · REGISTERED · bsnl.com · Permanent</code>
+                    </div>
+                    <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>PE ID (Entity ID)</label>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>1201161991108627443</code>
                     </div>
@@ -2602,6 +2651,13 @@ Content-Type: application/json`}</pre>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>API Host</label>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>iqmessaging.airtel.in</code>
                     </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Self-Service IVR Template</label>
+                      <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007974344269130859 · WDBEEP / Service Implicit</code>
+                    </div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4' }}>
+                    Self-Service IVR Template Text: Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self Service Portal at https://wecare.digital/selfservice. Once we receive it, we&apos;ll review it and contact you if anything else is needed.
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#E65100', marginTop: '0.75rem', lineHeight: '1.5' }}>
                     Note: v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br/>
@@ -2615,8 +2671,8 @@ Content-Type: application/json`}</pre>
                   <pre style={{ fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 }}>{`# Single SMS (v4)
 POST /sms-in/airtel
 {
-  "phoneNumber": "9876543210",
-  "content": "Your OTP is 123456",
+  "phoneNumber": "8130078559",
+  "content": "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self Service Portal at https://wecare.digital/selfservice. Once we receive it, we'll review it and contact you if anything else is needed.",
   "messageType": "SERVICE_EXPLICIT",
   "dltTemplateId": "1007974344269130859"
 }
@@ -2624,8 +2680,8 @@ POST /sms-in/airtel
 # Multiple Recipients (same v4 endpoint)
 POST /sms-in/airtel
 {
-  "phoneNumbers": ["8130078559", "7089012345"],
-  "content": "Hello from WECARE.DIGITAL",
+  "phoneNumbers": ["8130078559", "7080003969"],
+  "content": "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self Service Portal at https://wecare.digital/selfservice. Once we receive it, we'll review it and contact you if anything else is needed.",
   "messageType": "SERVICE_EXPLICIT",
   "dltTemplateId": "1007974344269130859"
 }
@@ -2634,8 +2690,8 @@ POST /sms-in/airtel
 POST /sms-in/airtel
 {
   "bulk": true,
-  "phoneNumbers": ["8130078559", "7089012345"],
-  "content": "Hello from WECARE.DIGITAL",
+  "phoneNumbers": ["8130078559", "7080003969"],
+  "content": "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self-Service Portal at https://selfservice.wecare.digital. Once we receive it, we'll review it and contact you if anything else is needed.",
   "messageType": "SERVICE_EXPLICIT",
   "dltTemplateId": "1007101741507674990"
 }

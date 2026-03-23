@@ -21,7 +21,7 @@ Recording Storage: s3://app.wecare.digital/stack/voice/
 Kong Credentials (from Secrets Manager):
 - app_id: WECAREDIG_fD4BKqUbC8k90jNrPR0n (HMAC username)
 - api_key: u^5KLtH@11 (HMAC signing key)
-- caller_id: 8047311032 (Airtel registered 10-digit VN)
+- caller_id: 8047311032 (Fixed Line · Karnataka · Outbound/Inbound)
 
 HMAC-SHA256 Auth Headers:
 - Authorization: hmac username="<app_id>", algorithm="hmac-sha256", headers="x-date digest", signature="<sig>"
@@ -37,21 +37,37 @@ HMAC Signing Process:
 Airtel C2C Request Payload:
 {
   "from": "8130078559",          // Party A (first to be called)
-  "to": "7080003969",            // Party B (connected after A answers)
+  "to": "8852066369",            // Party B (connected after A answers)
   "caller_id": "8047311032",     // CLI shown to Party A
   "to_caller_id": "8047311032",  // CLI shown to Party B
   "record": true,                // Enable call recording
   "early_media": true,           // Play network announcements
-  "retry": {"count": 1}          // Retry count (max 3)
+  "retry": {"count": 1},         // Retry count (max 3)
+  "callbacks": [{                // CDR webhook callback
+    "event_type": "CDR",
+    "notify_url": "https://api.wecare.digital/voice-in/c2c",
+    "method": "POST",
+    "headers": {"Content-Type": "application/json"},
+    "serviceId": "wecareCDRDetailsService_c2c",
+    "projectId": "We_CareCDRDetails_c2c"
+  }]
 }
 
-CDR Webhook: https://api.wecare.digital/voice-cdr-webhook
-CDR callbacks are sent by Airtel to the webhook configured in the call flow.
+CDR Webhook: https://api.wecare.digital/voice-in/c2c
+CDR callbacks are sent by Airtel to the notify_url configured in the callbacks array.
 
 Airtel IP Whitelist (if 403 errors):
 - 125.19.17.212
 - 125.17.6.54
 - 122.187.47.153
+
+Airtel NAT Gateway IPs (current — do NOT remove):
+- Voice/Platform: 65.1.125.210, 3.108.104.147
+- WhatsApp: 3.109.177.16
+
+Airtel NAT Gateway IPs (new — whitelist by 20 Sep 2025):
+- firewall-vpc-NAT-1a: 13.126.42.108
+- firewall-vpc-NAT-1b: 3.108.90.203
 
 Our API Request Body:
 {
@@ -111,7 +127,7 @@ def _get_secrets() -> Dict[str, str]:
     Expected secret keys:
     - app_id: HMAC username (e.g. WECAREDIG_fD4BKqUbC8k90jNrPR0n)
     - api_key: HMAC signing key (e.g. u^5KLtH@11)
-    - caller_id: Airtel registered 10-digit VN (e.g. 8047311032)
+    - caller_id: 8047311032 (Fixed Line · Karnataka · Outbound/Inbound)
     """
     global _secrets_cache
     if _secrets_cache is not None:
@@ -235,7 +251,15 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
       "to_caller_id": "8047311032",
       "record": true,
       "early_media": true,
-      "retry": {"count": 1}
+      "retry": {"count": 1},
+      "callbacks": [{
+        "event_type": "CDR",
+        "notify_url": "https://api.wecare.digital/voice-in/c2c",
+        "method": "POST",
+        "headers": {"Content-Type": "application/json"},
+        "serviceId": "wecareCDRDetailsService_c2c",
+        "projectId": "We_CareCDRDetails_c2c"
+      }]
     }
     """
     try:
@@ -263,7 +287,17 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
             "to_caller_id": caller_id,
             "record": enable_recording,
             "early_media": enable_early_media,
-            "retry": {"count": retry_count}
+            "retry": {"count": retry_count},
+            "callbacks": [
+                {
+                    "event_type": "CDR",
+                    "notify_url": "https://api.wecare.digital/voice-in/c2c",
+                    "method": "POST",
+                    "headers": {"Content-Type": "application/json"},
+                    "serviceId": "wecareCDRDetailsService_c2c",
+                    "projectId": "We_CareCDRDetails_c2c"
+                }
+            ]
         }
 
         body_str = json.dumps(payload)
@@ -340,7 +374,7 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
                 'url': url,
                 'app_id': app_id,
                 'note': 'Check: 1) HMAC auth correct? 2) App ID valid? 3) IP whitelisted?',
-                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153']
+                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153', '65.1.125.210', '3.108.104.147', '3.109.177.16', '13.126.42.108', '3.108.90.203']
             }))
 
         return {
