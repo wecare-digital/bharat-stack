@@ -2538,6 +2538,56 @@ Content-Type: application/json`}</pre>
                 </p>
               </div>
 
+              {/* Overall Call Status Matrix (per Airtel CDR spec Section 3) */}
+              <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' }}>
+                <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
+                  <DataIcon size={18} />
+                  Overall Call Status Matrix
+                </h4>
+                <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse', marginBottom: '1rem' }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb' }}>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid #1a3a2a' }}>Caller Status</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid #1a3a2a' }}>Destination Status</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid #1a3a2a' }}>Overall</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Answer', 'Answered', 'Answered', '#2E7D32'],
+                      ['Answer', 'Busy', 'Missed', '#C62828'],
+                      ['Answer', 'Missed', 'Missed', '#C62828'],
+                      ['Busy', '—', 'Missed', '#C62828'],
+                      ['Missed', '—', 'Missed', '#C62828'],
+                    ].map(([caller, dest, overall, color], i) => (
+                      <tr key={i}>
+                        <td style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid #f3f4f6' }}>{caller}</td>
+                        <td style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid #f3f4f6' }}>{dest}</td>
+                        <td style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid #f3f4f6', color: color as string, fontWeight: 600 }}>{overall}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <h4 style={{ margin: '1rem 0 0.5rem 0', fontSize: '0.9rem', color: '#111827' }}>Number Status Values</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {[
+                    { status: 'Answer', desc: 'Call answered', color: '#2E7D32' },
+                    { status: 'Disconnected', desc: 'Disconnected by either party', color: '#E65100' },
+                    { status: 'Busy', desc: 'Number was busy', color: '#C62828' },
+                    { status: 'Noanswer', desc: 'No answer within ring time', color: '#C62828' },
+                    { status: 'NotReachable', desc: 'Number not reachable', color: '#C62828' },
+                    { status: 'NetworkError', desc: 'Network error (also SIP 500)', color: '#C62828' },
+                    { status: 'Removed', desc: 'System removed (ring timeout)', color: '#6b7280' },
+                  ].map(({ status, desc, color }) => (
+                    <div key={status} style={{ background: '#f9fafb', padding: '0.4rem 0.6rem', borderRadius: '4px', border: '1px solid #e5e7eb', fontSize: '0.8rem' }}>
+                      <code style={{ color, fontWeight: 600 }}>{status}</code>
+                      <span style={{ color: '#6b7280', marginLeft: '0.3rem' }}>— {desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Voice CDR Data Captured */}
               <div className="section" style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' }}>
                 <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' }}>
@@ -2546,22 +2596,39 @@ Content-Type: application/json`}</pre>
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                   {[
-                    { field: 'vmSessionId', desc: 'Unique session identifier' },
-                    { field: 'clientCorrelationId', desc: 'Xchange ID for tracking' },
+                    { field: 'vmSessionId', desc: 'Unique session ID' },
+                    { field: 'clientCorrelationId', desc: 'Xchange ID (search key in Airtel UI)' },
                     { field: 'customerId', desc: 'Customer identifier' },
                     { field: 'callType', desc: 'INBOUND or OUTBOUND' },
-                    { field: 'overallCallStatus', desc: 'Answered, Missed, Busy' },
-                    { field: 'callerNumber', desc: 'Caller phone number' },
-                    { field: 'destinationNumber', desc: 'Destination phone' },
-                    { field: 'calledNumber', desc: 'Called number (VN)' },
-                    { field: 'durationSec', desc: 'Total duration (seconds)' },
-                    { field: 'fromWaitingTimeSec', desc: 'IVR/wait time' },
-                    { field: 'conversationDurationSec', desc: 'Talk time (seconds)' },
+                    { field: 'overallCallStatus', desc: 'Answered / Missed / Busy' },
+                    { field: 'callerId', desc: 'Fixed line CLI used for call' },
+                    { field: 'callerNumber', desc: 'Party A (From) number' },
+                    { field: 'destinationNumber', desc: 'Party B (To) number' },
+                    { field: 'calledNumber', desc: 'Airtel VN (inbound only)' },
+                    { field: 'displayCliDestination', desc: 'CLI shown to destination' },
+                    { field: 'durationSec', desc: 'Total duration (waitTime + network)' },
+                    { field: 'fromWaitingTimeSec', desc: 'IVR/wait time before answer' },
+                    { field: 'conversationDurationSec', desc: 'Talk time (answer → hangup)' },
                     { field: 'billableDurationSec', desc: 'Billable duration' },
+                    { field: 'callerDurationSec', desc: 'Caller total (wait + talk)' },
+                    { field: 'callSetupTimeCaller', desc: 'Call setup time (ms)' },
+                    { field: 'hangupStatus', desc: 'Party A / Party B / SYSTEM' },
+                    { field: 'hangupCause', desc: 'USER / SYSTEM_INITIATED' },
+                    { field: 'callerNumberStatus', desc: 'Answer / Busy / Noanswer / etc.' },
+                    { field: 'callerNumberStatusDetails', desc: 'SIP code | cause | description' },
+                    { field: 'destinationNumberStatus', desc: 'Answer / Busy / NotReachable / etc.' },
+                    { field: 'destinationNumberStatusDetails', desc: 'SIP code | cause | description' },
                     { field: 'circleNameCaller', desc: 'Caller state/circle' },
+                    { field: 'circleNameDestination', desc: 'Destination state/circle' },
                     { field: 'operatorNameCaller', desc: 'Caller telecom operator' },
+                    { field: 'operatorNameDestination', desc: 'Destination telecom operator' },
                     { field: 'recordingURL', desc: 'Call recording URL' },
-                    { field: 'hangupCause', desc: 'USER/SYSTEM_INITIATED' },
+                    { field: 'retryCountCaller', desc: 'Retries on caller side' },
+                    { field: 'retryCountDestination', desc: 'Retries on destination side' },
+                    { field: 'pulseCount', desc: 'Pulse count for billing' },
+                    { field: 'campaignId', desc: 'OBD campaign ID' },
+                    { field: 'campaignName', desc: 'OBD campaign name' },
+                    { field: 'dtmfCapture', desc: 'DTMF keypad input captured' },
                   ].map(({ field, desc }) => (
                     <div key={field} style={{ padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem', borderLeft: '3px solid #1a3a2a' }}>
                       <code style={{ fontSize: '0.85rem', color: '#1a3a2a' }}>{field}</code>

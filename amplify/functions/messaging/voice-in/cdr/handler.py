@@ -713,6 +713,28 @@ def _normalize_cdr(item: Dict) -> Dict:
         'displayTime': display_time,
         'timestamp': ts,
         'createdAt': int(float(item.get('createdAt', 0))),
+    }  # Retry info
+        'retryCountCaller': int(float(item.get('retryCountCaller', 0))),
+        'retryCountDestination': int(float(item.get('retryCountDestination', 0))),
+        
+        # Metadata
+        'source': item.get('source', 'airtel_cdr_webhook'),
+        'participantsCount': int(float(item.get('participantsCount', 0))),
+        
+        # OBD Campaign fields
+        'campaignId': item.get('campaignId', ''),
+        'campaignName': item.get('campaignName', ''),
+        'pulseCount': int(float(item.get('pulseCount', 0))),
+        'dtmfCapture': item.get('dtmfCapture', ''),
+        
+        # Call setup
+        'callSetupTimeCaller': int(float(item.get('callSetupTimeCaller', 0))),
+        
+        # UI display fields (per Airtel CDR spec Section 2)
+        'displayDate': display_date,
+        'displayTime': display_time,
+        'timestamp': ts,
+        'createdAt': int(float(item.get('createdAt', 0))),
     }
 
 
