@@ -74,6 +74,10 @@ tsconfig.tsbuildinfo
 *.key
 secrets.json
 
+# Audit outputs (may contain credentials from Meta API)
+wa_sip_audit/
+**/wa_sip_audit/
+
 # AWS Credentials (never commit)
 .aws/
 aws-credentials.json
