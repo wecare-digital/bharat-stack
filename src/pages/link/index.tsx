@@ -1,15 +1,33 @@
 /**
  * Link Page - URL Shortener & Deep Links
  * Domain: r.wecare.digital
- * Create short links, track clicks, manage deep links for iOS/Android
+ * General-purpose short links, click tracking, deep links for iOS/Android
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
 import Button from '../../components/ui/Button';
-import { API_BASE } from '../../config/constants';
+import { useToastContext } from '../../contexts/ToastContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const SHORT_DOMAIN = 'r.wecare.digital';
 
 interface PageProps { signOut?: () => void; user?: any; }
+
+interface ShortLink {
+  shortCode: string;
+  shortUrl: string;
+  originalUrl: string;
+  title: string;
+  clicks: number;
+  createdAt: string;
+  expiresAt?: string;
+  deepLink?: boolean;
+  iosUrl?: string;
+  androidUrl?: string;
+  active?: boolean;
+}
 
 /* ── Icons ── */
 const LinkIcon = ({ size = 18 }: { size?: number }) => (
@@ -32,40 +50,17 @@ const BarChartIcon = ({ size = 14 }: { size?: number }) => (
     <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
   </svg>
 );
-const QRIcon = ({ size = 14 }: { size?: number }) => (
+const PlusIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/><line x1="22" y1="14" x2="22" y2="22"/><line x1="14" y1="22" x2="22" y2="22"/>
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
 
-const SHORT_DOMAIN = 'r.wecare.digital';
-
-interface ShortLink {
-  id: string;
-  shortCode: string;
-  shortUrl: string;
-  originalUrl: string;
-  title: string;
-  clicks: number;
-  createdAt: string;
-  expiresAt?: string;
-  deepLink?: boolean;
-  iosUrl?: string;
-  androidUrl?: string;
-}
-
 const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
-  const [links, setLinks] = useState<ShortLink[]>([
-    { id: 'l1', shortCode: 'pay-wd01', shortUrl: `https://${SHORT_DOMAIN}/pay-wd01`, originalUrl: 'https://stack.wecare.digital/pay?ref=WD-PAY-A1B2C3D4&amount=2500', title: 'Payment Link - Rs 2,500', clicks: 47, createdAt: '2026-03-08T10:00:00Z', deepLink: true, iosUrl: 'wecare://pay?ref=WD-PAY-A1B2C3D4', androidUrl: 'wecare://pay?ref=WD-PAY-A1B2C3D4' },
-    { id: 'l2', shortCode: 'wa-camp', shortUrl: `https://${SHORT_DOMAIN}/wa-camp`, originalUrl: 'https://stack.wecare.digital/dm/whatsapp?tab=campaign', title: 'WhatsApp Campaign', clicks: 123, createdAt: '2026-03-07T14:30:00Z' },
-    { id: 'l3', shortCode: 'inv-mar', shortUrl: `https://${SHORT_DOMAIN}/inv-mar`, originalUrl: 'https://stack.wecare.digital/pay/invoices?month=march', title: 'March Invoices', clicks: 18, createdAt: '2026-03-06T09:00:00Z', deepLink: true, iosUrl: 'wecare://pay/invoices', androidUrl: 'wecare://pay/invoices' },
-  ]);
-
-  const [loading, setLoading] = useState(false);
+  const [links, setLinks] = useState<ShortLink[]>([]);
+  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-
-  // Create form
   const [showForm, setShowForm] = useState(false);
   const [formUrl, setFormUrl] = useState('');
   const [formTitle, setFormTitle] = useState('');
@@ -74,10 +69,34 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [formIosUrl, setFormIosUrl] = useState('');
   const [formAndroidUrl, setFormAndroidUrl] = useState('');
   const [formExpiry, setFormExpiry] = useState('');
+  const [analyticsCode, setAnalyticsCode] = useState<string | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
 
-  // Stats
-  const totalClicks = links.reduce((s, l) => s + l.clicks, 0);
+  const toast = useToastContext();
+  const confirm = useConfirm();
+
+  const totalClicks = links.reduce((s, l) => s + (Number(l.clicks) || 0), 0);
   const deepLinkCount = links.filter(l => l.deepLink).length;
+
+  const loadLinks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const resp = await fetch(`${API_BASE}/links`);
+      const data = await resp.json();
+      setLinks((data.links || []).map((l: any) => ({
+        ...l,
+        clicks: Number(l.clicks) || 0,
+        shortUrl: l.shortUrl || `https://${SHORT_DOMAIN}/${l.shortCode}`,
+      })));
+    } catch (err) {
+      console.error('Load links error:', err);
+      toast.error('Failed to load links');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadLinks(); }, [loadLinks]);
 
   const generateCode = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -86,54 +105,72 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
     setFormCode(code);
   };
 
+  const resetForm = () => {
+    setFormUrl(''); setFormTitle(''); setFormCode(''); setFormDeepLink(false);
+    setFormIosUrl(''); setFormAndroidUrl(''); setFormExpiry('');
+  };
+
   const handleCreate = async () => {
     if (!formUrl.trim()) return;
     setCreating(true);
-    const code = formCode.trim() || Math.random().toString(36).slice(2, 8);
     try {
-      await fetch(`${API_BASE}/links`, {
+      const resp = await fetch(`${API_BASE}/links`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          shortCode: code,
-          originalUrl: formUrl,
-          title: formTitle || formUrl,
+          shortCode: formCode.trim() || undefined,
+          originalUrl: formUrl.trim(),
+          title: formTitle.trim() || formUrl.trim(),
           deepLink: formDeepLink,
           iosUrl: formIosUrl || undefined,
           androidUrl: formAndroidUrl || undefined,
           expiresAt: formExpiry || undefined,
         }),
       });
-    } catch { /* API not deployed yet */ }
-
-    setLinks(prev => [{
-      id: `l${Date.now()}`,
-      shortCode: code,
-      shortUrl: `https://${SHORT_DOMAIN}/${code}`,
-      originalUrl: formUrl,
-      title: formTitle || formUrl,
-      clicks: 0,
-      createdAt: new Date().toISOString(),
-      deepLink: formDeepLink,
-      iosUrl: formIosUrl || undefined,
-      androidUrl: formAndroidUrl || undefined,
-      expiresAt: formExpiry || undefined,
-    }, ...prev]);
-
-    setFormUrl(''); setFormTitle(''); setFormCode(''); setFormDeepLink(false);
-    setFormIosUrl(''); setFormAndroidUrl(''); setFormExpiry('');
-    setShowForm(false);
-    setCreating(false);
+      const data = await resp.json();
+      if (data.success) {
+        toast.success('Link created');
+        resetForm();
+        setShowForm(false);
+        loadLinks();
+      } else {
+        toast.error(data.error || 'Failed to create link');
+      }
+    } catch {
+      toast.error('Failed to create link');
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const copyLink = (url: string, id: string) => {
+  const handleDelete = async (code: string) => {
+    const ok = await confirm('Delete this short link? This cannot be undone.');
+    if (!ok) return;
+    try {
+      await fetch(`${API_BASE}/links/${code}`, { method: 'DELETE' });
+      toast.success('Link deleted');
+      loadLinks();
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
+  const handleAnalytics = async (code: string) => {
+    if (analyticsCode === code) { setAnalyticsCode(null); return; }
+    try {
+      const resp = await fetch(`${API_BASE}/links/${code}`);
+      const data = await resp.json();
+      setAnalyticsData(data);
+      setAnalyticsCode(code);
+    } catch {
+      toast.error('Failed to load analytics');
+    }
+  };
+
+  const copyLink = (url: string, code: string) => {
     navigator.clipboard.writeText(url);
-    setCopied(id);
+    setCopied(code);
     setTimeout(() => setCopied(null), 2000);
-  };
-
-  const deleteLink = (id: string) => {
-    setLinks(prev => prev.filter(l => l.id !== id));
   };
 
   return (
@@ -146,11 +183,10 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
             <p>URL shortener &amp; deep links via <strong>{SHORT_DOMAIN}</strong></p>
           </div>
           <Button variant="primary" onClick={() => { setShowForm(true); generateCode(); }}>
-            <LinkIcon size={14} /> Create Short Link
+            <PlusIcon size={14} /> Create Short Link
           </Button>
         </div>
 
-        {/* Stats */}
         <div className="link-stats">
           <div className="link-stat"><div className="link-stat-val">{links.length}</div><div className="link-stat-lbl">Total Links</div></div>
           <div className="link-stat"><div className="link-stat-val">{totalClicks}</div><div className="link-stat-lbl">Total Clicks</div></div>
@@ -158,133 +194,176 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="link-stat"><div className="link-stat-val">{SHORT_DOMAIN}</div><div className="link-stat-lbl">Domain</div></div>
         </div>
 
-        {/* Links Table */}
         <div className="link-table-wrap">
-          <table className="link-table">
-            <thead>
-              <tr><th>Short URL</th><th>Destination</th><th>Title</th><th>Clicks</th><th>Deep Link</th><th>Created</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {links.map(l => (
-                <tr key={l.id}>
-                  <td>
-                    <div className="link-short-url">
-                      <a href={l.shortUrl} target="_blank" rel="noopener noreferrer">{l.shortUrl}</a>
-                    </div>
-                  </td>
-                  <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: '#6b7280' }}>{l.originalUrl}</td>
-                  <td style={{ fontWeight: 500, fontSize: 13 }}>{l.title}</td>
-                  <td style={{ fontWeight: 600, color: '#1a3a2a' }}>{l.clicks}</td>
-                  <td>{l.deepLink ? <span className="link-deep-badge">iOS + Android</span> : <span style={{ color: '#9ca3af', fontSize: 12 }}>No</span>}</td>
-                  <td style={{ fontSize: 12, color: '#6b7280' }}>{new Date(l.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <div className="link-actions">
-                      <button className="link-act-btn" onClick={() => copyLink(l.shortUrl, l.id)} title="Copy">
-                        {copied === l.id ? <span style={{fontSize:11,color:'#1a3a2a'}}>Copied</span> : <CopyIcon />}
-                      </button>
-                      <button className="link-act-btn" title="Analytics"><BarChartIcon /></button>
-                      <button className="link-act-btn" title="QR Code"><QRIcon /></button>
-                      <button className="link-act-btn danger" onClick={() => deleteLink(l.id)} title="Delete"><TrashIcon /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>Loading links...</div>
+          ) : links.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>No links yet. Create your first short link.</div>
+          ) : (
+            <table className="link-table" role="table" aria-label="Short links">
+              <thead>
+                <tr><th>Short URL</th><th>Destination</th><th>Title</th><th>Clicks</th><th>Deep Link</th><th>Created</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {links.map(l => (
+                  <React.Fragment key={l.shortCode}>
+                    <tr>
+                      <td><a href={l.shortUrl} target="_blank" rel="noopener noreferrer" className="link-short-a">{l.shortUrl.replace('https://', '')}</a></td>
+                      <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: '#6b7280' }}>{l.originalUrl}</td>
+                      <td style={{ fontWeight: 500, fontSize: 13 }}>{l.title}</td>
+                      <td style={{ fontWeight: 600, color: '#1a3a2a' }}>{l.clicks}</td>
+                      <td>{l.deepLink ? <span className="link-deep-badge">iOS + Android</span> : <span style={{ color: '#9ca3af', fontSize: 12 }}>No</span>}</td>
+                      <td style={{ fontSize: 12, color: '#6b7280' }}>{l.createdAt ? new Date(l.createdAt).toLocaleDateString() : '-'}</td>
+                      <td>
+                        <div className="link-actions">
+                          <button className="link-act-btn" onClick={() => copyLink(l.shortUrl, l.shortCode)} title="Copy" aria-label="Copy link">
+                            {copied === l.shortCode ? <span style={{fontSize:11,color:'#1a3a2a'}}>Copied</span> : <CopyIcon />}
+                          </button>
+                          <button className="link-act-btn" onClick={() => handleAnalytics(l.shortCode)} title="Analytics" aria-label="View analytics"><BarChartIcon /></button>
+                          <button className="link-act-btn danger" onClick={() => handleDelete(l.shortCode)} title="Delete" aria-label="Delete link"><TrashIcon /></button>
+                        </div>
+                      </td>
+                    </tr>
+                    {analyticsCode === l.shortCode && analyticsData && (
+                      <tr><td colSpan={7} style={{ background: '#f9fafb', padding: 12 }}>
+                        <div style={{ fontSize: 12, color: '#374151' }}>
+                          <strong>Recent Clicks ({(analyticsData.recentClicks || []).length})</strong>
+                          {(analyticsData.recentClicks || []).length === 0 ? <p style={{ color: '#9ca3af' }}>No clicks yet</p> : (
+                            <div style={{ display: 'grid', gap: 4, marginTop: 6 }}>
+                              {(analyticsData.recentClicks || []).slice(0, 10).map((c: any, i: number) => (
+                                <div key={i} style={{ display: 'flex', gap: 12, fontSize: 11, color: '#6b7280' }}>
+                                  <span>{new Date(c.clickedAt).toLocaleString()}</span>
+                                  <span>{c.platform}</span>
+                                  <span>{c.sourceIp}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td></tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Create Modal */}
         {showForm && (
-          <div className="link-modal-bg" onClick={() => setShowForm(false)}>
+          <div className="link-modal-overlay" onClick={() => setShowForm(false)} role="dialog" aria-modal="true" aria-label="Create short link">
             <div className="link-modal" onClick={e => e.stopPropagation()}>
-              <div className="link-modal-head">
-                <span>Create Short Link</span>
-                <button onClick={() => setShowForm(false)} className="link-modal-close">x</button>
+              <div className="link-modal-bar" />
+              <div className="link-modal-header">
+                <h2>Create Short Link</h2>
+                <button className="link-modal-close" onClick={() => setShowForm(false)} aria-label="Close">&times;</button>
               </div>
               <div className="link-modal-body">
-                <div className="link-field">
-                  <label>Destination URL *</label>
-                  <input type="url" value={formUrl} onChange={e => setFormUrl(e.target.value)} placeholder="https://stack.wecare.digital/..." />
-                </div>
-                <div className="link-field">
-                  <label>Title</label>
-                  <input type="text" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Payment Link, Campaign, etc." />
-                </div>
-                <div className="link-field">
-                  <label>Custom Short Code</label>
-                  <div className="link-code-row">
-                    <span className="link-code-prefix">https://{SHORT_DOMAIN}/</span>
-                    <input type="text" value={formCode} onChange={e => setFormCode(e.target.value)} placeholder="auto" style={{ flex: 1 }} />
-                    <Button variant="secondary" size="sm" onClick={generateCode}>Random</Button>
+                <label className="link-label">
+                  Destination URL <span style={{ color: '#dc2626' }}>*</span>
+                  <input className="link-input" type="url" placeholder="https://example.com/page" value={formUrl} onChange={e => setFormUrl(e.target.value)} autoFocus />
+                </label>
+                <label className="link-label">
+                  Title
+                  <input className="link-input" type="text" placeholder="My Link" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
+                </label>
+                <label className="link-label">
+                  Custom Code (optional)
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>{SHORT_DOMAIN}/</span>
+                    <input className="link-input" type="text" placeholder={formCode} value={formCode} onChange={e => setFormCode(e.target.value)} style={{ flex: 1 }} />
+                    <button className="link-gen-btn" onClick={generateCode} type="button">Random</button>
                   </div>
-                </div>
-                <div className="link-field">
-                  <label>Expiry (optional)</label>
-                  <input type="date" value={formExpiry} onChange={e => setFormExpiry(e.target.value)} />
-                </div>
-                <div className="link-field">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={formDeepLink} onChange={e => setFormDeepLink(e.target.checked)} style={{ width: 18, height: 18 }} />
-                    Enable Deep Link (iOS + Android app)
-                  </label>
-                </div>
+                </label>
+
+                <label className="link-label" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={formDeepLink} onChange={e => setFormDeepLink(e.target.checked)} />
+                  <span>Enable Deep Link (iOS / Android)</span>
+                </label>
+
                 {formDeepLink && (
-                  <>
-                    <div className="link-field">
-                      <label>iOS Deep Link URL</label>
-                      <input type="text" value={formIosUrl} onChange={e => setFormIosUrl(e.target.value)} placeholder="wecare://pay?ref=..." />
-                    </div>
-                    <div className="link-field">
-                      <label>Android Deep Link URL</label>
-                      <input type="text" value={formAndroidUrl} onChange={e => setFormAndroidUrl(e.target.value)} placeholder="wecare://pay?ref=..." />
-                    </div>
-                  </>
+                  <div className="link-deep-fields">
+                    <label className="link-label">
+                      iOS App URL
+                      <input className="link-input" type="url" placeholder="myapp://path" value={formIosUrl} onChange={e => setFormIosUrl(e.target.value)} />
+                    </label>
+                    <label className="link-label">
+                      Android App URL
+                      <input className="link-input" type="url" placeholder="myapp://path" value={formAndroidUrl} onChange={e => setFormAndroidUrl(e.target.value)} />
+                    </label>
+                  </div>
                 )}
+
+                <label className="link-label">
+                  Expiry Date (optional)
+                  <input className="link-input" type="date" value={formExpiry} onChange={e => setFormExpiry(e.target.value)} />
+                </label>
               </div>
-              <div className="link-modal-foot">
-                <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleCreate} disabled={!formUrl.trim() || creating} loading={creating}>Create Link</Button>
+              <div className="link-modal-footer">
+                <button className="link-cancel-btn" onClick={() => setShowForm(false)}>Cancel</button>
+                <Button variant="primary" onClick={handleCreate} disabled={creating || !formUrl.trim()}>
+                  {creating ? 'Creating...' : 'Create Link'}
+                </Button>
               </div>
             </div>
           </div>
         )}
+
       </div>
 
       <style jsx>{`
-        .link-page{padding:16px 20px;max-width:1100px;margin:0 auto}
-        .link-page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
-        .link-page-header h1{font-size:22px;font-weight:700;color:#111827;margin:0 0 4px}
-        .link-page-header p{font-size:13px;color:#6b7280;margin:0}
-        .link-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-        .link-stat{padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
-        .link-stat-val{font-size:20px;font-weight:700;color:#1a3a2a}
-        .link-stat-lbl{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
-        .link-table-wrap{overflow-x:auto;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
-        .link-table{width:100%;border-collapse:collapse;font-size:13px}
-        .link-table th{padding:10px 14px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb}
-        .link-table td{padding:10px 14px;border-bottom:1px solid #f3f4f6}
-        .link-table tr:last-child td{border-bottom:none}
-        .link-short-url a{color:#1a3a2a;font-weight:600;font-size:13px;text-decoration:none}
-        .link-short-url a:hover{text-decoration:underline}
-        .link-deep-badge{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#f0fdf4;color:#1a3a2a;border:1px solid #d1f470}
-        .link-actions{display:flex;gap:4px}
-        .link-act-btn{width:32px;height:32px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;transition:all .15s}
-        .link-act-btn:hover{border-color:#1a3a2a;color:#1a3a2a;background:#f9fdf0}
-        .link-act-btn.danger:hover{border-color:#dc2626;color:#dc2626;background:#fef2f2}
-        .link-modal-bg{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3)}
-        .link-modal{background:#fff;border-radius:13px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.15);border:1.5px solid #d1f470;overflow:hidden;margin:16px}
-        .link-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(209,244,112,.3);font-size:16px;font-weight:600;color:#111827}
-        .link-modal-close{width:28px;height:28px;border-radius:8px;background:rgba(209,244,112,.15);border:none;cursor:pointer;font-size:16px;color:#1a3a2a;display:flex;align-items:center;justify-content:center}
-        .link-modal-body{padding:20px;display:flex;flex-direction:column;gap:14px}
-        .link-modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid rgba(209,244,112,.3)}
-        .link-field label{display:block;font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
-        .link-field input,.link-field select{width:100%;padding:10px 12px;border:1.5px solid #d1f470;border-radius:13px;font-size:14px;color:#1a1a1a;background:#fff;min-height:44px;font-family:inherit;box-sizing:border-box}
-        .link-field input:focus{outline:none;box-shadow:0 0 0 3px rgba(209,244,112,.3)}
-        .link-code-row{display:flex;align-items:center;gap:6px}
-        .link-code-prefix{font-size:12px;color:#6b7280;white-space:nowrap;padding:10px 0 10px 12px;background:#f9fafb;border:1.5px solid #d1f470;border-right:none;border-radius:13px 0 0 13px;min-height:44px;display:flex;align-items:center}
-        .link-code-row input{border-radius:0 13px 13px 0!important;border-left:none!important}
-        @media(max-width:768px){.link-stats{grid-template-columns:repeat(2,1fr)}.link-page-header{flex-direction:column;gap:12px}.link-modal{position:fixed;bottom:0;left:0;right:0;top:auto;max-width:100%;margin:0;border-radius:16px 16px 0 0;max-height:85vh;overflow-y:auto}.link-modal-bg{align-items:flex-end}}
-        @media(max-width:480px){.link-stats{grid-template-columns:1fr}.link-page{padding:12px}}
+        .link-page { padding: 20px; max-width: 1100px; margin: 0 auto; }
+        .link-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+        .link-page-header h1 { margin: 0; font-size: 22px; color: #1a3a2a; display: flex; align-items: center; gap: 8px; }
+        .link-page-header p { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
+
+        .link-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .link-stat { background: #fff; border: 1.5px solid #e5e7eb; border-radius: 13px; padding: 16px; text-align: center; }
+        .link-stat-val { font-size: 22px; font-weight: 700; color: #1a3a2a; }
+        .link-stat-lbl { font-size: 11px; color: #6b7280; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .link-table-wrap { background: #fff; border: 1.5px solid #e5e7eb; border-radius: 13px; overflow: hidden; }
+        .link-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .link-table thead { background: #f9fafb; }
+        .link-table th { padding: 10px 14px; text-align: left; font-weight: 600; color: #374151; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid #e5e7eb; }
+        .link-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; }
+        .link-table tbody tr:hover { background: #f9fafb; }
+        .link-short-a { color: #1a3a2a; font-weight: 600; text-decoration: none; font-size: 12px; }
+        .link-short-a:hover { text-decoration: underline; }
+        .link-deep-badge { background: #d1f470; color: #1a3a2a; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+
+        .link-actions { display: flex; gap: 4px; }
+        .link-act-btn { background: none; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 5px 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; transition: all 0.15s; }
+        .link-act-btn:hover { border-color: #d1f470; color: #1a3a2a; }
+        .link-act-btn.danger:hover { border-color: #fca5a5; color: #dc2626; }
+
+        /* Modal */
+        .link-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; backdrop-filter: blur(2px); }
+        .link-modal { background: #fff; border-radius: 13px; width: 100%; max-width: 480px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; border: 1.5px solid #d1f470; animation: modalIn 0.15s ease-out; }
+        .link-modal-bar { height: 6px; background: #d1f470; }
+        .link-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 0; }
+        .link-modal-header h2 { margin: 0; font-size: 16px; color: #1a3a2a; }
+        .link-modal-close { background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; padding: 0 4px; }
+        .link-modal-close:hover { color: #374151; }
+        .link-modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+        .link-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; background: #f9fafb; border-top: 1px solid #f3f4f6; }
+
+        .link-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; color: #374151; }
+        .link-input { padding: 8px 12px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 13px; outline: none; font-family: inherit; transition: border-color 0.15s; }
+        .link-input:focus { border-color: #d1f470; box-shadow: 0 0 0 3px rgba(209,244,112,0.3); }
+        .link-gen-btn { background: #f3f4f6; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: #374151; white-space: nowrap; }
+        .link-gen-btn:hover { background: #e5e7eb; }
+        .link-cancel-btn { padding: 7px 16px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: #fff; color: #374151; font-size: 13px; cursor: pointer; font-family: inherit; }
+        .link-cancel-btn:hover { background: #f9fafb; }
+        .link-deep-fields { display: grid; gap: 12px; padding: 12px; background: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb; }
+
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(-8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        @media (max-width: 768px) {
+          .link-stats { grid-template-columns: repeat(2, 1fr); }
+          .link-table-wrap { overflow-x: auto; }
+          .link-page-header { flex-direction: column; align-items: flex-start; }
+        }
       `}</style>
     </Layout>
   );

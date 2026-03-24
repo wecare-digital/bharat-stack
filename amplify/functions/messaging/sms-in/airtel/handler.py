@@ -78,6 +78,7 @@ DLT_TEMPLATES_TABLE = os.environ.get('DLT_TEMPLATES_TABLE', 'stack-wecare-digita
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 AIRTEL_SMS_SECRET_NAME = os.environ.get('AIRTEL_SMS_SECRET_NAME', 'wecare/airtel/sms')
 AIRTEL_SMS_HOST = 'iqmessaging.airtel.in'
+SMS_PROXY_URL = os.environ.get('SMS_PROXY_URL', 'http://52.3.44.165:8899')
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60
 
 _secrets_cache = None
@@ -96,6 +97,38 @@ def _get_secrets() -> Dict[str, str]:
     except Exception as e:
         logger.error(f"Failed to load secrets: {str(e)}")
         return {}
+
+
+def _call_airtel_via_proxy(airtel_url: str, headers: Dict[str, str], payload: Any) -> Dict:
+    """
+    Route Airtel API calls through the Lightsail SMS proxy (static IP 52.3.44.165).
+    The proxy forwards the request to Airtel so they see our whitelisted IP.
+    """
+    # Extract path from full URL
+    from urllib.parse import urlparse
+    parsed = urlparse(airtel_url)
+    airtel_path = parsed.path
+    
+    proxy_payload = {
+        "path": airtel_path,
+        "headers": headers,
+        "body": payload
+    }
+    
+    proxy_url = f"{SMS_PROXY_URL}/"
+    req = urllib.request.Request(
+        proxy_url,
+        data=json.dumps(proxy_payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'},
+        method='POST'
+    )
+    
+    with urllib.request.urlopen(req, timeout=30) as response:
+        resp_body = response.read().decode('utf-8')
+        try:
+            return json.loads(resp_body)
+        except json.JSONDecodeError:
+            return {"raw": resp_body}
 
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -269,45 +302,30 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     }
     
     try:
-        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
+        result = _call_airtel_via_proxy(url, headers, payload)
+        message_id = str(uuid.uuid4())
+        provider_msg_id = result.get('messageRequestId') or result.get('messageId')
         
-        with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            message_id = str(uuid.uuid4())
-            provider_msg_id = result.get('messageRequestId') or result.get('messageId')
-            
-            _store_message(message_id, ','.join(clean_phones), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, provider_msg_id, len(clean_phones), api_version)
-            
-            resp = {
-                'success': True,
-                'messageId': message_id,
-                'providerMessageId': provider_msg_id,
-                'recipientCount': len(clean_phones),
-                'status': 'sent',
-                'apiVersion': api_version
-            }
-            
-            # v6 echoes back additional fields
-            if api_version == 'v6':
-                resp['incorrectNum'] = result.get('incorrectNum', [])
-            
-            return _response(200, resp)
-            
+        _store_message(message_id, ','.join(clean_phones), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, provider_msg_id, len(clean_phones), api_version)
+        
+        resp = {
+            'success': True,
+            'messageId': message_id,
+            'providerMessageId': provider_msg_id,
+            'recipientCount': len(clean_phones),
+            'status': 'sent',
+            'apiVersion': api_version
+        }
+        
+        # v6 echoes back additional fields
+        if api_version == 'v6':
+            resp['incorrectNum'] = result.get('incorrectNum', [])
+        
+        return _response(200, resp)
+        
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
         logger.error(f"Airtel SMS error: {e.code} - {error_body}")
-        
-        if e.code == 403:
-            logger.error(json.dumps({
-                'event': 'airtel_403_error',
-                'service': 'sms',
-                'url': url,
-                'customer_id': customer_id,
-                'auth_token_prefix': auth_token[:20] if auth_token else 'NONE',
-                'note': 'Check: 1) Auth credentials valid? 2) Account activated? 3) IP whitelisted on Airtel side?',
-                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153', '65.1.125.210', '3.108.104.147', '3.109.177.16', '13.126.42.108', '3.108.90.203']
-            }))
-        
         return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})
     except Exception as e:
         logger.error(f"SMS send error: {str(e)}")
@@ -375,22 +393,19 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     }
     
     try:
-        req = urllib.request.Request(url, data=json.dumps(bulk_payload).encode('utf-8'), headers=headers, method='POST')
+        result = _call_airtel_via_proxy(url, headers, bulk_payload)
         
-        with urllib.request.urlopen(req, timeout=60) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            
-            # Store bulk message record
-            message_id = str(uuid.uuid4())
-            _store_message(message_id, ','.join([p['msisdn'] for p in bulk_payload]), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, None, len(bulk_payload), 'bulk')
-            
-            return _response(200, {
-                'success': True,
-                'messageId': message_id,
-                'recipientCount': len(bulk_payload),
-                'status': 'sent'
-            })
-            
+        # Store bulk message record
+        message_id = str(uuid.uuid4())
+        _store_message(message_id, ','.join([p['msisdn'] for p in bulk_payload]), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, None, len(bulk_payload), 'bulk')
+        
+        return _response(200, {
+            'success': True,
+            'messageId': message_id,
+            'recipientCount': len(bulk_payload),
+            'status': 'sent'
+        })
+        
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
         logger.error(f"Airtel bulk SMS error: {e.code} - {error_body}")

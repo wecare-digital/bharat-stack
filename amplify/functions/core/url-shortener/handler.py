@@ -36,6 +36,9 @@ HEADERS = {
 }
 
 
+FALLBACK_URL = "https://wecare.digital/selfservice"
+
+
 def handler(event, context):
     method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
     path = event.get("path", event.get("rawPath", ""))
@@ -48,7 +51,7 @@ def handler(event, context):
         if method == "OPTIONS":
             return {"statusCode": 200, "headers": HEADERS, "body": ""}
 
-        # Redirect: GET /r/:code
+        # Redirect: GET /r/:code or GET /{code} (from r.wecare.digital)
         if "/r/" in path:
             code = path.split("/r/")[-1].strip("/")
             return redirect(code, event)
@@ -64,11 +67,31 @@ def handler(event, context):
         if method == "DELETE" and "links" in path:
             code = path.split("/links/")[-1].strip("/")
             return delete_link(code)
+        if method == "PUT" and "links" in path:
+            code = path.split("/links/")[-1].strip("/")
+            if code:
+                return update_link(code, body)
 
-        return {"statusCode": 404, "headers": HEADERS, "body": json.dumps({"error": "Not found"})}
+        # Catch-all: GET /{code} — treat as redirect (for r.wecare.digital/abc123)
+        if method == "GET" and path and path != "/":
+            code = path.strip("/")
+            if code and "." not in code and "/" not in code:
+                return redirect(code, event)
+
+        # 404 → redirect to self-service
+        return {
+            "statusCode": 302,
+            "headers": {**HEADERS, "Location": FALLBACK_URL},
+            "body": "",
+        }
 
     except Exception as e:
-        return {"statusCode": 500, "headers": HEADERS, "body": json.dumps({"error": str(e)})}
+        # 500 → redirect to self-service
+        return {
+            "statusCode": 302,
+            "headers": {**HEADERS, "Location": FALLBACK_URL},
+            "body": "",
+        }
 
 
 def generate_code(length=6):
@@ -143,13 +166,39 @@ def delete_link(code):
     return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"success": True})}
 
 
+def update_link(code, body):
+    """Update an existing short link."""
+    item = links_table.get_item(Key={"shortCode": code}).get("Item")
+    if not item:
+        return {"statusCode": 404, "headers": HEADERS, "body": json.dumps({"error": "Link not found"})}
+
+    update_expr = []
+    expr_values = {}
+    for field in ["originalUrl", "title", "deepLink", "iosUrl", "androidUrl", "expiresAt", "active"]:
+        if field in body:
+            update_expr.append(f"{field} = :{field}")
+            expr_values[f":{field}"] = body[field]
+
+    if not update_expr:
+        return {"statusCode": 400, "headers": HEADERS, "body": json.dumps({"error": "No fields to update"})}
+
+    links_table.update_item(
+        Key={"shortCode": code},
+        UpdateExpression="SET " + ", ".join(update_expr),
+        ExpressionAttributeValues=expr_values,
+    )
+
+    updated = links_table.get_item(Key={"shortCode": code}).get("Item", {})
+    return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"success": True, "link": updated}, default=str)}
+
+
 def redirect(code, event):
     """Redirect to original URL, track click, handle deep links."""
     item = links_table.get_item(Key={"shortCode": code}).get("Item")
     if not item or not item.get("active", True):
         return {
             "statusCode": 302,
-            "headers": {**HEADERS, "Location": "https://stack.wecare.digital/"},
+            "headers": {**HEADERS, "Location": FALLBACK_URL},
             "body": "",
         }
 
@@ -158,7 +207,7 @@ def redirect(code, event):
     if expires and expires < datetime.utcnow().isoformat():
         return {
             "statusCode": 302,
-            "headers": {**HEADERS, "Location": "https://stack.wecare.digital/"},
+            "headers": {**HEADERS, "Location": FALLBACK_URL},
             "body": "",
         }
 
