@@ -121,7 +121,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         params = event.get('queryStringParameters') or {}
         call_type = params.get('callType', '')
         status = params.get('status', '')
-        limit = min(int(params.get('limit', 50)), 200)
+        limit = min(int(params.get('limit', 100)), 500)
         start_date = params.get('startDate', '')
         end_date = params.get('endDate', '')
         caller_number = params.get('callerNumber', '')
@@ -188,6 +188,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if circle_caller:
             filter_expressions.append('circleNameCaller = :circleCaller')
             expression_values[':circleCaller'] = circle_caller
+        
+        circle_dest = params.get('circleNameDestination', '')
+        if circle_dest:
+            filter_expressions.append('circleNameDestination = :circleDest')
+            expression_values[':circleDest'] = circle_dest
+        
+        operator_caller = params.get('operatorNameCaller', '')
+        if operator_caller:
+            filter_expressions.append('operatorNameCaller = :opCaller')
+            expression_values[':opCaller'] = operator_caller
+        
+        campaign_id = params.get('campaignId', '')
+        if campaign_id:
+            filter_expressions.append('campaignId = :campaignId')
+            expression_values[':campaignId'] = campaign_id
         
         if search:
             filter_expressions.append(
@@ -296,6 +311,7 @@ def _format_record_for_ui(item: Dict) -> Dict:
         'callerStatus': item.get('callerNumberStatus', ''),
         'destinationStatus': item.get('destinationNumberStatus', ''),
         'callerCircleName': item.get('circleNameCaller', ''),
+        'pulseCount': int(float(item.get('pulseCount', 0))),
         'recording': item.get('s3RecordingUrl', '') or item.get('recordingURL', ''),
         
         # Extended fields
@@ -309,6 +325,11 @@ def _format_record_for_ui(item: Dict) -> Dict:
         'callerName': item.get('callerName', ''),
         'destinationName': item.get('destinationName', ''),
         
+        # Timestamps (epoch ms)
+        'startTime': int(float(item.get('startTime', 0))),
+        'endTime': int(float(item.get('endTime', 0))),
+        'callAnswerTime': int(float(item.get('callAnswerTime', 0))),
+        
         # Duration fields (seconds)
         'durationSec': float(item.get('durationSec', 0)),
         'conversationDurationSec': float(item.get('conversationDurationSec', 0)),
@@ -316,11 +337,12 @@ def _format_record_for_ui(item: Dict) -> Dict:
         'fromWaitingTimeSec': float(item.get('fromWaitingTimeSec', 0)),
         'callerDurationSec': float(item.get('callerDurationSec', 0)),
         
-        # Duration display (mm:ss)
+        # Duration display (mm:ss per Airtel spec Section 2)
         'billableDurationDisplay': _ms_to_mmss(item.get('billableDurationMs', 0)),
         'callerDurationDisplay': _ms_to_mmss(item.get('callerDuration', 0)),
+        'durationDisplay': _ms_to_mmss(item.get('durationMs', 0)),
         
-        # Status details (SIP codes)
+        # Status details (SIP codes: "sipCode | causeCode | description | status")
         'callerNumberStatusDetails': item.get('callerNumberStatusDetails', ''),
         'destinationNumberStatusDetails': item.get('destinationNumberStatusDetails', ''),
         'hangupStatus': item.get('hangupStatus', ''),
@@ -339,6 +361,27 @@ def _format_record_for_ui(item: Dict) -> Dict:
         # Recording URLs
         'recordingURL': item.get('recordingURL', ''),
         's3RecordingUrl': item.get('s3RecordingUrl', ''),
+        
+        # Audio/IVR URLs
+        'callerAudioUrl': item.get('callerAudioUrl', ''),
+        'destinationAudioUrl': item.get('destinationAudioUrl', ''),
+        
+        # Per-participant timing
+        'callerStartTime': int(float(item.get('callerStartTime', 0))),
+        'callerEndTime': int(float(item.get('callerEndTime', 0))),
+        'callerAnswerTime': int(float(item.get('callerAnswerTime', 0))),
+        'destStartTime': int(float(item.get('destStartTime', 0))),
+        'destEndTime': int(float(item.get('destEndTime', 0))),
+        'destAnswerTime': int(float(item.get('destAnswerTime', 0))),
+        
+        # OBD Campaign fields
+        'campaignId': item.get('campaignId', ''),
+        'campaignName': item.get('campaignName', ''),
+        'pulseCount': int(float(item.get('pulseCount', 0))),
+        'dtmfCapture': item.get('dtmfCapture', ''),
+        
+        # Call setup
+        'callSetupTimeCaller': int(float(item.get('callSetupTimeCaller', 0))),
         
         # Metadata
         'source': item.get('source', 'airtel_cdr_webhook'),
@@ -419,7 +462,10 @@ def _calculate_stats(records: List[Dict]) -> Dict:
         'disconnected': disconnected,
         'avgConversationDuration': round(sum(conv_durations) / len(conv_durations), 2) if conv_durations else 0,
         'avgWaitTime': round(sum(wait_times) / len(wait_times), 2) if wait_times else 0,
+        'avgConversationDurationDisplay': _ms_to_mmss(sum(conv_durations) * 1000 / len(conv_durations)) if conv_durations else '00:00',
+        'avgWaitTimeDisplay': _ms_to_mmss(sum(wait_times) * 1000 / len(wait_times)) if wait_times else '00:00',
         'totalBillable': round(billable, 2),
+        'totalBillableDisplay': _ms_to_mmss(billable * 1000),
         'byCircle': dict(by_circle),
         'byOperator': dict(by_operator),
         'byCallerStatus': dict(by_caller_status),

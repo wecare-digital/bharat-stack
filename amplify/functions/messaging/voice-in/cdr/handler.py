@@ -163,6 +163,7 @@ def _normalize_airtel_payload(payload: Dict) -> Dict:
         'Caller_Operator_Name': 'operatorNameCaller',
         'Destination_Operator_Name': 'operatorNameDestination',
         'Hangup_Cause': 'hangupCause',
+        'Hangup_Status': 'hangUpStatus',
         'Caller_Retry_Count': 'retryCountCaller',
         'Destination_Retry_Count': 'retryCountDestination',
         'Caller_Name': 'callerName',
@@ -177,6 +178,12 @@ def _normalize_airtel_payload(payload: Dict) -> Dict:
         'DTMF_Capture': 'dtmfCapture',
         'Missed_Destination_Number': 'missedDestinationNumber',
         'Pulse_Count': 'pulseCount',
+        'Called_Number': 'calledNumber',
+        'Billable_Duration': 'billableDuration',
+        'Caller_Duration': 'callerDuration',
+        'Caller_Waiting_Time': 'fromWaitingTime',
+        'Conversation_Duration': 'conversationDuration',
+        'Call_Setup_Time_Caller': 'callSetupTimeCaller',
     }
 
     for display_key, camel_key in field_map.items():
@@ -315,7 +322,19 @@ def _safe_int(val) -> int:
             return int(float(val))
         except (ValueError, TypeError):
             pass
-        # If it's a mm:ss or hh:mm:ss display string, skip (not convertible to ms)
+        # Handle mm:ss or hh:mm:ss display strings → convert to milliseconds
+        val = val.strip()
+        if ':' in val:
+            parts = val.split(':')
+            try:
+                if len(parts) == 2:
+                    # mm:ss → ms
+                    return (int(parts[0]) * 60 + int(parts[1])) * 1000
+                elif len(parts) == 3:
+                    # hh:mm:ss → ms
+                    return (int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])) * 1000
+            except (ValueError, TypeError):
+                pass
         return 0
     return 0
 
@@ -386,13 +405,47 @@ def _process_cdr(payload: Dict, request_id: str) -> Dict:
     except (TypeError, ValueError):
         pass
 
+    # Billable duration calculation per Airtel CDR spec:
+    # Inbound: billableDuration = conversationDuration
+    # Outbound: billableDuration = fromWaitingTime + 2 * conversationDuration
+    call_type = payload.get('callType', 'UNKNOWN').upper()
+    if not billable_duration and conversation_duration:
+        if call_type == 'INBOUND':
+            billable_duration = conversation_duration
+        else:
+            billable_duration = from_waiting_time + (2 * conversation_duration)
+
+    # Extract per-participant timing from participants array
+    caller_start_time = caller_participant.get('startTime', 0)
+    caller_end_time = caller_participant.get('endTime', 0)
+    caller_answer_time = caller_participant.get('callAnswerTime', 0)
+    caller_hangup_cause = caller_participant.get('hangupCause', '')
+    dest_start_time = destination_participant.get('startTime', 0)
+    dest_end_time = destination_participant.get('endTime', 0)
+    dest_answer_time = destination_participant.get('callAnswerTime', 0)
+    dest_hangup_cause = destination_participant.get('hangupCause', '')
+
+    # Extract audio/IVR URLs from participants
+    caller_audio_url = ''
+    dest_audio_url = ''
+    for p in participants:
+        audios = p.get('audios', [])
+        if audios and isinstance(audios, list):
+            for a in audios:
+                url = a.get('audioURL', '')
+                if url:
+                    if p.get('participantType') == 'From':
+                        caller_audio_url = url
+                    elif p.get('participantType') == 'To':
+                        dest_audio_url = url
+
     return {
         'id': str(uuid.uuid4()),
         'vmSessionId': payload.get('vmSessionId', ''),
         'clientCorrelationId': payload.get('clientCorrelationId', ''),
         'customerId': payload.get('customerId', ''),
 
-        # Timestamps
+        # Timestamps (epoch ms from Airtel)
         'startTime': payload.get('startTime', 0),
         'endTime': payload.get('endTime', 0),
         'callAnswerTime': payload.get('callAnswerTime', 0),
@@ -414,11 +467,12 @@ def _process_cdr(payload: Dict, request_id: str) -> Dict:
         'callSetupTimeCaller': call_setup_time_caller,
 
         # Call details
-        'callType': payload.get('callType', 'UNKNOWN'),
+        'callType': call_type if call_type != 'UNKNOWN' else payload.get('callType', 'UNKNOWN'),
         'overallCallStatus': overall_status,
         'derivedOverallStatus': _derive_overall_status(caller_status, dest_status) if caller_status and dest_status else '',
-        'hangupStatus': payload.get('hangUpStatus', ''),
-        'hangupCause': payload.get('hangupCause', ''),
+        # hangUpStatus: which party disconnected (Party A, Party B, SYSTEM_INITIATED)
+        'hangupStatus': payload.get('hangUpStatus', '') or payload.get('hangupStatus', ''),
+        'hangupCause': payload.get('hangupCause', '') or caller_hangup_cause or dest_hangup_cause,
 
         # Phone numbers
         'callerId': payload.get('callerId', ''),
@@ -431,7 +485,7 @@ def _process_cdr(payload: Dict, request_id: str) -> Dict:
         'callerName': caller_name,
         'destinationName': destination_name,
 
-        # Status details
+        # Status details (format: "sipCode | causeCode | description | status")
         'callerNumberStatus': caller_status,
         'callerNumberStatusDetails': payload.get('callerNumberStatusDetails', ''),
         'destinationNumberStatus': dest_status,
@@ -446,9 +500,21 @@ def _process_cdr(payload: Dict, request_id: str) -> Dict:
         # Recording
         'recordingURL': payload.get('recordingURL', ''),
 
+        # Audio/IVR URLs (played during wait time)
+        'callerAudioUrl': caller_audio_url,
+        'destinationAudioUrl': dest_audio_url,
+
         # Retry info
         'retryCountCaller': payload.get('retryCountCaller', 0) or (caller_participant.get('retryCount', 0)),
         'retryCountDestination': payload.get('retryCountDestination', 0) or (destination_participant.get('retryCount', 0)),
+
+        # Per-participant timing
+        'callerStartTime': caller_start_time,
+        'callerEndTime': caller_end_time,
+        'callerAnswerTime': caller_answer_time,
+        'destStartTime': dest_start_time,
+        'destEndTime': dest_end_time,
+        'destAnswerTime': dest_answer_time,
 
         # Participants & Events (JSON strings)
         'participantsJson': participants_json,
@@ -564,6 +630,14 @@ def _list_cdrs(params: Dict, request_id: str) -> Dict[str, Any]:
                 filter_expressions.append(Attr('destinationNumberStatus').eq(params['destinationNumberStatus']))
             if params.get('circleNameCaller'):
                 filter_expressions.append(Attr('circleNameCaller').eq(params['circleNameCaller']))
+            if params.get('circleNameDestination'):
+                filter_expressions.append(Attr('circleNameDestination').eq(params['circleNameDestination']))
+            if params.get('operatorNameCaller'):
+                filter_expressions.append(Attr('operatorNameCaller').eq(params['operatorNameCaller']))
+            if params.get('operatorNameDestination'):
+                filter_expressions.append(Attr('operatorNameDestination').eq(params['operatorNameDestination']))
+            if params.get('campaignId'):
+                filter_expressions.append(Attr('campaignId').eq(params['campaignId']))
             if params.get('source'):
                 filter_expressions.append(Attr('source').eq(params['source']))
             if params.get('startDate'):
@@ -614,6 +688,14 @@ def _ms_to_mmss(ms_val) -> str:
         return "00:00"
 
 
+def _safe_int_for_display(val) -> int:
+    """Safely convert DynamoDB Decimal/float/int to int for API response."""
+    try:
+        return int(float(val)) if val else 0
+    except (ValueError, TypeError):
+        return 0
+
+
 def _normalize_cdr(item: Dict) -> Dict:
     """
     Normalize CDR record for API response.
@@ -655,7 +737,7 @@ def _normalize_cdr(item: Dict) -> Dict:
         'overallCallStatus': item.get('overallCallStatus', ''),
         'derivedOverallStatus': item.get('derivedOverallStatus', ''),
         
-        # Phone numbers
+        # Phone numbers (per Airtel spec Section 2)
         'callerId': item.get('callerId', ''),
         'callerNumber': item.get('callerNumber', ''),
         'destinationNumber': item.get('destinationNumber', ''),
@@ -666,6 +748,11 @@ def _normalize_cdr(item: Dict) -> Dict:
         'callerName': item.get('callerName', ''),
         'destinationName': item.get('destinationName', ''),
         
+        # Timestamps (epoch ms)
+        'startTime': _safe_int_for_display(item.get('startTime', 0)),
+        'endTime': _safe_int_for_display(item.get('endTime', 0)),
+        'callAnswerTime': _safe_int_for_display(item.get('callAnswerTime', 0)),
+        
         # Duration fields (seconds)
         'durationSec': float(item.get('durationSec', 0)),
         'conversationDurationSec': float(item.get('conversationDurationSec', 0)),
@@ -673,17 +760,19 @@ def _normalize_cdr(item: Dict) -> Dict:
         'fromWaitingTimeSec': float(item.get('fromWaitingTimeSec', 0)),
         'callerDurationSec': float(item.get('callerDurationSec', 0)),
         
-        # Duration fields (mm:ss for UI display per Airtel spec)
+        # Duration fields (mm:ss for UI display per Airtel spec Section 2)
         'fromWaitingTimeDisplay': _ms_to_mmss(item.get('fromWaitingTimeMs', 0)),
         'conversationDurationDisplay': _ms_to_mmss(item.get('conversationDurationMs', 0)),
         'billableDurationDisplay': _ms_to_mmss(item.get('billableDurationMs', 0)),
         'callerDurationDisplay': _ms_to_mmss(item.get('callerDuration', 0)),
+        'durationDisplay': _ms_to_mmss(item.get('durationMs', 0)),
         
-        # Hangup details
+        # Hangup details (per Airtel spec: hangUpStatus = Party A / Party B / SYSTEM_INITIATED)
         'hangupStatus': item.get('hangupStatus', ''),
         'hangupCause': item.get('hangupCause', ''),
         
-        # Caller/Destination status
+        # Caller/Destination status (per Airtel spec Section 1.1)
+        # Statuses: Disconnected, NetworkError, NotReachable, Busy, Noanswer, Removed, Answer
         'callerNumberStatus': item.get('callerNumberStatus', ''),
         'callerNumberStatusDetails': item.get('callerNumberStatusDetails', ''),
         'destinationNumberStatus': item.get('destinationNumberStatus', ''),
@@ -700,22 +789,21 @@ def _normalize_cdr(item: Dict) -> Dict:
         's3RecordingUrl': item.get('s3RecordingUrl', ''),
         's3RecordingKey': item.get('s3RecordingKey', ''),
         
+        # Audio/IVR URLs
+        'callerAudioUrl': item.get('callerAudioUrl', ''),
+        'destinationAudioUrl': item.get('destinationAudioUrl', ''),
+        
         # Retry info
         'retryCountCaller': int(float(item.get('retryCountCaller', 0))),
         'retryCountDestination': int(float(item.get('retryCountDestination', 0))),
         
-        # Metadata
-        'source': item.get('source', 'airtel_cdr_webhook'),
-        'participantsCount': int(float(item.get('participantsCount', 0))),
-        
-        # UI display fields (per Airtel CDR spec Section 2)
-        'displayDate': display_date,
-        'displayTime': display_time,
-        'timestamp': ts,
-        'createdAt': int(float(item.get('createdAt', 0))),
-    }  # Retry info
-        'retryCountCaller': int(float(item.get('retryCountCaller', 0))),
-        'retryCountDestination': int(float(item.get('retryCountDestination', 0))),
+        # Per-participant timing
+        'callerStartTime': _safe_int_for_display(item.get('callerStartTime', 0)),
+        'callerEndTime': _safe_int_for_display(item.get('callerEndTime', 0)),
+        'callerAnswerTime': _safe_int_for_display(item.get('callerAnswerTime', 0)),
+        'destStartTime': _safe_int_for_display(item.get('destStartTime', 0)),
+        'destEndTime': _safe_int_for_display(item.get('destEndTime', 0)),
+        'destAnswerTime': _safe_int_for_display(item.get('destAnswerTime', 0)),
         
         # Metadata
         'source': item.get('source', 'airtel_cdr_webhook'),

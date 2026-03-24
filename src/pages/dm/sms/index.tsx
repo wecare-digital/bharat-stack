@@ -20,7 +20,8 @@ interface SmsMessage {
   campaignId?: string; campaignName?: string; timestamp: string; 
 }
 interface Campaign { id: string; name: string; recipients: number; sent: number; delivered: number; failed: number; createdAt: string; }
-interface AirtelMessage { messageId: string; phone: string; content: string; status: string; direction: string; templateId?: string; timestamp: string; }
+interface AirtelMessage { messageId: string; phone: string; content: string; status: string; direction: string; templateId?: string; messageType?: string; apiVersion?: string; recipientCount?: number; providerMessageId?: string; timestamp: string; }
+interface DLTTemplate { templateId: string; name: string; content: string; messageType: string; senderId: string; entityId: string; variables: string[]; status: string; createdAt: number; }
 
 const ITEMS_PER_PAGE = 25;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
@@ -29,6 +30,7 @@ const TABS: ShellTab[] = [
   { id: 'aws', label: 'AWS Pinpoint' },
   { id: 'airtel', label: 'Airtel IN' },
   { id: 'campaign', label: 'Campaign' },
+  { id: 'templates', label: 'DLT Templates' },
 ];
 
 const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
@@ -64,6 +66,20 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [airtelPhone, setAirtelPhone] = useState('');
   const [airtelContent, setAirtelContent] = useState('');
   const [airtelSending, setAirtelSending] = useState(false);
+  const [airtelMsgType, setAirtelMsgType] = useState('SERVICE_IMPLICIT');
+  const [airtelApiVer, setAirtelApiVer] = useState('v4');
+  const [airtelTemplateId, setAirtelTemplateId] = useState('1007974344269130859');
+  const [airtelBulk, setAirtelBulk] = useState(false);
+
+  // DLT Templates state
+  const [dltTemplates, setDltTemplates] = useState<DLTTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [tplId, setTplId] = useState('');
+  const [tplName, setTplName] = useState('');
+  const [tplContent, setTplContent] = useState('');
+  const [tplMessageType, setTplMessageType] = useState('SERVICE_EXPLICIT');
+  const [tplSaving, setTplSaving] = useState(false);
 
   const toast = useToastContext();
   const confirm = useConfirm();
@@ -118,11 +134,13 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const loadAirtelData = useCallback(async () => {
     setAirtelLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/sms-in/airtel?action=list`);
+      const res = await fetch(`${API_BASE}/sms-in/airtel`);
       const data = await res.json();
       const msgs = (data.messages || []).map((m: any) => ({
         messageId: m.messageId || m.id, phone: m.phone || m.phoneNumber || '', content: m.content || m.message || '',
-        status: m.status || 'sent', direction: m.direction || 'OUTBOUND', templateId: m.templateId,
+        status: m.status || 'sent', direction: m.direction || 'OUTBOUND', templateId: m.templateId || m.dltTemplateId,
+        messageType: m.messageType || '', apiVersion: m.apiVersion || '', recipientCount: m.recipientCount || 1,
+        providerMessageId: m.providerMessageId || '',
         timestamp: m.timestamp || (m.createdAt ? new Date(m.createdAt * 1000).toISOString() : new Date().toISOString())
       }));
       msgs.sort((a: AirtelMessage, b: AirtelMessage) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -156,12 +174,27 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     if (!airtelPhone || !airtelContent) { toast.error('Phone and message required'); return; }
     setAirtelSending(true);
     try {
+      const phones = airtelPhone.split(',').map(p => p.trim()).filter(Boolean);
+      const payload: any = {
+        content: airtelContent,
+        messageType: airtelMsgType,
+        dltTemplateId: airtelTemplateId,
+        apiVersion: airtelApiVer,
+      };
+      if (airtelBulk && phones.length > 1) {
+        payload.bulk = true;
+        payload.phoneNumbers = phones;
+      } else if (phones.length > 1) {
+        payload.phoneNumbers = phones;
+      } else {
+        payload.phoneNumber = phones[0];
+      }
       const res = await fetch(`${API_BASE}/sms-in/airtel`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send', phone: airtelPhone, content: airtelContent })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (data.success || data.messageId) { toast.success('Airtel SMS sent!'); setShowAirtelSendModal(false); setAirtelPhone(''); setAirtelContent(''); await loadAirtelData(); }
+      if (data.success || data.messageId) { toast.success(`Airtel SMS sent to ${phones.length} recipient(s)`); setShowAirtelSendModal(false); setAirtelPhone(''); setAirtelContent(''); await loadAirtelData(); }
       else toast.error(data.error || 'Failed to send');
     } catch (err) { toast.error('Failed to send Airtel SMS'); } finally { setAirtelSending(false); }
   };
@@ -186,13 +219,49 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     if (!(await confirm(`Clear all ${type === 'aws' ? 'AWS' : 'Airtel'} SMS logs?`))) return;
     setClearing(true);
     try {
-      const endpoint = type === 'aws' ? 'sms-aws/clear-logs' : 'sms-in/airtel?action=clear-logs';
-      const method = type === 'aws' ? 'DELETE' : 'DELETE';
+      const endpoint = type === 'aws' ? 'sms-aws/clear-logs' : 'sms-in/airtel/clear-logs';
+      const method = 'DELETE';
       const res = await fetch(`${API_BASE}/${endpoint}`, { method, headers: { 'Content-Type': 'application/json' } });
       const result = await res.json();
       if (result.success) { toast.success(`Cleared logs`); type === 'aws' ? await loadAwsData() : await loadAirtelData(); }
       else toast.error(result.error || 'Failed');
     } catch (err) { toast.error('Failed to clear logs'); } finally { setClearing(false); }
+  };
+
+  // DLT Template functions
+  const loadTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-in/airtel/templates`);
+      const data = await res.json();
+      setDltTemplates(data.templates || []);
+    } catch (err) { console.error('Load templates error:', err); } finally { setTemplatesLoading(false); }
+  }, []);
+
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  const handleCreateTemplate = async () => {
+    if (!tplId || !tplContent) { toast.error('Template ID and content are required'); return; }
+    setTplSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-in/airtel/templates`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId: tplId, name: tplName, content: tplContent, messageType: tplMessageType })
+      });
+      const data = await res.json();
+      if (data.success) { toast.success('Template saved'); setShowTemplateModal(false); setTplId(''); setTplName(''); setTplContent(''); await loadTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to save template'); } finally { setTplSaving(false); }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!(await confirm(`Delete template ${templateId}?`))) return;
+    try {
+      const res = await fetch(`${API_BASE}/sms-in/airtel/templates?templateId=${templateId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { toast.success('Template deleted'); await loadTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to delete template'); }
   };
 
   // AWS filtered
@@ -265,9 +334,9 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <Pagination currentPage={airtelPage} totalPages={airtelTotalPages} onPageChange={setAirtelPage} />
                 </div>
                 <div className="table-area">{airtelLoading ? <div className="loading-state">Loading...</div> : (
-                  <table><thead><tr><th>Time</th><th>Dir</th><th>Phone</th><th>Message</th><th>Status</th></tr></thead><tbody>
-                    {paginatedAirtel.map(msg => (<tr key={msg.messageId}><td className="time-cell">{new Date(msg.timestamp).toLocaleString()}</td><td><span className={msg.direction === 'INBOUND' ? 'dir-in' : 'dir-out'}>{msg.direction === 'INBOUND' ? '?' : '?'}</span></td><td className="phone-cell">{msg.phone}</td><td className="content-cell" title={msg.content}>{msg.content?.substring(0, 50)}{msg.content?.length > 50 ? '...' : ''}</td><td><span className={`st-badge ${msg.status?.toLowerCase()}`}>{msg.status}</span></td></tr>))}
-                    {paginatedAirtel.length === 0 && <tr><td colSpan={5} className="empty-row">No Airtel messages</td></tr>}
+                  <table><thead><tr><th>Time</th><th>Dir</th><th>Phone</th><th>Message</th><th className="hide-mobile">Type</th><th className="hide-mobile">API</th><th>Status</th></tr></thead><tbody>
+                    {paginatedAirtel.map(msg => (<tr key={msg.messageId}><td className="time-cell">{new Date(msg.timestamp).toLocaleString()}</td><td><span className={msg.direction === 'INBOUND' ? 'dir-in' : 'dir-out'}>{msg.direction === 'INBOUND' ? '↓' : '↑'}</span></td><td className="phone-cell">{msg.phone}{msg.recipientCount && msg.recipientCount > 1 ? ` (+${msg.recipientCount - 1})` : ''}</td><td className="content-cell" title={msg.content}>{msg.content?.substring(0, 50)}{msg.content?.length > 50 ? '...' : ''}</td><td className="hide-mobile"><span className="st-badge">{msg.messageType || '-'}</span></td><td className="hide-mobile">{msg.apiVersion || '-'}</td><td><span className={`st-badge ${msg.status?.toLowerCase()}`}>{msg.status}</span></td></tr>))}
+                    {paginatedAirtel.length === 0 && <tr><td colSpan={7} className="empty-row">No Airtel messages</td></tr>}
                   </tbody></table>
                 )}</div>
               </div>
@@ -291,6 +360,28 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               </div>
             )}
 
+            {/* ===== DLT TEMPLATES TAB ===== */}
+            {activeTab === 'templates' && (
+              <div className="sms-tab-content">
+                <div className="tab-header">
+                  <div className="tab-header-left"><span className="provider-badge airtel">DLT Templates</span><span className="region-badge">Airtel IQ</span></div>
+                  <div className="tab-header-actions">
+                    <Button variant="primary" onClick={() => setShowTemplateModal(true)}>Add Template</Button>
+                    <Button variant="secondary" icon="refresh" onClick={loadTemplates} disabled={templatesLoading} loading={templatesLoading}>Refresh</Button>
+                  </div>
+                </div>
+                <div className="table-area">{templatesLoading ? <div className="loading-state">Loading...</div> : (
+                  <table><thead><tr><th>Template ID</th><th>Name</th><th>Content</th><th>Type</th><th>Sender</th><th>Actions</th></tr></thead><tbody>
+                    {dltTemplates.map(tpl => (<tr key={tpl.templateId}><td className="phone-cell">{tpl.templateId}</td><td className="name-cell">{tpl.name}</td><td className="content-cell" title={tpl.content}>{tpl.content?.substring(0, 60)}{tpl.content?.length > 60 ? '...' : ''}</td><td><span className="st-badge">{tpl.messageType}</span></td><td>{tpl.senderId}</td><td><button className="pick-btn" onClick={() => handleDeleteTemplate(tpl.templateId)}>Delete</button></td></tr>))}
+                    {dltTemplates.length === 0 && <tr><td colSpan={6} className="empty-row">No DLT templates. Click "Add Template" to register one.</td></tr>}
+                  </tbody></table>
+                )}</div>
+                <div style={{ padding: '12px', background: '#f9fafb', borderTop: '1px solid #f3f4f6', fontSize: '12px', color: '#6b7280' }}>
+                  Default: <code>1007974344269130859</code> (WDBEEP / Service Implicit — Self-Service IVR) · Bulk: <code>1007101741507674990</code> · PE ID: <code>1201161991108627443</code>
+                </div>
+              </div>
+            )}
+
             {/* ===== MODALS ===== */}
             {showSendModal && (<div className="modal-overlay" onClick={() => setShowSendModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
               <h3>Send SMS (AWS)</h3>
@@ -301,10 +392,17 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             </div></div>)}
 
             {showAirtelSendModal && (<div className="modal-overlay" onClick={() => setShowAirtelSendModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
-              <h3>Send SMS (Airtel)</h3>
-              <div className="form-group"><label>Phone *</label><div className="input-row"><input type="tel" value={airtelPhone} onChange={e => setAirtelPhone(e.target.value)} placeholder="10-digit mobile" /><button type="button" className="pick-btn" onClick={() => setShowContactPicker('airtel')}>Contacts</button></div></div>
+              <h3>Send SMS (Airtel IQ)</h3>
+              <div className="form-group"><label>Phone(s) * <span style={{fontSize:'11px',color:'#9ca3af'}}>comma-separated for multiple</span></label><div className="input-row"><input type="tel" value={airtelPhone} onChange={e => setAirtelPhone(e.target.value)} placeholder="8130078559, 9876543210" /><button type="button" className="pick-btn" onClick={() => setShowContactPicker('airtel')}>Contacts</button></div></div>
               <div className="form-group"><label>Message *</label><textarea value={airtelContent} onChange={e => setAirtelContent(e.target.value)} placeholder="Enter message..." rows={3} /></div>
-              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowAirtelSendModal(false)}>Cancel</Button><Button variant="primary" onClick={handleSendAirtel} loading={airtelSending} disabled={!airtelPhone || !airtelContent}>Send</Button></div>
+              <div className="form-row">
+                <div className="form-group half"><label>Message Type</label><select value={airtelMsgType} onChange={e => setAirtelMsgType(e.target.value)}><option value="SERVICE_IMPLICIT">SERVICE_IMPLICIT</option><option value="SERVICE_EXPLICIT">SERVICE_EXPLICIT</option><option value="TRANSACTIONAL">TRANSACTIONAL</option><option value="PROMOTIONAL">PROMOTIONAL</option></select></div>
+                <div className="form-group half"><label>API Version</label><select value={airtelApiVer} onChange={e => setAirtelApiVer(e.target.value)}><option value="v4">v4 (Standard)</option><option value="v5">v5 (Content Mod)</option><option value="v6">v6 (Enhanced)</option></select></div>
+              </div>
+              <div className="form-group"><label>DLT Template ID</label><div className="input-row"><input type="text" value={airtelTemplateId} onChange={e => setAirtelTemplateId(e.target.value)} placeholder="1007974344269130859" />{dltTemplates.length > 0 && <select style={{maxWidth:'140px'}} onChange={e => { if (e.target.value) { const t = dltTemplates.find(x => x.templateId === e.target.value); if (t) { setAirtelTemplateId(t.templateId); setAirtelContent(t.content); setAirtelMsgType(t.messageType); }}}} defaultValue=""><option value="">Use template...</option>{dltTemplates.map(t => <option key={t.templateId} value={t.templateId}>{t.name || t.templateId.slice(0,12)}</option>)}</select>}</div></div>
+              {airtelPhone.includes(',') && <div className="form-group"><label className="checkbox-label"><input type="checkbox" checked={airtelBulk} onChange={e => setAirtelBulk(e.target.checked)} /> Use Bulk/Conduit API <span style={{fontSize:'11px',color:'#9ca3af'}}>(per-recipient payload)</span></label></div>}
+              <div style={{padding:'8px 0',fontSize:'11px',color:'#9ca3af'}}>Sender: WDBEEP · PE ID: 1201161991108627443{airtelMsgType === 'PROMOTIONAL' ? ' · No DLR for promotional' : ''}</div>
+              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowAirtelSendModal(false)}>Cancel</Button><Button variant="primary" onClick={handleSendAirtel} loading={airtelSending} disabled={!airtelPhone || !airtelContent}>Send{airtelPhone.includes(',') ? ` to ${airtelPhone.split(',').filter(Boolean).length}` : ''}</Button></div>
             </div></div>)}
 
             {showCampaignModal && (<div className="modal-overlay" onClick={() => setShowCampaignModal(false)}><div className="modal-content campaign-modal" onClick={e => e.stopPropagation()}>
@@ -315,6 +413,15 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 {selectedContacts.length > 0 && (<div className="tags">{selectedContacts.map(id => { const c = contacts.find(x => x.contactId === id); return c ? <span key={id} className="tag">{c.name} <button onClick={() => setSelectedContacts(prev => prev.filter(x => x !== id))}>�</button></span> : null; })}</div>)}
               </div>
               <div className="modal-actions"><Button variant="secondary" onClick={() => setShowCampaignModal(false)}>Cancel</Button><Button variant="primary" onClick={handleSendCampaign} loading={campaignSending} disabled={!campaignName || !campaignContent || selectedContacts.length === 0}>Send to {selectedContacts.length}</Button></div>
+            </div></div>)}
+
+            {showTemplateModal && (<div className="modal-overlay" onClick={() => setShowTemplateModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3>Add DLT Template</h3>
+              <div className="form-group"><label>Template ID (DLT) *</label><input type="text" value={tplId} onChange={e => setTplId(e.target.value)} placeholder="e.g. 1007974344269130859" /></div>
+              <div className="form-group"><label>Name</label><input type="text" value={tplName} onChange={e => setTplName(e.target.value)} placeholder="e.g. Self-Service IVR" /></div>
+              <div className="form-group"><label>Content *</label><textarea value={tplContent} onChange={e => setTplContent(e.target.value)} placeholder="Template text with {#var#} placeholders" rows={4} /></div>
+              <div className="form-group"><label>Message Type</label><select value={tplMessageType} onChange={e => setTplMessageType(e.target.value)}><option value="SERVICE_EXPLICIT">SERVICE_EXPLICIT</option><option value="SERVICE_IMPLICIT">SERVICE_IMPLICIT</option><option value="TRANSACTIONAL">TRANSACTIONAL</option><option value="PROMOTIONAL">PROMOTIONAL</option></select></div>
+              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowTemplateModal(false)}>Cancel</Button><Button variant="primary" onClick={handleCreateTemplate} loading={tplSaving} disabled={!tplId || !tplContent}>Save</Button></div>
             </div></div>)}
 
             {showContactPicker && (<div className="modal-overlay" onClick={() => setShowContactPicker(null)}><div className="modal-content contact-picker" onClick={e => e.stopPropagation()}>
@@ -371,6 +478,10 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #1a3a2a; }
         .input-row { display: flex; gap: 6px; }
         .input-row input { flex: 1; }
+        .form-row { display: flex; gap: 10px; }
+        .form-group.half { flex: 1; }
+        .checkbox-label { display: flex !important; align-items: center; gap: 6px; cursor: pointer; }
+        .checkbox-label input[type="checkbox"] { width: auto; margin: 0; }
         .pick-btn { padding: 8px 12px; background: #f9fafb; border: 1px solid #1a3a2a; border-radius: 8px; color: #0f2a1d; font-size: 12px; cursor: pointer; }
         .pick-btn:hover { background: #f9fafb; }
         .pick-btn.full-w { width: 100%; }

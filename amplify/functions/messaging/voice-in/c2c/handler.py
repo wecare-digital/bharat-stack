@@ -152,6 +152,7 @@ AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'stack-wecare-digital-Airt
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
 AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
+AIRTEL_WORKFLOW_HOST = os.environ.get('AIRTEL_WORKFLOW_HOST', 'iqvoice.airtel.in')
 S3_BUCKET = 'app.wecare.digital'
 S3_RECORDING_PREFIX = 'stack/voice/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
@@ -278,38 +279,25 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
                    retry_count: int, enable_early_media: bool,
                    request_id: str) -> Dict[str, Any]:
     """
-    Make Click-to-Call via Airtel Kong API with HMAC-SHA256 auth.
+    Make Click-to-Call via Airtel API.
 
-    Endpoint: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
-    Auth: HMAC-SHA256 (app_id as username, api_key as signing key)
-
-    Payload:
-    {
-      "from": "<Party A number>",
-      "to": "<Party B number>",
-      "caller_id": "8047311032",
-      "to_caller_id": "8047311032",
-      "record": true,
-      "early_media": true,
-      "retry": {"count": 1},
-      "callbacks": [{
-        "event_type": "CDR",
-        "notify_url": "https://api.wecare.digital/voice-in/c2c",
-        "method": "POST",
-        "headers": {"Content-Type": "application/json"},
-        "serviceId": "wecareCDRDetailsService_c2c",
-        "projectId": "We_CareCDRDetails_c2c"
-      }]
-    }
+    If call_flow_id is configured: uses Workflow API (/v2/execute/workflow) with Basic auth.
+    Otherwise: uses Kong simplified API (/v2/click-to-call) with HMAC-SHA256 auth.
     """
     try:
         secrets = _get_secrets()
         app_id = secrets.get('app_id')
         api_key = secrets.get('api_key')
         caller_id = secrets.get('caller_id', '8047311032')
+        call_flow_id = secrets.get('call_flow_id', '')
+        customer_id = secrets.get('customer_id', '')
+        basic_auth = secrets.get('basic_auth', '')
 
         if not app_id or not api_key:
             return {'success': False, 'error': 'Airtel C2C credentials (app_id/api_key) not configured'}
+
+        if not basic_auth:
+            basic_auth = base64.b64encode(f"{app_id}:{api_key}".encode()).decode()
 
         from_clean = _clean_phone_number(from_number)
         to_clean = _clean_phone_number(to_number)
@@ -320,43 +308,93 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
         if from_clean == to_clean:
             return {'success': False, 'error': 'From and To numbers cannot be the same'}
 
-        payload = {
-            "from": from_clean,
-            "to": to_clean,
-            "caller_id": caller_id,
-            "to_caller_id": caller_id,
-            "record": enable_recording,
-            "early_media": enable_early_media,
-            "retry": {"count": retry_count},
-            "callbacks": [
-                {
-                    "event_type": "CDR",
-                    "notify_url": "https://api.wecare.digital/voice-in/c2c",
-                    "method": "POST",
-                    "headers": {"Content-Type": "application/json"},
-                    "serviceId": "wecareCDRDetailsService_c2c",
-                    "projectId": "We_CareCDRDetails_c2c"
+        # Choose API based on whether call_flow_id is configured
+        if call_flow_id and customer_id:
+            # Workflow API (official spec)
+            payload = {
+                "callFlowId": call_flow_id,
+                "customerId": customer_id,
+                "callType": "OUTBOUND",
+                "callerId": caller_id,
+                "callFlowConfiguration": {
+                    "initiateCall_1": {
+                        "callerId": caller_id,
+                        "mergingStrategy": "SEQUENTIAL",
+                        "participants": [
+                            {
+                                "participantAddress": from_clean,
+                                "callerId": caller_id,
+                                "participantName": "A",
+                                "maxRetries": retry_count,
+                                "maxTime": 0
+                            }
+                        ],
+                        "maxTime": 0,
+                        "callBackURLs": [
+                            {"eventType": "CDR", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}},
+                            {"eventType": "ALL", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}}
+                        ]
+                    },
+                    "addParticipant_1": {
+                        "mergingStrategy": "SEQUENTIAL",
+                        "maxTime": 0,
+                        "participants": [
+                            {
+                                "participantAddress": to_clean,
+                                "callerId": caller_id,
+                                "participantName": "B",
+                                "maxRetries": retry_count,
+                                "maxTime": 0,
+                                "enableEarlyMedia": enable_early_media
+                            }
+                        ]
+                    },
+                    "record": {"enabled": enable_recording}
                 }
-            ]
-        }
+            }
+            url = f"https://{AIRTEL_WORKFLOW_HOST}/gateway/airtel-xchange/v2/execute/workflow"
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Basic {basic_auth}'
+            }
+        else:
+            # Kong simplified API (fallback)
+            payload = {
+                "from": from_clean,
+                "to": to_clean,
+                "caller_id": caller_id,
+                "to_caller_id": caller_id,
+                "record": enable_recording,
+                "early_media": enable_early_media,
+                "retry": {"count": retry_count},
+                "callbacks": [
+                    {
+                        "event_type": "CDR",
+                        "notify_url": "https://api.wecare.digital/voice-in/c2c",
+                        "method": "POST",
+                        "headers": {"Content-Type": "application/json"},
+                        "serviceId": "wecareCDRDetailsService_c2c",
+                        "projectId": "We_CareCDRDetails_c2c"
+                    }
+                ]
+            }
+            body_str_for_hmac = json.dumps(payload)
+            auth_headers = _generate_hmac_headers(body_str_for_hmac, app_id, api_key)
+            url = f"https://{AIRTEL_KONG_HOST}/gateway/airtel-xchange/v2/click-to-call"
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': auth_headers['authorization'],
+                'X-Date': auth_headers['x_date'],
+                'Digest': auth_headers['digest']
+            }
 
         body_str = json.dumps(payload)
-        auth_headers = _generate_hmac_headers(body_str, app_id, api_key)
-
-        url = f"https://{AIRTEL_KONG_HOST}/gateway/airtel-xchange/v2/click-to-call"
-
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': auth_headers['authorization'],
-            'X-Date': auth_headers['x_date'],
-            'Digest': auth_headers['digest']
-        }
-
         req = urllib.request.Request(url, data=body_str.encode('utf-8'), headers=headers, method='POST')
 
         logger.info(json.dumps({
             'event': 'c2c_request',
             'url': url,
+            'api': 'workflow' if call_flow_id else 'kong',
             'from': from_clean,
             'to': to_clean,
             'record': enable_recording,
@@ -375,8 +413,16 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
             }))
 
             # Success: {"status": "success", "correlationId": "Xchange123863"}
-            if result.get('status') == 'success' or result.get('correlationId'):
-                correlation_id = result.get('correlationId') or result.get('call_id') or result.get('id', '')
+            # Or Kong: {"message": "Call request accepted.", "callSessionId": "..."}
+            correlation_id = (result.get('correlationId')
+                              or result.get('callSessionId')
+                              or result.get('call_id')
+                              or result.get('id', ''))
+
+            if (result.get('status') == 'success'
+                    or result.get('correlationId')
+                    or result.get('callSessionId')
+                    or 'accepted' in str(result.get('message', '')).lower()):
                 return {
                     'success': True,
                     'status': 'initiated',
@@ -406,16 +452,6 @@ def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
             error_code = error_json.get('errorCode', '')
         except (json.JSONDecodeError, AttributeError):
             pass
-
-        if e.code == 403:
-            logger.error(json.dumps({
-                'event': 'airtel_403_error',
-                'service': 'c2c',
-                'url': url,
-                'app_id': app_id,
-                'note': 'Check: 1) HMAC auth correct? 2) App ID valid? 3) IP whitelisted?',
-                'airtel_ips_to_whitelist': ['125.19.17.212', '125.17.6.54', '122.187.47.153', '65.1.125.210', '3.108.104.147', '3.109.177.16', '13.126.42.108', '3.108.90.203']
-            }))
 
         return {
             'success': False,
@@ -598,6 +634,19 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
         duration = _safe_int_val(normalized.get('duration', 0))
         from_waiting_time = _safe_int_val(normalized.get('fromWaitingTime', 0))
         conversation_duration = _safe_int_val(normalized.get('conversationDuration', 0))
+        billable_duration = _safe_int_val(normalized.get('billableDuration', 0))
+        caller_duration = _safe_int_val(normalized.get('callerDuration', 0))
+        call_setup_time_caller = _safe_int_val(normalized.get('callSetupTimeCaller', 0))
+
+        # Billable duration calculation per Airtel CDR spec:
+        # Inbound: billableDuration = conversationDuration
+        # Outbound: billableDuration = fromWaitingTime + 2 * conversationDuration
+        call_type = normalized.get('callType', 'OUTBOUND').upper()
+        if not billable_duration and conversation_duration:
+            if call_type == 'INBOUND':
+                billable_duration = conversation_duration
+            else:
+                billable_duration = from_waiting_time + (2 * conversation_duration)
 
         participants = normalized.get('participants', [])
         caller_name = ''
@@ -605,6 +654,10 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
         caller_status = normalized.get('callerNumberStatus', '')
         dest_status = normalized.get('destinationNumberStatus', '')
         participants_json = ''
+        caller_hangup_cause = ''
+        dest_hangup_cause = ''
+        caller_audio_url = ''
+        dest_audio_url = ''
 
         for p in participants:
             p_type = p.get('participantType', '')
@@ -612,10 +665,27 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
                 caller_name = p.get('participantName', '') or normalized.get('callerName', '')
                 if not caller_status:
                     caller_status = p.get('status', '')
+                caller_hangup_cause = p.get('hangupCause', '')
+                for a in p.get('audios', []):
+                    if a.get('audioURL'):
+                        caller_audio_url = a['audioURL']
             elif p_type == 'To':
                 destination_name = p.get('participantName', '') or normalized.get('destinationName', '')
                 if not dest_status:
                     dest_status = p.get('status', '')
+                dest_hangup_cause = p.get('hangupCause', '')
+                for a in p.get('audios', []):
+                    if a.get('audioURL'):
+                        dest_audio_url = a['audioURL']
+
+        # Serialize events array
+        events_json = ''
+        try:
+            events = normalized.get('events', [])
+            if events:
+                events_json = json.dumps(events)
+        except (TypeError, ValueError):
+            pass
 
         try:
             if participants:
@@ -630,6 +700,7 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
             'customerId': normalized.get('customerId', ''),
             'startTime': normalized.get('startTime', 0),
             'endTime': normalized.get('endTime', 0),
+            'callAnswerTime': normalized.get('callAnswerTime', 0),
             'timestamp': normalized.get('timestamp', ''),
             'createdAt': current_time,
             'expiresAt': ttl_expiry,
@@ -639,25 +710,75 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
             'fromWaitingTimeSec': round(from_waiting_time / 1000, 2) if from_waiting_time else 0,
             'conversationDurationMs': conversation_duration,
             'conversationDurationSec': round(conversation_duration / 1000, 2) if conversation_duration else 0,
-            'callType': normalized.get('callType', 'OUTBOUND'),
+            'billableDurationMs': billable_duration,
+            'billableDurationSec': round(billable_duration / 1000, 2) if billable_duration else 0,
+            'callerDuration': caller_duration,
+            'callerDurationSec': round(caller_duration / 1000, 2) if caller_duration else 0,
+            'callSetupTimeCaller': call_setup_time_caller,
+            'callType': call_type if call_type != 'OUTBOUND' else normalized.get('callType', 'OUTBOUND'),
             'overallCallStatus': normalized.get('overallCallStatus', ''),
-            'hangupCause': normalized.get('hangupCause', ''),
+            'hangupStatus': normalized.get('hangUpStatus', '') or normalized.get('hangupStatus', ''),
+            'hangupCause': normalized.get('hangupCause', '') or caller_hangup_cause or dest_hangup_cause,
             'callerId': normalized.get('callerId', ''),
             'callerNumber': normalized.get('callerNumber', ''),
             'destinationNumber': normalized.get('destinationNumber', ''),
+            'calledNumber': normalized.get('calledNumber', ''),
+            'displayCliDestination': normalized.get('displayCliDestination', ''),
             'callerName': caller_name,
             'destinationName': destination_name,
             'callerNumberStatus': caller_status,
+            'callerNumberStatusDetails': normalized.get('callerNumberStatusDetails', ''),
             'destinationNumberStatus': dest_status,
+            'destinationNumberStatusDetails': normalized.get('destinationNumberStatusDetails', ''),
             'circleNameCaller': normalized.get('circleNameCaller', ''),
             'circleNameDestination': normalized.get('circleNameDestination', ''),
             'operatorNameCaller': normalized.get('operatorNameCaller', ''),
             'operatorNameDestination': normalized.get('operatorNameDestination', ''),
             'recordingURL': normalized.get('recordingURL', ''),
+            'callerAudioUrl': caller_audio_url,
+            'destinationAudioUrl': dest_audio_url,
+            'retryCountCaller': normalized.get('retryCountCaller', 0),
+            'retryCountDestination': normalized.get('retryCountDestination', 0),
             'participantsJson': participants_json,
+            'eventsJson': events_json,
             'participantsCount': len(participants),
+            'pulseCount': _safe_int_val(normalized.get('pulseCount', 0)),
             'source': 'airtel_c2c_cdr_callback',
         }
+
+        # Download and store recording in S3 if available
+        recording_url = cdr_record.get('recordingURL', '') or caller_audio_url or dest_audio_url
+        if recording_url:
+            s3_key = _store_recording_to_s3(recording_url, cdr_record['id'], request_id)
+            if s3_key:
+                cdr_record['s3RecordingKey'] = s3_key
+                cdr_record['s3RecordingUrl'] = f"https://{S3_BUCKET}/{s3_key}"
+
+        # Update original C2C call record with CDR data
+        if client_correlation_id:
+            try:
+                c2c_table = dynamodb.Table(AIRTEL_C2C_TABLE)
+                from boto3.dynamodb.conditions import Attr
+                scan_result = c2c_table.scan(
+                    FilterExpression=Attr('correlationId').eq(client_correlation_id),
+                    Limit=5
+                )
+                for c2c_item in scan_result.get('Items', []):
+                    c2c_table.update_item(
+                        Key={'callId': c2c_item['callId']},
+                        UpdateExpression='SET #st = :st, #dur = :dur, recordingUrl = :rec, updatedAt = :now, vmSessionId = :vm',
+                        ExpressionAttributeNames={'#st': 'status', '#dur': 'duration'},
+                        ExpressionAttributeValues={
+                            ':st': normalized.get('overallCallStatus', 'COMPLETED'),
+                            ':dur': Decimal(str(round(conversation_duration / 1000, 2))) if conversation_duration else Decimal('0'),
+                            ':rec': cdr_record.get('s3RecordingUrl', '') or cdr_record.get('recordingURL', ''),
+                            ':now': Decimal(str(int(time.time()))),
+                            ':vm': vm_session_id,
+                        }
+                    )
+                    logger.info(json.dumps({'event': 'c2c_call_updated_from_cdr', 'callId': c2c_item['callId'], 'correlationId': client_correlation_id, 'requestId': request_id}))
+            except Exception as link_err:
+                logger.warning(f"Failed to update C2C call from CDR: {str(link_err)}")
 
         item = {}
         for key, value in cdr_record.items():
@@ -701,11 +822,20 @@ def _normalize_cdr_payload(payload: Dict) -> Dict:
         'Caller_Operator_Name': 'operatorNameCaller',
         'Destination_Operator_Name': 'operatorNameDestination',
         'Hangup_Cause': 'hangupCause',
+        'Hangup_Status': 'hangUpStatus',
         'Caller_Name': 'callerName',
         'Destination_Name': 'destinationName',
         'Recording': 'recordingURL',
         'Customer_Name': 'customerId',
         'Destination_CLI': 'displayCliDestination',
+        'Caller_Status_Detail': 'callerNumberStatusDetails',
+        'Destination_Status_Detail': 'destinationNumberStatusDetails',
+        'Called_Number': 'calledNumber',
+        'Billable_Duration': 'billableDuration',
+        'Caller_Duration': 'callerDuration',
+        'Caller_Waiting_Time': 'fromWaitingTime',
+        'Conversation_Duration': 'conversationDuration',
+        'Pulse_Count': 'pulseCount',
     }
     for display_key, camel_key in field_map.items():
         if payload.get(display_key) is not None and not normalized.get(camel_key):
@@ -721,7 +851,7 @@ def _normalize_cdr_payload(payload: Dict) -> Dict:
 
 
 def _safe_int_val(val) -> int:
-    """Safely convert a value to int."""
+    """Safely convert a value to int. Handles None, display strings like '00:24', and numeric types."""
     if val is None:
         return 0
     if isinstance(val, (int, float)):
@@ -730,8 +860,38 @@ def _safe_int_val(val) -> int:
         try:
             return int(float(val))
         except (ValueError, TypeError):
-            return 0
+            pass
+        # Handle mm:ss or hh:mm:ss display strings → convert to milliseconds
+        val = val.strip()
+        if ':' in val:
+            parts = val.split(':')
+            try:
+                if len(parts) == 2:
+                    return (int(parts[0]) * 60 + int(parts[1])) * 1000
+                elif len(parts) == 3:
+                    return (int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])) * 1000
+            except (ValueError, TypeError):
+                pass
+        return 0
     return 0
+
+
+def _store_recording_to_s3(recording_url: str, cdr_id: str, request_id: str) -> str:
+    """Download recording from Airtel and store in S3. Returns S3 key or empty string."""
+    try:
+        if not recording_url:
+            return ''
+        req = urllib.request.Request(recording_url)
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            audio_data = resp.read()
+        timestamp = int(time.time())
+        s3_key = f"{S3_RECORDING_PREFIX}c2c-rec-{timestamp}_{cdr_id}.wav"
+        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=audio_data, ContentType='audio/wav')
+        logger.info(json.dumps({'event': 'c2c_recording_stored_s3', 'cdrId': cdr_id, 's3Key': s3_key, 'requestId': request_id}))
+        return s3_key
+    except Exception as e:
+        logger.error(f"Store C2C recording error: {str(e)}")
+        return ''
 
 
 def _clean_phone_number(phone: str) -> str:

@@ -423,6 +423,25 @@ const schema = a.schema({
       callerDurationSec: a.float(),
       callSetupTimeCaller: a.integer(), // Call setup time in ms
       
+      // Per-participant timing (epoch ms from participants array)
+      callerStartTime: a.integer(),
+      callerEndTime: a.integer(),
+      callerAnswerTime: a.integer(),
+      destStartTime: a.integer(),
+      destEndTime: a.integer(),
+      destAnswerTime: a.integer(),
+      
+      // Audio/IVR URLs (from participants array)
+      callerAudioUrl: a.string(),
+      destinationAudioUrl: a.string(),
+      
+      // OBD Campaign fields
+      campaignId: a.string(),
+      campaignName: a.string(),
+      pulseCount: a.integer(), // Pulse count per Airtel spec
+      dtmfCapture: a.string(), // DTMF capture
+      missedDestinationNumber: a.string(), // Missed destination number
+      
       // Participants & Events (stored as JSON strings)
       participantsJson: a.string(), // Full participants array
       eventsJson: a.string(), // Full events array

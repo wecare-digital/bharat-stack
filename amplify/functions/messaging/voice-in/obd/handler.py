@@ -43,7 +43,8 @@ CDR Callback: https://api.wecare.digital/voice-in/obd
 Secrets: wecare/airtel/obd
 Expected secret keys:
 - customer_id: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-- upload_auth: Base64 token for upload APIs (audio + CSV)
+- upload_auth: Base64 token for CSV upload API (campaign-manager-v3/file/s3/upload)
+- audio_upload_auth: Base64 token for audio upload API (uploadPrompts)
 - campaign_auth: Base64 token for createCampaign API
 - app_id: IRONMAN
 - call_flow_id: dfbeda76-f641-420f-95e7-b78d562a941f
@@ -81,8 +82,14 @@ OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'stack-wecare-digita
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 S3_BUCKET = os.environ.get('S3_BUCKET', 'app.wecare.digital')
 S3_RECORDING_PREFIX = 'stack/voice/'
+S3_OBD_AUDIO_PREFIX = 'stack/voice/obd-audio/'
 AIRTEL_OBD_SECRET_NAME = os.environ.get('AIRTEL_OBD_SECRET_NAME', 'wecare/airtel/obd')
 TTL_DAYS = 90
+
+# Airtel audio spec
+AIRTEL_SAMPLE_RATE = 8000
+AIRTEL_CHANNELS = 1
+AIRTEL_BITS_PER_SAMPLE = 16
 
 # API Hosts
 AIRTEL_OPENAPI_HOST = 'openapi.airtel.in'
@@ -134,7 +141,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'POST' and _is_airtel_cdr_callback(body):
             return _handle_cdr_callback(body, request_id)
 
-        if '/upload-audio' in path:
+        if '/tts' in path:
+            return _text_to_audio(body, request_id)
+        elif '/audio-library' in path:
+            if http_method == 'GET':
+                return _list_audio_library(query_params, request_id)
+            elif http_method == 'POST':
+                return _upload_to_audio_library(body, request_id)
+            elif http_method == 'DELETE':
+                return _delete_audio_library_file(body, query_params, request_id)
+        elif '/upload-audio' in path:
             return _upload_audio(body, event, request_id)
         elif '/upload-csv' in path:
             return _upload_csv(body, request_id)
@@ -171,6 +187,185 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _response(500, {'error': 'Internal server error'})
 
 
+def _parse_wav_header(data: bytes) -> Dict:
+    """Parse WAV file header and return format info."""
+    import struct
+    if len(data) < 44 or data[:4] != b'RIFF' or data[8:12] != b'WAVE':
+        return {'valid': False, 'error': 'Not a valid WAV file'}
+    
+    # Find fmt chunk
+    pos = 12
+    fmt_found = False
+    audio_format = channels = sample_rate = bits_per_sample = 0
+    data_offset = data_size = 0
+    
+    while pos < len(data) - 8:
+        chunk_id = data[pos:pos+4]
+        chunk_size = struct.unpack_from('<I', data, pos+4)[0]
+        if chunk_id == b'fmt ':
+            if chunk_size < 16:
+                return {'valid': False, 'error': 'Invalid fmt chunk'}
+            audio_format, channels, sample_rate, _, _, bits_per_sample = struct.unpack_from('<HHIIHH', data, pos+8)
+            fmt_found = True
+        elif chunk_id == b'data':
+            data_offset = pos + 8
+            data_size = chunk_size
+        pos += 8 + chunk_size
+        # Align to even boundary
+        if chunk_size % 2:
+            pos += 1
+    
+    if not fmt_found:
+        return {'valid': False, 'error': 'No fmt chunk found'}
+    
+    return {
+        'valid': True,
+        'audioFormat': audio_format,  # 1 = PCM
+        'channels': channels,
+        'sampleRate': sample_rate,
+        'bitsPerSample': bits_per_sample,
+        'dataOffset': data_offset,
+        'dataSize': data_size,
+        'isPCM': audio_format == 1,
+    }
+
+
+def _convert_wav_to_airtel_spec(audio_bytes: bytes, request_id: str) -> Dict:
+    """
+    Validate and convert WAV to Airtel spec: 16-bit 8kHz Mono PCM WAV.
+    
+    Returns: {
+        'converted': bool,       # True if conversion was needed
+        'compliant': bool,       # True if already compliant (no conversion needed)
+        'audioBytes': bytes,     # The compliant WAV bytes
+        'originalInfo': dict,    # Original format info
+        'error': str or None,    # Error message if failed
+        'report': str,           # Human-readable report
+    }
+    """
+    import struct
+    
+    info = _parse_wav_header(audio_bytes)
+    if not info.get('valid'):
+        return {'converted': False, 'compliant': False, 'audioBytes': audio_bytes, 'originalInfo': info, 'error': info.get('error', 'Invalid WAV'), 'report': f"Invalid WAV: {info.get('error')}"}
+    
+    already_compliant = (
+        info['isPCM'] and
+        info['channels'] == AIRTEL_CHANNELS and
+        info['sampleRate'] == AIRTEL_SAMPLE_RATE and
+        info['bitsPerSample'] == AIRTEL_BITS_PER_SAMPLE
+    )
+    
+    ch_label = 'Mono' if info['channels'] == 1 else ('Stereo' if info['channels'] == 2 else str(info['channels']) + 'ch')
+    fmt_label = 'PCM' if info['isPCM'] else ('fmt=' + str(info['audioFormat']))
+    orig_desc = f"{info['sampleRate']}Hz {info['bitsPerSample']}bit {ch_label} {fmt_label}"
+    
+    if already_compliant:
+        return {
+            'converted': False, 'compliant': True, 'audioBytes': audio_bytes,
+            'originalInfo': info, 'error': None,
+            'report': f"Already Airtel-compliant: {orig_desc}"
+        }
+    
+    if not info['isPCM']:
+        return {
+            'converted': False, 'compliant': False, 'audioBytes': audio_bytes,
+            'originalInfo': info, 'error': f'Non-PCM audio (format={info["audioFormat"]}). Only PCM WAV can be auto-converted. Please convert to PCM WAV first.',
+            'report': f"Cannot convert non-PCM: {orig_desc}"
+        }
+    
+    if info['dataOffset'] == 0 or info['dataSize'] == 0:
+        return {'converted': False, 'compliant': False, 'audioBytes': audio_bytes, 'originalInfo': info, 'error': 'No audio data found in WAV', 'report': 'No data chunk'}
+    
+    try:
+        raw_pcm = audio_bytes[info['dataOffset']:info['dataOffset'] + info['dataSize']]
+        src_channels = info['channels']
+        src_rate = info['sampleRate']
+        src_bits = info['bitsPerSample']
+        
+        # Step 1: Decode PCM samples to list of float values (mono)
+        if src_bits == 16:
+            sample_count = len(raw_pcm) // (2 * src_channels)
+            samples = list(struct.unpack(f'<{sample_count * src_channels}h', raw_pcm[:sample_count * 2 * src_channels]))
+        elif src_bits == 8:
+            sample_count = len(raw_pcm) // src_channels
+            samples = [((b - 128) * 256) for b in raw_pcm[:sample_count * src_channels]]
+        elif src_bits == 24:
+            sample_count = len(raw_pcm) // (3 * src_channels)
+            samples = []
+            for i in range(sample_count * src_channels):
+                off = i * 3
+                val = raw_pcm[off] | (raw_pcm[off+1] << 8) | (raw_pcm[off+2] << 16)
+                if val >= 0x800000:
+                    val -= 0x1000000
+                samples.append(val >> 8)  # Scale 24-bit to 16-bit
+        elif src_bits == 32:
+            sample_count = len(raw_pcm) // (4 * src_channels)
+            samples = list(struct.unpack(f'<{sample_count * src_channels}i', raw_pcm[:sample_count * 4 * src_channels]))
+            samples = [s >> 16 for s in samples]  # Scale 32-bit to 16-bit
+        else:
+            return {'converted': False, 'compliant': False, 'audioBytes': audio_bytes, 'originalInfo': info, 'error': f'Unsupported bit depth: {src_bits}', 'report': f'Cannot convert {src_bits}-bit'}
+        
+        # Step 2: Mix to mono if stereo/multi-channel
+        if src_channels > 1:
+            mono_samples = []
+            for i in range(0, len(samples), src_channels):
+                chunk = samples[i:i+src_channels]
+                mono_samples.append(sum(chunk) // len(chunk))
+            samples = mono_samples
+        
+        # Step 3: Resample to 8000Hz using linear interpolation
+        if src_rate != AIRTEL_SAMPLE_RATE:
+            src_len = len(samples)
+            ratio = src_rate / AIRTEL_SAMPLE_RATE
+            dst_len = int(src_len / ratio)
+            resampled = []
+            for i in range(dst_len):
+                src_pos = i * ratio
+                idx = int(src_pos)
+                frac = src_pos - idx
+                if idx + 1 < src_len:
+                    val = samples[idx] * (1 - frac) + samples[idx + 1] * frac
+                else:
+                    val = samples[min(idx, src_len - 1)]
+                resampled.append(int(max(-32768, min(32767, val))))
+            samples = resampled
+        
+        # Step 4: Clamp to 16-bit range
+        samples = [max(-32768, min(32767, s)) for s in samples]
+        
+        # Step 5: Build compliant WAV
+        pcm_out = struct.pack(f'<{len(samples)}h', *samples)
+        byte_rate = AIRTEL_SAMPLE_RATE * AIRTEL_CHANNELS * AIRTEL_BITS_PER_SAMPLE // 8
+        block_align = AIRTEL_CHANNELS * AIRTEL_BITS_PER_SAMPLE // 8
+        wav_header = struct.pack('<4sI4s4sIHHIIHH4sI',
+            b'RIFF', 36 + len(pcm_out), b'WAVE',
+            b'fmt ', 16, 1, AIRTEL_CHANNELS, AIRTEL_SAMPLE_RATE, byte_rate, block_align, AIRTEL_BITS_PER_SAMPLE,
+            b'data', len(pcm_out)
+        )
+        converted_wav = wav_header + pcm_out
+        
+        target_desc = f"{AIRTEL_SAMPLE_RATE}Hz {AIRTEL_BITS_PER_SAMPLE}bit Mono PCM"
+        report = f"Converted: {orig_desc} → {target_desc} ({len(audio_bytes)} → {len(converted_wav)} bytes)"
+        
+        logger.info(json.dumps({
+            'event': 'audio_converted_to_airtel_spec',
+            'original': orig_desc,
+            'target': target_desc,
+            'originalSize': len(audio_bytes),
+            'convertedSize': len(converted_wav),
+            'requestId': request_id
+        }))
+        
+        return {
+            'converted': True, 'compliant': True, 'audioBytes': converted_wav,
+            'originalInfo': info, 'error': None, 'report': report
+        }
+    except Exception as e:
+        logger.error(f"Audio conversion error: {str(e)}")
+        return {'converted': False, 'compliant': False, 'audioBytes': audio_bytes, 'originalInfo': info, 'error': f'Conversion failed: {str(e)}', 'report': f'Conversion error: {str(e)}'}
+
+
 def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Upload audio prompt to Airtel for OBD campaigns.
@@ -192,7 +387,8 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
     try:
         secrets = _get_secrets()
         customer_id = secrets.get('customer_id')
-        auth_token = secrets.get('upload_auth', secrets.get('auth', ''))
+        # Audio upload uses audio_upload_auth with requester-id header
+        auth_token = secrets.get('audio_upload_auth', secrets.get('upload_auth', ''))
         
         if not customer_id or not auth_token:
             return _response(500, {'error': 'Airtel OBD credentials not configured'})
@@ -209,7 +405,20 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
         else:
             return _response(400, {'error': 'audioData (base64) or audioS3Key is required'})
         
+        # Validate and auto-convert to Airtel spec (16-bit 8kHz Mono PCM WAV)
+        conv = _convert_wav_to_airtel_spec(audio_bytes, request_id)
+        if conv.get('error') and not conv.get('compliant'):
+            return _response(400, {'error': conv['error'], 'report': conv['report'], 'originalInfo': conv.get('originalInfo')})
+        audio_bytes = conv['audioBytes']
+        
+        # Store converted file in S3 for download
+        converted_s3_key = f'{S3_OBD_AUDIO_PREFIX}{file_name}'
+        s3.put_object(Bucket=S3_BUCKET, Key=converted_s3_key, Body=audio_bytes, ContentType='audio/wav')
+        download_url = f'https://{S3_BUCKET}/{converted_s3_key}'
+        
         # Upload to Airtel uploadPrompts API
+        # Endpoint: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
+        # Headers: requester-id: ironman, Authorization: Basic {audio_upload_auth}
         url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
         boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
         
@@ -232,6 +441,7 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
         
         logger.info(json.dumps({
             'event': 'obd_upload_audio',
+            'url': url,
             'fileName': file_name,
             'sizeBytes': len(audio_bytes),
             'requestId': request_id
@@ -241,6 +451,7 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
             result = json.loads(response.read().decode('utf-8'))
             
             # Extract the audio URL from Airtel response
+            # This audioUrl MUST be injected into Create Campaign inputVariables as "audioURL"
             audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
             
             logger.info(json.dumps({
@@ -255,6 +466,9 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
                 'fileName': file_name,
                 'audioUrl': audio_url,
                 'sizeBytes': len(audio_bytes),
+                'downloadUrl': download_url,
+                'converted': conv.get('converted', False),
+                'conversionReport': conv.get('report', ''),
                 'result': result
             })
             
@@ -267,8 +481,126 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
+def _text_to_audio(body: Dict, request_id: str) -> Dict[str, Any]:
+    """Convert text to speech using AWS Polly, store WAV in S3.
+
+    Generates 16-bit 8kHz Mono WAV (Airtel requirement) via Polly,
+    stores in S3, then uploads to Airtel uploadPrompts API.
+
+    Request body:
+    - text: The text to convert to speech (required, max 3000 chars)
+    - voiceId: Polly voice (default: Kajal for en-IN)
+    - languageCode: e.g. hi-IN, en-IN (default: en-IN)
+    """
+    try:
+        text = body.get('text', '').strip()
+        if not text:
+            return _response(400, {'error': 'text is required'})
+        if len(text) > 3000:
+            return _response(400, {'error': 'text must be 3000 characters or less'})
+
+        voice_id = body.get('voiceId', 'Kajal')
+        language_code = body.get('languageCode', 'en-IN')
+        engine = 'neural' if voice_id in ('Kajal',) else 'standard'
+
+        polly = boto3.client('polly', region_name=AWS_REGION)
+
+        # Synthesize speech as PCM 8000Hz (Airtel requires 8kHz)
+        polly_resp = polly.synthesize_speech(
+            Text=text,
+            OutputFormat='pcm',
+            SampleRate='8000',
+            VoiceId=voice_id,
+            LanguageCode=language_code,
+            Engine=engine,
+        )
+
+        pcm_data = polly_resp['AudioStream'].read()
+
+        # Build WAV header for 16-bit 8kHz Mono PCM
+        import struct
+        num_channels = 1
+        sample_rate = 8000
+        bits_per_sample = 16
+        byte_rate = sample_rate * num_channels * bits_per_sample // 8
+        block_align = num_channels * bits_per_sample // 8
+        data_size = len(pcm_data)
+
+        wav_header = struct.pack('<4sI4s4sIHHIIHH4sI',
+            b'RIFF', 36 + data_size, b'WAVE',
+            b'fmt ', 16, 1, num_channels, sample_rate, byte_rate, block_align, bits_per_sample,
+            b'data', data_size
+        )
+        wav_bytes = wav_header + pcm_data
+        file_name = f'tts_audio_{int(time.time())}.wav'
+        s3_key = f'{S3_RECORDING_PREFIX}tts/{file_name}'
+
+        # Store in S3
+        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=wav_bytes, ContentType='audio/wav')
+
+        logger.info(json.dumps({
+            'event': 'obd_tts_generated',
+            'textLength': len(text),
+            'voiceId': voice_id,
+            'wavSize': len(wav_bytes),
+            's3Key': s3_key,
+            'requestId': request_id
+        }))
+
+        # Upload to Airtel uploadPrompts
+        secrets = _get_secrets()
+        customer_id = secrets.get('customer_id')
+        # Audio upload uses audio_upload_auth with requester-id header
+        auth_token = secrets.get('audio_upload_auth', secrets.get('upload_auth', ''))
+
+        audio_url = ''
+        if customer_id and auth_token:
+            try:
+                url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
+                boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
+                body_parts = [
+                    f'--{boundary}'.encode(),
+                    f'Content-Disposition: form-data; name="files"; filename="{file_name}"'.encode(),
+                    b'Content-Type: audio/wav', b'',
+                    wav_bytes,
+                    f'--{boundary}--'.encode()
+                ]
+                headers = {
+                    'Content-Type': f'multipart/form-data; boundary={boundary}',
+                    'Authorization': f'Basic {auth_token}',
+                    'requester-id': 'ironman'
+                }
+                req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
+                with urllib.request.urlopen(req, timeout=60) as response:
+                    result = json.loads(response.read().decode('utf-8'))
+                    audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
+            except Exception as upload_err:
+                logger.warning(f"Airtel upload failed (will use S3): {str(upload_err)}")
+
+        return _response(200, {
+            'success': True,
+            'audioUrl': audio_url,
+            's3Key': s3_key,
+            'fileName': file_name,
+            'sizeBytes': len(wav_bytes),
+            'voiceId': voice_id,
+            'languageCode': language_code,
+            'textLength': len(text),
+        })
+
+    except Exception as e:
+        logger.error(f"TTS error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+
 def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
     """Upload CSV contact list to Airtel with variable support.
+    
+    Airtel API: POST https://openapi.airtel.in/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload
+    Query params: customerId={customerId}&campaignType=OBD_CALL
+    Headers: app-id: IRONMAN, Authorization: Basic {upload_auth}
+    Body: multipart/form-data with file=@"contacts.csv"
     
     CSV column must be 'Number' (not 'participantNumber').
     The inputCsvMappings in createCampaign maps: {"participantAddress": "Number"}
@@ -283,7 +615,8 @@ def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
     try:
         secrets = _get_secrets()
         customer_id = secrets.get('customer_id')
-        auth_token = secrets.get('upload_auth', secrets.get('auth', ''))
+        # CSV upload uses upload_auth with app-id header
+        auth_token = secrets.get('upload_auth', '')
         app_id = secrets.get('app_id', 'IRONMAN')
         
         if not customer_id or not auth_token:
@@ -371,6 +704,9 @@ def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
 def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
     """Create OBD campaign via Airtel API.
     
+    Airtel API: POST https://iqtelephony.airtel.in/gateway/airtel-xchange/campaign-manager/v2/createCampaign
+    Headers: app-id: IRONMAN, Authorization: Basic {campaign_auth}, Content-Type: application/json
+    
     Airtel OBD Requirements:
     - Call Flow: Voice (Info-Only) - plays audio and disconnects
     - Audio: 16bits 8000Hz Mono WAV only
@@ -389,7 +725,8 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
     try:
         secrets = _get_secrets()
         customer_id = secrets.get('customer_id')
-        campaign_auth = secrets.get('campaign_auth')
+        # Create campaign uses campaign_auth with app-id header
+        campaign_auth = secrets.get('campaign_auth', '')
         app_id = secrets.get('app_id', 'IRONMAN')
         call_flow_id = secrets.get('call_flow_id', 'dfbeda76-f641-420f-95e7-b78d562a941f')
         caller_id = secrets.get('caller_id', '8040761117')
@@ -413,7 +750,7 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         start_time = body.get('startTime', int(time.time() * 1000) + 60000)  # default: 1 min from now
         end_time = body.get('endTime', start_time + (3600 * 1000))  # default: 1 hour duration
         
-        # Upload CSV if contacts provided (with 'Number' column)
+        # Upload CSV if contacts provided and no sheetFileNames already uploaded
         if contacts and not sheet_file_names:
             csv_result = _upload_csv_internal(contacts, variables, secrets, request_id)
             if not csv_result.get('success'):
@@ -430,6 +767,9 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
             total_count = csv_result.get('totalCount', 0)
             if total_count == 0 and contacts:
                 logger.warning(f"Upload returned totalCount=0 but {len(contacts)} contacts were sent")
+        
+        # Store contact count from body if provided (when CSV was uploaded separately)
+        contact_count = body.get('contactCount', len(contacts) if contacts else 0)
         
         if not sheet_file_names:
             return _response(400, {'error': 'contacts or sheetFileNames is required'})
@@ -518,14 +858,14 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
             result = json.loads(response.read().decode('utf-8'))
             airtel_campaign_id = result.get('campaignId') or result.get('id')
             
-            _store_campaign(campaign_id, campaign_name, airtel_campaign_id, sheet_file_names, audio_url, len(contacts))
+            _store_campaign(campaign_id, campaign_name, airtel_campaign_id, sheet_file_names, audio_url, contact_count)
             
             return _response(200, {
                 'success': True,
                 'campaignId': campaign_id,
                 'airtelCampaignId': airtel_campaign_id,
                 'campaignName': campaign_name,
-                'contactCount': len(contacts),
+                'contactCount': contact_count,
                 'status': 'created'
             })
             
@@ -545,7 +885,8 @@ def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, re
     """
     try:
         customer_id = secrets.get('customer_id')
-        auth_token = secrets.get('upload_auth', secrets.get('auth', ''))
+        # CSV upload uses upload_auth with app-id header
+        auth_token = secrets.get('upload_auth', '')
         app_id = secrets.get('app_id', 'IRONMAN')
         
         # Get variable names
@@ -743,6 +1084,182 @@ def _normalize_campaign(item: Dict) -> Dict:
     }
 
 
+def _list_audio_library(params: Dict, request_id: str) -> Dict[str, Any]:
+    """List audio files from S3 obd-audio library folder.
+    
+    Returns all WAV files stored in s3://app.wecare.digital/stack/voice/obd-audio/
+    Each file includes: key, name, size, lastModified, publicUrl, downloadUrl, format info
+    """
+    try:
+        files = []
+        paginator = s3.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_OBD_AUDIO_PREFIX):
+            for obj in page.get('Contents', []):
+                key = obj['Key']
+                if key == S3_OBD_AUDIO_PREFIX:
+                    continue  # skip folder marker
+                name = key.replace(S3_OBD_AUDIO_PREFIX, '')
+                if not name:
+                    continue
+                
+                # Read first 44 bytes to parse WAV header for format info
+                format_info = {}
+                try:
+                    head_resp = s3.get_object(Bucket=S3_BUCKET, Key=key, Range='bytes=0-255')
+                    head_bytes = head_resp['Body'].read()
+                    parsed = _parse_wav_header(head_bytes)
+                    if parsed.get('valid'):
+                        sr = parsed['sampleRate']
+                        ch = parsed['channels']
+                        bits = parsed['bitsPerSample']
+                        compliant = (parsed['isPCM'] and sr == AIRTEL_SAMPLE_RATE and ch == AIRTEL_CHANNELS and bits == AIRTEL_BITS_PER_SAMPLE)
+                        format_info = {
+                            'sampleRate': sr,
+                            'channels': ch,
+                            'bitsPerSample': bits,
+                            'isPCM': parsed['isPCM'],
+                            'airtelCompliant': compliant,
+                            'formatLabel': f"{sr}Hz {bits}bit {'Mono' if ch == 1 else 'Stereo'}",
+                        }
+                except Exception:
+                    pass
+                
+                public_url = f'https://{S3_BUCKET}/{key}'
+                files.append({
+                    'key': key,
+                    'name': name,
+                    'size': obj['Size'],
+                    'lastModified': obj['LastModified'].isoformat() if hasattr(obj['LastModified'], 'isoformat') else str(obj['LastModified']),
+                    'publicUrl': public_url,
+                    'downloadUrl': public_url,
+                    **format_info,
+                })
+        files.sort(key=lambda x: x.get('lastModified', ''), reverse=True)
+        return _response(200, {'success': True, 'files': files, 'count': len(files), 'prefix': S3_OBD_AUDIO_PREFIX})
+    except Exception as e:
+        logger.error(f"List audio library error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
+    """Upload audio file to S3 obd-audio library.
+    
+    Stores in s3://app.wecare.digital/stack/voice/obd-audio/{fileName}
+    Also optionally uploads to Airtel uploadPrompts API.
+    
+    Request body:
+    - audioData: base64-encoded WAV file content (required)
+    - fileName: custom filename (optional, default: obd_lib_{timestamp}.wav)
+    - uploadToAirtel: whether to also upload to Airtel (default: true)
+    """
+    try:
+        audio_data = body.get('audioData')
+        if not audio_data:
+            return _response(400, {'error': 'audioData (base64) is required'})
+        
+        audio_bytes = base64.b64decode(audio_data)
+        file_name = body.get('fileName', f'obd_lib_{int(time.time())}.wav')
+        # Sanitize filename
+        file_name = file_name.replace('/', '_').replace('\\', '_')
+        
+        # Validate and auto-convert to Airtel spec (16-bit 8kHz Mono PCM WAV)
+        conv = _convert_wav_to_airtel_spec(audio_bytes, request_id)
+        conversion_report = conv.get('report', '')
+        was_converted = conv.get('converted', False)
+        if conv.get('error') and not conv.get('compliant'):
+            return _response(400, {'error': conv['error'], 'report': conversion_report, 'originalInfo': conv.get('originalInfo')})
+        audio_bytes = conv['audioBytes']
+        
+        s3_key = f'{S3_OBD_AUDIO_PREFIX}{file_name}'
+        
+        # Store in S3
+        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=audio_bytes, ContentType='audio/wav')
+        
+        logger.info(json.dumps({
+            'event': 'obd_audio_library_upload',
+            'fileName': file_name,
+            's3Key': s3_key,
+            'sizeBytes': len(audio_bytes),
+            'requestId': request_id
+        }))
+        
+        # Optionally upload to Airtel
+        airtel_audio_url = ''
+        upload_to_airtel = body.get('uploadToAirtel', True)
+        if upload_to_airtel:
+            secrets = _get_secrets()
+            customer_id = secrets.get('customer_id')
+            auth_token = secrets.get('audio_upload_auth', secrets.get('upload_auth', ''))
+            if customer_id and auth_token:
+                try:
+                    url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
+                    boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
+                    body_parts = [
+                        f'--{boundary}'.encode(),
+                        f'Content-Disposition: form-data; name="files"; filename="{file_name}"'.encode(),
+                        b'Content-Type: audio/wav', b'',
+                        audio_bytes,
+                        f'--{boundary}--'.encode()
+                    ]
+                    headers = {
+                        'Content-Type': f'multipart/form-data; boundary={boundary}',
+                        'Authorization': f'Basic {auth_token}',
+                        'requester-id': 'ironman'
+                    }
+                    req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
+                    with urllib.request.urlopen(req, timeout=120) as resp:
+                        result = json.loads(resp.read().decode('utf-8'))
+                        airtel_audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
+                except Exception as upload_err:
+                    logger.warning(f"Airtel upload failed (S3 copy saved): {str(upload_err)}")
+        
+        return _response(200, {
+            'success': True,
+            'fileName': file_name,
+            's3Key': s3_key,
+            'publicUrl': f'https://{S3_BUCKET}/{s3_key}',
+            'downloadUrl': f'https://{S3_BUCKET}/{s3_key}',
+            'airtelAudioUrl': airtel_audio_url,
+            'sizeBytes': len(audio_bytes),
+            'converted': was_converted,
+            'conversionReport': conversion_report,
+        })
+    except Exception as e:
+        logger.error(f"Audio library upload error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _delete_audio_library_file(body: Dict, params: Dict, request_id: str) -> Dict[str, Any]:
+    """Delete audio file from S3 obd-audio library."""
+    try:
+        s3_key = body.get('s3Key') or params.get('s3Key', '')
+        if not s3_key or not s3_key.startswith(S3_OBD_AUDIO_PREFIX):
+            return _response(400, {'error': 's3Key is required and must be in obd-audio folder'})
+        s3.delete_object(Bucket=S3_BUCKET, Key=s3_key)
+        return _response(200, {'success': True, 'deleted': s3_key})
+    except Exception as e:
+        logger.error(f"Delete audio library file error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _store_recording_to_s3(recording_url: str, cdr_id: str, request_id: str) -> str:
+    """Download recording from Airtel and store in S3. Returns S3 key or empty string."""
+    try:
+        if not recording_url:
+            return ''
+        req = urllib.request.Request(recording_url)
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            audio_data = resp.read()
+        timestamp = int(time.time())
+        s3_key = f"{S3_RECORDING_PREFIX}obd-rec-{timestamp}_{cdr_id}.wav"
+        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=audio_data, ContentType='audio/wav')
+        logger.info(json.dumps({'event': 'obd_recording_stored_s3', 'cdrId': cdr_id, 's3Key': s3_key, 'requestId': request_id}))
+        return s3_key
+    except Exception as e:
+        logger.error(f"Store OBD recording error: {str(e)}")
+        return ''
+
+
 def _is_airtel_cdr_callback(body: Dict) -> bool:
     """
     Detect if a POST payload is an Airtel CDR callback (vs a user OBD API request).
@@ -869,6 +1386,14 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
             'campaignName': normalized.get('campaignName', body.get('Campaign_Name', '')),
             'source': 'airtel_obd_cdr_callback',
         }
+
+        # Download and store recording in S3 if available
+        recording_url = cdr_record.get('recordingURL', '')
+        if recording_url:
+            s3_key = _store_recording_to_s3(recording_url, cdr_record['id'], request_id)
+            if s3_key:
+                cdr_record['s3RecordingKey'] = s3_key
+                cdr_record['s3RecordingUrl'] = f"https://{S3_BUCKET}/{s3_key}"
 
         # Store in VoiceCDR table
         item = {}

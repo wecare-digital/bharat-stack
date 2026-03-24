@@ -148,7 +148,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # DELETE - Delete message or clear logs
         if http_method == 'DELETE':
-            if '/clear-logs' in path:
+            if '/clear-logs' in path or query_params.get('action') == 'clear-logs':
                 return _clear_logs(request_id)
             message_id = path_params.get('messageId') or query_params.get('messageId')
             if message_id:
@@ -183,10 +183,12 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     - metaData: optional key-value map (flows to IQ reporting and callbacks)
     - apiVersion: "v4" | "v5" | "v6" (default: v4)
     """
-    # Accept both single phoneNumber and phoneNumbers array
+    # Accept both single phoneNumber/phone and phoneNumbers array
     phone_numbers = body.get('phoneNumbers', [])
     if body.get('phoneNumber'):
         phone_numbers = [body['phoneNumber']] + phone_numbers
+    elif body.get('phone'):
+        phone_numbers = [body['phone']] + phone_numbers
     
     content = body.get('content', '')
     message_type = body.get('messageType', 'SERVICE_EXPLICIT')
@@ -338,11 +340,12 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     sender_id = secrets.get('sender_id', 'WDBEEP')
     entity_id = secrets.get('entity_id', '1201161991108627443')
     default_template_id = secrets.get('dlt_template_id', '1007974344269130859')
+    bulk_default_template = secrets.get('bulk_template_id', default_template_id)
     
     if not auth_token:
         return _response(500, {'error': 'Airtel SMS credentials not configured'})
     
-    dlt_template_id = dlt_template_id or default_template_id
+    dlt_template_id = dlt_template_id or bulk_default_template
     
     # Build bulk payload per Airtel Conduit API spec
     # Each recipient is a separate object (can have different content/template)
