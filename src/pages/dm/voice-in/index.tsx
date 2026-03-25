@@ -376,7 +376,8 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
           sheetFileNames: [csvResult.fileName],
           inputCsvMappings: inputCsvMappings,
           audioUrl: audioUrl,
-          contactCount: csvResult.totalCount || numbers.length
+          contactCount: csvResult.totalCount || numbers.length,
+          firstContact: numbers[0] || ''
         }) 
       });
       const result = await response.json();

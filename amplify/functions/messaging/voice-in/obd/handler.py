@@ -800,9 +800,15 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         campaign_id = str(uuid.uuid4())
         
         # Build input variables for call flow
-        # participantAddress MUST use ${participantAddress} literal — Airtel resolves from CSV via inputCsvMappings
+        # participantAddress: use first contact number as default — CSV mapping overrides at runtime
+        first_contact = body.get('firstContact', '')
+        if not first_contact and contacts:
+            first_contact = _clean_phone(contacts[0])
+        if not first_contact:
+            first_contact = caller_id  # fallback to caller_id
+        
         input_variables = [
-            {"name": "participantAddress", "value": "${participantAddress}", "type": "phoneNumber"},
+            {"name": "participantAddress", "value": first_contact, "type": "phoneNumber"},
             {"name": "callerId", "value": caller_id, "type": "phoneNumber"},
             {"name": "audioURL", "value": audio_url, "type": "string"}
         ]
