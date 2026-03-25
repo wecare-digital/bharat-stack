@@ -40,7 +40,8 @@ const ToastItem: React.FC<{ toast: ToastMessage; onRemove: (id: string) => void 
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [toast, onRemove]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast.id]);
 
   const icons = {
     success: '✓',

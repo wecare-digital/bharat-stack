@@ -145,7 +145,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         table = dynamodb.Table(VOICE_CDR_TABLE)
         
         # Build scan with filters
-        scan_kwargs = {'Limit': limit * 2}
+        scan_kwargs = {}
         filter_expressions = []
         expression_values = {}
         
@@ -214,16 +214,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             scan_kwargs['FilterExpression'] = ' AND '.join(filter_expressions)
             scan_kwargs['ExpressionAttributeValues'] = expression_values
         
+        all_records = []
         response = table.scan(**scan_kwargs)
-        records = response.get('Items', [])
+        all_records.extend(response.get('Items', []))
         
-        while 'LastEvaluatedKey' in response and len(records) < limit:
+        while 'LastEvaluatedKey' in response:
             scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
             response = table.scan(**scan_kwargs)
-            records.extend(response.get('Items', []))
+            all_records.extend(response.get('Items', []))
         
-        records.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
-        records = records[:limit]
+        all_records.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
+        records = all_records[:limit]
         
         # Format records for UI display
         formatted_records = [_format_record_for_ui(r) for r in records]

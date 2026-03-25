@@ -747,9 +747,9 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         # Use custom audio URL if provided, otherwise default Airtel jingle
         audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
         
-        # Start/end time (epoch ms UTC)
-        start_time = body.get('startTime', int(time.time() * 1000) + 60000)  # default: 1 min from now
-        end_time = body.get('endTime', start_time + (3600 * 1000))  # default: 1 hour duration
+        # Start/end time (epoch ms UTC) — start immediately, end in 24 hours
+        start_time = body.get('startTime', int(time.time() * 1000))  # NOW
+        end_time = body.get('endTime', start_time + (24 * 3600 * 1000))  # 24 hours
         
         # Upload CSV if contacts provided and no sheetFileNames already uploaded
         if contacts and not sheet_file_names:
