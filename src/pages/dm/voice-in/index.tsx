@@ -240,7 +240,12 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
     
     setObdCreating(true);
     try {
-      const numbers = obdNumbers.split(/[\n,]/).map(n => n.trim()).filter(n => n.length >= 10);
+      const numbers = obdNumbers.split(/[\n,]/).map(n => {
+        let d = n.trim().replace(/[^0-9]/g, '');
+        if (d.startsWith('91') && d.length === 12) d = d.slice(2);
+        if (d.startsWith('0') && d.length === 11) d = d.slice(1);
+        return d;
+      }).filter(n => n.length === 10);
       if (numbers.length === 0) { toast.error('No valid phone numbers'); setObdCreating(false); return; }
 
       // Step 1: Upload CSV to Airtel
@@ -280,19 +285,21 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
       if (obdAudioSource === 'library' && obdSelectedLibraryFile) {
         // Upload from S3 library to Airtel
         toast.success(`Using library audio: ${obdSelectedLibraryFile.name}`);
-        const uploadResp = await fetch(`${API_BASE}/voice-in/obd/upload-audio`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audioS3Key: obdSelectedLibraryFile.key, fileName: obdSelectedLibraryFile.name })
-        });
-        const uploadResult = await uploadResp.json();
-        if (uploadResult.audioUrl) {
-          audioUrl = uploadResult.audioUrl;
-          toast.success('Library audio uploaded to Airtel');
-        } else {
-          toast.error(uploadResult.error || 'Audio upload failed');
-          setObdCreating(false);
-          return;
+        try {
+          const uploadResp = await fetch(`${API_BASE}/voice-in/obd/upload-audio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audioS3Key: obdSelectedLibraryFile.key, fileName: obdSelectedLibraryFile.name })
+          });
+          const uploadResult = await uploadResp.json();
+          if (uploadResult.audioUrl) {
+            audioUrl = uploadResult.audioUrl;
+            toast.success('Library audio uploaded to Airtel');
+          } else {
+            toast.warning('Audio upload to Airtel failed — using default jingle');
+          }
+        } catch {
+          toast.warning('Audio upload timed out — using default jingle');
         }
       }
 
@@ -340,20 +347,22 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
           });
         }
         
-        const uploadResp = await fetch(`${API_BASE}/voice-in/obd/upload-audio`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audioData, fileName: obdAudioFile.name })
-        });
-        const uploadResult = await uploadResp.json();
-        if (uploadResult.audioUrl) {
-          audioUrl = uploadResult.audioUrl;
-          const convMsg = uploadResult.converted ? ` (auto-converted: ${uploadResult.conversionReport})` : '';
-          toast.success(`Audio uploaded to Airtel${convMsg}`);
-        } else {
-          toast.error(uploadResult.error || 'Audio upload failed');
-          setObdCreating(false);
-          return;
+        try {
+          const uploadResp = await fetch(`${API_BASE}/voice-in/obd/upload-audio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audioData, fileName: obdAudioFile.name })
+          });
+          const uploadResult = await uploadResp.json();
+          if (uploadResult.audioUrl) {
+            audioUrl = uploadResult.audioUrl;
+            const convMsg = uploadResult.converted ? ` (auto-converted: ${uploadResult.conversionReport})` : '';
+            toast.success(`Audio uploaded to Airtel${convMsg}`);
+          } else {
+            toast.warning('Audio upload to Airtel failed — using default jingle. Campaign will still be created.');
+          }
+        } catch {
+          toast.warning('Audio upload timed out — using default jingle. Campaign will still be created.');
         }
       }
 
@@ -675,16 +684,16 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
             <h3>Click-to-Call (C2C)</h3>
             <p className="modal-desc">Connect two parties on a call.</p>
             <div className="form-group">
-              <label>From Number *</label>
+              <label>From Number * <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 400 }}>(10 digits, no country code)</span></label>
               <div className="input-with-btn">
-                <input type="tel" value={c2cFromNumber} onChange={e => setC2cFromNumber(e.target.value)} placeholder="10-digit mobile" />
+                <input type="tel" value={c2cFromNumber} onChange={e => setC2cFromNumber(e.target.value)} placeholder="9903300044" />
                 <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('c2c-from')}>Contacts</button>
               </div>
             </div>
             <div className="form-group">
-              <label>To Number *</label>
+              <label>To Number * <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 400 }}>(10 digits, no country code)</span></label>
               <div className="input-with-btn">
-                <input type="tel" value={c2cToNumber} onChange={e => setC2cToNumber(e.target.value)} placeholder="10-digit mobile" />
+                <input type="tel" value={c2cToNumber} onChange={e => setC2cToNumber(e.target.value)} placeholder="9903300044" />
                 <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('c2c-to')}>Contacts</button>
               </div>
             </div>
@@ -791,9 +800,9 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
               </div>
             )}
             <div className="form-group">
-              <label>Phone Numbers *</label>
+              <label>Phone Numbers * <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 400 }}>(10 digits, no country code)</span></label>
               <div className="textarea-with-btn">
-                <textarea value={obdNumbers} onChange={e => setObdNumbers(e.target.value)} placeholder="One per line or comma-separated" rows={3} />
+                <textarea value={obdNumbers} onChange={e => setObdNumbers(e.target.value)} placeholder="9903300044&#10;8130078559&#10;(one per line or comma-separated)" rows={3} />
                 <button type="button" className="fetch-btn" onClick={() => setShowContactPicker('obd')}>Contacts</button>
               </div>
               <small>{obdNumbers.split(/[\n,]/).filter(n => n.trim().length >= 10).length} valid</small>

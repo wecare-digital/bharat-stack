@@ -447,31 +447,49 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id
         }))
         
-        with urllib.request.urlopen(req, timeout=120) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            
-            # Extract the audio URL from Airtel response
-            # Airtel returns: {"promptResponseList": [{"audioURL": "https://..."}]}
-            # This audioUrl MUST be injected into Create Campaign inputVariables as "audioURL"
-            audio_url = _extract_audio_url(result)
-            
-            logger.info(json.dumps({
-                'event': 'obd_audio_uploaded',
-                'audioUrl': audio_url,
-                'result': result,
-                'requestId': request_id
-            }))
-            
-            return _response(200, {
-                'success': True,
-                'fileName': file_name,
-                'audioUrl': audio_url,
-                'sizeBytes': len(audio_bytes),
+        # Try upload with retry (Airtel uploadPrompts can be slow)
+        audio_url = ''
+        last_error = ''
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
+                with urllib.request.urlopen(req, timeout=60) as response:
+                    result = json.loads(response.read().decode('utf-8'))
+                    audio_url = _extract_audio_url(result)
+                    
+                    logger.info(json.dumps({
+                        'event': 'obd_audio_uploaded',
+                        'audioUrl': audio_url,
+                        'result': result,
+                        'attempt': attempt + 1,
+                        'requestId': request_id
+                    }))
+                    break
+            except Exception as upload_err:
+                last_error = str(upload_err)
+                logger.warning(f"Audio upload attempt {attempt + 1} failed: {last_error}")
+                if attempt == 0:
+                    time.sleep(2)
+        
+        if not audio_url and last_error:
+            logger.error(f"Audio upload failed after retries: {last_error}")
+            return _response(500, {
+                'error': f'Audio upload to Airtel failed: {last_error}',
                 'downloadUrl': download_url,
+                'sizeBytes': len(audio_bytes),
                 'converted': conv.get('converted', False),
                 'conversionReport': conv.get('report', ''),
-                'result': result
             })
+        
+        return _response(200, {
+            'success': True,
+            'fileName': file_name,
+            'audioUrl': audio_url,
+            'sizeBytes': len(audio_bytes),
+            'downloadUrl': download_url,
+            'converted': conv.get('converted', False),
+            'conversionReport': conv.get('report', ''),
+        })
             
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
