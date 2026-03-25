@@ -760,7 +760,7 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         sheet_file_names = body.get('sheetFileNames', [])
         input_csv_mappings = body.get('inputCsvMappings', {})
         caller_id = body.get('callerId', caller_id)
-        retry_count = body.get('retryCount', 2)
+        retry_count = body.get('retryCount', 3)
         
         # Use custom audio URL if provided, otherwise default Airtel jingle
         audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
@@ -857,8 +857,8 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
             "campaignType": "OBD_CALL",
             "retryDetail": {
                 "maxRetryCount": retry_count,
-                "retryConfig": {"retryType": "FIXED_INTERVAL", "retryIntervalList": [100, 200]},
-                "retryCountToEventMap": {"1": ["default"], "2": ["busy"]}
+                "retryConfig": {"retryType": "FIXED_INTERVAL", "retryIntervalList": [300, 600, 900]},
+                "retryCountToEventMap": {"1": ["default"], "2": ["busy", "Noanswer"], "3": ["busy", "Noanswer"]}
             }
         }
         
