@@ -903,7 +903,10 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
         .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
         .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #1a3a2a; }
         .form-group small { display: block; margin-top: 3px; font-size: 11px; color: #9ca3af; }
-        .file-input { padding: 6px; background: #f9fafb; }
+        .file-input { padding: 8px 12px; background: #f9fafb; border: 1.5px dashed #d1f470; border-radius: 8px; font-size: 12px; color: #1a3a2a; cursor: pointer; width: 100%; box-sizing: border-box; }
+        .file-input:hover { background: #f0fdf4; border-color: #1a3a2a; }
+        .file-input::file-selector-button { background: #1a3a2a; color: #d1f470; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; margin-right: 10px; }
+        .file-input::file-selector-button:hover { background: #0f2a1d; }
         .audio-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .audio-option { display: flex; align-items: center; gap: 8px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 12px; }
         .audio-option:hover { border-color: #e5e7eb; background: #f9fafb; }

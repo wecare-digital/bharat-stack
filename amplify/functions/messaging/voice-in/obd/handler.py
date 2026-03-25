@@ -451,8 +451,9 @@ def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
             result = json.loads(response.read().decode('utf-8'))
             
             # Extract the audio URL from Airtel response
+            # Airtel returns: {"promptResponseList": [{"audioURL": "https://..."}]}
             # This audioUrl MUST be injected into Create Campaign inputVariables as "audioURL"
-            audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
+            audio_url = _extract_audio_url(result)
             
             logger.info(json.dumps({
                 'event': 'obd_audio_uploaded',
@@ -573,7 +574,7 @@ def _text_to_audio(body: Dict, request_id: str) -> Dict[str, Any]:
                 req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
                 with urllib.request.urlopen(req, timeout=60) as response:
                     result = json.loads(response.read().decode('utf-8'))
-                    audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
+                    audio_url = _extract_audio_url(result)
             except Exception as upload_err:
                 logger.warning(f"Airtel upload failed (will use S3): {str(upload_err)}")
 
@@ -1209,7 +1210,7 @@ def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
                     req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
                     with urllib.request.urlopen(req, timeout=120) as resp:
                         result = json.loads(resp.read().decode('utf-8'))
-                        airtel_audio_url = result.get('audioUrl') or result.get('url') or result.get('promptUrl', '')
+                        airtel_audio_url = _extract_audio_url(result)
                 except Exception as upload_err:
                     logger.warning(f"Airtel upload failed (S3 copy saved): {str(upload_err)}")
         
@@ -1480,6 +1481,23 @@ def _safe_ms(val) -> int:
         except (ValueError, TypeError):
             return 0
     return 0
+
+
+def _extract_audio_url(result: Dict) -> str:
+    """Extract audio URL from Airtel uploadPrompts response.
+    
+    Airtel returns: {"promptResponseList": [{"audioURL": "https://...", "fileName": "...", "fileDisplayName": "..."}]}
+    Also handles flat response formats as fallback.
+    """
+    # Primary: promptResponseList[0].audioURL
+    prompt_list = result.get('promptResponseList', [])
+    if prompt_list and isinstance(prompt_list, list):
+        first = prompt_list[0] if prompt_list else {}
+        url = first.get('audioURL') or first.get('audioUrl') or first.get('url', '')
+        if url:
+            return url
+    # Fallback: flat response
+    return result.get('audioUrl') or result.get('audioURL') or result.get('url') or result.get('promptUrl', '')
 
 
 def _clean_phone(phone: str) -> str:
