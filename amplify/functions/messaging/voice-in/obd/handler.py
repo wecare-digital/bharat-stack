@@ -765,8 +765,8 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         # Use custom audio URL if provided, otherwise default Airtel jingle
         audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
         
-        # Start/end time (epoch ms UTC) — start immediately, end in 24 hours
-        start_time = body.get('startTime', int(time.time() * 1000))  # NOW
+        # Start/end time (epoch ms UTC) — 5 min from now to allow Airtel scheduling, end in 24 hours
+        start_time = body.get('startTime', int(time.time() * 1000) + (5 * 60 * 1000))  # 5 min from now
         end_time = body.get('endTime', start_time + (24 * 3600 * 1000))  # 24 hours
         
         # Upload CSV if contacts provided and no sheetFileNames already uploaded
@@ -800,9 +800,9 @@ def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
         campaign_id = str(uuid.uuid4())
         
         # Build input variables for call flow
-        # participantAddress uses a sample number — CSV mapping handles actual substitution
+        # participantAddress MUST use ${participantAddress} literal — Airtel resolves from CSV via inputCsvMappings
         input_variables = [
-            {"name": "participantAddress", "value": caller_id, "type": "phoneNumber"},
+            {"name": "participantAddress", "value": "${participantAddress}", "type": "phoneNumber"},
             {"name": "callerId", "value": caller_id, "type": "phoneNumber"},
             {"name": "audioURL", "value": audio_url, "type": "string"}
         ]
@@ -1503,8 +1503,9 @@ def _safe_ms(val) -> int:
 
 def _extract_audio_url(result: Dict) -> str:
     """Extract audio URL from Airtel uploadPrompts response.
-    
+
     Airtel returns: {"promptResponseList": [{"audioURL": "https://...", "fileName": "...", "fileDisplayName": "..."}]}
+    On duplicate: {"errorPromptResponseList": [{"fileName": "...", "message": "File with same name exists"}]}
     Also handles flat response formats as fallback.
     """
     # Primary: promptResponseList[0].audioURL
@@ -1514,8 +1515,19 @@ def _extract_audio_url(result: Dict) -> str:
         url = first.get('audioURL') or first.get('audioUrl') or first.get('url', '')
         if url:
             return url
+    # Handle "File with same name exists" — construct URL from known pattern
+    error_list = result.get('errorPromptResponseList', [])
+    if error_list and isinstance(error_list, list):
+        first = error_list[0] if error_list else {}
+        if 'same name exists' in first.get('message', '').lower():
+            file_name = first.get('fileName', '')
+            if file_name:
+                secrets = _get_secrets()
+                cid = secrets.get('customer_id', '')
+                return f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/assets/audios/{cid}/{file_name}"
     # Fallback: flat response
     return result.get('audioUrl') or result.get('audioURL') or result.get('url') or result.get('promptUrl', '')
+
 
 
 def _clean_phone(phone: str) -> str:
