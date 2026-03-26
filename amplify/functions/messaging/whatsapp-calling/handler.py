@@ -1061,7 +1061,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', '')  # Empty = skip audio greeting, just send interactive menu
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr.mp3')  # IVR audio greeting for auto-pickup
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 # AI Bot config
@@ -1108,7 +1108,7 @@ def _is_auto_pickup_enabled() -> bool:
 
 def _get_auto_pickup_audio_url() -> Optional[str]:
     """Get the IVR audio URL for auto-pickup greeting.
-    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/IVR+1.mp3
+    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/ivr.mp3
     Can be overridden via SystemConfig table (key: whatsapp_calling_ivr_url).
     """
     try:
