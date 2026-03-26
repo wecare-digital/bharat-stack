@@ -698,9 +698,10 @@ def _get_blocked_users(waba_id: str) -> Dict:
 # Razorpay MID and UPI ID loaded from environment variables (not hardcoded).
 # MCC: 4722 | Purpose Code: 03
 # ============================================================================
-_RAZORPAY_MID = os.environ.get('RAZORPAY_MID', '')
-_RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', '')
+_RAZORPAY_MID = os.environ.get('RAZORPAY_MID', 'acc_HDfub6wOfQybuH')
+_RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', 'wecaredigital83.rzp@icici')
 _PAYU_MID = os.environ.get('PAYU_MID', '8629516')
+_PAYU_UPI_ID = os.environ.get('PAYU_UPI_ID', 'wecareqr.payu@indus')
 _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '1728153881476046')
 
 PAYMENT_CONFIGS = {
@@ -708,8 +709,10 @@ PAYMENT_CONFIGS = {
         'phone': '+91 9330994400',
         'wabaId': WABA1_ID,
         'configs': [
-            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'Payu-UPIVPA', 'status': 'active', 'type': 'upi', 'gateway': 'payu', 'mid': _PAYU_MID, 'upiId': _PAYU_UPI_ID},
             {'name': 'WECARE-PAYU', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
+            {'name': 'WECARE-RAZORPAY-UPIVPA', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
@@ -718,9 +721,10 @@ PAYMENT_CONFIGS = {
         'phone': '+91 9903300044',
         'wabaId': WABA2_ID,
         'configs': [
-            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-            {'name': 'WECARE-RAZOR-UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'Payu-UPIVPA', 'status': 'active', 'type': 'upi', 'gateway': 'payu', 'mid': _PAYU_MID, 'upiId': _PAYU_UPI_ID},
             {'name': 'WECARE-PAYU', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
+            {'name': 'WECARE-RAZOR-UPIVPA', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
+            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
         ],
         'mcc': '4722',
         'purposeCode': '03',
