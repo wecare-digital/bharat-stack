@@ -156,6 +156,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _post_media(body, request_id)
             elif '/tags' in path:
                 return _tag_resource(body, request_id)
+            elif '/migrate' in path:
+                return _migrate_phone(body, request_id)
+            elif '/request-otp' in path:
+                return _request_otp(body, request_id)
+            elif '/verify-otp' in path:
+                return _verify_otp(body, request_id)
+            elif '/register-phone' in path:
+                return _register_phone(body, request_id)
         
         elif http_method == 'PUT':
             if '/events' in path:
