@@ -2201,6 +2201,117 @@ export async function untagWABAResource(resourceArn: string, tagKeys: string[]):
 
 
 // ============================================================================
+// WABA SNS SUBSCRIPTION API
+// ============================================================================
+
+export interface WABASNSSubscriptionStatus {
+  wabaId: string;
+  storedConfig: {
+    wabaId?: string;
+    snsTopicArn?: string;
+    roleArn?: string;
+    subscribedAt?: string;
+    unsubscribedAt?: string;
+    status?: string;
+  };
+  liveEventDestinations: { eventDestinationArn: string; roleArn?: string }[];
+  isSubscribed: boolean;
+  defaultTopicArn: string;
+}
+
+/**
+ * Subscribe a WABA to SNS topic for receiving WhatsApp events
+ * Sets up PutWhatsAppBusinessAccountEventDestinations
+ */
+export async function subscribeWABAToSNS(wabaId: string, snsTopicArn?: string, roleArn?: string): Promise<boolean> {
+  const body: Record<string, string> = {};
+  if (snsTopicArn) body.snsTopicArn = snsTopicArn;
+  if (roleArn) body.roleArn = roleArn;
+  const data = await apiCall<any>(`${API_BASE}/waba/${wabaId}/subscribe-sns`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return data?.success === true;
+}
+
+/**
+ * Unsubscribe a WABA from SNS (clears event destinations)
+ */
+export async function unsubscribeWABAFromSNS(wabaId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${API_BASE}/waba/${wabaId}/subscribe-sns`, {
+    method: 'DELETE',
+    body: JSON.stringify({}),
+  });
+  return data?.success === true;
+}
+
+/**
+ * Get current SNS subscription status for a WABA
+ */
+export async function getWABASNSSubscriptionStatus(wabaId: string): Promise<WABASNSSubscriptionStatus | null> {
+  return apiCall<WABASNSSubscriptionStatus>(`${API_BASE}/waba/${wabaId}/subscribe-sns`);
+}
+
+
+// ============================================================================
+// WABA PHONE MIGRATION & REGISTRATION API
+// ============================================================================
+
+/**
+ * Request OTP/PIN for phone number verification
+ */
+export async function requestPhoneOTP(phoneNumberId: string, method: 'SMS' | 'VOICE' = 'SMS'): Promise<boolean> {
+  const data = await apiCall<any>(`${API_BASE}/waba/request-otp`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumberId, method }),
+  });
+  return data?.success === true;
+}
+
+/**
+ * Verify OTP/PIN code for phone number
+ */
+export async function verifyPhoneOTP(phoneNumberId: string, code: string): Promise<boolean> {
+  const data = await apiCall<any>(`${API_BASE}/waba/verify-otp`, {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumberId, code }),
+  });
+  return data?.success === true;
+}
+
+/**
+ * Register a phone number with optional PIN
+ */
+export async function registerPhone(phoneNumberId: string, pin?: string): Promise<boolean> {
+  const body: Record<string, string> = { phoneNumberId };
+  if (pin) body.pin = pin;
+  const data = await apiCall<any>(`${API_BASE}/waba/register-phone`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return data?.success === true;
+}
+
+/**
+ * Migrate a phone number between WABAs
+ * @param sendPin - If true, sends PIN via SMS/VOICE before migration
+ */
+export async function migratePhone(params: {
+  phoneNumberId: string;
+  sourceWabaId?: string;
+  targetWabaId: string;
+  pin?: string;
+  sendPin?: boolean;
+  pinMethod?: 'SMS' | 'VOICE';
+}): Promise<{ success: boolean; pinSent?: boolean; status?: string } | null> {
+  return apiCall<any>(`${API_BASE}/waba/migrate`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+
+// ============================================================================
 // AD ATTRIBUTION API
 // ============================================================================
 

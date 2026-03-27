@@ -19,5 +19,6 @@ export const wabaManagement = defineFunction({
   environment: {
     LOG_LEVEL: 'INFO',
     SYSTEM_CONFIG_TABLE: 'stack-wecare-digital-SystemConfigTable',
+    SNS_TOPIC_ARN: `arn:aws:sns:us-east-1:${process.env.AWS_ACCOUNT_ID || '775261844268'}:stack-wecare-digital`,
   },
 });

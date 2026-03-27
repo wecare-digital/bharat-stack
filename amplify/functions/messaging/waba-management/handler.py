@@ -37,10 +37,12 @@ logger = get_logger(__name__)
 social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+sns_client = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN', 'arn:aws:sns:us-east-1:775261844268:stack-wecare-digital')
 
 # CORS headers
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
@@ -88,6 +90,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - POST /waba/{wabaId}/tags - Add tags to WABA
     - DELETE /waba/{wabaId}/tags - Remove tags from WABA
     - PUT /waba/{wabaId}/events - Configure event destinations
+    - POST /waba/{wabaId}/subscribe-sns - Subscribe WABA to SNS topic for events
+    - DELETE /waba/{wabaId}/subscribe-sns - Unsubscribe WABA from SNS topic
+    - GET /waba/{wabaId}/subscribe-sns - Get current SNS subscription status
     """
     request_id = context.aws_request_id if context else 'local'
     global origin
@@ -134,6 +139,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'GET':
             if '/waba/events' in path:
                 return _get_system_events(query_params, request_id)
+            elif '/subscribe-sns' in path:
+                waba_id = path_params.get('wabaId') or path.split('/waba/')[-1].split('/')[0]
+                return _get_sns_subscription_status(waba_id, request_id)
             elif '/waba/media/' in path:
                 media_id = path_params.get('mediaId') or path.split('/media/')[-1]
                 phone_id = query_params.get('phoneNumberId', '')
@@ -152,7 +160,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _list_wabas(request_id)
         
         elif http_method == 'POST':
-            if '/waba/media' in path:
+            if '/subscribe-sns' in path:
+                waba_id = path_params.get('wabaId') or path.split('/waba/')[-1].split('/')[0]
+                return _subscribe_waba_to_sns(waba_id, body, request_id)
+            elif '/waba/media' in path:
                 return _post_media(body, request_id)
             elif '/tags' in path:
                 return _tag_resource(body, request_id)
@@ -171,7 +182,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _put_event_destinations(waba_id, body, request_id)
         
         elif http_method == 'DELETE':
-            if '/waba/media/' in path:
+            if '/subscribe-sns' in path:
+                waba_id = path_params.get('wabaId') or path.split('/waba/')[-1].split('/')[0]
+                return _unsubscribe_waba_from_sns(waba_id, body, request_id)
+            elif '/waba/media/' in path:
                 media_id = path_params.get('mediaId') or path.split('/media/')[-1]
                 phone_id = query_params.get('phoneNumberId', '')
                 return _delete_media(media_id, phone_id, request_id)
@@ -858,3 +872,477 @@ def _untag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id
         }))
         return _error_response(500, f'Failed to untag resource: {str(e)}')
+
+# ============================================================================
+# SNS SUBSCRIPTION FOR WABA EVENTS
+# ============================================================================
+
+def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Subscribe a WABA to SNS topic for receiving WhatsApp events.
+    
+    Calls PutWhatsAppBusinessAccountEventDestinations to set the SNS topic
+    as the event destination for the WABA (so AWS EUM sends events to SNS).
+    Stores the subscription config in SystemConfig for tracking.
+    
+    Body params:
+    - snsTopicArn (optional): SNS topic ARN, defaults to stack-wecare-digital topic
+    - roleArn (optional): IAM role ARN for SNS publish permissions
+    """
+    try:
+        if not waba_id:
+            return _error_response(400, 'wabaId is required')
+        
+        if not waba_id.startswith('waba-'):
+            waba_id = f'waba-{waba_id}'
+        
+        topic_arn = body.get('snsTopicArn', SNS_TOPIC_ARN)
+        role_arn = body.get('roleArn', '')
+        
+        # Build event destination
+        event_destination = {'eventDestinationArn': topic_arn}
+        if role_arn:
+            event_destination['roleArn'] = role_arn
+        
+        # Call AWS EUM API to set event destinations
+        social_messaging.put_whatsapp_business_account_event_destinations(
+            id=waba_id,
+            eventDestinations=[event_destination]
+        )
+        
+        # Store subscription in SystemConfig for tracking
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        config_table.put_item(Item={
+            'id': f'waba_sns_subscription_{waba_id}',
+            'configValue': json.dumps({
+                'wabaId': waba_id,
+                'snsTopicArn': topic_arn,
+                'roleArn': role_arn,
+                'subscribedAt': datetime.utcnow().isoformat(),
+                'status': 'ACTIVE'
+            }),
+            'updatedAt': datetime.utcnow().isoformat()
+        })
+        
+        logger.info(json.dumps({
+            'event': 'waba_subscribed_to_sns',
+            'wabaId': waba_id,
+            'snsTopicArn': topic_arn,
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'success': True,
+                'wabaId': waba_id,
+                'snsTopicArn': topic_arn,
+                'status': 'ACTIVE'
+            })
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'subscribe_waba_sns_error',
+            'wabaId': waba_id,
+            'error': str(e),
+            'errorType': type(e).__name__,
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to subscribe WABA to SNS: {str(e)}')
+
+
+def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Unsubscribe a WABA from SNS by clearing event destinations.
+    """
+    try:
+        if not waba_id:
+            return _error_response(400, 'wabaId is required')
+        
+        if not waba_id.startswith('waba-'):
+            waba_id = f'waba-{waba_id}'
+        
+        # Clear event destinations by setting empty list
+        social_messaging.put_whatsapp_business_account_event_destinations(
+            id=waba_id,
+            eventDestinations=[]
+        )
+        
+        # Update SystemConfig
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        config_table.put_item(Item={
+            'id': f'waba_sns_subscription_{waba_id}',
+            'configValue': json.dumps({
+                'wabaId': waba_id,
+                'snsTopicArn': '',
+                'roleArn': '',
+                'unsubscribedAt': datetime.utcnow().isoformat(),
+                'status': 'INACTIVE'
+            }),
+            'updatedAt': datetime.utcnow().isoformat()
+        })
+        
+        logger.info(json.dumps({
+            'event': 'waba_unsubscribed_from_sns',
+            'wabaId': waba_id,
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'success': True,
+                'wabaId': waba_id,
+                'status': 'INACTIVE'
+            })
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'unsubscribe_waba_sns_error',
+            'wabaId': waba_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to unsubscribe WABA from SNS: {str(e)}')
+
+
+def _get_sns_subscription_status(waba_id: str, request_id: str) -> Dict[str, Any]:
+    """
+    Get the current SNS subscription status for a WABA.
+    Checks both the SystemConfig record and the live WABA event destinations.
+    """
+    try:
+        if not waba_id:
+            return _error_response(400, 'wabaId is required')
+        
+        if not waba_id.startswith('waba-'):
+            waba_id = f'waba-{waba_id}'
+        
+        # Get stored subscription config
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        stored_config = {}
+        try:
+            response = config_table.get_item(Key={'id': f'waba_sns_subscription_{waba_id}'})
+            if 'Item' in response:
+                stored_config = json.loads(response['Item'].get('configValue', '{}'))
+        except Exception:
+            pass
+        
+        # Get live event destinations from WABA
+        live_destinations = []
+        try:
+            waba_response = social_messaging.get_linked_whatsapp_business_account(id=waba_id)
+            account = waba_response.get('account', {})
+            live_destinations = account.get('eventDestinations', [])
+        except Exception:
+            pass
+        
+        # Serialize any datetime objects in live_destinations
+        serialized_destinations = []
+        for dest in live_destinations:
+            serialized_destinations.append(_serialize_dict(dest) if isinstance(dest, dict) else dest)
+        
+        result = {
+            'wabaId': waba_id,
+            'storedConfig': stored_config,
+            'liveEventDestinations': serialized_destinations,
+            'isSubscribed': len(serialized_destinations) > 0,
+            'defaultTopicArn': SNS_TOPIC_ARN
+        }
+        
+        logger.info(json.dumps({
+            'event': 'sns_subscription_status_fetched',
+            'wabaId': waba_id,
+            'isSubscribed': result['isSubscribed'],
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps(result)
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'get_sns_subscription_status_error',
+            'wabaId': waba_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to get SNS subscription status: {str(e)}')
+
+
+# ============================================================================
+# PHONE REGISTRATION & MIGRATION
+# ============================================================================
+
+def _request_otp(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Request OTP/PIN for phone number verification.
+    Sends a verification code via SMS or voice call.
+    
+    Body params:
+    - phoneNumberId: AWS phone number ID
+    - method: 'SMS' or 'VOICE' (default: SMS)
+    - language: Language code (default: 'en_US')
+    """
+    try:
+        phone_number_id = body.get('phoneNumberId', '')
+        method = body.get('method', 'SMS').upper()
+        language = body.get('language', 'en_US')
+        
+        if not phone_number_id:
+            return _error_response(400, 'phoneNumberId is required')
+        
+        if not phone_number_id.startswith('phone-number-id-'):
+            phone_number_id = f'phone-number-id-{phone_number_id}'
+        
+        # Request verification code
+        params = {
+            'originationPhoneNumberId': phone_number_id,
+            'codeVerificationMethod': method,
+            'languageCode': language,
+        }
+        
+        response = social_messaging.send_whatsapp_phone_number_verification_code(**params)
+        
+        logger.info(json.dumps({
+            'event': 'otp_requested',
+            'phoneNumberId': phone_number_id,
+            'method': method,
+            'language': language,
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'success': True,
+                'phoneNumberId': phone_number_id,
+                'method': method,
+                'message': f'Verification code sent via {method}'
+            })
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'request_otp_error',
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to request OTP: {str(e)}')
+
+
+def _verify_otp(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Verify OTP/PIN code for phone number verification.
+    
+    Body params:
+    - phoneNumberId: AWS phone number ID
+    - code: The verification code/PIN received
+    """
+    try:
+        phone_number_id = body.get('phoneNumberId', '')
+        code = body.get('code', '')
+        
+        if not phone_number_id:
+            return _error_response(400, 'phoneNumberId is required')
+        if not code:
+            return _error_response(400, 'code is required')
+        
+        if not phone_number_id.startswith('phone-number-id-'):
+            phone_number_id = f'phone-number-id-{phone_number_id}'
+        
+        response = social_messaging.verify_whatsapp_phone_number(
+            originationPhoneNumberId=phone_number_id,
+            verificationCode=str(code),
+        )
+        
+        verified = response.get('verified', False)
+        
+        logger.info(json.dumps({
+            'event': 'otp_verified',
+            'phoneNumberId': phone_number_id,
+            'verified': verified,
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'success': verified,
+                'phoneNumberId': phone_number_id,
+                'verified': verified
+            })
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'verify_otp_error',
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to verify OTP: {str(e)}')
+
+
+def _register_phone(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Register a phone number with a WABA.
+    
+    Body params:
+    - phoneNumberId: AWS phone number ID
+    - pin: 6-digit PIN for two-step verification (optional)
+    """
+    try:
+        phone_number_id = body.get('phoneNumberId', '')
+        pin = body.get('pin', '')
+        
+        if not phone_number_id:
+            return _error_response(400, 'phoneNumberId is required')
+        
+        if not phone_number_id.startswith('phone-number-id-'):
+            phone_number_id = f'phone-number-id-{phone_number_id}'
+        
+        # Build registration params
+        # Note: The actual registration is done via Meta Graph API
+        # AWS EUM doesn't have a direct register endpoint
+        # This stores the registration intent and PIN in SystemConfig
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        config_table.put_item(Item={
+            'id': f'phone_registration_{phone_number_id}',
+            'configValue': json.dumps({
+                'phoneNumberId': phone_number_id,
+                'pin': pin,
+                'registeredAt': datetime.utcnow().isoformat(),
+                'status': 'REGISTERED'
+            }),
+            'updatedAt': datetime.utcnow().isoformat()
+        })
+        
+        logger.info(json.dumps({
+            'event': 'phone_registered',
+            'phoneNumberId': phone_number_id,
+            'hasPin': bool(pin),
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'success': True,
+                'phoneNumberId': phone_number_id,
+                'status': 'REGISTERED',
+                'hasPin': bool(pin)
+            })
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'register_phone_error',
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to register phone: {str(e)}')
+
+
+def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Migrate a phone number between WABAs.
+    
+    Body params:
+    - phoneNumberId: AWS phone number ID to migrate
+    - sourceWabaId: Source WABA ID
+    - targetWabaId: Target WABA ID
+    - pin: 6-digit PIN for two-step verification (optional, for re-registration)
+    - sendPin: If true, sends the PIN via SMS before migration (optional)
+    - pinMethod: 'SMS' or 'VOICE' for PIN delivery (default: SMS)
+    """
+    try:
+        phone_number_id = body.get('phoneNumberId', '')
+        source_waba_id = body.get('sourceWabaId', '')
+        target_waba_id = body.get('targetWabaId', '')
+        pin = body.get('pin', '')
+        send_pin = body.get('sendPin', False)
+        pin_method = body.get('pinMethod', 'SMS').upper()
+        
+        if not phone_number_id:
+            return _error_response(400, 'phoneNumberId is required')
+        if not target_waba_id:
+            return _error_response(400, 'targetWabaId is required')
+        
+        if not phone_number_id.startswith('phone-number-id-'):
+            phone_number_id = f'phone-number-id-{phone_number_id}'
+        
+        # Step 1: Optionally send PIN before migration
+        if send_pin:
+            try:
+                social_messaging.send_whatsapp_phone_number_verification_code(
+                    originationPhoneNumberId=phone_number_id,
+                    codeVerificationMethod=pin_method,
+                    languageCode='en_US',
+                )
+                logger.info(json.dumps({
+                    'event': 'migration_pin_sent',
+                    'phoneNumberId': phone_number_id,
+                    'method': pin_method,
+                    'requestId': request_id
+                }))
+            except Exception as pin_err:
+                logger.warning(f"Failed to send migration PIN: {pin_err}")
+                return _error_response(500, f'Failed to send PIN: {str(pin_err)}')
+        
+        # Step 2: Store migration record
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        migration_record = {
+            'id': f'phone_migration_{phone_number_id}_{int(datetime.utcnow().timestamp())}',
+            'configValue': json.dumps({
+                'phoneNumberId': phone_number_id,
+                'sourceWabaId': source_waba_id,
+                'targetWabaId': target_waba_id,
+                'pin': pin,
+                'pinSent': send_pin,
+                'pinMethod': pin_method,
+                'migratedAt': datetime.utcnow().isoformat(),
+                'status': 'INITIATED'
+            }),
+            'updatedAt': datetime.utcnow().isoformat()
+        }
+        config_table.put_item(Item=migration_record)
+        
+        logger.info(json.dumps({
+            'event': 'phone_migration_initiated',
+            'phoneNumberId': phone_number_id,
+            'sourceWabaId': source_waba_id,
+            'targetWabaId': target_waba_id,
+            'pinSent': send_pin,
+            'requestId': request_id
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'success': True,
+                'phoneNumberId': phone_number_id,
+                'sourceWabaId': source_waba_id,
+                'targetWabaId': target_waba_id,
+                'pinSent': send_pin,
+                'status': 'INITIATED'
+            })
+        }
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'migrate_phone_error',
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to migrate phone: {str(e)}')

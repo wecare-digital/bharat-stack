@@ -51,12 +51,19 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
     accountUpdates: [],
   });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'events'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'sns'>('overview');
 
   const tabItems: TabItem[] = [
     { id: 'overview', label: 'Phone Numbers' },
     { id: 'events', label: 'System Events' },
+    { id: 'sns', label: 'SNS Subscription' },
   ];
+
+  // SNS subscription state
+  const [snsStatus, setSnsStatus] = useState<api.WABASNSSubscriptionStatus | null>(null);
+  const [snsLoading, setSnsLoading] = useState(false);
+  const [customTopicArn, setCustomTopicArn] = useState('');
+  const [customRoleArn, setCustomRoleArn] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -74,6 +81,8 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
         const details = await api.getWABADetails(wabasData[0].id);
         if (details) {
           setSelectedWaba(details);
+          // Load SNS status for the first WABA
+          loadSnsStatus(wabasData[0].id);
         }
       }
       if (wabasData.length === 0) {
@@ -99,9 +108,66 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
       const details = await api.getWABADetails(wabaId);
       if (details) {
         setSelectedWaba(details);
+        // Also load SNS status for the selected WABA
+        loadSnsStatus(wabaId);
       }
     } catch (err) {
       toast.error('Failed to load WABA details');
+    }
+  };
+
+  const loadSnsStatus = async (wabaId?: string) => {
+    const id = wabaId || selectedWaba?.id;
+    if (!id) return;
+    setSnsLoading(true);
+    try {
+      const status = await api.getWABASNSSubscriptionStatus(id);
+      setSnsStatus(status);
+      if (status?.defaultTopicArn && !customTopicArn) {
+        setCustomTopicArn(status.defaultTopicArn);
+      }
+    } catch (err) {
+      console.error('Failed to load SNS status:', err);
+    } finally {
+      setSnsLoading(false);
+    }
+  };
+
+  const handleSubscribeSNS = async () => {
+    if (!selectedWaba) return;
+    setSnsLoading(true);
+    try {
+      const topicArn = customTopicArn || undefined;
+      const roleArn = customRoleArn || undefined;
+      const success = await api.subscribeWABAToSNS(selectedWaba.id, topicArn, roleArn);
+      if (success) {
+        toast.success(`WABA ${selectedWaba.wabaName || selectedWaba.wabaId} subscribed to SNS`);
+        await loadSnsStatus();
+      } else {
+        toast.error('Failed to subscribe WABA to SNS');
+      }
+    } catch (err) {
+      toast.error('Failed to subscribe WABA to SNS');
+    } finally {
+      setSnsLoading(false);
+    }
+  };
+
+  const handleUnsubscribeSNS = async () => {
+    if (!selectedWaba) return;
+    setSnsLoading(true);
+    try {
+      const success = await api.unsubscribeWABAFromSNS(selectedWaba.id);
+      if (success) {
+        toast.success(`WABA ${selectedWaba.wabaName || selectedWaba.wabaId} unsubscribed from SNS`);
+        await loadSnsStatus();
+      } else {
+        toast.error('Failed to unsubscribe WABA from SNS');
+      }
+    } catch (err) {
+      toast.error('Failed to unsubscribe WABA from SNS');
+    } finally {
+      setSnsLoading(false);
     }
   };
 
@@ -346,6 +412,123 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
                     ) : (
                       <div className="empty-state">No account updates</div>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SNS Subscription Tab */}
+            {activeTab === 'sns' && selectedWaba && (
+              <div className="sns-section">
+                {/* Current Status */}
+                <div className="info-card">
+                  <h3>SNS Event Subscription</h3>
+                  <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
+                    Subscribe this WABA to an SNS topic to receive WhatsApp events (message status, template updates, phone quality changes).
+                    AWS EUM will publish events to the configured SNS topic.
+                  </p>
+
+                  {snsLoading && !snsStatus ? (
+                    <div className="empty-state">Loading subscription status...</div>
+                  ) : (
+                    <>
+                      {/* Status indicator */}
+                      <div className="sns-status-row">
+                        <span className="label">Status</span>
+                        <span className={`sns-badge ${snsStatus?.isSubscribed ? 'active' : 'inactive'}`}>
+                          {snsStatus?.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
+                        </span>
+                      </div>
+
+                      {/* Live event destinations */}
+                      {snsStatus?.liveEventDestinations && snsStatus.liveEventDestinations.length > 0 && (
+                        <div style={{ marginTop: 16 }}>
+                          <span className="label" style={{ display: 'block', marginBottom: 8 }}>Active Event Destinations</span>
+                          {snsStatus.liveEventDestinations.map((dest, idx) => (
+                            <div key={idx} className="sns-dest-item">
+                              <span className="value code" style={{ fontSize: 12 }}>{dest.eventDestinationArn}</span>
+                              {dest.roleArn && <span className="value code" style={{ fontSize: 11, color: '#888' }}>Role: {dest.roleArn}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Stored config info */}
+                      {snsStatus?.storedConfig?.subscribedAt && (
+                        <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
+                          Last subscribed: {new Date(snsStatus.storedConfig.subscribedAt).toLocaleString()}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Subscribe / Unsubscribe Form */}
+                <div className="info-card">
+                  <h3>{snsStatus?.isSubscribed ? 'Update or Unsubscribe' : 'Subscribe to SNS'}</h3>
+                  <div className="sns-form">
+                    <div className="sns-field">
+                      <label htmlFor="sns-topic-arn">SNS Topic ARN</label>
+                      <input
+                        id="sns-topic-arn"
+                        type="text"
+                        value={customTopicArn}
+                        onChange={(e) => setCustomTopicArn(e.target.value)}
+                        placeholder="arn:aws:sns:us-east-1:775261844268:stack-wecare-digital"
+                      />
+                      <span className="field-hint">Leave default to use the stack-wecare-digital topic</span>
+                    </div>
+                    <div className="sns-field">
+                      <label htmlFor="sns-role-arn">IAM Role ARN (optional)</label>
+                      <input
+                        id="sns-role-arn"
+                        type="text"
+                        value={customRoleArn}
+                        onChange={(e) => setCustomRoleArn(e.target.value)}
+                        placeholder="arn:aws:iam::role/..."
+                      />
+                      <span className="field-hint">Role that grants SNS publish permissions (optional)</span>
+                    </div>
+                    <div className="sns-actions">
+                      <button
+                        className="sns-btn subscribe"
+                        onClick={handleSubscribeSNS}
+                        disabled={snsLoading}
+                      >
+                        {snsLoading ? 'Processing...' : snsStatus?.isSubscribed ? 'Update Subscription' : 'Subscribe to SNS'}
+                      </button>
+                      {snsStatus?.isSubscribed && (
+                        <button
+                          className="sns-btn unsubscribe"
+                          onClick={handleUnsubscribeSNS}
+                          disabled={snsLoading}
+                        >
+                          {snsLoading ? 'Processing...' : 'Unsubscribe'}
+                        </button>
+                      )}
+                      <button
+                        className="sns-btn refresh"
+                        onClick={() => loadSnsStatus()}
+                        disabled={snsLoading}
+                      >
+                        Refresh Status
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* How it works */}
+                <div className="info-card">
+                  <h3>How SNS Events Work</h3>
+                  <div style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>
+                    <p>When subscribed, AWS End User Messaging publishes WhatsApp events to the SNS topic:</p>
+                    <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+                      <li>Message delivery status (sent, delivered, read, failed)</li>
+                      <li>Template approval/rejection notifications</li>
+                      <li>Phone number quality rating changes</li>
+                      <li>Account restriction and limit updates</li>
+                    </ul>
+                    <p>The inbound webhook handler processes these events and stores them in the System Events tab.</p>
                   </div>
                 </div>
               </div>
@@ -682,6 +865,133 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
 
         .embedded {
           padding: 0;
+        }
+
+        /* SNS Subscription Styles */
+        .sns-section {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .sns-status-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 8px;
+        }
+
+        .sns-badge {
+          display: inline-block;
+          padding: 4px 14px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .sns-badge.active {
+          background: #d1f470;
+          color: #1a3a2a;
+        }
+
+        .sns-badge.inactive {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+
+        .sns-dest-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 8px 12px;
+          background: #f9fafb;
+          border-radius: 6px;
+          margin-bottom: 6px;
+        }
+
+        .sns-form {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .sns-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .sns-field label {
+          font-size: 13px;
+          font-weight: 500;
+          color: #374151;
+        }
+
+        .sns-field input {
+          padding: 10px 14px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-size: 13px;
+          font-family: monospace;
+        }
+
+        .sns-field input:focus {
+          outline: none;
+          border-color: #1a3a2a;
+          box-shadow: 0 0 0 2px rgba(26, 58, 42, 0.1);
+        }
+
+        .field-hint {
+          font-size: 11px;
+          color: #9ca3af;
+        }
+
+        .sns-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .sns-btn {
+          padding: 10px 20px;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: opacity 0.15s;
+        }
+
+        .sns-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .sns-btn.subscribe {
+          background: #1a3a2a;
+          color: #d1f470;
+        }
+
+        .sns-btn.subscribe:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+
+        .sns-btn.unsubscribe {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .sns-btn.unsubscribe:hover:not(:disabled) {
+          background: #fecaca;
+        }
+
+        .sns-btn.refresh {
+          background: #f3f4f6;
+          color: #374151;
+        }
+
+        .sns-btn.refresh:hover:not(:disabled) {
+          background: #e5e7eb;
         }
 
         @media (max-width: 768px) {

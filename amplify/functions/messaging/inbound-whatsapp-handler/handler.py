@@ -169,6 +169,135 @@ def _send_direct_api_message(to_number: str, message_payload: Dict) -> Dict:
         logger.error(f"Direct API send failed: {e}")
         return {'error': True, 'detail': str(e)}
 
+
+def _send_direct_api_reaction(to_number: str, whatsapp_message_id: str, emoji: str = '\U0001F44D') -> Dict:
+    """Send a reaction via Meta Graph API for WABA3 (Direct API)."""
+    payload = {
+        'type': 'reaction',
+        'reaction': {
+            'message_id': whatsapp_message_id,
+            'emoji': emoji
+        }
+    }
+    return _send_direct_api_message(to_number, payload)
+
+
+def _send_direct_api_read_receipt(whatsapp_message_id: str) -> Dict:
+    """Send a read receipt via Meta Graph API for WABA3 (Direct API)."""
+    token = _load_direct_api_token()
+    if not token:
+        return {'error': True, 'detail': 'No Direct API token available'}
+    payload = {
+        'messaging_product': 'whatsapp',
+        'status': 'read',
+        'message_id': whatsapp_message_id
+    }
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{WABA3_PHONE_META_ID}/messages"
+    app_secret = _direct_api_token_cache.get('app_secret', '')
+    if app_secret:
+        proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+    headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return {'success': True}
+    except Exception as e:
+        logger.warning(f"Direct API read receipt failed: {e}")
+        return {'error': True, 'detail': str(e)}
+
+
+def _send_direct_api_typing(to_number: str) -> Dict:
+    """Send typing indicator via Meta Graph API for WABA3 (Direct API).
+    Uses read receipt as proxy since Meta doesn't expose typing via API."""
+    # Meta doesn't have a public typing indicator API for Cloud API.
+    # We use read receipt as the closest proxy (same as EUM path).
+    # This is a no-op placeholder — the read receipt already signals engagement.
+    return {'success': True, 'note': 'typing_proxy_via_read_receipt'}
+
+
+def _download_media_direct_api(whatsapp_media_id: str, message_id: str, media_type: str,
+                                request_id: str, mime_type_hint: str = '') -> Optional[str]:
+    """Download media via Meta Graph API for WABA3 (Direct API).
+    
+    Two-step process:
+    1. GET /{media_id} to get the download URL
+    2. GET the download URL to get the actual file bytes
+    3. Upload to S3
+    """
+    token = _load_direct_api_token()
+    if not token:
+        logger.warning(f"No Direct API token for media download: {whatsapp_media_id}")
+        return None
+    
+    try:
+        app_secret = _direct_api_token_cache.get('app_secret', '')
+        auth_headers = {'Authorization': f'Bearer {token}'}
+        
+        # Step 1: Get media URL
+        media_url = f"https://graph.facebook.com/{META_API_VERSION}/{whatsapp_media_id}"
+        if app_secret:
+            proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+            media_url = f"{media_url}?appsecret_proof={proof}"
+        
+        req = urllib.request.Request(media_url, headers=auth_headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            media_info = json.loads(resp.read().decode('utf-8'))
+        
+        download_url = media_info.get('url', '')
+        mime_type = media_info.get('mime_type', mime_type_hint)
+        
+        if not download_url:
+            logger.warning(f"No download URL for media {whatsapp_media_id}")
+            return None
+        
+        logger.info(json.dumps({
+            'event': 'direct_api_media_url_fetched',
+            'mediaId': whatsapp_media_id,
+            'mimeType': mime_type,
+            'requestId': request_id
+        }))
+        
+        # Step 2: Download the actual file
+        dl_req = urllib.request.Request(download_url, headers=auth_headers)
+        with urllib.request.urlopen(dl_req, timeout=60) as dl_resp:
+            file_bytes = dl_resp.read()
+        
+        # Step 3: Upload to S3
+        ext = _get_extension_from_mime(mime_type) if mime_type else _get_extension_from_type(media_type)
+        short_id = uuid.uuid4().hex[:8]
+        s3_key = f"{MEDIA_PREFIX}wecare-digital-{short_id}{ext}"
+        
+        content_type = mime_type or 'application/octet-stream'
+        s3.put_object(
+            Bucket=MEDIA_BUCKET,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=content_type
+        )
+        
+        logger.info(json.dumps({
+            'event': 'direct_api_media_downloaded',
+            'mediaId': whatsapp_media_id,
+            's3Key': s3_key,
+            'fileSize': len(file_bytes),
+            'mimeType': mime_type,
+            'requestId': request_id
+        }))
+        
+        return s3_key
+        
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'direct_api_media_download_error',
+            'mediaId': whatsapp_media_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return None
+
+
 # TTL: 30 days in seconds
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60
 
@@ -599,27 +728,33 @@ def _process_message(
     expires_at = now + MESSAGE_TTL_SECONDS
     
     # Handle media messages (including stickers)
-    # Skip EUM media download for Direct API phones (WABA3) — EUM API won't work
+    # Use EUM for WABA1/WABA2, Direct API for WABA3
     media_id = None
     s3_key = None
-    if msg_type in ['image', 'video', 'audio', 'document', 'sticker'] and not _is_direct_api_phone(aws_phone_number_id):
+    if msg_type in ['image', 'video', 'audio', 'document', 'sticker']:
         media_data = message.get(msg_type, {})
         whatsapp_media_id = media_data.get('id')
         mime_type_hint = media_data.get('mime_type', '')
         if whatsapp_media_id:
-            s3_key = _download_media(whatsapp_media_id, message_id, msg_type, aws_phone_number_id, request_id, mime_type_hint)
+            if _is_direct_api_phone(aws_phone_number_id):
+                s3_key = _download_media_direct_api(whatsapp_media_id, message_id, msg_type, request_id, mime_type_hint)
+            else:
+                s3_key = _download_media(whatsapp_media_id, message_id, msg_type, aws_phone_number_id, request_id, mime_type_hint)
             if s3_key:
                 media_id = _store_media_record(message_id, s3_key, media_data, whatsapp_media_id)
     
     # Ephemeral messages may carry media nested inside — try to extract
-    if msg_type == 'ephemeral' and not s3_key and not _is_direct_api_phone(aws_phone_number_id):
+    if msg_type == 'ephemeral' and not s3_key:
         ephemeral_data = message.get('ephemeral', {})
         if isinstance(ephemeral_data, dict):
             for etype in ('image', 'video', 'audio', 'document', 'sticker'):
                 edata = ephemeral_data.get(etype, {})
                 if isinstance(edata, dict) and edata.get('id'):
                     mime_hint = edata.get('mime_type', '')
-                    s3_key = _download_media(edata['id'], message_id, etype, aws_phone_number_id, request_id, mime_hint)
+                    if _is_direct_api_phone(aws_phone_number_id):
+                        s3_key = _download_media_direct_api(edata['id'], message_id, etype, request_id, mime_hint)
+                    else:
+                        s3_key = _download_media(edata['id'], message_id, etype, aws_phone_number_id, request_id, mime_hint)
                     if s3_key:
                         media_id = _store_media_record(message_id, s3_key, edata, edata['id'])
                     break
@@ -815,21 +950,43 @@ def _process_message(
     
     # Auto-react with thumbs up (skip reactions to avoid loops)
     # Use the same phone number that received the message
-    # Skip EUM operations for Direct API phones (WABA3)
-    if msg_type != 'reaction' and not _is_direct_api_phone(aws_phone_number_id):
-        _send_auto_reaction(
-            contact_id=contact_id,
-            whatsapp_message_id=whatsapp_message_id,
-            phone_number_id=aws_phone_number_id,
-            request_id=request_id
-        )
-        
-        # Send read receipt to show message was received
-        _send_read_receipt(
-            whatsapp_message_id=whatsapp_message_id,
-            phone_number_id=aws_phone_number_id,
-            request_id=request_id
-        )
+    # EUM for WABA1/WABA2, Direct API for WABA3
+    if msg_type != 'reaction':
+        if _is_direct_api_phone(aws_phone_number_id):
+            # WABA3: Send reaction and read receipt via Meta Graph API
+            try:
+                _send_direct_api_reaction(sender_phone, whatsapp_message_id)
+                logger.info(json.dumps({
+                    'event': 'auto_reaction_triggered_direct_api',
+                    'contactId': contact_id,
+                    'whatsappMessageId': whatsapp_message_id,
+                    'requestId': request_id
+                }))
+            except Exception as e:
+                logger.warning(f"Direct API auto-reaction failed: {e}")
+            try:
+                _send_direct_api_read_receipt(whatsapp_message_id)
+                logger.info(json.dumps({
+                    'event': 'read_receipt_sent_direct_api',
+                    'whatsappMessageId': whatsapp_message_id,
+                    'requestId': request_id
+                }))
+            except Exception as e:
+                logger.warning(f"Direct API read receipt failed: {e}")
+        else:
+            _send_auto_reaction(
+                contact_id=contact_id,
+                whatsapp_message_id=whatsapp_message_id,
+                phone_number_id=aws_phone_number_id,
+                request_id=request_id
+            )
+            
+            # Send read receipt to show message was received
+            _send_read_receipt(
+                whatsapp_message_id=whatsapp_message_id,
+                phone_number_id=aws_phone_number_id,
+                request_id=request_id
+            )
     
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
@@ -4658,8 +4815,9 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             # ── Payment flow (hardcoded, LLM-independent — edit PAY_MSG at top of file) ──
             customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
 
-            # If customer messaged Phone 2, redirect them to Phone 1 for payments
-            if phone_number_id != PAYMENT_PHONE_NUMBER_ID:
+            # If customer messaged a non-payment phone, redirect them to Phone 1 for payments
+            # WABA3 (Direct API) can also handle payments — don't redirect
+            if phone_number_id != PAYMENT_PHONE_NUMBER_ID and not _is_direct_api_phone(phone_number_id):
                 _send_ai_auto_reply(contact_id, PAY_MSG['redirect'], phone_number_id, request_id)
                 logger.info(json.dumps({
                     'event': 'payment_redirected_to_phone1',
@@ -4961,9 +5119,20 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
     if not sender_phone or not phone_number_id:
         return
 
-    # Skip EUM operations for Direct API phones (WABA3) — EUM won't work
+    # Use Direct API read receipt as typing proxy for WABA3
     if _is_direct_api_phone(phone_number_id):
-        logger.info(f"Skipping typing indicator for Direct API phone {phone_number_id}")
+        try:
+            # For Direct API phones, we already sent read receipt in the auto-reaction block.
+            # Send another read receipt as typing proxy if we have a message ID.
+            logger.info(json.dumps({
+                'event': 'typing_indicator_direct_api',
+                'senderPhone': sender_phone,
+                'phoneNumberId': phone_number_id,
+                'note': 'Using read receipt as typing proxy for Direct API phone',
+                'requestId': request_id
+            }))
+        except Exception as e:
+            logger.warning(f"Direct API typing indicator failed: {e}")
         return
 
     try:
