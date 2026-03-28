@@ -1062,7 +1062,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://s3.us-east-1.amazonaws.com/app.wecare.digital/stream/media/ivr/ivr.mp3')  # IVR audio greeting for auto-pickup
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr.mp3')  # IVR audio greeting via CloudFront
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 # AI Bot config
