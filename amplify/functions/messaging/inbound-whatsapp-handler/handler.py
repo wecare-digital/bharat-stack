@@ -105,7 +105,7 @@ def _is_direct_api_phone(phone_number_id: str) -> bool:
 # Token loaded from Secrets Manager (same secret as calling handler).
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
-WABA3_PHONE_META_ID = '945798751960485'
+WABA3_PHONE_META_ID = '1016149501586345'  # +91 93309 94400 (migrated to WABA3, pending registration)
 _direct_api_token_cache = {}
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
@@ -130,8 +130,21 @@ def _load_direct_api_token() -> str:
         return ''
 
 
-def _send_direct_api_message(to_number: str, message_payload: Dict) -> Dict:
-    """Send a WhatsApp message via Meta Graph API for WABA3 (Direct API)."""
+def _get_meta_phone_id_for_direct_api(aws_phone_id: str) -> str:
+    """Get the Meta phone ID for a Direct API phone number."""
+    DIRECT_API_META_MAP = {
+        PHONE_NUMBER_ID_2: '1055232054343117',  # +91 99033 00044 (WABA-T)
+        PHONE_NUMBER_ID_3: '1016149501586345',  # +91 93309 94400 (WABA3, pending)
+    }
+    return DIRECT_API_META_MAP.get(aws_phone_id, WABA3_PHONE_META_ID)
+
+
+# Track current phone context for Direct API calls
+_current_direct_api_phone = None
+
+
+def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_id: str = None) -> Dict:
+    """Send a WhatsApp message via Meta Graph API for Direct API phones."""
     token = _load_direct_api_token()
     if not token:
         return {'error': True, 'detail': 'No Direct API token available'}
@@ -141,7 +154,8 @@ def _send_direct_api_message(to_number: str, message_payload: Dict) -> Dict:
     message_payload['to'] = to_number
     message_payload['messaging_product'] = 'whatsapp'
 
-    url = f"https://graph.facebook.com/{META_API_VERSION}/{WABA3_PHONE_META_ID}/messages"
+    phone_id = meta_phone_id or _current_direct_api_phone or WABA3_PHONE_META_ID
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{phone_id}/messages"
     app_secret = _direct_api_token_cache.get('app_secret', '')
     if app_secret:
         proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
@@ -183,8 +197,8 @@ def _send_direct_api_reaction(to_number: str, whatsapp_message_id: str, emoji: s
     return _send_direct_api_message(to_number, payload)
 
 
-def _send_direct_api_read_receipt(whatsapp_message_id: str) -> Dict:
-    """Send a read receipt via Meta Graph API for WABA3 (Direct API)."""
+def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str = None) -> Dict:
+    """Send a read receipt via Meta Graph API for Direct API phones."""
     token = _load_direct_api_token()
     if not token:
         return {'error': True, 'detail': 'No Direct API token available'}
@@ -193,7 +207,8 @@ def _send_direct_api_read_receipt(whatsapp_message_id: str) -> Dict:
         'status': 'read',
         'message_id': whatsapp_message_id
     }
-    url = f"https://graph.facebook.com/{META_API_VERSION}/{WABA3_PHONE_META_ID}/messages"
+    phone_id = meta_phone_id or _current_direct_api_phone or WABA3_PHONE_META_ID
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{phone_id}/messages"
     app_secret = _direct_api_token_cache.get('app_secret', '')
     if app_secret:
         proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
@@ -951,8 +966,12 @@ def _process_message(
     
     # Auto-react with thumbs up (skip reactions to avoid loops)
     # Use the same phone number that received the message
-    # EUM for WABA1/WABA2, Direct API for WABA3
+    # Direct API for all phones now (no EUM)
     if msg_type != 'reaction':
+        # Set the current Direct API phone context for this message
+        global _current_direct_api_phone
+        _current_direct_api_phone = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
+        
         if _is_direct_api_phone(aws_phone_number_id):
             # WABA3: Send reaction and read receipt via Meta Graph API
             try:
