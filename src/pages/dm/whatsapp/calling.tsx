@@ -145,7 +145,7 @@ POST /{phone-number-id}/calls
 
 const AWS_RESOURCES = [
   { service: 'API Gateway', resource: 'api.wecare.digital', purpose: 'Webhook endpoint for Meta call events + messaging', status: 'active' },
-  { service: 'Lambda', resource: 'wecare-whatsapp-calling', purpose: 'Calling webhook handler (verify + call events)', status: 'active' },
+  { service: 'Lambda', resource: 'wecare-whatsapp-calling', purpose: 'Unified webhook handler (calls + messages + all Meta events)', status: 'active' },
   { service: 'Lambda', resource: 'wecare-whatsapp-voice', purpose: 'TTS generation, media upload, audio messages', status: 'active' },
   { service: 'DynamoDB', resource: 'WhatsAppCallingTable', purpose: 'Call event logs (connect, terminate, permission)', status: 'active' },
   { service: 'DynamoDB', resource: 'WhatsAppVoiceTable', purpose: 'TTS logs, voice note logs', status: 'active' },
@@ -223,7 +223,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
     setOutboundLoading(true);
     setOutboundError('');
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/outbound`, {
+      const res = await fetch(`${API_BASE}/whatsapp/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -314,7 +314,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       });
 
       // 5. Send to backend → Meta
-      const res = await fetch(`${API_BASE}/whatsapp-calling/outbound`, {
+      const res = await fetch(`${API_BASE}/whatsapp/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -430,7 +430,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   // Load auto-pickup config
   const loadConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/config`);
+      const res = await fetch(`${API_BASE}/whatsapp/config`);
       if (res.ok) {
         const data = await res.json();
         setAutoPickup(data.autoPickup !== false); // default true
@@ -447,7 +447,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
     setAutoPickupLoading(true);
     try {
       const newVal = !autoPickup;
-      const res = await fetch(`${API_BASE}/whatsapp-calling/config`, {
+      const res = await fetch(`${API_BASE}/whatsapp/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoPickup: newVal }),
@@ -463,7 +463,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   // Load active calls
   const loadActiveCalls = async () => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/active`);
+      const res = await fetch(`${API_BASE}/whatsapp/active`);
       if (res.ok) {
         const data = await res.json();
         setActiveCalls(data.calls || []);
@@ -475,7 +475,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const loadCallLogs = async () => {
     setLoadingCalls(true);
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/logs`);
+      const res = await fetch(`${API_BASE}/whatsapp/logs`);
       if (res.ok) {
         const data = await res.json();
         setCallLogs(data.logs || []);
@@ -487,7 +487,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   // Reject a ringing call
   const rejectCall = async (callId: string, phoneNumberId: string) => {
     try {
-      await fetch(`${API_BASE}/whatsapp-calling/reject`, {
+      await fetch(`${API_BASE}/whatsapp/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callId, phoneNumberId }),
@@ -500,7 +500,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   // Hangup an active call
   const hangupCall = async (callId: string, phoneNumberId: string) => {
     try {
-      await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
+      await fetch(`${API_BASE}/whatsapp/hangup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callId, phoneNumberId }),
@@ -522,7 +522,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       // No SDP in the call record — just do server-side accept (auto-pickup style)
       toast.info('No SDP offer available — sending server-side accept');
       try {
-        const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+        const res = await fetch(`${API_BASE}/whatsapp/accept`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callId, phoneNumberId, sdpAnswer: '' }),
@@ -601,7 +601,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
 
       // 9. Send pre_accept + accept with SDP answer to backend → Meta
       toast.info('Sending SDP answer to Meta...');
-      const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+      const res = await fetch(`${API_BASE}/whatsapp/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callId, phoneNumberId, sdpAnswer }),
@@ -738,7 +738,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       });
 
       // 8. Send accept with SDP answer
-      const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+      const res = await fetch(`${API_BASE}/whatsapp/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callId, phoneNumberId, sdpAnswer }),
@@ -764,7 +764,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
           console.error('[IVR] Audio play error:', e);
         }
         // Hang up after audio
-        await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
+        await fetch(`${API_BASE}/whatsapp/hangup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callId, phoneNumberId }),
@@ -796,7 +796,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
       loadActiveCalls();
       const interval = setInterval(async () => {
         try {
-          const res = await fetch(`${API_BASE}/whatsapp-calling/active`);
+          const res = await fetch(`${API_BASE}/whatsapp/active`);
           if (res.ok) {
             const data = await res.json();
             const calls = data.calls || [];
@@ -917,7 +917,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                     <button key={m.value} onClick={async () => {
                       setAutoPickupMode(m.value);
                       try {
-                        await fetch(`${API_BASE}/whatsapp-calling/config`, {
+                        await fetch(`${API_BASE}/whatsapp/config`, {
                           method: 'POST', headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ autoPickupMode: m.value }),
                         });
@@ -949,7 +949,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' }}>
                 <button onClick={async () => {
                   try {
-                    const res = await fetch(`${API_BASE}/whatsapp-calling/config`, {
+                    const res = await fetch(`${API_BASE}/whatsapp/config`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ ivrUrl }),
                     });

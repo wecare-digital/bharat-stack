@@ -1,19 +1,30 @@
 """
-WhatsApp Calling Webhook + Call Control Handler
+WhatsApp Unified Webhook + Call Control Handler
 
-Purpose: Handle WhatsApp Business Calling API webhooks + call signaling
-- GET  /whatsapp-calling           → Webhook verification (hub.challenge)
-- POST /whatsapp-calling           → Call events (connect, terminate, permission)
-- GET  /whatsapp-calling/logs      → List call event logs
-- GET  /whatsapp-calling/active    → Get active/pending calls (for frontend polling)
-- POST /whatsapp-calling/accept    → Pre-accept + accept a call (send SDP answer to Meta)
-- POST /whatsapp-calling/reject    → Reject/terminate a call
-- POST /whatsapp-calling/hangup    → Hang up an active call
-- POST /whatsapp-calling/outbound  → Request call permission or initiate outbound call
-- DELETE /whatsapp-calling         → Clear call logs
+Purpose: Handle WhatsApp Business Calling API webhooks + call signaling + message forwarding
+UNIFIED ENDPOINT: https://api.wecare.digital/whatsapp (replaces old /whatsapp-calling)
 
-Meta Webhook Fields: calls
+Routes (all under /whatsapp):
+- GET  /whatsapp                   → Webhook verification (hub.challenge)
+- POST /whatsapp                   → Webhook events (calls + messages from Meta)
+- GET  /whatsapp/logs              → List call event logs
+- GET  /whatsapp/active            → Get active/pending calls (for frontend polling)
+- POST /whatsapp/accept            → Pre-accept + accept a call (send SDP answer to Meta)
+- POST /whatsapp/reject            → Reject/terminate a call
+- POST /whatsapp/hangup            → Hang up an active call
+- POST /whatsapp/outbound          → Request call permission or initiate outbound call
+- GET  /whatsapp/config            → Get auto-pickup config
+- POST /whatsapp/config            → Update auto-pickup config
+- POST /whatsapp/ai-respond        → AI Bot: audio/text → Transcribe → Bedrock → Polly TTS
+- DELETE /whatsapp                 → Clear call logs
+
+Meta Webhook Fields: messages, calls, account_update, account_settings_update, ...
 Verify Token: wecare_calling_verify_2026
+
+IVR Audio Playback:
+  Graph API mode: pre_accept with SDP → accept → send audio message → terminate
+  SIP mode (Asterisk): True in-call IVR audio via RTP/SRTP
+  For true in-call audio, enable SIP on the phone number.
 """
 
 import os
@@ -439,8 +450,28 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
             elif field == 'messages':
                 # Forward message events to inbound handler (WABA3 Direct API)
                 _forward_to_inbound_handler(entry, waba_id, request_id)
+            elif field == 'account_settings_update':
+                # Calling settings update webhook (status, call_icon_visibility, sip.status, etc.)
+                logger.info(json.dumps({
+                    'event': 'account_settings_update',
+                    'wabaId': waba_id,
+                    'value_preview': json.dumps(value)[:500],
+                    'requestId': request_id,
+                }))
+            elif field in ('account_update', 'account_alerts', 'account_review_update',
+                           'business_capability_update', 'message_template_status_update',
+                           'message_template_quality_update', 'message_template_components_update',
+                           'phone_number_quality_update', 'phone_number_name_update',
+                           'security', 'template_category_update', 'user_id_update',
+                           'user_preferences', 'group_participant_change',
+                           'group_membership_approval_request', 'business_username_update',
+                           'payment_configuration_update', 'history', 'flows'):
+                # Forward all non-call webhook fields to inbound handler for processing
+                # The inbound handler has full logic for template status, account updates, etc.
+                _forward_to_inbound_handler(entry, waba_id, request_id)
             else:
-                logger.info(f"Non-call field: {field}")
+                logger.info(f"Unhandled webhook field: {field} — forwarding to inbound handler")
+                _forward_to_inbound_handler(entry, waba_id, request_id)
 
     return _response(200, {'status': 'processed', 'entries': len(entries)})
 
@@ -1027,7 +1058,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr.mp3')  # IVR audio greeting via CloudFront
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/whatsapp-media/whatsapp-calling/ivr-greeting.mp3')  # Polly TTS MP3 (WhatsApp compatible)
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 # AI Bot config
@@ -1083,11 +1114,28 @@ def _get_auto_pickup_audio_url() -> Optional[str]:
 
 def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:
     """
-    IVR mode: Pre-accept the call, send an interactive IVR menu via WhatsApp
-    message, then terminate the call. The caller taps a button to route to
-    the right department/action.
+    IVR mode: Accept the call with SDP answer to establish WebRTC media,
+    send IVR audio greeting as WhatsApp audio message, send interactive
+    IVR menu, then terminate the call.
 
-    All phones use Direct API — full flow: pre_accept → IVR menu → terminate.
+    WhatsApp Calling API flow (per Meta docs):
+      1. pre_accept (with SDP answer) — establishes WebRTC connection, stops ringing
+      2. accept (with SDP answer) — starts media flow so caller hears audio
+      3. Send IVR audio greeting via WhatsApp audio message
+      4. Send interactive IVR menu buttons via WhatsApp message
+      5. Terminate call after delay — caller continues via chat
+
+    Note: WhatsApp Calling API uses WebRTC for media. To play IVR audio
+    IN the call (not as a chat message), you need either:
+      a) SIP mode with Asterisk (plays audio via RTP/SRTP)
+      b) WebRTC media server generating SDP answer with audio stream
+    
+    Current approach: pre_accept + accept to connect the call, send IVR
+    audio as WhatsApp message (caller sees it in chat), then terminate.
+    For true in-call IVR audio, enable SIP mode on the phone number and
+    route through Asterisk which has IVR audio playback support.
+
+    All phones use Direct API — full call control supported.
     """
 
     logger.info(json.dumps({
@@ -1095,29 +1143,80 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         'call_id': call_id,
         'from': from_number,
         'phone_number_id': phone_number_id,
+        'has_sdp_offer': bool(sdp_offer),
+        'sdp_offer_len': len(sdp_offer) if sdp_offer else 0,
     }))
 
-    # Direct API: Full pre_accept → IVR menu → terminate flow
-    # Step 1: Pre-accept to stop ringing
-    pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+    # ── Step 1: Pre-accept with SDP answer to establish WebRTC connection ──
+    # Per Meta docs: pre_accept with SDP answer pre-establishes the WebRTC
+    # connection to prevent audio clipping when the call is accepted.
+    pre_payload = {
         'messaging_product': 'whatsapp',
         'call_id': call_id,
         'action': 'pre_accept',
-    }, phone_number_id=phone_number_id)
+    }
+    # If we have an SDP offer, generate a minimal SDP answer
+    # This establishes the media path so the caller's audio is connected
+    if sdp_offer:
+        sdp_answer = _generate_sdp_answer(sdp_offer)
+        if sdp_answer:
+            pre_payload['session'] = {
+                'sdp_type': 'answer',
+                'sdp': sdp_answer,
+            }
+            logger.info(f"IVR pre_accept with SDP answer (len={len(sdp_answer)})")
+
+    pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST',
+                                pre_payload, phone_number_id=phone_number_id)
     logger.info(f"IVR pre_accept: {json.dumps(pre_result)}")
 
     if pre_result.get('error'):
         logger.error(f"IVR pre_accept failed: {json.dumps(pre_result)}")
-        _update_call_status(call_id, 'ivr_failed', {'failStep': 'pre_accept'})
-        # Still send IVR menu even if pre_accept fails
+        _update_call_status(call_id, 'ivr_failed', {'failStep': 'pre_accept', 'error': pre_result})
+        # Still send IVR menu even if pre_accept fails — caller gets chat buttons
+    else:
+        _update_call_status(call_id, 'ivr_pre_accepted')
+
+    # ── Step 2: Accept the call to start media flow ──
+    # Per Meta docs: accept with SDP answer starts actual media flow.
+    # Business has 30-60 seconds to accept after pre_accept.
+    accept_payload = {
+        'messaging_product': 'whatsapp',
+        'call_id': call_id,
+        'action': 'accept',
+    }
+    if sdp_offer:
+        sdp_answer = _generate_sdp_answer(sdp_offer)
+        if sdp_answer:
+            accept_payload['session'] = {
+                'sdp_type': 'answer',
+                'sdp': sdp_answer,
+            }
+
+    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST',
+                                   accept_payload, phone_number_id=phone_number_id)
+    logger.info(f"IVR accept: {json.dumps(accept_result)}")
+
+    if accept_result.get('error'):
+        logger.warning(f"IVR accept failed (call may still be pre_accepted): {json.dumps(accept_result)}")
+        _update_call_status(call_id, 'ivr_accept_failed', {'error': accept_result})
     else:
         _update_call_status(call_id, 'ivr_active')
 
-    # Step 2: Send IVR menu via WhatsApp interactive message
+    # ── Step 3: Send IVR audio greeting as WhatsApp audio message ──
+    # This sends the IVR audio file as a chat message the caller can play.
+    # For true in-call audio, SIP mode with Asterisk is required.
+    audio_url = _get_auto_pickup_audio_url()
+    if audio_url:
+        _send_audio_to_caller(phone_number_id, from_number, audio_url, call_id)
+        logger.info(f"IVR audio sent to {from_number}: {audio_url}")
+
+    # ── Step 4: Send IVR interactive menu via WhatsApp message ──
     _send_ivr_menu(phone_number_id, from_number, call_id)
 
-    # Step 3: Terminate the call after a short delay
-    time.sleep(3)
+    # ── Step 5: Keep call connected briefly, then terminate ──
+    # Give caller time to hear the connection + see the IVR menu
+    time.sleep(5)
     try:
         term_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
             'messaging_product': 'whatsapp',
@@ -1126,9 +1225,90 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         }, phone_number_id=phone_number_id)
         logger.info(f"IVR terminate: {json.dumps(term_result)}")
     except Exception as e:
-        logger.info(f"IVR terminate skipped: {e}")
+        logger.info(f"IVR terminate skipped (call may have ended): {e}")
 
     _update_call_status(call_id, 'ivr_completed')
+
+
+def _generate_sdp_answer(sdp_offer: str) -> Optional[str]:
+    """
+    Generate a minimal SDP answer from the SDP offer.
+    
+    Per Meta WhatsApp Calling API docs:
+    - Audio codec: OPUS (default, always supported)
+    - Additional codecs: PCMA, PCMU (G.711) if configured
+    - Media encryption: WebRTC (ICE + DTLS + SRTP) or SDES
+    
+    This generates a basic SDP answer that accepts the OPUS codec
+    from the offer. For full WebRTC media handling (actual audio
+    streaming), use SIP mode with Asterisk.
+    
+    The SDP answer tells Meta's servers we're ready to receive media,
+    which is required for the call to be properly connected.
+    """
+    if not sdp_offer:
+        return None
+
+    try:
+        # Parse the offer to extract key parameters
+        lines = sdp_offer.strip().split('\n')
+        
+        # Extract ICE credentials and fingerprint from offer
+        ice_ufrag = ''
+        ice_pwd = ''
+        fingerprint = ''
+        ssrc = ''
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('a=ice-ufrag:'):
+                ice_ufrag = line.split(':', 1)[1]
+            elif line.startswith('a=ice-pwd:'):
+                ice_pwd = line.split(':', 1)[1]
+            elif line.startswith('a=fingerprint:'):
+                fingerprint = line
+            elif line.startswith('a=ssrc:') and not ssrc:
+                ssrc = line.split(':')[1].split(' ')[0]
+
+        # Generate our own ICE credentials for the answer
+        import random
+        import string
+        our_ufrag = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        our_pwd = ''.join(random.choices(string.ascii_letters + string.digits, k=24))
+
+        # Build minimal SDP answer accepting OPUS codec (payload type 111)
+        answer_lines = [
+            'v=0',
+            f'o=- {int(time.time())} 2 IN IP4 0.0.0.0',
+            's=-',
+            't=0 0',
+            # Audio media line — accept OPUS (111)
+            'm=audio 9 UDP/TLS/RTP/SAVPF 111',
+            'c=IN IP4 0.0.0.0',
+            'a=rtcp:9 IN IP4 0.0.0.0',
+            f'a=ice-ufrag:{our_ufrag}',
+            f'a=ice-pwd:{our_pwd}',
+            'a=ice-options:trickle',
+            'a=setup:active',
+            'a=mid:0',
+            'a=recvonly',  # We only receive audio (IVR doesn't send audio via WebRTC)
+            'a=rtcp-mux',
+            'a=rtpmap:111 opus/48000/2',
+            'a=fmtp:111 minptime=10;useinbandfec=1',
+        ]
+
+        # Add fingerprint if present in offer (required for DTLS)
+        if fingerprint:
+            answer_lines.insert(-3, fingerprint)
+
+        sdp_answer = '\r\n'.join(answer_lines) + '\r\n'
+        logger.info(f"Generated SDP answer: {len(sdp_answer)} bytes, "
+                     f"ice_ufrag={our_ufrag[:4]}..., has_fingerprint={bool(fingerprint)}")
+        return sdp_answer
+
+    except Exception as e:
+        logger.error(f"SDP answer generation failed: {e}", exc_info=True)
+        return None
 
 
 # ─── IVR Menu System ────────────────────────────────────────────────
@@ -1263,10 +1443,8 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     menu = _get_ivr_menu(phone_number_id)
     aws_phone_id = _get_aws_phone_id(phone_number_id)
 
-    # Send greeting audio first (if configured)
-    audio_url = _get_auto_pickup_audio_url()
-    if audio_url:
-        _send_audio_to_caller(phone_number_id, to_number, audio_url, call_id)
+    # Note: IVR audio is now sent by _auto_pickup_and_play before this function
+    # is called, so we don't duplicate the audio send here.
 
     # Build interactive button message (max 3 buttons per Meta API)
     buttons = []
@@ -1359,16 +1537,111 @@ def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> D
 
 
 def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, call_id: str) -> None:
-    """Send the greeting audio as a WhatsApp audio message via Direct API."""
+    """
+    Send IVR greeting audio as a WhatsApp audio message via Direct API.
+    
+    WhatsApp audio message supported formats:
+      - audio/aac, audio/mp4, audio/mpeg (MP3), audio/amr, audio/ogg (OPUS codec only)
+    
+    Strategy:
+      1. Try sending the configured IVR URL (MP3/OGG from S3/CloudFront)
+      2. If that fails, generate TTS via Amazon Polly (OGG/OPUS), upload to S3, send that
+      3. If all audio fails, send a text greeting instead
+    
+    Note: This sends audio as a WhatsApp CHAT message (appears in conversation).
+    For true in-call audio playback, SIP mode with Asterisk is required.
+    """
     try:
         aws_phone_id = _get_aws_phone_id(phone_number_id)
+
+        # First try: send the configured audio URL directly
         result = _send_via_aws(aws_phone_id, to_number, {
             'type': 'audio',
             'audio': {'link': audio_url},
         })
-        logger.info(f"AUTO-PICKUP audio sent to {to_number}: {json.dumps(result)}")
+
+        if result.get('error'):
+            logger.warning(f"IVR audio URL failed ({audio_url}): {json.dumps(result)}")
+            # Second try: generate TTS via Polly and upload to S3
+            tts_url = _generate_ivr_tts_audio(phone_number_id, call_id)
+            if tts_url:
+                result = _send_via_aws(aws_phone_id, to_number, {
+                    'type': 'audio',
+                    'audio': {'link': tts_url},
+                })
+                if result.get('error'):
+                    logger.error(f"IVR Polly TTS audio also failed: {json.dumps(result)}")
+                else:
+                    logger.info(f"IVR Polly TTS audio sent to {to_number}: {json.dumps(result)}")
+                    return
+            # Final fallback: text greeting
+            logger.warning(f"All IVR audio methods failed, sending text greeting")
+            _send_via_aws(aws_phone_id, to_number, {
+                'type': 'text',
+                'text': {'body': '📞 Thanks for calling WECARE.DIGITAL! Please hold while we connect you, or check the menu below.'},
+            })
+        else:
+            logger.info(f"IVR audio sent to {to_number}: {json.dumps(result)}")
     except Exception as e:
-        logger.error(f"Failed to send auto-pickup audio: {e}")
+        logger.error(f"Failed to send auto-pickup audio: {e}", exc_info=True)
+
+
+def _generate_ivr_tts_audio(phone_number_id: str, call_id: str) -> Optional[str]:
+    """
+    Generate IVR greeting audio via Amazon Polly TTS → OGG/OPUS → S3 → public URL.
+    
+    WhatsApp requires OGG with OPUS codec for audio messages.
+    Polly supports ogg_vorbis output, but WhatsApp needs OPUS.
+    Polly also supports mp3 which WhatsApp accepts.
+    
+    Returns a public S3 URL for the generated audio, or None on failure.
+    """
+    try:
+        # Get IVR greeting text for this phone number
+        menu = _get_ivr_menu(phone_number_id)
+        greeting_text = menu.get('greeting', 'Thanks for calling! Please check the menu below for options.')
+        # Strip markdown formatting for TTS
+        clean_text = greeting_text.replace('*', '').replace('📞', '').replace('\n\n', '. ').replace('\n', '. ').strip()
+
+        # Generate MP3 via Polly (WhatsApp accepts audio/mpeg)
+        voice_id = AI_VOICE_ID or 'Kajal'
+        engine = 'neural'
+
+        polly_resp = polly_client.synthesize_speech(
+            Text=clean_text,
+            OutputFormat='mp3',
+            VoiceId=voice_id,
+            Engine=engine,
+            SampleRate='24000',
+        )
+
+        audio_stream = polly_resp.get('AudioStream')
+        if not audio_stream:
+            logger.error("Polly returned no audio stream")
+            return None
+
+        audio_bytes = audio_stream.read()
+        if len(audio_bytes) < 100:
+            logger.error(f"Polly audio too small: {len(audio_bytes)} bytes")
+            return None
+
+        # Upload to S3 with public-read ACL
+        s3_key = f'whatsapp-media/whatsapp-calling/ivr-greeting-{call_id[:8]}.mp3'
+        s3.put_object(
+            Bucket=MEDIA_BUCKET,
+            Key=s3_key,
+            Body=audio_bytes,
+            ContentType='audio/mpeg',
+        )
+
+        # Generate a public URL via CloudFront (app.wecare.digital)
+        public_url = f'https://app.wecare.digital/{s3_key}'
+        logger.info(f"IVR TTS audio generated: {public_url} ({len(audio_bytes)} bytes, voice={voice_id})")
+        return public_url
+
+    except Exception as e:
+        logger.error(f"IVR TTS generation failed: {e}", exc_info=True)
+        return None
 
 
 # ─── Active Calls (for frontend polling) ────────────────────────────

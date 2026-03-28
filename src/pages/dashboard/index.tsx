@@ -829,7 +829,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
         } else if (id === 'voice_aws') {
           deleted = await bulkClear(`${API_BASE}/voice-aws/clear-logs`);
         } else if (id === 'whatsapp_calling') {
-          deleted = await bulkClear(`${API_BASE}/whatsapp-calling`);
+          deleted = await bulkClear(`${API_BASE}/whatsapp`);
         } else if (id === 'obd_campaigns') {
           deleted = await bulkClear(`${API_BASE}/voice-in/obd`, 'POST', { clearAll: true });
         } else if (id === 'airtel_sms') {
@@ -2918,9 +2918,9 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
                   <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' }}>Webhook Configuration (Meta App Dashboard)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Callback URL</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>https://api.wecare.digital/whatsapp-calling</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Callback URL</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>https://api.wecare.digital/whatsapp</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>{WHATSAPP_CALLING_VERIFY_TOKEN || '(not configured)'}</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>calls</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>messages, calls</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-whatsapp-calling</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App ID</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>DynamoDB Table</span><code style={{ color: '#111827' }}>WhatsAppCallingTable</code></div>
@@ -2930,17 +2930,17 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>API Routes (all on api.wecare.digital)</span>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' }}>
                       {[
-                        { m: 'GET', p: '/whatsapp-calling', d: 'Webhook verify' },
-                        { m: 'POST', p: '/whatsapp-calling', d: 'Call events from Meta' },
-                        { m: 'GET', p: '/whatsapp-calling/active', d: 'Active/ringing calls' },
-                        { m: 'GET', p: '/whatsapp-calling/logs', d: 'Call event logs' },
-                        { m: 'POST', p: '/whatsapp-calling/accept', d: 'Accept call (SDP answer)' },
-                        { m: 'POST', p: '/whatsapp-calling/reject', d: 'Reject ringing call' },
-                        { m: 'POST', p: '/whatsapp-calling/hangup', d: 'Hang up active call' },
-                        { m: 'POST', p: '/whatsapp-calling/outbound', d: 'Outbound call / permission' },
-                        { m: 'GET', p: '/whatsapp-calling/config', d: 'Auto-pickup config' },
-                        { m: 'POST', p: '/whatsapp-calling/config', d: 'Update config' },
-                        { m: 'DELETE', p: '/whatsapp-calling', d: 'Clear logs' },
+                        { m: 'GET', p: '/whatsapp', d: 'Webhook verify' },
+                        { m: 'POST', p: '/whatsapp', d: 'Call + message events from Meta' },
+                        { m: 'GET', p: '/whatsapp/active', d: 'Active/ringing calls' },
+                        { m: 'GET', p: '/whatsapp/logs', d: 'Call event logs' },
+                        { m: 'POST', p: '/whatsapp/accept', d: 'Accept call (SDP answer)' },
+                        { m: 'POST', p: '/whatsapp/reject', d: 'Reject ringing call' },
+                        { m: 'POST', p: '/whatsapp/hangup', d: 'Hang up active call' },
+                        { m: 'POST', p: '/whatsapp/outbound', d: 'Outbound call / permission' },
+                        { m: 'GET', p: '/whatsapp/config', d: 'Auto-pickup config' },
+                        { m: 'POST', p: '/whatsapp/config', d: 'Update config' },
+                        { m: 'DELETE', p: '/whatsapp', d: 'Clear logs' },
                       ].map(({ m, p, d }) => (
                         <div key={`${m}${p}`} style={{ background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
                           <code><span style={{ color: m === 'POST' ? '#1a3a2a' : m === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600, fontSize: '0.7rem' }}>{m}</span> <span style={{ fontSize: '0.75rem' }}>{p}</span></code>
