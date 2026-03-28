@@ -4815,9 +4815,9 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             # ── Payment flow (hardcoded, LLM-independent — edit PAY_MSG at top of file) ──
             customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
 
-            # If customer messaged a non-payment phone, redirect them to Phone 1 for payments
-            # WABA3 (Direct API) can also handle payments — don't redirect
-            if phone_number_id != PAYMENT_PHONE_NUMBER_ID and not _is_direct_api_phone(phone_number_id):
+            # Handle payments on whichever phone received the message
+            # (Phone 1 is disconnected, so no redirect — all phones handle payments directly)
+            if False:  # Redirect disabled — Phone 1 (+919330994400) is DISCONNECTED
                 _send_ai_auto_reply(contact_id, PAY_MSG['redirect'], phone_number_id, request_id)
                 logger.info(json.dumps({
                     'event': 'payment_redirected_to_phone1',
