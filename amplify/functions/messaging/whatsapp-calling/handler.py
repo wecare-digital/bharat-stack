@@ -77,9 +77,9 @@ PHONE2_META_ID = '1055232054343117'  # New Meta phone ID after migration
 # WABA2 now uses WECARE.DIGITAL app (token1), not Manish app
 WABA2_IDS = set()  # No longer need separate token routing for WABA2
 
-# WABA3 (Direct API, no EUM) — messages arrive via override_callback_uri webhook
+# WABA3 (Direct API) — +91 93309 94400 migrated here (pending registration)
 WABA3_ID = '2094615664435155'
-WABA3_PHONE_META_ID = '945798751960485'
+WABA3_PHONE_META_ID = '1016149501586345'  # New phone ID after migration
 
 # Inbound handler Lambda for forwarding non-call webhook events (messages, statuses)
 INBOUND_HANDLER_FUNCTION = os.environ.get('INBOUND_HANDLER_FUNCTION', 'wecare-inbound-whatsapp')
@@ -1062,7 +1062,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/ivr.mp3')  # IVR audio greeting for auto-pickup
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://s3.us-east-1.amazonaws.com/app.wecare.digital/stream/media/ivr/ivr.mp3')  # IVR audio greeting for auto-pickup
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 # AI Bot config
@@ -1080,8 +1080,8 @@ transcribe_client = boto3.client('transcribe', region_name=REGION)
 bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
 
 # Phone number ID mapping for outbound audio via EUM
-# Phone number ID mapping for outbound audio via EUM
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+# Phone number ID mapping for outbound audio via Direct API
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 
@@ -1092,7 +1092,9 @@ DIRECT_API_META_PHONE_IDS = {WABA3_PHONE_META_ID}
 # Direct Meta Graph API calls (pre_accept, accept, terminate, messages) return 403
 # for these phones. Messaging goes through AWS SDK; calling API is NOT supported by EUM.
 # For these phones, IVR sends the menu via EUM SDK and skips pre_accept/terminate.
-EUM_MANAGED_META_PHONE_IDS = {PHONE1_META_ID, PHONE2_META_ID}
+# Both phones are now on Direct API WABAs (no EUM). Full call control is supported.
+# PHONE1 is pending registration on WABA3, PHONE2 is active on WABA-T.
+EUM_MANAGED_META_PHONE_IDS = set()  # No EUM-managed phones anymore
 
 
 def _is_auto_pickup_enabled() -> bool:
@@ -1387,10 +1389,11 @@ def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> D
     message_payload['to'] = to_number
     message_payload['messaging_product'] = 'whatsapp'
 
-    # WABA3 and WABA-T (Direct API) — send via Meta Graph API directly, not EUM
+    # All phones are Direct API now — send via Meta Graph API
     DIRECT_API_PHONES = {
-        PHONE_NUMBER_ID_3: WABA3_PHONE_META_ID,       # WABA3: +91 81003 30063
+        PHONE_NUMBER_ID_1: PHONE1_META_ID,             # WABA3: +91 93309 94400 (pending registration)
         PHONE_NUMBER_ID_2: PHONE2_META_ID,             # WABA-T: +91 99033 00044
+        PHONE_NUMBER_ID_3: WABA3_PHONE_META_ID,        # WABA3 (alias)
     }
     if aws_phone_id in DIRECT_API_PHONES:
         meta_phone_id = DIRECT_API_PHONES[aws_phone_id]

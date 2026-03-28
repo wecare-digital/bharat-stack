@@ -30,8 +30,8 @@
  *   AUTO_PICKUP_AUDIO_KEY: whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg
  *   AUTO_PICKUP_ENABLED: true (default ON, overridden by SystemConfig)
  *   AUTO_PICKUP_IVR_URL: https://app.wecare.digital/stream/media/ivr/IVR+1.mp3
- *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-5e020cecd221429996f6ae721cc42206
- *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c
+ *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-waba3-direct-1016149501586345
+ *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-waba-t-direct-1055232054343117
  *   INBOUND_HANDLER_FUNCTION: wecare-inbound-whatsapp (for forwarding WABA3 messages)
  *   AI_AGENT_ID: Z4YAK0ZLBO (external Bedrock agent)
  *   AI_AGENT_ALIAS: WANPKHQGIB

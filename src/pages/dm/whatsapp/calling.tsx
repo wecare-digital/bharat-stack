@@ -14,27 +14,24 @@ import { WHATSAPP_CALLING_VERIFY_TOKEN } from '../../../config/constants';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const PHONE_NUMBERS = [
-  { id: 'phone-number-id-5e020cecd221429996f6ae721cc42206', metaId: '960395407161423', display: '+91 93309 94400', name: 'WECARE.DIGITAL', country: 'IN', tier: 'TIER_2K', quality: 'GREEN', callingReady: true },
-  { id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c', metaId: '997428863451102', display: '+91 99033 00044', name: 'Manish Agarwal', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true },
-  { id: 'phone-number-id-waba3-direct-945798751960485', metaId: '945798751960485', display: '+91 81003 30063', name: 'WABA3 (Direct API)', country: 'IN', tier: 'TIER_2K', quality: 'GREEN', callingReady: true },
+  { id: 'phone-number-id-waba3-direct-1016149501586345', metaId: '1016149501586345', display: '+91 93309 94400', name: 'WECARE.DIGITAL', wabaId: '2094615664435155', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: false, directApi: true, pendingRegistration: true },
+  { id: 'phone-number-id-waba-t-direct-1055232054343117', metaId: '1055232054343117', display: '+91 99033 00044', name: 'Manish Agarwal', wabaId: '2513394156072604', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true, directApi: true },
 ];
 
-// Webhook configuration — LIVE
+// Webhook configuration — LIVE (Direct API, all WABAs use same endpoint)
 const WEBHOOK_CONFIG = {
-  callbackUrl: 'https://api.wecare.digital/whatsapp-calling',
-  verifyToken: WHATSAPP_CALLING_VERIFY_TOKEN,
-  subscribedFields: ['calls'],
+  callbackUrl: 'https://api.wecare.digital/whatsapp',
+  verifyToken: 'wecare_calling_verify_2026',
+  subscribedFields: ['messages', 'calls'],
   lambda: 'wecare-whatsapp-calling',
   table: 'stack-wecare-digital-WhatsAppCallingTable',
-  status: 'verified',  // deployed, verified, subscribed
+  status: 'verified',
 };
 
-// Meta Access Token info
+// Meta Access Token info — all WABAs use WECARE.DIGITAL app (Direct API)
 const META_TOKEN = {
-  appId_waba1: '2238810740192680',
-  appName_waba1: 'WECARE.DIGITAL',
-  appId_waba2: '1224334845952721',
-  appName_waba2: 'Manish Agarwal',
+  appId: '2238810740192680',
+  appName: 'WECARE.DIGITAL',
   secretName: 'wecare/meta-system-user-token',
   scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
   wabaAccess: ['2094615664435155', '2513394156072604'],
@@ -1467,8 +1464,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <tbody>
                     {[
-                      { label: 'WABA1 App', value: `${META_TOKEN.appId_waba1} (${META_TOKEN.appName_waba1})` },
-                      { label: 'WABA2 App', value: `${META_TOKEN.appId_waba2} (${META_TOKEN.appName_waba2})` },
+                      { label: 'App', value: `${META_TOKEN.appId} (${META_TOKEN.appName})` },
                       { label: 'Secrets Manager', value: META_TOKEN.secretName },
                       { label: 'Token Type', value: META_TOKEN.tokenType },
                       { label: 'Status', value: META_TOKEN.status },
