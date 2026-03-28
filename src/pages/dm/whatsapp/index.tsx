@@ -24,6 +24,7 @@ import BusinessProfilePage from './business-profile';
 import WebhooksPage from './webhooks';
 import AIConfigPage from './ai-config';
 import FlowResponsesPage from './flow-responses';
+import MigrationPage from './migration';
 
 interface PageProps {
   signOut?: () => void;
@@ -51,6 +52,7 @@ const TABS: ShellTab[] = [
   { id: 'profile', label: 'Profile', divider: true },
   { id: 'webhooks', label: 'Webhooks' },
   { id: 'waba', label: 'WABA' },
+  { id: 'migration', label: 'Migration' },
 ];
 
 const WhatsAppPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
@@ -77,6 +79,7 @@ const WhatsAppPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           {activeTab === 'profile' && <BusinessProfilePage signOut={signOut} user={user} embedded />}
           {activeTab === 'webhooks' && <WebhooksPage signOut={signOut} user={user} embedded />}
           {activeTab === 'waba' && <WABADashboard signOut={signOut} user={user} embedded />}
+          {activeTab === 'migration' && <MigrationPage signOut={signOut} user={user} embedded />}
         </Suspense>
       )}
     </PageShell>
