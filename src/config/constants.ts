@@ -41,14 +41,16 @@ export const WHATSAPP_PHONES = {
     paymentProtected: false,
   },
   secondary: {
-    id: 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c',
+    id: 'phone-number-id-waba-t-direct-1055232054343117',
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
-    wabaId: '1633959101297902',
+    wabaId: '2513394156072604',
+    metaPhoneId: '1055232054343117',
     hasPayment: true,
     paymentConfigName: 'WECARE-RAZOR-PAY',
     paymentConfigs: ['WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU'],
     paymentProtected: true,
+    directApi: true,  // No EUM — uses Meta Graph API directly via WECARE.DIGITAL app
   },
 };
 

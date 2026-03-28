@@ -74,24 +74,25 @@ AI_CIRCUIT_BREAKER_COOLDOWN = 300  # seconds (5 min) before retrying
 # WhatsApp Phone Number IDs - Map Meta phone number IDs to AWS phone number IDs
 # Format: Meta phone number ID -> AWS EUM phone-number-id
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 
 # Map display phone numbers to AWS phone number IDs for reference
 # WABA3 (+918100330063) uses Direct API (no EUM) — synthetic ID for tracking
 PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 PHONE_NUMBER_MAP = {
     '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400 (WABA1, EUM)
-    '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044 (WABA2, EUM)
+    '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044 (WABA-T 2513394156072604, Direct API)
     '918100330063': PHONE_NUMBER_ID_3,  # +91 81003 30063 (WABA3, Direct API)
 }
 
 # Meta phone number ID to AWS phone number ID mapping (for Direct API WABAs)
 META_PHONE_ID_MAP = {
-    '945798751960485': PHONE_NUMBER_ID_3,  # WABA3 phone
+    '945798751960485': PHONE_NUMBER_ID_3,  # WABA3 phone (old)
+    '1055232054343117': PHONE_NUMBER_ID_2,  # WABA-T phone (+91 99033 00044, migrated)
 }
 
 # Direct API phone IDs — these don't use EUM, so EUM operations should be skipped
-DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_3}
+DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_3, PHONE_NUMBER_ID_2}
 
 
 def _is_direct_api_phone(phone_number_id: str) -> bool:

@@ -56,12 +56,12 @@ GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 _token_cache = {}
 
 WABA1_ID = os.environ.get('WABA1_ID', '1912405516040025')
-WABA2_ID = os.environ.get('WABA2_ID', '1633959101297902')
+WABA2_ID = os.environ.get('WABA2_ID', '2513394156072604')
 PHONE1_META_ID = os.environ.get('PHONE1_META_ID', '960395407161423')
-PHONE2_META_ID = os.environ.get('PHONE2_META_ID', '997428863451102')
+PHONE2_META_ID = os.environ.get('PHONE2_META_ID', '1055232054343117')
 
-# All IDs that belong to WABA2
-WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
+# All IDs that belong to WABA2 — now uses WECARE.DIGITAL app (token1), no separate token needed
+WABA2_IDS = set()
 
 # DynamoDB tables for order lookups (flow-data endpoint)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))

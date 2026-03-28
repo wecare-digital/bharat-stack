@@ -71,10 +71,11 @@ META_CALLING_ERRORS = {
 
 # Dual WABA token support
 WABA1_ID = '1912405516040025'
-WABA2_ID = '1633959101297902'
+WABA2_ID = '2513394156072604'  # Migrated — now Direct API, uses token1 (WECARE.DIGITAL app)
 PHONE1_META_ID = '960395407161423'
-PHONE2_META_ID = '997428863451102'
-WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
+PHONE2_META_ID = '1055232054343117'  # New Meta phone ID after migration
+# WABA2 now uses WECARE.DIGITAL app (token1), not Manish app
+WABA2_IDS = set()  # No longer need separate token routing for WABA2
 
 # WABA3 (Direct API, no EUM) — messages arrive via override_callback_uri webhook
 WABA3_ID = '2094615664435155'

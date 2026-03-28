@@ -42,8 +42,51 @@ MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/out
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 ALLOWLIST = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
+
+# Direct API phone IDs — these use Meta Graph API, not AWS EUM
+DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_2}
+# Meta phone ID for Direct API sending
+DIRECT_API_META_PHONE_MAP = {
+    PHONE_NUMBER_ID_2: '1055232054343117',  # +91 99033 00044 on WABA-T 2513394156072604
+}
+
+# Secrets Manager for Direct API tokens
+secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+_direct_api_cache = {}
+
+def _is_direct_api_phone(phone_number_id: str) -> bool:
+    """Check if phone uses Direct API (not EUM)."""
+    return phone_number_id in DIRECT_API_PHONE_IDS
+
+def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
+    """Send message via Meta Graph API for Direct API phones."""
+    import hmac as _hmac, hashlib as _hashlib
+    if 'token' not in _direct_api_cache:
+        resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+        data = json.loads(resp['SecretString'])
+        _direct_api_cache['token'] = (data.get('access_token') or '').strip()
+        _direct_api_cache['app_secret'] = (data.get('app_secret') or '').strip()
+    
+    token = _direct_api_cache['token']
+    app_secret = _direct_api_cache['app_secret']
+    meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
+    
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
+    if app_secret:
+        proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+    
+    import urllib.request, urllib.error
+    req = urllib.request.Request(url, data=message_json.encode(), headers={
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }, method='POST')
+    with urllib.request.urlopen(req, timeout=15) as r:
+        result = json.loads(r.read().decode())
+    msg_id = result.get('messages', [{}])[0].get('id', '')
+    return {'messageId': msg_id}
 
 # Constants
 META_API_VERSION = 'v20.0'  # Requirement 5.8
@@ -53,7 +96,7 @@ CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations
-# Phone 1 WABA: 1912405516040025 | Phone 2 WABA: 1633959101297902
+# Phone 1 WABA: 1912405516040025 | Phone 2 WABA: 2513394156072604 (migrated, Direct API)
 # Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
 # Config names MUST match exactly what's in Meta Business Manager
@@ -983,11 +1026,16 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         last_error = None
         for attempt in range(max_retries + 1):
             try:
-                response = social_messaging.send_whatsapp_message(
-                    originationPhoneNumberId=phone_number_id,
-                    message=message_json,
-                    metaApiVersion=META_API_VERSION
-                )
+                if _is_direct_api_phone(phone_number_id):
+                    # Direct API — send via Meta Graph API
+                    response = _send_direct_api(phone_number_id, message_json)
+                else:
+                    # EUM — send via AWS Social Messaging SDK
+                    response = social_messaging.send_whatsapp_message(
+                        originationPhoneNumberId=phone_number_id,
+                        message=message_json,
+                        metaApiVersion=META_API_VERSION
+                    )
                 last_error = None
                 break
             except social_messaging.exceptions.ThrottledRequestException as e:
