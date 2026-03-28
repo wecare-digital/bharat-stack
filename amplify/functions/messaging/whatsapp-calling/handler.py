@@ -1080,8 +1080,9 @@ transcribe_client = boto3.client('transcribe', region_name=REGION)
 bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
 
 # Phone number ID mapping for outbound audio via EUM
+# Phone number ID mapping for outbound audio via EUM
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
-PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c')
+PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 
 # WABA3 uses Direct Meta API (no EUM) — track which phone IDs are Direct API
@@ -1386,24 +1387,29 @@ def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> D
     message_payload['to'] = to_number
     message_payload['messaging_product'] = 'whatsapp'
 
-    # WABA3 (Direct API) — send via Meta Graph API directly, not EUM
-    if aws_phone_id == PHONE_NUMBER_ID_3:
+    # WABA3 and WABA-T (Direct API) — send via Meta Graph API directly, not EUM
+    DIRECT_API_PHONES = {
+        PHONE_NUMBER_ID_3: WABA3_PHONE_META_ID,       # WABA3: +91 81003 30063
+        PHONE_NUMBER_ID_2: PHONE2_META_ID,             # WABA-T: +91 99033 00044
+    }
+    if aws_phone_id in DIRECT_API_PHONES:
+        meta_phone_id = DIRECT_API_PHONES[aws_phone_id]
         try:
             result = _meta_api_call(
-                f"{WABA3_PHONE_META_ID}/messages", 'POST',
-                message_payload, phone_number_id=WABA3_PHONE_META_ID
+                f"{meta_phone_id}/messages", 'POST',
+                message_payload, phone_number_id=meta_phone_id
             )
             if result.get('error'):
-                logger.error(f"WABA3 Direct API send failed: {result}")
+                logger.error(f"Direct API send failed for {meta_phone_id}: {result}")
                 return result
             msg_id = ''
             messages = result.get('messages', [])
             if messages:
                 msg_id = messages[0].get('id', '')
-            logger.info(f"WABA3 Direct API send success: messageId={msg_id}")
+            logger.info(f"Direct API send success ({meta_phone_id}): messageId={msg_id}")
             return {'success': True, 'messageId': msg_id}
         except Exception as e:
-            logger.error(f"WABA3 Direct API send failed: {e}")
+            logger.error(f"Direct API send failed for {meta_phone_id}: {e}")
             return {'error': True, 'detail': str(e)}
 
     try:
