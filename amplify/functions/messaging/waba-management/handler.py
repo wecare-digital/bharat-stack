@@ -1,7 +1,7 @@
 """
 WABA Management Lambda Function
 
-Purpose: Manage WhatsApp Business Accounts via AWS EUM Social API
+Purpose: Manage WhatsApp Business Accounts via Direct Meta Graph API
 Implements:
 - GetLinkedWhatsAppBusinessAccount - Get WABA details (phone quality, limits)
 - GetLinkedWhatsAppBusinessAccountPhoneNumber - Get phone details
@@ -9,19 +9,24 @@ Implements:
 - DeleteWhatsAppMessageMedia - Delete uploaded media
 - GetWhatsAppMessageMedia - Download media from WhatsApp
 - PostWhatsAppMessageMedia - Upload media to WhatsApp for sending
-- PutWhatsAppBusinessAccountEventDestinations - Configure SNS event destinations
-- ListTagsForResource - List tags on WABA/phone
-- TagResource - Add tags to resources
-- UntagResource - Remove tags from resources
+- PutWhatsAppBusinessAccountEventDestinations - Subscribe/unsubscribe app to WABA
+- ListTagsForResource - (No Meta equivalent, returns empty)
+- TagResource - (No Meta equivalent, returns success)
+- UntagResource - (No Meta equivalent, returns success)
 
-AWS EUM Social API Reference:
-https://docs.aws.amazon.com/social-messaging/latest/APIReference/Welcome.html
+Meta Graph API Reference:
+https://developers.facebook.com/docs/whatsapp/business-management-api
 """
 
 import os
 import json
 import logging
+import hashlib
+import hmac
 import boto3
+import urllib.request
+import urllib.error
+import urllib.parse
 from typing import Dict, Any, List, Optional
 from decimal import Decimal
 from datetime import datetime
@@ -34,18 +39,123 @@ from lambda_utils.logging import get_logger
 logger = get_logger(__name__)
 
 # AWS clients
-social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sns_client = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Environment variables
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN', 'arn:aws:sns:us-east-1:775261844268:stack-wecare-digital')
 
-# CORS headers
-# CORS headers provided by lambda_utils.response.cors_headers(origin)
+# Meta Graph API config
+META_API_VERSION = 'v20.0'
+META_API_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
+META_APP_ID = '2238810740192680'
+
+# AWS WABA ID → Meta WABA ID mapping
+AWS_TO_META_WABA = {
+    'waba-e47d916f3c7a47e1a34a19653893dd4b': '1912405516040025',
+    'waba-dbe343f210204752b74c80a0a59631a6': '2513394156072604',
+}
+META_WABA_DEFAULT = '2094615664435155'
+
+# AWS phone-number-id → Meta phone ID mapping
+AWS_PHONE_TO_META = {
+    'phone-number-id-waba3-direct-1016149501586345': '1016149501586345',
+    'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',
+    'phone-number-id-waba3-direct-945798751960485': '945798751960485',
+}
+
+# Cached Meta credentials
+_meta_credentials = None
+
+
+def _get_meta_credentials() -> Dict[str, str]:
+    """Load Meta access token and app secret from Secrets Manager (cached)."""
+    global _meta_credentials
+    if _meta_credentials:
+        return _meta_credentials
+    try:
+        resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+        secret = json.loads(resp['SecretString'])
+        _meta_credentials = {
+            'access_token': secret['access_token'],
+            'app_secret': secret['app_secret'],
+        }
+        return _meta_credentials
+    except Exception as e:
+        logger.error(f'Failed to load Meta credentials: {e}')
+        raise
+
+
+def _appsecret_proof(access_token: str, app_secret: str) -> str:
+    """Generate appsecret_proof HMAC-SHA256."""
+    return hmac.new(
+        app_secret.encode('utf-8'),
+        access_token.encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _meta_request(path: str, method: str = 'GET', data: bytes = None,
+                  headers: Dict[str, str] = None, content_type: str = None) -> Dict[str, Any]:
+    """
+    Make an authenticated request to the Meta Graph API.
+    Returns parsed JSON response.
+    """
+    creds = _get_meta_credentials()
+    token = creds['access_token']
+    proof = _appsecret_proof(token, creds['app_secret'])
+
+    separator = '&' if '?' in path else '?'
+    url = f'{META_API_BASE}/{path}{separator}access_token={urllib.parse.quote(token)}&appsecret_proof={proof}'
+
+    req_headers = headers or {}
+    if content_type:
+        req_headers['Content-Type'] = content_type
+
+    req = urllib.request.Request(url, data=data, headers=req_headers, method=method)
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode('utf-8'))
+
+
+def _meta_request_raw(url: str) -> bytes:
+    """Download raw bytes from a URL with Meta auth."""
+    creds = _get_meta_credentials()
+    token = creds['access_token']
+    req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
+    with urllib.request.urlopen(req) as resp:
+        return resp.read()
+
+
+def _resolve_meta_waba_id(aws_waba_id: str) -> str:
+    """Map AWS WABA ID to Meta WABA ID."""
+    if not aws_waba_id.startswith('waba-'):
+        aws_waba_id = f'waba-{aws_waba_id}'
+    return AWS_TO_META_WABA.get(aws_waba_id, META_WABA_DEFAULT)
+
+
+def _resolve_meta_phone_id(aws_phone_id: str) -> str:
+    """
+    Map AWS phone-number-id to Meta phone ID.
+    For 'direct' format IDs, extract the Meta ID from the suffix.
+    For old format, use the mapping dict.
+    """
+    if not aws_phone_id.startswith('phone-number-id-'):
+        aws_phone_id = f'phone-number-id-{aws_phone_id}'
+
+    # Direct format: phone-number-id-waba3-direct-{meta_id}
+    if '-direct-' in aws_phone_id:
+        return aws_phone_id.split('-direct-')[-1]
+
+    # Lookup in mapping
+    if aws_phone_id in AWS_PHONE_TO_META:
+        return AWS_PHONE_TO_META[aws_phone_id]
+
+    # Fallback: strip prefix and hope it's a Meta ID
+    return aws_phone_id.replace('phone-number-id-', '')
 
 
 def _serialize_value(val):
@@ -209,43 +319,37 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def _list_wabas(request_id: str) -> Dict[str, Any]:
     """
     List all linked WhatsApp Business Accounts.
-    API: ListLinkedWhatsAppBusinessAccounts
+    Meta Graph API: GET /{app_id}/whatsapp_business_accounts
     """
     try:
+        fields = 'id,name,currency,timezone_id,message_template_namespace'
+        response = _meta_request(
+            f'{META_APP_ID}/whatsapp_business_accounts?fields={fields}'
+        )
+
         wabas = []
-        next_token = None
-        
-        while True:
-            params = {}
-            if next_token:
-                params['nextToken'] = next_token
-            
-            response = social_messaging.list_linked_whatsapp_business_accounts(**params)
-            
-            for account in response.get('linkedAccounts', []):
-                link_date = account.get('linkDate')
-                wabas.append({
-                    'id': account.get('id', ''),
-                    'wabaId': account.get('wabaId', ''),
-                    'wabaName': account.get('wabaName', ''),
-                    'arn': account.get('arn', ''),
-                    'registrationStatus': account.get('registrationStatus', ''),
-                    'linkDate': link_date.isoformat() if isinstance(link_date, datetime) else link_date,
-                    'enableSending': account.get('enableSending', False),
-                    'enableReceiving': account.get('enableReceiving', False),
-                    'eventDestinations': account.get('eventDestinations', [])
-                })
-            
-            next_token = response.get('nextToken')
-            if not next_token:
-                break
-        
+        for account in response.get('data', []):
+            wabas.append({
+                'id': account.get('id', ''),
+                'wabaId': account.get('id', ''),
+                'wabaName': account.get('name', ''),
+                'currency': account.get('currency', ''),
+                'timezoneId': account.get('timezone_id', ''),
+                'messageTemplateNamespace': account.get('message_template_namespace', ''),
+                'arn': '',
+                'registrationStatus': 'COMPLETE',
+                'linkDate': '',
+                'enableSending': True,
+                'enableReceiving': True,
+                'eventDestinations': []
+            })
+
         logger.info(json.dumps({
             'event': 'wabas_listed',
             'count': len(wabas),
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -254,7 +358,7 @@ def _list_wabas(request_id: str) -> Dict[str, Any]:
                 'count': len(wabas)
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'list_wabas_error',
@@ -267,64 +371,85 @@ def _list_wabas(request_id: str) -> Dict[str, Any]:
 def _get_waba_details(waba_id: str, request_id: str) -> Dict[str, Any]:
     """
     Get details of a specific WABA including phone numbers with quality ratings.
-    API: GetLinkedWhatsAppBusinessAccount
-    
-    Returns:
-    - WABA info (name, status, event destinations)
-    - Phone numbers with quality ratings (GREEN/YELLOW/RED)
-    - Messaging limits
+    Meta Graph API: GET /{meta_waba_id}?fields=...
     """
     try:
         # Ensure waba_id has correct format
         if not waba_id.startswith('waba-'):
             waba_id = f'waba-{waba_id}'
-        
-        response = social_messaging.get_linked_whatsapp_business_account(id=waba_id)
-        account = response.get('account', {})
-        
-        # Process phone numbers with quality info
+
+        meta_waba_id = _resolve_meta_waba_id(waba_id)
+
+        fields = 'id,name,currency,timezone_id,message_template_namespace,account_review_status,on_behalf_of_business_info'
+        account = _meta_request(f'{meta_waba_id}?fields={fields}')
+
+        # Fetch phone numbers for this WABA
+        phone_fields = 'id,display_phone_number,verified_name,quality_rating,platform_type,code_verification_status,is_official_business_account'
+        phones_resp = _meta_request(
+            f'{meta_waba_id}/phone_numbers?fields={phone_fields}'
+        )
+
         phone_numbers = []
-        for phone in account.get('phoneNumbers', []):
+        for phone in phones_resp.get('data', []):
+            quality = phone.get('quality_rating', 'UNKNOWN')
+            # Meta returns GREEN/YELLOW/RED — keep as-is
             phone_numbers.append({
-                'phoneNumberId': phone.get('phoneNumberId', ''),
-                'phoneNumber': phone.get('phoneNumber', ''),
-                'displayPhoneNumber': phone.get('displayPhoneNumber', ''),
-                'displayPhoneNumberName': phone.get('displayPhoneNumberName', ''),
-                'qualityRating': phone.get('qualityRating', 'UNKNOWN'),
-                'metaPhoneNumberId': phone.get('metaPhoneNumberId', ''),
-                'dataLocalizationRegion': phone.get('dataLocalizationRegion', ''),
-                'arn': phone.get('arn', '')
+                'phoneNumberId': phone.get('id', ''),
+                'phoneNumber': phone.get('display_phone_number', ''),
+                'displayPhoneNumber': phone.get('display_phone_number', ''),
+                'displayPhoneNumberName': phone.get('verified_name', ''),
+                'qualityRating': quality,
+                'metaPhoneNumberId': phone.get('id', ''),
+                'dataLocalizationRegion': '',
+                'arn': '',
+                'platformType': phone.get('platform_type', ''),
+                'codeVerificationStatus': phone.get('code_verification_status', ''),
+                'isOfficialBusinessAccount': phone.get('is_official_business_account', False),
             })
-        
-        link_date = account.get('linkDate')
+
+        on_behalf = account.get('on_behalf_of_business_info', {})
         waba_details = {
-            'id': account.get('id', ''),
-            'wabaId': account.get('wabaId', ''),
-            'wabaName': account.get('wabaName', ''),
-            'arn': account.get('arn', ''),
-            'registrationStatus': account.get('registrationStatus', ''),
-            'linkDate': link_date.isoformat() if isinstance(link_date, datetime) else link_date,
-            'enableSending': account.get('enableSending', False),
-            'enableReceiving': account.get('enableReceiving', False),
-            'eventDestinations': account.get('eventDestinations', []),
+            'id': waba_id,
+            'wabaId': account.get('id', ''),
+            'wabaName': account.get('name', ''),
+            'currency': account.get('currency', ''),
+            'timezoneId': account.get('timezone_id', ''),
+            'messageTemplateNamespace': account.get('message_template_namespace', ''),
+            'accountReviewStatus': account.get('account_review_status', ''),
+            'onBehalfOfBusinessInfo': on_behalf,
+            'arn': '',
+            'registrationStatus': 'COMPLETE',
+            'linkDate': '',
+            'enableSending': True,
+            'enableReceiving': True,
+            'eventDestinations': [],
             'phoneNumbers': phone_numbers
         }
-        
+
         logger.info(json.dumps({
             'event': 'waba_details_fetched',
             'wabaId': waba_id,
+            'metaWabaId': meta_waba_id,
             'phoneCount': len(phone_numbers),
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps(waba_details)
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'WABA not found: {waba_id}')
+
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return _error_response(404, f'WABA not found: {waba_id}')
+        logger.error(json.dumps({
+            'event': 'get_waba_details_error',
+            'wabaId': waba_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to get WABA details: {str(e)}')
     except Exception as e:
         logger.error(json.dumps({
             'event': 'get_waba_details_error',
@@ -338,51 +463,57 @@ def _get_waba_details(waba_id: str, request_id: str) -> Dict[str, Any]:
 def _get_phone_number_details(phone_id: str, request_id: str) -> Dict[str, Any]:
     """
     Get details of a specific phone number including quality rating.
-    API: GetLinkedWhatsAppBusinessAccountPhoneNumber
-    
-    Returns:
-    - Phone number info
-    - Quality rating (GREEN/YELLOW/RED)
-    - Display name
-    - Data localization region
+    Meta Graph API: GET /{meta_phone_id}?fields=...
     """
     try:
         # Ensure phone_id has correct format
         if not phone_id.startswith('phone-number-id-'):
             phone_id = f'phone-number-id-{phone_id}'
-        
-        response = social_messaging.get_linked_whatsapp_business_account_phone_number(id=phone_id)
-        
-        phone = response.get('phoneNumber', {})
-        linked_waba_id = response.get('linkedWhatsAppBusinessAccountId', '')
-        
+
+        meta_phone_id = _resolve_meta_phone_id(phone_id)
+
+        fields = 'id,display_phone_number,verified_name,quality_rating,platform_type,code_verification_status,is_official_business_account'
+        phone = _meta_request(f'{meta_phone_id}?fields={fields}')
+
         phone_details = {
-            'phoneNumberId': phone.get('phoneNumberId', ''),
-            'phoneNumber': phone.get('phoneNumber', ''),
-            'displayPhoneNumber': phone.get('displayPhoneNumber', ''),
-            'displayPhoneNumberName': phone.get('displayPhoneNumberName', ''),
-            'qualityRating': phone.get('qualityRating', 'UNKNOWN'),
-            'metaPhoneNumberId': phone.get('metaPhoneNumberId', ''),
-            'dataLocalizationRegion': phone.get('dataLocalizationRegion', ''),
-            'arn': phone.get('arn', ''),
-            'linkedWabaId': linked_waba_id
+            'phoneNumberId': phone_id,
+            'phoneNumber': phone.get('display_phone_number', ''),
+            'displayPhoneNumber': phone.get('display_phone_number', ''),
+            'displayPhoneNumberName': phone.get('verified_name', ''),
+            'qualityRating': phone.get('quality_rating', 'UNKNOWN'),
+            'metaPhoneNumberId': phone.get('id', ''),
+            'dataLocalizationRegion': '',
+            'arn': '',
+            'linkedWabaId': '',
+            'platformType': phone.get('platform_type', ''),
+            'codeVerificationStatus': phone.get('code_verification_status', ''),
+            'isOfficialBusinessAccount': phone.get('is_official_business_account', False),
         }
-        
+
         logger.info(json.dumps({
             'event': 'phone_details_fetched',
             'phoneNumberId': phone_id,
+            'metaPhoneId': meta_phone_id,
             'qualityRating': phone_details['qualityRating'],
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps(phone_details)
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'Phone number not found: {phone_id}')
+
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return _error_response(404, f'Phone number not found: {phone_id}')
+        logger.error(json.dumps({
+            'event': 'get_phone_details_error',
+            'phoneNumberId': phone_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to get phone details: {str(e)}')
     except Exception as e:
         logger.error(json.dumps({
             'event': 'get_phone_details_error',
@@ -473,29 +604,22 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
 def _delete_media(media_id: str, phone_number_id: str, request_id: str) -> Dict[str, Any]:
     """
     Delete media from WhatsApp.
-    API: DeleteWhatsAppMessageMedia
-    
-    Note: This only deletes from WhatsApp servers.
-    S3 cleanup should be done separately.
+    Meta Graph API: DELETE /{media_id}
     """
     try:
         if not media_id:
             return _error_response(400, 'mediaId is required')
-        
+
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
-        
+
         # Ensure phone_number_id has correct format
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
-        response = social_messaging.delete_whatsapp_message_media(
-            mediaId=media_id,
-            originationPhoneNumberId=phone_number_id
-        )
-        
+
+        response = _meta_request(media_id, method='DELETE')
         success = response.get('success', False)
-        
+
         logger.info(json.dumps({
             'event': 'media_deleted',
             'mediaId': media_id,
@@ -503,7 +627,7 @@ def _delete_media(media_id: str, phone_number_id: str, request_id: str) -> Dict[
             'success': success,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -512,9 +636,17 @@ def _delete_media(media_id: str, phone_number_id: str, request_id: str) -> Dict[
                 'mediaId': media_id
             })
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'Media not found: {media_id}')
+
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return _error_response(404, f'Media not found: {media_id}')
+        logger.error(json.dumps({
+            'event': 'delete_media_error',
+            'mediaId': media_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to delete media: {str(e)}')
     except Exception as e:
         logger.error(json.dumps({
             'event': 'delete_media_error',
@@ -541,72 +673,76 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
 def _get_media(media_id: str, phone_number_id: str, query_params: Dict, request_id: str) -> Dict[str, Any]:
     """
     Download media from WhatsApp.
-    API: GetWhatsAppMessageMedia
-    
-    Can either:
-    - Return metadata only (metadataOnly=true)
-    - Download to S3 (destinationS3File)
-    - Return presigned URL (destinationS3PresignedUrl)
+    Meta Graph API: GET /{media_id} to get URL, then download the binary.
     """
     try:
         if not media_id:
             return _error_response(400, 'mediaId is required')
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
-        
+
         # Ensure phone_number_id has correct format
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
+
         metadata_only = query_params.get('metadataOnly', 'false').lower() == 'true'
-        
-        params = {
-            'mediaId': media_id,
-            'originationPhoneNumberId': phone_number_id,
-            'metadataOnly': metadata_only
-        }
-        
-        # If not metadata only, specify S3 destination
-        if not metadata_only:
-            s3_key = f'stack/whatsapp-media/downloads/wecare-digital-{media_id}'
-            params['destinationS3File'] = {
-                'bucketName': MEDIA_BUCKET,
-                'key': s3_key
-            }
-        
-        response = social_messaging.get_whatsapp_message_media(**params)
-        
+
+        # Get media metadata (URL, mime_type, etc.) from Meta
+        media_info = _meta_request(media_id)
+
         result = {
             'mediaId': media_id,
-            'mimeType': response.get('mimeType', ''),
-            'fileSize': response.get('fileSize', 0),
+            'mimeType': media_info.get('mime_type', ''),
+            'fileSize': media_info.get('file_size', 0),
         }
-        
+
         if not metadata_only:
-            result['s3Key'] = s3_key
-            # Generate presigned URL for download
-            presigned_url = s3.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key},
-                ExpiresIn=3600
-            )
-            result['downloadUrl'] = presigned_url
-        
+            # Download the actual media binary from the URL Meta returned
+            media_url = media_info.get('url', '')
+            if media_url:
+                media_bytes = _meta_request_raw(media_url)
+
+                # Upload to S3
+                s3_key = f'stack/whatsapp-media/downloads/wecare-digital-{media_id}'
+                s3.put_object(
+                    Bucket=MEDIA_BUCKET,
+                    Key=s3_key,
+                    Body=media_bytes,
+                    ContentType=media_info.get('mime_type', 'application/octet-stream')
+                )
+
+                result['s3Key'] = s3_key
+                # Generate presigned URL for download
+                presigned_url = s3.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key},
+                    ExpiresIn=3600
+                )
+                result['downloadUrl'] = presigned_url
+
         logger.info(json.dumps({
             'event': 'media_downloaded',
             'mediaId': media_id,
             'metadataOnly': metadata_only,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps(result)
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'Media not found: {media_id}')
+
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return _error_response(404, f'Media not found: {media_id}')
+        logger.error(json.dumps({
+            'event': 'get_media_error',
+            'mediaId': media_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+        return _error_response(500, f'Failed to get media: {str(e)}')
     except Exception as e:
         logger.error(json.dumps({
             'event': 'get_media_error',
@@ -620,49 +756,83 @@ def _get_media(media_id: str, phone_number_id: str, query_params: Dict, request_
 def _post_media(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Upload media to WhatsApp for sending.
-    API: PostWhatsAppMessageMedia
+    Meta Graph API: POST /{phone_id}/media (multipart upload)
     
-    Uploads from S3 to WhatsApp servers for use in messages.
+    Downloads from S3, then uploads to Meta via multipart form.
     """
     try:
         phone_number_id = body.get('phoneNumberId', '')
         s3_key = body.get('s3Key', '')
-        
+
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
         if not s3_key:
             return _error_response(400, 's3Key is required')
-        
+
         # Ensure phone_number_id has correct format
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
-        response = social_messaging.post_whatsapp_message_media(
-            originationPhoneNumberId=phone_number_id,
-            sourceS3File={
-                'bucketName': MEDIA_BUCKET,
-                'key': s3_key
-            }
+
+        meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+
+        # Download file from S3
+        s3_obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+        file_bytes = s3_obj['Body'].read()
+        content_type = s3_obj.get('ContentType', 'application/octet-stream')
+        filename = s3_key.split('/')[-1]
+
+        # Build multipart form data
+        boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
+        body_parts = []
+
+        # messaging_product field
+        body_parts.append(f'--{boundary}'.encode())
+        body_parts.append(b'Content-Disposition: form-data; name="messaging_product"')
+        body_parts.append(b'')
+        body_parts.append(b'whatsapp')
+
+        # type field
+        body_parts.append(f'--{boundary}'.encode())
+        body_parts.append(b'Content-Disposition: form-data; name="type"')
+        body_parts.append(b'')
+        body_parts.append(content_type.encode())
+
+        # file field
+        body_parts.append(f'--{boundary}'.encode())
+        body_parts.append(f'Content-Disposition: form-data; name="file"; filename="{filename}"'.encode())
+        body_parts.append(f'Content-Type: {content_type}'.encode())
+        body_parts.append(b'')
+        body_parts.append(file_bytes)
+
+        body_parts.append(f'--{boundary}--'.encode())
+
+        multipart_body = b'\r\n'.join(body_parts)
+
+        response = _meta_request(
+            f'{meta_phone_id}/media',
+            method='POST',
+            data=multipart_body,
+            content_type=f'multipart/form-data; boundary={boundary}'
         )
-        
+
         result = {
-            'mediaId': response.get('mediaId', ''),
+            'mediaId': response.get('id', ''),
             's3Key': s3_key
         }
-        
+
         logger.info(json.dumps({
             'event': 'media_uploaded',
             'mediaId': result['mediaId'],
             's3Key': s3_key,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps(result)
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'post_media_error',
@@ -675,42 +845,43 @@ def _post_media(body: Dict, request_id: str) -> Dict[str, Any]:
 def _put_event_destinations(waba_id: str, body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Configure event destinations for WABA.
-    API: PutWhatsAppBusinessAccountEventDestinations
-    
-    Sets up SNS topics to receive WhatsApp events (message status, quality updates, etc.)
+    Meta Graph API: POST /{meta_waba_id}/subscribed_apps (subscribe app to WABA)
     """
     try:
         if not waba_id:
             return _error_response(400, 'wabaId is required')
-        
+
         event_destinations = body.get('eventDestinations', [])
-        if not event_destinations:
-            return _error_response(400, 'eventDestinations is required')
-        
+
         # Ensure waba_id has correct format
         if not waba_id.startswith('waba-'):
             waba_id = f'waba-{waba_id}'
-        
-        # Format event destinations for API
+
+        meta_waba_id = _resolve_meta_waba_id(waba_id)
+
+        # Format event destinations for response
         formatted_destinations = []
         for dest in event_destinations:
             formatted_destinations.append({
                 'eventDestinationArn': dest.get('eventDestinationArn', ''),
                 'roleArn': dest.get('roleArn', '')
             })
-        
-        social_messaging.put_whatsapp_business_account_event_destinations(
-            id=waba_id,
-            eventDestinations=formatted_destinations
-        )
-        
+
+        if event_destinations:
+            # Subscribe app to WABA
+            _meta_request(f'{meta_waba_id}/subscribed_apps', method='POST')
+        else:
+            # Unsubscribe (empty destinations = clear)
+            _meta_request(f'{meta_waba_id}/subscribed_apps', method='DELETE')
+
         logger.info(json.dumps({
             'event': 'event_destinations_updated',
             'wabaId': waba_id,
+            'metaWabaId': meta_waba_id,
             'destinationCount': len(formatted_destinations),
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -720,7 +891,7 @@ def _put_event_destinations(waba_id: str, body: Dict, request_id: str) -> Dict[s
                 'eventDestinations': formatted_destinations
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'put_event_destinations_error',
@@ -734,34 +905,30 @@ def _put_event_destinations(waba_id: str, body: Dict, request_id: str) -> Dict[s
 def _list_tags(resource_arn: str, request_id: str) -> Dict[str, Any]:
     """
     List tags for a resource.
-    API: ListTagsForResource
+    Note: No Meta Graph API equivalent. Returns empty tags.
     """
     try:
         if not resource_arn:
             return _error_response(400, 'resourceArn is required')
-        
-        response = social_messaging.list_tags_for_resource(resourceArn=resource_arn)
-        
-        tags = response.get('tags', [])
-        
+
         logger.info(json.dumps({
             'event': 'tags_listed',
             'resourceArn': resource_arn,
-            'tagCount': len(tags),
+            'tagCount': 0,
+            'note': 'Tags not supported via Meta Graph API',
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps({
                 'resourceArn': resource_arn,
-                'tags': tags
+                'tags': [],
+                'note': 'Tagging is not supported via Meta Graph API. '
             })
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'Resource not found: {resource_arn}')
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'list_tags_error',
@@ -775,49 +942,43 @@ def _list_tags(resource_arn: str, request_id: str) -> Dict[str, Any]:
 def _tag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Add tags to a resource.
-    API: TagResource
+    Note: No Meta Graph API equivalent. Returns success with note.
     """
     try:
         resource_arn = body.get('resourceArn', '')
         tags = body.get('tags', [])
-        
+
         if not resource_arn:
             return _error_response(400, 'resourceArn is required')
         if not tags:
             return _error_response(400, 'tags is required')
-        
-        # Format tags for API
+
         formatted_tags = []
         for tag in tags:
             formatted_tags.append({
                 'key': tag.get('key', ''),
                 'value': tag.get('value', '')
             })
-        
-        social_messaging.tag_resource(
-            resourceArn=resource_arn,
-            tags=formatted_tags
-        )
-        
+
         logger.info(json.dumps({
             'event': 'resource_tagged',
             'resourceArn': resource_arn,
             'tagCount': len(formatted_tags),
+            'note': 'Tags not supported via Meta Graph API — no-op',
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps({
                 'success': True,
                 'resourceArn': resource_arn,
-                'tags': formatted_tags
+                'tags': formatted_tags,
+                'note': 'Tagging is not supported via Meta Graph API. '
             })
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'Resource not found: {resource_arn}')
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'tag_resource_error',
@@ -830,41 +991,36 @@ def _tag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
 def _untag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Remove tags from a resource.
-    API: UntagResource
+    Note: No Meta Graph API equivalent. Returns success with note.
     """
     try:
         resource_arn = body.get('resourceArn', '')
         tag_keys = body.get('tagKeys', [])
-        
+
         if not resource_arn:
             return _error_response(400, 'resourceArn is required')
         if not tag_keys:
             return _error_response(400, 'tagKeys is required')
-        
-        social_messaging.untag_resource(
-            resourceArn=resource_arn,
-            tagKeys=tag_keys
-        )
-        
+
         logger.info(json.dumps({
             'event': 'resource_untagged',
             'resourceArn': resource_arn,
             'tagKeysRemoved': tag_keys,
+            'note': 'Tags not supported via Meta Graph API — no-op',
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps({
                 'success': True,
                 'resourceArn': resource_arn,
-                'tagKeysRemoved': tag_keys
+                'tagKeysRemoved': tag_keys,
+                'note': 'Tagging is not supported via Meta Graph API. '
             })
         }
-        
-    except social_messaging.exceptions.ResourceNotFoundException:
-        return _error_response(404, f'Resource not found: {resource_arn}')
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'untag_resource_error',
@@ -873,17 +1029,17 @@ def _untag_resource(body: Dict, request_id: str) -> Dict[str, Any]:
         }))
         return _error_response(500, f'Failed to untag resource: {str(e)}')
 
+
 # ============================================================================
 # SNS SUBSCRIPTION FOR WABA EVENTS
 # ============================================================================
 
 def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[str, Any]:
     """
-    Subscribe a WABA to SNS topic for receiving WhatsApp events.
+    Subscribe a WABA to receive WhatsApp events.
     
-    Calls PutWhatsAppBusinessAccountEventDestinations to set the SNS topic
-    as the event destination for the WABA (so AWS EUM sends events to SNS).
-    Stores the subscription config in SystemConfig for tracking.
+    Meta Graph API: POST /{meta_waba_id}/subscribed_apps
+    Also stores the subscription config in SystemConfig for tracking.
     
     Body params:
     - snsTopicArn (optional): SNS topic ARN, defaults to stack-wecare-digital topic
@@ -892,30 +1048,24 @@ def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[st
     try:
         if not waba_id:
             return _error_response(400, 'wabaId is required')
-        
+
         if not waba_id.startswith('waba-'):
             waba_id = f'waba-{waba_id}'
-        
+
+        meta_waba_id = _resolve_meta_waba_id(waba_id)
         topic_arn = body.get('snsTopicArn', SNS_TOPIC_ARN)
         role_arn = body.get('roleArn', '')
-        
-        # Build event destination
-        event_destination = {'eventDestinationArn': topic_arn}
-        if role_arn:
-            event_destination['roleArn'] = role_arn
-        
-        # Call AWS EUM API to set event destinations
-        social_messaging.put_whatsapp_business_account_event_destinations(
-            id=waba_id,
-            eventDestinations=[event_destination]
-        )
-        
+
+        # Subscribe app to WABA via Meta Graph API
+        _meta_request(f'{meta_waba_id}/subscribed_apps', method='POST')
+
         # Store subscription in SystemConfig for tracking
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         config_table.put_item(Item={
             'id': f'waba_sns_subscription_{waba_id}',
             'configValue': json.dumps({
                 'wabaId': waba_id,
+                'metaWabaId': meta_waba_id,
                 'snsTopicArn': topic_arn,
                 'roleArn': role_arn,
                 'subscribedAt': datetime.utcnow().isoformat(),
@@ -923,14 +1073,15 @@ def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[st
             }),
             'updatedAt': datetime.utcnow().isoformat()
         })
-        
+
         logger.info(json.dumps({
             'event': 'waba_subscribed_to_sns',
             'wabaId': waba_id,
+            'metaWabaId': meta_waba_id,
             'snsTopicArn': topic_arn,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -941,7 +1092,7 @@ def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[st
                 'status': 'ACTIVE'
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'subscribe_waba_sns_error',
@@ -955,27 +1106,28 @@ def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[st
 
 def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dict[str, Any]:
     """
-    Unsubscribe a WABA from SNS by clearing event destinations.
+    Unsubscribe a WABA from events.
+    Meta Graph API: DELETE /{meta_waba_id}/subscribed_apps
     """
     try:
         if not waba_id:
             return _error_response(400, 'wabaId is required')
-        
+
         if not waba_id.startswith('waba-'):
             waba_id = f'waba-{waba_id}'
-        
-        # Clear event destinations by setting empty list
-        social_messaging.put_whatsapp_business_account_event_destinations(
-            id=waba_id,
-            eventDestinations=[]
-        )
-        
+
+        meta_waba_id = _resolve_meta_waba_id(waba_id)
+
+        # Unsubscribe app from WABA via Meta Graph API
+        _meta_request(f'{meta_waba_id}/subscribed_apps', method='DELETE')
+
         # Update SystemConfig
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         config_table.put_item(Item={
             'id': f'waba_sns_subscription_{waba_id}',
             'configValue': json.dumps({
                 'wabaId': waba_id,
+                'metaWabaId': meta_waba_id,
                 'snsTopicArn': '',
                 'roleArn': '',
                 'unsubscribedAt': datetime.utcnow().isoformat(),
@@ -983,13 +1135,14 @@ def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dic
             }),
             'updatedAt': datetime.utcnow().isoformat()
         })
-        
+
         logger.info(json.dumps({
             'event': 'waba_unsubscribed_from_sns',
             'wabaId': waba_id,
+            'metaWabaId': meta_waba_id,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -999,7 +1152,7 @@ def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dic
                 'status': 'INACTIVE'
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'unsubscribe_waba_sns_error',
@@ -1013,15 +1166,17 @@ def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dic
 def _get_sns_subscription_status(waba_id: str, request_id: str) -> Dict[str, Any]:
     """
     Get the current SNS subscription status for a WABA.
-    Checks both the SystemConfig record and the live WABA event destinations.
+    Checks both the SystemConfig record and the live WABA subscribed apps.
     """
     try:
         if not waba_id:
             return _error_response(400, 'wabaId is required')
-        
+
         if not waba_id.startswith('waba-'):
             waba_id = f'waba-{waba_id}'
-        
+
+        meta_waba_id = _resolve_meta_waba_id(waba_id)
+
         # Get stored subscription config
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         stored_config = {}
@@ -1031,42 +1186,41 @@ def _get_sns_subscription_status(waba_id: str, request_id: str) -> Dict[str, Any
                 stored_config = json.loads(response['Item'].get('configValue', '{}'))
         except Exception:
             pass
-        
-        # Get live event destinations from WABA
+
+        # Get live subscribed apps from Meta
         live_destinations = []
         try:
-            waba_response = social_messaging.get_linked_whatsapp_business_account(id=waba_id)
-            account = waba_response.get('account', {})
-            live_destinations = account.get('eventDestinations', [])
+            subs_resp = _meta_request(f'{meta_waba_id}/subscribed_apps')
+            live_destinations = subs_resp.get('data', [])
         except Exception:
             pass
-        
-        # Serialize any datetime objects in live_destinations
+
         serialized_destinations = []
         for dest in live_destinations:
             serialized_destinations.append(_serialize_dict(dest) if isinstance(dest, dict) else dest)
-        
+
         result = {
             'wabaId': waba_id,
+            'metaWabaId': meta_waba_id,
             'storedConfig': stored_config,
             'liveEventDestinations': serialized_destinations,
             'isSubscribed': len(serialized_destinations) > 0,
             'defaultTopicArn': SNS_TOPIC_ARN
         }
-        
+
         logger.info(json.dumps({
             'event': 'sns_subscription_status_fetched',
             'wabaId': waba_id,
             'isSubscribed': result['isSubscribed'],
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps(result)
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'get_sns_subscription_status_error',
@@ -1084,7 +1238,7 @@ def _get_sns_subscription_status(waba_id: str, request_id: str) -> Dict[str, Any
 def _request_otp(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Request OTP/PIN for phone number verification.
-    Sends a verification code via SMS or voice call.
+    Meta Graph API: POST /{meta_phone_id}/request_code
     
     Body params:
     - phoneNumberId: AWS phone number ID
@@ -1095,30 +1249,37 @@ def _request_otp(body: Dict, request_id: str) -> Dict[str, Any]:
         phone_number_id = body.get('phoneNumberId', '')
         method = body.get('method', 'SMS').upper()
         language = body.get('language', 'en_US')
-        
+
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
-        
+
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
-        # Request verification code
-        params = {
-            'originationPhoneNumberId': phone_number_id,
-            'codeVerificationMethod': method,
-            'languageCode': language,
-        }
-        
-        response = social_messaging.send_whatsapp_phone_number_verification_code(**params)
-        
+
+        meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+
+        # Request verification code via Meta Graph API
+        payload = json.dumps({
+            'code_method': method,
+            'language': language,
+        }).encode('utf-8')
+
+        _meta_request(
+            f'{meta_phone_id}/request_code',
+            method='POST',
+            data=payload,
+            content_type='application/json'
+        )
+
         logger.info(json.dumps({
             'event': 'otp_requested',
             'phoneNumberId': phone_number_id,
+            'metaPhoneId': meta_phone_id,
             'method': method,
             'language': language,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -1129,7 +1290,7 @@ def _request_otp(body: Dict, request_id: str) -> Dict[str, Any]:
                 'message': f'Verification code sent via {method}'
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'request_otp_error',
@@ -1142,6 +1303,7 @@ def _request_otp(body: Dict, request_id: str) -> Dict[str, Any]:
 def _verify_otp(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Verify OTP/PIN code for phone number verification.
+    Meta Graph API: POST /{meta_phone_id}/verify_code
     
     Body params:
     - phoneNumberId: AWS phone number ID
@@ -1150,29 +1312,38 @@ def _verify_otp(body: Dict, request_id: str) -> Dict[str, Any]:
     try:
         phone_number_id = body.get('phoneNumberId', '')
         code = body.get('code', '')
-        
+
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
         if not code:
             return _error_response(400, 'code is required')
-        
+
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
-        response = social_messaging.verify_whatsapp_phone_number(
-            originationPhoneNumberId=phone_number_id,
-            verificationCode=str(code),
+
+        meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+
+        payload = json.dumps({
+            'code': str(code),
+        }).encode('utf-8')
+
+        response = _meta_request(
+            f'{meta_phone_id}/verify_code',
+            method='POST',
+            data=payload,
+            content_type='application/json'
         )
-        
-        verified = response.get('verified', False)
-        
+
+        verified = response.get('success', False)
+
         logger.info(json.dumps({
             'event': 'otp_verified',
             'phoneNumberId': phone_number_id,
+            'metaPhoneId': meta_phone_id,
             'verified': verified,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -1182,7 +1353,7 @@ def _verify_otp(body: Dict, request_id: str) -> Dict[str, Any]:
                 'verified': verified
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'verify_otp_error',
@@ -1195,6 +1366,7 @@ def _verify_otp(body: Dict, request_id: str) -> Dict[str, Any]:
 def _register_phone(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Register a phone number with a WABA.
+    Meta Graph API: POST /{meta_phone_id}/register
     
     Body params:
     - phoneNumberId: AWS phone number ID
@@ -1203,36 +1375,53 @@ def _register_phone(body: Dict, request_id: str) -> Dict[str, Any]:
     try:
         phone_number_id = body.get('phoneNumberId', '')
         pin = body.get('pin', '')
-        
+
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
-        
+
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
-        # Build registration params
-        # Note: The actual registration is done via Meta Graph API
-        # AWS EUM doesn't have a direct register endpoint
-        # This stores the registration intent and PIN in SystemConfig
+
+        meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+
+        # Register phone via Meta Graph API
+        register_payload = {
+            'messaging_product': 'whatsapp',
+        }
+        if pin:
+            register_payload['pin'] = str(pin)
+
+        payload = json.dumps(register_payload).encode('utf-8')
+
+        _meta_request(
+            f'{meta_phone_id}/register',
+            method='POST',
+            data=payload,
+            content_type='application/json'
+        )
+
+        # Store registration record in SystemConfig
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         config_table.put_item(Item={
             'id': f'phone_registration_{phone_number_id}',
             'configValue': json.dumps({
                 'phoneNumberId': phone_number_id,
+                'metaPhoneId': meta_phone_id,
                 'pin': pin,
                 'registeredAt': datetime.utcnow().isoformat(),
                 'status': 'REGISTERED'
             }),
             'updatedAt': datetime.utcnow().isoformat()
         })
-        
+
         logger.info(json.dumps({
             'event': 'phone_registered',
             'phoneNumberId': phone_number_id,
+            'metaPhoneId': meta_phone_id,
             'hasPin': bool(pin),
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -1243,7 +1432,7 @@ def _register_phone(body: Dict, request_id: str) -> Dict[str, Any]:
                 'hasPin': bool(pin)
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'register_phone_error',
@@ -1256,6 +1445,7 @@ def _register_phone(body: Dict, request_id: str) -> Dict[str, Any]:
 def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
     """
     Migrate a phone number between WABAs.
+    Meta Graph API: POST /{meta_phone_id}/register on target WABA
     
     Body params:
     - phoneNumberId: AWS phone number ID to migrate
@@ -1272,39 +1462,65 @@ def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
         pin = body.get('pin', '')
         send_pin = body.get('sendPin', False)
         pin_method = body.get('pinMethod', 'SMS').upper()
-        
+
         if not phone_number_id:
             return _error_response(400, 'phoneNumberId is required')
         if not target_waba_id:
             return _error_response(400, 'targetWabaId is required')
-        
+
         if not phone_number_id.startswith('phone-number-id-'):
             phone_number_id = f'phone-number-id-{phone_number_id}'
-        
+
+        meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+
         # Step 1: Optionally send PIN before migration
         if send_pin:
             try:
-                social_messaging.send_whatsapp_phone_number_verification_code(
-                    originationPhoneNumberId=phone_number_id,
-                    codeVerificationMethod=pin_method,
-                    languageCode='en_US',
+                otp_payload = json.dumps({
+                    'code_method': pin_method,
+                    'language': 'en_US',
+                }).encode('utf-8')
+
+                _meta_request(
+                    f'{meta_phone_id}/request_code',
+                    method='POST',
+                    data=otp_payload,
+                    content_type='application/json'
                 )
                 logger.info(json.dumps({
                     'event': 'migration_pin_sent',
                     'phoneNumberId': phone_number_id,
+                    'metaPhoneId': meta_phone_id,
                     'method': pin_method,
                     'requestId': request_id
                 }))
             except Exception as pin_err:
                 logger.warning(f"Failed to send migration PIN: {pin_err}")
                 return _error_response(500, f'Failed to send PIN: {str(pin_err)}')
-        
-        # Step 2: Store migration record
+
+        # Step 2: Register phone on target WABA via Meta Graph API
+        register_payload = {
+            'messaging_product': 'whatsapp',
+        }
+        if pin:
+            register_payload['pin'] = str(pin)
+
+        payload = json.dumps(register_payload).encode('utf-8')
+
+        _meta_request(
+            f'{meta_phone_id}/register',
+            method='POST',
+            data=payload,
+            content_type='application/json'
+        )
+
+        # Step 3: Store migration record
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         migration_record = {
             'id': f'phone_migration_{phone_number_id}_{int(datetime.utcnow().timestamp())}',
             'configValue': json.dumps({
                 'phoneNumberId': phone_number_id,
+                'metaPhoneId': meta_phone_id,
                 'sourceWabaId': source_waba_id,
                 'targetWabaId': target_waba_id,
                 'pin': pin,
@@ -1316,16 +1532,17 @@ def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
             'updatedAt': datetime.utcnow().isoformat()
         }
         config_table.put_item(Item=migration_record)
-        
+
         logger.info(json.dumps({
             'event': 'phone_migration_initiated',
             'phoneNumberId': phone_number_id,
+            'metaPhoneId': meta_phone_id,
             'sourceWabaId': source_waba_id,
             'targetWabaId': target_waba_id,
             'pinSent': send_pin,
             'requestId': request_id
         }))
-        
+
         return {
             'statusCode': 200,
             'headers': cors_headers(origin),
@@ -1338,7 +1555,7 @@ def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
                 'status': 'INITIATED'
             })
         }
-        
+
     except Exception as e:
         logger.error(json.dumps({
             'event': 'migrate_phone_error',

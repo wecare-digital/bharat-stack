@@ -1,7 +1,7 @@
 /**
  * WhatsApp Phone Migration Page
  * Migrate phone numbers between WABAs using Meta Graph API
- * OTP request/verify, register, migrate — all via Direct API (not EUM)
+ * OTP request/verify, register, migrate — all via Direct API
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
@@ -117,7 +117,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
       {/* WABA Overview */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Linked WABAs (EUM)</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Linked WABAs</div>
         {loading ? <div style={{ color: '#9ca3af', fontSize: 13 }}>Loading...</div> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {wabas.map(w => (
@@ -132,7 +132,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 </div>
               </div>
             ))}
-            {wabas.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>No EUM WABAs found</div>}
+            {wabas.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>No linked WABAs found</div>}
             <div style={{ padding: '8px 12px', background: '#eff6ff', borderRadius: 6, fontSize: 13 }}>
               <span style={{ fontWeight: 500 }}>WABA3 (Direct API)</span>
               <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 11 }}>2094615664435155</span>
@@ -145,7 +145,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
       {/* Migration Actions */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Phone Migration (Meta Graph API)</div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Migrate phone numbers between WABAs using Meta Graph API directly (bypasses EUM limitations).</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Migrate phone numbers between WABAs using Meta Graph API directly.</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div>
@@ -236,7 +236,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             <li>Migrate — move the phone from source WABA to target WABA</li>
           </ol>
           <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9ca3af' }}>
-            This uses Meta Graph API directly, bypassing AWS EUM limitations.
+            This uses Meta Graph API directly.
             The phone will be deregistered from the source WABA and registered on the target.
           </p>
         </div>

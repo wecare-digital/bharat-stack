@@ -1,7 +1,7 @@
 /**
  * WhatsApp Template Management Lambda Function Resource
  * 
- * Full template lifecycle management via AWS EUM Social API:
+ * Full template lifecycle management via Meta Graph API:
  * - CreateWhatsAppMessageTemplate - Create custom template
  * - CreateWhatsAppMessageTemplateFromLibrary - Create from Meta library
  * - CreateWhatsAppMessageTemplateMedia - Upload header images

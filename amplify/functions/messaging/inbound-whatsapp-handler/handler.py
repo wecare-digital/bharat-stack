@@ -38,7 +38,6 @@ logger = get_logger(__name__)
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sqs = boto3.client('sqs', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
@@ -71,28 +70,28 @@ _ai_fail_reset_time = 0
 AI_CIRCUIT_BREAKER_THRESHOLD = 5   # failures before tripping
 AI_CIRCUIT_BREAKER_COOLDOWN = 300  # seconds (5 min) before retrying
 
-# WhatsApp Phone Number IDs - Map Meta phone number IDs to AWS phone number IDs
-# Format: Meta phone number ID -> AWS EUM phone-number-id
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+# WhatsApp Phone Number IDs - Map Meta phone number IDs to phone number IDs
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 
-# Map display phone numbers to AWS phone number IDs for reference
-# WABA3 (+918100330063) uses Direct API (no EUM) — synthetic ID for tracking
+# Map display phone numbers to phone number IDs for reference
 PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 PHONE_NUMBER_MAP = {
-    '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400 (WABA1, EUM)
+    '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400 (WABA3, Direct API)
     '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044 (WABA-T 2513394156072604, Direct API)
     '918100330063': PHONE_NUMBER_ID_3,  # +91 81003 30063 (WABA3, Direct API)
 }
 
-# Meta phone number ID to AWS phone number ID mapping (for Direct API WABAs)
+# Meta phone number ID to phone number ID mapping
 META_PHONE_ID_MAP = {
+    '1016149501586345': PHONE_NUMBER_ID_1,  # WABA3 phone (+91 93309 94400, migrated)
     '945798751960485': PHONE_NUMBER_ID_3,  # WABA3 phone (old)
     '1055232054343117': PHONE_NUMBER_ID_2,  # WABA-T phone (+91 99033 00044, migrated)
+    '960395407161423': PHONE_NUMBER_ID_1,  # WABA1 phone (old Meta ID, maps to same)
 }
 
-# Direct API phone IDs — these don't use EUM, so EUM operations should be skipped
-DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_3, PHONE_NUMBER_ID_2}
+# All phones use Direct API
+DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2, PHONE_NUMBER_ID_3}
 
 
 def _is_direct_api_phone(phone_number_id: str) -> bool:
@@ -133,10 +132,18 @@ def _load_direct_api_token() -> str:
 def _get_meta_phone_id_for_direct_api(aws_phone_id: str) -> str:
     """Get the Meta phone ID for a Direct API phone number."""
     DIRECT_API_META_MAP = {
+        PHONE_NUMBER_ID_1: '1016149501586345',  # +91 93309 94400 (WABA3)
         PHONE_NUMBER_ID_2: '1055232054343117',  # +91 99033 00044 (WABA-T)
-        PHONE_NUMBER_ID_3: '1016149501586345',  # +91 93309 94400 (WABA3, pending)
+        PHONE_NUMBER_ID_3: '945798751960485',   # +91 81003 30063 (WABA3 alt)
     }
-    return DIRECT_API_META_MAP.get(aws_phone_id, WABA3_PHONE_META_ID)
+    meta_id = DIRECT_API_META_MAP.get(aws_phone_id)
+    if meta_id:
+        return meta_id
+    # Fallback: extract from direct format phone-number-id-waba3-direct-{meta_id}
+    if '-direct-' in aws_phone_id:
+        return aws_phone_id.split('-direct-')[-1]
+    # Last resort: use WABA-T phone (confirmed working)
+    return '1055232054343117'
 
 
 # Track current phone context for Direct API calls
@@ -332,7 +339,7 @@ PAY_MSG = {
 }
 
 # Phone number ID that handles payments (Phone 1: +919330994400 / WECARE.DIGITAL)
-PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
+PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-waba3-direct-1016149501586345'
 
 # WhatsApp Flow IDs
 SUBMIT_REQUEST_FLOW_ID = os.environ.get('SUBMIT_REQUEST_FLOW_ID', '1235100738173254')
@@ -1483,67 +1490,47 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
             'requestId': request_id
         }))
         
-        # Call AWS Social Messaging API to download media to S3
-        response = social_messaging.get_whatsapp_message_media(
-            mediaId=whatsapp_media_id,
-            originationPhoneNumberId=phone_number_id,
-            destinationS3File={
-                'bucketName': MEDIA_BUCKET,
-                'key': s3_key_prefix
-            }
+        # Download media via Meta Graph API: GET /{media_id} → get URL → download → upload to S3
+        meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
+        token = _load_direct_api_token()
+        app_secret = _direct_api_token_cache.get('app_secret', '')
+
+        # Step 1: Get media URL from Meta
+        media_url_endpoint = f"https://graph.facebook.com/{META_API_VERSION}/{whatsapp_media_id}"
+        if app_secret:
+            proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+            media_url_endpoint = f"{media_url_endpoint}?appsecret_proof={proof}"
+        media_req = urllib.request.Request(media_url_endpoint, headers={
+            'Authorization': f'Bearer {token}',
+        })
+        with urllib.request.urlopen(media_req, timeout=15) as media_resp:
+            media_info = json.loads(media_resp.read().decode())
+        media_download_url = media_info.get('url', '')
+        mime_type = media_info.get('mime_type', mime_type_hint or '')
+        file_size = media_info.get('file_size', 0)
+
+        # Step 2: Download the actual media file
+        dl_req = urllib.request.Request(media_download_url, headers={
+            'Authorization': f'Bearer {token}',
+        })
+        with urllib.request.urlopen(dl_req, timeout=60) as dl_resp:
+            media_bytes = dl_resp.read()
+
+        # Step 3: Determine extension and upload to S3
+        ext_map = {
+            'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
+            'video/mp4': '.mp4', 'audio/ogg': '.ogg', 'audio/mpeg': '.mp3',
+            'audio/aac': '.aac', 'application/pdf': '.pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        }
+        ext = ext_map.get(mime_type, '')
+        actual_s3_key = f"{s3_key_prefix}{whatsapp_media_id}{ext}"
+        s3.put_object(
+            Bucket=MEDIA_BUCKET,
+            Key=actual_s3_key,
+            Body=media_bytes,
+            ContentType=mime_type or 'application/octet-stream',
         )
-        
-        # Response contains mimeType and fileSize
-        mime_type = response.get('mimeType', '')
-        file_size = response.get('fileSize', 0)
-        
-        logger.info(json.dumps({
-            'event': 'media_download_response',
-            'mediaId': whatsapp_media_id,
-            'mimeType': mime_type,
-            'fileSize': file_size,
-            'requestId': request_id
-        }))
-        
-        # Find the actual file that AWS created in S3
-        # Search using MEDIA_PREFIX + whatsapp_media_id to find the exact file
-        search_prefix = f"{MEDIA_PREFIX}{whatsapp_media_id}"
-        actual_s3_key = None
-        try:
-            s3_response = s3.list_objects_v2(
-                Bucket=MEDIA_BUCKET,
-                Prefix=search_prefix,
-                MaxKeys=5
-            )
-            contents = s3_response.get('Contents', [])
-            # Filter out zero-byte folder markers
-            real_files = [c for c in contents if c.get('Size', 0) > 0]
-            if real_files:
-                actual_s3_key = real_files[0]['Key']
-                logger.info(json.dumps({
-                    'event': 'media_s3_key_found',
-                    'prefix': search_prefix,
-                    'actualS3Key': actual_s3_key,
-                    'fileSize': real_files[0].get('Size', 0),
-                    'requestId': request_id
-                }))
-        except Exception as list_err:
-            logger.warning(json.dumps({
-                'event': 'media_s3_list_failed',
-                'prefix': search_prefix,
-                'error': str(list_err),
-                'requestId': request_id
-            }))
-        
-        # Fallback: construct expected key from mimeType if list failed
-        if not actual_s3_key:
-            ext = _get_extension_from_mime(mime_type) if mime_type else _get_extension_from_type(media_type)
-            actual_s3_key = f"{MEDIA_PREFIX}{whatsapp_media_id}{ext}"
-            logger.warning(json.dumps({
-                'event': 'media_using_constructed_key',
-                'constructedKey': actual_s3_key,
-                'requestId': request_id
-            }))
         
         # Rename to wecare-digital-{uuid}.{ext} format (flat, no nesting)
         ext = _get_extension_from_mime(mime_type) if mime_type else _get_extension_from_type(media_type)
@@ -3041,7 +3028,7 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
             'text': {'body': response_config['text']},
         }
 
-        # Use Direct API for WABA3, EUM for others
+        # All phones use Direct API
         if _is_direct_api_phone(aws_phone_number_id):
             result = _send_direct_api_message(to_number, msg_payload)
             if result.get('error'):
@@ -3049,16 +3036,8 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
             else:
                 logger.info(f"IVR response sent via Direct API to {sender_phone} for {button_id}")
         else:
-            # EUM fallback (should not reach here if all phones are Direct API)
-            if _is_direct_api_phone(aws_phone_number_id):
-                meta_pid = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
-                _send_direct_api_message(sender_phone, msg_payload, meta_phone_id=meta_pid)
-            else:
-                social_messaging.send_whatsapp_message(
-                    originationPhoneNumberId=aws_phone_number_id,
-                    message=json.dumps(msg_payload).encode('utf-8'),
-                    metaApiVersion=META_API_VERSION,
-                )
+            meta_pid = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
+            _send_direct_api_message(sender_phone, msg_payload, meta_phone_id=meta_pid)
             logger.info(f"IVR response sent to {sender_phone} for {button_id}")
 
         # Store IVR selection in SystemEvent table for tracking/analytics
@@ -4530,7 +4509,7 @@ def _send_read_receipt(whatsapp_message_id: str, phone_number_id: str, request_i
         return
     
     try:
-        # Build read receipt payload per AWS Social Messaging docs
+        # Build read receipt payload per Meta WhatsApp API
         read_receipt_payload = {
             'messaging_product': 'whatsapp',
             'message_id': whatsapp_message_id,
@@ -4544,17 +4523,15 @@ def _send_read_receipt(whatsapp_message_id: str, phone_number_id: str, request_i
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API with read status
+        # Send read receipt via Direct API
         if _is_direct_api_phone(phone_number_id):
             meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
             _send_direct_api_read_receipt(whatsapp_message_id, meta_phone_id=meta_pid)
             response = {'StatusCode': 200}
         else:
-            response = social_messaging.send_whatsapp_message(
-                originationPhoneNumberId=phone_number_id,
-                message=json.dumps(read_receipt_payload).encode('utf-8'),
-                metaApiVersion='v20.0'
-            )
+            # Fallback: try Direct API with default phone
+            _send_direct_api_read_receipt(whatsapp_message_id)
+            response = {'StatusCode': 200}
         
         logger.info(json.dumps({
             'event': 'read_receipt_sent',
@@ -5251,17 +5228,14 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
             meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
             _send_direct_api_read_receipt(whatsapp_message_id if 'whatsapp_message_id' in dir() else '', meta_phone_id=meta_pid)
         else:
-            social_messaging.send_whatsapp_message(
-                originationPhoneNumberId=phone_number_id,
-                message=json.dumps(read_payload).encode('utf-8'),
-                metaApiVersion='v20.0'
-            )
+            # Fallback: try Direct API with default phone
+            _send_direct_api_read_receipt('', meta_phone_id=_current_direct_api_phone or WABA3_PHONE_META_ID)
 
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',
             'senderPhone': sender_phone,
             'phoneNumberId': phone_number_id,
-            'note': 'Sent read receipt as typing proxy (EUM has no native typing API)',
+            'note': 'Sent read receipt as typing proxy',
             'requestId': request_id
         }))
 

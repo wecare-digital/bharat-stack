@@ -58,21 +58,11 @@ export const IAM_POLICIES = {
       {
         Effect: 'Allow',
         Action: [
-          'social-messaging:SendWhatsAppMessage',
-          'social-messaging:GetWhatsAppMessageMedia',
-          'social-messaging:PostWhatsAppMessageMedia',
-          'social-messaging:DeleteWhatsAppMessageMedia',
+          'secretsmanager:GetSecretValue',
         ],
         Resource: [
-          // Phone Number 1: WECARE.DIGITAL (+91 93309 94400)
-          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:phone-number-id/5e020cecd221429996f6ae721cc42206`,
-          // Phone Number 2: Manish Agarwal (+91 99033 00044) — migrated to WABA-T, Direct API (no EUM)
-          // Kept for backward compatibility during transition
-          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:phone-number-id/abdd81f7bec24ec085a25ab9df6a6f7c`,
-          // WABA 1: WECARE.DIGITAL (Meta ID: 1912405516040025)
-          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:waba/e47d916f3c7a47e1a34a19653893dd4b`,
-          // WABA 2: Manish Agarwal (old Meta ID: 1633959101297902) — kept for transition
-          `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:waba/dbe343f210204752b74c80a0a59631a6`,
+          // Meta API tokens for Direct API (all WABAs)
+          `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:wecare/meta-system-user-token*`,
         ],
       },
       {

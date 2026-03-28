@@ -1,7 +1,7 @@
 /**
  * WABA Management Lambda Function Resource
  * 
- * Manages WhatsApp Business Accounts via AWS EUM Social API:
+ * Manages WhatsApp Business Accounts via Meta Graph API:
  * - GetLinkedWhatsAppBusinessAccount - Get WABA details (phone quality, limits)
  * - GetLinkedWhatsAppBusinessAccountPhoneNumber - Get phone details
  * - ListLinkedWhatsAppBusinessAccounts - List all WABAs

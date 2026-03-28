@@ -331,7 +331,7 @@ def generate_cost_recommendations(services: List[Dict], total_cost: float) -> Li
                 'description': f'Messaging costs ${messaging["cost"]:.2f}. Use template messages (cheaper) instead of session messages when possible.',
                 'potentialSavings': round(messaging['cost'] * 0.4, 2),
                 'action': 'Use approved templates for outbound messages',
-                'link': 'https://console.aws.amazon.com/social-messaging/home'
+                'link': 'https://business.facebook.com/latest/whatsapp_manager/message_templates'
             })
     
     # Check Lambda costs (usually free tier)

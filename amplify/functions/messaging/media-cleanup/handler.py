@@ -7,30 +7,64 @@ frees storage sooner and is good hygiene.
 
 Triggered on schedule (EventBridge daily) or manually.
 Scans MediaFilesTable for records older than 25 days and calls
-delete_whatsapp_message_media for each.
+Meta Graph API DELETE /{media_id} for each.
 """
 
 import os
 import json
 import time
 import logging
+import hmac
+import hashlib
 import boto3
+import urllib.request
+import urllib.error
 from typing import Dict, Any
 from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
-
 from lambda_utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
-PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
 CLEANUP_AGE_DAYS = int(os.environ.get('CLEANUP_AGE_DAYS', '25'))
 MAX_DELETIONS = int(os.environ.get('MAX_DELETIONS', '50'))
+META_API_VERSION = 'v20.0'
+
+_token_cache = {}
+
+def _load_token():
+    if 'token' in _token_cache:
+        return
+    resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+    data = json.loads(resp['SecretString'])
+    _token_cache['token'] = (data.get('access_token') or '').strip()
+    _token_cache['app_secret'] = (data.get('app_secret') or '').strip()
+
+def _delete_media_from_meta(media_id: str) -> bool:
+    """Delete media from Meta via Graph API: DELETE /{media_id}."""
+    _load_token()
+    token = _token_cache['token']
+    app_secret = _token_cache.get('app_secret', '')
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{media_id}"
+    if app_secret:
+        proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+    req = urllib.request.Request(url, headers={
+        'Authorization': f'Bearer {token}',
+    }, method='DELETE')
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return True
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return True  # Already deleted
+        raise
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -53,7 +87,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     try:
         table = dynamodb.Table(MEDIA_FILES_TABLE)
-        # Paginate fully — Limit restricts evaluated items, not filtered results
         items = []
         scan_kwargs = {
             'FilterExpression': 'uploadedAt < :cutoff AND attribute_exists(whatsappMediaId)',
@@ -79,18 +112,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 skipped += 1
                 continue
 
-            # Skip if already cleaned up
             if item.get('cleanedUp'):
                 skipped += 1
                 continue
 
             try:
-                social_messaging.delete_whatsapp_message_media(
-                    mediaId=media_id,
-                    originationPhoneNumberId=PHONE_NUMBER_ID
-                )
+                _delete_media_from_meta(media_id)
 
-                # Mark as cleaned up
                 table.update_item(
                     Key={'id': file_id},
                     UpdateExpression='SET cleanedUp = :t, cleanedUpAt = :now',

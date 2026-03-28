@@ -3,7 +3,7 @@ WhatsApp Voice Lambda Function
 
 Purpose: Generate TTS audio via Amazon Polly, transcribe voice notes via Amazon Transcribe,
          and send as WhatsApp audio messages. Full multi-language support with English translation.
-Uses: Amazon Polly (TTS) + Amazon Transcribe (STT) + Amazon Translate + AWS EUM Social (WhatsApp) + S3 (storage)
+Uses: Amazon Polly (TTS) + Amazon Transcribe (STT) + Amazon Translate + Meta Graph API (Direct API) + S3 (storage)
 
 Endpoints:
   POST   /whatsapp-voice/tts             - Generate TTS and send as WhatsApp audio
@@ -41,7 +41,6 @@ REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 polly = boto3.client('polly', region_name=REGION)
 s3 = boto3.client('s3', region_name=REGION)
-social_messaging = boto3.client('socialmessaging', region_name=REGION)
 transcribe = boto3.client('transcribe', region_name=REGION)
 
 # Environment
@@ -356,7 +355,7 @@ def _handle_tts(body: Dict, request_id: str) -> Dict[str, Any]:
             'bucket': MEDIA_BUCKET, 's3Key': s3_key
         }))
 
-        # Step 3: Upload to WhatsApp via EUM Social PostWhatsAppMessageMedia
+        # Step 3: Upload to WhatsApp via Direct API PostWhatsAppMessageMedia
         media_id = _upload_to_whatsapp(s3_key, phone_number_id, request_id)
 
         if not media_id:
@@ -807,64 +806,47 @@ def _handle_language_config(http_method: str, body: Dict, request_id: str) -> Di
 
 def _upload_to_whatsapp(s3_key: str, phone_number_id: str,
                         request_id: str) -> Optional[str]:
-    """Upload media to WhatsApp. Direct API for Direct API phones, EUM for others."""
+    """Upload media to WhatsApp via Direct Meta API."""
     meta_phone_id = DIRECT_API_PHONES.get(phone_number_id)
-    if meta_phone_id:
-        # Direct API: download from S3, upload to Meta
-        try:
-            obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
-            media_bytes = obj['Body'].read()
-            content_type = obj.get('ContentType', 'audio/ogg')
-            
-            token = _load_voice_token()
-            app_secret = _voice_token_cache.get('app_secret', '')
-            url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/media"
-            if app_secret:
-                proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
-                url = f"{url}?appsecret_proof={proof}"
-            
-            import io, email.mime.multipart
-            boundary = 'wecareupload'
-            body = (
-                f'--{boundary}\r\n'
-                f'Content-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n'
-                f'--{boundary}\r\n'
-                f'Content-Disposition: form-data; name="type"\r\n\r\n{content_type}\r\n'
-                f'--{boundary}\r\n'
-                f'Content-Disposition: form-data; name="file"; filename="audio.ogg"\r\n'
-                f'Content-Type: {content_type}\r\n\r\n'
-            ).encode() + media_bytes + f'\r\n--{boundary}--\r\n'.encode()
-            
-            req = urllib.request.Request(url, data=body, headers={
-                'Authorization': f'Bearer {token}',
-                'Content-Type': f'multipart/form-data; boundary={boundary}'
-            }, method='POST')
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                result = json.loads(resp.read().decode())
-            media_id = result.get('id', '')
-            logger.info(f"Direct API media upload: {media_id}")
-            return media_id
-        except Exception as e:
-            logger.error(f"Direct API media upload error: {e}")
-            return None
-    
-    # EUM fallback
+    if not meta_phone_id:
+        logger.error(f"No Direct API mapping for phone {phone_number_id}")
+        return None
+    # Direct API: download from S3, upload to Meta
     try:
-        response = social_messaging.post_whatsapp_message_media(
-            originationPhoneNumberId=phone_number_id,
-            sourceS3File={
-                'bucketName': MEDIA_BUCKET,
-                'key': s3_key,
-            },
-        )
-        media_id = response.get('mediaId', '')
-        logger.info(json.dumps({
-            'event': 'whatsapp_media_upload_success',
-            'mediaId': media_id, 's3Key': s3_key
-        }))
+        obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+        media_bytes = obj['Body'].read()
+        content_type = obj.get('ContentType', 'audio/ogg')
+        
+        token = _load_voice_token()
+        app_secret = _voice_token_cache.get('app_secret', '')
+        url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/media"
+        if app_secret:
+            proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+            url = f"{url}?appsecret_proof={proof}"
+        
+        import io, email.mime.multipart
+        boundary = 'wecareupload'
+        body = (
+            f'--{boundary}\r\n'
+            f'Content-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n'
+            f'--{boundary}\r\n'
+            f'Content-Disposition: form-data; name="type"\r\n\r\n{content_type}\r\n'
+            f'--{boundary}\r\n'
+            f'Content-Disposition: form-data; name="file"; filename="audio.ogg"\r\n'
+            f'Content-Type: {content_type}\r\n\r\n'
+        ).encode() + media_bytes + f'\r\n--{boundary}--\r\n'.encode()
+        
+        req = urllib.request.Request(url, data=body, headers={
+            'Authorization': f'Bearer {token}',
+            'Content-Type': f'multipart/form-data; boundary={boundary}'
+        }, method='POST')
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+        media_id = result.get('id', '')
+        logger.info(f"Direct API media upload: {media_id}")
         return media_id
     except Exception as e:
-        logger.error(f"WhatsApp media upload error: {str(e)}")
+        logger.error(f"Direct API media upload error: {e}")
         return None
 
 
@@ -872,7 +854,7 @@ def _send_whatsapp_audio(phone: str, media_id: str,
                          phone_number_id: str,
                          request_id: str,
                          recipient_bsuid: str = '') -> Optional[str]:
-    """Send audio message. Direct API for Direct API phones, EUM for others."""
+    """Send audio message via Direct Meta API."""
     try:
         digits = ''.join(c for c in phone if c.isdigit())
         wa_payload = {
@@ -886,29 +868,22 @@ def _send_whatsapp_audio(phone: str, media_id: str,
             wa_payload['recipient'] = recipient_bsuid
 
         meta_phone_id = DIRECT_API_PHONES.get(phone_number_id)
-        if meta_phone_id:
-            # Direct API
-            token = _load_voice_token()
-            app_secret = _voice_token_cache.get('app_secret', '')
-            url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
-            if app_secret:
-                proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
-                url = f"{url}?appsecret_proof={proof}"
-            req = urllib.request.Request(url, data=json.dumps(wa_payload).encode(), headers={
-                'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'
-            }, method='POST')
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                result = json.loads(resp.read().decode())
-            wa_msg_id = result.get('messages', [{}])[0].get('id', '')
-        else:
-            # EUM fallback
-            message_bytes = json.dumps(wa_payload).encode('utf-8')
-            response = social_messaging.send_whatsapp_message(
-                originationPhoneNumberId=phone_number_id,
-                message=message_bytes,
-                metaApiVersion=META_API_VERSION,
-            )
-            wa_msg_id = response.get('messageId', '')
+        if not meta_phone_id:
+            logger.error(f"No Direct API mapping for phone {phone_number_id}")
+            return None
+        # Direct API
+        token = _load_voice_token()
+        app_secret = _voice_token_cache.get('app_secret', '')
+        url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
+        if app_secret:
+            proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+            url = f"{url}?appsecret_proof={proof}"
+        req = urllib.request.Request(url, data=json.dumps(wa_payload).encode(), headers={
+            'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'
+        }, method='POST')
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+        wa_msg_id = result.get('messages', [{}])[0].get('id', '')
         logger.info(json.dumps({
             'event': 'whatsapp_audio_sent',
             'messageId': wa_msg_id, 'to': phone

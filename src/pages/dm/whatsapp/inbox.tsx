@@ -493,7 +493,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       toast.error(`Filename contains invalid characters: ${invalidChars.join(', ')}. They will be removed.`);
     }
     
-    // Validate file size based on type per AWS Social Messaging docs
+    // Validate file size based on type per WhatsApp API docs
     let maxSize = 5 * 1024 * 1024; // Default 5MB for images
     
     if (file.type.startsWith('video/')) {

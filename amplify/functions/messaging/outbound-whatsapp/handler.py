@@ -5,7 +5,7 @@ Purpose: Send WhatsApp text/media messages
 Requirements: 3.1, 3.2, 5.2-5.11, 14.4, 16.2-16.6
 
 Validates opt-in and allowlist, checks customer service window,
-calls AWS EUM Social SendWhatsAppMessage API.
+calls Meta Graph API (Direct API) for all phones.
 Emits CloudWatch metrics for delivery success/failure.
 """
 
@@ -15,6 +15,8 @@ import uuid
 import time
 import logging
 import boto3
+import urllib.request
+import urllib.error
 from typing import Dict, Any, Optional, Tuple
 from decimal import Decimal
 
@@ -27,7 +29,6 @@ logger = get_logger(__name__)
 
 # AWS clients
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 cloudwatch = boto3.client('cloudwatch', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
@@ -41,15 +42,16 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/outgoing/')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 ALLOWLIST = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
-# Direct API phone IDs — these use Meta Graph API, not AWS EUM
-DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_2}
+# All phones use Direct Meta Graph API
+DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 # Meta phone ID for Direct API sending
 DIRECT_API_META_PHONE_MAP = {
-    PHONE_NUMBER_ID_2: '1055232054343117',  # +91 99033 00044 on WABA-T 2513394156072604
+    'phone-number-id-waba3-direct-1016149501586345': '1016149501586345',  # +91 93309 94400 on WABA3
+    'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',  # +91 99033 00044 on WABA-T
 }
 
 # Secrets Manager for Direct API tokens
@@ -57,7 +59,7 @@ secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_
 _direct_api_cache = {}
 
 def _is_direct_api_phone(phone_number_id: str) -> bool:
-    """Check if phone uses Direct API (not EUM)."""
+    """Check if phone uses Direct API. All phones are now Direct API."""
     return phone_number_id in DIRECT_API_PHONE_IDS
 
 def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
@@ -73,6 +75,14 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
     app_secret = _direct_api_cache['app_secret']
     meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
     
+    # Fallback: extract Meta phone ID from Direct API format phone-number-id-waba3-direct-{meta_id}
+    if not meta_phone_id and '-direct-' in phone_number_id:
+        meta_phone_id = phone_number_id.split('-direct-')[-1]
+    # Last resort: default to WABA-T phone (the working one)
+    if not meta_phone_id:
+        meta_phone_id = '1055232054343117'
+        logger.warning(f"No Meta phone ID mapping for {phone_number_id}, defaulting to {meta_phone_id}")
+    
     url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
     if app_secret:
         proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
@@ -83,24 +93,21 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }, method='POST')
-    with urllib.request.urlopen(req, timeout=15) as r:
-        result = json.loads(r.read().decode())
-    msg_id = result.get('messages', [{}])[0].get('id', '')
-    return {'messageId': msg_id}
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            result = json.loads(r.read().decode())
+        msg_id = result.get('messages', [{}])[0].get('id', '')
+        return {'messageId': msg_id}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(f"Direct API send failed {e.code} for phone {meta_phone_id}: {error_body[:500]}")
+        raise
 
 
 def _send_message(phone_number_id: str, payload, as_bytes=False) -> Dict:
-    """Universal send — routes to Direct API or EUM based on phone."""
-    if _is_direct_api_phone(phone_number_id):
-        msg = json.dumps(payload) if not isinstance(payload, str) else payload
-        return _send_direct_api(phone_number_id, msg)
-    else:
-        msg = json.dumps(payload).encode('utf-8') if not as_bytes else payload
-        return social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=msg,
-            metaApiVersion=META_API_VERSION
-        )
+    """Universal send — all phones use Direct Meta API."""
+    msg = json.dumps(payload) if not isinstance(payload, str) else payload
+    return _send_direct_api(phone_number_id, msg)
 
 # Constants
 META_API_VERSION = 'v20.0'  # Requirement 5.8
@@ -408,8 +415,8 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
                           recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
     Send a reaction to a WhatsApp message.
-    Uses AWS EUM Social SendWhatsAppMessage API with reaction type.
-    Per AWS docs: reaction payload requires message_id from the original message.
+    Uses Meta Graph API (Direct API) with reaction type.
+    Per Meta docs: reaction payload requires message_id from the original message.
     """
     try:
         # Normalize phone number and add + prefix for reactions
@@ -417,8 +424,7 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
         digits_only = _normalize_phone_number(recipient_phone)
         formatted_phone = f"+{digits_only}" if not digits_only.startswith('+') else digits_only
         
-        # Build reaction payload per AWS Social Messaging docs
-        # https://docs.aws.amazon.com/social-messaging/latest/userguide/receive-message.html
+        # Build reaction payload per Meta WhatsApp Cloud API docs
         reaction_payload = {
             'messaging_product': 'whatsapp',
             'recipient_type': 'individual',
@@ -442,7 +448,7 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API (routes to Direct API or EUM)
+        # Call SendWhatsAppMessage API (Direct API)
         response = _send_message(phone_number_id, reaction_payload)
         
         whatsapp_message_id = response.get('messageId', '')
@@ -583,7 +589,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API (routes to Direct API or EUM)
+        # Call SendWhatsAppMessage API (Direct API)
         response = _send_message(phone_number_id, order_status_payload)
         
         whatsapp_message_id = response.get('messageId', '')
@@ -890,7 +896,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API (routes to Direct API or EUM)
+        # Call SendWhatsAppMessage API (Direct API)
         response = _send_message(phone_number_id, payload)
         
         whatsapp_message_id = response.get('messageId', '')
@@ -955,7 +961,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       otp_button_type: Optional[str] = None,
                       recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
-    Handle LIVE mode - call AWS EUM Social API.
+    Handle LIVE mode - call Meta Graph API (Direct API).
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
     """
     try:
@@ -1028,34 +1034,11 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         last_error = None
         for attempt in range(max_retries + 1):
             try:
-                if _is_direct_api_phone(phone_number_id):
-                    # Direct API — send via Meta Graph API
-                    response = _send_direct_api(phone_number_id, message_json)
-                else:
-                    # EUM — send via AWS Social Messaging SDK
-                    response = social_messaging.send_whatsapp_message(
-                        originationPhoneNumberId=phone_number_id,
-                        message=message_json,
-                        metaApiVersion=META_API_VERSION
-                    )
+                # Direct API — send via Meta Graph API
+                response = _send_direct_api(phone_number_id, message_json)
                 last_error = None
                 break
-            except social_messaging.exceptions.ThrottledRequestException as e:
-                last_error = e
-                if attempt < max_retries:
-                    wait_time = min(2 ** attempt, 8)  # 1s, 2s, 4s
-                    logger.warning(json.dumps({
-                        'event': 'send_throttled_retry',
-                        'attempt': attempt + 1,
-                        'waitSeconds': wait_time,
-                        'messageId': message_id,
-                        'requestId': request_id
-                    }))
-                    time.sleep(wait_time)
-                else:
-                    raise
             except Exception as e:
-                # Only retry on transient errors (service unavailable, timeout)
                 error_str = str(e).lower()
                 is_transient = any(kw in error_str for kw in ['timeout', 'service unavailable', '503', '429', 'throttl'])
                 if is_transient and attempt < max_retries:
@@ -1226,19 +1209,23 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             })
         }
         
-    except social_messaging.exceptions.ThrottledRequestException as e:
-        # Requirement 5.10: Handle API errors
-        _store_message_record(
-            message_id=message_id,
-            contact_id=contact_id,
-            content=content,
-            status='failed',
-            error_details={'type': 'throttling', 'message': str(e)},
-            phone_number_id=phone_number_id
-        )
-        # Emit failure metric
-        _emit_delivery_metric('failed', is_template)
-        return _error_response(429, 'API rate limit exceeded')
+    except urllib.error.HTTPError as e:
+        # Handle Meta API HTTP errors (throttling, etc.)
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        error_code = e.code
+        is_throttled = error_code == 429 or 'throttl' in error_body.lower()
+        if is_throttled:
+            _store_message_record(
+                message_id=message_id,
+                contact_id=contact_id,
+                content=content,
+                status='failed',
+                error_details={'type': 'throttling', 'message': error_body[:500]},
+                phone_number_id=phone_number_id
+            )
+            _emit_delivery_metric('failed', is_template)
+            return _error_response(429, 'API rate limit exceeded')
+        raise  # Re-raise for the generic handler below
         
     except Exception as e:
         # Requirement 5.10: Store error details
@@ -1271,7 +1258,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
 def _upload_media(media_file: str, media_type: str, message_id: str, phone_number_id: str, request_id: str, filename: Optional[str] = None) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Upload media to S3 and register with WhatsApp.
-    Supports all AWS Social Messaging media types per documentation.
+    Supports all WhatsApp media types per Meta documentation.
     Requirements 5.5, 5.6, 5.7
     
     Returns: (s3_key, whatsapp_media_id, display_filename)
@@ -1383,54 +1370,43 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         }))
         
         # Requirement 5.6: Call PostWhatsAppMessageMedia to get mediaId
-        # Routes to Direct API or EUM based on phone
+        # All phones use Direct Meta API
         try:
-            if _is_direct_api_phone(phone_number_id):
-                # Direct API: download from S3, upload to Meta
-                import hmac as _hmac, hashlib as _hashlib
-                obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
-                media_bytes = obj['Body'].read()
-                content_type = obj.get('ContentType', 'application/octet-stream')
-                
-                if 'token' not in _direct_api_cache:
-                    resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
-                    data = json.loads(resp['SecretString'])
-                    _direct_api_cache['token'] = (data.get('access_token') or '').strip()
-                    _direct_api_cache['app_secret'] = (data.get('app_secret') or '').strip()
-                
-                token = _direct_api_cache['token']
-                app_secret = _direct_api_cache['app_secret']
-                meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
-                url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/media"
-                if app_secret:
-                    proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
-                    url = f"{url}?appsecret_proof={proof}"
-                
-                boundary = 'wecareupload'
-                body = (
-                    f'--{boundary}\r\nContent-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n'
-                    f'--{boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\n{content_type}\r\n'
-                    f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{display_filename or "file"}"\r\n'
-                    f'Content-Type: {content_type}\r\n\r\n'
-                ).encode() + media_bytes + f'\r\n--{boundary}--\r\n'.encode()
-                
-                import urllib.request as _ur
-                req = _ur.Request(url, data=body, headers={
-                    'Authorization': f'Bearer {token}',
-                    'Content-Type': f'multipart/form-data; boundary={boundary}'
-                }, method='POST')
-                with _ur.urlopen(req, timeout=30) as resp:
-                    result = json.loads(resp.read().decode())
-                whatsapp_media_id = result.get('id', '')
-            else:
-                response = social_messaging.post_whatsapp_message_media(
-                    originationPhoneNumberId=phone_number_id,
-                    sourceS3File={
-                        'bucketName': MEDIA_BUCKET,
-                        'key': s3_key
-                    }
-                )
-                whatsapp_media_id = response.get('mediaId', '')
+            import hmac as _hmac, hashlib as _hashlib
+            obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+            media_bytes = obj['Body'].read()
+            content_type = obj.get('ContentType', 'application/octet-stream')
+            
+            if 'token' not in _direct_api_cache:
+                resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+                data = json.loads(resp['SecretString'])
+                _direct_api_cache['token'] = (data.get('access_token') or '').strip()
+                _direct_api_cache['app_secret'] = (data.get('app_secret') or '').strip()
+            
+            token = _direct_api_cache['token']
+            app_secret = _direct_api_cache['app_secret']
+            meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
+            url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/media"
+            if app_secret:
+                proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+                url = f"{url}?appsecret_proof={proof}"
+            
+            boundary = 'wecareupload'
+            body = (
+                f'--{boundary}\r\nContent-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n'
+                f'--{boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\n{content_type}\r\n'
+                f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{display_filename or "file"}"\r\n'
+                f'Content-Type: {content_type}\r\n\r\n'
+            ).encode() + media_bytes + f'\r\n--{boundary}--\r\n'.encode()
+            
+            import urllib.request as _ur
+            req = _ur.Request(url, data=body, headers={
+                'Authorization': f'Bearer {token}',
+                'Content-Type': f'multipart/form-data; boundary={boundary}'
+            }, method='POST')
+            with _ur.urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode())
+            whatsapp_media_id = result.get('id', '')
             
             if not whatsapp_media_id:
                 logger.error(json.dumps({
@@ -2473,7 +2449,7 @@ def _error_response(status_code: int, error: str, message: str = None) -> Dict[s
 def _send_typing_indicator(phone_number_id: str, recipient_phone: str) -> None:
     """Send typing indicator to WhatsApp user.
     
-    AWS EUM Social API does not expose a native typing indicator endpoint.
+    Meta Graph API does not expose a native typing indicator endpoint.
     Instead we send a read receipt (blue ticks) which signals engagement
     to the customer while the actual response is being prepared.
     The frontend supplements this with a local typing animation.
@@ -2482,7 +2458,7 @@ def _send_typing_indicator(phone_number_id: str, recipient_phone: str) -> None:
         digits_only = _normalize_phone_number(recipient_phone)
         formatted_phone = f'+{digits_only}' if not digits_only.startswith('+') else digits_only
 
-        # Send a read-receipt-style payload — this is the closest EUM supports
+        # Send a read-receipt-style payload — this is the closest the API supports
         # to a typing indicator. It shows blue ticks on the customer's side.
         read_payload = {
             'messaging_product': 'whatsapp',
@@ -2497,7 +2473,7 @@ def _send_typing_indicator(phone_number_id: str, recipient_phone: str) -> None:
             'event': 'typing_indicator_sent',
             'recipientPhone': recipient_phone,
             'phoneNumberId': phone_number_id,
-            'note': 'Sent read receipt as typing proxy (EUM has no native typing API)'
+            'note': 'Sent read receipt as typing proxy (no native typing API)'
         }))
     except Exception as e:
         # Non-critical — log and swallow so the caller can proceed

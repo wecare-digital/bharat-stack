@@ -315,7 +315,7 @@ def _convert_from_dynamodb(item: Dict[str, Any]) -> Dict[str, Any]:
                 'messageId': message_id
             }))
             
-            # AWS EUM Social API may append WhatsApp media ID to the S3 key
+            # WhatsApp media ID may be appended to the S3 key
             # The stored s3Key might not match the actual file in S3
             # Search S3 with prefix to find the actual file
             actual_s3_key = _find_actual_s3_key(s3_key, message_id)
@@ -385,7 +385,7 @@ def _find_actual_s3_key(stored_key: str, message_id: str) -> Optional[str]:
     """
     Find the actual S3 key by searching with prefix.
     
-    AWS EUM Social API uses the key as a PREFIX and appends the WhatsApp mediaId.
+    The stored s3Key might use the key as a PREFIX with the WhatsApp mediaId appended.
     
     Old pattern: key="...wecare-digital-{8chars}.jpeg" → file="...wecare-digital-{8chars}.jpeg{mediaId}.jpeg"
     New pattern: key="...wecare-digital-{8chars}/"     → file="...wecare-digital-{8chars}/{mediaId}.jpeg"

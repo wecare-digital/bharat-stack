@@ -56,14 +56,14 @@ export const S3_PREFIXES = {
 // WhatsApp Configuration
 export const WHATSAPP_CONFIG = {
   META_API_VERSION: 'v20.0',
-  PHONE_NUMBER_ID_1: process.env.WHATSAPP_PHONE_NUMBER_ID_1 || 'phone-number-id-5e020cecd221429996f6ae721cc42206',
+  PHONE_NUMBER_ID_1: process.env.WHATSAPP_PHONE_NUMBER_ID_1 || 'phone-number-id-waba3-direct-1016149501586345',
   PHONE_NUMBER_ID_2: process.env.WHATSAPP_PHONE_NUMBER_ID_2 || 'phone-number-id-waba-t-direct-1055232054343117',
   DISPLAY_PHONE_1: '+91 93309 94400',
   DISPLAY_PHONE_2: '+91 99033 00044',
   // New WABA IDs after migration
   WABA_ID_1: '1912405516040025',  // WECARE.DIGITAL (source, pending migration to WABA3)
   WABA_ID_2: '2513394156072604',  // Manish Agarwal (migrated, Direct API)
-  WABA_ID_3: '2094615664435155',  // WECARE.DIGITAL (Direct API, SIP calling)
+  WABA_ID_3: '2094615664435155',  // WECARE.DIGITAL (Direct API, SIP calling, primary)
   RATE_LIMIT_PER_SECOND: 80,
 };
 

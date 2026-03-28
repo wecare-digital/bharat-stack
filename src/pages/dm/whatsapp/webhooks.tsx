@@ -33,7 +33,7 @@ const WEBHOOK_FIELDS = [
 ];
 
 const EXISTING_WEBHOOKS = [
-  { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (AWS EUM managed)' },
+  { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: ['messages'], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (Direct API webhook)' },
   { name: 'WhatsApp Calling', url: 'https://api.wecare.digital/whatsapp-calling', fields: ['calls'], lambda: 'wecare-whatsapp-calling', status: 'active', verifyToken: WHATSAPP_CALLING_VERIFY_TOKEN || '(set via env)' },
   { name: 'Voice CDR Webhook', url: 'https://api.wecare.digital/voice-cdr-webhook', fields: ['CDR', 'ALL'], lambda: 'wecare-voice-cdr-webhook', status: 'active', verifyToken: 'N/A' },
   { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: ['CDR'], lambda: 'wecare-voice-in-c2c', status: 'active', verifyToken: 'N/A (HMAC-SHA256)' },

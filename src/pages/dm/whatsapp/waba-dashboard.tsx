@@ -425,7 +425,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
                   <h3>SNS Event Subscription</h3>
                   <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
                     Subscribe this WABA to an SNS topic to receive WhatsApp events (message status, template updates, phone quality changes).
-                    AWS EUM will publish events to the configured SNS topic.
+                    AWS will publish events to the configured SNS topic.
                   </p>
 
                   {snsLoading && !snsStatus ? (

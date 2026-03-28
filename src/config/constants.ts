@@ -19,7 +19,7 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.
 
 // Payment Phone Configuration (Razorpay-enabled WABA)
 export const PAYMENT_CONFIG = {
-  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-5e020cecd221429996f6ae721cc42206',
+  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-waba3-direct-1016149501586345',
   phoneDisplay: process.env.NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY || '+91 93309 94400',
   phoneName: process.env.NEXT_PUBLIC_PAYMENT_PHONE_NAME || 'WECARE.DIGITAL',
 };
@@ -31,7 +31,7 @@ export const DEFAULT_GSTIN = process.env.NEXT_PUBLIC_DEFAULT_GSTIN || '19AADFW74
 // Payment config names must match EXACTLY what's configured on the WABA in Meta Business Manager
 export const WHATSAPP_PHONES = {
   primary: {
-    id: 'phone-number-id-5e020cecd221429996f6ae721cc42206',
+    id: 'phone-number-id-waba3-direct-1016149501586345',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
     wabaId: '2094615664435155',

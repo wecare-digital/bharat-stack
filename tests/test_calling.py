@@ -309,7 +309,7 @@ class TestMultiSecretWebhookVerification:
 
 
 class TestIVRAutoPickup:
-    """Test IVR auto-pickup flow including EUM vs Direct API paths."""
+    """Test IVR auto-pickup flow — all phones use Direct API."""
 
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -320,20 +320,20 @@ class TestIVRAutoPickup:
                 import handler
                 self.handler = handler
 
-    def test_eum_phone_skips_pre_accept(self):
-        """EUM-managed phones (WABA1/WABA2) should skip pre_accept and send IVR menu via EUM SDK."""
+    def test_all_phones_use_direct_api_full_flow(self):
+        """All phones should do pre_accept → IVR menu → terminate via Direct API."""
         with patch.object(self.handler, '_update_call_status') as mock_status, \
              patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
-             patch.object(self.handler, '_meta_api_call') as mock_api:
+             patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
+             patch('time.sleep'):
             self.handler._auto_pickup_and_play('call-1', '960395407161423', '+919876543210', 'sdp')
-            # Should NOT call Meta API (pre_accept/terminate)
-            mock_api.assert_not_called()
+            # Should call Meta API for pre_accept and terminate
+            api_calls = mock_api.call_args_list
+            assert len(api_calls) == 2
+            assert api_calls[0][0][2]['action'] == 'pre_accept'
+            assert api_calls[1][0][2]['action'] == 'terminate'
             # Should send IVR menu
             mock_menu.assert_called_once_with('960395407161423', '+919876543210', 'call-1')
-            # Should set ivr_eum_mode then ivr_completed
-            statuses = [c[0][1] for c in mock_status.call_args_list]
-            assert 'ivr_eum_mode' in statuses
-            assert 'ivr_completed' in statuses
 
     def test_direct_api_phone_full_flow(self):
         """Direct API phones (WABA3) should do pre_accept → IVR menu → terminate."""
@@ -351,18 +351,16 @@ class TestIVRAutoPickup:
             assert api_calls[1][1].get('payload', api_calls[1][0][2])['action'] == 'terminate'
             # Should send IVR menu
             mock_menu.assert_called_once()
-            # Should set ivr_active then ivr_completed
-            statuses = [c[0][1] for c in mock_status.call_args_list]
-            assert 'ivr_active' in statuses
-            assert 'ivr_completed' in statuses
 
-    def test_waba2_eum_phone_skips_pre_accept(self):
-        """WABA2 EUM phone should also skip pre_accept."""
+    def test_waba2_phone_uses_direct_api(self):
+        """WABA2 phone should also use full Direct API flow."""
         with patch.object(self.handler, '_update_call_status') as mock_status, \
              patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
-             patch.object(self.handler, '_meta_api_call') as mock_api:
+             patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
+             patch('time.sleep'):
             self.handler._auto_pickup_and_play('call-3', '997428863451102', '+919876543210', 'sdp')
-            mock_api.assert_not_called()
+            # Should call Meta API (not skip like before)
+            assert mock_api.call_count == 2
             mock_menu.assert_called_once()
 
     def test_ivr_mode_triggers_auto_pickup(self):

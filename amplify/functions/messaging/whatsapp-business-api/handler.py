@@ -1,7 +1,7 @@
 """
 WhatsApp Business API Lambda
 Handles: Business Profile, Flows, Webhooks, Groups, Payment Config
-Uses Meta Graph API directly (not AWS EUM)
+Uses Meta Graph API directly
 
 Routes:
   GET/POST  /wa-business/profile       → Business profile (read/update)
@@ -74,8 +74,8 @@ INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invo
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
 
-# AWS EUM phone number IDs (for outbound Lambda)
-PHONE1_EUM_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+# Phone number IDs (for outbound Lambda)
+PHONE1_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
 
 
 def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
@@ -1284,7 +1284,7 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
                 'rawPath': '/invoices/send-payment-link',
                 'body': json.dumps({
                     'invoiceId': invoice_id,
-                    'phoneNumberId': PHONE1_EUM_ID,
+                    'phoneNumberId': PHONE1_ID,
                 }),
             })
         )
@@ -1333,7 +1333,7 @@ def _send_payment_direct_fallback(phone: str, order_id: str, subject: str,
         'body': json.dumps({
             'contactId': contact_id or '',
             'recipientPhone': phone if not contact_id else '',
-            'phoneNumberId': PHONE1_EUM_ID,
+            'phoneNumberId': PHONE1_ID,
             'isInteractivePayment': True,
             'orderDetails': {
                 'reference_id': ref_id,
@@ -1399,7 +1399,7 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
         payload = {
             'body': json.dumps({
                 'recipientPhone': phone,
-                'phoneNumberId': PHONE1_EUM_ID,
+                'phoneNumberId': PHONE1_ID,
                 'content': msg,
             })
         }

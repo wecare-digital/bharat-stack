@@ -1,10 +1,10 @@
 import { defineFunction } from '@aws-amplify/backend';
 
 /**
- * WhatsApp Templates Lambda (AWS Social Messaging API)
+ * WhatsApp Templates Lambda (Meta Graph API)
  *
- * Manages WhatsApp message templates via the AWS End User Messaging
- * Social API (socialmessaging client). Supports listing, creating,
+ * Manages WhatsApp message templates via the Meta Graph API.
+ * Supports listing, creating,
  * deleting templates and browsing the Meta template library.
  */
 export const whatsappTemplates = defineFunction({

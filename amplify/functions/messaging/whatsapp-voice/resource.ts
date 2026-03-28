@@ -32,8 +32,6 @@
  *   - transcribe:StartTranscriptionJob, transcribe:GetTranscriptionJob
  *   - translate:TranslateText
  *   - s3:PutObject, s3:GetObject, s3:DeleteObject on app.wecare.digital/whatsapp-media/*
- *   - socialmessaging:SendWhatsAppMessage
- *   - socialmessaging:PostWhatsAppMessageMedia
  *   - dynamodb:PutItem, Scan, DeleteItem, GetItem, BatchWriteItem, UpdateItem
  */
 

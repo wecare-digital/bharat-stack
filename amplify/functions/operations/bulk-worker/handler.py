@@ -22,15 +22,23 @@ logger = get_logger(__name__)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sqs = boto3.client('sqs', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-social_messaging = boto3.client('socialmessaging', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 BULK_JOBS_TABLE = os.environ.get('BULK_JOBS_TABLE', 'stack-wecare-digital-BulkJobsTable')
 BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'stack-wecare-digital-BulkRecipientsTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-DEFAULT_PHONE_NUMBER_ID = os.environ.get('DEFAULT_PHONE_NUMBER_ID', 'phone-number-id-5e020cecd221429996f6ae721cc42206')
+DEFAULT_PHONE_NUMBER_ID = os.environ.get('DEFAULT_PHONE_NUMBER_ID', 'phone-number-id-waba3-direct-1016149501586345')
 RATE_LIMIT_PER_SECOND = int(os.environ.get('RATE_LIMIT_PER_SECOND', '80'))
+
+# Direct API phone ID to Meta phone ID mapping
+DIRECT_API_META_PHONE_MAP = {
+    'phone-number-id-waba3-direct-1016149501586345': '1016149501586345',
+    'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',
+}
+META_API_VERSION = 'v20.0'
+_direct_api_cache = {}
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)
 
@@ -206,7 +214,9 @@ def _process_job(body: Dict, request_id: str) -> Dict:
 
 def _send_whatsapp(phone: str, phone_number_id: str, template_name: str,
                    template_params: list, content: str, contact_id: str, request_id: str):
-    """Send WhatsApp message via Social Messaging API."""
+    """Send WhatsApp message via Direct Meta API."""
+    import hmac as _hmac, hashlib as _hashlib, urllib.request, urllib.error
+
     formatted_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
     if not formatted_phone.startswith('91') and len(formatted_phone) == 10:
         formatted_phone = '91' + formatted_phone
@@ -227,14 +237,32 @@ def _send_whatsapp(phone: str, phone_number_id: str, template_name: str,
         'messaging_product': 'whatsapp',
         'to': formatted_phone,
         **message_payload
-    }).encode('utf-8')
+    })
 
-    response = social_messaging.send_whatsapp_message(
-        originationPhoneNumberId=phone_number_id,
-        message=meta_payload,
-        metaApiVersion='v20.0'
-    )
-    logger.info(f'[{request_id}] Sent to {formatted_phone}: {response.get("messageId")}')
+    meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '1016149501586345')
+
+    if 'token' not in _direct_api_cache:
+        resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+        data = json.loads(resp['SecretString'])
+        _direct_api_cache['token'] = (data.get('access_token') or '').strip()
+        _direct_api_cache['app_secret'] = (data.get('app_secret') or '').strip()
+
+    token = _direct_api_cache['token']
+    app_secret = _direct_api_cache['app_secret']
+
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
+    if app_secret:
+        proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+
+    req = urllib.request.Request(url, data=meta_payload.encode('utf-8'), headers={
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }, method='POST')
+    with urllib.request.urlopen(req, timeout=15) as r:
+        result = json.loads(r.read().decode())
+    msg_id = result.get('messages', [{}])[0].get('id', '')
+    logger.info(f'[{request_id}] Sent to {formatted_phone}: {msg_id}')
 
 
 def _send_via_lambda(function_name: str, payload: Dict, request_id: str):

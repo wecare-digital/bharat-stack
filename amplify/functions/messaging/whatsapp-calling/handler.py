@@ -95,10 +95,9 @@ def _get_meta_token(phone_number_id: str = None) -> str:
     """Get the Meta token for calling operations.
     
     WABA1/WABA3 use token1 (Meta App: WECARE.DIGITAL / 2238810740192680).
-    WABA2 uses token2 (Meta App: Manish Agarwal / 1224334845952721).
+    WABA-T also uses token1 (Meta App: WECARE.DIGITAL / 2238810740192680).
     
-    Note: For EUM-managed WABAs (WABA1, WABA2), direct Meta API calls return 403.
-    Calling API (pre_accept/accept/terminate) only works on WABA3 (Direct API).
+    All WABAs now use Direct Meta API for calling and messaging.
     """
     _load_meta_secrets()
     if phone_number_id and phone_number_id in WABA2_IDS:
@@ -450,7 +449,7 @@ def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> N
     """
     Forward non-call webhook events (messages, statuses) to the inbound handler.
     WABA3 uses Direct API with override_callback_uri, so messages arrive here
-    instead of via AWS EUM → SNS. We wrap them in the SNS/EUM format the
+    instead of via the standard webhook. We wrap them in the expected format the
     inbound handler expects and invoke it asynchronously.
     """
     try:
@@ -464,7 +463,7 @@ def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> N
             if pid and pid not in meta_phone_ids:
                 meta_phone_ids.append(pid)
 
-        # Build the SNS/EUM format the inbound handler expects
+        # Build the expected format the inbound handler expects
         sns_message = {
             'context': {
                 'MetaWabaIds': [waba_id],
@@ -585,32 +584,28 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
                 _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
             elif pickup_mode == 'manual':
                 # manual: pre_accept only, wait for frontend browser to answer via WebRTC
-                # Skip pre_accept for EUM-managed phones (would 403)
-                if phone_number_id in EUM_MANAGED_META_PHONE_IDS:
-                    logger.info(f"AUTO-PICKUP manual mode: skipping pre_accept for EUM-managed phone {phone_number_id}")
-                    _update_call_status(call_id, 'ringing_eum')
-                else:
-                    try:
-                        pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-                            'messaging_product': 'whatsapp',
-                            'call_id': call_id,
-                            'action': 'pre_accept',
-                        }, phone_number_id=phone_number_id)
-                        logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
-                        if pre_result.get('error'):
-                            logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
-                            if pre_result.get('status') == 403:
-                                logger.error(
-                                    f"403 on pre_accept for phone_number_id={phone_number_id}. "
-                                    f"Check: 1) System User token has whatsapp_business_messaging permission, "
-                                    f"2) Calling is enabled on this phone number, "
-                                    f"3) Token belongs to the correct WABA for this phone number."
-                                )
-                            _update_call_status(call_id, 'pre_accept_failed', pre_result)
-                        else:
-                            _update_call_status(call_id, 'pre_accepted')
-                    except Exception as e:
-                        logger.error(f"Auto pre_accept failed: {e}", exc_info=True)
+                # All phones now support pre_accept via Direct API
+                try:
+                    pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
+                        'messaging_product': 'whatsapp',
+                        'call_id': call_id,
+                        'action': 'pre_accept',
+                    }, phone_number_id=phone_number_id)
+                    logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
+                    if pre_result.get('error'):
+                        logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
+                        if pre_result.get('status') == 403:
+                            logger.error(
+                                f"403 on pre_accept for phone_number_id={phone_number_id}. "
+                                f"Check: 1) System User token has whatsapp_business_messaging permission, "
+                                f"2) Calling is enabled on this phone number, "
+                                f"3) Token belongs to the correct WABA for this phone number."
+                            )
+                        _update_call_status(call_id, 'pre_accept_failed', pre_result)
+                    else:
+                        _update_call_status(call_id, 'pre_accepted')
+                except Exception as e:
+                    logger.error(f"Auto pre_accept failed: {e}", exc_info=True)
 
     elif event_type == 'terminate':
         reason = call.get('reason', 'unknown')
@@ -714,8 +709,7 @@ def _redirect_call_to_voice_notes(call_id: str, phone_number_id: str,
         'phone_number_id': phone_number_id,
     }))
 
-    # Step 1: Try to terminate the call (may fail with 403 if WABA is managed
-    # by AWS EUM Social — that's OK, call will end naturally when caller hangs up)
+    # Step 1: Try to terminate the call
     try:
         term_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
             'messaging_product': 'whatsapp',
@@ -723,7 +717,7 @@ def _redirect_call_to_voice_notes(call_id: str, phone_number_id: str,
             'action': 'terminate',
         }, phone_number_id=phone_number_id)
         if term_result.get('error'):
-            logger.info(f"AI-REDIRECT terminate skipped (expected with AWS EUM): status={term_result.get('status')}")
+            logger.info(f"AI-REDIRECT terminate skipped: status={term_result.get('status')}")
         else:
             logger.info(f"AI-REDIRECT terminate success: {json.dumps(term_result)}")
     except Exception as e:
@@ -763,7 +757,7 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
                               reason: str, duration: int, direction: str) -> None:
     """
     Send a post-call summary message to the caller/callee after a call ends.
-    Uses AWS EUM Social Messaging to send a text message with call details.
+    Uses Direct Meta API to send a text message with call details.
     - Completed calls (duration > 0): ✅ with duration
     - Missed/rejected/no-answer: ❌ with reason
     - AI-redirected calls: skip (redirect message already sent)
@@ -859,18 +853,8 @@ def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
     if not call_id or not phone_number_id:
         return _response(400, {'error': 'callId and phoneNumberId required'})
 
+    # All phones now use Direct API for call control
     logger.info(f"Accepting call {call_id} on {phone_number_id}, has_sdp_answer: {bool(sdp_answer)}")
-
-    # EUM-managed phones cannot use direct Meta API for call control
-    if phone_number_id in EUM_MANAGED_META_PHONE_IDS:
-        logger.warning(f"Accept call on EUM-managed phone {phone_number_id} — "
-                       f"direct Meta API not supported. Call control only works on Direct API phones.")
-        return _response(200, {
-            'success': False,
-            'error': 'EUM-managed phone — direct call control not supported',
-            'hint': 'This phone is linked to AWS Social Messaging which does not support calling API. '
-                    'Call control (accept/reject/hangup) only works on Direct API phones (WABA3).',
-        })
 
     # Check if call was already pre_accepted by auto-pickup webhook handler
     already_pre_accepted = False
@@ -965,16 +949,6 @@ def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
     logger.info(f"Terminating call {call_id} on {phone_number_id}")
 
-    # EUM-managed phones cannot use direct Meta API for call control
-    if phone_number_id in EUM_MANAGED_META_PHONE_IDS:
-        logger.warning(f"Terminate call on EUM-managed phone {phone_number_id} — skipping API call")
-        _update_call_status(call_id, 'terminated')
-        return _response(200, {
-            'success': True,
-            'callId': call_id,
-            'note': 'EUM-managed phone — terminate skipped (call will time out naturally)',
-        })
-
     result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
         'messaging_product': 'whatsapp',
         'call_id': call_id,
@@ -1006,15 +980,6 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
     if not phone_number_id or (not to_number and not recipient_bsuid):
         return _response(400, {'error': 'phoneNumberId and to (or recipientBsuid) required'})
-
-    # EUM-managed phones cannot use direct Meta API for outbound calls
-    if phone_number_id in EUM_MANAGED_META_PHONE_IDS:
-        logger.warning(f"Outbound call on EUM-managed phone {phone_number_id} — not supported")
-        return _response(200, {
-            'success': False,
-            'error': 'EUM-managed phone — outbound calling not supported via direct API',
-            'hint': 'This phone is linked to AWS Social Messaging. Outbound calls only work on Direct API phones (WABA3).',
-        })
 
     if action == 'permission_request':
         # Send interactive call permission request message
@@ -1074,27 +1039,17 @@ AI_LANGUAGE = os.environ.get('AI_LANGUAGE', 'en-IN')
 TRANSCRIBE_LANGUAGE = os.environ.get('TRANSCRIBE_LANGUAGE', 'en-IN')
 
 s3 = boto3.client('s3', region_name=REGION)
-social_messaging = boto3.client('socialmessaging', region_name=REGION)
 polly_client = boto3.client('polly', region_name=REGION)
 transcribe_client = boto3.client('transcribe', region_name=REGION)
 bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
 
-# Phone number ID mapping for outbound audio via EUM
 # Phone number ID mapping for outbound audio via Direct API
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 
-# WABA3 uses Direct Meta API (no EUM) — track which phone IDs are Direct API
-DIRECT_API_META_PHONE_IDS = {WABA3_PHONE_META_ID}
-
-# EUM-managed phones: WABA1 and WABA2 are linked to AWS Social Messaging (EUM).
-# Direct Meta Graph API calls (pre_accept, accept, terminate, messages) return 403
-# for these phones. Messaging goes through AWS SDK; calling API is NOT supported by EUM.
-# For these phones, IVR sends the menu via EUM SDK and skips pre_accept/terminate.
-# Both phones are now on Direct API WABAs (no EUM). Full call control is supported.
-# PHONE1 is pending registration on WABA3, PHONE2 is active on WABA-T.
-EUM_MANAGED_META_PHONE_IDS = set()  # No EUM-managed phones anymore
+# All phones use Direct Meta API — full call control supported on all WABAs
+DIRECT_API_META_PHONE_IDS = {WABA3_PHONE_META_ID, PHONE1_META_ID, PHONE2_META_ID}
 
 
 def _is_auto_pickup_enabled() -> bool:
@@ -1132,32 +1087,17 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     message, then terminate the call. The caller taps a button to route to
     the right department/action.
 
-    For EUM-managed phones (WABA1, WABA2): Direct Meta API returns 403, so we
-    skip pre_accept/terminate and just send the IVR menu via AWS EUM SDK.
-    The call will ring and eventually time out on the caller's end, but they
-    get the IVR menu as a WhatsApp message immediately.
-
-    For Direct API phones (WABA3): Full flow — pre_accept → IVR menu → terminate.
+    All phones use Direct API — full flow: pre_accept → IVR menu → terminate.
     """
-    is_eum = phone_number_id in EUM_MANAGED_META_PHONE_IDS
 
     logger.info(json.dumps({
         'event': 'ivr_start',
         'call_id': call_id,
         'from': from_number,
         'phone_number_id': phone_number_id,
-        'is_eum_managed': is_eum,
     }))
 
-    if is_eum:
-        # EUM-managed: Skip pre_accept (would 403), just send IVR menu via EUM SDK
-        logger.info(f"IVR EUM mode: skipping pre_accept for EUM-managed phone {phone_number_id}")
-        _update_call_status(call_id, 'ivr_eum_mode')
-        _send_ivr_menu(phone_number_id, from_number, call_id)
-        _update_call_status(call_id, 'ivr_completed')
-        return
-
-    # Direct API (WABA3): Full pre_accept → IVR menu → terminate flow
+    # Direct API: Full pre_accept → IVR menu → terminate flow
     # Step 1: Pre-accept to stop ringing
     pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
         'messaging_product': 'whatsapp',
@@ -1372,7 +1312,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
 
 
 def _get_aws_phone_id(meta_phone_number_id: str) -> str:
-    """Map Meta phone_number_id to AWS EUM phone-number-id."""
+    """Map Meta phone_number_id to internal phone-number-id for routing."""
     META_TO_AWS = {
         PHONE1_META_ID: PHONE_NUMBER_ID_1,
         PHONE2_META_ID: PHONE_NUMBER_ID_2,
@@ -1382,54 +1322,44 @@ def _get_aws_phone_id(meta_phone_number_id: str) -> str:
 
 
 def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> Dict:
-    """Send a WhatsApp message via AWS Social Messaging SDK or Direct Meta API for WABA3."""
+    """Send a WhatsApp message via Direct Meta API."""
     # AWS requires '+' prefix on phone numbers
     if not to_number.startswith('+'):
         to_number = f'+{to_number}'
     message_payload['to'] = to_number
     message_payload['messaging_product'] = 'whatsapp'
 
-    # All phones are Direct API now — send via Meta Graph API
+    # All phones use Direct API — send via Meta Graph API
     DIRECT_API_PHONES = {
         PHONE_NUMBER_ID_1: PHONE1_META_ID,             # WABA3: +91 93309 94400 (pending registration)
         PHONE_NUMBER_ID_2: PHONE2_META_ID,             # WABA-T: +91 99033 00044
         PHONE_NUMBER_ID_3: WABA3_PHONE_META_ID,        # WABA3 (alias)
     }
-    if aws_phone_id in DIRECT_API_PHONES:
-        meta_phone_id = DIRECT_API_PHONES[aws_phone_id]
-        try:
-            result = _meta_api_call(
-                f"{meta_phone_id}/messages", 'POST',
-                message_payload, phone_number_id=meta_phone_id
-            )
-            if result.get('error'):
-                logger.error(f"Direct API send failed for {meta_phone_id}: {result}")
-                return result
-            msg_id = ''
-            messages = result.get('messages', [])
-            if messages:
-                msg_id = messages[0].get('id', '')
-            logger.info(f"Direct API send success ({meta_phone_id}): messageId={msg_id}")
-            return {'success': True, 'messageId': msg_id}
-        except Exception as e:
-            logger.error(f"Direct API send failed for {meta_phone_id}: {e}")
-            return {'error': True, 'detail': str(e)}
-
+    meta_phone_id = DIRECT_API_PHONES.get(aws_phone_id)
+    if not meta_phone_id:
+        logger.error(f"No Direct API mapping for phone {aws_phone_id}")
+        return {'error': True, 'detail': f'No Direct API mapping for {aws_phone_id}'}
     try:
-        result = social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=aws_phone_id,
-            message=json.dumps(message_payload).encode('utf-8'),
-            metaApiVersion=META_API_VERSION,
+        result = _meta_api_call(
+            f"{meta_phone_id}/messages", 'POST',
+            message_payload, phone_number_id=meta_phone_id
         )
-        logger.info(f"AWS send success: messageId={result.get('messageId')}")
-        return {'success': True, 'messageId': result.get('messageId')}
+        if result.get('error'):
+            logger.error(f"Direct API send failed for {meta_phone_id}: {result}")
+            return result
+        msg_id = ''
+        messages = result.get('messages', [])
+        if messages:
+            msg_id = messages[0].get('id', '')
+        logger.info(f"Direct API send success ({meta_phone_id}): messageId={msg_id}")
+        return {'success': True, 'messageId': msg_id}
     except Exception as e:
-        logger.error(f"AWS send failed: {e}")
+        logger.error(f"Direct API send failed for {meta_phone_id}: {e}")
         return {'error': True, 'detail': str(e)}
 
 
 def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, call_id: str) -> None:
-    """Send the greeting audio as a WhatsApp audio message via AWS Social Messaging."""
+    """Send the greeting audio as a WhatsApp audio message via Direct API."""
     try:
         aws_phone_id = _get_aws_phone_id(phone_number_id)
         result = _send_via_aws(aws_phone_id, to_number, {

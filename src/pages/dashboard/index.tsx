@@ -218,16 +218,16 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'Tables: SmsAwsTable, VoiceAwsTable'
     ]
   },
-  'AWS End User Messaging': { 
-    arn: `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
+  'WhatsApp Business API (Direct)': { 
+    arn: `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:wecare/meta-system-user-token*`, 
     accountId: AWS_ACCOUNT_ID,
     details: [
-      '+91 93309 94400 (WECARE.DIGITAL) - Razorpay + UPI enabled (pending migration to WABA3)',
-      '+91 99033 00044 (Manish Agarwal) - Razorpay + PayU + UPI enabled',
-      'WABA_+919330994400: 2094615664435155 (WECARE.DIGITAL, Direct API)',
-      'WABA_+919903300044: 2513394156072604 (Manish Agarwal, Direct API)',
+      '+91 93309 94400 (WECARE.DIGITAL) - WABA3 Direct API, Razorpay + UPI',
+      '+91 99033 00044 (Manish Agarwal) - WABA-T Direct API, Razorpay + PayU + UPI',
       'WABA3: 2094615664435155 (WECARE.DIGITAL, Direct API, SIP calling)',
+      'WABA-T: 2513394156072604 (Manish Agarwal, Direct API)',
       'App: WECARE.DIGITAL (2238810740192680)',
+      'All messaging via Meta Graph API (no AWS EUM)',
     ]
   },
   

@@ -225,7 +225,7 @@ def _handle_clear_all(origin):
 def _find_and_delete_s3_file(stored_key: str, message_id: str) -> str:
     """
     Find and delete the actual S3 file.
-    AWS EUM Social API may append WhatsApp media ID to the filename.
+    WhatsApp media ID may be appended to the filename.
     Returns the actual key that was deleted, or None if not found.
     """
     try:

@@ -421,8 +421,7 @@ export interface SendReactionRequest {
 export async function sendWhatsAppMessage(request: SendMessageRequest): Promise<{ messageId: string; status: string } | null> {
   // Note: WhatsApp typing indicators require Meta Cloud API direct access
   // (POST /{PHONE_NUMBER_ID}/messages with status:"read" + typing_indicator object)
-  // AWS EUM Social SDK does not expose this endpoint, so typing indicators
-  // are not supported in this integration. No fake API call needed.
+  // The read receipt approach is used as a proxy for typing indicators.
 
   // Ensure mediaFile is properly formatted
   const payload = {
@@ -1345,7 +1344,7 @@ export async function bulkDeleteContacts(contactIds: string[]): Promise<{ delete
 
 
 // ============================================================================
-// WHATSAPP TEMPLATES API (AWS EUM Social)
+// WHATSAPP TEMPLATES API (Meta Graph API)
 // ============================================================================
 
 export interface WhatsAppTemplate {
@@ -1608,7 +1607,7 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
 
 
 // ============================================================================
-// WABA MANAGEMENT API (AWS EUM Social)
+// WABA MANAGEMENT API (Meta Graph API)
 // ============================================================================
 
 export interface WABAAccount {
@@ -1710,7 +1709,7 @@ export async function deleteWhatsAppMedia(mediaId: string, phoneNumberId: string
 
 
 // ============================================================================
-// TEMPLATE MANAGEMENT API (AWS EUM Social)
+// TEMPLATE MANAGEMENT API (Meta Graph API)
 // ============================================================================
 
 export interface TemplateDefinition {
@@ -2104,7 +2103,7 @@ export async function testBedrockAIResponse(message: string): Promise<{ message:
 
 
 // ============================================================================
-// WABA ADVANCED MANAGEMENT API (AWS EUM Social)
+// WABA ADVANCED MANAGEMENT API (Meta Graph API)
 // ============================================================================
 
 /**

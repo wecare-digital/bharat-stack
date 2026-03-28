@@ -14,7 +14,7 @@ export const bulkWorker = defineFunction({
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable',
     SEND_MODE: 'LIVE',
-    DEFAULT_PHONE_NUMBER_ID: 'phone-number-id-5e020cecd221429996f6ae721cc42206',
+    DEFAULT_PHONE_NUMBER_ID: 'phone-number-id-waba3-direct-1016149501586345',
     RATE_LIMIT_PER_SECOND: '80',
   },
 });

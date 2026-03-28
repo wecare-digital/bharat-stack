@@ -1561,7 +1561,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
     # ── Payment messages go from the SAME phone the customer is chatting with ──
     # If no phoneNumberId passed, default to Phone 1 (+919330994400)
     if not phone_number_id:
-        phone_number_id = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
+        phone_number_id = 'phone-number-id-waba3-direct-1016149501586345'
 
     # Build payload for outbound-whatsapp Lambda
     wa_payload = {
@@ -1951,7 +1951,7 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
 
     # Default phone number ID
     if not phone_number_id:
-        phone_number_id = 'phone-number-id-5e020cecd221429996f6ae721cc42206'
+        phone_number_id = 'phone-number-id-waba3-direct-1016149501586345'
 
     # Call outbound-whatsapp Lambda to send image
     wa_payload = {

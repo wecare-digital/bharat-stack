@@ -22,10 +22,10 @@ Content was rephrased for compliance with licensing restrictions.
 - App must have `whatsapp_business_management` permission
 - Phone must have approved display name (name_status: APPROVED)
 
-### Step 1: Disassociate from AWS EUM (if applicable)
-If the phone is linked via AWS End User Messaging Social, disassociate first:
+### Step 1: Verify phone is on Direct API WABA
+Ensure the phone number is registered on a Direct API WABA (not EUM-linked):
 ```
-AWS SDK: socialmessaging.disassociate_whatsapp_business_account(id="waba-xxx")
+Meta Graph API: GET /{phone_id}?fields=id,display_phone_number,platform_type
 ```
 
 ### Step 2: Migrate phone to target WABA
@@ -62,8 +62,9 @@ GET https://graph.facebook.com/v20.0/{PHONE_ID}?fields=display_phone_number,stat
 Expected: `status: CONNECTED`, `code_verification_status: VERIFIED`
 
 ## IDs Reference
-- WABA1: 1912405516040025 (WECARE.DIGITAL — AWS EUM)
-- WABA2: 1633959101297902 (Manish Agarwal — AWS EUM)
+- WABA1: 1912405516040025 (WECARE.DIGITAL — Direct API)
+- WABA2: 1633959101297902 (Manish Agarwal — legacy)
+- WABA-T: 2513394156072604 (Manish Agarwal — Direct API)
 - WABA3: 2094615664435155 (WECARE.DIGITAL — Direct API)
 - Business: 382642103987922
 - App: 2238810740192680
