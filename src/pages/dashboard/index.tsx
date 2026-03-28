@@ -222,12 +222,12 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     arn: `arn:aws:social-messaging:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
     accountId: AWS_ACCOUNT_ID,
     details: [
-      '+91 93309 94400 (WECARE.DIGITAL) - Razorpay + UPI enabled',
-      '+91 99033 00044 (Manish Agarwal)',
-      'WABA 1: 1912405516040025 (WECARE.DIGITAL)',
-      'WABA 2: 1633959101297902 (Manish Agarwal)',
-      'Service-Linked Role: AWSServiceRoleForSocialMessaging',
-      'Policy: AWSSocialMessagingServiceRolePolicy (cloudwatch:PutMetricData)'
+      '+91 93309 94400 (WECARE.DIGITAL) - Razorpay + UPI enabled (pending migration to WABA3)',
+      '+91 99033 00044 (Manish Agarwal) - Razorpay + PayU + UPI enabled',
+      'WABA_+919330994400: 2094615664435155 (WECARE.DIGITAL, Direct API)',
+      'WABA_+919903300044: 2513394156072604 (Manish Agarwal, Direct API)',
+      'WABA3: 2094615664435155 (WECARE.DIGITAL, Direct API, SIP calling)',
+      'App: WECARE.DIGITAL (2238810740192680)',
     ]
   },
   
@@ -2287,7 +2287,7 @@ Content-Type: application/json`}</pre>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9330994400</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>WECARE-PAYU</code></div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1912405516040025</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>2094615664435155</code> (pending migration)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
@@ -2295,8 +2295,8 @@ Content-Type: application/json`}</pre>
                     </div>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9903300044</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>WECARE-PAYU</code></div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>1633959101297902</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>Razorpay_ManishAgarwal</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>2513394156072604</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
@@ -2893,8 +2893,8 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-inbound-whatsapp-handler</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827' }}>N/A (AWS EUM managed)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>messages</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA 1</span><code style={{ color: '#111827' }}>1912405516040025 (WECARE.DIGITAL)</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA 2</span><code style={{ color: '#111827' }}>1633959101297902 (Manish Agarwal)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA_+919330994400</span><code style={{ color: '#111827' }}>2094615664435155 (WECARE.DIGITAL, Direct API)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA_+919903300044</span><code style={{ color: '#111827' }}>2513394156072604 (Manish Agarwal, Direct API)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#0f2a1d', marginTop: '0.75rem', fontStyle: 'italic' }}>

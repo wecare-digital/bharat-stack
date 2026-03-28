@@ -16,8 +16,8 @@ MCC: 4722 (Travel agencies and tour operators)
 Purpose Code: 03 (Travel)
 
 WABA Configurations:
-- +91 9330994400 → WABA 1912405516040025 → WECARE-PAYU
-- +91 9903300044 → WABA 1633959101297902 → WECARE-PAYU
+- +91 9330994400 → WABA 2094615664435155 → WECARE-PAYU (pending migration)
+- +91 9903300044 → WABA 2513394156072604 → PayU_ManishAgarwal
 """
 
 import os

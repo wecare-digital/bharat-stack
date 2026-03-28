@@ -37,7 +37,7 @@ const META_TOKEN = {
   appName_waba2: 'Manish Agarwal',
   secretName: 'wecare/meta-system-user-token',
   scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
-  wabaAccess: ['1912405516040025', '1633959101297902', '2094615664435155'],
+  wabaAccess: ['2094615664435155', '2513394156072604'],
   tokenType: 'System User',
   status: 'active',
 };

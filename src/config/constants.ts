@@ -34,11 +34,13 @@ export const WHATSAPP_PHONES = {
     id: 'phone-number-id-5e020cecd221429996f6ae721cc42206',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
-    wabaId: '1912405516040025',
+    wabaId: '2094615664435155',
+    metaPhoneId: '1016149501586345',
     hasPayment: true,
     paymentConfigName: 'WECARE-RAZOR-PAY',
     paymentConfigs: ['WECARE-RAZOR-PAY', 'WECARE-PAYU'],
     paymentProtected: false,
+    pendingRegistration: true,  // Blocked by Meta rate limit — registration pending
   },
   secondary: {
     id: 'phone-number-id-waba-t-direct-1055232054343117',
@@ -47,10 +49,10 @@ export const WHATSAPP_PHONES = {
     wabaId: '2513394156072604',
     metaPhoneId: '1055232054343117',
     hasPayment: true,
-    paymentConfigName: 'WECARE-RAZOR-PAY',
-    paymentConfigs: ['WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU'],
+    paymentConfigName: 'Razorpay_ManishAgarwal',
+    paymentConfigs: ['Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI'],
     paymentProtected: true,
-    directApi: true,  // No EUM — uses Meta Graph API directly via WECARE.DIGITAL app
+    directApi: true,
   },
 };
 

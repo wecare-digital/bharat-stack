@@ -100,12 +100,12 @@ RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 # Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
 # Config names MUST match exactly what's in Meta Business Manager
-VALID_PAYMENT_CONFIGS = {'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU'}
-DEFAULT_PAYMENT_CONFIG = 'WECARE-RAZOR-PAY'
+VALID_PAYMENT_CONFIGS = {'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU', 'Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI'}
+DEFAULT_PAYMENT_CONFIG = 'Razorpay_ManishAgarwal'
 # Map phone number ID to its payment config name
 PHONE_PAYMENT_CONFIG = {
-    PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',       # +919330994400
-    PHONE_NUMBER_ID_2: 'WECARE-RAZOR-PAY',       # +919903300044
+    PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',              # +919330994400 (WABA1, pending migration)
+    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044 (WABA-T, migrated)
 }
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 

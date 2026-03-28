@@ -202,11 +202,11 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           <button onClick={() => { setPhoneId('945798751960485'); setPhoneDisplay('+91 81003 30063'); setSourceWaba('2094615664435155'); }} style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
             WABA3 +918100330063
           </button>
-          <button onClick={() => { setPhoneId('phone-number-id-abdd81f7bec24ec085a25ab9df6a6f7c'); setPhoneDisplay('+91 99033 00044'); setSourceWaba('1633959101297902'); }} style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-            WABA2 +919903300044
+          <button onClick={() => { setPhoneId('1055232054343117'); setPhoneDisplay('+91 99033 00044'); setSourceWaba('2513394156072604'); }} style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+            WABA_+919903300044
           </button>
-          <button onClick={() => { setPhoneId('960395407161423'); setPhoneDisplay('+91 93309 94400'); setSourceWaba('1912405516040025'); }} style={{ padding: '4px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-            WABA1 +919330994400 (DISCONNECTED)
+          <button onClick={() => { setPhoneId('1016149501586345'); setPhoneDisplay('+91 93309 94400'); setSourceWaba('2094615664435155'); }} style={{ padding: '4px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+            WABA_+919330994400 (PENDING)
           </button>
         </div>
       </div>
