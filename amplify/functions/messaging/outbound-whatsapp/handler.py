@@ -79,7 +79,7 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
         url = f"{url}?appsecret_proof={proof}"
     
     import urllib.request, urllib.error
-    req = urllib.request.Request(url, data=message_json.encode(), headers={
+    req = urllib.request.Request(url, data=message_json.encode() if isinstance(message_json, str) else message_json, headers={
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }, method='POST')
@@ -87,6 +87,20 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
         result = json.loads(r.read().decode())
     msg_id = result.get('messages', [{}])[0].get('id', '')
     return {'messageId': msg_id}
+
+
+def _send_message(phone_number_id: str, payload, as_bytes=False) -> Dict:
+    """Universal send — routes to Direct API or EUM based on phone."""
+    if _is_direct_api_phone(phone_number_id):
+        msg = json.dumps(payload) if not isinstance(payload, str) else payload
+        return _send_direct_api(phone_number_id, msg)
+    else:
+        msg = json.dumps(payload).encode('utf-8') if not as_bytes else payload
+        return social_messaging.send_whatsapp_message(
+            originationPhoneNumberId=phone_number_id,
+            message=msg,
+            metaApiVersion=META_API_VERSION
+        )
 
 # Constants
 META_API_VERSION = 'v20.0'  # Requirement 5.8
@@ -428,12 +442,8 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API
-        response = social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=json.dumps(reaction_payload).encode('utf-8'),
-            metaApiVersion=META_API_VERSION
-        )
+        # Call SendWhatsAppMessage API (routes to Direct API or EUM)
+        response = _send_message(phone_number_id, reaction_payload)
         
         whatsapp_message_id = response.get('messageId', '')
         
@@ -573,12 +583,8 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API
-        response = social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=json.dumps(order_status_payload),
-            metaApiVersion=META_API_VERSION
-        )
+        # Call SendWhatsAppMessage API (routes to Direct API or EUM)
+        response = _send_message(phone_number_id, order_status_payload)
         
         whatsapp_message_id = response.get('messageId', '')
         
@@ -884,12 +890,8 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             'requestId': request_id
         }))
         
-        # Call SendWhatsAppMessage API
-        response = social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=json.dumps(payload),
-            metaApiVersion=META_API_VERSION
-        )
+        # Call SendWhatsAppMessage API (routes to Direct API or EUM)
+        response = _send_message(phone_number_id, payload)
         
         whatsapp_message_id = response.get('messageId', '')
         
@@ -1381,16 +1383,54 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         }))
         
         # Requirement 5.6: Call PostWhatsAppMessageMedia to get mediaId
-        # Use boto3 with correct parameter format
+        # Routes to Direct API or EUM based on phone
         try:
-            response = social_messaging.post_whatsapp_message_media(
-                originationPhoneNumberId=phone_number_id,
-                sourceS3File={
-                    'bucketName': MEDIA_BUCKET,
-                    'key': s3_key
-                }
-            )
-            whatsapp_media_id = response.get('mediaId', '')
+            if _is_direct_api_phone(phone_number_id):
+                # Direct API: download from S3, upload to Meta
+                import hmac as _hmac, hashlib as _hashlib
+                obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+                media_bytes = obj['Body'].read()
+                content_type = obj.get('ContentType', 'application/octet-stream')
+                
+                if 'token' not in _direct_api_cache:
+                    resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+                    data = json.loads(resp['SecretString'])
+                    _direct_api_cache['token'] = (data.get('access_token') or '').strip()
+                    _direct_api_cache['app_secret'] = (data.get('app_secret') or '').strip()
+                
+                token = _direct_api_cache['token']
+                app_secret = _direct_api_cache['app_secret']
+                meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
+                url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/media"
+                if app_secret:
+                    proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+                    url = f"{url}?appsecret_proof={proof}"
+                
+                boundary = 'wecareupload'
+                body = (
+                    f'--{boundary}\r\nContent-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n'
+                    f'--{boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\n{content_type}\r\n'
+                    f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{display_filename or "file"}"\r\n'
+                    f'Content-Type: {content_type}\r\n\r\n'
+                ).encode() + media_bytes + f'\r\n--{boundary}--\r\n'.encode()
+                
+                import urllib.request as _ur
+                req = _ur.Request(url, data=body, headers={
+                    'Authorization': f'Bearer {token}',
+                    'Content-Type': f'multipart/form-data; boundary={boundary}'
+                }, method='POST')
+                with _ur.urlopen(req, timeout=30) as resp:
+                    result = json.loads(resp.read().decode())
+                whatsapp_media_id = result.get('id', '')
+            else:
+                response = social_messaging.post_whatsapp_message_media(
+                    originationPhoneNumberId=phone_number_id,
+                    sourceS3File={
+                        'bucketName': MEDIA_BUCKET,
+                        'key': s3_key
+                    }
+                )
+                whatsapp_media_id = response.get('mediaId', '')
             
             if not whatsapp_media_id:
                 logger.error(json.dumps({
@@ -2451,11 +2491,7 @@ def _send_typing_indicator(phone_number_id: str, recipient_phone: str) -> None:
             'to': formatted_phone,
         }
 
-        social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=json.dumps(read_payload).encode('utf-8'),
-            metaApiVersion=META_API_VERSION
-        )
+        _send_message(phone_number_id, read_payload)
 
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',
