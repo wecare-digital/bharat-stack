@@ -2881,7 +2881,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>WhatsApp Inbound Messages</h3>
-                    <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' }}>AWS EUM Managed | Active</span>
+                    <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' }}>Direct Meta Graph API | Active</span>
                   </div>
                 </div>
 
@@ -2891,14 +2891,14 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Webhook URL</span><code style={{ color: '#111827' }}>https://api.wecare.digital/whatsapp/inbound</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Method</span><code style={{ color: '#111827' }}>POST</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-inbound-whatsapp-handler</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827' }}>N/A (AWS EUM managed)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827' }}>wecare_calling_verify_2026</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>messages</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA_+919330994400</span><code style={{ color: '#111827' }}>2094615664435155 (WECARE.DIGITAL, Direct API)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA_+919903300044</span><code style={{ color: '#111827' }}>2513394156072604 (Manish Agarwal, Direct API)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#0f2a1d', marginTop: '0.75rem', fontStyle: 'italic' }}>
-                    Managed by AWS End User Messaging (EUM) — webhook verification handled automatically by AWS.
+                    Webhook via Direct Meta Graph API — override_callback_uri on each WABA.
                   </div>
                 </div>
               </div>

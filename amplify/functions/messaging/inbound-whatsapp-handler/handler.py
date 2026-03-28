@@ -1384,11 +1384,75 @@ def _update_contact_timestamp(contact_id: str, timestamp: int) -> None:
         logger.error(f"Failed to update contact timestamp: {str(e)}")
 
 
+def _download_media_direct_api(whatsapp_media_id: str, message_id: str, media_type: str,
+                               phone_number_id: str, request_id: str,
+                               mime_type_hint: str = '') -> Optional[str]:
+    """Download media via Meta Graph API for Direct API phones."""
+    token = _load_direct_api_token()
+    if not token:
+        logger.error("No Direct API token for media download")
+        return None
+    app_secret = _direct_api_token_cache.get('app_secret', '')
+    
+    try:
+        # Step 1: Get media URL from Meta
+        url = f"https://graph.facebook.com/{META_API_VERSION}/{whatsapp_media_id}"
+        if app_secret:
+            proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+            url = f"{url}?appsecret_proof={proof}"
+        req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            media_info = json.loads(resp.read().decode())
+        
+        media_url = media_info.get('url', '')
+        mime_type = media_info.get('mime_type', mime_type_hint)
+        if not media_url:
+            logger.error(f"No media URL returned for {whatsapp_media_id}")
+            return None
+        
+        # Step 2: Download the actual media file
+        req2 = urllib.request.Request(media_url, headers={'Authorization': f'Bearer {token}'})
+        with urllib.request.urlopen(req2, timeout=30) as resp2:
+            media_bytes = resp2.read()
+        
+        # Step 3: Upload to S3
+        ext = _get_media_extension_from_mime(mime_type)
+        s3_key = f"{MEDIA_PREFIX}wecare-digital-{message_id}{ext}"
+        s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=media_bytes, ContentType=mime_type)
+        
+        logger.info(json.dumps({
+            'event': 'media_download_direct_api',
+            'mediaId': whatsapp_media_id,
+            's3Key': s3_key,
+            'size': len(media_bytes),
+            'mimeType': mime_type,
+            'requestId': request_id
+        }))
+        return s3_key
+    except Exception as e:
+        logger.error(f"Direct API media download failed: {e}")
+        return None
+
+
+def _get_media_extension_from_mime(mime_type: str) -> str:
+    """Get file extension from MIME type."""
+    MIME_MAP = {
+        'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
+        'audio/ogg': '.ogg', 'audio/mpeg': '.mp3', 'audio/aac': '.aac',
+        'video/mp4': '.mp4', 'video/3gpp': '.3gp',
+        'application/pdf': '.pdf', 'application/vnd.ms-excel': '.xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+        'application/msword': '.doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    }
+    return MIME_MAP.get(mime_type, '.bin')
+
+
 def _download_media(whatsapp_media_id: str, message_id: str, media_type: str, 
                     phone_number_id: str, request_id: str,
                     mime_type_hint: str = '') -> Optional[str]:
     """
-    Download media file from WhatsApp using AWS EUM Social API.
+    Download media file from WhatsApp.
+    Routes to Direct API for Direct API phones, EUM for others.
     
     Per AWS docs (S3File.key): The key is a PREFIX — AWS appends the WhatsApp
     mediaId to create the final file path. For example:
@@ -1400,6 +1464,11 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
     
     Returns the actual S3 key of the downloaded file.
     """
+    # Route Direct API phones to Meta Graph API download
+    if _is_direct_api_phone(phone_number_id):
+        return _download_media_direct_api(whatsapp_media_id, message_id, media_type,
+                                          phone_number_id, request_id, mime_type_hint)
+    
     try:
         # Use MEDIA_PREFIX directly — files land flat, no subfolders
         s3_key_prefix = MEDIA_PREFIX  # e.g. "stack/whatsapp-media/incoming/"
@@ -2980,11 +3049,16 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
             else:
                 logger.info(f"IVR response sent via Direct API to {sender_phone} for {button_id}")
         else:
-            social_messaging.send_whatsapp_message(
-                originationPhoneNumberId=aws_phone_number_id,
-                message=json.dumps(msg_payload).encode('utf-8'),
-                metaApiVersion=META_API_VERSION,
-            )
+            # EUM fallback (should not reach here if all phones are Direct API)
+            if _is_direct_api_phone(aws_phone_number_id):
+                meta_pid = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
+                _send_direct_api_message(sender_phone, msg_payload, meta_phone_id=meta_pid)
+            else:
+                social_messaging.send_whatsapp_message(
+                    originationPhoneNumberId=aws_phone_number_id,
+                    message=json.dumps(msg_payload).encode('utf-8'),
+                    metaApiVersion=META_API_VERSION,
+                )
             logger.info(f"IVR response sent to {sender_phone} for {button_id}")
 
         # Store IVR selection in SystemEvent table for tracking/analytics
@@ -4471,11 +4545,16 @@ def _send_read_receipt(whatsapp_message_id: str, phone_number_id: str, request_i
         }))
         
         # Call SendWhatsAppMessage API with read status
-        response = social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=json.dumps(read_receipt_payload).encode('utf-8'),
-            metaApiVersion='v20.0'
-        )
+        if _is_direct_api_phone(phone_number_id):
+            meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
+            _send_direct_api_read_receipt(whatsapp_message_id, meta_phone_id=meta_pid)
+            response = {'StatusCode': 200}
+        else:
+            response = social_messaging.send_whatsapp_message(
+                originationPhoneNumberId=phone_number_id,
+                message=json.dumps(read_receipt_payload).encode('utf-8'),
+                metaApiVersion='v20.0'
+            )
         
         logger.info(json.dumps({
             'event': 'read_receipt_sent',
@@ -5168,11 +5247,15 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
             'to': formatted_phone,
         }
 
-        social_messaging.send_whatsapp_message(
-            originationPhoneNumberId=phone_number_id,
-            message=json.dumps(read_payload).encode('utf-8'),
-            metaApiVersion='v20.0'
-        )
+        if _is_direct_api_phone(phone_number_id):
+            meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
+            _send_direct_api_read_receipt(whatsapp_message_id if 'whatsapp_message_id' in dir() else '', meta_phone_id=meta_pid)
+        else:
+            social_messaging.send_whatsapp_message(
+                originationPhoneNumberId=phone_number_id,
+                message=json.dumps(read_payload).encode('utf-8'),
+                metaApiVersion='v20.0'
+            )
 
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',
