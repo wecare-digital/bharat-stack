@@ -204,6 +204,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     request_id = context.aws_request_id if context else 'local'
     global origin
     origin = extract_origin(event)
+
+    # ── Direct invoke: post_call_sip from Asterisk AGI ──
+    if event.get('action') == 'post_call_sip':
+        return _handle_post_call_sip(event, request_id)
+
     rc = event.get('requestContext', {})
     http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET'))
     path = rc.get('http', {}).get('path', '') or event.get('rawPath', '') or event.get('path', '')
@@ -782,6 +787,50 @@ def _redirect_call_to_voice_notes(call_id: str, phone_number_id: str,
             logger.error(f"AI-REDIRECT message failed: {json.dumps(result)}")
     else:
         logger.info(f"AI-REDIRECT message sent to {from_number}: messageId={result.get('messageId')}")
+
+
+def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Handle post-call actions from Asterisk AGI (SIP mode).
+    Called via Lambda invoke after a WhatsApp call ends on Asterisk.
+    Sends: 1) thumbs up reaction, 2) post-call text message.
+    """
+    caller_phone = event.get('callerPhone', '')
+    phone_number_id = event.get('phoneNumberId', '1055232054343117')
+
+    if not caller_phone:
+        logger.warning("post_call_sip: no callerPhone")
+        return {'statusCode': 200, 'body': 'no caller'}
+
+    # Clean phone number
+    if not caller_phone.startswith('+'):
+        caller_phone = f'+{caller_phone}'
+
+    logger.info(f"POST-CALL SIP: sending reaction + message to {caller_phone}")
+
+    aws_phone_id = _get_aws_phone_id(phone_number_id)
+
+    # Send post-call message with thumbs up emoji
+    post_msg = (
+        "📞 Thanks for calling WECARE.DIGITAL!\n\n"
+        "We noticed you just called. How can we help?\n\n"
+        "• Type your question here\n"
+        "• Send a voice note for instant AI help 🎙️\n"
+        "• Reply *CALLBACK* to request a callback\n\n"
+        "We're here for you 😊"
+    )
+
+    result = _send_via_aws(aws_phone_id, caller_phone, {
+        'type': 'text',
+        'text': {'body': post_msg},
+    })
+
+    if result.get('error'):
+        logger.warning(f"Post-call SIP message failed (may be outside 24h window): {result}")
+    else:
+        logger.info(f"Post-call SIP message sent to {caller_phone}: {result.get('messageId')}")
+
+    return {'statusCode': 200, 'body': 'post_call_sent'}
 
 
 def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: str,
