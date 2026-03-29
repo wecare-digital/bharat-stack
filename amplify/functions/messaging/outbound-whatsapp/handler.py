@@ -117,30 +117,30 @@ CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations
-# Phone 1 WABA: 2094615664435155 | Phone 2 WABA: 2513394156072604 (migrated, Direct API)
-# Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
-# MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
+# +919330994400 (WECARE.DIGITAL) WABA: 2094615664435155 — pending registration
+# +919903300044 (Manish Agarwal) WABA: 2513394156072604 — active, Direct API
+# Both use same Razorpay MID: acc_HDfub6wOfQybuH | MCC: 4722 | Purpose: 03
 # Config names MUST match exactly what's in Meta Business Manager
 VALID_PAYMENT_CONFIGS = {
     'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU',
     'WECARE-RAZORPAY-UPIVPA', 'WECARE-RAZOR-UPIVPA', 'Payu-UPIVPA',
     'Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI',
 }
-DEFAULT_PAYMENT_CONFIG = 'WECARE-RAZOR-PAY'
-# Map phone number ID to its payment config name
+DEFAULT_PAYMENT_CONFIG = 'Razorpay_ManishAgarwal'
+# Map phone number ID to its default payment config name
 PHONE_PAYMENT_CONFIG = {
-    PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',              # +919330994400 (WABA1)
-    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044 (WABA-T / Manish Agarwal)
+    PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',              # +919330994400
+    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044
 }
 
-# Per-phone payment gateway configs (Razorpay + PayU for each phone)
+# Per-phone payment gateway configs (Razorpay + PayU)
 # Each phone's WABA has different config names registered on Meta
 PHONE_PAYMENT_GATEWAYS = {
-    PHONE_NUMBER_ID_1: {
+    PHONE_NUMBER_ID_1: {                                  # +919330994400
         'razorpay': 'WECARE-RAZOR-PAY',
         'payu': 'WECARE-PAYU',
     },
-    PHONE_NUMBER_ID_2: {
+    PHONE_NUMBER_ID_2: {                                  # +919903300044
         'razorpay': 'Razorpay_ManishAgarwal',
         'payu': 'PayU_ManishAgarwal',
     },

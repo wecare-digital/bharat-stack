@@ -17,11 +17,11 @@ export const AWS_REGION = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 // API Configuration
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 
-// Payment Phone Configuration (Razorpay-enabled WABA)
+// Payment Phone Configuration (default active phone for payments)
 export const PAYMENT_CONFIG = {
-  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-waba3-direct-1016149501586345',
-  phoneDisplay: process.env.NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY || '+91 93309 94400',
-  phoneName: process.env.NEXT_PUBLIC_PAYMENT_PHONE_NAME || 'WECARE.DIGITAL',
+  phoneNumberId: process.env.NEXT_PUBLIC_PAYMENT_PHONE_ID || 'phone-number-id-waba-t-direct-1055232054343117',
+  phoneDisplay: process.env.NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY || '+91 99033 00044',
+  phoneName: process.env.NEXT_PUBLIC_PAYMENT_PHONE_NAME || 'Manish Agarwal',
 };
 
 // Default GSTIN for invoices

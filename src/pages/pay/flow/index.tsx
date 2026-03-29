@@ -37,9 +37,13 @@ const STATUS_FILTERS = [
 const badgeClass = (inv:Invoice) => inv.status==='paid'||inv.paymentStatus==='captured'?'success':inv.status==='cancelled'?'danger':'muted';
 const fmtDate = (ts:number) => {
   if (!ts) return '\u2014';
-  // createdAt is epoch seconds — convert to ms; if already ms (>1e12) use as-is
   const ms = ts > 1e12 ? ts : ts * 1000;
-  return new Date(ms).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  return new Date(ms).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',timeZone:'Asia/Kolkata'});
+};
+const fmtDateTime = (ts:number) => {
+  if (!ts) return '\u2014';
+  const ms = ts > 1e12 ? ts : ts * 1000;
+  return new Date(ms).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'});
 };
 const fmtMoney = (n:number) => `\u20B9${(n||0).toLocaleString('en-IN',{minimumFractionDigits:2})}`;
 
@@ -61,6 +65,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [deliveryLogs, setDeliveryLogs] = useState<InvoiceDeliveryLog[]>([]);
   const [actionLoading, setActionLoading] = useState('');
   const [paymentGateway, setPaymentGateway] = useState('razorpay');
+  const [sendPhone, setSendPhone] = useState('phone-number-id-waba-t-direct-1055232054343117');
   const [remarkModal, setRemarkModal] = useState<{inv:Invoice;type:'remark'|'refund'|'credit_note'}|null>(null);
   const [remarkText, setRemarkText] = useState('');
   const [remarkAmount, setRemarkAmount] = useState('');
@@ -165,22 +170,28 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   };
 
   /* Invoice action handlers */
+  const PHONE_OPTIONS = [
+    { id: 'phone-number-id-waba-t-direct-1055232054343117', label: '+91 99033 00044' },
+    { id: 'phone-number-id-waba3-direct-1016149501586345', label: '+91 93309 94400 (pending)' },
+  ];
   const PG_OPTIONS = [
     { id: 'razorpay', label: 'Razorpay' },
     { id: 'payu', label: 'PayU' },
   ];
-  // Map gateway choice to the correct Meta config name per phone
-  const getPGConfigName = (pg: string) => {
-    // Phone 2 (+919903300044) config names
-    if (pg === 'payu') return 'PayU_ManishAgarwal';
-    return '';  // empty = outbound handler uses phone's default Razorpay
+  // Map gateway + phone to the correct Meta config name
+  const getPGConfigName = (pg: string, phoneId: string) => {
+    const isPhone1 = phoneId.includes('1016149501586345');
+    if (pg === 'payu') return isPhone1 ? 'WECARE-PAYU' : 'PayU_ManishAgarwal';
+    return isPhone1 ? 'WECARE-RAZOR-PAY' : '';  // empty = outbound uses phone default Razorpay
   };
   const doSendPaymentLink = async (inv:Invoice) => {
     setActionLoading('send');
     try {
-      const pgConfig = getPGConfigName(paymentGateway);
-      const r = await api.sendPaymentLink(inv.invoiceId, undefined, pgConfig || undefined);
-      if(r) { showMsg(`Payment link sent via ${paymentGateway === 'payu' ? 'PayU' : 'Razorpay'}`); loadInvoices(); } else showMsg('Send failed','error');
+      const pgConfig = getPGConfigName(paymentGateway, sendPhone);
+      const r = await api.sendPaymentLink(inv.invoiceId, sendPhone, pgConfig || undefined);
+      const pgLabel = paymentGateway === 'payu' ? 'PayU' : 'Razorpay';
+      const phoneLabel = PHONE_OPTIONS.find(p=>p.id===sendPhone)?.label || sendPhone;
+      if(r) { showMsg(`Sent via ${pgLabel} from ${phoneLabel}`); loadInvoices(); } else showMsg('Send failed','error');
     } catch(e) { showMsg('Send failed','error'); }
     setActionLoading('');
   };
@@ -503,7 +514,13 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                       {(selInvoice.status==='created'||selInvoice.status==='pending_payment') && (
                         <>
                           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                            <label style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap'}}>Payment Gateway</label>
+                            <label style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap'}}>From</label>
+                            <select value={sendPhone} onChange={e=>setSendPhone(e.target.value)} style={{flex:1,padding:'6px 10px',borderRadius:8,border:'1.5px solid #1a3a2a',fontSize:13,background:'#fff'}}>
+                              {PHONE_OPTIONS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+                            </select>
+                          </div>
+                          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                            <label style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap'}}>PG</label>
                             <select value={paymentGateway} onChange={e=>setPaymentGateway(e.target.value)} style={{flex:1,padding:'6px 10px',borderRadius:8,border:'1.5px solid #1a3a2a',fontSize:13,background:'#fff'}}>
                               {PG_OPTIONS.map(pg=><option key={pg.id} value={pg.id}>{pg.label}</option>)}
                             </select>
@@ -536,7 +553,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                         {deliveryLogs.map((log,i)=>(
                           <div key={i} className="pf-log-entry">
                             <div><strong>{log.channel}</strong> {'\u2192'} {log.toNumber}</div>
-                            <div>Status: {log.status} {'\u00B7'} {new Date(log.timestamp).toLocaleString('en-IN')}</div>
+                            <div>Status: {log.status} {'\u00B7'} {new Date(log.timestamp * 1000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</div>
                             {log.error && <div className="pf-log-error">{log.error}</div>}
                           </div>
                         ))}
@@ -581,7 +598,10 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                         <td>{fmtMoney(inv.total)}</td>
                         <td>{fmtDate(inv.createdAt)}</td>
                         <td>
-                          <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                          <div style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+                            <select value={sendPhone} onChange={e=>setSendPhone(e.target.value)} style={{padding:'4px 6px',borderRadius:6,border:'1px solid #d1d5db',fontSize:11}}>
+                              {PHONE_OPTIONS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+                            </select>
                             <select value={paymentGateway} onChange={e=>setPaymentGateway(e.target.value)} style={{padding:'4px 6px',borderRadius:6,border:'1px solid #d1d5db',fontSize:11}}>
                               {PG_OPTIONS.map(pg=><option key={pg.id} value={pg.id}>{pg.label}</option>)}
                             </select>
