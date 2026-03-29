@@ -1660,8 +1660,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  padding: 40px 20px 32px;
+  gap: 8px;
+  padding: 12px 20px 8px;
   flex-shrink: 0;
 }
 
