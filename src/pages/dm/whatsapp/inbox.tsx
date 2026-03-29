@@ -210,8 +210,8 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiSearch, setEmojiSearch] = useState('');
   const [mobileShowChat, setMobileShowChat] = useState(false);
-  const CONTACTS_PER_PAGE = 20;
-  const MESSAGES_PER_PAGE = 50;
+  const CONTACTS_PER_PAGE = 100;
+  const MESSAGES_PER_PAGE = 200;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToastContext();
