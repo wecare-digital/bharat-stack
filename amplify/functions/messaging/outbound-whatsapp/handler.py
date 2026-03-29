@@ -132,6 +132,35 @@ PHONE_PAYMENT_CONFIG = {
     PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',              # +919330994400 (WABA1)
     PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044 (WABA-T / Manish Agarwal)
 }
+
+# Per-phone payment gateway configs (Razorpay + PayU for each phone)
+# Each phone's WABA has different config names registered on Meta
+PHONE_PAYMENT_GATEWAYS = {
+    PHONE_NUMBER_ID_1: {
+        'razorpay': 'WECARE-RAZOR-PAY',
+        'payu': 'WECARE-PAYU',
+    },
+    PHONE_NUMBER_ID_2: {
+        'razorpay': 'Razorpay_ManishAgarwal',
+        'payu': 'PayU_ManishAgarwal',
+    },
+}
+
+
+def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
+    """Build payment_settings array for WhatsApp Pay.
+    Meta only allows ONE payment_setting per review_and_pay message.
+    If a specific payment_configuration is requested, use that.
+    Otherwise, use the phone's default Razorpay config."""
+    explicit_config = order_details.get('payment_configuration', '')
+    if explicit_config and explicit_config in VALID_PAYMENT_CONFIGS:
+        gw_type = 'payu' if 'PAYU' in explicit_config.upper() else 'razorpay'
+        return [{'type': 'payment_gateway', 'payment_gateway': {'type': gw_type, 'configuration_name': explicit_config}}]
+
+    # Default: use Razorpay for the phone (primary gateway)
+    gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id, PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_2))
+    config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG)
+    return [{'type': 'payment_gateway', 'payment_gateway': {'type': 'razorpay', 'configuration_name': config_name}}]
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
 # Meta WhatsApp Cloud API error codes (from official error reference docs)
@@ -1799,22 +1828,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'parameters': {
                     'reference_id': ref_id,
                     'type': order_details.get('type', 'digital-goods'),
-                    'payment_settings': [
-                        {
-                            'type': 'payment_gateway',
-                            'payment_gateway': {
-                                'type': (
-                                    'payu' if 'PAYU' in (order_details.get('payment_configuration') or '').upper()
-                                    else 'razorpay'
-                                ),
-                                'configuration_name': (
-                                    order_details.get('payment_configuration')
-                                    if order_details.get('payment_configuration') in VALID_PAYMENT_CONFIGS
-                                    else PHONE_PAYMENT_CONFIG.get(phone_number_id, DEFAULT_PAYMENT_CONFIG)
-                                )
-                            }
-                        }
-                    ],
+                    'payment_settings': _build_payment_settings(phone_number_id, order_details),
                     'currency': order_details.get('currency', 'INR'),
                     'total_amount': {'value': total_paise, 'offset': 100},
                     'order': order_obj

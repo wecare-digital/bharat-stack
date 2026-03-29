@@ -55,10 +55,12 @@ GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
 _token_cache = {}
 
-WABA1_ID = os.environ.get('WABA1_ID', '1912405516040025')
-WABA2_ID = os.environ.get('WABA2_ID', '2513394156072604')
-PHONE1_META_ID = os.environ.get('PHONE1_META_ID', '960395407161423')
-PHONE2_META_ID = os.environ.get('PHONE2_META_ID', '1055232054343117')
+WABA1_ID = os.environ.get('WABA1_ID', '2094615664435155')  # WECARE.DIGITAL (Direct API, current)
+WABA1_ID_OLD = '1912405516040025'  # Old WABA1 (pre-migration, kept for reference)
+WABA2_ID = os.environ.get('WABA2_ID', '2513394156072604')  # Manish Agarwal (Direct API)
+PHONE1_META_ID = os.environ.get('PHONE1_META_ID', '1016149501586345')  # +919330994400 on WABA3
+PHONE1_META_ID_OLD = '960395407161423'  # Old Phone 1 Meta ID (pre-migration)
+PHONE2_META_ID = os.environ.get('PHONE2_META_ID', '1055232054343117')  # +919903300044 on WABA-T
 
 # All IDs that belong to WABA2 — now uses WECARE.DIGITAL app (token1), no separate token needed
 WABA2_IDS = set()
@@ -717,6 +719,17 @@ PAYMENT_CONFIGS = {
         'mcc': '4722',
         'purposeCode': '03',
     },
+    # Also map old Phone 1 Meta ID for backward compat
+    PHONE1_META_ID_OLD: {
+        'phone': '+91 9330994400 (old)',
+        'wabaId': WABA1_ID_OLD,
+        'configs': [
+            {'name': 'WECARE-PAYU', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
+            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID},
+        ],
+        'mcc': '4722',
+        'purposeCode': '03',
+    },
     PHONE2_META_ID: {
         'phone': '+91 9903300044',
         'wabaId': WABA2_ID,
@@ -750,6 +763,8 @@ def _check_payment_gateway(waba_id: str = None) -> Dict:
     waba_phone_map = {
         WABA1_ID: {'phone': '+91 9330994400', 'phoneId': PHONE1_META_ID},
         WABA2_ID: {'phone': '+91 9903300044', 'phoneId': PHONE2_META_ID},
+        # Keep old WABA1 for backward compat queries
+        WABA1_ID_OLD: {'phone': '+91 9330994400 (old WABA)', 'phoneId': PHONE1_META_ID_OLD},
     }
 
     for wid in waba_ids:
