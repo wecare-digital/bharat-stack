@@ -1508,13 +1508,14 @@
 .layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
 .layout .main-content .tab-content .whatsapp-inbox,
 .layout .main-content .ps-content .whatsapp-inbox {
-  height: calc(100vh - var(--inner-header-h, 64px) - 20px) !important;
-  max-height: calc(100vh - var(--inner-header-h, 64px) - 20px) !important;
+  height: calc(100vh - var(--inner-header-h, 96px) - 90px) !important;
+  max-height: calc(100vh - var(--inner-header-h, 96px) - 90px) !important;
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
   border-radius: 0 !important;
   border: none !important;
+  overflow: hidden !important;
 }
 
 .layout .main-content .whatsapp-inbox {
