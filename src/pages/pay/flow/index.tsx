@@ -60,6 +60,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [selInvoice, setSelInvoice] = useState<Invoice|null>(null);
   const [deliveryLogs, setDeliveryLogs] = useState<InvoiceDeliveryLog[]>([]);
   const [actionLoading, setActionLoading] = useState('');
+  const [paymentGateway, setPaymentGateway] = useState('razorpay');
   const [remarkModal, setRemarkModal] = useState<{inv:Invoice;type:'remark'|'refund'|'credit_note'}|null>(null);
   const [remarkText, setRemarkText] = useState('');
   const [remarkAmount, setRemarkAmount] = useState('');
@@ -164,9 +165,23 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   };
 
   /* Invoice action handlers */
+  const PG_OPTIONS = [
+    { id: 'razorpay', label: 'Razorpay' },
+    { id: 'payu', label: 'PayU' },
+  ];
+  // Map gateway choice to the correct Meta config name per phone
+  const getPGConfigName = (pg: string) => {
+    // Phone 2 (+919903300044) config names
+    if (pg === 'payu') return 'PayU_ManishAgarwal';
+    return '';  // empty = outbound handler uses phone's default Razorpay
+  };
   const doSendPaymentLink = async (inv:Invoice) => {
     setActionLoading('send');
-    try { const r = await api.sendPaymentLink(inv.invoiceId); if(r) { showMsg('Payment link sent'); loadInvoices(); } else showMsg('Send failed','error'); } catch(e) { showMsg('Send failed','error'); }
+    try {
+      const pgConfig = getPGConfigName(paymentGateway);
+      const r = await api.sendPaymentLink(inv.invoiceId, undefined, pgConfig || undefined);
+      if(r) { showMsg(`Payment link sent via ${paymentGateway === 'payu' ? 'PayU' : 'Razorpay'}`); loadInvoices(); } else showMsg('Send failed','error');
+    } catch(e) { showMsg('Send failed','error'); }
     setActionLoading('');
   };
   const doCancelInvoice = async (inv:Invoice) => {
@@ -486,9 +501,17 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     )}
                     <div className="pf-action-stack">
                       {(selInvoice.status==='created'||selInvoice.status==='pending_payment') && (
-                        <Button variant="primary" size="sm" loading={actionLoading==='send'} onClick={()=>doSendPaymentLink(selInvoice)}>
-                          {selInvoice.status==='pending_payment'?'Resend Payment Link':'Send Payment Link'}
-                        </Button>
+                        <>
+                          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                            <label style={{fontSize:12,fontWeight:500,whiteSpace:'nowrap'}}>Payment Gateway</label>
+                            <select value={paymentGateway} onChange={e=>setPaymentGateway(e.target.value)} style={{flex:1,padding:'6px 10px',borderRadius:8,border:'1.5px solid #1a3a2a',fontSize:13,background:'#fff'}}>
+                              {PG_OPTIONS.map(pg=><option key={pg.id} value={pg.id}>{pg.label}</option>)}
+                            </select>
+                          </div>
+                          <Button variant="primary" size="sm" loading={actionLoading==='send'} onClick={()=>doSendPaymentLink(selInvoice)}>
+                            {selInvoice.status==='pending_payment'?'Resend Payment Link':'Send Payment Link'}
+                          </Button>
+                        </>
                       )}
                       <Button variant="secondary" size="sm" loading={actionLoading==='img'} onClick={()=>doGenerateImage(selInvoice)}>Generate Image</Button>
                       <Button variant="secondary" size="sm" loading={actionLoading==='pdf'} onClick={()=>doGeneratePdf(selInvoice)}>Generate PDF</Button>
@@ -557,7 +580,14 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                         <td>{inv.customerPhone||'\u2014'}</td>
                         <td>{fmtMoney(inv.total)}</td>
                         <td>{fmtDate(inv.createdAt)}</td>
-                        <td><Button variant="primary" size="sm" loading={actionLoading==='send'} onClick={()=>doSendPaymentLink(inv)}>Resend</Button></td>
+                        <td>
+                          <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                            <select value={paymentGateway} onChange={e=>setPaymentGateway(e.target.value)} style={{padding:'4px 6px',borderRadius:6,border:'1px solid #d1d5db',fontSize:11}}>
+                              {PG_OPTIONS.map(pg=><option key={pg.id} value={pg.id}>{pg.label}</option>)}
+                            </select>
+                            <Button variant="primary" size="sm" loading={actionLoading==='send'} onClick={()=>doSendPaymentLink(inv)}>Send</Button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

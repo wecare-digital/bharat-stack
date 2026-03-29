@@ -174,7 +174,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if method == 'POST' and 'send-payment-link' in path:
             inv_id = path_params.get('invoiceId') or body.get('invoiceId')
             phone_number_id = body.get('phoneNumberId')
-            return send_payment_link(inv_id, phone_number_id, request_id)
+            payment_configuration = body.get('paymentConfiguration', '')
+            return send_payment_link(inv_id, phone_number_id, payment_configuration, request_id)
 
         # POST /invoices/{id}/cancel — cancel/void an invoice
         if method == 'POST' and 'cancel' in path:
@@ -1453,9 +1454,11 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
 
 # ─── Send Payment Link (WhatsApp Interactive Payment Message) ───
 
-def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) -> Dict:
+def send_payment_link(invoice_id: str, phone_number_id: str, payment_configuration: str, request_id: str) -> Dict:
     """Send WhatsApp interactive payment message for a pending invoice.
-    Creates the order_details message with review_and_pay action via Razorpay.
+    Creates the order_details message with review_and_pay action.
+    payment_configuration: optional PG config name (e.g. 'PayU_ManishAgarwal', 'WECARE-PAYU').
+    If empty, outbound handler uses the phone's default Razorpay config.
     """
     if not invoice_id:
         return _resp(400, {'error': 'invoiceId required'})
@@ -1573,6 +1576,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, request_id: str) ->
             'orderDetails': {
                 'reference_id': reference_id,
                 'type': 'digital-goods',
+                'payment_configuration': payment_configuration or '',
                 'currency': 'INR',
                 'itemName': order_items[0]['name'] if order_items else 'Payment',
                 'quantity': 1,

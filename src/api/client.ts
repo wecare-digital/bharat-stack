@@ -3723,10 +3723,10 @@ export async function sendInvoiceWhatsApp(invoiceId: string, toWhatsAppNumber: s
 }
 
 // Send WhatsApp interactive payment link for a pending invoice
-export async function sendPaymentLink(invoiceId: string, phoneNumberId?: string): Promise<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number } | null> {
+export async function sendPaymentLink(invoiceId: string, phoneNumberId?: string, paymentConfiguration?: string): Promise<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number } | null> {
   return apiCall<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number }>(`${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId, phoneNumberId }),
+    body: JSON.stringify({ invoiceId, phoneNumberId, paymentConfiguration }),
   });
 }
 
