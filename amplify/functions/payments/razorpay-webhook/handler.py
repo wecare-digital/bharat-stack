@@ -272,13 +272,20 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
     import time, uuid
     try:
         table = dynamodb.Table(WEBHOOK_LOG_TABLE)
+        now = int(time.time())
+        # Extract payment entity for structured fields
+        _entity = event_data.get('payment', {}).get('entity', {})
         item = {
             'id': str(uuid.uuid4()),
             'eventType': event_type,
-            'requestId': request_id,
-            'payload': json.dumps(event_data, default=str)[:4000],  # Truncate large payloads
-            'createdAt': Decimal(str(int(time.time()))),
-            'expiresAt': Decimal(str(int(time.time()) + 180 * 24 * 60 * 60)),  # TTL: 180 days
+            'paymentId': _entity.get('id', ''),
+            'orderId': _entity.get('order_id', ''),
+            'amount': int(_entity.get('amount', 0)),
+            'status': _entity.get('status', event_type.split('.')[-1] if '.' in event_type else ''),
+            'rawPayload': json.dumps(event_data, default=str)[:4000],  # Truncate large payloads
+            'processedAt': now,
+            'createdAt': now,
+            'expiresAt': now + 180 * 24 * 60 * 60,  # TTL: 180 days
         }
         if razorpay_event_id:
             item['razorpayEventId'] = razorpay_event_id
@@ -290,23 +297,52 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
 
 def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
     """Check if a Razorpay webhook event was already processed (idempotency).
-    Uses a scan with full pagination to avoid false negatives from DynamoDB Limit behavior."""
+    Uses paymentId GSI for efficient lookup when possible, falls back to scan."""
     if not razorpay_event_id:
         return False
     try:
-        from boto3.dynamodb.conditions import Attr
         table = dynamodb.Table(WEBHOOK_LOG_TABLE)
+        # Extract paymentId from razorpay_event_id (format: pay_xxx:event_type)
+        parts = razorpay_event_id.split(':')
+        payment_id = parts[0] if parts else ''
+        event_type = parts[1] if len(parts) > 1 else ''
+
+        if payment_id and event_type:
+            # Use paymentId GSI for efficient lookup
+            try:
+                resp = table.query(
+                    IndexName='paymentId-index',
+                    KeyConditionExpression='paymentId = :pid',
+                    ExpressionAttributeValues={':pid': payment_id},
+                )
+                for item in resp.get('Items', []):
+                    if item.get('eventType') == event_type:
+                        return True
+                # Paginate if needed
+                while 'LastEvaluatedKey' in resp:
+                    resp = table.query(
+                        IndexName='paymentId-index',
+                        KeyConditionExpression='paymentId = :pid',
+                        ExpressionAttributeValues={':pid': payment_id},
+                        ExclusiveStartKey=resp['LastEvaluatedKey'],
+                    )
+                    for item in resp.get('Items', []):
+                        if item.get('eventType') == event_type:
+                            return True
+                return False
+            except Exception:
+                pass  # Fall through to scan if GSI not available
+
+        # Fallback: scan for razorpayEventId (legacy records)
+        from boto3.dynamodb.conditions import Attr
         scan_kwargs = {
             'FilterExpression': Attr('razorpayEventId').eq(razorpay_event_id),
             'ProjectionExpression': 'id',
+            'Limit': 100,
         }
-        while True:
-            response = table.scan(**scan_kwargs)
-            if response.get('Items'):
-                return True
-            if 'LastEvaluatedKey' not in response:
-                break
-            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        response = table.scan(**scan_kwargs)
+        if response.get('Items'):
+            return True
         return False
     except Exception as e:
         logger.warning(json.dumps({'event': 'idempotency_check_failed', 'error': str(e), 'requestId': request_id}))
@@ -404,31 +440,32 @@ def _handle_payment_failed(event_data: Dict, request_id: str) -> None:
     if reference_id:
         try:
             import time as _time
-            # Full pagination to avoid DynamoDB Limit bug
             inv_table = dynamodb.Table(os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable'))
+            # Use referenceId GSI instead of full table scan
             matched = []
-            scan_kwargs = {
-                'FilterExpression': 'referenceId = :ref AND (paymentStatus = :ps1 OR paymentStatus = :ps2)',
-                'ExpressionAttributeValues': {':ref': reference_id, ':ps1': 'pending', ':ps2': 'pending_payment'},
+            query_kwargs = {
+                'IndexName': 'referenceId-index',
+                'KeyConditionExpression': 'referenceId = :ref',
+                'ExpressionAttributeValues': {':ref': reference_id},
             }
-            while True:
-                result = inv_table.scan(**scan_kwargs)
-                matched.extend(result.get('Items', []))
-                if 'LastEvaluatedKey' in result:
-                    scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
-                else:
-                    break
+            resp = inv_table.query(**query_kwargs)
+            matched.extend(resp.get('Items', []))
+            while 'LastEvaluatedKey' in resp:
+                query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+                resp = inv_table.query(**query_kwargs)
+                matched.extend(resp.get('Items', []))
+
             for inv in matched:
-                inv_table.update_item(
-                    Key={'invoiceId': inv['invoiceId']},
-                    UpdateExpression='SET paymentStatus = :ps, updatedAt = :now, notes = if_not_exists(notes, :empty)',
-                    ExpressionAttributeValues={
-                        ':ps': 'failed',
-                        ':now': Decimal(str(int(_time.time()))),
-                        ':empty': '',
-                    },
-                )
-                logger.info(json.dumps({'event': 'invoice_payment_failed', 'invoiceId': inv['invoiceId'], 'referenceId': reference_id, 'requestId': request_id}))
+                if inv.get('paymentStatus') in ('pending', 'pending_payment', None, ''):
+                    inv_table.update_item(
+                        Key={'invoiceId': inv['invoiceId']},
+                        UpdateExpression='SET paymentStatus = :ps, updatedAt = :now',
+                        ExpressionAttributeValues={
+                            ':ps': 'failed',
+                            ':now': Decimal(str(int(_time.time()))),
+                        },
+                    )
+                    logger.info(json.dumps({'event': 'invoice_payment_failed', 'invoiceId': inv['invoiceId'], 'referenceId': reference_id, 'requestId': request_id}))
         except Exception as e:
             logger.error(json.dumps({'event': 'invoice_fail_update_error', 'referenceId': reference_id, 'error': str(e), 'requestId': request_id}))
 

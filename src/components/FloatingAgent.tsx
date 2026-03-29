@@ -401,7 +401,7 @@ const FloatingAgent: React.FC = () => {
           <img src={LOGO_URL} alt="Bharat Stack" className="agent-avatar-logo" />
           <div className="agent-header-text">
             <span className="agent-name">Bharat Stack</span>
-            <span className="agent-subtitle">by WECARE.DIGITAL</span>
+            <span className="agent-subtitle">Task Assistant</span>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

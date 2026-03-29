@@ -177,30 +177,32 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
       </button>
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        {/* Brand: Logo beside two-line "Bharat\nStack ▼", dropdown on hover */}
+        {/* Brand: Logo + Bharat on line 1, Stack ▼ on line 2, collapse btn below */}
         <div className="sidebar-header">
-          <div className="sidebar-brand">
-            <img src={LOGO_URL} alt="BharatStack" className="sidebar-logo" />
-            {!sidebarCollapsed && (
-              <div className="sidebar-brand-nav">
-                <div className="sidebar-brand-text-block">
-                  <span className="sidebar-brand-line1">Bharat</span>
-                  <span className="sidebar-brand-line2">
-                    Stack
-                    <span className="nav-dropdown">
-                      <span className="nav-trigger"><span className="nav-arrow">▼</span></span>
-                      <span className="nav-menu">
-                        <a href="/" className="nav-menu-item">Home</a>
-                        <a href="/dashboard" className="nav-menu-item">CRM</a>
-                        <a href="/studio" className="nav-menu-item">Studio</a>
-                        <a href="/sustainability" className="nav-menu-item">Sustainability</a>
-                        <a href="/access" className="nav-menu-item">Sign in</a>
+          <div className="sidebar-brand-row">
+            <div className="sidebar-brand">
+              <img src={LOGO_URL} alt="BharatStack" className="sidebar-logo" />
+              {!sidebarCollapsed && (
+                <div className="sidebar-brand-nav">
+                  <div className="sidebar-brand-text-block">
+                    <span className="sidebar-brand-line1">Bharat</span>
+                    <span className="sidebar-brand-line2">
+                      Stack
+                      <span className="nav-dropdown">
+                        <span className="nav-trigger"><span className="nav-arrow">▼</span></span>
+                        <span className="nav-menu">
+                          <a href="/" className="nav-menu-item">Home</a>
+                          <a href="/dashboard" className="nav-menu-item">CRM</a>
+                          <a href="/studio" className="nav-menu-item">Studio</a>
+                          <a href="/sustainability" className="nav-menu-item">Sustainability</a>
+                          <a href="/access" className="nav-menu-item">Sign in</a>
+                        </span>
                       </span>
                     </span>
-                  </span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
             <ChevronRightIcon size={14} />
@@ -238,19 +240,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
               <span className="user-role">{user.role || 'Operator'}</span>
               <span className="user-email">{user.signInDetails?.loginId || user.email}</span>
               <button className="btn-signout" onClick={onSignOut}>Sign Out</button>
+              <a href={CONTACT_URL} className="sidebar-contact-link" target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: 'block' }}>
+                Contact Us
+              </a>
             </div>
           )}
           {user && sidebarCollapsed && (
             <button className="btn-signout" onClick={onSignOut} style={{ width: '100%', fontSize: 11 }}>Out</button>
           )}
         </div>
-        {!sidebarCollapsed && (
-          <div className="sidebar-contact-footer">
-            <a href={CONTACT_URL} className="sidebar-contact-link" target="_blank" rel="noopener noreferrer">
-              Contact us
-            </a>
-          </div>
-        )}
       </aside>
       {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
       <main id="main-content" className="main-content">

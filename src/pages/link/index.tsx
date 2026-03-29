@@ -10,7 +10,7 @@ import Button from '../../components/ui/Button';
 import { useToastContext } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_LINK_API_BASE || 'https://r.wecare.digital';
 const SHORT_DOMAIN = 'r.wecare.digital';
 
 interface PageProps { signOut?: () => void; user?: any; }

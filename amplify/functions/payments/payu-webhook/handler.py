@@ -233,19 +233,32 @@ def _handle_success(payload: Dict, request_id: str) -> None:
     mode = payload.get('mode') or ''
     bank_ref = payload.get('bank_ref_num') or ''
 
+    # Extract WD-PAY reference ID from multiple possible locations
+    # PayU stores the reference in productinfo, udf1, or txnid depending on integration
+    reference_id = ''
+    for field in (product_info, payload.get('udf1', ''), txn_id):
+        val = (field or '').strip()
+        if val.upper().startswith('WD-PAY') or val.upper().startswith('WD'):
+            reference_id = val
+            break
+    # Fallback to txnid if no WD reference found
+    if not reference_id:
+        reference_id = txn_id
+
     logger.info(json.dumps({
         'event': 'payu_payment_success',
         'txnId': txn_id, 'payuId': payu_id,
         'amount': amount_rupees, 'phone': phone, 'mode': mode,
+        'referenceId': reference_id, 'productInfo': product_info,
         'requestId': request_id,
     }))
 
     # Store payment record
     _store_payment(payload, 'captured', request_id)
 
-    # Try to mark invoice paid by txnId (used as referenceId)
-    if txn_id:
-        _mark_invoice_paid(txn_id, amount_rupees, phone, request_id)
+    # Try to mark invoice paid by referenceId
+    if reference_id:
+        _mark_invoice_paid(reference_id, amount_rupees, phone, request_id)
 
 
 def _handle_failure(payload: Dict, request_id: str) -> None:
@@ -285,12 +298,22 @@ def _store_payment(payload: Dict, status: str, request_id: str) -> None:
         txn_id = payload.get('txnid') or ''
         payu_id = payload.get('mihpayid') or ''
         amount_str = payload.get('amount') or '0'
+        product_info = payload.get('productinfo') or ''
 
         payment_id = f'payu_{payu_id}' if payu_id else f'payu_txn_{txn_id}'
+
+        # Extract WD-PAY reference ID from productinfo, udf1, or txnid
+        reference_id = ''
+        for field in (product_info, payload.get('udf1', ''), txn_id):
+            val = (field or '').strip()
+            if val.upper().startswith('WD-PAY') or val.upper().startswith('WD'):
+                reference_id = val
+                break
 
         table.put_item(Item={
             'id': payment_id,
             'paymentId': payment_id,
+            'referenceId': reference_id,
             'gateway': 'payu',
             'gatewayPaymentId': payu_id,
             'txnId': txn_id,
@@ -332,18 +355,19 @@ def _mark_invoice_paid(reference_id: str, amount_rupees: float, phone: str, requ
         table = dynamodb.Table(INVOICES_TABLE)
         now = int(time.time())
 
-        # Find invoice by referenceId
-        scan_kwargs = {
-            'FilterExpression': 'referenceId = :ref',
+        # Find invoice by referenceId using GSI (efficient)
+        found = []
+        query_kwargs = {
+            'IndexName': 'referenceId-index',
+            'KeyConditionExpression': 'referenceId = :ref',
             'ExpressionAttributeValues': {':ref': reference_id},
         }
-        found = []
-        while True:
-            resp = table.scan(**scan_kwargs)
+        resp = table.query(**query_kwargs)
+        found.extend(resp.get('Items', []))
+        while 'LastEvaluatedKey' in resp:
+            query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            resp = table.query(**query_kwargs)
             found.extend(resp.get('Items', []))
-            if found or 'LastEvaluatedKey' not in resp:
-                break
-            scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
 
         for inv in found:
             if inv.get('status') != 'paid':

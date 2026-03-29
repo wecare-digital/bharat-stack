@@ -1015,30 +1015,45 @@ def _process_message(
                 request_id=request_id
             )
     
-    # ── Silent flow: "hi" and "pay" as separate messages — no response at all ──
-    # These exact single-word messages must produce zero auto-reply, zero welcome,
-    # zero interactive payment message. Completely silent.
-    SILENT_KEYWORDS = {'hi', 'pay'}
-    if msg_type == 'text' and content:
-        _silent_check = content.strip().lower()
-        if _silent_check in SILENT_KEYWORDS:
-            logger.info(json.dumps({
-                'event': 'silent_flow_triggered',
-                'keyword': _silent_check,
-                'contactId': contact_id,
-                'senderPhone': sender_phone,
-                'requestId': request_id,
-            }))
-            # Mark welcome as sent so it never fires later for this contact
-            try:
-                dynamodb.Table(CONTACTS_TABLE).update_item(
-                    Key={'id': contact_id},
-                    UpdateExpression='SET welcomeSent = :t, welcomeSentAt = :ts',
-                    ExpressionAttributeValues={':t': True, ':ts': Decimal(str(now))}
-                )
-            except Exception:
-                pass
-            return  # ← completely silent, no welcome, no AI, no payment
+    # ── request_welcome: user tapped "Start" — always send welcome + menu ──
+    if msg_type == 'request_welcome':
+        logger.info(json.dumps({
+            'event': 'request_welcome_triggered',
+            'contactId': contact_id,
+            'senderPhone': sender_phone,
+            'requestId': request_id,
+        }))
+        _hi_text = "Hi! 👋 Here's the menu — tap below to get started 👇"
+        try:
+            _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'welcome_message'}).get('Item')
+            if _wc:
+                _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
+                if _wc_val.get('textMessage'):
+                    _hi_text = _wc_val['textMessage']
+        except Exception:
+            pass
+        _send_ai_auto_reply(
+            contact_id=contact_id,
+            content=_hi_text,
+            phone_number_id=aws_phone_number_id,
+            request_id=request_id
+        )
+        _send_interactive_list(
+            contact_id=contact_id,
+            phone_number_id=aws_phone_number_id,
+            list_config=_get_welcome_config(),
+            request_id=request_id
+        )
+        # Mark welcomeSent so brand-new contact path doesn't double-send
+        try:
+            dynamodb.Table(CONTACTS_TABLE).update_item(
+                Key={'id': contact_id},
+                UpdateExpression='SET welcomeSent = :t, welcomeSentAt = :ts',
+                ExpressionAttributeValues={':t': True, ':ts': Decimal(str(now))}
+            )
+        except Exception:
+            pass
+        return  # Skip AI automation — welcome flow handled
 
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
@@ -1060,6 +1075,111 @@ def _process_message(
                     )
                     return  # Skip AI automation — flow handles the rest
 
+        # ── Direct "Pay" keyword trigger (LLM-independent, hardcoded) ──
+        PAY_KEYWORDS = {
+            'pay', 'payment', 'i want to pay', 'make payment', 'make a payment',
+            'send payment', 'pay now', 'pay bill', 'bill pay', 'pay due',
+            'pay dues', 'pending payment', 'pending due', 'bhugtan', 'paisa',
+            'rupees', 'amount pay', 'pay amount', 'invoice', 'pay invoice',
+        }
+        if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
+            logger.info(json.dumps({
+                'event': 'pay_keyword_triggered',
+                'content': content_lower,
+                'contactId': contact_id,
+                'senderPhone': sender_phone,
+                'phoneNumberId': aws_phone_number_id,
+                'requestId': request_id,
+            }))
+            # Step 1: Send "pulling" message immediately
+            _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], aws_phone_number_id, request_id)
+            try:
+                inv_payload = {
+                    'rawPath': '/invoices/send-pending-by-phone',
+                    'requestContext': {'http': {'method': 'POST'}},
+                    'body': json.dumps({
+                        'customerPhone': sender_phone,
+                        'phoneNumberId': aws_phone_number_id,
+                    }),
+                }
+                inv_response = lambda_client.invoke(
+                    FunctionName='wecare-invoice-engine',
+                    InvocationType='RequestResponse',
+                    Payload=json.dumps(inv_payload),
+                )
+                inv_result = json.loads(inv_response['Payload'].read())
+                inv_body = json.loads(inv_result.get('body', '{}'))
+                sent_count = inv_body.get('sent', 0)
+                total_count = inv_body.get('total', 0)
+                send_error = inv_body.get('error', '')
+
+                if total_count == 0:
+                    _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], aws_phone_number_id, request_id)
+                elif sent_count == 0:
+                    _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], aws_phone_number_id, request_id)
+                    logger.warning(json.dumps({
+                        'event': 'pay_keyword_send_failed',
+                        'sent': 0, 'total': total_count,
+                        'error': send_error, 'phone': sender_phone,
+                        'requestId': request_id,
+                    }))
+
+                logger.info(json.dumps({
+                    'event': 'pay_keyword_complete',
+                    'sent': sent_count, 'total': total_count,
+                    'phone': sender_phone, 'requestId': request_id,
+                }))
+            except Exception as pay_err:
+                logger.error(json.dumps({
+                    'event': 'pay_keyword_error',
+                    'error': str(pay_err),
+                    'phone': sender_phone,
+                    'requestId': request_id,
+                }))
+                _send_ai_auto_reply(contact_id, PAY_MSG['error'], aws_phone_number_id, request_id)
+            return  # Skip AI automation — payment flow handled
+
+        # ── Direct "Hi" / greeting keyword trigger (LLM-independent) ──
+        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start'}
+        if content_lower in HI_KEYWORDS:
+            logger.info(json.dumps({
+                'event': 'hi_keyword_triggered',
+                'content': content_lower,
+                'contactId': contact_id,
+                'senderPhone': sender_phone,
+                'requestId': request_id,
+            }))
+            # Send welcome/greeting text
+            _hi_text = "Hi! 👋 Here's the menu — tap below to get started 👇"
+            # Try to load custom welcome text from SystemConfigTable
+            try:
+                _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'welcome_message'}).get('Item')
+                if _wc:
+                    _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
+                    if _wc_val.get('textMessage'):
+                        _hi_text = _wc_val['textMessage']
+            except Exception:
+                pass
+            _send_ai_auto_reply(
+                contact_id=contact_id,
+                content=_hi_text,
+                phone_number_id=aws_phone_number_id,
+                request_id=request_id
+            )
+            # Send the main menu interactive list
+            _send_interactive_list(
+                contact_id=contact_id,
+                phone_number_id=aws_phone_number_id,
+                list_config=_get_welcome_config(),
+                request_id=request_id
+            )
+            logger.info(json.dumps({
+                'event': 'hi_keyword_welcome_sent',
+                'contactId': contact_id,
+                'requestId': request_id,
+            }))
+            return  # Skip AI automation — welcome flow handled
+
     # Process AI automation for supported message types
     # Now includes media types (image, audio, video, document) for multimodal AI
     ai_eligible_types = ['text', 'interactive', 'button', 'location', 'image', 'video', 'audio', 'document']
@@ -1072,7 +1192,7 @@ def _process_message(
     # Check if welcome was already sent for this contact
     _welcome_already_sent = contact.get('welcomeSent') or contact.get('welcomeMessageSent')
     _is_brand_new_contact = not _welcome_already_sent
-    if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document'):
+    if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document', 'request_welcome'):
         try:
             _welcome_text = (
                 "Hi there! 👋 Welcome to WECARE.DIGITAL\n\n"

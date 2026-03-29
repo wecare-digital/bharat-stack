@@ -444,13 +444,21 @@
    and 13px rounded corners
    ======================================== */
 .layout .main-content button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
-  border: 1.5px solid #1a3a2a !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
 }
 
 .layout .inner-content-container button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
-  border: 1.5px solid #1a3a2a !important;
+  border: 1.5px solid #d1f470 !important;
   border-radius: 13px !important;
+}
+
+/* Fallback for browsers without :has() support — all buttons get border */
+@supports not selector(:has(svg)) {
+  .layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.toast-close):not(.shortcuts-close):not(.btn-icon-only):not(.icon-btn):not(.refresh-btn) {
+    border: 1.5px solid #d1f470 !important;
+    border-radius: 13px !important;
+  }
 }
 
 /* ========================================

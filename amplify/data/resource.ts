@@ -786,19 +786,39 @@ const schema = a.schema({
       contactName: a.string(),
       contactPhone: a.string(),
       contactEmail: a.string(),
+      // Customer fields (used by invoice-engine Lambda)
+      customerName: a.string(),
+      customerPhone: a.string(),
+      paidByPhone: a.string(),
+      customerEmail: a.string(),
+      shippingAddress: a.string(),
+      billingAddress: a.string(),
       gstin: a.string(),
       status: a.string().default('created'), // created, pending_payment, sent, paid, cancelled
+      paymentStatus: a.string().default('pending'), // pending, captured, failed, refunded
+      entryPoint: a.string(), // manual, pay_flow, whatsapp_payment, webhook
       subtotal: a.integer(), // paise
       taxAmount: a.integer(),
+      tax: a.float(), // rupees (used by invoice-engine)
       totalAmount: a.integer(),
+      total: a.float(), // rupees (used by invoice-engine)
+      discount: a.float(),
+      shipping: a.float(),
+      handling: a.float(),
+      gstRate: a.float(),
+      convenienceFee: a.float(),
       currency: a.string().default('INR'),
       referenceId: a.string(), // payment reference
       paymentId: a.string(), // Razorpay payment ID
+      orderId: a.string(),
+      purpose: a.string(),
       notes: a.string(),
+      remarks: a.string(), // JSON array of remarks/refunds/credit notes
       imageUrl: a.string(),
       pdfUrl: a.string(),
       s3Key: a.string(),
       fy: a.string(), // financial year
+      paidAt: a.integer(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
     })
@@ -879,6 +899,7 @@ const schema = a.schema({
       amount: a.integer(),
       status: a.string(),
       rawPayload: a.string(), // JSON string
+      razorpayEventId: a.string(), // Idempotency key
       processedAt: a.integer(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
@@ -897,7 +918,7 @@ const schema = a.schema({
       eventType: a.string(), // payment.success, payment.failed, etc.
       paymentId: a.string(), // mihpayid
       txnId: a.string(),
-      amount: a.integer(),
+      amount: a.float(),
       status: a.string(),
       mode: a.string(), // CC, DC, NB, UPI, WALLET
       phone: a.string(),

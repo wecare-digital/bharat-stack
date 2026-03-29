@@ -120,6 +120,7 @@ input, textarea, select {
   border-bottom: 2px solid #d1f470;
   border-radius: 0;
   overflow: hidden;
+  flex-shrink: 0;
 }
 /* sidebar-collapsed inner-header: no left offset needed — header is in flow now */
 .inner-header-in {
@@ -225,12 +226,18 @@ input, textarea, select {
    ========================= */
 .sidebar-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px 8px;
+  flex-direction: column;
+  padding: 10px 12px 6px;
   border-bottom: none;
   background: transparent;
-  gap: 6px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .sidebar-brand {
@@ -242,10 +249,11 @@ input, textarea, select {
 /* Logo matches the height of the two-line text block */
 .sidebar-logo {
   width: auto;
-  height: 48px;
+  height: 46px;
   border-radius: 10px;
   object-fit: contain;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .sidebar-brand-nav {
@@ -376,6 +384,8 @@ input, textarea, select {
   height: 100vh;
   transition: width 0.2s ease;
   z-index: 100;
+  overflow: hidden;
+  overflow-y: hidden;
 }
 
 /* Collapsed sidebar */
@@ -412,7 +422,7 @@ input, textarea, select {
   height: 40px;
 }
 .sidebar.collapsed .sidebar-header {
-  justify-content: center;
+  align-items: center;
   padding: 10px 6px 8px;
 }
 .sidebar.collapsed .sidebar-footer {
@@ -422,6 +432,7 @@ input, textarea, select {
   margin-left: 60px;
   max-width: calc(100vw - 60px);
   width: calc(100vw - 60px);
+  box-sizing: border-box;
 }
 
 /* Collapse toggle button */
@@ -437,7 +448,7 @@ input, textarea, select {
   cursor: pointer;
   transition: all 0.15s;
   flex-shrink: 0;
-  margin-left: auto;
+  align-self: flex-end;
 }
 .sidebar-collapse-btn:hover {
   background: #f9fafb;
@@ -611,11 +622,14 @@ input, textarea, select {
   flex: 1;
   padding: 0 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   background: transparent;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(26, 58, 42, 0.1) transparent;
 }
 
 /* Navigation Items - Notion Style */
@@ -818,24 +832,26 @@ input, textarea, select {
 
 /* Sidebar Footer */
 .sidebar-footer {
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-top: 1px solid #e5e7eb;
   background: transparent;
+  flex-shrink: 0;
 }
 
 /* Contact Us — separate footer section at very bottom of sidebar, matching home page footer */
 .sidebar-contact-footer {
-  padding: 24px 14px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  padding: 10px 14px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   background: #fff;
-  border-top: none;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .sidebar-contact-link {
   display: block;
-  font-size: 21px;
+  font-size: 14px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: #6b7280;
   text-decoration: none;
   transition: all 0.25s;
 }
@@ -889,27 +905,6 @@ input, textarea, select {
   border-color: #1a3a2a;
 }
 
-.user-role {
-  display: inline-block;
-  padding: 2px 6px;
-  background: var(--hover);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--muted);
-  width: fit-content;
-}
-
-.user-email {
-  font-size: var(--text-xs);
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Main Content */
 .main-content {
   flex: 1;
@@ -924,6 +919,8 @@ input, textarea, select {
   flex-direction: column;
   max-width: calc(100vw - var(--sidebar-w));
   width: calc(100vw - var(--sidebar-w));
+  padding-bottom: 0;
+  box-sizing: border-box;
 }
 
 /* =========================
@@ -937,10 +934,11 @@ input, textarea, select {
   margin: 12px 16px 16px;
   padding: 0;
   background: #ffffff;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  box-sizing: border-box;
 }
 
 /* Inner content container fills available space */
