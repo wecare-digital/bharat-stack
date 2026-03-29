@@ -835,6 +835,28 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
         msg_id = result.get('messageId', '')
         logger.info(f"Post-call SIP message sent to {caller_phone}: {msg_id}")
 
+        # Store in outbound table so it shows in dashboard inbox
+        try:
+            outbound_table = dynamodb.Table('stack-wecare-digital-WhatsAppOutboundTable')
+            now = int(time.time())
+            store_id = msg_id or f"postcall_{caller_phone}_{now}"
+            outbound_table.put_item(Item={
+                'id': store_id,
+                'contactPhone': caller_phone,
+                'content': post_msg,
+                'channel': 'WHATSAPP',
+                'direction': 'OUTBOUND',
+                'status': 'SENT',
+                'messageType': 'post_call',
+                'whatsappMessageId': msg_id,
+                'phoneNumberId': phone_number_id,
+                'createdAt': Decimal(str(now)),
+                'expiresAt': Decimal(str(now + 30 * 24 * 60 * 60)),
+            })
+            logger.info(f"Post-call message stored in outbound table: id={store_id}")
+        except Exception as e:
+            logger.error(f"Failed to store post-call message: {e}", exc_info=True)
+
         # Step 3: React with thumbs up to the message we just sent
         if msg_id:
             react_result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
