@@ -793,7 +793,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Handle post-call actions from Asterisk AGI (SIP mode).
     Called via Lambda invoke after a WhatsApp call ends on Asterisk.
-    Sends: 1) thumbs up reaction, 2) post-call text message.
+    Sends: 1) thumbs up reaction (👍), 2) post-call text message.
     """
     caller_phone = event.get('callerPhone', '')
     phone_number_id = event.get('phoneNumberId', '1055232054343117')
@@ -806,11 +806,15 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     if not caller_phone.startswith('+'):
         caller_phone = f'+{caller_phone}'
 
-    logger.info(f"POST-CALL SIP: sending reaction + message to {caller_phone}")
+    logger.info(f"POST-CALL SIP: sending thumbs up + message to {caller_phone} via {phone_number_id}")
 
     aws_phone_id = _get_aws_phone_id(phone_number_id)
 
-    # Send post-call message with thumbs up emoji
+    # Step 1: Send thumbs up reaction (👍)
+    # We need a message_id to react to. Since SIP calls don't have a WhatsApp message,
+    # we send the post-call text first, then react to it.
+
+    # Step 2: Send post-call message
     post_msg = (
         "📞 Thanks for calling WECARE.DIGITAL!\n\n"
         "We noticed you just called. How can we help?\n\n"
@@ -826,9 +830,48 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     })
 
     if result.get('error'):
-        logger.warning(f"Post-call SIP message failed (may be outside 24h window): {result}")
+        logger.warning(f"Post-call SIP message failed: {result}")
     else:
-        logger.info(f"Post-call SIP message sent to {caller_phone}: {result.get('messageId')}")
+        msg_id = result.get('messageId', '')
+        logger.info(f"Post-call SIP message sent to {caller_phone}: {msg_id}")
+
+        # Step 3: React with thumbs up to the message we just sent
+        if msg_id:
+            react_result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
+                'messaging_product': 'whatsapp',
+                'recipient_type': 'individual',
+                'to': caller_phone,
+                'type': 'reaction',
+                'reaction': {
+                    'message_id': msg_id,
+                    'emoji': '\U0001F44D',
+                },
+            }, phone_number_id=phone_number_id)
+            if react_result.get('error'):
+                logger.warning(f"Post-call reaction failed: {react_result}")
+            else:
+                logger.info(f"Post-call thumbs up sent for {msg_id}")
+
+    # Step 4: Send callback permission request (auto-grant calling permission)
+    try:
+        perm_result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
+            'messaging_product': 'whatsapp',
+            'to': caller_phone,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'call_permission_request',
+                'body': {'text': 'Allow us to call you back on WhatsApp?'},
+                'action': {
+                    'name': 'call_permission_request',
+                },
+            },
+        }, phone_number_id=phone_number_id)
+        if perm_result.get('error'):
+            logger.info(f"Call permission request skipped: {str(perm_result.get('detail', ''))[:100]}")
+        else:
+            logger.info(f"Call permission request sent to {caller_phone}")
+    except Exception as e:
+        logger.info(f"Call permission request failed: {e}")
 
     return {'statusCode': 200, 'body': 'post_call_sent'}
 
