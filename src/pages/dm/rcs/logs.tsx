@@ -110,7 +110,7 @@ export default function RcsLogsPage({ signOut, user, embedded }: PageProps) {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="RCS Logs | WECARE.DIGITAL" description="RCS message logs" />
+      <SEO title="RCS Logs" description="RCS message logs" />
       {content}
     </Layout>
   );

@@ -838,18 +838,45 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
         # Store in outbound table so it shows in dashboard inbox
         try:
             outbound_table = dynamodb.Table('stack-wecare-digital-WhatsAppOutboundTable')
+            contacts_table = dynamodb.Table('stack-wecare-digital-ContactsTable')
             now = int(time.time())
             store_id = msg_id or f"postcall_{caller_phone}_{now}"
+
+            # Look up contactId from ContactsTable by phone number
+            # The inbox matches messages by contactId (UUID), not phone
+            contact_id = None
+            clean_phone = caller_phone.lstrip('+')
+            for phone_variant in [caller_phone, clean_phone]:
+                try:
+                    resp = contacts_table.query(
+                        IndexName='phone-index',
+                        KeyConditionExpression='phone = :phone',
+                        ExpressionAttributeValues={':phone': phone_variant},
+                        Limit=1
+                    )
+                    items = resp.get('Items', [])
+                    if items:
+                        contact_id = items[0].get('contactId') or items[0].get('id')
+                        break
+                except Exception:
+                    pass
+            if not contact_id:
+                contact_id = clean_phone  # fallback to phone digits
+
             outbound_table.put_item(Item={
                 'id': store_id,
+                'messageId': store_id,
+                'contactId': contact_id,
                 'contactPhone': caller_phone,
                 'content': post_msg,
-                'channel': 'WHATSAPP',
-                'direction': 'OUTBOUND',
-                'status': 'SENT',
+                'channel': 'whatsapp',
+                'direction': 'outbound',
+                'status': 'sent',
                 'messageType': 'post_call',
                 'whatsappMessageId': msg_id,
                 'phoneNumberId': phone_number_id,
+                'awsPhoneNumberId': phone_number_id,
+                'timestamp': Decimal(str(now)),
                 'createdAt': Decimal(str(now)),
                 'expiresAt': Decimal(str(now + 30 * 24 * 60 * 60)),
             })

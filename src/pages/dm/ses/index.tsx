@@ -36,7 +36,7 @@ const EmailPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Email | WECARE.DIGITAL" description="Email — AWS SES" />
+      <SEO title="Email" description="Email — AWS SES" />
       {shellContent}
     </Layout>
   );

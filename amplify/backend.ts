@@ -2,6 +2,7 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
+import { addLinkResources } from './link-resources';
 
 /**
  * WECARE.DIGITAL Admin Platform Backend
@@ -70,3 +71,11 @@ try {
 }
 
 export default backend;
+
+/**
+ * URL Shortener Resources
+ * Creates Route53 CNAME for r.wecare.digital -> API Gateway,
+ * DynamoDB tables, ACM cert, and Lambda integration.
+ */
+const linkStack = backend.data.resources.stacks['data'];
+addLinkResources(linkStack);

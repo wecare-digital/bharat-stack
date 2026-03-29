@@ -8,7 +8,7 @@ import Head from 'next/head';
 const StudioPage: React.FC = () => (
   <>
     <Head>
-      <title>Studio | WECARE.DIGITAL</title>
+      <title>Studio | Bharat Stack by WECARE.DIGITAL</title>
       <meta name="description" content="Studio by WECARE.DIGITAL — coming soon." />
       <link rel="canonical" href="https://stack.wecare.digital/studio" />
     </Head>

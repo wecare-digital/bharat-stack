@@ -259,7 +259,7 @@ const EmailLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Email Logs | WECARE.DIGITAL" description="View email logs" />
+      <SEO title="Email Logs" description="View email logs" />
       {content}
     </Layout>
   );

@@ -997,7 +997,7 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Voice-IN | Airtel IQ | WECARE.DIGITAL" description="Voice calls via Airtel IQ" />
+      <SEO title="Voice-IN | Airtel IQ" description="Voice calls via Airtel IQ" />
       {pageContent}
     </Layout>
   );

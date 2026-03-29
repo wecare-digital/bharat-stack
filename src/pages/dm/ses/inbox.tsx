@@ -254,7 +254,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   );
 
   if (embedded) return content;
-  return <Layout user={user} onSignOut={signOut}><SEO title="Email Inbox | WECARE.DIGITAL" description="Email inbox" />{content}</Layout>;
+  return <Layout user={user} onSignOut={signOut}><SEO title="Email Inbox" description="Email inbox" />{content}</Layout>;
 };
 
 export default EmailInbox;

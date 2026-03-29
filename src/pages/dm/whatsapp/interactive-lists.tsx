@@ -132,7 +132,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
   const content = (
     <>
       <SEO title="Interactive Lists" description="WhatsApp Interactive List Messages" noindex />
-      <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
+      <div className="inner-page-container" style={{ background: '#fff' }}>
         <h2 style={{ margin: '0 0 6px', fontSize: 20 }}>WhatsApp Interactive List Messages</h2>
         <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
           Send guided menus with up to 10 sections and 10 rows each. Users tap a button to see the list and select an option.

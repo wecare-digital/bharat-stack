@@ -128,7 +128,7 @@
 .btn-ghost {
   background: transparent;
   color: #6b7280;
-  border: 1.5px solid transparent;
+  border: 1.5px solid #1a3a2a;
 }
 
 .btn-ghost:hover:not(:disabled) {

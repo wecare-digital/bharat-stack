@@ -251,7 +251,7 @@ const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   );
 
   if (embedded) return content;
-  return <Layout user={user} onSignOut={signOut}><SEO title="RCS Inbox | WECARE.DIGITAL" description="RCS Business Messaging inbox" />{content}</Layout>;
+  return <Layout user={user} onSignOut={signOut}><SEO title="RCS Inbox" description="RCS Business Messaging inbox" />{content}</Layout>;
 };
 
 export default RcsInbox;

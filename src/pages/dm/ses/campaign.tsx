@@ -123,7 +123,7 @@ const EmailCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded }) => 
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Email Campaign | WECARE.DIGITAL" description="Send bulk email campaigns" />
+      <SEO title="Email Campaign" description="Send bulk email campaigns" />
       {content}
     </Layout>
   );

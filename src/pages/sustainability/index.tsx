@@ -8,7 +8,7 @@ import Head from 'next/head';
 const SustainabilityPage: React.FC = () => (
   <>
     <Head>
-      <title>Sustainability | WECARE.DIGITAL</title>
+      <title>Sustainability | Bharat Stack by WECARE.DIGITAL</title>
       <meta name="description" content="Sustainability by WECARE.DIGITAL — coming soon." />
       <link rel="canonical" href="https://stack.wecare.digital/sustainability" />
     </Head>

@@ -31,7 +31,7 @@ clicks_table = dynamodb.Table(LINK_CLICKS_TABLE)
 HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization",
 }
 
@@ -40,8 +40,21 @@ FALLBACK_URL = "https://wecare.digital/selfservice"
 
 
 def handler(event, context):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    
     method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
-    path = event.get("path", event.get("rawPath", ""))
+    raw_path = event.get("path", event.get("rawPath", ""))
+    
+    # Strip stage prefix (e.g., /prod/wa -> /wa) for custom domain requests
+    stage = event.get("requestContext", {}).get("stage", "")
+    path = raw_path
+    if stage and stage != "$default" and path.startswith(f"/{stage}/"):
+        path = path[len(f"/{stage}"):]
+    elif stage and stage != "$default" and path.startswith(f"/{stage}"):
+        path = path[len(f"/{stage}"):] or "/"
+    
+    logger.info(f"URL Shortener: method={method} raw_path={raw_path} path={path} stage={stage}")
     try:
         body = json.loads(event.get("body", "{}") or "{}")
     except (json.JSONDecodeError, TypeError, ValueError):
@@ -54,6 +67,7 @@ def handler(event, context):
         # Redirect: GET /r/:code or GET /{code} (from r.wecare.digital)
         if "/r/" in path:
             code = path.split("/r/")[-1].strip("/")
+            logger.info(f"Redirect via /r/ path: code={code}")
             return redirect(code, event)
 
         # CRUD: /links
@@ -75,10 +89,12 @@ def handler(event, context):
         # Catch-all: GET /{code} — treat as redirect (for r.wecare.digital/abc123)
         if method == "GET" and path and path != "/":
             code = path.strip("/")
+            logger.info(f"Catch-all redirect: code={code}")
             if code and "." not in code and "/" not in code:
                 return redirect(code, event)
 
         # 404 → redirect to self-service
+        logger.info(f"No route matched, falling back")
         return {
             "statusCode": 302,
             "headers": {**HEADERS, "Location": FALLBACK_URL},
@@ -87,6 +103,7 @@ def handler(event, context):
 
     except Exception as e:
         # 500 → redirect to self-service
+        logger.error(f"Handler exception: {e}", exc_info=True)
         return {
             "statusCode": 302,
             "headers": {**HEADERS, "Location": FALLBACK_URL},

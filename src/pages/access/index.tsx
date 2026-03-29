@@ -29,7 +29,7 @@ const AccessPage: React.FC<PageProps> = ({ user }) => {
   return (
     <>
       <Head>
-        <title>Access | WECARE.DIGITAL</title>
+        <title>Access | Bharat Stack by WECARE.DIGITAL</title>
       </Head>
       <div style={{ 
         minHeight: '100vh', 

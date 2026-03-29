@@ -1015,6 +1015,31 @@ def _process_message(
                 request_id=request_id
             )
     
+    # ── Silent flow: "hi" and "pay" as separate messages — no response at all ──
+    # These exact single-word messages must produce zero auto-reply, zero welcome,
+    # zero interactive payment message. Completely silent.
+    SILENT_KEYWORDS = {'hi', 'pay'}
+    if msg_type == 'text' and content:
+        _silent_check = content.strip().lower()
+        if _silent_check in SILENT_KEYWORDS:
+            logger.info(json.dumps({
+                'event': 'silent_flow_triggered',
+                'keyword': _silent_check,
+                'contactId': contact_id,
+                'senderPhone': sender_phone,
+                'requestId': request_id,
+            }))
+            # Mark welcome as sent so it never fires later for this contact
+            try:
+                dynamodb.Table(CONTACTS_TABLE).update_item(
+                    Key={'id': contact_id},
+                    UpdateExpression='SET welcomeSent = :t, welcomeSentAt = :ts',
+                    ExpressionAttributeValues={':t': True, ':ts': Decimal(str(now))}
+                )
+            except Exception:
+                pass
+            return  # ← completely silent, no welcome, no AI, no payment
+
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
         content_lower = content.strip().lower()
@@ -1043,7 +1068,59 @@ def _process_message(
     if msg_type == 'audio' and s3_key:
         _auto_transcribe_voice_note(message_id, s3_key, request_id)
 
-    if msg_type in ai_eligible_types and (content or s3_key):
+    # ── Welcome message for brand-new contacts (independent of AI pipeline) ──
+    # Check if welcome was already sent for this contact
+    _welcome_already_sent = contact.get('welcomeSent') or contact.get('welcomeMessageSent')
+    _is_brand_new_contact = not _welcome_already_sent
+    if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document'):
+        try:
+            _welcome_text = (
+                "Hi there! 👋 Welcome to WECARE.DIGITAL\n\n"
+                "Shop, pay, track requests, or get support — all right here.\n\n"
+                "Tap *Menu* to get started 👇"
+            )
+            # Try to load custom welcome text from SystemConfigTable
+            try:
+                _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'welcome_message'}).get('Item')
+                if _wc:
+                    _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
+                    if _wc_val.get('textMessage'):
+                        _welcome_text = _wc_val['textMessage']
+            except Exception:
+                pass  # Use default welcome text
+
+            _send_ai_auto_reply(
+                contact_id=contact_id,
+                content=_welcome_text,
+                phone_number_id=aws_phone_number_id,
+                request_id=request_id
+            )
+            # Also send the main menu interactive list
+            _send_interactive_list(
+                contact_id=contact_id,
+                phone_number_id=aws_phone_number_id,
+                list_config=_get_welcome_config(),
+                request_id=request_id
+            )
+            # Mark contact so welcome isn't sent again
+            try:
+                dynamodb.Table(CONTACTS_TABLE).update_item(
+                    Key={'id': contact_id},
+                    UpdateExpression='SET welcomeSent = :t, welcomeSentAt = :ts',
+                    ExpressionAttributeValues={':t': True, ':ts': Decimal(str(now))}
+                )
+            except Exception:
+                pass
+            logger.info(json.dumps({
+                'event': 'welcome_message_sent',
+                'contactId': contact_id,
+                'senderPhone': sender_phone,
+                'requestId': request_id
+            }))
+        except Exception as _we:
+            logger.warning(f"Welcome message failed (non-blocking): {_we}")
+
+    if msg_type in ai_eligible_types and (content or s3_key) and not _is_brand_new_contact:
         _process_ai_automation(
             message_id=message_id,
             contact_id=contact_id,

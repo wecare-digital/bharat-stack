@@ -100,10 +100,10 @@ const FlowsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => 
   const content = (
     <>
       <SEO title="WhatsApp Flows" description="Manage WhatsApp Flows" noindex />
-      <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
+      <div className="inner-page-container" style={{ background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>WhatsApp Flows</h2>
-          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+          <button onClick={() => setShowCreate(true)} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: '1.5px solid #1a3a2a', borderRadius: 13, cursor: 'pointer', fontSize: 13 }}>
             + Create Flow
           </button>
         </div>

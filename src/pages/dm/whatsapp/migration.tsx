@@ -100,7 +100,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   };
 
   const content = (
-    <div style={{ padding: embedded ? 0 : '16px 24px', maxWidth: 900, margin: '0 auto' }}>
+    <div className="inner-page-container">
 
       {/* Webhook Info Banner */}
       <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 16, marginBottom: 20 }}>

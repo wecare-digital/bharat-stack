@@ -343,7 +343,7 @@ const StorePage: React.FC<PageProps> = ({ signOut, user }) => {
   // ---- Render ----
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Store | WECARE.DIGITAL" description="Wix Store — Products, Orders, Collections" />
+      <SEO title="Store" description="Wix Store — Products, Orders, Collections" />
       <div className="store-page">
         <PageHeader
           title="Store"

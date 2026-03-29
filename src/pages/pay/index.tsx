@@ -20,7 +20,7 @@ const TABS: ShellTab[] = [
 const PayPage: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Pay | WECARE.DIGITAL" description="Payments — Flow CRM, WhatsApp Pay & Pay Links" />
+      <SEO title="Pay" description="Payments — Flow CRM, WhatsApp Pay & Pay Links" />
       <PageShell title="Pay" subtitle="Invoices, WhatsApp Pay & Payment Links" tabs={TABS} defaultTab="flow">
         {(activeTab) => (
           <>

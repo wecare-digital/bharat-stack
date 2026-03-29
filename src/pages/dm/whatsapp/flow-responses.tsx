@@ -74,7 +74,7 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
   const content = (
     <>
       <SEO title="Flow Responses" description="WhatsApp Flow Responses & Logs" noindex />
-      <div style={{ padding: '16px 24px', maxWidth: 1200, margin: '0 auto', background: '#fff' }}>
+      <div className="inner-page-container" style={{ background: '#fff' }}>
         <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>Flow Responses</h2>
 
         {/* Section Tabs */}

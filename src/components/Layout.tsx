@@ -4,12 +4,13 @@
 import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import SearchModal from './SearchModal';
-import Header from './Header';
-import Footer from './Footer';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
 import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon } from '../lib/icons';
 import { Breadcrumbs, KeyboardShortcuts, useKeyboardShortcutsModal } from './ui';
+
+const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
+const CONTACT_URL = 'https://www.wecare.digital/contact';
 
 interface LayoutProps {
   children: ReactNode;
@@ -171,13 +172,36 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
 
   return (
     <>
-      <Header />
       <div className={`layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <button className="mobile-menu-toggle" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu">
         {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
       </button>
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        {/* Brand: Logo beside two-line "Bharat\nStack ▼", dropdown on hover */}
         <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <img src={LOGO_URL} alt="BharatStack" className="sidebar-logo" />
+            {!sidebarCollapsed && (
+              <div className="sidebar-brand-nav">
+                <div className="sidebar-brand-text-block">
+                  <span className="sidebar-brand-line1">Bharat</span>
+                  <span className="sidebar-brand-line2">
+                    Stack
+                    <span className="nav-dropdown">
+                      <span className="nav-trigger"><span className="nav-arrow">▼</span></span>
+                      <span className="nav-menu">
+                        <a href="/" className="nav-menu-item">Home</a>
+                        <a href="/dashboard" className="nav-menu-item">CRM</a>
+                        <a href="/studio" className="nav-menu-item">Studio</a>
+                        <a href="/sustainability" className="nav-menu-item">Sustainability</a>
+                        <a href="/access" className="nav-menu-item">Sign in</a>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
           <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
             <ChevronRightIcon size={14} />
           </button>
@@ -202,7 +226,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
               <button className="sidebar-search-clear" onClick={() => setSidebarSearch('')}>×</button>
             )}
           </div>
-          {/* Search results filter nav items inline — no dropdown */}
         </div>
         )}
         
@@ -221,16 +244,25 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
             <button className="btn-signout" onClick={onSignOut} style={{ width: '100%', fontSize: 11 }}>Out</button>
           )}
         </div>
+        {!sidebarCollapsed && (
+          <div className="sidebar-contact-footer">
+            <a href={CONTACT_URL} className="sidebar-contact-link" target="_blank" rel="noopener noreferrer">
+              Contact us
+            </a>
+          </div>
+        )}
       </aside>
       {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
       <main id="main-content" className="main-content">
+        <div className="inner-header"></div>
         {showBreadcrumbs && <Breadcrumbs />}
-        {children}
+        <div className="inner-content-container">
+          {children}
+        </div>
       </main>
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <KeyboardShortcuts isOpen={shortcutsModal.isOpen} onClose={shortcutsModal.close} />
     </div>
-    <Footer />
     </>
   );
 };

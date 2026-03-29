@@ -1,0 +1,500 @@
+/**
+ * Flexible Layout System - WECARE.DIGITAL
+ * Enhanced UX for inner page tables, badges, and components ONLY.
+ * 
+ * IMPORTANT: All selectors are scoped to .layout .main-content
+ * to avoid breaking the header, footer, sidebar, or auth UI.
+ *
+ * VERSION: 1.1 — Fixed cropping issues
+ */
+
+/* ========================================
+   TABLE ACTION BUTTONS (Delete, Edit, Copy)
+   Consistent action column styling
+   ======================================== */
+.layout .main-content .table-actions,
+.layout .main-content .link-actions,
+.layout .main-content .row-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.layout .main-content .table-action-btn,
+.layout .main-content .link-act-btn,
+.layout .main-content .row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.layout .main-content .table-action-btn:hover,
+.layout .main-content .link-act-btn:hover,
+.layout .main-content .row-action-btn:hover {
+  border-color: #d1f470;
+  color: #1a3a2a;
+  background: #f9fafb;
+}
+
+.layout .main-content .table-action-btn.danger:hover,
+.layout .main-content .link-act-btn.danger:hover,
+.layout .main-content .row-action-btn.danger:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* ========================================
+   SCOPED TABLE IMPROVEMENTS
+   Only inside .layout .main-content
+   ======================================== */
+.layout .main-content .table-container,
+.layout .main-content .table-area,
+.layout .main-content .link-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #fff;
+  border: 1.5px solid #d1f470;
+  border-radius: 14px;
+}
+
+.layout .main-content .link-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.layout .main-content .link-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #d1f470;
+  color: #1a3a2a;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1.5px solid #1a3a2a;
+  white-space: nowrap;
+}
+
+.layout .main-content .link-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(209, 244, 112, 0.3);
+  vertical-align: middle;
+  font-size: 13px;
+  color: #111827;
+}
+
+.layout .main-content .link-table tbody tr:hover {
+  background: rgba(209, 244, 112, 0.08);
+}
+
+.layout .main-content .link-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ========================================
+   BADGE SYSTEM — Scoped
+   ======================================== */
+.layout .main-content .badge-inbound,
+.layout .main-content .dir-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a3a2a;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  min-height: 22px;
+}
+
+.layout .main-content .badge-outbound,
+.layout .main-content .dir-out {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #6b7280;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  min-height: 22px;
+}
+
+.layout .main-content .st-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.layout .main-content .st-badge.delivered,
+.layout .main-content .st-badge.read,
+.layout .main-content .st-badge.sent,
+.layout .main-content .st-badge.connected,
+.layout .main-content .st-badge.completed {
+  background: rgba(209, 244, 112, 0.2);
+  color: #1a3a2a;
+}
+
+.layout .main-content .st-badge.failed,
+.layout .main-content .st-badge.undelivered {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.layout .main-content .st-badge.initiated,
+.layout .main-content .st-badge.pending {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* ========================================
+   CONTENT CELL HELPERS — Scoped
+   ======================================== */
+.layout .main-content .content-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout .main-content .time-cell {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.layout .main-content .phone-cell {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #1a3a2a;
+}
+
+.layout .main-content .name-cell {
+  font-weight: 500;
+  color: #111827;
+}
+
+.layout .main-content .success-cell {
+  color: #1a3a2a;
+  font-weight: 600;
+}
+
+.layout .main-content .failed-cell {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* ========================================
+   PROVIDER BADGES — Scoped
+   ======================================== */
+.layout .main-content .provider-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #1a3a2a;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.layout .main-content .provider-badge.airtel {
+  background: #e60000;
+}
+
+.layout .main-content .region-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+/* ========================================
+   LINK PAGE — Scoped styles
+   ======================================== */
+.layout .main-content .link-page {
+  padding: clamp(16px, 3vw, 24px);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.layout .main-content .link-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.layout .main-content .link-page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a3a2a;
+}
+
+.layout .main-content .link-page-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.layout .main-content .link-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.layout .main-content .link-stat {
+  background: #fff;
+  border: 1.5px solid #d1f470;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.layout .main-content .link-stat:hover {
+  border-color: #1a3a2a;
+}
+
+.layout .main-content .link-stat-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a3a2a;
+}
+
+.layout .main-content .link-stat-lbl {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.layout .main-content .link-short-a {
+  color: #1a3a2a;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.layout .main-content .link-short-a:hover {
+  text-decoration: underline;
+}
+
+.layout .main-content .link-deep-badge {
+  display: inline-flex;
+  background: #d1f470;
+  color: #1a3a2a;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ========================================
+   LINK MODAL — Scoped
+   ======================================== */
+.link-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+
+.link-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  border: 1.5px solid #d1f470;
+  animation: linkModalIn 0.15s ease-out;
+}
+
+@keyframes linkModalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.link-modal-bar { height: 5px; background: #d1f470; }
+
+.link-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 0;
+}
+
+.link-modal-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a3a2a;
+}
+
+.link-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.link-modal-close:hover { color: #374151; }
+
+.link-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.link-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #f3f4f6;
+}
+
+.link-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.link-input {
+  padding: 8px 12px;
+  border: 1.5px solid #d1f470;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.link-input:focus {
+  border-color: #1a3a2a;
+  box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
+}
+
+.link-gen-btn {
+  background: #f3f4f6;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #374151;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.link-gen-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1f470;
+}
+
+.link-cancel-btn {
+  padding: 8px 18px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.link-cancel-btn:hover {
+  background: #f9fafb;
+  border-color: #d1f470;
+}
+
+.link-deep-fields {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+/* ========================================
+   RESPONSIVE — Scoped to .layout only
+   ======================================== */
+@media (max-width: 768px) {
+  .layout .main-content .link-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .layout .main-content .link-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .layout .main-content .link-table-wrap {
+    overflow-x: auto;
+  }
+
+  .layout .main-content .content-cell {
+    max-width: 140px;
+  }
+
+  .link-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .link-modal {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 85vh;
+  }
+}

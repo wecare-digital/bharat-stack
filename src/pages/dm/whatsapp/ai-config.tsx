@@ -170,7 +170,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
 
   const content = (
     <>
-      <div style={{ padding: '1rem 1.5rem', maxWidth: '1200px', margin: '0 auto', background: '#fff' }}>
+      <div className="inner-page-container" style={{ background: '#fff' }}>
         {/* Header */}
         <PageHeader 
           title="WhatsApp AI Auto-Reply" 

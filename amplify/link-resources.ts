@@ -114,6 +114,7 @@ export function addLinkResources(stack: Stack) {
       allowMethods: [
         apigatewayv2.CorsHttpMethod.GET,
         apigatewayv2.CorsHttpMethod.POST,
+        apigatewayv2.CorsHttpMethod.PUT,
         apigatewayv2.CorsHttpMethod.DELETE,
         apigatewayv2.CorsHttpMethod.OPTIONS,
       ],
@@ -163,6 +164,13 @@ export function addLinkResources(stack: Stack) {
   httpApi.addRoutes({
     path: '/links/{code}',
     methods: [apigatewayv2.HttpMethod.DELETE],
+    integration: lambdaIntegration,
+  });
+
+  // PUT /links/{code} — update link
+  httpApi.addRoutes({
+    path: '/links/{code}',
+    methods: [apigatewayv2.HttpMethod.PUT],
     integration: lambdaIntegration,
   });
 

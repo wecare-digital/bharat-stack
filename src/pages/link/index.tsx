@@ -86,7 +86,7 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
       setLinks((data.links || []).map((l: any) => ({
         ...l,
         clicks: Number(l.clicks) || 0,
-        shortUrl: l.shortUrl || `https://${SHORT_DOMAIN}/${l.shortCode}`,
+        shortUrl: `https://${SHORT_DOMAIN}/${l.shortCode}`,
       })));
     } catch (err) {
       console.error('Load links error:', err);
@@ -175,7 +175,7 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Link | WECARE.DIGITAL" description="URL shortener and deep links — r.wecare.digital" />
+      <SEO title="Link" description="URL shortener and deep links — r.wecare.digital" />
       <div className="link-page">
         <div className="link-page-header">
           <div>
@@ -311,60 +311,7 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
 
       </div>
 
-      <style jsx>{`
-        .link-page { padding: 20px; max-width: 1100px; margin: 0 auto; }
-        .link-page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-        .link-page-header h1 { margin: 0; font-size: 22px; color: #1a3a2a; display: flex; align-items: center; gap: 8px; }
-        .link-page-header p { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
-
-        .link-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-        .link-stat { background: #fff; border: 1.5px solid #e5e7eb; border-radius: 13px; padding: 16px; text-align: center; }
-        .link-stat-val { font-size: 22px; font-weight: 700; color: #1a3a2a; }
-        .link-stat-lbl { font-size: 11px; color: #6b7280; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        .link-table-wrap { background: #fff; border: 1.5px solid #e5e7eb; border-radius: 13px; overflow: hidden; }
-        .link-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .link-table thead { background: #f9fafb; }
-        .link-table th { padding: 10px 14px; text-align: left; font-weight: 600; color: #374151; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid #e5e7eb; }
-        .link-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; }
-        .link-table tbody tr:hover { background: #f9fafb; }
-        .link-short-a { color: #1a3a2a; font-weight: 600; text-decoration: none; font-size: 12px; }
-        .link-short-a:hover { text-decoration: underline; }
-        .link-deep-badge { background: #d1f470; color: #1a3a2a; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-
-        .link-actions { display: flex; gap: 4px; }
-        .link-act-btn { background: none; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 5px 8px; cursor: pointer; color: #6b7280; display: flex; align-items: center; transition: all 0.15s; }
-        .link-act-btn:hover { border-color: #d1f470; color: #1a3a2a; }
-        .link-act-btn.danger:hover { border-color: #fca5a5; color: #dc2626; }
-
-        /* Modal */
-        .link-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; backdrop-filter: blur(2px); }
-        .link-modal { background: #fff; border-radius: 13px; width: 100%; max-width: 480px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; border: 1.5px solid #d1f470; animation: modalIn 0.15s ease-out; }
-        .link-modal-bar { height: 6px; background: #d1f470; }
-        .link-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 0; }
-        .link-modal-header h2 { margin: 0; font-size: 16px; color: #1a3a2a; }
-        .link-modal-close { background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; padding: 0 4px; }
-        .link-modal-close:hover { color: #374151; }
-        .link-modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
-        .link-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; background: #f9fafb; border-top: 1px solid #f3f4f6; }
-
-        .link-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; color: #374151; }
-        .link-input { padding: 8px 12px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 13px; outline: none; font-family: inherit; transition: border-color 0.15s; }
-        .link-input:focus { border-color: #d1f470; box-shadow: 0 0 0 3px rgba(209,244,112,0.3); }
-        .link-gen-btn { background: #f3f4f6; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: #374151; white-space: nowrap; }
-        .link-gen-btn:hover { background: #e5e7eb; }
-        .link-cancel-btn { padding: 7px 16px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: #fff; color: #374151; font-size: 13px; cursor: pointer; font-family: inherit; }
-        .link-cancel-btn:hover { background: #f9fafb; }
-        .link-deep-fields { display: grid; gap: 12px; padding: 12px; background: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb; }
-
-        @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(-8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-
-        @media (max-width: 768px) {
-          .link-stats { grid-template-columns: repeat(2, 1fr); }
-          .link-table-wrap { overflow-x: auto; }
-          .link-page-header { flex-direction: column; align-items: flex-start; }
-        }
-      `}</style>
+      {/* Styles now in flex-layout.css — no inline styles needed */}
     </Layout>
   );
 };

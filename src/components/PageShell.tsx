@@ -22,6 +22,7 @@ interface PageShellProps {
   actions?: React.ReactNode;
   children: (activeTab: string) => React.ReactNode;
   className?: string;
+  onTabChange?: (tabId: string) => void;
 }
 
 const PageShell: React.FC<PageShellProps> = ({
@@ -32,8 +33,14 @@ const PageShell: React.FC<PageShellProps> = ({
   actions,
   children,
   className = '',
+  onTabChange,
 }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id || '');
+
+  const handleTabClick = (tabId: string) => {
+    setActiveTab(tabId);
+    onTabChange?.(tabId);
+  };
 
   return (
     <div className={`page-shell ${className}`}>
@@ -56,7 +63,7 @@ const PageShell: React.FC<PageShellProps> = ({
               role="tab"
               aria-selected={activeTab === tab.id}
               className={`ps-tab ${activeTab === tab.id ? 'active' : ''}${tab.divider ? ' ps-tab-after-divider' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
             >
               {tab.icon && <span className="ps-tab-icon" dangerouslySetInnerHTML={{__html: tab.icon}} title={tab.label} />}
               {!tab.icon && tab.label}

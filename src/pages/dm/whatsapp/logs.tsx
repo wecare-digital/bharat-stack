@@ -142,7 +142,7 @@ const WhatsAppLogsPage: React.FC<PageProps> = ({ signOut, user, embedded = false
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="WhatsApp Logs | WECARE.DIGITAL" description="WhatsApp message logs" />
+      <SEO title="WhatsApp Logs" description="WhatsApp message logs" />
       {content}
     </Layout>
   );

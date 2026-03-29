@@ -528,7 +528,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SMS | WECARE.DIGITAL" description="SMS � AWS Pinpoint & Airtel" />
+      <SEO title="SMS" description="SMS — AWS Pinpoint & Airtel" />
       {shellContent}
     </Layout>
   );

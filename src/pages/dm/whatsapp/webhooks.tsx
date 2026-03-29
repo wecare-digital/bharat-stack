@@ -89,7 +89,7 @@ const WebhooksPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) 
   const content = (
     <>
       <SEO title="Webhooks" description="WhatsApp Webhook Management" noindex />
-      <div style={{ padding: '16px 24px', maxWidth: 1000, margin: '0 auto', background: '#fff' }}>
+      <div className="inner-page-container" style={{ background: '#fff' }}>
         <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>WhatsApp Webhooks</h2>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>

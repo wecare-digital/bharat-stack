@@ -74,7 +74,7 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const content = (
     <>
       <SEO title="Business Profile" description="WhatsApp Business Profile" noindex />
-      <div style={{ padding: '16px 24px', maxWidth: 900, margin: '0 auto', background: '#fff' }}>
+      <div className="inner-page-container" style={{ background: '#fff' }}>
         <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>WhatsApp Business Profile</h2>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>

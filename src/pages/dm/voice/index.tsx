@@ -337,7 +337,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Voice | WECARE.DIGITAL" description="Voice � AWS Pinpoint & Airtel IQ" />
+      <SEO title="Voice" description="Voice — AWS Pinpoint & Airtel IQ" />
       {shellContent}
     </Layout>
   );

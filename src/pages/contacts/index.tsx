@@ -732,7 +732,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   return (
     <Layout onSignOut={signOut} user={user}>
       <SEO {...PAGE_SEO.contacts} />
-      <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
+      <div className="inner-page-container">
         {/* Toolbar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           {/* Contact count badge */}

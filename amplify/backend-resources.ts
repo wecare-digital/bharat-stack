@@ -11,7 +11,6 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Duration } from 'aws-cdk-lib';
 
 const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';

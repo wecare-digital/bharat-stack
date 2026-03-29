@@ -89,7 +89,7 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
   }
 
   const content = (
-    <div style={{ padding: embedded ? '16px 24px' : 20, maxWidth: 800, margin: '0 auto', background: '#fff' }}>
+    <div className="inner-page-container" style={{ background: '#fff' }}>
       {!embedded && (
         <>
           <h1 style={{ fontSize: 22, marginBottom: 4 }}>Welcome Message</h1>

@@ -72,7 +72,7 @@ const ContactTestPage: React.FC = () => {
 
   return (
     <>
-      <Head><title>Design Reference | WECARE.DIGITAL</title></Head>
+      <Head><title>Design Reference | Bharat Stack by WECARE.DIGITAL</title></Head>
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '120px 24px 60px', fontFamily: "'Inter',system-ui,sans-serif" }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
           <div style={{ width: 6, height: 36, borderRadius: 3, background: '#d1f470' }} />

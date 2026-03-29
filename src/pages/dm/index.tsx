@@ -48,8 +48,8 @@ const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="Messages | WECARE.DIGITAL" description="Messaging hub — WhatsApp, SMS, Voice, Email, RCS" />
-      <div style={{ padding: '16px 20px', maxWidth: 960, margin: '0 auto' }}>
+      <SEO title="Messages" description="Messaging hub — WhatsApp, SMS, Voice, Email, RCS" />
+      <div className="inner-page-container" style={{ maxWidth: 960 }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Messages</h1>
           <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Send and manage messages across all channels</p>

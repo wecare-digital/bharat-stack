@@ -947,7 +947,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       )}
       
       
-      <div className={`whatsapp-inbox ${mobileShowChat ? 'mobile-chat-active' : ''}`}>
+      <div className={`whatsapp-inbox ${mobileShowChat ? 'mobile-chat-active' : ''}`} style={embedded ? { height: '100%', maxHeight: '100%' } : undefined}>
         {/* Contacts Sidebar */}
         <div className="contacts-sidebar">
           <div className="sidebar-header">

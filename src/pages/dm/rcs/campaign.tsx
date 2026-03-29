@@ -120,7 +120,7 @@ const RcsCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="RCS Campaign | WECARE.DIGITAL" description="Send bulk RCS campaigns" />
+      <SEO title="RCS Campaign" description="Send bulk RCS campaigns" />
       {content}
     </Layout>
   );

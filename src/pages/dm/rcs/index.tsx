@@ -36,7 +36,7 @@ const RcsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="RCS | WECARE.DIGITAL" description="RCS Business Messaging" />
+      <SEO title="RCS" description="RCS Business Messaging" />
       {shellContent}
     </Layout>
   );

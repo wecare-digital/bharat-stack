@@ -233,7 +233,7 @@ const WhatsAppCampaignPage: React.FC<PageProps> = ({ signOut, user, embedded = f
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="WhatsApp Campaign | WECARE.DIGITAL" description="Send bulk WhatsApp campaigns" />
+      <SEO title="WhatsApp Campaign" description="Send bulk WhatsApp campaigns" />
       {content}
     </Layout>
   );

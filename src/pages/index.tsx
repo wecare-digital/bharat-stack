@@ -70,19 +70,19 @@ response = requests.post(
   return (
     <>
       <Head>
-        <title>Stack CRM by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM</title>
+        <title>Bharat Stack by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM</title>
         <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Free trial available." />
         <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://stack.wecare.digital/" />
-        <meta property="og:title" content="Stack CRM - WhatsApp Business API Platform | WECARE.DIGITAL" />
+        <meta property="og:title" content="Bharat Stack - WhatsApp Business API Platform | WECARE.DIGITAL" />
         <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
         <meta property="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
-        <meta property="og:site_name" content="Stack CRM by WECARE.DIGITAL" />
+        <meta property="og:site_name" content="Bharat Stack by WECARE.DIGITAL" />
         <meta property="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://stack.wecare.digital/" />
-        <meta name="twitter:title" content="Stack CRM - WhatsApp Business API Platform" />
+        <meta name="twitter:title" content="Bharat Stack - WhatsApp Business API Platform" />
         <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
         <meta name="twitter:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -98,8 +98,8 @@ response = requests.post(
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Stack CRM" />
-        <meta name="application-name" content="Stack CRM" />
+        <meta name="apple-mobile-web-app-title" content="Bharat Stack" />
+        <meta name="application-name" content="Bharat Stack" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
@@ -113,7 +113,7 @@ response = requests.post(
           "@context": "https://schema.org",
           "@type": "Organization",
           "name": "WECARE.DIGITAL",
-          "alternateName": "Stack CRM",
+          "alternateName": "Bharat Stack",
           "url": "https://wecare.digital",
           "logo": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
           "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
@@ -132,7 +132,7 @@ response = requests.post(
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          "name": "Stack CRM by WECARE.DIGITAL",
+          "name": "Bharat Stack by WECARE.DIGITAL",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web Browser",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
@@ -146,9 +146,9 @@ response = requests.post(
           "@context": "https://schema.org",
           "@type": "FAQPage",
           "mainEntity": [
-            { "@type": "Question", "name": "What is Stack CRM?", "acceptedAnswer": { "@type": "Answer", "text": "Stack CRM is an enterprise multi-channel messaging platform integrating WhatsApp Business API, SMS, Email, and Voice for customer engagement." }},
+            { "@type": "Question", "name": "What is Bharat Stack?", "acceptedAnswer": { "@type": "Answer", "text": "Bharat Stack is an enterprise multi-channel messaging platform integrating WhatsApp Business API, SMS, Email, and Voice for customer engagement." }},
             { "@type": "Question", "name": "How to send bulk WhatsApp messages?", "acceptedAnswer": { "@type": "Answer", "text": "Upload contacts, create templates, and send promotional or transactional messages to thousands of customers via WhatsApp Business API." }},
-            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Stack CRM integrates with Razorpay for WhatsApp payments with real-time tracking." }}
+            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Bharat Stack integrates with Razorpay for WhatsApp payments with real-time tracking." }}
           ]
         })}} />
         
@@ -156,7 +156,7 @@ response = requests.post(
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          "name": "Stack CRM by WECARE.DIGITAL",
+          "name": "Bharat Stack by WECARE.DIGITAL",
           "url": "https://stack.wecare.digital",
           "potentialAction": { "@type": "SearchAction", "target": "https://stack.wecare.digital/contacts?q={search_term_string}", "query-input": "required name=search_term_string" }
         })}} />
@@ -264,7 +264,7 @@ response = requests.post(
         </section>
 
         <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
-          <h2>Transform your customer<br/>experience with<br/>Stack CRM</h2>
+          <h2>Transform your customer<br/>experience with<br/>Bharat Stack</h2>
         </section>
 
         <style jsx>{`

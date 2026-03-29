@@ -401,6 +401,86 @@
   color: #1a3a2a !important;
 }
 
+/* ========================================
+   GLOBAL CONTAINER FOR ALL INNER PAGES
+   Content lives inside .inner-content-container
+   which has the bordered box from Layout.css
+   ======================================== */
+.layout .inner-content-container > div:not(.inner-header):not(.breadcrumbs):not(.dash):not(.whatsapp-inbox):not([style*="flex"]):not([style*="overflow"]) {
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+  box-sizing: border-box;
+}
+
+/* Also keep the old selector for backward compat */
+.layout .main-content > div:not(.inner-header):not(.breadcrumbs):not(.inner-content-container):not(.dash):not(.whatsapp-inbox):not([style*="flex"]):not([style*="overflow"]) {
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+  box-sizing: border-box;
+}
+
+/* Don't constrain full-width layouts */
+.layout .main-content > div.whatsapp-inbox,
+.layout .main-content > div[style*="overflow: hidden"],
+.layout .inner-content-container > div.whatsapp-inbox,
+.layout .inner-content-container > div[style*="overflow: hidden"] {
+  max-width: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* ========================================
+   BUTTONS WITHOUT ICONS - Theme Border
+   All buttons that don't contain SVG icons
+   get a visible border with theme color
+   and 13px rounded corners
+   ======================================== */
+.layout .main-content button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
+  border: 1.5px solid #1a3a2a !important;
+  border-radius: 13px !important;
+}
+
+.layout .inner-content-container button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
+  border: 1.5px solid #1a3a2a !important;
+  border-radius: 13px !important;
+}
+
+/* ========================================
+   INNER PAGES - FULL HEIGHT
+   Make all inner pages stretch to fill
+   available viewport height
+   ======================================== */
+.layout .main-content .inner-page,
+.layout .main-content .page-shell,
+.layout .main-content .dash,
+.layout .main-content .campaign-page,
+.layout .main-content .store-page,
+.layout .main-content .link-page,
+.layout .inner-content-container .inner-page,
+.layout .inner-content-container .page-shell,
+.layout .inner-content-container .dash,
+.layout .inner-content-container .campaign-page,
+.layout .inner-content-container .store-page,
+.layout .inner-content-container .link-page {
+  min-height: calc(100vh - var(--inner-header-h, 56px) - 100px);
+}
+
+.layout .inner-content-container > div {
+  min-height: calc(100vh - var(--inner-header-h, 56px) - 100px);
+}
+
+.layout .main-content > div {
+  min-height: calc(100vh - var(--inner-header-h, 56px) - 60px);
+}
+
 
 /* ========================================
    SUB-TABS - Standardized Design
@@ -1503,25 +1583,17 @@
 
 /* ========================================
    WHATSAPP INBOX - Embedded Fix
-   Fix alignment when embedded in tabbed page
+   When embedded, inbox fills its parent container fully.
+   Height is controlled by the parent div in index.tsx.
    ======================================== */
-.layout .main-content .tabbed-page .tab-content .whatsapp-inbox,
-.layout .main-content .tab-content .whatsapp-inbox,
-.layout .main-content .ps-content .whatsapp-inbox {
-  height: calc(100vh - var(--inner-header-h, 96px) - 52px) !important;
-  max-height: calc(100vh - var(--inner-header-h, 96px) - 52px) !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  border-radius: 0 !important;
-  border: none !important;
-  overflow: hidden !important;
-}
 
 .layout .main-content .whatsapp-inbox {
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
+  border: 2px solid #d1f470 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
 }
 
 /* Fix contacts sidebar width */
@@ -2189,4 +2261,115 @@
   border-color: #d1f470;
   color: #1a3a2a;
   font-weight: 600;
+}
+
+/* ========================================
+   DEEP BUTTON ENFORCEMENT
+   ALL buttons in inner pages: theme color + 13px rounded corners
+   ======================================== */
+.layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.mobile-menu-toggle):not(.mobile-back-btn):not(.toast-close):not(.shortcuts-close):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.ps-tab):not(.msg-bar button) {
+  border-radius: 13px !important;
+}
+
+/* Ensure all interactive elements get 13px radius */
+.layout .main-content a.btn,
+.layout .main-content a.btn-primary,
+.layout .main-content a.btn-secondary,
+.layout .main-content a.btn-outline,
+.layout .main-content .action-btn,
+.layout .main-content .send-btn,
+.layout .main-content .resolve-btn,
+.layout .main-content .select-all-btn,
+.layout .main-content .link-gen-btn,
+.layout .main-content .link-cancel-btn,
+.layout .main-content .board-tab,
+.layout .main-content .dialer-key,
+.layout .main-content .quick-action-card {
+  border-radius: 13px !important;
+}
+
+/* Primary CTA buttons: lime bg + dark green text */
+.layout .main-content .btn-primary,
+.layout .main-content button.active:not([class*="ct-"]),
+.layout .main-content .tab.active,
+.layout .main-content .tab-btn.active,
+.layout .main-content .sub-tab.active,
+.layout .main-content .board-tab.active,
+.layout .main-content .ps-tab.active {
+  background: #d1f470 !important;
+  color: #1a3a2a !important;
+  border-color: #d1f470 !important;
+  border-radius: 13px !important;
+}
+
+/* Default buttons: white bg, lime border, 13px radius */
+.layout .main-content .btn-secondary,
+.layout .main-content .btn-outline,
+.layout .main-content .refresh-btn {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1.5px solid #d1f470 !important;
+  border-radius: 13px !important;
+}
+
+/* ========================================
+   FULL HEIGHT INNER PAGES
+   Make inner pages stretch to fill all available space
+   ======================================== */
+.layout .main-content .page-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+}
+
+.layout .main-content .page-shell .ps-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.layout .main-content .page-shell .ps-content > * {
+  flex: 1;
+}
+
+.layout .main-content .inner-page {
+  flex: 1;
+  min-height: calc(100vh - 60px);
+}
+
+.layout .main-content .inner-page-container {
+  min-height: calc(100vh - 120px);
+}
+
+.layout .main-content .page-container {
+  flex: 1;
+  min-height: calc(100vh - 60px);
+}
+
+.layout .main-content .page-content {
+  min-height: calc(100vh - 120px);
+}
+
+.layout .main-content .campaign-page {
+  flex: 1;
+  min-height: calc(100vh - 60px);
+}
+
+.layout .main-content .tabbed-page {
+  flex: 1;
+  min-height: calc(100vh - 60px);
+}
+
+.layout .main-content .tabbed-page .tab-content {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Store, Link, Forms, etc. pages */
+.layout .main-content .store-page,
+.layout .main-content .link-page,
+.layout .main-content .forms-page {
+  min-height: calc(100vh - 60px);
 }
