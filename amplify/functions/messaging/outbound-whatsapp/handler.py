@@ -130,7 +130,7 @@ DEFAULT_PAYMENT_CONFIG = 'WECARE-RAZOR-PAY'
 # Map phone number ID to its payment config name
 PHONE_PAYMENT_CONFIG = {
     PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',              # +919330994400 (WABA1)
-    PHONE_NUMBER_ID_2: 'WECARE-RAZOR-PAY',              # +919903300044 (WABA-T)
+    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044 (WABA-T / Manish Agarwal)
 }
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
