@@ -244,6 +244,8 @@ input, textarea, select {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 /* Logo matches the height of the two-line text block */
@@ -254,6 +256,7 @@ input, textarea, select {
   object-fit: contain;
   flex-shrink: 0;
   align-self: center;
+  display: block;
 }
 
 .sidebar-brand-nav {
