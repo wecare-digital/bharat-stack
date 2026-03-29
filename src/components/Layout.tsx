@@ -179,29 +179,27 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
         {/* Brand: Logo + Bharat on line 1, Stack ▼ on line 2, collapse btn below */}
         <div className="sidebar-header">
-          <div className="sidebar-brand-row">
+          <div className="sidebar-brand-row" style={{minHeight: 50}}>
             <div className="sidebar-brand">
-              <img src={LOGO_URL} alt="BharatStack" className="sidebar-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              {!sidebarCollapsed && (
-                <div className="sidebar-brand-nav">
-                  <div className="sidebar-brand-text-block">
-                    <span className="sidebar-brand-line1">Bharat</span>
-                    <span className="sidebar-brand-line2">
-                      Stack
-                      <span className="nav-dropdown">
-                        <span className="nav-trigger"><span className="nav-arrow-down">▼</span></span>
-                        <span className="nav-menu">
-                          <a href="/" className="nav-menu-item">Home</a>
-                          <a href="/dashboard" className="nav-menu-item">CRM</a>
-                          <a href="/studio" className="nav-menu-item">Studio</a>
-                          <a href="/sustainability" className="nav-menu-item">Sustainability</a>
-                          <a href="/access" className="nav-menu-item">Sign in</a>
-                        </span>
-                      </span>
+              <img src={LOGO_URL} alt="BS" className="sidebar-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              <div className="sidebar-brand-text-block" style={{display: sidebarCollapsed ? 'none' : 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1.15}}>
+                <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px'}}>Bharat</span>
+                <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center'}}>
+                  Stack
+                  <span className="nav-dropdown" style={{position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 4}}>
+                    <span className="nav-trigger" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', minHeight: 'auto'}}>
+                      <span style={{fontSize: 11, color: '#1a1a1a', opacity: 0.7}}>▼</span>
                     </span>
-                  </div>
-                </div>
-              )}
+                    <span className="nav-menu">
+                      <a href="/" className="nav-menu-item">Home</a>
+                      <a href="/dashboard" className="nav-menu-item">CRM</a>
+                      <a href="/studio" className="nav-menu-item">Studio</a>
+                      <a href="/sustainability" className="nav-menu-item">Sustainability</a>
+                      <a href="/access" className="nav-menu-item">Sign in</a>
+                    </span>
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
           <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
