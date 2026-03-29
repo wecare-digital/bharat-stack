@@ -36,9 +36,9 @@ META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
-WABA1_ID = os.environ.get('WABA1_ID', '1912405516040025')
+WABA1_ID = os.environ.get('WABA1_ID', '2094615664435155')
 WABA2_ID = os.environ.get('WABA2_ID', '1633959101297902')
-PHONE1_META_ID = os.environ.get('PHONE1_META_ID', '960395407161423')
+PHONE1_META_ID = os.environ.get('PHONE1_META_ID', '1016149501586345')
 PHONE2_META_ID = os.environ.get('PHONE2_META_ID', '997428863451102')
 WABA2_IDS = {WABA2_ID, PHONE2_META_ID}
 

@@ -61,7 +61,7 @@ export const WHATSAPP_CONFIG = {
   DISPLAY_PHONE_1: '+91 93309 94400',
   DISPLAY_PHONE_2: '+91 99033 00044',
   // New WABA IDs after migration
-  WABA_ID_1: '1912405516040025',  // WECARE.DIGITAL (source, pending migration to WABA3)
+  WABA_ID_1: '2094615664435155',  // WECARE.DIGITAL (Direct API, current)
   WABA_ID_2: '2513394156072604',  // Manish Agarwal (migrated, Direct API)
   WABA_ID_3: '2094615664435155',  // WECARE.DIGITAL (Direct API, SIP calling, primary)
   RATE_LIMIT_PER_SECOND: 80,

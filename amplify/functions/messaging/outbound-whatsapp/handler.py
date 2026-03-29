@@ -117,7 +117,7 @@ CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations
-# Phone 1 WABA: 1912405516040025 | Phone 2 WABA: 2513394156072604 (migrated, Direct API)
+# Phone 1 WABA: 2094615664435155 | Phone 2 WABA: 2513394156072604 (migrated, Direct API)
 # Both phone numbers use the same Razorpay MID: acc_HDfub6wOfQybuH
 # MCC: 4722 (Travel agencies and tour operators) | Purpose Code: 03 (Travel)
 # Config names MUST match exactly what's in Meta Business Manager

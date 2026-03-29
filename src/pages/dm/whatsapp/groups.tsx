@@ -14,7 +14,7 @@ import { WHATSAPP_PHONES } from '../../../config/constants';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const WABAS = [
-  { id: WHATSAPP_PHONES.primary.wabaId, phoneId: WHATSAPP_PHONES.primary.id, metaId: '960395407161423', name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
+  { id: WHATSAPP_PHONES.primary.wabaId, phoneId: WHATSAPP_PHONES.primary.id, metaId: '1016149501586345', name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
   { id: WHATSAPP_PHONES.secondary.wabaId, phoneId: WHATSAPP_PHONES.secondary.id, metaId: '997428863451102', name: WHATSAPP_PHONES.secondary.name, display: WHATSAPP_PHONES.secondary.display },
 ];
 

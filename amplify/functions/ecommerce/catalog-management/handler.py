@@ -39,7 +39,7 @@ META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user
 CATALOG_CACHE_TABLE = os.environ.get('CATALOG_CACHE_TABLE', 'stack-wecare-digital-CatalogCacheTable')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
-WABA1_ID = os.environ.get('WABA1_ID', '1912405516040025')
+WABA1_ID = os.environ.get('WABA1_ID', '2094615664435155')
 WABA2_ID = os.environ.get('WABA2_ID', '1633959101297902')
 WABA2_IDS = {WABA2_ID}
 

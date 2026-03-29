@@ -4826,7 +4826,7 @@ def _tool_list_scheduled_messages(params: Dict, request_id: str) -> Dict:
 def _tool_list_templates(params: Dict, request_id: str) -> Dict:
     """List WhatsApp message templates from Meta Graph API."""
     try:
-        waba_id = params.get('wabaId', os.environ.get('WABA1_ID', '1912405516040025'))
+        waba_id = params.get('wabaId', os.environ.get('WABA1_ID', '2094615664435155'))
         status_filter = params.get('status', '')  # APPROVED, PENDING, REJECTED
         limit = int(params.get('limit', 50))
 

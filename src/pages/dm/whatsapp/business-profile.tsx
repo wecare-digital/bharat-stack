@@ -12,7 +12,7 @@ import { WHATSAPP_PHONES } from '../../../config/constants';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const PHONES = [
-  { id: WHATSAPP_PHONES.primary.id, metaId: '960395407161423', display: WHATSAPP_PHONES.primary.display, name: WHATSAPP_PHONES.primary.name },
+  { id: WHATSAPP_PHONES.primary.id, metaId: '1016149501586345', display: WHATSAPP_PHONES.primary.display, name: WHATSAPP_PHONES.primary.name },
   { id: WHATSAPP_PHONES.secondary.id, metaId: '997428863451102', display: WHATSAPP_PHONES.secondary.display, name: WHATSAPP_PHONES.secondary.name },
 ];
 

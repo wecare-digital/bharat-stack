@@ -87,7 +87,8 @@ META_PHONE_ID_MAP = {
     '1016149501586345': PHONE_NUMBER_ID_1,  # WABA3 phone (+91 93309 94400, migrated)
     '945798751960485': PHONE_NUMBER_ID_3,  # WABA3 phone (old)
     '1055232054343117': PHONE_NUMBER_ID_2,  # WABA-T phone (+91 99033 00044, migrated)
-    '960395407161423': PHONE_NUMBER_ID_1,  # WABA1 phone (old Meta ID, maps to same)
+    '1016149501586345': PHONE_NUMBER_ID_1,  # WABA1 phone (current Meta ID)
+    '960395407161423': PHONE_NUMBER_ID_1,  # WABA1 phone (old Meta ID, fallback)
 }
 
 # All phones use Direct API
