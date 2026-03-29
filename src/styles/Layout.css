@@ -232,6 +232,7 @@ input, textarea, select {
   background: transparent;
   gap: 4px;
   flex-shrink: 0;
+  min-height: 60px;
 }
 
 .sidebar-brand-row {
@@ -310,18 +311,18 @@ input, textarea, select {
   min-height: auto;
 }
 
-.sidebar .nav-trigger:hover .nav-arrow {
+.sidebar .nav-trigger:hover .nav-arrow-down {
   color: #1a3a2a;
 }
 
-.sidebar .nav-arrow {
+.sidebar .nav-arrow-down {
   font-size: 11px;
   transition: all .2s;
   color: #1a1a1a;
   opacity: 0.7;
 }
 
-.sidebar .nav-dropdown:hover .nav-arrow {
+.sidebar .nav-dropdown:hover .nav-arrow-down {
   transform: rotate(180deg);
   color: #1a3a2a;
 }

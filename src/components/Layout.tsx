@@ -181,7 +181,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         <div className="sidebar-header">
           <div className="sidebar-brand-row">
             <div className="sidebar-brand">
-              <img src={LOGO_URL} alt="BharatStack" className="sidebar-logo" />
+              <img src={LOGO_URL} alt="BharatStack" className="sidebar-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               {!sidebarCollapsed && (
                 <div className="sidebar-brand-nav">
                   <div className="sidebar-brand-text-block">
@@ -189,7 +189,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
                     <span className="sidebar-brand-line2">
                       Stack
                       <span className="nav-dropdown">
-                        <span className="nav-trigger"><span className="nav-arrow">▼</span></span>
+                        <span className="nav-trigger"><span className="nav-arrow-down">▼</span></span>
                         <span className="nav-menu">
                           <a href="/" className="nav-menu-item">Home</a>
                           <a href="/dashboard" className="nav-menu-item">CRM</a>
