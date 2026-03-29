@@ -1562,9 +1562,9 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
     contact_id = (contact.get('contactId') or contact.get('id', '')) if contact else ''
 
     # ── Payment messages go from the SAME phone the customer is chatting with ──
-    # If no phoneNumberId passed, default to Phone 1 (+919330994400)
+    # Default to Phone 2 (+919903300044) which is fully registered and active
     if not phone_number_id:
-        phone_number_id = 'phone-number-id-waba3-direct-1016149501586345'
+        phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'
 
     # Build payload for outbound-whatsapp Lambda
     wa_payload = {
