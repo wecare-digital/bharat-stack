@@ -177,19 +177,17 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
         {isMobileMenuOpen ? <CloseIcon size={18} /> : <MenuIcon size={18} />}
       </button>
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        {/* Brand: Logo + Bharat on line 1, Stack ▼ on line 2, collapse btn below */}
-        <div className="sidebar-header">
-          <div className="sidebar-brand-row" style={{minHeight: 50}}>
-            <div className="sidebar-brand">
-              <img src={LOGO_URL} alt="BS" className="sidebar-logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              <div className="sidebar-brand-text-block" style={{display: sidebarCollapsed ? 'none' : 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1.15}}>
-                <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px'}}>Bharat</span>
-                <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center'}}>
-                  Stack
-                  <span className="nav-dropdown" style={{position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 4}}>
-                    <span className="nav-trigger" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', minHeight: 'auto'}}>
-                      <span style={{fontSize: 11, color: '#1a1a1a', opacity: 0.7}}>▼</span>
-                    </span>
+        {/* Brand */}
+        <div style={{padding: '12px 12px 8px', flexShrink: 0, borderBottom: '1px solid #e5e7eb'}}>
+          {!sidebarCollapsed ? (
+            <div style={{display: 'flex', alignItems: 'center', gap: 8, minHeight: 48}}>
+              <img src={LOGO_URL} alt="" style={{height: 44, width: 'auto', borderRadius: 10, flexShrink: 0}} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              <div style={{display: 'flex', flexDirection: 'column', lineHeight: 1.15}}>
+                <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a'}}>Bharat</span>
+                <div style={{display: 'flex', alignItems: 'center', gap: 2}}>
+                  <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a'}}>Stack</span>
+                  <span className="nav-dropdown" style={{position: 'relative', display: 'inline-flex'}}>
+                    <span style={{fontSize: 11, color: '#666', cursor: 'pointer', padding: '0 2px'}}>▼</span>
                     <span className="nav-menu">
                       <a href="/" className="nav-menu-item">Home</a>
                       <a href="/dashboard" className="nav-menu-item">CRM</a>
@@ -198,11 +196,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
                       <a href="/access" className="nav-menu-item">Sign in</a>
                     </span>
                   </span>
-                </span>
+                </div>
               </div>
             </div>
-          </div>
-          <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
+          ) : (
+            <div style={{display: 'flex', justifyContent: 'center'}}>
+              <img src={LOGO_URL} alt="" style={{height: 36, width: 36, borderRadius: 8}} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            </div>
+          )}
+          <button className="sidebar-collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand' : 'Collapse'} style={{marginTop: 6}}>
             <ChevronRightIcon size={14} />
           </button>
         </div>
