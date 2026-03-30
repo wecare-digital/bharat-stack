@@ -3614,6 +3614,7 @@ export interface Invoice {
   customerEmail: string;
   shippingAddress: string;
   billingAddress: string;
+  goodsType?: 'digital-goods' | 'physical-goods';
   subtotal: number;
   discount: number;
   shipping: number;
@@ -3641,6 +3642,7 @@ export interface CreateInvoiceEngineRequest {
   billingAddress: string;
   customerName?: string;
   contactId?: string;
+  goodsType?: 'digital-goods' | 'physical-goods';
   items: { name: string; amount: number; quantity: number; productId?: string; gstRate?: number }[];
   discount?: number;
   shipping?: number;
@@ -3653,6 +3655,10 @@ export interface CreateInvoiceEngineRequest {
   paymentId?: string;
   gstin?: string;
   currency?: string;
+  /** Preferred PG: 'razorpay' or 'payu' — used when customer triggers payment via keyword */
+  preferredGateway?: string;
+  /** Exact Meta PG config name (e.g. 'PayU_ManishAgarwal') — stored on invoice for keyword-triggered payments */
+  paymentConfiguration?: string;
 }
 
 // Create invoice directly

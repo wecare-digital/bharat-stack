@@ -260,6 +260,58 @@ def _handle_success(payload: Dict, request_id: str) -> None:
     if reference_id:
         _mark_invoice_paid(reference_id, amount_rupees, phone, request_id)
 
+    # Send order_status message to customer (GAP FIX: PayU webhook was not sending this)
+    if phone and reference_id:
+        try:
+            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
+            if not clean_phone.startswith('91') and len(clean_phone) == 10:
+                clean_phone = f'91{clean_phone}'
+
+            # Resolve which phone sent the original payment — look up from invoice
+            originating_phone_id = ''
+            try:
+                inv_table = dynamodb.Table(INVOICES_TABLE)
+                inv_resp = inv_table.query(
+                    IndexName='referenceId-index',
+                    KeyConditionExpression='referenceId = :ref',
+                    ExpressionAttributeValues={':ref': reference_id},
+                    Limit=1,
+                )
+                inv_items = inv_resp.get('Items', [])
+                if inv_items:
+                    stored_config = inv_items[0].get('paymentConfiguration', '')
+                    # WABA 1 configs have WECARE- prefix
+                    if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
+                        originating_phone_id = 'phone-number-id-waba3-direct-1016149501586345'
+                    else:
+                        originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+            except Exception:
+                pass
+            if not originating_phone_id:
+                originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+
+            order_status_payload = {
+                'body': json.dumps({
+                    'recipientPhone': f'+{clean_phone}',
+                    'phoneNumberId': originating_phone_id,
+                    'isOrderStatus': True,
+                    'orderStatusDetails': {
+                        'reference_id': reference_id,
+                        'order_status': 'completed',
+                        'amount': amount_rupees,
+                        'description': f'Payment of \u20b9{amount_rupees:.2f} received via PayU. Thank you!'
+                    }
+                })
+            }
+            lambda_client.invoke(
+                FunctionName=os.environ.get('OUTBOUND_FUNCTION', 'wecare-outbound-whatsapp'),
+                InvocationType='Event',
+                Payload=json.dumps(order_status_payload),
+            )
+            logger.info(json.dumps({'event': 'payu_order_status_sent', 'phone': clean_phone, 'referenceId': reference_id, 'phoneId': originating_phone_id, 'requestId': request_id}))
+        except Exception as e:
+            logger.warning(json.dumps({'event': 'payu_order_status_error', 'error': str(e), 'requestId': request_id}))
+
 
 def _handle_failure(payload: Dict, request_id: str) -> None:
     """Handle failed PayU payment."""
@@ -332,6 +384,9 @@ def _store_payment(payload: Dict, status: str, request_id: str) -> None:
                 'firstname': payload.get('firstname', ''),
                 'udf1': payload.get('udf1', ''),
                 'udf2': payload.get('udf2', ''),
+                'udf3': payload.get('udf3', ''),
+                'udf4': payload.get('udf4', ''),
+                'udf5': payload.get('udf5', ''),
             }),
             'createdAt': now,
             'updatedAt': now,
@@ -391,8 +446,14 @@ def _mark_invoice_paid(reference_id: str, amount_rupees: float, phone: str, requ
                 }))
 
         if not found and phone:
-            # Fallback: find by phone + amount
-            last10 = phone[-10:] if len(phone) >= 10 else phone
+            # Fallback: find by phone + amount (strict 10-digit match + exact amount ±₹0.01)
+            clean_ph = phone.replace('+', '').replace(' ', '').replace('-', '')
+            if clean_ph.startswith('91') and len(clean_ph) == 12:
+                local10 = clean_ph[2:]
+            elif len(clean_ph) >= 10:
+                local10 = clean_ph[-10:]
+            else:
+                local10 = clean_ph
             scan_kwargs2 = {
                 'FilterExpression': '#st IN (:s1, :s2, :s3)',
                 'ExpressionAttributeNames': {'#st': 'status'},
@@ -402,9 +463,16 @@ def _mark_invoice_paid(reference_id: str, amount_rupees: float, phone: str, requ
             while True:
                 resp = table.scan(**scan_kwargs2)
                 for item in resp.get('Items', []):
-                    inv_phone = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                    inv_phone_raw = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                    if inv_phone_raw.startswith('91') and len(inv_phone_raw) == 12:
+                        inv_local = inv_phone_raw[2:]
+                    elif len(inv_phone_raw) >= 10:
+                        inv_local = inv_phone_raw[-10:]
+                    else:
+                        inv_local = inv_phone_raw
                     inv_total = float(item.get('total', 0))
-                    if inv_phone.endswith(last10) and abs(inv_total - amount_rupees) < 0.50:
+                    # STRICT: exact 10-digit match + amount within ₹0.01
+                    if inv_local == local10 and len(local10) == 10 and abs(inv_total - amount_rupees) < 0.02:
                         candidates.append(item)
                 if 'LastEvaluatedKey' in resp:
                     scan_kwargs2['ExclusiveStartKey'] = resp['LastEvaluatedKey']

@@ -405,6 +405,57 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     # Post-payment: create invoice, generate image, send on WhatsApp
     _post_payment_handler(payment_id, amount_rupees, currency, contact, email, description, notes, request_id)
 
+    # Send order_status message to customer (GAP FIX: Razorpay webhook was not sending this)
+    if contact and reference_id:
+        try:
+            clean_phone = (contact or '').replace('+', '').replace(' ', '').replace('-', '')
+            if not clean_phone.startswith('91') and len(clean_phone) == 10:
+                clean_phone = f'91{clean_phone}'
+
+            # Resolve which phone sent the original payment — look up from invoice
+            originating_phone_id = ''
+            try:
+                inv_table = dynamodb.Table(INVOICES_TABLE)
+                inv_resp = inv_table.query(
+                    IndexName='referenceId-index',
+                    KeyConditionExpression='referenceId = :ref',
+                    ExpressionAttributeValues={':ref': reference_id},
+                    Limit=1,
+                )
+                inv_items = inv_resp.get('Items', [])
+                if inv_items:
+                    stored_config = inv_items[0].get('paymentConfiguration', '')
+                    if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
+                        originating_phone_id = 'phone-number-id-waba3-direct-1016149501586345'
+                    else:
+                        originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+            except Exception:
+                pass
+            if not originating_phone_id:
+                originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+
+            order_status_payload = {
+                'body': json.dumps({
+                    'recipientPhone': f'+{clean_phone}',
+                    'phoneNumberId': originating_phone_id,
+                    'isOrderStatus': True,
+                    'orderStatusDetails': {
+                        'reference_id': reference_id,
+                        'order_status': 'completed',
+                        'amount': amount_rupees,
+                        'description': f'Payment of \u20b9{amount_rupees:.2f} received via Razorpay. Thank you!'
+                    }
+                })
+            }
+            lambda_client.invoke(
+                FunctionName=os.environ.get('OUTBOUND_FUNCTION', 'wecare-outbound-whatsapp'),
+                InvocationType='Event',
+                Payload=json.dumps(order_status_payload),
+            )
+            logger.info(json.dumps({'event': 'razorpay_order_status_sent', 'phone': clean_phone, 'referenceId': reference_id, 'phoneId': originating_phone_id, 'requestId': request_id}))
+        except Exception as e:
+            logger.warning(json.dumps({'event': 'razorpay_order_status_error', 'error': str(e), 'requestId': request_id}))
+
 
 def _handle_payment_authorized(event_data: Dict, request_id: str) -> None:
     """Handle payment.authorized — payment authorized but not yet captured."""
@@ -591,14 +642,21 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
         }))
 
 def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, request_id: str) -> None:
-    """Fallback: find pending invoice by customer phone + amount and mark paid."""
+    """Fallback: find pending invoice by customer phone + amount and mark paid.
+    Uses strict 10-digit local number matching + tight amount tolerance (±₹0.01)."""
     if not phone:
         return
     try:
         import time as _time
         import datetime
         table = dynamodb.Table(INVOICES_TABLE)
-        last10 = phone[-10:] if len(phone) >= 10 else phone
+        clean_ph = phone.replace('+', '').replace(' ', '').replace('-', '')
+        if clean_ph.startswith('91') and len(clean_ph) == 12:
+            local10 = clean_ph[2:]
+        elif len(clean_ph) >= 10:
+            local10 = clean_ph[-10:]
+        else:
+            local10 = clean_ph
         now = int(_time.time())
         now_ist = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30)))
         paid_at_ts = int(now_ist.timestamp())
@@ -613,9 +671,16 @@ def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, req
         while True:
             resp = table.scan(**scan_kwargs)
             for item in resp.get('Items', []):
-                inv_phone = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                inv_phone_raw = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                if inv_phone_raw.startswith('91') and len(inv_phone_raw) == 12:
+                    inv_local = inv_phone_raw[2:]
+                elif len(inv_phone_raw) >= 10:
+                    inv_local = inv_phone_raw[-10:]
+                else:
+                    inv_local = inv_phone_raw
                 inv_total = float(item.get('total', 0))
-                if inv_phone.endswith(last10) and abs(inv_total - amount_rupees) < 0.50:
+                # STRICT: exact 10-digit match + amount within ₹0.01
+                if inv_local == local10 and len(local10) == 10 and abs(inv_total - amount_rupees) < 0.02:
                     candidates.append(item)
             if 'LastEvaluatedKey' in resp:
                 scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']

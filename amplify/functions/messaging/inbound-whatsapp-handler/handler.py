@@ -1077,13 +1077,44 @@ def _process_message(
                     return  # Skip AI automation — flow handles the rest
 
         # ── Direct "Pay" keyword trigger (LLM-independent, hardcoded) ──
+        # Exact matches (content_lower must be exactly one of these)
         PAY_KEYWORDS = {
-            'pay', 'payment', 'i want to pay', 'make payment', 'make a payment',
-            'send payment', 'pay now', 'pay bill', 'bill pay', 'pay due',
-            'pay dues', 'pending payment', 'pending due', 'bhugtan', 'paisa',
-            'rupees', 'amount pay', 'pay amount', 'invoice', 'pay invoice',
+            # English — core
+            'pay', 'payment', 'pay now', 'pay bill', 'bill pay',
+            'pay due', 'pay dues', 'pay invoice', 'invoice',
+            'pending payment', 'pending due', 'pending dues',
+            'send payment', 'make payment', 'make a payment',
+            'amount pay', 'pay amount',
+            # English — conversational
+            'i want to pay', 'i want pay', 'want to pay', 'wanna pay',
+            'let me pay', 'ready to pay', 'how to pay', 'how do i pay',
+            'what is my due', 'what are my dues', 'whats my due',
+            'what is due', 'my due', 'my dues', 'my bill', 'my invoice',
+            'show my bill', 'show my due', 'show my dues', 'show my invoice',
+            'show invoice', 'show bill', 'show due', 'show dues',
+            'check due', 'check dues', 'check bill', 'check invoice',
+            'any due', 'any dues', 'any pending', 'any bill',
+            'pending bill', 'pending bills', 'unpaid', 'unpaid bill',
+            'outstanding', 'outstanding due', 'outstanding bill',
+            'balance', 'balance due', 'due balance',
+            'send bill', 'send invoice', 'resend invoice', 'resend bill',
+            # Hindi / Hinglish
+            'bhugtan', 'paisa', 'rupees', 'paise', 'kitna dena hai',
+            'kitna baaki hai', 'baaki', 'baki', 'baaki hai', 'baki hai',
+            'payment karo', 'payment kar do', 'pay karo', 'pay kar do',
+            'bill bhejo', 'invoice bhejo', 'paisa dena hai', 'paise dene hai',
+            'mera bill', 'mera due', 'mera invoice', 'mera baaki',
+            'kितना बाकी है', 'भुगतान', 'बिल', 'पेमेंट',
         }
-        if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in ('want to pay', 'make payment', 'pay my', 'pay the', 'pay for')):
+        # Fuzzy matches (content_lower contains any of these substrings)
+        PAY_FUZZY = (
+            'want to pay', 'wanna pay', 'make payment', 'pay my', 'pay the', 'pay for',
+            'send me bill', 'send me invoice', 'send me due',
+            'how much do i owe', 'how much i owe', 'what do i owe',
+            'pending amount', 'due amount', 'total due',
+            'kitna dena', 'kitna baaki', 'baaki kitna', 'payment bhej',
+        )
+        if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in PAY_FUZZY):
             logger.info(json.dumps({
                 'event': 'pay_keyword_triggered',
                 'content': content_lower,
@@ -2181,10 +2212,10 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
         amount_value=amount_value,
         amount_offset=amount_offset,
         currency=currency,
-        transaction_id=transaction_id,
-        transaction_type=transaction_type,
+        transaction=transaction,
         timestamp=timestamp,
-        request_id=request_id
+        request_id=request_id,
+        full_payment_data=payment_data,
     )
     
     # Look up the phone_number_id from the original outbound payment request
@@ -2250,6 +2281,85 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
 
     # Send order_status message based on payment status
     if payment_status == 'captured':
+        # ── Security: Verify payment via Meta Payment Lookup API ──
+        # Meta docs: "must not rely solely on the status of the transaction provided in the webhook"
+        payment_verified = True  # Default to trust webhook, but log verification result
+        if reference_id and originating_phone_id:
+            try:
+                # Look up payment config from the original outbound message
+                OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
+                outbound_table = dynamodb.Table(OUTBOUND_TABLE)
+                config_name = ''
+                try:
+                    resp = outbound_table.query(
+                        IndexName='paymentReferenceId-index',
+                        KeyConditionExpression='paymentReferenceId = :ref',
+                        ExpressionAttributeValues={':ref': reference_id},
+                        Limit=1,
+                    )
+                    items = resp.get('Items', [])
+                    if items:
+                        config_name = items[0].get('paymentConfigName', '')
+                except Exception:
+                    pass
+
+                if config_name:
+                    import urllib.request, urllib.error
+                    # Call Meta Payment Lookup API
+                    meta_phone_id = originating_phone_id
+                    # Extract Meta phone ID if in internal format
+                    if '-direct-' in meta_phone_id:
+                        meta_phone_id = meta_phone_id.split('-direct-')[-1]
+
+                    token = _load_direct_api_token()
+                    lookup_url = f"https://graph.facebook.com/v25.0/{meta_phone_id}/payments/{config_name}/{reference_id}"
+                    req = urllib.request.Request(lookup_url, headers={
+                        'Authorization': f'Bearer {token}',
+                    }, method='GET')
+                    try:
+                        with urllib.request.urlopen(req, timeout=10) as r:
+                            lookup_result = json.loads(r.read().decode())
+                        payments = lookup_result.get('payments', [])
+                        if payments:
+                            lookup_status = payments[0].get('status', '')
+                            if lookup_status != 'captured':
+                                payment_verified = False
+                                logger.warning(json.dumps({
+                                    'event': 'payment_lookup_mismatch',
+                                    'webhookStatus': 'captured',
+                                    'lookupStatus': lookup_status,
+                                    'referenceId': reference_id,
+                                    'requestId': request_id,
+                                }))
+                            else:
+                                logger.info(json.dumps({
+                                    'event': 'payment_lookup_verified',
+                                    'referenceId': reference_id,
+                                    'requestId': request_id,
+                                }))
+                    except Exception as lookup_err:
+                        # Don't block payment on lookup failure — log and proceed
+                        logger.warning(json.dumps({
+                            'event': 'payment_lookup_failed',
+                            'error': str(lookup_err)[:200],
+                            'referenceId': reference_id,
+                            'requestId': request_id,
+                        }))
+            except Exception as e:
+                logger.warning(json.dumps({
+                    'event': 'payment_verification_error',
+                    'error': str(e)[:200],
+                    'requestId': request_id,
+                }))
+
+        if not payment_verified:
+            logger.error(json.dumps({
+                'event': 'payment_capture_unverified_skipping',
+                'referenceId': reference_id,
+                'requestId': request_id,
+            }))
+            return
+
         # ── Direct invoice status update in InvoicesTable ──
         # Ensures the invoice is marked paid even if the dedup path in
         # create_invoice is skipped (e.g. invoice was created from dashboard).
@@ -2594,7 +2704,15 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
     """
     try:
         clean_phone = recipient_id.replace('+', '').replace(' ', '').replace('-', '')
-        last10 = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+        # Normalize to 10-digit local number for strict matching
+        if clean_phone.startswith('91') and len(clean_phone) == 12:
+            local10 = clean_phone[2:]
+        elif clean_phone.startswith('0') and len(clean_phone) == 11:
+            local10 = clean_phone[1:]
+        elif len(clean_phone) == 10:
+            local10 = clean_phone
+        else:
+            local10 = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
 
         # Query InvoicesTable for remaining pending invoices (source of truth)
         invoices_table = dynamodb.Table(INVOICES_TABLE)
@@ -2608,11 +2726,20 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
         while True:
             resp = invoices_table.scan(**scan_kwargs)
             for item in resp.get('Items', []):
-                inv_phone = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                inv_phone_raw = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                # Normalize invoice phone to 10-digit local
+                if inv_phone_raw.startswith('91') and len(inv_phone_raw) == 12:
+                    inv_local10 = inv_phone_raw[2:]
+                elif inv_phone_raw.startswith('0') and len(inv_phone_raw) == 11:
+                    inv_local10 = inv_phone_raw[1:]
+                elif len(inv_phone_raw) == 10:
+                    inv_local10 = inv_phone_raw
+                else:
+                    inv_local10 = inv_phone_raw[-10:] if len(inv_phone_raw) >= 10 else inv_phone_raw
                 inv_ref = item.get('referenceId', '')
                 inv_ps = item.get('paymentStatus', '')
-                # Skip the just-paid invoice AND any invoice already captured/paid
-                if inv_phone.endswith(last10) and inv_ref != paid_reference_id and inv_ps not in ('captured', 'paid', 'refunded'):
+                # STRICT match: full 10-digit local number must match exactly
+                if inv_local10 == local10 and len(local10) == 10 and inv_ref != paid_reference_id and inv_ps not in ('captured', 'paid', 'refunded'):
                     remaining.append(item)
             if 'LastEvaluatedKey' in resp:
                 scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
@@ -2669,6 +2796,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
         # Auto-send payment link for the next (oldest) pending invoice
         next_inv = remaining[0]
         next_id = next_inv.get('invoiceId', '')
+        next_pg_config = next_inv.get('paymentConfiguration', '')
         try:
             inv_payload = {
                 'rawPath': f'/invoices/{next_id}/send-payment-link',
@@ -2677,6 +2805,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
                 'body': json.dumps({
                     'invoiceId': next_id,
                     'phoneNumberId': sending_phone_id,
+                    'paymentConfiguration': next_pg_config,
                 }),
             }
             lambda_client.invoke(
@@ -2715,9 +2844,15 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
 
 def _store_payment_record(reference_id: str, recipient_id: str, payment_status: str,
                           amount_value: int, amount_offset: int, currency: str,
-                          transaction_id: str, transaction_type: str,
-                          timestamp: int, request_id: str) -> None:
-    """Store payment record in Messages table for tracking."""
+                          transaction: Dict = None, timestamp: int = 0,
+                          request_id: str = '', full_payment_data: Dict = None) -> None:
+    """Store payment record in Messages table for tracking.
+    Stores full transaction object: pg_transaction_id, method.type, error.code/reason.
+    Also parses and stores refund data from Meta payment webhooks."""
+    if transaction is None:
+        transaction = {}
+    if full_payment_data is None:
+        full_payment_data = {}
     try:
         # Find contact by phone number
         contact = _get_contact_by_phone(recipient_id)
@@ -2729,6 +2864,33 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
         
         # Calculate actual amount
         actual_amount = amount_value / amount_offset if amount_offset else amount_value
+
+        # Extract full transaction fields (Gap 5)
+        transaction_id = transaction.get('id', '')
+        transaction_type = transaction.get('type', '')
+        pg_transaction_id = transaction.get('pg_transaction_id', '')
+        transaction_status = transaction.get('status', '')
+        txn_method = transaction.get('method', {})
+        txn_method_type = txn_method.get('type', '') if isinstance(txn_method, dict) else str(txn_method)
+        txn_error = transaction.get('error', {})
+        txn_error_code = txn_error.get('code', '') if isinstance(txn_error, dict) else ''
+        txn_error_reason = txn_error.get('reason', '') if isinstance(txn_error, dict) else ''
+        txn_created = transaction.get('created_timestamp', 0)
+        txn_updated = transaction.get('updated_timestamp', 0)
+
+        # Parse refund data from Meta payment webhooks (Gap 6)
+        refunds_raw = full_payment_data.get('refunds', [])
+        refunds_json = ''
+        if refunds_raw:
+            refunds_json = json.dumps(refunds_raw, default=str)[:4000]
+
+        # Parse PG-specific UDF/notes echoed back in webhook
+        webhook_notes = full_payment_data.get('notes', {})
+        webhook_receipt = full_payment_data.get('receipt', '')
+        webhook_udf1 = full_payment_data.get('udf1', '')
+        webhook_udf2 = full_payment_data.get('udf2', '')
+        webhook_udf3 = full_payment_data.get('udf3', '')
+        webhook_udf4 = full_payment_data.get('udf4', '')
         
         payment_record = {
             'id': payment_id,
@@ -2746,8 +2908,25 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
             'paymentAmount': Decimal(str(amount_value)),
             'paymentOffset': Decimal(str(amount_offset)),
             'paymentCurrency': currency,
+            # Full transaction object (Gap 5)
             'transactionId': transaction_id,
             'transactionType': transaction_type,
+            'pgTransactionId': pg_transaction_id,
+            'transactionStatus': transaction_status,
+            'paymentMethodType': txn_method_type,
+            'errorCode': txn_error_code,
+            'errorReason': txn_error_reason,
+            'txnCreatedAt': Decimal(str(txn_created)) if txn_created else None,
+            'txnUpdatedAt': Decimal(str(txn_updated)) if txn_updated else None,
+            # Refund data (Gap 6)
+            'refundsJson': refunds_json if refunds_json else None,
+            # PG-specific fields echoed back
+            'webhookNotes': json.dumps(webhook_notes, default=str)[:2000] if webhook_notes else None,
+            'webhookReceipt': webhook_receipt if webhook_receipt else None,
+            'webhookUdf1': webhook_udf1 if webhook_udf1 else None,
+            'webhookUdf2': webhook_udf2 if webhook_udf2 else None,
+            'webhookUdf3': webhook_udf3 if webhook_udf3 else None,
+            'webhookUdf4': webhook_udf4 if webhook_udf4 else None,
             'timestamp': Decimal(str(timestamp)),
             'createdAt': Decimal(str(now)),
             'expiresAt': Decimal(str(expires_at)),
@@ -2767,6 +2946,9 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
             'contactId': contact_id,
             'paymentStatus': payment_status,
             'amount': actual_amount,
+            'pgTransactionId': pg_transaction_id,
+            'methodType': txn_method_type,
+            'hasRefunds': bool(refunds_raw),
             'requestId': request_id
         }))
         

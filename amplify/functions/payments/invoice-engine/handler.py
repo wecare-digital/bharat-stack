@@ -461,6 +461,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'customerEmail': customer_email,
         'shippingAddress': shipping_address,
         'billingAddress': billing_address,
+        'goodsType': body.get('goodsType', 'digital-goods'),
         # Amounts (stored in rupees)
         'subtotal': _dec(subtotal),
         'discount': _dec(discount),
@@ -474,6 +475,9 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'gstin': body.get('gstin', COMPANY['gstin']),
         'purpose': body.get('purpose', ''),
         'notes': body.get('notes', ''),
+        # Payment routing — which PG config to use when customer triggers via keyword
+        'preferredGateway': body.get('preferredGateway', ''),  # 'razorpay' or 'payu'
+        'paymentConfiguration': body.get('paymentConfiguration', ''),  # exact Meta config name
         # Timestamps
         'createdAt': now,
         'updatedAt': now,
@@ -600,7 +604,7 @@ def update_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
     names = {}
 
     allowed = ['customerName', 'customerPhone', 'paidByPhone', 'customerEmail',
-               'shippingAddress', 'billingAddress', 'status', 'paymentStatus',
+               'shippingAddress', 'billingAddress', 'goodsType', 'status', 'paymentStatus',
                'discount', 'shipping', 'handling', 'gstRate', 'tax', 'convenienceFee', 'total',
                'gstin', 'purpose', 'notes', 'subtotal', 'orderId', 'referenceId']
 
@@ -1368,9 +1372,18 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
     if not customer_phone:
         return _resp(400, {'error': 'customerPhone required'})
 
-    # Normalize phone for matching
-    clean = customer_phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-    last10 = clean[-10:] if len(clean) >= 10 else clean
+    # Normalize phone for matching — strip everything except digits
+    clean = customer_phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '').replace('+', '')
+    # For Indian numbers: normalize to 10-digit local number for matching
+    # This handles: +919876543210, 919876543210, 09876543210, 9876543210
+    if clean.startswith('91') and len(clean) == 12:
+        local10 = clean[2:]  # Strip country code
+    elif clean.startswith('0') and len(clean) == 11:
+        local10 = clean[1:]  # Strip leading 0
+    elif len(clean) == 10:
+        local10 = clean
+    else:
+        local10 = clean[-10:] if len(clean) >= 10 else clean
 
     # Scan InvoicesTable for pending invoices matching this phone
     table = dynamodb.Table(INVOICES_TABLE)
@@ -1386,8 +1399,18 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
         while True:
             resp = table.scan(**scan_kwargs)
             for item in resp.get('Items', []):
-                inv_phone = (item.get('customerPhone', '') or '').replace(' ', '').replace('-', '')
-                if inv_phone.endswith(last10):
+                inv_phone_raw = (item.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                # Normalize invoice phone to 10-digit local number
+                if inv_phone_raw.startswith('91') and len(inv_phone_raw) == 12:
+                    inv_local10 = inv_phone_raw[2:]
+                elif inv_phone_raw.startswith('0') and len(inv_phone_raw) == 11:
+                    inv_local10 = inv_phone_raw[1:]
+                elif len(inv_phone_raw) == 10:
+                    inv_local10 = inv_phone_raw
+                else:
+                    inv_local10 = inv_phone_raw[-10:] if len(inv_phone_raw) >= 10 else inv_phone_raw
+                # STRICT match: full 10-digit local number must match exactly
+                if inv_local10 == local10 and len(local10) == 10:
                     all_pending.append(item)
             if 'LastEvaluatedKey' in resp:
                 scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
@@ -1422,9 +1445,13 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
     # Send payment link for FIRST invoice only (sequential pay)
     first = all_pending[0]
     first_id = first.get('invoiceId', '')
+    # Use the PG config stored on the invoice (set by admin at creation time)
+    # Falls back to empty string → outbound handler uses phone's default Razorpay
+    first_pg_config = first.get('paymentConfiguration', '') or ''
     send_error = ''
     try:
-        result = send_payment_link(first_id, phone_number_id, '', request_id)
+        result = send_payment_link(first_id, phone_number_id, first_pg_config, request_id,
+                                   verify_phone=customer_phone)
         result_code = result.get('statusCode', 0)
         if result_code == 200:
             invoice_list[0]['status'] = 'sent'
@@ -1454,11 +1481,13 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
 
 # ─── Send Payment Link (WhatsApp Interactive Payment Message) ───
 
-def send_payment_link(invoice_id: str, phone_number_id: str, payment_configuration: str, request_id: str) -> Dict:
+def send_payment_link(invoice_id: str, phone_number_id: str, payment_configuration: str,
+                      request_id: str, verify_phone: str = '') -> Dict:
     """Send WhatsApp interactive payment message for a pending invoice.
     Creates the order_details message with review_and_pay action.
     payment_configuration: optional PG config name (e.g. 'PayU_ManishAgarwal', 'WECARE-PAYU').
     If empty, outbound handler uses the phone's default Razorpay config.
+    verify_phone: if provided, blocks sending if invoice doesn't belong to this phone.
     """
     if not invoice_id:
         return _resp(400, {'error': 'invoiceId required'})
@@ -1478,7 +1507,23 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
     if not customer_phone:
         return _resp(400, {'error': 'No customer phone on invoice'})
 
-    # Whitelist removed — all phones can receive payment links
+    # SAFETY: Verify the payment link is being sent to the invoice's actual customer
+    # This prevents sending customer A's invoice to customer B
+    if verify_phone:
+        req_clean = verify_phone.replace('+', '').replace(' ', '').replace('-', '')
+        inv_clean = customer_phone.replace('+', '').replace(' ', '').replace('-', '')
+        # Normalize both to 10-digit local
+        req_local = req_clean[2:] if req_clean.startswith('91') and len(req_clean) == 12 else (req_clean[-10:] if len(req_clean) >= 10 else req_clean)
+        inv_local = inv_clean[2:] if inv_clean.startswith('91') and len(inv_clean) == 12 else (inv_clean[-10:] if len(inv_clean) >= 10 else inv_clean)
+        if req_local != inv_local:
+            logger.error(json.dumps({
+                'event': 'invoice_phone_mismatch_blocked',
+                'invoiceId': invoice_id,
+                'invoicePhone': customer_phone,
+                'requestedPhone': verify_phone,
+                'requestId': request_id,
+            }))
+            return _resp(403, {'error': 'Invoice does not belong to this customer'})
 
     reference_id = invoice.get('referenceId', '')
     if not reference_id:
@@ -1537,36 +1582,92 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
     contact_id = (contact.get('contactId') or contact.get('id', '')) if contact else ''
 
     # ── Payment messages go from the SAME phone the customer is chatting with ──
-    # Default to Phone 2 (+919903300044) which is fully registered and active
+    # CRITICAL: Never cross-WABA — WABA 1 configs only work on WABA 1, WABA 2 on WABA 2.
+    # If no phone_number_id was passed (e.g. dashboard send without phone selection),
+    # we MUST still pick the right phone. Use the invoice's stored config to infer.
     if not phone_number_id:
-        phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'
+        stored_config = payment_configuration or invoice.get('paymentConfiguration', '')
+        # WABA 1 configs contain 'WECARE-' prefix, WABA 2 configs don't
+        if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
+            phone_number_id = 'phone-number-id-waba3-direct-1016149501586345'  # Phone 1
+        else:
+            phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'  # Phone 2 (default)
 
     # Build payload for outbound-whatsapp Lambda
+    # Determine goods type: use stored value, fallback to physical-goods if shipping address exists
+    ship_addr = invoice.get('shippingAddress', '')
+    bill_addr = invoice.get('billingAddress', '')
+    cust_name = invoice.get('customerName', 'Customer')
+    goods_type = invoice.get('goodsType', 'physical-goods' if ship_addr else 'digital-goods')
+
+    order_details_obj = {
+        'reference_id': reference_id,
+        'type': goods_type,
+        'payment_configuration': payment_configuration or invoice.get('paymentConfiguration', ''),
+        'currency': 'INR',
+        'itemName': order_items[0]['name'] if order_items else 'Payment',
+        'quantity': 1,
+        'gstRate': gst_rate,
+        'gstin': invoice.get('gstin', COMPANY['gstin']),
+        'orderId': order_id,
+        'order': {
+            'status': 'pending',
+            'items': order_items,
+            'subtotal': {'value': subtotal_paise, 'offset': 100},
+            'discount': {'value': discount_paise, 'offset': 100, 'description': 'Promo'},
+            'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
+            'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: {COMPANY["gstin"]}'},
+        },
+    }
+
+    # Add shipping_info for physical-goods (beneficiaries built by outbound handler)
+    if goods_type == 'physical-goods' and ship_addr:
+        # Parse structured address if stored as JSON, else use flat string
+        addr_obj = {}
+        try:
+            import json as _json
+            addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
+        except Exception:
+            addr_obj = {}
+
+        if addr_obj:
+            # Structured address from contact
+            order_details_obj['shipping_info'] = {
+                'country': 'IN',
+                'addresses': [{
+                    'name': addr_obj.get('name', cust_name),
+                    'phone_number': customer_phone.replace('+', ''),
+                    'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
+                    'address_line1': addr_obj.get('address_line1', ''),
+                    'city': addr_obj.get('city', ''),
+                    'state': addr_obj.get('state', ''),
+                    'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
+                    'landmark_area': addr_obj.get('landmark_area', ''),
+                    'house_number': addr_obj.get('house_number', ''),
+                    'building_name': addr_obj.get('building_name', ''),
+                }]
+            }
+        else:
+            # Flat string address — put in address field
+            order_details_obj['shipping_info'] = {
+                'country': 'IN',
+                'addresses': [{
+                    'name': cust_name,
+                    'phone_number': customer_phone.replace('+', ''),
+                    'address': ship_addr,
+                    'city': '',
+                    'state': '',
+                    'in_pin_code': '',
+                }]
+            }
+
     wa_payload = {
         'body': json.dumps({
             'contactId': contact_id,
             'recipientPhone': customer_phone,
             'phoneNumberId': phone_number_id,
             'isInteractivePayment': True,
-            'orderDetails': {
-                'reference_id': reference_id,
-                'type': 'digital-goods',
-                'payment_configuration': payment_configuration or '',
-                'currency': 'INR',
-                'itemName': order_items[0]['name'] if order_items else 'Payment',
-                'quantity': 1,
-                'gstRate': gst_rate,
-                'gstin': invoice.get('gstin', COMPANY['gstin']),
-                'orderId': order_id,
-                'order': {
-                    'status': 'pending',
-                    'items': order_items,
-                    'subtotal': {'value': subtotal_paise, 'offset': 100},
-                    'discount': {'value': discount_paise, 'offset': 100, 'description': 'Promo'},
-                    'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
-                    'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: {COMPANY["gstin"]}'},
-                },
-            }
+            'orderDetails': order_details_obj,
         })
     }
 
@@ -2067,6 +2168,7 @@ def _normalize_invoice(item: Dict) -> Dict:
         'customerEmail': item.get('customerEmail', ''),
         'shippingAddress': item.get('shippingAddress', ''),
         'billingAddress': item.get('billingAddress', ''),
+        'goodsType': item.get('goodsType', 'digital-goods'),
         'subtotal': float(item.get('subtotal', 0)),
         'discount': float(item.get('discount', 0)),
         'shipping': float(item.get('shipping', 0)),

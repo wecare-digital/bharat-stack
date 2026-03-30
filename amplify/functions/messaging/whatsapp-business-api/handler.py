@@ -25,6 +25,8 @@ Routes:
   POST      /wa-business/groups/send   → Send group message
   GET       /wa-business/payment-config → Get payment configuration for phone
   GET       /wa-business/payment-config/check → Check payment gateway status via Meta API
+  GET       /wa-business/payment-lookup → Meta Payment Lookup API (verify payment status)
+  POST      /wa-business/payment-refund → Meta Refund API (initiate refund via WhatsApp)
   POST      /wa-business/flow-data     → WhatsApp Flow data_exchange endpoint
 """
 import os
@@ -822,6 +824,55 @@ def _check_payment_gateway(waba_id: str = None) -> Dict:
         })
 
     return _resp(200, {'gatewayChecks': results})
+
+
+def _payment_lookup(phone_number_id: str, config_name: str, reference_id: str) -> Dict:
+    """Meta Payment Lookup API — verify payment status directly from WhatsApp.
+    GET /<PHONE_NUMBER_ID>/payments/<PAYMENT_CONFIGURATION>/<REFERENCE_ID>
+    SECURITY: Must not rely solely on webhooks. Always verify via this API."""
+    if not phone_number_id or not config_name or not reference_id:
+        return _resp(400, {'error': 'phone_number_id, config_name, and reference_id are required'})
+
+    result = _graph_api(
+        f'{phone_number_id}/payments/{config_name}/{reference_id}',
+        phone_id=phone_number_id,
+    )
+    if 'error' in result:
+        return _resp(result.get('error', {}).get('code', 500), {'error': result['error']})
+    return _resp(200, {'paymentLookup': result})
+
+
+def _payment_refund(phone_number_id: str, reference_id: str, config_name: str,
+                    amount_paise: int, speed: str = 'normal') -> Dict:
+    """Meta Refund API — initiate refund via WhatsApp.
+    POST /<PHONE_NUMBER_ID>/payments_refund"""
+    if not phone_number_id or not reference_id or not config_name:
+        return _resp(400, {'error': 'phone_number_id, reference_id, and config_name are required'})
+    if amount_paise <= 0:
+        return _resp(400, {'error': 'amount must be positive'})
+    if speed not in ('normal', 'instant'):
+        speed = 'normal'
+
+    payload = {
+        'reference_id': reference_id,
+        'speed': speed,
+        'payment_config_id': config_name,
+        'amount': {
+            'currency': 'INR',
+            'value': str(amount_paise),
+            'offset': '100',
+        },
+    }
+    result = _graph_api(
+        f'{phone_number_id}/payments_refund',
+        method='POST',
+        payload=payload,
+        phone_id=phone_number_id,
+    )
+    if 'error' in result:
+        return _resp(result.get('error', {}).get('code', 500), {'error': result['error']})
+    return _resp(200, {'refund': result})
+
 
 # ============================================================================
 # FLOW ENCRYPTION / DECRYPTION (WhatsApp Flows require E2E encryption)
@@ -1891,6 +1942,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif '/payment-config/check' in path:
             waba_id = params.get('wabaId') or body.get('wabaId')
             return _check_payment_gateway(waba_id)
+
+        elif '/payment-lookup' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId', '')
+            config_name = params.get('configName') or body.get('configName', '')
+            reference_id = params.get('referenceId') or body.get('referenceId', '')
+            return _payment_lookup(phone_id, config_name, reference_id)
+
+        elif '/payment-refund' in path:
+            phone_id = body.get('phoneId', '')
+            reference_id = body.get('referenceId', '')
+            config_name = body.get('configName', '')
+            amount_paise = int(body.get('amountPaise', 0))
+            speed = body.get('speed', 'normal')
+            return _payment_refund(phone_id, reference_id, config_name, amount_paise, speed)
 
         elif '/payment-config' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')

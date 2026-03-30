@@ -149,24 +149,82 @@ PHONE_PAYMENT_GATEWAYS = {
 
 def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
     """Build payment_settings array per Meta's latest PG deep integration spec (v25.0).
-    Includes PG-specific fields: razorpay.notes/receipt, payu.udf1-4.
+
+    Supports 3 modes:
+    1. PG Deep Integration (default) — razorpay/payu with configuration_name
+    2. Enhanced Payment Links — payment_link with PG-generated URL
+    3. UPI Intent — upi_intent_link with raw UPI deep link
+
+    Also supports TPV (Third Party Validation) for Razorpay/PayU.
     Meta allows ONE payment_setting per review_and_pay message."""
     explicit_config = order_details.get('payment_configuration', '')
     ref_id = order_details.get('reference_id', '')
 
+    # ── Mode 1: Enhanced Payment Links (Gap 9) ──
+    payment_link_uri = order_details.get('payment_link_uri', '')
+    if payment_link_uri:
+        link_obj = {'uri': payment_link_uri}
+        success_url = order_details.get('payment_link_success_url', '')
+        cancel_url = order_details.get('payment_link_cancel_url', '')
+        if success_url:
+            link_obj['success_url'] = success_url
+        if cancel_url:
+            link_obj['cancel_url'] = cancel_url
+        return [{'type': 'payment_link', 'payment_link': link_obj}]
+
+    # ── Mode 2: UPI Intent Link ──
+    upi_intent = order_details.get('upi_intent_link', '')
+    if upi_intent:
+        return [{'type': 'upi_intent_link', 'upi_intent_link': {'link': upi_intent}}]
+
+    # ── Mode 3: PG Deep Integration (default) ──
     # Determine which gateway and config name to use
+    # CRITICAL: Never cross-WABA — each phone's configs only work on its own WABA
     if explicit_config and explicit_config in VALID_PAYMENT_CONFIGS:
         gw_type = 'payu' if 'PAYU' in explicit_config.upper() else 'razorpay'
         config_name = explicit_config
     else:
         gw_type = 'razorpay'
-        gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id, PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_2))
-        config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG)
+        # Use THIS phone's gateway map — never fall back to a different phone's configs
+        gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id)
+        if not gateways:
+            # Unknown phone ID — try to infer from the ID string
+            if '1016149501586345' in str(phone_number_id):
+                gateways = PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_1)
+            else:
+                gateways = PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_2)
+        config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG) if gateways else DEFAULT_PAYMENT_CONFIG
 
     pg_obj = {
         'type': gw_type,
         'configuration_name': config_name,
     }
+
+    # Cross-WABA validation: ensure config belongs to the sending phone's WABA
+    # WABA 1 configs: WECARE-RAZOR-PAY, WECARE-PAYU, WECARE-RAZORPAY-UPIVPA, Payu-UPIVPA, etc.
+    # WABA 2 configs: Razorpay_ManishAgarwal, PayU_ManishAgarwal, Razorpay_UPI, PayU_UPI
+    is_phone1 = '1016149501586345' in str(phone_number_id)
+    is_waba1_config = 'WECARE-' in config_name.upper() or 'UPIVPA' in config_name.upper()
+    is_waba2_config = 'ManishAgarwal' in config_name or config_name in ('Razorpay_UPI', 'PayU_UPI')
+
+    if is_phone1 and is_waba2_config:
+        # Wrong config for this phone — override to Phone 1's config
+        logger.warning(json.dumps({
+            'event': 'cross_waba_config_corrected',
+            'phone': 'phone1', 'wrongConfig': config_name,
+            'correctedTo': 'WECARE-RAZOR-PAY' if gw_type == 'razorpay' else 'WECARE-PAYU',
+        }))
+        config_name = 'WECARE-RAZOR-PAY' if gw_type == 'razorpay' else 'WECARE-PAYU'
+        pg_obj['configuration_name'] = config_name
+    elif not is_phone1 and is_waba1_config:
+        # Wrong config for this phone — override to Phone 2's config
+        logger.warning(json.dumps({
+            'event': 'cross_waba_config_corrected',
+            'phone': 'phone2', 'wrongConfig': config_name,
+            'correctedTo': 'Razorpay_ManishAgarwal' if gw_type == 'razorpay' else 'PayU_ManishAgarwal',
+        }))
+        config_name = 'Razorpay_ManishAgarwal' if gw_type == 'razorpay' else 'PayU_ManishAgarwal'
+        pg_obj['configuration_name'] = config_name
 
     # Add PG-specific fields per Meta docs
     if gw_type == 'razorpay':
@@ -177,6 +235,10 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
                 'source': 'wecare_invoice_engine',
             },
         }
+        # TPV support for Razorpay (Gap 11) — encrypted bank account validation
+        encrypted_tpv = order_details.get('encrypted_payment_gateway_data', '')
+        if encrypted_tpv:
+            pg_obj['razorpay']['encrypted_payment_gateway_data'] = encrypted_tpv
     elif gw_type == 'payu':
         pg_obj['payu'] = {
             'udf1': ref_id,
@@ -184,6 +246,10 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
             'udf3': order_details.get('gstin', '19AADFW7431N1ZK'),
             'udf4': 'wecare_invoice_engine',
         }
+        # TPV support for PayU (Gap 11) — encrypted beneficiary validation
+        encrypted_tpv = order_details.get('encrypted_payment_gateway_data', '')
+        if encrypted_tpv:
+            pg_obj['payu']['encrypted_payment_gateway_data'] = encrypted_tpv
 
     return [{'type': 'payment_gateway', 'payment_gateway': pg_obj}]
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
@@ -1220,6 +1286,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                     'paymentCustomerEmail': c_email,
                     'paymentShippingAddress': c_ship,
                     'paymentBillingAddress': c_bill,
+                    'paymentConfigName': order_details.get('payment_configuration', PHONE_PAYMENT_CONFIG.get(phone_number_id, DEFAULT_PAYMENT_CONFIG)),
+                    'awsPhoneNumberId': phone_number_id or '',
                     'status': 'pending',
                     'senderPhone': recipient_phone or '',
                     'createdAt': Decimal(str(int(time.time()))),
@@ -1802,22 +1870,31 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             # Use tax value from order_data as fallback
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
-        # Convenience Fee: 2% of total collection (items + GST) + 18% GST on that 2%
-        collection_paise = item_total_paise + gst_paise
-        conv_base = round_paise(Decimal(collection_paise) * Decimal("0.02"))
-        conv_gst = round_paise(Decimal(conv_base) * Decimal("0.18"))
-        conv_total = conv_base + conv_gst
+        # Convenience Fee: configurable rate (default 2%) + GST on that rate (default 18%)
+        # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate
+        conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.02')))
+        conv_fee_gst_rate = Decimal(str(order_details.get('convenienceFeeGstRate', '0.18')))
+        skip_conv_fee = order_details.get('skipConvenienceFee', False)
+
+        if not skip_conv_fee and conv_fee_rate > 0:
+            collection_paise = item_total_paise + gst_paise
+            conv_base = round_paise(Decimal(collection_paise) * conv_fee_rate)
+            conv_gst = round_paise(Decimal(conv_base) * conv_fee_gst_rate)
+            conv_total = conv_base + conv_gst
+        else:
+            conv_total = 0
         
-        # Add convenience fee as a line item
-        items_for_whatsapp.append({
-            'retailer_id': 'ITEM_CONV',
-            'name': 'Convenience Fee (Collected by Bank)',
-            'amount': {'value': conv_total, 'offset': 100},
-            'quantity': 1,
-            'country_of_origin': 'India',
-            'importer_name': 'WECARE.DIGITAL',
-            'importer_address': {'address_line1': '81/2/7 Phears Ln', 'city': 'Kolkata', 'zone_code': 'WB', 'postal_code': '700012', 'country_code': 'IN'},
-        })
+        # Add convenience fee as a line item (only if > 0)
+        if conv_total > 0:
+            items_for_whatsapp.append({
+                'retailer_id': 'ITEM_CONV',
+                'name': 'Convenience Fee (Collected by Bank)',
+                'amount': {'value': conv_total, 'offset': 100},
+                'quantity': 1,
+                'country_of_origin': 'India',
+                'importer_name': 'WECARE.DIGITAL',
+                'importer_address': {'address_line1': '81/2/7 Phears Ln', 'city': 'Kolkata', 'zone_code': 'WB', 'postal_code': '700012', 'country_code': 'IN'},
+            })
         
         # Build reference ID
         ref_id = _sanitize_reference_id(order_details.get('reference_id', ''))
@@ -1836,12 +1913,12 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'discount': {
                 'value': discount_paise,
                 'offset': 100,
-                'description': 'Promo'
+                'description': order_data.get('discount', {}).get('description', 'Promo')
             },
             'shipping': {
                 'value': delivery_paise,
                 'offset': 100,
-                'description': 'Express'
+                'description': order_data.get('shipping', {}).get('description', 'Express')
             },
             'tax': {
                 'value': gst_paise,
@@ -1849,8 +1926,74 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'description': f'GSTIN: {gstin}'
             }
         }
+
+        # Gap 8: quick_pay — hides "Review and Pay", shows only "Pay Now" button
+        if order_details.get('quick_pay', False):
+            order_obj['type'] = 'quick_pay'
         
         # Build interactive order_details payload
+        goods_type = order_details.get('type', 'digital-goods')
+        
+        # Order expiration: default 24h from now (Meta minimum: 300 seconds)
+        import time as _time
+        expiration_seconds = int(order_details.get('expiration_seconds', 86400))  # default 24h
+        if expiration_seconds < 300:
+            expiration_seconds = 300  # Meta minimum threshold
+        expiration_ts = str(int(_time.time()) + expiration_seconds)
+        expiration_desc = order_details.get('expiration_description', 'This payment link will expire in 24 hours')
+        
+        order_obj['expiration'] = {
+            'timestamp': expiration_ts,
+            'description': expiration_desc[:120],  # Meta max 120 chars
+        }
+        
+        action_params = {
+            'reference_id': ref_id,
+            'type': goods_type,
+            'payment_settings': _build_payment_settings(phone_number_id, order_details),
+            'currency': order_details.get('currency', 'INR'),
+            'total_amount': {'value': total_paise, 'offset': 100},
+            'order': order_obj
+        }
+        
+        # Merchant preferred UPI app + payment options (only for PG deep integration mode)
+        ps = action_params['payment_settings'][0]
+        if 'payment_gateway' in ps:
+            preferred_upi_app = order_details.get('preferred_upi_app', '')
+            if preferred_upi_app:
+                ps['payment_gateway']['preferred_payment_methods'] = [
+                    {'method': preferred_upi_app}
+                ]
+            
+            # Restrict payment options: "upi" or "web" (optional)
+            # UPI transactions limited to ₹5,00,000 — auto-switch to web for higher amounts
+            enabled_options = order_details.get('enabled_payment_options', '')
+            if total_paise > 50000000:  # > ₹5,00,000 in paise
+                enabled_options = 'web'
+            if enabled_options:
+                ps['payment_gateway']['enabled_payment_options'] = [enabled_options]
+
+        # For payment_link mode: add payment_type: "upi" (required by Meta)
+        if 'payment_link' in ps:
+            action_params['payment_type'] = 'upi'
+        
+        # For physical-goods: add beneficiaries (required by Meta for shipped goods)
+        # Beneficiary info is for legal/compliance — not shown to users
+        if goods_type == 'physical-goods':
+            shipping_info = order_details.get('shipping_info', {})
+            beneficiary_addr = shipping_info.get('addresses', [{}])
+            addr = beneficiary_addr[0] if beneficiary_addr else {}
+            if addr.get('name') or addr.get('address'):
+                action_params['beneficiaries'] = [{
+                    'name': addr.get('name', 'Customer'),
+                    'address_line1': addr.get('address', addr.get('address_line1', '')),
+                    'address_line2': addr.get('landmark_area', addr.get('address_line2', '')),
+                    'city': addr.get('city', ''),
+                    'state': addr.get('state', ''),
+                    'country': 'India',
+                    'postal_code': addr.get('in_pin_code', addr.get('postal_code', '')),
+                }]
+        
         interactive_payload = {
             'type': 'order_details',
             'header': {
@@ -1865,14 +2008,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             },
             'action': {
                 'name': 'review_and_pay',
-                'parameters': {
-                    'reference_id': ref_id,
-                    'type': order_details.get('type', 'digital-goods'),
-                    'payment_settings': _build_payment_settings(phone_number_id, order_details),
-                    'currency': order_details.get('currency', 'INR'),
-                    'total_amount': {'value': total_paise, 'offset': 100},
-                    'order': order_obj
-                }
+                'parameters': action_params
             }
         }
         
@@ -1881,6 +2017,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         logger.info(json.dumps({
             'event': 'interactive_payment_payload_built',
             'referenceId': ref_id,
+            'goodsType': goods_type,
+            'hasBeneficiaries': 'beneficiaries' in action_params,
             'itemCount': len(items_list),
             'itemTotal': item_total_paise / 100,
             'gstTotal': gst_paise / 100,

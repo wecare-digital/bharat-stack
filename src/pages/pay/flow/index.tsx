@@ -65,12 +65,13 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   const [deliveryLogs, setDeliveryLogs] = useState<InvoiceDeliveryLog[]>([]);
   const [actionLoading, setActionLoading] = useState('');
   const [paymentGateway, setPaymentGateway] = useState('razorpay');
+  const [goodsType, setGoodsType] = useState<'digital-goods'|'physical-goods'>('digital-goods');
   const [sendPhone, setSendPhone] = useState('phone-number-id-waba-t-direct-1055232054343117');
   const [remarkModal, setRemarkModal] = useState<{inv:Invoice;type:'remark'|'refund'|'credit_note'}|null>(null);
   const [remarkText, setRemarkText] = useState('');
   const [remarkAmount, setRemarkAmount] = useState('');
   const [editModal, setEditModal] = useState<Invoice|null>(null);
-  const [editForm, setEditForm] = useState<{customerName:string;customerPhone:string;customerEmail:string;shipping:string;discount:string;purpose:string;orderId:string;notes:string}>({customerName:'',customerPhone:'',customerEmail:'',shipping:'0',discount:'0',purpose:'',orderId:'',notes:''});
+  const [editForm, setEditForm] = useState<{customerName:string;customerPhone:string;customerEmail:string;shipping:string;discount:string;purpose:string;orderId:string;notes:string;shippingAddress:string;billingAddress:string}>({customerName:'',customerPhone:'',customerEmail:'',shipping:'0',discount:'0',purpose:'',orderId:'',notes:'',shippingAddress:'',billingAddress:''});
   const [config, setConfig] = useState<FC>(() => loadSavedConfig());
   const [configSaving, setConfigSaving] = useState(false);
   const [msg, setMsg] = useState<{text:string;type:'success'|'error'}|null>(null);
@@ -157,10 +158,13 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         customerPhone: selCustomer.phone, customerEmail: selCustomer.email||'',
         customerName: selCustomer.name, contactId: selCustomer.id,
         shippingAddress: selCustomer.shippingAddress||'', billingAddress: selCustomer.billingAddress||'',
+        goodsType: goodsType,
         items: invForm.items.map(it=>({ name:it.name||config.default_item_name, amount:parseFloat(it.unitPrice)||0, quantity:parseInt(it.quantity)||1, gstRate:parseFloat(it.gstRate)||config.default_gst_rate })),
         shipping: parseFloat(invForm.shipping)||0,
         discount: parseFloat(invForm.discount)||0, gstRate: config.default_gst_rate,
         purpose: invForm.purpose, orderId: invForm.orderId, gstin: config.gstin,
+        preferredGateway: paymentGateway,
+        paymentConfiguration: getPGConfigName(paymentGateway, sendPhone),
       };
       const r = await api.createInvoiceEngine(req);
       if(r) { showMsg(`Invoice ${r.invoiceNumber} created \u2014 \u20B9${r.total}`); setInvForm({...EMPTY_INV, items:[NEW_ITEM()]}); setSelCustomer(null); loadInvoices(); }
@@ -179,10 +183,11 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
     { id: 'payu', label: 'PayU' },
   ];
   // Map gateway + phone to the correct Meta config name
+  // CRITICAL: Each WABA has its own config names — never cross-WABA
   const getPGConfigName = (pg: string, phoneId: string) => {
     const isPhone1 = phoneId.includes('1016149501586345');
     if (pg === 'payu') return isPhone1 ? 'WECARE-PAYU' : 'PayU_ManishAgarwal';
-    return isPhone1 ? 'WECARE-RAZOR-PAY' : '';  // empty = outbound uses phone default Razorpay
+    return isPhone1 ? 'WECARE-RAZOR-PAY' : 'Razorpay_ManishAgarwal';
   };
   const doSendPaymentLink = async (inv:Invoice) => {
     setActionLoading('send');
@@ -240,6 +245,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
       purpose: inv.purpose||'',
       orderId: inv.orderId||'',
       notes: inv.notes||'',
+      shippingAddress: inv.shippingAddress||'',
+      billingAddress: inv.billingAddress||'',
     });
   };
   const submitEdit = async () => {
@@ -255,6 +262,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         purpose: editForm.purpose,
         orderId: editForm.orderId,
         notes: editForm.notes,
+        shippingAddress: editForm.shippingAddress,
+        billingAddress: editForm.billingAddress,
       });
       if(r) { showMsg('Invoice updated'); setEditModal(null); setSelInvoice(null); loadInvoices(); }
       else showMsg('Update failed','error');
@@ -347,6 +356,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     {filteredCust.map(c=>(
                       <div key={c.id} onClick={()=>{
                         setSelCustomer(c);
+                        // Auto-set goods type based on shipping address
+                        setGoodsType(c.shippingAddress ? 'physical-goods' : 'digital-goods');
                         // Auto-append Green Packing + Notification Fee as last items
                         setInvForm(prev => {
                           const items = [...prev.items];
@@ -372,6 +383,13 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div style={{flex:1}}><strong>{selCustomer.name}</strong> {'\u2014'} {selCustomer.phone} {selCustomer.email ? ` \u00B7 ${selCustomer.email}` : ''}</div>
                     <Button variant="ghost" size="sm" onClick={()=>setSelCustomer(null)}>Change</Button>
                   </div>
+                  {/* Address display */}
+                  {(selCustomer.shippingAddress || selCustomer.billingAddress) && (
+                    <div className="inner-card" style={{marginBottom:16,maxWidth:600,padding:'10px 14px',fontSize:12,color:'#555',background:'#f8faf9',border:'1px solid #e0e8e3',borderRadius:8}}>
+                      {selCustomer.shippingAddress && <div style={{marginBottom:4}}><strong>Ship To:</strong> {selCustomer.shippingAddress}</div>}
+                      {selCustomer.billingAddress && <div><strong>Bill To:</strong> {selCustomer.billingAddress}</div>}
+                    </div>
+                  )}
                   <h3 style={{margin:'0 0 12px',fontSize:18}}>Step 2 {'\u2014'} Invoice Details</h3>
                   <div className="table-container" style={{marginBottom:16}}>
                     <table className="inner-table">
@@ -433,9 +451,22 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                         {PG_OPTIONS.map(pg=><option key={pg.id} value={pg.id}>{pg.label}</option>)}
                       </select>
                     </div>
+                    <div className="form-group">
+                      <label>Goods Type</label>
+                      <select value={goodsType} onChange={e=>setGoodsType(e.target.value as any)}>
+                        <option value="digital-goods">Digital Goods</option>
+                        <option value="physical-goods">Physical Goods</option>
+                      </select>
+                    </div>
                   </div>
+                  {goodsType === 'physical-goods' && !selCustomer?.shippingAddress && (
+                    <div className="msg-bar error" style={{margin:'0 0 12px',fontSize:12}}>Physical goods require a shipping address. Add one in the Customers tab.</div>
+                  )}
                   <div className="inner-card" style={{marginBottom:20,maxWidth:500}}>
                     <h4 style={{margin:'0 0 8px',fontSize:14}}>Preview</h4>
+                    {goodsType === 'physical-goods' && selCustomer?.shippingAddress && (
+                      <div style={{fontSize:11,color:'#1e40af',background:'#dbeafe',padding:'4px 8px',borderRadius:6,marginBottom:8}}>📦 Physical Goods — Ship To: {selCustomer.shippingAddress}</div>
+                    )}
                     <div className="pf-preview-row"><span>Subtotal</span><span>{fmtMoney(calcSubtotal())}</span></div>
                     {invForm.items.map((it,i) => {
                       const line = (parseFloat(it.unitPrice)||0)*(parseInt(it.quantity)||0);
@@ -507,6 +538,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="pf-detail-row"><span className="label">Phone</span><span>{selInvoice.customerPhone||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Brand</span><span>{selInvoice.purpose||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Order</span><span>{selInvoice.orderId||'\u2014'}</span></div>
+                    {selInvoice.goodsType && <div className="pf-detail-row"><span className="label">Type</span><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:selInvoice.goodsType==='physical-goods'?'#dbeafe':'#f3e8ff',color:selInvoice.goodsType==='physical-goods'?'#1e40af':'#6b21a8'}}>{selInvoice.goodsType==='physical-goods'?'Physical':'Digital'}</span></div>}
+                    {selInvoice.shippingAddress && <div className="pf-detail-row" style={{alignItems:'flex-start'}}><span className="label">Ship To</span><span style={{fontSize:11,color:'#555',maxWidth:200,wordBreak:'break-word'}}>{selInvoice.shippingAddress}</span></div>}
+                    {selInvoice.billingAddress && <div className="pf-detail-row" style={{alignItems:'flex-start'}}><span className="label">Bill To</span><span style={{fontSize:11,color:'#555',maxWidth:200,wordBreak:'break-word'}}>{selInvoice.billingAddress}</span></div>}
                     <div className="pf-section-divider">
                       <div className="pf-detail-row"><span className="label">Subtotal</span><span>{fmtMoney(selInvoice.subtotal)}</span></div>
                       <div className="pf-detail-row"><span className="label">Tax</span><span>{fmtMoney(selInvoice.tax)}</span></div>
@@ -674,6 +708,8 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                   <div className="form-group"><label>Promo / Discount ({'₹'})</label><input type="number" value={editForm.discount} onChange={e=>setEditForm({...editForm,discount:e.target.value})} /></div>
                   <div className="form-group"><label>Order ID</label><input type="text" value={editForm.orderId} onChange={e=>setEditForm({...editForm,orderId:e.target.value})} /></div>
                   <div className="form-group"><label>Notes</label><textarea rows={2} value={editForm.notes} onChange={e=>setEditForm({...editForm,notes:e.target.value})} /></div>
+                  <div className="form-group"><label>Shipping Address</label><textarea rows={2} value={editForm.shippingAddress} onChange={e=>setEditForm({...editForm,shippingAddress:e.target.value})} placeholder="Shipping address for physical goods" /></div>
+                  <div className="form-group"><label>Billing Address</label><textarea rows={2} value={editForm.billingAddress} onChange={e=>setEditForm({...editForm,billingAddress:e.target.value})} placeholder="Billing address" /></div>
                 </div>
                 <div className="pf-modal-actions">
                   <Button variant="secondary" size="sm" onClick={()=>setEditModal(null)}>Cancel</Button>
