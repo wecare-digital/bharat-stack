@@ -170,9 +170,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'GET' and path_params.get('messageId'):
             return _get_message(path_params['messageId'], request_id)
         
-        # POST - Send SMS
+        # POST - DLR callback from Airtel (delivery report)
         if http_method == 'POST':
             body = json.loads(event.get('body', '{}'))
+            
+            # Detect DLR callback: has messageId + status but no phoneNumber/content
+            if body.get('messageId') and body.get('status') and not body.get('phoneNumber') and not body.get('content'):
+                return _handle_dlr_callback(body, request_id)
+            
             # bulk=true → Conduit bulk API (different payload format per recipient)
             if body.get('bulk'):
                 return _send_bulk_sms(body, request_id)
@@ -195,6 +200,54 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except Exception as e:
         logger.error(json.dumps({'event': 'airtel_sms_error', 'error': str(e), 'requestId': request_id}))
         return _response(500, {'error': 'Internal server error'})
+
+
+def _handle_dlr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Handle Airtel DLR (Delivery Report) callback.
+    Airtel sends delivery status updates to this endpoint.
+    Updates the message status in DynamoDB.
+    """
+    message_id = body.get('messageId', '')
+    status = body.get('status', '').upper()
+    status_code = body.get('statusCode', '')
+    destination = body.get('destination', '')
+    sender_id = body.get('senderId', '')
+    timestamp = body.get('timestamp', '')
+    error_code = body.get('errorCode', '')
+    error_desc = body.get('errorDescription', '')
+
+    logger.info(json.dumps({
+        'event': 'airtel_dlr_received',
+        'messageId': message_id,
+        'status': status,
+        'statusCode': status_code,
+        'destination': destination,
+        'senderId': sender_id,
+        'errorCode': error_code,
+        'requestId': request_id,
+    }))
+
+    # Update message status in DynamoDB
+    try:
+        table = dynamodb.Table(MESSAGES_TABLE)
+        table.update_item(
+            Key={'id': message_id},
+            UpdateExpression='SET #s = :status, dlrStatusCode = :sc, dlrTimestamp = :ts, dlrErrorCode = :ec, dlrErrorDescription = :ed, updatedAt = :now',
+            ExpressionAttributeNames={'#s': 'status'},
+            ExpressionAttributeValues={
+                ':status': status,
+                ':sc': status_code,
+                ':ts': timestamp,
+                ':ec': error_code,
+                ':ed': error_desc,
+                ':now': Decimal(str(int(time.time()))),
+            },
+        )
+    except Exception as e:
+        logger.warning(f"DLR update failed for {message_id}: {e}")
+
+    return _response(200, {'success': True, 'message': 'DLR received'})
 
 
 def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
