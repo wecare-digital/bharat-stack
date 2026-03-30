@@ -110,7 +110,7 @@ def _send_message(phone_number_id: str, payload, as_bytes=False) -> Dict:
     return _send_direct_api(phone_number_id, msg)
 
 # Constants
-META_API_VERSION = 'v20.0'  # Requirement 5.8
+META_API_VERSION = 'v25.0'  # Latest WhatsApp Cloud API with full payment support
 MAX_TEXT_LENGTH = 4096  # Requirement 5.4
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
@@ -148,19 +148,44 @@ PHONE_PAYMENT_GATEWAYS = {
 
 
 def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
-    """Build payment_settings array for WhatsApp Pay.
-    Meta only allows ONE payment_setting per review_and_pay message.
-    If a specific payment_configuration is requested, use that.
-    Otherwise, use the phone's default Razorpay config."""
+    """Build payment_settings array per Meta's latest PG deep integration spec (v25.0).
+    Includes PG-specific fields: razorpay.notes/receipt, payu.udf1-4.
+    Meta allows ONE payment_setting per review_and_pay message."""
     explicit_config = order_details.get('payment_configuration', '')
+    ref_id = order_details.get('reference_id', '')
+
+    # Determine which gateway and config name to use
     if explicit_config and explicit_config in VALID_PAYMENT_CONFIGS:
         gw_type = 'payu' if 'PAYU' in explicit_config.upper() else 'razorpay'
-        return [{'type': 'payment_gateway', 'payment_gateway': {'type': gw_type, 'configuration_name': explicit_config}}]
+        config_name = explicit_config
+    else:
+        gw_type = 'razorpay'
+        gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id, PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_2))
+        config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG)
 
-    # Default: use Razorpay for the phone (primary gateway)
-    gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id, PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_2))
-    config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG)
-    return [{'type': 'payment_gateway', 'payment_gateway': {'type': 'razorpay', 'configuration_name': config_name}}]
+    pg_obj = {
+        'type': gw_type,
+        'configuration_name': config_name,
+    }
+
+    # Add PG-specific fields per Meta docs
+    if gw_type == 'razorpay':
+        pg_obj['razorpay'] = {
+            'receipt': ref_id[:40] if ref_id else '',
+            'notes': {
+                'referenceId': ref_id,
+                'source': 'wecare_invoice_engine',
+            },
+        }
+    elif gw_type == 'payu':
+        pg_obj['payu'] = {
+            'udf1': ref_id,
+            'udf2': order_details.get('orderId', 'Offline'),
+            'udf3': order_details.get('gstin', '19AADFW7431N1ZK'),
+            'udf4': 'wecare_invoice_engine',
+        }
+
+    return [{'type': 'payment_gateway', 'payment_gateway': pg_obj}]
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
 
 # Meta WhatsApp Cloud API error codes (from official error reference docs)
@@ -1747,7 +1772,16 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'retailer_id': item.get('retailer_id', f'ITEM_{i+1}'),
                 'name': item_name,
                 'amount': {'value': item_amount, 'offset': 100},
-                'quantity': item_qty
+                'quantity': item_qty,
+                'country_of_origin': 'India',
+                'importer_name': 'WECARE.DIGITAL',
+                'importer_address': {
+                    'address_line1': '81/2/7 Phears Ln',
+                    'city': 'Kolkata',
+                    'zone_code': 'WB',
+                    'postal_code': '700012',
+                    'country_code': 'IN',
+                },
             })
         
         # Fallback if no items
@@ -1760,7 +1794,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'retailer_id': 'ITEM_MAIN',
                 'name': item_name,
                 'amount': {'value': fallback_amount // max(item_quantity, 1), 'offset': 100},
-                'quantity': item_quantity
+                'quantity': item_quantity,
+                'country_of_origin': 'India',
+                'importer_name': 'WECARE.DIGITAL',
+                'importer_address': {'address_line1': '81/2/7 Phears Ln', 'city': 'Kolkata', 'zone_code': 'WB', 'postal_code': '700012', 'country_code': 'IN'},
             })
             # Use tax value from order_data as fallback
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
@@ -1776,7 +1813,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'retailer_id': 'ITEM_CONV',
             'name': 'Convenience Fee (Collected by Bank)',
             'amount': {'value': conv_total, 'offset': 100},
-            'quantity': 1
+            'quantity': 1,
+            'country_of_origin': 'India',
+            'importer_name': 'WECARE.DIGITAL',
+            'importer_address': {'address_line1': '81/2/7 Phears Ln', 'city': 'Kolkata', 'zone_code': 'WB', 'postal_code': '700012', 'country_code': 'IN'},
         })
         
         # Build reference ID

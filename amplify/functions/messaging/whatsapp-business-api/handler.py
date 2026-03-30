@@ -47,7 +47,7 @@ logger = get_logger(__name__)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
