@@ -24,7 +24,7 @@ export const inboundWhatsappHandler = defineFunction({
     OUTBOUND_WHATSAPP_FUNCTION: 'wecare-outbound-whatsapp',
     AI_QUERY_KB_FUNCTION: 'wecare-ai-query-kb',
     AI_GENERATE_RESPONSE_FUNCTION: 'wecare-ai-generate-response',
-    WHATSAPP_PHONE_NUMBER_ID_1: 'phone-number-id-waba3-direct-1016149501586345',
+    WHATSAPP_PHONE_NUMBER_ID_1: 'phone-number-id-waba1-direct-1016149501586345',
     WHATSAPP_PHONE_NUMBER_ID_2: 'phone-number-id-waba-t-direct-1055232054343117',
     SUBMIT_REQUESTS_TABLE: 'stack-wecare-digital-SubmitRequestsTable',
   },

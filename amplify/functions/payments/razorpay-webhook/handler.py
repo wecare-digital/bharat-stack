@@ -426,7 +426,7 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                 if inv_items:
                     stored_config = inv_items[0].get('paymentConfiguration', '')
                     if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
-                        originating_phone_id = 'phone-number-id-waba3-direct-1016149501586345'
+                        originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
                     else:
                         originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
             except Exception:

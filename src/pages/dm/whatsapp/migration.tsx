@@ -134,9 +134,9 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
             ))}
             {wabas.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>No linked WABAs found</div>}
             <div style={{ padding: '8px 12px', background: '#eff6ff', borderRadius: 6, fontSize: 13 }}>
-              <span style={{ fontWeight: 500 }}>WABA3 (Direct API)</span>
+              <span style={{ fontWeight: 500 }}>WABA1 (Direct API)</span>
               <span style={{ color: '#6b7280', marginLeft: 8, fontSize: 11 }}>2094615664435155</span>
-              <span style={{ marginLeft: 8, fontSize: 11, color: '#16a34a' }}>+91 81003 30063 — GREEN</span>
+              <span style={{ marginLeft: 8, fontSize: 11, color: '#16a34a' }}>+91 93309 94400 — GREEN</span>
             </div>
           </div>
         )}
@@ -150,11 +150,11 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div>
             <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Phone Number ID</label>
-            <input value={phoneId} onChange={e => setPhoneId(e.target.value)} placeholder="e.g. 945798751960485 or phone-number-id-..." style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }} />
+            <input value={phoneId} onChange={e => setPhoneId(e.target.value)} placeholder="e.g. 1016149501586345 or phone-number-id-..." style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }} />
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Display Name (optional)</label>
-            <input value={phoneDisplay} onChange={e => setPhoneDisplay(e.target.value)} placeholder="+91 81003 30063" style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }} />
+            <input value={phoneDisplay} onChange={e => setPhoneDisplay(e.target.value)} placeholder="+91 93309 94400" style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }} />
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Source WABA ID</label>
@@ -162,7 +162,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>Target WABA ID</label>
-            <input value={targetWaba} onChange={e => setTargetWaba(e.target.value)} placeholder="e.g. 1912405516040025" style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }} />
+            <input value={targetWaba} onChange={e => setTargetWaba(e.target.value)} placeholder="e.g. 2094615664435155" style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }} />
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 4 }}>2FA PIN (6 digits, optional)</label>
@@ -199,14 +199,11 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         {/* Quick Presets */}
         <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Quick presets:</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button onClick={() => { setPhoneId('945798751960485'); setPhoneDisplay('+91 81003 30063'); setSourceWaba('2094615664435155'); }} style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-            WABA3 +918100330063
+          <button onClick={() => { setPhoneId('1016149501586345'); setPhoneDisplay('+91 93309 94400'); setSourceWaba('2094615664435155'); }} style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+            WABA1 +919330994400
           </button>
           <button onClick={() => { setPhoneId('1055232054343117'); setPhoneDisplay('+91 99033 00044'); setSourceWaba('2513394156072604'); }} style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-            WABA_+919903300044
-          </button>
-          <button onClick={() => { setPhoneId('1016149501586345'); setPhoneDisplay('+91 93309 94400'); setSourceWaba('2094615664435155'); }} style={{ padding: '4px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-            WABA_+919330994400 (PENDING)
+            WABA-T +919903300044
           </button>
         </div>
       </div>

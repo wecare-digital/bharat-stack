@@ -544,7 +544,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   // ─── Auto-Pickup Config ───────────────────────────────────────
 
   const [autoPickup, setAutoPickup] = useState(true);
-  const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/IVR+1.mp3');
+  const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16');
 
   const fetchConfig = useCallback(async () => {
     try {

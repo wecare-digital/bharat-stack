@@ -114,7 +114,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Generate message ID
         message_id = str(uuid.uuid4())
         
-        # Send SMS based on provider
+        # Send SMS based on provider (locked: Airtel for Indian +91, AWS for international)
+        clean = phone.lstrip('+')
+        is_indian = clean.startswith('91') and len(clean) == 12
+        if is_indian:
+            provider = 'airtel'  # Force Airtel for Indian numbers (DLT required)
+        else:
+            provider = 'aws'  # Force AWS Pinpoint/SNS for international
+
         if provider == 'airtel':
             result = _send_airtel_iq_sms(
                 phone=phone,

@@ -55,7 +55,7 @@ MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'stack/whatsapp-media/voice/')
 
 # WhatsApp Phone Number IDs
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1',
-    'phone-number-id-waba3-direct-1016149501586345')
+    'phone-number-id-waba1-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2',
     'phone-number-id-waba-t-direct-1055232054343117')
 
@@ -79,7 +79,7 @@ def _load_voice_token() -> str:
     _voice_token_cache['app_secret'] = (data.get('app_secret') or '').strip()
     return _voice_token_cache['token']
 
-META_API_VERSION = 'v20.0'
+META_API_VERSION = 'v25.0'
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 

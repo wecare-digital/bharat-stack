@@ -14,7 +14,7 @@ import { WHATSAPP_CALLING_VERIFY_TOKEN } from '../../../config/constants';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const PHONE_NUMBERS = [
-  { id: 'phone-number-id-waba3-direct-1016149501586345', metaId: '1016149501586345', display: '+91 93309 94400', name: 'WECARE.DIGITAL', wabaId: '2094615664435155', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: false, directApi: true, pendingRegistration: true },
+  { id: 'phone-number-id-waba1-direct-1016149501586345', metaId: '1016149501586345', display: '+91 93309 94400', name: 'WECARE.DIGITAL', wabaId: '2094615664435155', country: 'IN', tier: 'TIER_1K', quality: 'GREEN', callingReady: true, directApi: true },
   { id: 'phone-number-id-waba-t-direct-1055232054343117', metaId: '1055232054343117', display: '+91 99033 00044', name: 'Manish Agarwal', wabaId: '2513394156072604', country: 'IN', tier: 'TIER_10K', quality: 'GREEN', callingReady: true, directApi: true },
 ];
 
@@ -184,7 +184,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const [autoPickup, setAutoPickup] = useState(true);
   const [autoPickupLoading, setAutoPickupLoading] = useState(false);
   const [autoPickupMode, setAutoPickupMode] = useState<'manual' | 'ivr'>('ivr');
-  const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/IVR+1.mp3');
+  const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16');
   const [activeCalls, setActiveCalls] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<any[]>([]);
   const [loadingCalls, setLoadingCalls] = useState(false);
@@ -943,7 +943,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             <div style={{ ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '200px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>IVR Audio URL</label>
-                <input value={ivrUrl} onChange={e => setIvrUrl(e.target.value)} placeholder="https://app.wecare.digital/stream/media/ivr/IVR+1.mp3"
+                <input value={ivrUrl} onChange={e => setIvrUrl(e.target.value)} placeholder="https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16"
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }} />
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' }}>
@@ -963,6 +963,31 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   style={{ padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', color: '#374151' }}>
                   ▶ Test Play
                 </a>
+              </div>
+            </div>
+
+            {/* Post-Call SMS Configuration */}
+            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#0f2a1d' }}>Post-Call SMS (sent after every call ends)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                <div style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontWeight: 600, color: '#111827', marginBottom: '4px' }}>🇮🇳 Indian Numbers (+91)</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Provider: Airtel IQ</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Sender: WDBEEP</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>DLT Template: 1007277993798259629</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Template: ivr-default</div>
+                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' }}>REGISTERED</span>
+                </div>
+                <div style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontWeight: 600, color: '#111827', marginBottom: '4px' }}>🌍 International Numbers</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Provider: AWS Pinpoint / SNS</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Sender ID: WECARE</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>App: c40d842c24b14fd5931f50d6ce1bb06d</div>
+                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontSize: '10px' }}>AWS SNS</span>
+                </div>
+              </div>
+              <div style={{ marginTop: '8px', padding: '8px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', fontFamily: 'monospace', fontSize: '11px', color: '#374151', whiteSpace: 'pre-line' }}>
+                {`Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.`}
               </div>
             </div>
 

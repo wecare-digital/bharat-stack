@@ -183,7 +183,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   /* Invoice action handlers */
   const PHONE_OPTIONS = [
     { id: 'phone-number-id-waba-t-direct-1055232054343117', label: '+91 99033 00044' },
-    { id: 'phone-number-id-waba3-direct-1016149501586345', label: '+91 93309 94400 (pending)' },
+    { id: 'phone-number-id-waba1-direct-1016149501586345', label: '+91 93309 94400' },
   ];
   const PG_OPTIONS = [
     { id: 'razorpay', label: 'Razorpay' },

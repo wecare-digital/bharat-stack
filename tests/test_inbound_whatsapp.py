@@ -17,8 +17,8 @@ def _make_sns_event(webhook_entry: dict) -> dict:
             'Sns': {
                 'Message': json.dumps({
                     'context': {
-                        'MetaWabaIds': ['1912405516040025'],
-                        'MetaPhoneNumberIds': ['960395407161423'],
+                        'MetaWabaIds': ['2094615664435155'],
+                        'MetaPhoneNumberIds': ['1016149501586345'],
                     },
                     'whatsAppWebhookEntry': json.dumps(webhook_entry),
                     'messageId': 'test-msg-id',
@@ -36,7 +36,7 @@ def _make_text_webhook(from_phone='919330994400', text='Hello', msg_id='wamid.te
                 'messaging_product': 'whatsapp',
                 'metadata': {
                     'display_phone_number': '919330994400',
-                    'phone_number_id': '960395407161423',
+                    'phone_number_id': '1016149501586345',
                 },
                 'contacts': [{
                     'profile': {'name': 'Test User'},
@@ -64,7 +64,7 @@ def _make_status_webhook(msg_id='wamid.test123', status='delivered'):
                 'messaging_product': 'whatsapp',
                 'metadata': {
                     'display_phone_number': '919330994400',
-                    'phone_number_id': '960395407161423',
+                    'phone_number_id': '1016149501586345',
                 },
                 'statuses': [{
                     'id': msg_id,
@@ -106,7 +106,7 @@ class TestWebhookPayloadParsing:
         entry = _make_text_webhook()
         metadata = entry['changes'][0]['value']['metadata']
         assert metadata['display_phone_number'] == '919330994400'
-        assert metadata['phone_number_id'] == '960395407161423'
+        assert metadata['phone_number_id'] == '1016149501586345'
 
 
 class TestSNSEventWrapping:

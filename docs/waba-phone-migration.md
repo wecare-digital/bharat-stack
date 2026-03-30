@@ -30,42 +30,42 @@ Meta Graph API: GET /{phone_id}?fields=id,display_phone_number,platform_type
 
 ### Step 2: Migrate phone to target WABA
 ```
-POST https://graph.facebook.com/v20.0/{TARGET_WABA_ID}/phone_numbers
+POST https://graph.facebook.com/v25.0/{TARGET_WABA_ID}/phone_numbers
 Headers: Authorization: Bearer {token}
 Query: appsecret_proof={proof}
-Body: { "cc": "91", "phone_number": "8100330063", "migrate_phone_number": true }
+Body: { "cc": "91", "phone_number": "9330994400", "migrate_phone_number": true }
 ```
-Response: `{ "id": "945798751960485" }` — the phone ID on the target WABA
+Response: `{ "id": "1016149501586345" }` — the phone ID on the target WABA
 
 ### Step 3: Request OTP (voice call recommended — SMS may not arrive)
 ```
-POST https://graph.facebook.com/v20.0/{PHONE_ID}/request_code
+POST https://graph.facebook.com/v25.0/{PHONE_ID}/request_code
 Body: { "code_method": "VOICE", "language": "en" }
 ```
 
 ### Step 4: Verify OTP
 ```
-POST https://graph.facebook.com/v20.0/{PHONE_ID}/verify_code
+POST https://graph.facebook.com/v25.0/{PHONE_ID}/verify_code
 Body: { "code": "569778" }
 ```
 
 ### Step 5: Register
 ```
-POST https://graph.facebook.com/v20.0/{PHONE_ID}/register
+POST https://graph.facebook.com/v25.0/{PHONE_ID}/register
 Body: { "messaging_product": "whatsapp", "pin": "123456" }
 ```
 
 ### Step 6: Verify status
 ```
-GET https://graph.facebook.com/v20.0/{PHONE_ID}?fields=display_phone_number,status,code_verification_status
+GET https://graph.facebook.com/v25.0/{PHONE_ID}?fields=display_phone_number,status,code_verification_status
 ```
 Expected: `status: CONNECTED`, `code_verification_status: VERIFIED`
 
 ## IDs Reference
-- WABA1: 1912405516040025 (WECARE.DIGITAL — Direct API)
-- WABA2: 1633959101297902 (Manish Agarwal — legacy)
+- WABA1: 2094615664435155 (WECARE.DIGITAL — Direct API)
+- WABA2: 2513394156072604 (Manish Agarwal — legacy)
 - WABA-T: 2513394156072604 (Manish Agarwal — Direct API)
-- WABA3: 2094615664435155 (WECARE.DIGITAL — Direct API)
+- WABA1: 2094615664435155 (WECARE.DIGITAL — Direct API)
 - Business: 382642103987922
 - App: 2238810740192680
 - Secret: wecare/meta-system-user-token

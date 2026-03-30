@@ -222,12 +222,12 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     arn: `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:wecare/meta-system-user-token*`, 
     accountId: AWS_ACCOUNT_ID,
     details: [
-      '+91 93309 94400 (WECARE.DIGITAL) - WABA3 Direct API, Razorpay + UPI',
-      '+91 99033 00044 (Manish Agarwal) - WABA-T Direct API, Razorpay + PayU + UPI',
-      'WABA3: 2094615664435155 (WECARE.DIGITAL, Direct API, SIP calling)',
-      'WABA-T: 2513394156072604 (Manish Agarwal, Direct API)',
+      '+91 93309 94400 (WECARE.DIGITAL) - Direct API, Razorpay + PayU + UPI',
+      '+91 99033 00044 (Manish Agarwal) - Direct API, Razorpay + PayU + UPI',
+      'WABA1: 2094615664435155 (WECARE.DIGITAL, Direct API)',
+      'WABA2: 2513394156072604 (Manish Agarwal, Direct API)',
       'App: WECARE.DIGITAL (2238810740192680)',
-      'All messaging via Meta Graph API (no AWS EUM)',
+      'All messaging via Meta Graph API v25.0',
     ]
   },
   
@@ -2287,7 +2287,7 @@ Content-Type: application/json`}</pre>
                     <div style={{ background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9330994400</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>WECARE-PAYU</code></div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>2094615664435155</code> (pending migration)</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>2094615664435155</code> (Active, Direct API)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
@@ -2479,6 +2479,8 @@ Content-Type: application/json`}</pre>
                     📌 Our Static IP (give to Airtel for whitelisting): <code style={{ fontSize: '0.95rem', fontWeight: 700 }}>52.3.44.165</code>
                     <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' }}>Lightsail instance: wecare-voice-bot (us-east-1, Amazon Linux 2023) — SSH: <code>ssh -i lightsail_key.pem ec2-user@52.3.44.165</code></div>
                     <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' }}>Used for: SMS API, C2C API, OBD API, WhatsApp Calling (Asterisk SIP PBX)</div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' }}>SIP Trunks: +91 93309 94400 (WABA1, default) · +91 99033 00044 (WABA-T)</div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' }}>IVR: Asterisk AGI + Polly TTS (multi-language) · Both phones have SIP + IVR enabled</div>
                     <div style={{ fontSize: '0.7rem', fontWeight: 400, marginTop: '2px', color: '#E65100' }}>⚠ Status: Airtel must whitelist this IP before SMS/Voice APIs work from this server</div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>Legacy IPs (do NOT remove): 125.19.17.212, 125.17.6.54, 122.187.47.153</div>
@@ -2895,7 +2897,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>messages</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA_+919330994400</span><code style={{ color: '#111827' }}>2094615664435155 (WECARE.DIGITAL, Direct API)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>WABA_+919903300044</span><code style={{ color: '#111827' }}>2513394156072604 (Manish Agarwal, Direct API)</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App</span><code style={{ color: '#111827' }}>2238810740192680 (WECARE.DIGITAL)</code></div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#0f2a1d', marginTop: '0.75rem', fontStyle: 'italic' }}>
                     Webhook via Direct Meta Graph API — override_callback_uri on each WABA.
@@ -2922,7 +2924,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Verify Token</span><code style={{ color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' }}>{WHATSAPP_CALLING_VERIFY_TOKEN || '(not configured)'}</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Subscribed Fields</span><code style={{ color: '#111827' }}>messages, calls</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Lambda</span><code style={{ color: '#111827' }}>wecare-whatsapp-calling</code></div>
-                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App ID</span><code style={{ color: '#111827' }}>891766673609917 (wecare_token)</code></div>
+                    <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>Meta App ID</span><code style={{ color: '#111827' }}>2238810740192680 (WECARE.DIGITAL)</code></div>
                     <div><span style={{ color: '#6b7280', fontSize: '0.75rem', display: 'block' }}>DynamoDB Table</span><code style={{ color: '#111827' }}>WhatsAppCallingTable</code></div>
                   </div>
 
@@ -2952,15 +2954,17 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Phone Numbers (Calling-Ready)</h4>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' }}>Phone Numbers (Calling + SIP Ready)</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>+91 93309 94400 (WECARE.DIGITAL)</label>
-                      <code style={{ fontSize: '0.8rem', color: '#111827' }}>Meta ID: 960395407161423 · TIER_1K</code>
+                      <code style={{ fontSize: '0.8rem', color: '#111827' }}>Meta ID: 1016149501586345</code>
+                      <div style={{ fontSize: '0.7rem', color: '#25D366' }}>SIP: sip.wecare.digital:5061 · SDES</div>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>+91 99033 00044 (Manish Agarwal)</label>
-                      <code style={{ fontSize: '0.8rem', color: '#111827' }}>Meta ID: 997428863451102 · TIER_10K</code>
+                      <code style={{ fontSize: '0.8rem', color: '#111827' }}>Meta ID: 1055232054343117</code>
+                      <div style={{ fontSize: '0.7rem', color: '#25D366' }}>SIP: sip.wecare.digital:5061 · SDES</div>
                     </div>
                   </div>
                 </div>

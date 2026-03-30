@@ -28,13 +28,13 @@
  *   VERIFY_TOKEN: wecare_calling_verify_2026
  *   CALL_LOG_TABLE: stack-wecare-digital-WhatsAppCallingTable
  *   META_TOKEN_SECRET: wecare/meta-system-user-token
- *   META_API_VERSION: v20.0
+ *   META_API_VERSION: v25.0
  *   SYSTEM_CONFIG_TABLE: stack-wecare-digital-SystemConfigTable
  *   MEDIA_BUCKET: app.wecare.digital
  *   AUTO_PICKUP_AUDIO_KEY: whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg
  *   AUTO_PICKUP_ENABLED: true (default ON, overridden by SystemConfig)
- *   AUTO_PICKUP_IVR_URL: https://app.wecare.digital/stream/media/ivr/ivr.mp3
- *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-waba3-direct-1016149501586345
+ *   AUTO_PICKUP_IVR_URL: https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16
+ *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-waba1-direct-1016149501586345
  *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-waba-t-direct-1055232054343117
  *   INBOUND_HANDLER_FUNCTION: wecare-inbound-whatsapp (for forwarding messages)
  *   AI_AGENT_ID: Z4YAK0ZLBO (external Bedrock agent)

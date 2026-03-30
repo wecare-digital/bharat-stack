@@ -133,7 +133,7 @@ class TestCallEventHandling:
             'session': {'sdp': 'v=0\r\n...', 'sdp_type': 'offer'},
             'timestamp': str(int(time.time())),
         }
-        metadata = {'phone_number_id': '960395407161423', 'display_phone_number': '919330994400'}
+        metadata = {'phone_number_id': '1016149501586345', 'display_phone_number': '919330994400'}
         with patch('handler._store_call_log') as mock_store:
             self.handle_event('waba-1', call, metadata, [], 'req-1')
             mock_store.assert_called_once()
@@ -150,7 +150,7 @@ class TestCallEventHandling:
             'duration': 45,
             'timestamp': str(int(time.time())),
         }
-        metadata = {'phone_number_id': '960395407161423'}
+        metadata = {'phone_number_id': '1016149501586345'}
         with patch('handler._store_call_log') as mock_store, \
              patch('handler._send_post_call_reaction'):
             self.handle_event('waba-1', call, metadata, [], 'req-2')
@@ -166,7 +166,7 @@ class TestCallEventHandling:
             'from': '+919330994400',
             'timestamp': str(int(time.time())),
         }
-        metadata = {'phone_number_id': '960395407161423'}
+        metadata = {'phone_number_id': '1016149501586345'}
         with patch('handler._store_call_log') as mock_store:
             self.handle_event('waba-1', call, metadata, [], 'req-3')
             mock_store.assert_called_once()
@@ -183,7 +183,7 @@ class TestCallEventHandling:
             'timestamp': str(int(time.time())),
         }
         contacts = [{'profile': {'name': 'Test User', 'username': '@testuser'}, 'user_id': 'IN.123456'}]
-        metadata = {'phone_number_id': '960395407161423'}
+        metadata = {'phone_number_id': '1016149501586345'}
         with patch('handler._store_call_log') as mock_store:
             self.handle_event('waba-1', call, metadata, contacts, 'req-4')
             stored = mock_store.call_args[0][0]
@@ -204,13 +204,13 @@ class TestCredentialRouting:
                 self.handler = handler
 
     def test_waba1_uses_token1(self):
-        """WABA1 phone (960395407161423) should resolve to token1."""
+        """WABA1 phone (1016149501586345) should resolve to token1."""
         with patch.object(self.handler, '_token_cache', {
             'loaded': True, 'token1': 'tok_waba1', 'token2': 'tok_waba2',
             'app_secret1': 'sec1', 'app_secret2': 'sec2',
         }):
-            assert self.handler._get_meta_token('960395407161423') == 'tok_waba1'
-            assert self.handler._get_app_secret('960395407161423') == 'sec1'
+            assert self.handler._get_meta_token('1016149501586345') == 'tok_waba1'
+            assert self.handler._get_app_secret('1016149501586345') == 'sec1'
 
     def test_waba2_uses_token2(self):
         """WABA2 phone (997428863451102) should resolve to token2."""
@@ -222,21 +222,12 @@ class TestCredentialRouting:
             assert self.handler._get_app_secret('997428863451102') == 'sec2'
 
     def test_waba2_id_uses_token2(self):
-        """WABA2 ID (1633959101297902) should also resolve to token2."""
+        """WABA2 ID (2513394156072604) should also resolve to token2."""
         with patch.object(self.handler, '_token_cache', {
             'loaded': True, 'token1': 'tok_waba1', 'token2': 'tok_waba2',
             'app_secret1': 'sec1', 'app_secret2': 'sec2',
         }):
-            assert self.handler._get_meta_token('1633959101297902') == 'tok_waba2'
-
-    def test_waba3_uses_token1(self):
-        """WABA3 phone (945798751960485) should resolve to token1."""
-        with patch.object(self.handler, '_token_cache', {
-            'loaded': True, 'token1': 'tok_waba1', 'token2': 'tok_waba2',
-            'app_secret1': 'sec1', 'app_secret2': 'sec2',
-        }):
-            assert self.handler._get_meta_token('945798751960485') == 'tok_waba1'
-            assert self.handler._get_app_secret('945798751960485') == 'sec1'
+            assert self.handler._get_meta_token('2513394156072604') == 'tok_waba2'
 
     def test_unknown_phone_defaults_to_token1(self):
         """Unknown phone_number_id should default to token1."""
@@ -326,28 +317,28 @@ class TestIVRAutoPickup:
              patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
              patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
              patch('time.sleep'):
-            self.handler._auto_pickup_and_play('call-1', '960395407161423', '+919876543210', 'sdp')
+            self.handler._auto_pickup_and_play('call-1', '1016149501586345', '+919876543210', 'sdp')
             # Should call Meta API for pre_accept and terminate
             api_calls = mock_api.call_args_list
             assert len(api_calls) == 2
             assert api_calls[0][0][2]['action'] == 'pre_accept'
             assert api_calls[1][0][2]['action'] == 'terminate'
             # Should send IVR menu
-            mock_menu.assert_called_once_with('960395407161423', '+919876543210', 'call-1')
+            mock_menu.assert_called_once_with('1016149501586345', '+919876543210', 'call-1')
 
-    def test_direct_api_phone_full_flow(self):
-        """Direct API phones (WABA3) should do pre_accept → IVR menu → terminate."""
+    def test_direct_api_phone2_full_flow(self):
+        """Phone 2 (WABA-T) should do pre_accept → IVR menu → terminate."""
         with patch.object(self.handler, '_update_call_status') as mock_status, \
              patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
              patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
              patch('time.sleep'):
-            self.handler._auto_pickup_and_play('call-2', '945798751960485', '+919876543210', 'sdp')
+            self.handler._auto_pickup_and_play('call-2', '1055232054343117', '+919876543210', 'sdp')
             # Should call Meta API for pre_accept and terminate
             api_calls = mock_api.call_args_list
             assert len(api_calls) == 2
-            assert api_calls[0][0][0] == '945798751960485/calls'
+            assert api_calls[0][0][0] == '1055232054343117/calls'
             assert api_calls[0][1].get('payload', api_calls[0][0][2])['action'] == 'pre_accept'
-            assert api_calls[1][0][0] == '945798751960485/calls'
+            assert api_calls[1][0][0] == '1055232054343117/calls'
             assert api_calls[1][1].get('payload', api_calls[1][0][2])['action'] == 'terminate'
             # Should send IVR menu
             mock_menu.assert_called_once()
@@ -370,13 +361,13 @@ class TestIVRAutoPickup:
             'direction': 'USER_INITIATED', 'session': {'sdp': 'v=0\r\n'},
             'timestamp': str(int(time.time())),
         }
-        metadata = {'phone_number_id': '945798751960485', 'display_phone_number': '918100330063'}
+        metadata = {'phone_number_id': '1016149501586345', 'display_phone_number': '919330994400'}
         with patch.object(self.handler, '_store_call_log'), \
              patch.object(self.handler, '_is_auto_pickup_enabled', return_value=True), \
              patch.object(self.handler, '_get_auto_pickup_mode', return_value='ivr'), \
              patch.object(self.handler, '_auto_pickup_and_play') as mock_ivr:
-            self.handler._handle_call_event('waba-3', call, metadata, [], 'req-1')
-            mock_ivr.assert_called_once_with('call-ivr-1', '945798751960485', '+919876543210', 'v=0\r\n')
+            self.handler._handle_call_event('waba-1', call, metadata, [], 'req-1')
+            mock_ivr.assert_called_once_with('call-ivr-1', '1016149501586345', '+919876543210', 'v=0\r\n')
 
     def test_manual_mode_does_not_trigger_ivr(self):
         """When pickup_mode is 'manual', _handle_call_event should NOT call _auto_pickup_and_play."""
@@ -385,19 +376,19 @@ class TestIVRAutoPickup:
             'direction': 'USER_INITIATED', 'session': {'sdp': 'v=0\r\n'},
             'timestamp': str(int(time.time())),
         }
-        metadata = {'phone_number_id': '945798751960485', 'display_phone_number': '918100330063'}
+        metadata = {'phone_number_id': '1016149501586345', 'display_phone_number': '919330994400'}
         with patch.object(self.handler, '_store_call_log'), \
              patch.object(self.handler, '_is_auto_pickup_enabled', return_value=True), \
              patch.object(self.handler, '_get_auto_pickup_mode', return_value='manual'), \
              patch.object(self.handler, '_auto_pickup_and_play') as mock_ivr, \
              patch.object(self.handler, '_meta_api_call', return_value={'success': True}), \
              patch.object(self.handler, '_update_call_status'):
-            self.handler._handle_call_event('waba-3', call, metadata, [], 'req-2')
+            self.handler._handle_call_event('waba-1', call, metadata, [], 'req-2')
             mock_ivr.assert_not_called()
 
 
 class TestIVRMenuParity:
-    """Test that IVR menus for affected WABAs match WABA3 baseline."""
+    """Test that IVR menus are unified across all phones."""
 
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -408,29 +399,28 @@ class TestIVRMenuParity:
                 import handler
                 self.handler = handler
 
-    def test_waba1_ivr_menu_matches_waba3(self):
-        """WABA1 IVR menu should have same buttons as WABA3."""
-        waba1_menu = self.handler.IVR_MENUS.get(self.handler.PHONE1_META_ID, {})
-        waba3_menu = self.handler.IVR_MENUS.get(self.handler.WABA3_PHONE_META_ID, {})
-        waba1_buttons = [b['id'] for b in waba1_menu.get('buttons', [])]
-        waba3_buttons = [b['id'] for b in waba3_menu.get('buttons', [])]
-        assert waba1_buttons == waba3_buttons, (
-            f"WABA1 buttons {waba1_buttons} differ from WABA3 {waba3_buttons}"
+    def test_phone1_and_phone2_ivr_menus_match(self):
+        """Phone 1 and Phone 2 IVR menus should be identical."""
+        phone1_menu = self.handler.IVR_MENUS.get(self.handler.PHONE1_META_ID, {})
+        phone2_menu = self.handler.IVR_MENUS.get(self.handler.PHONE2_META_ID, {})
+        phone1_buttons = [b['id'] for b in phone1_menu.get('buttons', [])]
+        phone2_buttons = [b['id'] for b in phone2_menu.get('buttons', [])]
+        assert phone1_buttons == phone2_buttons, (
+            f"Phone 1 buttons {phone1_buttons} differ from Phone 2 {phone2_buttons}"
         )
 
-    def test_waba3_ivr_menu_has_required_buttons(self):
-        """WABA3 IVR menu should have sales, support, and AI buttons."""
-        waba3_menu = self.handler.IVR_MENUS.get(self.handler.WABA3_PHONE_META_ID, {})
-        button_ids = [b['id'] for b in waba3_menu.get('buttons', [])]
-        assert 'ivr_sales' in button_ids
+    def test_ivr_menu_has_required_buttons(self):
+        """IVR menu should have callback, support, and AI buttons."""
+        menu = self.handler.IVR_MENUS.get(self.handler.PHONE1_META_ID, {})
+        button_ids = [b['id'] for b in menu.get('buttons', [])]
+        assert 'ivr_callback' in button_ids
         assert 'ivr_support' in button_ids
         assert 'ivr_ai' in button_ids
 
-    def test_eum_phones_set_correctly(self):
-        """EUM_MANAGED_META_PHONE_IDS should contain WABA1 and WABA2 phones only."""
-        assert self.handler.PHONE1_META_ID in self.handler.EUM_MANAGED_META_PHONE_IDS
-        assert self.handler.PHONE2_META_ID in self.handler.EUM_MANAGED_META_PHONE_IDS
-        assert self.handler.WABA3_PHONE_META_ID not in self.handler.EUM_MANAGED_META_PHONE_IDS
+    def test_all_phones_use_direct_api(self):
+        """All phones should be in DIRECT_API_META_PHONE_IDS."""
+        assert self.handler.PHONE1_META_ID in self.handler.DIRECT_API_META_PHONE_IDS
+        assert self.handler.PHONE2_META_ID in self.handler.DIRECT_API_META_PHONE_IDS
 
     def test_default_ivr_menu_has_buttons(self):
         """Default IVR menu should have at least 2 buttons."""

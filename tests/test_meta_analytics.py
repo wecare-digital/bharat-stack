@@ -21,7 +21,7 @@ def mock_aws():
     with patch.dict(os.environ, {
         'AWS_REGION': 'us-east-1',
         'META_TOKEN_SECRET': 'wecare/meta-system-user-token',
-        'META_API_VERSION': 'v20.0',
+        'META_API_VERSION': 'v25.0',
     }):
         with patch('boto3.client') as mock_client:
             mock_secrets = MagicMock()

@@ -32,7 +32,7 @@ export const whatsappBusinessApi = defineFunction({
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    META_API_VERSION: 'v20.0',
+    META_API_VERSION: 'v25.0',
     META_TOKEN_SECRET: 'wecare/meta-system-user-token',
     WIX_ORDERS_CACHE_TABLE: 'stack-wecare-digital-WixOrdersCache',
     WIX_ORDER_IDS_TABLE: 'stack-wecare-digital-WixOrderIds',

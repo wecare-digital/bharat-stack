@@ -11,7 +11,7 @@ export const outboundSms = defineFunction({
     LOG_LEVEL: 'INFO',
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     MESSAGES_TABLE: 'stack-wecare-digital-MessagesTable',
-    PINPOINT_APP_ID: '',
+    PINPOINT_APP_ID: 'c40d842c24b14fd5931f50d6ce1bb06d',
     ORIGINATION_NUMBER: '',
     SENDER_ID: 'WDBEEP',
     // Airtel IQ SMS Configuration

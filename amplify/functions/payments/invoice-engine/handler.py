@@ -1596,7 +1596,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         stored_config = payment_configuration or invoice.get('paymentConfiguration', '')
         # WABA 1 configs contain 'WECARE-' prefix, WABA 2 configs don't
         if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
-            phone_number_id = 'phone-number-id-waba3-direct-1016149501586345'  # Phone 1
+            phone_number_id = 'phone-number-id-waba1-direct-1016149501586345'  # Phone 1
         else:
             phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'  # Phone 2 (default)
 
@@ -2061,7 +2061,7 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
 
     # Default phone number ID
     if not phone_number_id:
-        phone_number_id = 'phone-number-id-waba3-direct-1016149501586345'
+        phone_number_id = 'phone-number-id-waba1-direct-1016149501586345'
 
     # Call outbound-whatsapp Lambda to send image
     wa_payload = {

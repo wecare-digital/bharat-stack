@@ -16,7 +16,7 @@ MCC: 4722 (Travel agencies and tour operators)
 Purpose Code: 03 (Travel)
 
 WABA Configurations:
-- +91 9330994400 → WABA 2094615664435155 → WECARE-PAYU (pending migration)
+- +91 9330994400 → WABA 2094615664435155 → WECARE-PAYU (Active, Direct API)
 - +91 9903300044 → WABA 2513394156072604 → PayU_ManishAgarwal
 """
 
@@ -282,7 +282,7 @@ def _handle_success(payload: Dict, request_id: str) -> None:
                     stored_config = inv_items[0].get('paymentConfiguration', '')
                     # WABA 1 configs have WECARE- prefix
                     if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
-                        originating_phone_id = 'phone-number-id-waba3-direct-1016149501586345'
+                        originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
                     else:
                         originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
             except Exception:

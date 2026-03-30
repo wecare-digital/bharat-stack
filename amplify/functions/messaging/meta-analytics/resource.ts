@@ -12,7 +12,7 @@ export const metaAnalytics = {
   memorySize: 256,
   environment: {
     META_TOKEN_SECRET: 'wecare/meta-system-user-token',
-    META_API_VERSION: 'v20.0',
+    META_API_VERSION: 'v25.0',
     WABA1_ID: '2094615664435155',
     WABA2_ID: '2513394156072604',
     PHONE1_META_ID: '1016149501586345',

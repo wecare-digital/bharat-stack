@@ -4,7 +4,7 @@ Inbound WhatsApp Handler Lambda Function
 Purpose: Process SNS notifications for WhatsApp messages
 Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.12, 15.4, 15.7
 
-Parses AWS EUM Social event format, stores messages, downloads media,
+Parses Meta webhook event format, stores messages, downloads media,
 updates contact timestamps for 24-hour customer service window.
 Tracks which WABA/phone number received the message.
 Integrates with AI automation when enabled in SystemConfig.
@@ -71,47 +71,42 @@ AI_CIRCUIT_BREAKER_THRESHOLD = 5   # failures before tripping
 AI_CIRCUIT_BREAKER_COOLDOWN = 300  # seconds (5 min) before retrying
 
 # WhatsApp Phone Number IDs - Map Meta phone number IDs to phone number IDs
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 
 # Map display phone numbers to phone number IDs for reference
-PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 PHONE_NUMBER_MAP = {
-    '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400 (WABA3, Direct API)
-    '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044 (WABA-T 2513394156072604, Direct API)
-    '918100330063': PHONE_NUMBER_ID_3,  # +91 81003 30063 (WABA3, Direct API)
+    '919330994400': PHONE_NUMBER_ID_1,  # +91 93309 94400 (WABA1, Direct API)
+    '919903300044': PHONE_NUMBER_ID_2,  # +91 99033 00044 (WABA-T, Direct API)
 }
 
 # Meta phone number ID to phone number ID mapping
 META_PHONE_ID_MAP = {
-    '1016149501586345': PHONE_NUMBER_ID_1,  # WABA3 phone (+91 93309 94400, migrated)
-    '945798751960485': PHONE_NUMBER_ID_3,  # WABA3 phone (old)
-    '1055232054343117': PHONE_NUMBER_ID_2,  # WABA-T phone (+91 99033 00044, migrated)
-    '1016149501586345': PHONE_NUMBER_ID_1,  # WABA1 phone (current Meta ID)
-    '960395407161423': PHONE_NUMBER_ID_1,  # WABA1 phone (old Meta ID, fallback)
+    '1016149501586345': PHONE_NUMBER_ID_1,  # +91 93309 94400 (Direct API)
+    '1055232054343117': PHONE_NUMBER_ID_2,  # +91 99033 00044 (Direct API)
 }
 
 # All phones use Direct API
-DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2, PHONE_NUMBER_ID_3}
+DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
 
 def _is_direct_api_phone(phone_number_id: str) -> bool:
-    """Check if a phone number ID belongs to a Direct API WABA (no EUM)."""
+    """Check if a phone number ID belongs to a Direct API WABA."""
     return phone_number_id in DIRECT_API_PHONE_IDS
 
 
-# ── WABA3 Direct API support ────────────────────────────────────────
-# WABA3 doesn't use EUM — send messages via Meta Graph API directly.
+# ── Direct API support ──────────────────────────────────────────────
+# All WABAs use Direct Meta Graph API for messaging.
 # Token loaded from Secrets Manager (same secret as calling handler).
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
-WABA3_PHONE_META_ID = '1016149501586345'  # +91 93309 94400 (migrated to WABA3, pending registration)
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+PHONE1_META_ID = '1016149501586345'  # +91 93309 94400 (WABA1, Direct API)
 _direct_api_token_cache = {}
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 
 def _load_direct_api_token() -> str:
-    """Load Meta access token for WABA3 Direct API calls (cached)."""
+    """Load Meta access token for Direct API calls (cached)."""
     if 'token' in _direct_api_token_cache:
         return _direct_api_token_cache['token']
     try:
@@ -133,14 +128,13 @@ def _load_direct_api_token() -> str:
 def _get_meta_phone_id_for_direct_api(aws_phone_id: str) -> str:
     """Get the Meta phone ID for a Direct API phone number."""
     DIRECT_API_META_MAP = {
-        PHONE_NUMBER_ID_1: '1016149501586345',  # +91 93309 94400 (WABA3)
+        PHONE_NUMBER_ID_1: '1016149501586345',  # +91 93309 94400 (WABA1)
         PHONE_NUMBER_ID_2: '1055232054343117',  # +91 99033 00044 (WABA-T)
-        PHONE_NUMBER_ID_3: '945798751960485',   # +91 81003 30063 (WABA3 alt)
     }
     meta_id = DIRECT_API_META_MAP.get(aws_phone_id)
     if meta_id:
         return meta_id
-    # Fallback: extract from direct format phone-number-id-waba3-direct-{meta_id}
+    # Fallback: extract from direct format phone-number-id-*-direct-{meta_id}
     if '-direct-' in aws_phone_id:
         return aws_phone_id.split('-direct-')[-1]
     # Last resort: use WABA-T phone (confirmed working)
@@ -162,7 +156,7 @@ def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_i
     message_payload['to'] = to_number
     message_payload['messaging_product'] = 'whatsapp'
 
-    phone_id = meta_phone_id or _current_direct_api_phone or WABA3_PHONE_META_ID
+    phone_id = meta_phone_id or _current_direct_api_phone or PHONE1_META_ID
     url = f"https://graph.facebook.com/{META_API_VERSION}/{phone_id}/messages"
     app_secret = _direct_api_token_cache.get('app_secret', '')
     if app_secret:
@@ -194,7 +188,7 @@ def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_i
 
 
 def _send_direct_api_reaction(to_number: str, whatsapp_message_id: str, emoji: str = '\U0001F44D') -> Dict:
-    """Send a reaction via Meta Graph API for WABA3 (Direct API)."""
+    """Send a reaction via Meta Graph API via Direct API."""
     payload = {
         'type': 'reaction',
         'reaction': {
@@ -215,7 +209,7 @@ def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str =
         'status': 'read',
         'message_id': whatsapp_message_id
     }
-    phone_id = meta_phone_id or _current_direct_api_phone or WABA3_PHONE_META_ID
+    phone_id = meta_phone_id or _current_direct_api_phone or PHONE1_META_ID
     url = f"https://graph.facebook.com/{META_API_VERSION}/{phone_id}/messages"
     app_secret = _direct_api_token_cache.get('app_secret', '')
     if app_secret:
@@ -233,17 +227,17 @@ def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str =
 
 
 def _send_direct_api_typing(to_number: str) -> Dict:
-    """Send typing indicator via Meta Graph API for WABA3 (Direct API).
+    """Send typing indicator via Meta Graph API via Direct API.
     Uses read receipt as proxy since Meta doesn't expose typing via API."""
     # Meta doesn't have a public typing indicator API for Cloud API.
-    # We use read receipt as the closest proxy (same as EUM path).
+    # We use read receipt as the closest proxy.
     # This is a no-op placeholder — the read receipt already signals engagement.
     return {'success': True, 'note': 'typing_proxy_via_read_receipt'}
 
 
 def _download_media_direct_api(whatsapp_media_id: str, message_id: str, media_type: str,
                                 request_id: str, mime_type_hint: str = '') -> Optional[str]:
-    """Download media via Meta Graph API for WABA3 (Direct API).
+    """Download media via Meta Graph API via Direct API.
     
     Two-step process:
     1. GET /{media_id} to get the download URL
@@ -340,7 +334,7 @@ PAY_MSG = {
 }
 
 # Phone number ID that handles payments (Phone 1: +919330994400 / WECARE.DIGITAL)
-PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-waba3-direct-1016149501586345'
+PAYMENT_PHONE_NUMBER_ID = 'phone-number-id-waba1-direct-1016149501586345'
 
 # WhatsApp Flow IDs
 SUBMIT_REQUEST_FLOW_ID = os.environ.get('SUBMIT_REQUEST_FLOW_ID', '1235100738173254')
@@ -350,7 +344,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Process inbound WhatsApp messages from SNS.
     
-    AWS EUM Social Event Format:
+    Meta Webhook Event Format:
     {
         "context": { "MetaWabaIds": [...], "MetaPhoneNumberIds": [...] },
         "whatsAppWebhookEntry": "{...JSON STRING...}",
@@ -654,9 +648,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def _get_aws_phone_number_id(display_phone: str, meta_phone_id: str) -> str:
     """
-    Map display phone number or Meta phone ID to AWS EUM phone number ID.
+    Map display phone number or Meta phone ID to phone number ID.
     Returns the appropriate AWS phone number ID for sending reactions.
-    For WABA3 (Direct API), returns a synthetic ID for tracking purposes.
+    For Direct API phones, returns a synthetic ID for tracking purposes.
     """
     # Clean display phone number (remove + and spaces)
     clean_phone = display_phone.replace('+', '').replace(' ', '').replace('-', '')
@@ -752,7 +746,7 @@ def _process_message(
     expires_at = now + MESSAGE_TTL_SECONDS
     
     # Handle media messages (including stickers)
-    # Use EUM for WABA1/WABA2, Direct API for WABA3
+    # All phones use Direct API
     media_id = None
     s3_key = None
     if msg_type in ['image', 'video', 'audio', 'document', 'sticker']:
@@ -974,14 +968,14 @@ def _process_message(
     
     # Auto-react with thumbs up (skip reactions to avoid loops)
     # Use the same phone number that received the message
-    # Direct API for all phones now (no EUM)
+    # Direct API for all phones
     if msg_type != 'reaction':
         # Set the current Direct API phone context for this message
         global _current_direct_api_phone
         _current_direct_api_phone = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
         
         if _is_direct_api_phone(aws_phone_number_id):
-            # WABA3: Send reaction and read receipt via Meta Graph API
+            # Send reaction and read receipt via Meta Graph API
             try:
                 _send_direct_api_reaction(sender_phone, whatsapp_message_id)
                 logger.info(json.dumps({
@@ -1688,7 +1682,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
                     mime_type_hint: str = '') -> Optional[str]:
     """
     Download media file from WhatsApp.
-    Routes to Direct API for Direct API phones, EUM for others.
+    Routes to Direct API for all phones.
     
     Per AWS docs (S3File.key): The key is a PREFIX — AWS appends the WhatsApp
     mediaId to create the final file path. For example:
@@ -3195,7 +3189,7 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
                 'note': 'Will try to send using phone number directly'
             }))
             # Create a minimal contact object with phone number
-            # Format phone for WhatsApp: +918100330063
+            # Format phone for WhatsApp: +91XXXXXXXXXX
             formatted_phone = f'+{recipient_id}' if not recipient_id.startswith('+') else recipient_id
             contact = {'id': '', 'phone': formatted_phone}
         
@@ -5568,14 +5562,14 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
     """
     Send WhatsApp typing indicator so the customer sees engagement while AI processes.
     
-    AWS EUM Social API does not expose a native typing indicator endpoint.
+    Meta Graph API does not expose a native typing indicator endpoint.
     We send a read receipt (blue ticks) as the closest proxy — this signals
     to the customer that their message was seen and a response is coming.
     """
     if not sender_phone or not phone_number_id:
         return
 
-    # Use Direct API read receipt as typing proxy for WABA3
+    # Use Direct API read receipt as typing proxy
     if _is_direct_api_phone(phone_number_id):
         try:
             # For Direct API phones, we already sent read receipt in the auto-reaction block.
@@ -5609,7 +5603,7 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
             _send_direct_api_read_receipt(whatsapp_message_id if 'whatsapp_message_id' in dir() else '', meta_phone_id=meta_pid)
         else:
             # Fallback: try Direct API with default phone
-            _send_direct_api_read_receipt('', meta_phone_id=_current_direct_api_phone or WABA3_PHONE_META_ID)
+            _send_direct_api_read_receipt('', meta_phone_id=_current_direct_api_phone or PHONE1_META_ID)
 
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',

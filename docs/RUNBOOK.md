@@ -158,9 +158,9 @@ aws lambda publish-layer-version --layer-name wecare-lambda-utils --zip-file fil
 
 | Property | WABA 1 | WABA 2 |
 |----------|--------|--------|
-| Meta WABA ID | 1912405516040025 | 1633959101297902 |
+| Meta WABA ID | 2094615664435155 | 2513394156072604 |
 | Phone Meta ID | 960395407161423 | 997428863451102 |
-| Phone Direct API ID | phone-number-id-waba3-direct-1016149501586345 | phone-number-id-waba-t-direct-1055232054343117 |
+| Phone Direct API ID | phone-number-id-waba1-direct-1016149501586345 | phone-number-id-waba-t-direct-1055232054343117 |
 | Display Phone | +91 9330994400 | +91 9903300044 |
 | Token Secret Key | access_token | access_token_waba2 |
 | App Secret Key | app_secret | app_secret_waba2 |

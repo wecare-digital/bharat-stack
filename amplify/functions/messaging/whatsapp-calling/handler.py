@@ -55,7 +55,7 @@ if not VERIFY_TOKEN:
     logging.getLogger(__name__).warning('VERIFY_TOKEN not set — webhook verification will reject all requests')
 CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'stack-wecare-digital-WhatsAppCallingTable')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 # Meta WhatsApp Calling error codes (from Meta Troubleshooting docs)
@@ -88,10 +88,6 @@ PHONE2_META_ID = '1055232054343117'  # New Meta phone ID after migration
 # WABA2 now uses WECARE.DIGITAL app (token1), not Manish app
 WABA2_IDS = set()  # No longer need separate token routing for WABA2
 
-# WABA3 (Direct API) — +91 93309 94400 migrated here (pending registration)
-WABA3_ID = '2094615664435155'
-WABA3_PHONE_META_ID = '1016149501586345'  # New phone ID after migration
-
 # Inbound handler Lambda for forwarding non-call webhook events (messages, statuses)
 INBOUND_HANDLER_FUNCTION = os.environ.get('INBOUND_HANDLER_FUNCTION', 'wecare-inbound-whatsapp')
 lambda_client = boto3.client('lambda', region_name=REGION)
@@ -105,7 +101,7 @@ _token_cache = {}
 def _get_meta_token(phone_number_id: str = None) -> str:
     """Get the Meta token for calling operations.
     
-    WABA1/WABA3 use token1 (Meta App: WECARE.DIGITAL / 2238810740192680).
+    WABA1 uses token1 (Meta App: WECARE.DIGITAL / 2238810740192680).
     WABA-T also uses token1 (Meta App: WECARE.DIGITAL / 2238810740192680).
     
     All WABAs now use Direct Meta API for calling and messaging.
@@ -453,7 +449,7 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
                 for call in calls:
                     _handle_call_event(waba_id, call, metadata, contacts, request_id)
             elif field == 'messages':
-                # Forward message events to inbound handler (WABA3 Direct API)
+                # Forward message events to inbound handler (Direct API)
                 _forward_to_inbound_handler(entry, waba_id, request_id)
             elif field == 'account_settings_update':
                 # Calling settings update webhook (status, call_icon_visibility, sip.status, etc.)
@@ -484,7 +480,7 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
 def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> None:
     """
     Forward non-call webhook events (messages, statuses) to the inbound handler.
-    WABA3 uses Direct API with override_callback_uri, so messages arrive here
+    Direct API uses override_callback_uri, so messages arrive here
     instead of via the standard webhook. We wrap them in the expected format the
     inbound handler expects and invoke it asynchronously.
     """
@@ -816,12 +812,11 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
 
     # Step 2: Send post-call message
     post_msg = (
-        "📞 Thanks for calling WECARE.DIGITAL!\n\n"
-        "We noticed you just called. How can we help?\n\n"
-        "• Type your question here\n"
-        "• Send a voice note for instant AI help 🎙️\n"
-        "• Reply *CALLBACK* to request a callback\n\n"
-        "We're here for you 😊"
+        "Thanks for contacting WECARE.DIGITAL!\n\n"
+        "Submit your request here: https://wecare.digital/selfservice "
+        "or send us a message \U0001F4AC / voice note \U0001F3A4 on WhatsApp: "
+        "https://r.wecare.digital/wa.\n\n"
+        "We\u2019ll review it and follow up if needed."
     )
 
     result = _send_via_aws(aws_phone_id, caller_phone, {
@@ -921,6 +916,39 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.info(f"Call permission request sent to {caller_phone}")
     except Exception as e:
         logger.info(f"Call permission request failed: {e}")
+
+    # Step 5: Send post-call SMS (Airtel for Indian numbers, AWS Pinpoint for international)
+    try:
+        clean_phone = caller_phone.lstrip('+')
+        sms_text = (
+            "Thanks for contacting WECARE.DIGITAL!\n\n"
+            "Submit your request here: https://wecare.digital/selfservice "
+            "or send us a message / voice note on WhatsApp: "
+            "https://r.wecare.digital/wa.\n\n"
+            "We'll review it and follow up if needed."
+        )
+        is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
+
+        sms_payload = {
+            'rawPath': '/sms/send',
+            'requestContext': {'http': {'method': 'POST'}},
+            'body': json.dumps({
+                'phoneNumber': caller_phone,
+                'content': sms_text,
+                'provider': 'airtel' if is_indian else 'aws',
+                'messageType': 'SERVICE_IMPLICIT',
+                'dltTemplateId': '1007277993798259629' if is_indian else '',
+                'sourceAddress': 'WDBEEP',
+            }),
+        }
+        sms_result = lambda_client.invoke(
+            FunctionName='wecare-outbound-sms',
+            InvocationType='Event',
+            Payload=json.dumps(sms_payload).encode(),
+        )
+        logger.info(f"Post-call SMS triggered for {caller_phone} (provider={'airtel' if is_indian else 'aws'})")
+    except Exception as e:
+        logger.warning(f"Post-call SMS failed: {e}")
 
     return {'statusCode': 200, 'body': 'post_call_sent'}
 
@@ -1199,7 +1227,7 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/whatsapp-media/whatsapp-calling/ivr-greeting.mp3')  # Polly TTS MP3 (WhatsApp compatible)
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 # AI Bot config
@@ -1216,12 +1244,11 @@ transcribe_client = boto3.client('transcribe', region_name=REGION)
 bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
 
 # Phone number ID mapping for outbound audio via Direct API
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
-PHONE_NUMBER_ID_3 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_3', 'phone-number-id-waba3-direct-945798751960485')
 
 # All phones use Direct Meta API — full call control supported on all WABAs
-DIRECT_API_META_PHONE_IDS = {WABA3_PHONE_META_ID, PHONE1_META_ID, PHONE2_META_ID}
+DIRECT_API_META_PHONE_IDS = {PHONE1_META_ID, PHONE2_META_ID}
 
 
 def _is_auto_pickup_enabled() -> bool:
@@ -1239,8 +1266,7 @@ def _is_auto_pickup_enabled() -> bool:
 
 def _get_auto_pickup_audio_url() -> Optional[str]:
     """Get the IVR audio URL for auto-pickup greeting.
-    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/ivr.mp3
-    Can be overridden via SystemConfig table (key: whatsapp_calling_ivr_url).
+    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16
     """
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
@@ -1345,17 +1371,12 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         _update_call_status(call_id, 'ivr_active')
 
     # ── Step 3: Send IVR audio greeting as WhatsApp audio message ──
-    # This sends the IVR audio file as a chat message the caller can play.
-    # For true in-call audio, SIP mode with Asterisk is required.
     audio_url = _get_auto_pickup_audio_url()
     if audio_url:
         _send_audio_to_caller(phone_number_id, from_number, audio_url, call_id)
         logger.info(f"IVR audio sent to {from_number}: {audio_url}")
 
-    # ── Step 4: Send IVR interactive menu via WhatsApp message ──
-    _send_ivr_menu(phone_number_id, from_number, call_id)
-
-    # ── Step 5: Keep call connected briefly, then terminate ──
+    # ── Step 4: Keep call connected briefly, then terminate ──
     # Give caller time to hear the connection + see the IVR menu
     time.sleep(5)
     try:
@@ -1457,43 +1478,23 @@ def _generate_sdp_answer(sdp_offer: str) -> Optional[str]:
 # Each menu has a greeting text and interactive buttons.
 # Button IDs are prefixed with 'ivr_' so the inbound handler can route them.
 
+# Shared IVR menu — same config for all phones
+_SHARED_IVR_MENU = {
+    'greeting': (
+        "📞 *WECARE.DIGITAL* — Thanks for calling!\n\n"
+        "How can I help you today?"
+    ),
+    'buttons': [
+        {'id': 'ivr_callback', 'title': '📞 Request Callback'},
+        {'id': 'ivr_support', 'title': '💬 Chat Support'},
+        {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
+    ],
+    'footer': 'You can also send a voice note for instant AI help',
+}
+
 IVR_MENUS = {
-    PHONE1_META_ID: {
-        'greeting': (
-            "📞 *WECARE.DIGITAL* — Thanks for calling!\n\n"
-            "We're here to help. Please select an option below:"
-        ),
-        'buttons': [
-            {'id': 'ivr_sales', 'title': '🛒 Sales & Orders'},
-            {'id': 'ivr_support', 'title': '🔧 Support'},
-            {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
-        ],
-        'footer': 'Reply anytime or send a voice note for instant AI help',
-    },
-    PHONE2_META_ID: {
-        'greeting': (
-            "📞 *Manish Agarwal* — Thanks for calling!\n\n"
-            "How can I help you today?"
-        ),
-        'buttons': [
-            {'id': 'ivr_callback', 'title': '📞 Request Callback'},
-            {'id': 'ivr_support', 'title': '💬 Chat Support'},
-            {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
-        ],
-        'footer': 'You can also send a voice note for instant AI help',
-    },
-    WABA3_PHONE_META_ID: {
-        'greeting': (
-            "📞 *WECARE.DIGITAL* — Thanks for calling!\n\n"
-            "We're here to help. Please select an option below:"
-        ),
-        'buttons': [
-            {'id': 'ivr_sales', 'title': '🛒 Sales & Orders'},
-            {'id': 'ivr_support', 'title': '🔧 Support'},
-            {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
-        ],
-        'footer': 'Reply anytime or send a voice note for instant AI help',
-    },
+    PHONE1_META_ID: _SHARED_IVR_MENU,
+    PHONE2_META_ID: _SHARED_IVR_MENU,
 }
 
 # Default IVR menu for unknown phone numbers
@@ -1635,7 +1636,6 @@ def _get_aws_phone_id(meta_phone_number_id: str) -> str:
     META_TO_AWS = {
         PHONE1_META_ID: PHONE_NUMBER_ID_1,
         PHONE2_META_ID: PHONE_NUMBER_ID_2,
-        WABA3_PHONE_META_ID: PHONE_NUMBER_ID_3,
     }
     return META_TO_AWS.get(meta_phone_number_id, PHONE_NUMBER_ID_1)
 
@@ -1650,9 +1650,8 @@ def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> D
 
     # All phones use Direct API — send via Meta Graph API
     DIRECT_API_PHONES = {
-        PHONE_NUMBER_ID_1: PHONE1_META_ID,             # WABA3: +91 93309 94400 (pending registration)
+        PHONE_NUMBER_ID_1: PHONE1_META_ID,             # WABA1: +91 93309 94400
         PHONE_NUMBER_ID_2: PHONE2_META_ID,             # WABA-T: +91 99033 00044
-        PHONE_NUMBER_ID_3: WABA3_PHONE_META_ID,        # WABA3 (alias)
     }
     meta_phone_id = DIRECT_API_PHONES.get(aws_phone_id)
     if not meta_phone_id:
@@ -1833,7 +1832,7 @@ def _get_config(request_id: str) -> Dict[str, Any]:
 
 def _get_auto_pickup_mode() -> str:
     """Get auto-pickup mode from SystemConfig: 'manual' | 'ivr'.
-    AI mode removed — IVR-only approach matching WABA3 config.
+    AI mode removed — IVR-only approach.
     """
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
@@ -1843,7 +1842,7 @@ def _get_auto_pickup_mode() -> str:
             return str(item['configValue'])
     except Exception as e:
         logger.warning(f"Failed to read auto-pickup mode: {e}")
-    return 'ivr'  # default — IVR-only like WABA3
+    return 'ivr'  # default — IVR mode
 
 
 def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:

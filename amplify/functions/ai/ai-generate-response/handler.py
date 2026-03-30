@@ -4837,7 +4837,7 @@ def _tool_list_templates(params: Dict, request_id: str) -> Dict:
         token = (secret_data.get('access_token') or '').strip()
         app_secret = (secret_data.get('app_secret') or '').strip()
 
-        api_version = os.environ.get('META_API_VERSION', 'v20.0')
+        api_version = os.environ.get('META_API_VERSION', 'v25.0')
         url = f'https://graph.facebook.com/{api_version}/{waba_id}/message_templates?limit={limit}'
         if status_filter:
             url += f'&status={status_filter}'

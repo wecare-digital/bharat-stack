@@ -51,8 +51,8 @@ Single bucket: `app.wecare.digital` (versioning enabled)
 ### WhatsApp Business Accounts (WABA)
 | Name | Meta ID | WABA ID |
 |------|---------|---------|
-| WECARE.DIGITAL | 1912405516040025 | waba-e47d916f3c7a47e1a34a19653893dd4b |
-| Manish Agarwal | 1633959101297902 | waba-dbe343f210204752b74c80a0a59631a6 |
+| WECARE.DIGITAL | 2094615664435155 | waba-e47d916f3c7a47e1a34a19653893dd4b |
+| Manish Agarwal | 2513394156072604 | waba-dbe343f210204752b74c80a0a59631a6 |
 
 ## Project Structure
 

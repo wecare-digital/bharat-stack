@@ -42,7 +42,7 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/outgoing/')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
-PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba3-direct-1016149501586345')
+PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 ALLOWLIST = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
@@ -50,8 +50,8 @@ ALLOWLIST = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 # Meta phone ID for Direct API sending
 DIRECT_API_META_PHONE_MAP = {
-    'phone-number-id-waba3-direct-1016149501586345': '1016149501586345',  # +91 93309 94400 on WABA3
-    'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',  # +91 99033 00044 on WABA-T
+    'phone-number-id-waba1-direct-1016149501586345': '1016149501586345',  # +91 93309 94400 (WABA1)
+    'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',  # +91 99033 00044 (WABA-T)
 }
 
 # Secrets Manager for Direct API tokens
@@ -75,7 +75,7 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
     app_secret = _direct_api_cache['app_secret']
     meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
     
-    # Fallback: extract Meta phone ID from Direct API format phone-number-id-waba3-direct-{meta_id}
+    # Fallback: extract Meta phone ID from Direct API format phone-number-id-waba1-direct-{meta_id}
     if not meta_phone_id and '-direct-' in phone_number_id:
         meta_phone_id = phone_number_id.split('-direct-')[-1]
     # Last resort: default to WABA-T phone (the working one)
@@ -117,7 +117,7 @@ CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations
-# +919330994400 (WECARE.DIGITAL) WABA: 2094615664435155 — pending registration
+# +919330994400 (WECARE.DIGITAL) WABA: 2094615664435155 — Active, Direct API
 # +919903300044 (Manish Agarwal) WABA: 2513394156072604 — active, Direct API
 # Both use same Razorpay MID: acc_HDfub6wOfQybuH | MCC: 4722 | Purpose: 03
 # Config names MUST match exactly what's in Meta Business Manager

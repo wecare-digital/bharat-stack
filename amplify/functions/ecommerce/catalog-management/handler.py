@@ -34,13 +34,13 @@ REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v20.0')
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 CATALOG_CACHE_TABLE = os.environ.get('CATALOG_CACHE_TABLE', 'stack-wecare-digital-CatalogCacheTable')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
 WABA1_ID = os.environ.get('WABA1_ID', '2094615664435155')
-WABA2_ID = os.environ.get('WABA2_ID', '1633959101297902')
+WABA2_ID = os.environ.get('WABA2_ID', '2513394156072604')
 WABA2_IDS = {WABA2_ID}
 
 _token_cache = {}

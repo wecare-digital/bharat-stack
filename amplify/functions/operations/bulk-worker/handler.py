@@ -29,15 +29,15 @@ BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'stack-wecare-di
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-DEFAULT_PHONE_NUMBER_ID = os.environ.get('DEFAULT_PHONE_NUMBER_ID', 'phone-number-id-waba3-direct-1016149501586345')
+DEFAULT_PHONE_NUMBER_ID = os.environ.get('DEFAULT_PHONE_NUMBER_ID', 'phone-number-id-waba1-direct-1016149501586345')
 RATE_LIMIT_PER_SECOND = int(os.environ.get('RATE_LIMIT_PER_SECOND', '80'))
 
 # Direct API phone ID to Meta phone ID mapping
 DIRECT_API_META_PHONE_MAP = {
-    'phone-number-id-waba3-direct-1016149501586345': '1016149501586345',
+    'phone-number-id-waba1-direct-1016149501586345': '1016149501586345',
     'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',
 }
-META_API_VERSION = 'v20.0'
+META_API_VERSION = 'v25.0'
 _direct_api_cache = {}
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)

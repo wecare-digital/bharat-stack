@@ -50,7 +50,7 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN', 'arn:aws:sns:us-east-1:775261844268:stack-wecare-digital')
 
 # Meta Graph API config
-META_API_VERSION = 'v20.0'
+META_API_VERSION = 'v25.0'
 META_API_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 META_APP_ID = '2238810740192680'
 
@@ -63,9 +63,8 @@ META_WABA_DEFAULT = '2094615664435155'
 
 # AWS phone-number-id → Meta phone ID mapping
 AWS_PHONE_TO_META = {
-    'phone-number-id-waba3-direct-1016149501586345': '1016149501586345',
+    'phone-number-id-waba1-direct-1016149501586345': '1016149501586345',
     'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',
-    'phone-number-id-waba3-direct-945798751960485': '945798751960485',
 }
 
 # Cached Meta credentials
@@ -146,7 +145,7 @@ def _resolve_meta_phone_id(aws_phone_id: str) -> str:
     if not aws_phone_id.startswith('phone-number-id-'):
         aws_phone_id = f'phone-number-id-{aws_phone_id}'
 
-    # Direct format: phone-number-id-waba3-direct-{meta_id}
+    # Direct format: phone-number-id-waba1-direct-{meta_id}
     if '-direct-' in aws_phone_id:
         return aws_phone_id.split('-direct-')[-1]
 

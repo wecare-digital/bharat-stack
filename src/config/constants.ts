@@ -31,7 +31,7 @@ export const DEFAULT_GSTIN = process.env.NEXT_PUBLIC_DEFAULT_GSTIN || '19AADFW74
 // Payment config names must match EXACTLY what's configured on the WABA in Meta Business Manager
 export const WHATSAPP_PHONES = {
   primary: {
-    id: 'phone-number-id-waba3-direct-1016149501586345',
+    id: 'phone-number-id-waba1-direct-1016149501586345',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
     wabaId: '2094615664435155',
