@@ -1979,19 +1979,37 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         
         # For physical-goods: add beneficiaries (required by Meta for shipped goods)
         # Beneficiary info is for legal/compliance — not shown to users
+        # All fields are REQUIRED by Meta: name, address_line1, city, state, country, postal_code
         if goods_type == 'physical-goods':
             shipping_info = order_details.get('shipping_info', {})
             beneficiary_addr = shipping_info.get('addresses', [{}])
             addr = beneficiary_addr[0] if beneficiary_addr else {}
-            if addr.get('name') or addr.get('address'):
+            b_name = addr.get('name', 'Customer') or 'Customer'
+            b_addr1 = addr.get('address', addr.get('address_line1', '')) or ''
+            b_city = addr.get('city', '') or ''
+            b_state = addr.get('state', '') or ''
+            b_postal = addr.get('in_pin_code', addr.get('postal_code', '')) or ''
+
+            # Meta requires all beneficiary fields to be non-empty for physical-goods
+            # If critical fields are missing, downgrade to digital-goods to avoid rejection
+            if not b_addr1 or not b_city or not b_postal:
+                logger.warning(json.dumps({
+                    'event': 'beneficiary_incomplete_downgrade_to_digital',
+                    'missingFields': {
+                        'address_line1': not b_addr1, 'city': not b_city, 'postal_code': not b_postal,
+                    },
+                    'referenceId': ref_id,
+                }))
+                action_params['type'] = 'digital-goods'
+            else:
                 action_params['beneficiaries'] = [{
-                    'name': addr.get('name', 'Customer'),
-                    'address_line1': addr.get('address', addr.get('address_line1', '')),
-                    'address_line2': addr.get('landmark_area', addr.get('address_line2', '')),
-                    'city': addr.get('city', ''),
-                    'state': addr.get('state', ''),
+                    'name': b_name[:200],
+                    'address_line1': b_addr1[:100],
+                    'address_line2': (addr.get('landmark_area', addr.get('address_line2', '')) or '')[:100],
+                    'city': b_city,
+                    'state': b_state or b_city,  # Fallback state to city if empty
                     'country': 'India',
-                    'postal_code': addr.get('in_pin_code', addr.get('postal_code', '')),
+                    'postal_code': b_postal[:6],
                 }]
         
         interactive_payload = {
