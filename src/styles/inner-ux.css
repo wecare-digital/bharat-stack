@@ -1291,7 +1291,7 @@
    BREADCRUMBS
    ======================================== */
 .breadcrumbs {
-  margin: 10px 12px;
+  margin: 4px 12px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-secondary);
   border-radius: 13px;

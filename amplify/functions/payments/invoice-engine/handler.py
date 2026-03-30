@@ -1424,7 +1424,7 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
     first_id = first.get('invoiceId', '')
     send_error = ''
     try:
-        result = send_payment_link(first_id, phone_number_id, request_id)
+        result = send_payment_link(first_id, phone_number_id, '', request_id)
         result_code = result.get('statusCode', 0)
         if result_code == 200:
             invoice_list[0]['status'] = 'sent'
@@ -1478,32 +1478,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
     if not customer_phone:
         return _resp(400, {'error': 'No customer phone on invoice'})
 
-    # ── Phone whitelist: read from SystemConfig (id=payment_allowed_phones) ──
-    # Fallback to allow-all if config not found (remove whitelist friction once testing done)
-    try:
-        cfg_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        cfg_resp = cfg_table.get_item(Key={'id': 'payment_allowed_phones'})
-        cfg_item = cfg_resp.get('Item')
-        if cfg_item:
-            import json as _json
-            raw_val = cfg_item.get('configValue', '[]')
-            allowed_raw = _json.loads(raw_val) if isinstance(raw_val, str) else raw_val
-            # Build normalized set (strip +, spaces, dashes)
-            allowed_set = set()
-            for p in allowed_raw:
-                clean = str(p).replace('+', '').replace(' ', '').replace('-', '')
-                allowed_set.add(clean)
-                allowed_set.add(f'+{clean}')
-                if len(clean) > 10:
-                    allowed_set.add(clean[-10:])
-            clean_cust = customer_phone.replace('+', '').replace(' ', '').replace('-', '')
-            if clean_cust not in allowed_set and customer_phone not in allowed_set and clean_cust[-10:] not in allowed_set:
-                logger.warning(json.dumps({'event': 'payment_phone_blocked', 'phone': customer_phone, 'clean': clean_cust, 'requestId': request_id}))
-                return _resp(403, {'error': f'Payment flow restricted: {customer_phone} is not in the allowed list'})
-        # If no config entry exists → allow all phones (whitelist disabled)
-    except Exception as wl_err:
-        logger.warning(json.dumps({'event': 'whitelist_check_error', 'error': str(wl_err), 'requestId': request_id}))
-        # On error, allow through (don't block payments due to config issue)
+    # Whitelist removed — all phones can receive payment links
 
     reference_id = invoice.get('referenceId', '')
     if not reference_id:

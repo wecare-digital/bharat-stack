@@ -25,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/dashboard']));
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -178,23 +179,28 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
       </button>
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
         {/* Brand */}
-        <div style={{padding: '12px 12px 8px', flexShrink: 0, borderBottom: '1px solid #e5e7eb'}}>
+        <div style={{padding: '10px 12px 6px', flexShrink: 0, borderBottom: '2px solid #d1f470'}}>
           {!sidebarCollapsed ? (
-            <div style={{display: 'flex', alignItems: 'center', gap: 8, minHeight: 48}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 8, minHeight: 46}}>
               <img src={LOGO_URL} alt="" style={{height: 44, width: 'auto', borderRadius: 10, flexShrink: 0}} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               <div style={{display: 'flex', flexDirection: 'column', lineHeight: 1.15}}>
-                <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a'}}>Bharat</span>
+                <span style={{fontSize: 19, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px'}}>Bharat</span>
                 <div style={{display: 'flex', alignItems: 'center', gap: 2}}>
-                  <span style={{fontSize: 20, fontWeight: 800, color: '#1a3a2a'}}>Stack</span>
-                  <span className="nav-dropdown" style={{position: 'relative', display: 'inline-flex'}}>
-                    <span style={{fontSize: 11, color: '#666', cursor: 'pointer', padding: '0 2px'}}>▼</span>
-                    <span className="nav-menu">
-                      <a href="/" className="nav-menu-item">Home</a>
-                      <a href="/dashboard" className="nav-menu-item">CRM</a>
-                      <a href="/studio" className="nav-menu-item">Studio</a>
-                      <a href="/sustainability" className="nav-menu-item">Sustainability</a>
-                      <a href="/access" className="nav-menu-item">Sign in</a>
-                    </span>
+                  <span style={{fontSize: 19, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px'}}>Stack</span>
+                  <span style={{position: 'relative', display: 'inline-flex'}}>
+                    <span onClick={() => setBrandDropdownOpen(!brandDropdownOpen)} style={{fontSize: 10, color: '#666', cursor: 'pointer', padding: '0 4px', userSelect: 'none'}}>▼</span>
+                    {brandDropdownOpen && (
+                      <>
+                        <div onClick={() => setBrandDropdownOpen(false)} style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998}} />
+                        <div style={{position: 'absolute', top: 'calc(100% + 4px)', left: 0, background: '#fff', border: '2px solid #d1f470', borderRadius: 12, padding: '8px 0', minWidth: 170, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex', flexDirection: 'column'}}>
+                          <a href="/" onClick={() => setBrandDropdownOpen(false)} style={{display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none'}}>Home</a>
+                          <a href="/dashboard" onClick={() => setBrandDropdownOpen(false)} style={{display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none'}}>CRM</a>
+                          <a href="/studio" onClick={() => setBrandDropdownOpen(false)} style={{display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none'}}>Studio</a>
+                          <a href="/sustainability" onClick={() => setBrandDropdownOpen(false)} style={{display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none'}}>Sustainability</a>
+                          <a href="/access" onClick={() => setBrandDropdownOpen(false)} style={{display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none'}}>Sign in</a>
+                        </div>
+                      </>
+                    )}
                   </span>
                 </div>
               </div>
@@ -240,19 +246,20 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut, showBreadcru
               <span className="user-role">{user.role || 'Operator'}</span>
               <span className="user-email">{user.signInDetails?.loginId || user.email}</span>
               <button className="btn-signout" onClick={onSignOut}>Sign Out</button>
-              <a href={CONTACT_URL} className="sidebar-contact-link" target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, display: 'block' }}>
-                Contact Us
-              </a>
             </div>
           )}
           {user && sidebarCollapsed && (
             <button className="btn-signout" onClick={onSignOut} style={{ width: '100%', fontSize: 11 }}>Out</button>
           )}
+          {!sidebarCollapsed && (
+            <a href={CONTACT_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginTop: 8, fontSize: 13, fontWeight: 500, color: '#6b7280', textDecoration: 'none', transition: 'color 0.2s' }}>
+              Contact Us
+            </a>
+          )}
         </div>
       </aside>
       {isMobileMenuOpen && <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)} />}
       <main id="main-content" className="main-content">
-        <div className="inner-header"></div>
         {showBreadcrumbs && <Breadcrumbs />}
         <div className="inner-content-container">
           {children}

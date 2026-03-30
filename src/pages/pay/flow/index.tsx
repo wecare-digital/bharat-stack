@@ -420,6 +420,20 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     </div>
                     <div className="form-group"><label>Order ID</label><input type="text" value={invForm.orderId} onChange={e=>setInvForm({...invForm,orderId:e.target.value})} placeholder="Optional" /></div>
                   </div>
+                  <div className="pf-form-grid">
+                    <div className="form-group">
+                      <label>Send From</label>
+                      <select value={sendPhone} onChange={e=>setSendPhone(e.target.value)}>
+                        {PHONE_OPTIONS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Payment Gateway</label>
+                      <select value={paymentGateway} onChange={e=>setPaymentGateway(e.target.value)}>
+                        {PG_OPTIONS.map(pg=><option key={pg.id} value={pg.id}>{pg.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
                   <div className="inner-card" style={{marginBottom:20,maxWidth:500}}>
                     <h4 style={{margin:'0 0 8px',fontSize:14}}>Preview</h4>
                     <div className="pf-preview-row"><span>Subtotal</span><span>{fmtMoney(calcSubtotal())}</span></div>
@@ -459,9 +473,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                 <div className="pf-inv-list">
                   <div className="table-container">
                     <table className="inner-table">
-                      <thead><tr><th>#</th><th>Ref</th><th>Customer</th><th>Amount</th><th>Status</th><th>Source</th><th>Date</th></tr></thead>
+                      <thead><tr><th>#</th><th>Ref</th><th>Customer</th><th>Amount</th><th>Status</th><th>Source</th><th>Date</th><th></th></tr></thead>
                       <tbody>
-                        {invoices.length===0 && <tr className="empty-row"><td colSpan={7}>No invoices</td></tr>}
+                        {invoices.length===0 && <tr className="empty-row"><td colSpan={8}>No invoices</td></tr>}
                         {invoices.map((inv,i)=>(
                           <tr key={inv.invoiceId} onClick={()=>selectInvoice(inv)} style={{cursor:'pointer'}} className={selInvoice?.invoiceId===inv.invoiceId?'pf-row-selected':''}>
                             <td>{i+1}</td>
@@ -471,6 +485,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                             <td><span className={`status-badge ${badgeClass(inv)}`}>{inv.status}</span></td>
                             <td><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:'#f9fafb',color:'#1a3a2a'}}>{inv.entryPoint||'manual'}</span></td>
                             <td>{fmtDate(inv.createdAt)}</td>
+                            <td onClick={e=>e.stopPropagation()}><button onClick={()=>doDeleteInvoice(inv)} style={{background:'none',border:'none',cursor:'pointer',color:'#dc2626',fontSize:13,padding:'2px 6px'}} title="Delete">🗑</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -630,11 +645,6 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                 <textarea rows={6} value={config.purposes.join('\n')} onChange={e=>setConfig({...config,purposes:e.target.value.split('\n').filter(Boolean)})} />
               </div>
               <Button variant="primary" size="sm" loading={configSaving} onClick={()=>{setConfigSaving(true);try{localStorage.setItem(CFG_KEY,JSON.stringify(config));}catch{}setTimeout(()=>{setConfigSaving(false);showMsg('Config saved');},300);}}>Save Config</Button>
-
-              <hr style={{margin:'24px 0',border:'none',borderTop:'1px solid #e5e7eb'}} />
-              <h3 style={{margin:'0 0 12px',fontSize:18}}>Payment Whitelist</h3>
-              <p style={{fontSize:13,color:'#666',margin:'0 0 12px'}}>Phones allowed to receive WhatsApp payment links. One per line. Leave empty to allow all.</p>
-              <PaymentWhitelist showMsg={showMsg} />
             </div>
           )}
 
@@ -712,44 +722,6 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
 
   if (embedded) return shellContent;
   return <Layout user={user} onSignOut={signOut}>{shellContent}</Layout>;
-};
-
-/* ── Payment Whitelist sub-component ── */
-const PaymentWhitelist: React.FC<{showMsg:(t:string,ty?:'success'|'error')=>void}> = ({showMsg}) => {
-  const [phones, setPhones] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    (async () => {
-      try {
-        const cfg = await api.getSystemConfig('payment_allowed_phones');
-        if (cfg) {
-          const arr = Array.isArray(cfg) ? cfg : (typeof cfg === 'string' ? JSON.parse(cfg) : []);
-          setPhones(arr.join('\n'));
-        }
-      } catch {}
-      setLoading(false);
-    })();
-  }, []);
-  const save = async () => {
-    setSaving(true);
-    try {
-      const arr = phones.split('\n').map(p=>p.trim().replace(/[^0-9+]/g,'')).filter(Boolean);
-      await api.updateSystemConfig('payment_allowed_phones', JSON.stringify(arr));
-      showMsg('Whitelist saved');
-    } catch { showMsg('Save failed','error'); }
-    setSaving(false);
-  };
-  if (loading) return <div style={{color:'#888',fontSize:13}}>Loading...</div>;
-  return (
-    <div>
-      <div className="form-group">
-        <textarea rows={5} value={phones} onChange={e=>setPhones(e.target.value)} placeholder="919330994400&#10;918100640044&#10;919903300044" style={{fontFamily:'monospace',fontSize:13}} />
-      </div>
-      <Button variant="primary" size="sm" loading={saving} onClick={save}>Save Whitelist</Button>
-      <span style={{fontSize:12,color:'#888',marginLeft:12}}>Leave empty to allow all phones</span>
-    </div>
-  );
 };
 
 export default PayFlowPage;
