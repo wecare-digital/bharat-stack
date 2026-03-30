@@ -46,17 +46,13 @@
       ]
     },
     {
-      "Sid": "WhatsApp",
+      "Sid": "LambdaInvoke",
       "Effect": "Allow",
       "Action": [
-        "social-messaging:SendWhatsAppMessage",
-        "social-messaging:GetWhatsAppMessageMedia",
-        "social-messaging:PostWhatsAppMessageMedia",
-        "social-messaging:DeleteWhatsAppMessageMedia"
+        "lambda:InvokeFunction"
       ],
       "Resource": [
-        "arn:aws:social-messaging:us-east-1:775261844268:phone-number-id/*",
-        "arn:aws:social-messaging:us-east-1:775261844268:waba/*"
+        "arn:aws:lambda:us-east-1:775261844268:function:wecare-*"
       ]
     },
     {

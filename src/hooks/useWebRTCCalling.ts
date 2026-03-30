@@ -250,7 +250,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
     if (!call.sdpOffer) {
       updateStatus('connecting', call);
       try {
-        const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+        const res = await fetch(`${API_BASE}/whatsapp/accept`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -303,7 +303,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
       console.log('[WebRTC] SDP answer generated, length:', sdpAnswer.length);
 
       // 6. Send to backend → Meta
-      const res = await fetch(`${API_BASE}/whatsapp-calling/accept`, {
+      const res = await fetch(`${API_BASE}/whatsapp/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -358,7 +358,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   ): Promise<boolean> => {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/outbound`, {
+      const res = await fetch(`${API_BASE}/whatsapp/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -403,7 +403,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
       console.log('[WebRTC] Outbound SDP offer generated, length:', sdpOffer.length);
 
       // 4. Send to backend → Meta
-      const res = await fetch(`${API_BASE}/whatsapp-calling/outbound`, {
+      const res = await fetch(`${API_BASE}/whatsapp/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -444,7 +444,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   /** Reject a ringing call */
   const rejectCall = useCallback(async (callId: string, phoneNumberId: string): Promise<boolean> => {
     try {
-      await fetch(`${API_BASE}/whatsapp-calling/reject`, {
+      await fetch(`${API_BASE}/whatsapp/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callId, phoneNumberId }),
@@ -465,7 +465,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   const hangup = useCallback(async (): Promise<boolean> => {
     if (!currentCall) return false;
     try {
-      await fetch(`${API_BASE}/whatsapp-calling/hangup`, {
+      await fetch(`${API_BASE}/whatsapp/hangup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -500,7 +500,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   /** Fetch active/ringing calls from backend */
   const fetchActiveCalls = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/active`);
+      const res = await fetch(`${API_BASE}/whatsapp/active`);
       if (res.ok) {
         const data = await res.json();
         setActiveCalls(data.calls || []);
@@ -514,7 +514,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   const fetchCallLogs = useCallback(async () => {
     setLoadingLogs(true);
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/logs`);
+      const res = await fetch(`${API_BASE}/whatsapp/logs`);
       if (res.ok) {
         const data = await res.json();
         setCallLogs(data.logs || []);
@@ -528,7 +528,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
   /** Clear all call logs */
   const clearLogs = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling`, {
+      const res = await fetch(`${API_BASE}/whatsapp`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -548,7 +548,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/config`);
+      const res = await fetch(`${API_BASE}/whatsapp/config`);
       if (res.ok) {
         const data = await res.json();
         setAutoPickup(data.autoPickup !== false);
@@ -561,7 +561,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
 
   const updateAutoPickup = useCallback(async (enabled: boolean): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/config`, {
+      const res = await fetch(`${API_BASE}/whatsapp/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoPickup: enabled }),
@@ -578,7 +578,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
 
   const updateIvrUrl = useCallback(async (url: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/whatsapp-calling/config`, {
+      const res = await fetch(`${API_BASE}/whatsapp/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ivrUrl: url }),

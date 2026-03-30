@@ -320,9 +320,9 @@ def generate_cost_recommendations(services: List[Dict], total_cost: float) -> Li
                 'link': 'https://console.aws.amazon.com/wafv2/homev2'
             })
     
-    # Check End User Messaging (WhatsApp) costs
-    if 'AWS End User Messaging' in service_map:
-        messaging = service_map['AWS End User Messaging']
+    # Check WhatsApp messaging costs (Meta Cloud API)
+    if 'Meta WhatsApp Cloud API' in service_map:
+        messaging = service_map['Meta WhatsApp Cloud API']
         if messaging['cost'] > 10:
             recommendations.append({
                 'id': 'messaging-templates',
@@ -483,7 +483,7 @@ def get_service_unit(service_name: str) -> str:
         'Amazon CloudWatch': 'metrics',
         'Amazon Bedrock': 'tokens',
         'Amazon OpenSearch Service': 'OCU-hours',
-        'AWS End User Messaging': 'messages',
+        'Meta WhatsApp Cloud API': 'conversations',
         'Amazon Route 53': 'queries',
         'AWS WAF': 'requests',
         'AWS Key Management Service': 'requests',
@@ -529,7 +529,7 @@ def get_free_tier_limit(service_name: str) -> str:
         'Amazon CloudWatch': '10 metrics free',
         'Amazon Bedrock': 'Pay per token',
         'Amazon OpenSearch Service': '750 OCU-hours/month',
-        'AWS End User Messaging': 'Pay per message',
+        'Meta WhatsApp Cloud API': 'Pay per conversation',
         'Amazon Route 53': '$0.50/zone',
         'AWS WAF': '$5/web ACL + $1/rule',
         'AWS Key Management Service': '20K free requests',

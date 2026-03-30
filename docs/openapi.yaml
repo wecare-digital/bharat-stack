@@ -156,8 +156,8 @@ paths:
       responses:
         '200': { description: Message scheduled }
 
-  # ── WhatsApp Calling ──
-  /whatsapp-calling:
+  # ── WhatsApp Unified (Messaging + Calling) ──
+  /whatsapp:
     get:
       tags: [WhatsApp Calling]
       summary: Webhook verify / active calls / call logs

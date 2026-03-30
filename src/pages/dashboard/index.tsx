@@ -2970,7 +2970,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button onClick={() => { navigator.clipboard.writeText('https://api.wecare.digital/whatsapp-calling'); toast.success('Callback URL copied'); }}
+                  <button onClick={() => { navigator.clipboard.writeText('https://api.wecare.digital/whatsapp'); toast.success('Callback URL copied'); }}
                     style={{ padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>
                     Copy Callback URL
                   </button>

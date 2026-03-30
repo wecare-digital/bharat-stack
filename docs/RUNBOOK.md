@@ -10,7 +10,7 @@
 - Frontend: Next.js on Amplify Hosting
 - Backend: 44+ Python Lambda functions (deployed separately, not Amplify-managed)
 - Database: 41 DynamoDB tables (PAY_PER_REQUEST)
-- Messaging: AWS End User Messaging Social (WhatsApp), Pinpoint (SMS/Voice)
+- Messaging: Meta Graph API / Direct WhatsApp Cloud API, Pinpoint (SMS/Voice)
 - AI: Amazon Bedrock (Nova Lite), Amazon Polly (TTS)
 - Payments: Razorpay + PayU webhooks
 - Monitoring: CloudWatch Dashboard + Alarms + SNS
@@ -159,11 +159,12 @@ aws lambda publish-layer-version --layer-name wecare-lambda-utils --zip-file fil
 | Property | WABA 1 | WABA 2 |
 |----------|--------|--------|
 | Meta WABA ID | 2094615664435155 | 2513394156072604 |
-| Phone Meta ID | 960395407161423 | 997428863451102 |
+| Phone Meta ID | 1016149501586345 | 1055232054343117 |
 | Phone Direct API ID | phone-number-id-waba1-direct-1016149501586345 | phone-number-id-waba-t-direct-1055232054343117 |
 | Display Phone | +91 9330994400 | +91 9903300044 |
-| Token Secret Key | access_token | access_token_waba2 |
-| App Secret Key | app_secret | app_secret_waba2 |
+| Token Secret Key | access_token | access_token (same app) |
+| App Secret Key | app_secret | app_secret (same app) |
+| Integration | Direct Meta Graph API v25.0 | Direct Meta Graph API v25.0 |
 
 ## 9. Emergency Contacts
 

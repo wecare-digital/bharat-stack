@@ -1814,8 +1814,8 @@ def _get_active_calls(params: Dict, request_id: str) -> Dict[str, Any]:
 
 
 # ─── Auto-Pickup Config API ─────────────────────────────────────────
-# GET  /whatsapp-calling/config  → Get auto-pickup config
-# POST /whatsapp-calling/config  → Update auto-pickup config
+# GET  /whatsapp/config  → Get auto-pickup config
+# POST /whatsapp/config  → Update auto-pickup config
 
 def _get_config(request_id: str) -> Dict[str, Any]:
     """Get auto-pickup configuration including mode."""

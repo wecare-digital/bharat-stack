@@ -23,7 +23,7 @@ Content was rephrased for compliance with licensing restrictions.
 - Phone must have approved display name (name_status: APPROVED)
 
 ### Step 1: Verify phone is on Direct API WABA
-Ensure the phone number is registered on a Direct API WABA (not EUM-linked):
+Ensure the phone number is registered on a Direct API WABA:
 ```
 Meta Graph API: GET /{phone_id}?fields=id,display_phone_number,platform_type
 ```

@@ -86,7 +86,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
         }
       }
       if (wabasData.length === 0) {
-        setLoadError('No WABA accounts found. Check your AWS End User Messaging configuration.');
+        setLoadError('No WABA accounts found. Check your Meta Business Manager configuration.');
       }
     } catch (err) {
       console.error('Failed to load WABA data:', err);
@@ -521,7 +521,7 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
                 <div className="info-card">
                   <h3>How SNS Events Work</h3>
                   <div style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>
-                    <p>When subscribed, AWS End User Messaging publishes WhatsApp events to the SNS topic:</p>
+                    <p>When subscribed, Meta sends WhatsApp webhook events to the configured endpoint:</p>
                     <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
                       <li>Message delivery status (sent, delivered, read, failed)</li>
                       <li>Template approval/rejection notifications</li>
