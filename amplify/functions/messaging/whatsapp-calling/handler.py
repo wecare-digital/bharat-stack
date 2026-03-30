@@ -814,9 +814,9 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     post_msg = (
         "Thanks for contacting WECARE.DIGITAL!\n\n"
         "Submit your request here: https://wecare.digital/selfservice "
-        "or send us a message \U0001F4AC / voice note \U0001F3A4 on WhatsApp: "
+        "or send us a message / voice note on WhatsApp: "
         "https://r.wecare.digital/wa.\n\n"
-        "We\u2019ll review it and follow up if needed."
+        "We'll review it and follow up if needed."
     )
 
     result = _send_via_aws(aws_phone_id, caller_phone, {
