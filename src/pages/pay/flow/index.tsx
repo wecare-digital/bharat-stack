@@ -11,7 +11,7 @@ interface PP { signOut?: () => void; user?: any; embedded?: boolean; }
 interface FC { default_gst_rate:number; default_shipping:number; default_promo:number; gstin:string; default_item_name:string; purposes:string[]; }
 interface IR { name:string; unitPrice:string; quantity:string; gstRate:string; }
 
-const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'' };
+const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'',addressLine1:'',addressLine2:'',city:'',state:'',postalCode:'',landmark:'' };
 const NEW_ITEM = ():IR => ({ name:'', unitPrice:'', quantity:'1', gstRate:'18' });
 const EMPTY_INV = { items:[NEW_ITEM()] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'' };
 const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Gift Card','Service Fee','Consultation'] };
@@ -99,7 +99,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   useEffect(() => { loadCustomers(); loadInvoices(); }, [loadCustomers, loadInvoices]);
 
   /* Customer handlers */
-  const openEditCust = (c:Contact) => { setEditCust(c); setCustForm({name:c.name||'',phone:c.phone||'',email:c.email||'',shippingAddress:c.shippingAddress||'',billingAddress:c.billingAddress||''}); };
+  const openEditCust = (c:Contact) => { setEditCust(c); setCustForm({name:c.name||'',phone:c.phone||'',email:c.email||'',shippingAddress:c.shippingAddress||'',billingAddress:c.billingAddress||'',addressLine1:c.addressLine1||'',addressLine2:c.addressLine2||'',city:c.city||'',state:c.state||'',postalCode:c.postalCode||'',landmark:c.landmark||''}); };
   const closeEditCust = () => { setEditCust(null); setCustForm(EMPTY_FORM); };
   const saveCust = async () => {
     if(!editCust) return;
@@ -158,6 +158,13 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
         customerPhone: selCustomer.phone, customerEmail: selCustomer.email||'',
         customerName: selCustomer.name, contactId: selCustomer.id,
         shippingAddress: selCustomer.shippingAddress||'', billingAddress: selCustomer.billingAddress||'',
+        // Structured address for WhatsApp Payments shipping_info
+        addressLine1: selCustomer.addressLine1||'',
+        addressLine2: selCustomer.addressLine2||'',
+        city: selCustomer.city||'',
+        state: selCustomer.state||'',
+        postalCode: selCustomer.postalCode||'',
+        landmark: selCustomer.landmark||'',
         goodsType: goodsType,
         items: invForm.items.map(it=>({ name:it.name||config.default_item_name, amount:parseFloat(it.unitPrice)||0, quantity:parseInt(it.quantity)||1, gstRate:parseFloat(it.gstRate)||config.default_gst_rate })),
         shipping: parseFloat(invForm.shipping)||0,
@@ -335,6 +342,14 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="form-group"><label>Email</label><input type="email" value={custForm.email} onChange={e=>setCustForm({...custForm,email:e.target.value})} /></div>
                     <div className="form-group"><label>Shipping Address</label><textarea value={custForm.shippingAddress} onChange={e=>setCustForm({...custForm,shippingAddress:e.target.value})} /></div>
                     <div className="form-group"><label>Billing Address</label><textarea value={custForm.billingAddress} onChange={e=>setCustForm({...custForm,billingAddress:e.target.value})} /></div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                      <div className="form-group"><label>Address Line 1</label><input value={custForm.addressLine1} onChange={e=>setCustForm({...custForm,addressLine1:e.target.value})} placeholder="Door/Street" /></div>
+                      <div className="form-group"><label>Address Line 2</label><input value={custForm.addressLine2} onChange={e=>setCustForm({...custForm,addressLine2:e.target.value})} placeholder="Landmark/Area" /></div>
+                      <div className="form-group"><label>City</label><input value={custForm.city} onChange={e=>setCustForm({...custForm,city:e.target.value})} placeholder="City" /></div>
+                      <div className="form-group"><label>State</label><input value={custForm.state} onChange={e=>setCustForm({...custForm,state:e.target.value})} placeholder="State" /></div>
+                      <div className="form-group"><label>PIN Code</label><input value={custForm.postalCode} onChange={e=>setCustForm({...custForm,postalCode:e.target.value})} placeholder="6-digit PIN" maxLength={6} /></div>
+                      <div className="form-group"><label>Landmark</label><input value={custForm.landmark} onChange={e=>setCustForm({...custForm,landmark:e.target.value})} placeholder="Near..." /></div>
+                    </div>
                     <div className="pf-modal-actions">
                       <Button variant="secondary" size="sm" onClick={closeEditCust}>Cancel</Button>
                       <Button variant="primary" size="sm" loading={custSaving} onClick={saveCust}>Save</Button>

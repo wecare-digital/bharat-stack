@@ -478,6 +478,13 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         # Payment routing — which PG config to use when customer triggers via keyword
         'preferredGateway': body.get('preferredGateway', ''),  # 'razorpay' or 'payu'
         'paymentConfiguration': body.get('paymentConfiguration', ''),  # exact Meta config name
+        # Structured address for WhatsApp Payments shipping_info
+        'addressLine1': body.get('addressLine1', ''),
+        'addressLine2': body.get('addressLine2', ''),
+        'city': body.get('city', ''),
+        'state': body.get('state', ''),
+        'postalCode': body.get('postalCode', ''),
+        'landmark': body.get('landmark', ''),
         # Timestamps
         'createdAt': now,
         'updatedAt': now,
@@ -1620,45 +1627,68 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         },
     }
 
-    # Add shipping_info for physical-goods (beneficiaries built by outbound handler)
-    if goods_type == 'physical-goods' and ship_addr:
-        # Parse structured address if stored as JSON, else use flat string
-        addr_obj = {}
-        try:
-            import json as _json
-            addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
-        except Exception:
-            addr_obj = {}
+    # Add shipping_info for physical-goods
+    # Uses structured address fields if available, falls back to flat string parsing
+    if goods_type == 'physical-goods':
+        addr_line1 = invoice.get('addressLine1', '')
+        addr_city = invoice.get('city', '')
+        addr_state = invoice.get('state', '')
+        addr_postal = invoice.get('postalCode', '')
+        addr_line2 = invoice.get('addressLine2', '') or invoice.get('landmark', '')
 
-        if addr_obj:
-            # Structured address from contact
-            order_details_obj['shipping_info'] = {
-                'country': 'IN',
-                'addresses': [{
-                    'name': addr_obj.get('name', cust_name),
-                    'phone_number': customer_phone.replace('+', ''),
-                    'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
-                    'address_line1': addr_obj.get('address_line1', ''),
-                    'city': addr_obj.get('city', ''),
-                    'state': addr_obj.get('state', ''),
-                    'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
-                    'landmark_area': addr_obj.get('landmark_area', ''),
-                    'house_number': addr_obj.get('house_number', ''),
-                    'building_name': addr_obj.get('building_name', ''),
-                }]
-            }
-        else:
-            # Flat string address — put in address field
+        # Try structured fields first
+        if addr_line1 and addr_city and addr_postal:
             order_details_obj['shipping_info'] = {
                 'country': 'IN',
                 'addresses': [{
                     'name': cust_name,
                     'phone_number': customer_phone.replace('+', ''),
-                    'address': ship_addr,
-                    'city': '',
-                    'state': '',
-                    'in_pin_code': '',
+                    'address': addr_line1,
+                    'city': addr_city,
+                    'state': addr_state or addr_city,
+                    'in_pin_code': addr_postal[:6],
+                    'landmark_area': addr_line2,
+                    'house_number': invoice.get('houseNumber', ''),
+                    'building_name': invoice.get('buildingName', ''),
                 }]
+            }
+        elif ship_addr:
+            # Fallback: parse flat string address
+            addr_obj = {}
+            try:
+                import json as _json
+                addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
+            except Exception:
+                addr_obj = {}
+
+            if addr_obj and addr_obj.get('city') and addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')):
+                order_details_obj['shipping_info'] = {
+                    'country': 'IN',
+                    'addresses': [{
+                        'name': addr_obj.get('name', cust_name),
+                        'phone_number': customer_phone.replace('+', ''),
+                        'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
+                        'address_line1': addr_obj.get('address_line1', ''),
+                        'city': addr_obj.get('city', ''),
+                        'state': addr_obj.get('state', ''),
+                        'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
+                        'landmark_area': addr_obj.get('landmark_area', ''),
+                        'house_number': addr_obj.get('house_number', ''),
+                        'building_name': addr_obj.get('building_name', ''),
+                    }]
+                }
+            else:
+                # No structured address available — send empty addresses array
+                # WhatsApp will ask the customer to enter their shipping address natively
+                order_details_obj['shipping_info'] = {
+                    'country': 'IN',
+                    'addresses': []
+                }
+        else:
+            # No address at all — WhatsApp will ask customer to add shipping address
+            order_details_obj['shipping_info'] = {
+                'country': 'IN',
+                'addresses': []
             }
 
     wa_payload = {

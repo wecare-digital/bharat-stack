@@ -184,6 +184,15 @@ export interface Contact {
   contactBookName?: string;
   shippingAddress?: string;
   billingAddress?: string;
+  // Structured address fields for WhatsApp Payments shipping_info
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  landmark?: string;
+  houseNumber?: string;
+  buildingName?: string;
   // Opt-in fields (Requirement 3.2)
   optInWhatsApp: boolean;
   optInSms: boolean;
@@ -3659,6 +3668,13 @@ export interface CreateInvoiceEngineRequest {
   preferredGateway?: string;
   /** Exact Meta PG config name (e.g. 'PayU_ManishAgarwal') — stored on invoice for keyword-triggered payments */
   paymentConfiguration?: string;
+  /** Structured address fields for WhatsApp Payments shipping_info */
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  landmark?: string;
 }
 
 // Create invoice directly
