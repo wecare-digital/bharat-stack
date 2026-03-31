@@ -30,10 +30,15 @@ DLT Requirements:
   DLT Registration: ID 1405170900886606599 · Category: COMMUNICATION/BROADCAST/ENTERTAINMENT/IT
   Status: REGISTERED · Domain: bsnl.com · Validity: Permanent
 - Content Template ID (dltTemplateId): registered on DLT portal
-- Default Template: 1007974344269130859 (WDBEEP / Service Implicit — Self-Service IVR)
+- Default Template (OLD): 1007974344269130859 (WDBEEP / Service Implicit — Self-Service IVR)
   Text: "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our
   online Self Service Portal at https://wecare.digital/selfservice. Once we receive it,
   we'll review it and contact you if anything else is needed."
+- Default Template (NEW — ivr-default): 1007277993798259629 (WDBEEP / Service Implicit)
+  Text: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here:
+  https://wecare.digital/selfservice or send us a message / voice note on WhatsApp:
+  https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed."
+  NOTE: Use \n\n (double newline) for line breaks — single \n is stripped by Airtel.
 - MSISDN: 10 or 12 digits
 
 Secrets: wecare/airtel/sms
@@ -42,7 +47,7 @@ Expected secret keys:
 - auth_token: V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy
 - sender_id: WDBEEP (DLT registered header)
 - entity_id: 1201161991108627443 (PE ID from DLT)
-- dlt_template_id: 1007974344269130859 (default)
+- dlt_template_id: 1007277993798259629 (default — ivr-default, was 1007974344269130859)
 
 Notes (from Airtel spec):
 - v4 destinationAddress is an array — supports single AND multiple recipients in one call
@@ -302,7 +307,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     auth_token = secrets.get('auth_token')
     sender_id = secrets.get('sender_id', 'WDBEEP')
     entity_id = secrets.get('entity_id', '1201161991108627443')
-    default_template_id = secrets.get('dlt_template_id', '1007974344269130859')
+    default_template_id = secrets.get('dlt_template_id', '1007277993798259629')
     
     if not customer_id or not auth_token:
         return _response(500, {'error': 'Airtel SMS credentials not configured'})
@@ -410,7 +415,7 @@ def _send_bulk_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     auth_token = secrets.get('auth_token')
     sender_id = secrets.get('sender_id', 'WDBEEP')
     entity_id = secrets.get('entity_id', '1201161991108627443')
-    default_template_id = secrets.get('dlt_template_id', '1007974344269130859')
+    default_template_id = secrets.get('dlt_template_id', '1007277993798259629')
     bulk_default_template = secrets.get('bulk_template_id', default_template_id)
     
     if not auth_token:

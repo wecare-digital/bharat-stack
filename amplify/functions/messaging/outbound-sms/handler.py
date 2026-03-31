@@ -53,7 +53,7 @@ AIRTEL_IQ_CUSTOMER_ID = os.environ.get('AIRTEL_IQ_CUSTOMER_ID', '')
 AIRTEL_IQ_ENTITY_ID = os.environ.get('AIRTEL_IQ_ENTITY_ID', '1201161991108627443')  # PE ID
 AIRTEL_IQ_SOURCE_ADDRESS = os.environ.get('AIRTEL_IQ_SOURCE_ADDRESS', 'WDBEEP')  # Header
 # Default DLT Template ID for selfservice IVR
-DEFAULT_DLT_TEMPLATE_ID = '1007974344269130859'
+DEFAULT_DLT_TEMPLATE_ID = '1007277993798259629'
 
 
 # Module-level origin for CORS (set per-invocation in handler)
