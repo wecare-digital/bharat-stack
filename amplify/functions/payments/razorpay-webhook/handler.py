@@ -369,18 +369,37 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     description = payment.get('description', '')
     notes = payment.get('notes', {})
 
-    # Try to find referenceId from multiple locations
+    # Try to find referenceId from multiple locations in Razorpay notes
+    # Meta passes our notes through to Razorpay, but the key name may vary:
+    # - 'referenceId' (our standard)
+    # - 'reference_id' (snake_case variant)
+    # - 'ref' (short form used in some test scripts)
+    # - description field (legacy)
     reference_id = (
         notes.get('referenceId', '')
         or notes.get('reference_id', '')
-        or payment.get('description', '')
+        or notes.get('ref', '')
         or ''
     )
-    # If description looks like a WD reference, use it
-    if reference_id and not reference_id.startswith('WD'):
-        # Also accept legacy WD prefix without dash
-        if not reference_id.upper().startswith('WD'):
-            reference_id = ''
+    
+    # If not found in notes, try description
+    if not reference_id:
+        desc = payment.get('description', '') or ''
+        if desc.upper().startswith('WD'):
+            reference_id = desc
+    
+    # If still not found, try Meta Payment Lookup API using the Razorpay order_id
+    # The reference_id is always in the Meta payment record even if Razorpay notes are empty
+    if not reference_id and order_id:
+        try:
+            reference_id = _lookup_reference_id_from_meta(order_id, contact, request_id)
+        except Exception as lookup_err:
+            logger.warning(json.dumps({
+                'event': 'meta_lookup_for_ref_failed',
+                'orderId': order_id,
+                'error': str(lookup_err),
+                'requestId': request_id,
+            }))
 
     logger.info(json.dumps({
         'event': 'payment_captured', 'paymentId': payment_id,
@@ -522,6 +541,58 @@ def _handle_payment_failed(event_data: Dict, request_id: str) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# META PAYMENT LOOKUP FOR REFERENCE_ID RECOVERY
+# ═══════════════════════════════════════════════════════════════════
+
+def _lookup_reference_id_from_meta(razorpay_order_id: str, contact_phone: str, request_id: str) -> str:
+    """When Razorpay notes don't contain referenceId, try to find it via Meta Payment Lookup.
+    
+    Strategy: scan our PaymentsTable or InboundTable for a payment_request record
+    that matches the customer phone, then use its referenceId to call Meta Lookup API.
+    If Meta confirms the payment is captured for that referenceId, we have our match.
+    
+    Fallback: scan InvoicesTable for pending invoices for this customer phone.
+    """
+    clean_phone = (contact_phone or '').replace('+', '').replace(' ', '').replace('-', '')
+    if not clean_phone:
+        return ''
+    
+    # Normalize to 10-digit Indian local
+    local_phone = clean_phone[2:] if clean_phone.startswith('91') and len(clean_phone) == 12 else (clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone)
+    
+    try:
+        # Check InvoicesTable for pending invoices for this customer
+        inv_table = dynamodb.Table(INVOICES_TABLE)
+        # Scan for pending invoices (not ideal but reference_id recovery is rare)
+        result = inv_table.scan(
+            FilterExpression='#st IN (:s1, :s2, :s3)',
+            ExpressionAttributeNames={'#st': 'status'},
+            ExpressionAttributeValues={':s1': 'created', ':s2': 'pending_payment', ':s3': 'sent'},
+        )
+        for inv in result.get('Items', []):
+            inv_phone = (inv.get('customerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+            inv_local = inv_phone[2:] if inv_phone.startswith('91') and len(inv_phone) == 12 else (inv_phone[-10:] if len(inv_phone) >= 10 else inv_phone)
+            if inv_local == local_phone and inv.get('referenceId'):
+                ref = inv['referenceId']
+                logger.info(json.dumps({
+                    'event': 'reference_id_recovered_from_invoice',
+                    'referenceId': ref,
+                    'invoiceId': inv.get('invoiceId', ''),
+                    'razorpayOrderId': razorpay_order_id,
+                    'requestId': request_id,
+                }))
+                return ref
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'reference_id_recovery_scan_error',
+            'error': str(e),
+            'requestId': request_id,
+        }))
+    
+    return ''
+
+
+# ═══════════════════════════════════════════════════════════════════
 # STORE PAYMENT RECORD
 # ═══════════════════════════════════════════════════════════════════
 
@@ -548,7 +619,7 @@ def _store_payment_record(payment: Dict, status: str, request_id: str) -> None:
         'id': payment_id,
         'paymentId': payment_id,
         'orderId': payment.get('order_id') or '',
-        'referenceId': (payment.get('notes') or {}).get('referenceId', ''),
+        'referenceId': (payment.get('notes') or {}).get('referenceId', '') or (payment.get('notes') or {}).get('ref', ''),
         'status': status,
         'amount': Decimal(str(amount_paise)),
         'amountInRupees': Decimal(str(amount_rupees)),

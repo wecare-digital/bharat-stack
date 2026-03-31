@@ -33,6 +33,20 @@ const schema = a.schema({
       allowlistSms: a.boolean().default(false),
       allowlistEmail: a.boolean().default(false),
       lastInboundMessageAt: a.datetime(),
+      // Address fields (enriched via flows)
+      addressLine1: a.string(),
+      addressLine2: a.string(),
+      city: a.string(),
+      state: a.string(),
+      pincode: a.string(),
+      country: a.string().default('IN'),
+      // Business/profile fields (enriched via flows)
+      companyName: a.string(),
+      gstNumber: a.string(),
+      designation: a.string(),
+      preferredLanguage: a.string(),
+      lastFlowInteractionAt: a.datetime(),
+      satisfactionScore: a.integer(), // NPS/CSAT from feedback flows
       tags: a.string().array(),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
@@ -1036,6 +1050,133 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('adId'),
       index('contactId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // ============================================================
+  // FLOW MANAGEMENT TABLES
+  // ============================================================
+
+  // Table: FlowRegistry — Config for every WhatsApp Flow
+  FlowRegistry: a
+    .model({
+      flowId: a.id().required(), // Meta flow ID
+      flowCode: a.string().required(), // "01.WD_SR", "02.WD_ADDR", etc.
+      flowName: a.string().required(), // Human readable
+      flowType: a.string().required(), // form_submit, order_management, interactive, data_collection, payment, booking, feedback
+      flowVersion: a.string(), // "7.3"
+      dataApiVersion: a.string(), // "4.0"
+      wabaId: a.string(), // Which WABA
+      status: a.string().default('DRAFT'), // DRAFT, PUBLISHED, DEPRECATED
+      category: a.string(), // service_request, order, interactive, data_collection, payment, booking, feedback
+      // Payment config
+      requiresPayment: a.boolean().default(false),
+      paymentAmount: a.integer(), // paise (4900 = ₹49)
+      paymentDescription: a.string(),
+      // Payment gateway preference: 'razorpay' or 'payu' (used when sending native payment)
+      preferredGateway: a.string(),
+      // Specific Meta payment config name (e.g. 'WECARE-RAZOR-PAY', 'PayU_ManishAgarwal')
+      paymentConfigName: a.string(),
+      // Screen routing config (JSON string)
+      screenConfig: a.string(),
+      // Contact enrichment mapping (JSON string) e.g. {"address_line1":"addressLine1","city":"city"}
+      contactMapping: a.string(),
+      // Data fetchers config (JSON string) — which screens need backend data
+      dataFetchers: a.string(),
+      // Submission number prefix e.g. "WD-SR", "WD-RET", "WD-BK"
+      submissionPrefix: a.string(),
+      // A/B testing config (JSON) e.g. {"enabled":true,"variantB_flowId":"xxx","splitPercent":50}
+      abTestConfig: a.string(),
+      // Metadata
+      endpointUri: a.string(),
+      publishedAt: a.integer(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['flowId'])
+    .secondaryIndexes((index) => [
+      index('flowCode'),
+      index('wabaId'),
+      index('category'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: FlowSubmission — All flow submissions (generic, all flow types)
+  FlowSubmission: a
+    .model({
+      submissionId: a.id().required(),
+      flowId: a.string().required(), // Meta flow ID
+      flowCode: a.string().required(), // "01.WD_SR"
+      flowType: a.string(), // form_submit, order_management, etc.
+      flowVersion: a.string(), // "7.3"
+      // Who
+      phone: a.string().required(),
+      contactId: a.string(),
+      senderName: a.string(),
+      // What — full form data as JSON
+      formData: a.string(), // JSON string of all form fields
+      // Extracted common fields for querying
+      orderId: a.string(),
+      requestType: a.string(),
+      subject: a.string(),
+      description: a.string(),
+      // Reference numbers
+      submissionNumber: a.string(), // "WD-SR-A1B2C3D4"
+      flowToken: a.string(),
+      // Payment tracking
+      paymentRequired: a.boolean().default(false),
+      paymentAmount: a.integer(), // paise
+      paymentStatus: a.string().default('none'), // none, pending, captured, failed, refunded
+      paymentRefId: a.string(), // "WD-PAY-XXXXXXXX"
+      invoiceId: a.string(),
+      transactionId: a.string(), // Payment gateway txn ID
+      paidAt: a.integer(),
+      // Lifecycle
+      status: a.string().default('open'), // open, in_progress, resolved, closed, cancelled
+      assignedTo: a.string(),
+      notes: a.string(),
+      resolvedAt: a.integer(),
+      // Timestamps
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['submissionId'])
+    .secondaryIndexes((index) => [
+      index('phone'),
+      index('flowCode'),
+      index('paymentStatus'),
+      index('paymentRefId'),
+      index('submissionNumber'),
+      index('status'),
+      index('orderId'),
+      index('flowId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: FlowLog — Audit trail for every flow screen interaction
+  FlowLog: a
+    .model({
+      logId: a.id().required(),
+      flowId: a.string(),
+      flowCode: a.string(),
+      flowToken: a.string(),
+      phone: a.string(),
+      action: a.string(), // INIT, data_exchange, navigate, complete, ping
+      screen: a.string(),
+      dataSnapshot: a.string(), // JSON of data exchanged
+      requestId: a.string(), // Lambda request ID
+      isError: a.boolean().default(false),
+      errorType: a.string(),
+      errorMessage: a.string(),
+      createdAt: a.integer(),
+      ttl: a.integer(), // TTL: 90 days
+    })
+    .identifier(['logId'])
+    .secondaryIndexes((index) => [
+      index('phone'),
+      index('flowId'),
+      index('flowCode'),
     ])
     .authorization((allow) => [allow.authenticated()]),
 

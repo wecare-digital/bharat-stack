@@ -40,5 +40,8 @@ export const whatsappBusinessApi = defineFunction({
     FLOW_PRIVATE_KEY_PASSPHRASE: '',
     WIX_SITE_URL: 'https://www.wecare.digital',
     SUBMIT_REQUESTS_TABLE: 'stack-wecare-digital-SubmitRequestsTable',
+    FLOW_REGISTRY_TABLE: 'stack-wecare-digital-FlowRegistryTable',
+    FLOW_SUBMISSIONS_TABLE: 'stack-wecare-digital-FlowSubmissionTable',
+    FLOW_LOGS_TABLE: 'stack-wecare-digital-FlowLogTable',
   },
 });

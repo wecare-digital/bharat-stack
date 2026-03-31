@@ -20,6 +20,7 @@ import BusinessProfilePage from './business-profile';
 import WebhooksPage from './webhooks';
 import AIConfigPage from './ai-config';
 import FlowResponsesPage from './flow-responses';
+import FlowHubPage from './flow-hub';
 import MigrationPage from './migration';
 
 interface PageProps {
@@ -32,6 +33,7 @@ const TABS: ShellTab[] = [
   { id: 'templates', label: 'Templates' },
   { id: 'lists', label: 'List Msgs', divider: true },
   { id: 'flows', label: 'Flows' },
+  { id: 'flow-hub', label: 'Flows Hub' },
   { id: 'flow-responses', label: 'Flow Data' },
   { id: 'welcome', label: 'Welcome' },
   { id: 'ai-config', label: 'AI Config' },
@@ -58,6 +60,7 @@ const WhatsAppSettingsPage: React.FC<PageProps> = ({ signOut, user }) => (
           {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}
           {activeTab === 'lists' && <InteractiveListsPage signOut={signOut} user={user} embedded />}
           {activeTab === 'flows' && <FlowsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'flow-hub' && <FlowHubPage signOut={signOut} user={user} embedded />}
           {activeTab === 'flow-responses' && <FlowResponsesPage signOut={signOut} user={user} embedded />}
           {activeTab === 'welcome' && <WelcomePage signOut={signOut} user={user} embedded />}
           {activeTab === 'ai-config' && <AIConfigPage signOut={signOut} user={user} embedded />}

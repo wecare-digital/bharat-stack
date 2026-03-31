@@ -1601,11 +1601,14 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
             phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'  # Phone 2 (default)
 
     # Build payload for outbound-whatsapp Lambda
-    # Determine goods type: use stored value, fallback to physical-goods if shipping address exists
+    # Determine goods type: use stored value from invoice creation.
+    # Default to digital-goods — physical-goods should only be set explicitly by the admin.
+    # IMPORTANT: Do NOT infer physical-goods from shippingAddress existence — that caused
+    # invoices to incorrectly trigger address collection flow.
     ship_addr = invoice.get('shippingAddress', '')
     bill_addr = invoice.get('billingAddress', '')
     cust_name = invoice.get('customerName', 'Customer')
-    goods_type = invoice.get('goodsType', 'physical-goods' if ship_addr else 'digital-goods')
+    goods_type = invoice.get('goodsType', 'digital-goods')
 
     order_details_obj = {
         'reference_id': reference_id,
@@ -1627,8 +1630,10 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         },
     }
 
-    # Add shipping_info for physical-goods
-    # Uses structured address fields if available, falls back to flat string parsing
+    # Add shipping address info for physical-goods (outbound handler builds beneficiaries from this)
+    # NOTE: For PG deep integration, shipping_info is NOT sent to Meta API.
+    # The outbound handler reads shipping_info.addresses to build the beneficiaries array.
+    # If no address is available, outbound handler uses business address as fallback.
     if goods_type == 'physical-goods':
         addr_line1 = invoice.get('addressLine1', '')
         addr_city = invoice.get('city', '')
@@ -1648,8 +1653,6 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
                     'state': addr_state or addr_city,
                     'in_pin_code': addr_postal[:6],
                     'landmark_area': addr_line2,
-                    'house_number': invoice.get('houseNumber', ''),
-                    'building_name': invoice.get('buildingName', ''),
                 }]
             }
         elif ship_addr:
@@ -1668,28 +1671,14 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
                         'name': addr_obj.get('name', cust_name),
                         'phone_number': customer_phone.replace('+', ''),
                         'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
-                        'address_line1': addr_obj.get('address_line1', ''),
                         'city': addr_obj.get('city', ''),
                         'state': addr_obj.get('state', ''),
                         'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
                         'landmark_area': addr_obj.get('landmark_area', ''),
-                        'house_number': addr_obj.get('house_number', ''),
-                        'building_name': addr_obj.get('building_name', ''),
                     }]
                 }
-            else:
-                # No structured address available — send empty addresses array
-                # WhatsApp will ask the customer to enter their shipping address natively
-                order_details_obj['shipping_info'] = {
-                    'country': 'IN',
-                    'addresses': []
-                }
-        else:
-            # No address at all — WhatsApp will ask customer to add shipping address
-            order_details_obj['shipping_info'] = {
-                'country': 'IN',
-                'addresses': []
-            }
+            # else: no address — outbound handler will use business address as beneficiary fallback
+        # else: no address at all — outbound handler will use business address as beneficiary fallback
 
     wa_payload = {
         'body': json.dumps({

@@ -76,6 +76,16 @@ INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invo
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
 
+# Flow management tables
+FLOW_REGISTRY_TABLE = os.environ.get('FLOW_REGISTRY_TABLE', 'stack-wecare-digital-FlowRegistryTable')
+FLOW_SUBMISSIONS_TABLE = os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-digital-FlowSubmissionTable')
+FLOW_LOGS_TABLE = os.environ.get('FLOW_LOGS_TABLE', 'stack-wecare-digital-FlowLogTable')
+
+# Flow registry cache (in-memory, refreshed every 5 min)
+_flow_registry_cache: Dict = {}
+_flow_registry_cache_ts: float = 0
+FLOW_REGISTRY_CACHE_TTL = 300  # 5 minutes
+
 # Phone number IDs (for outbound Lambda)
 PHONE1_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 
@@ -923,6 +933,586 @@ def _encrypt_flow_response(response_data: dict, aes_key: bytes, iv: bytes) -> st
 
 
 # ============================================================================
+# FLOW MANAGEMENT ENGINE
+# ============================================================================
+
+def _get_flow_registry(flow_id: str) -> Dict:
+    """Get flow config from registry, with in-memory caching."""
+    global _flow_registry_cache, _flow_registry_cache_ts
+    now = time.time()
+    if flow_id in _flow_registry_cache and (now - _flow_registry_cache_ts) < FLOW_REGISTRY_CACHE_TTL:
+        return _flow_registry_cache[flow_id]
+    try:
+        table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+        resp = table.get_item(Key={'flowId': flow_id})
+        item = resp.get('Item', {})
+        if item:
+            _flow_registry_cache[flow_id] = item
+            _flow_registry_cache_ts = now
+            return item
+    except Exception as e:
+        logger.warning(f'Flow registry lookup failed for {flow_id}: {e}')
+    return {}
+
+
+def _get_flow_registry_by_code(flow_code: str) -> Dict:
+    """Look up flow config by flowCode (e.g. '01.WD_SR')."""
+    try:
+        table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+        resp = table.query(
+            IndexName='flowCode',
+            KeyConditionExpression='flowCode = :c',
+            ExpressionAttributeValues={':c': flow_code},
+            Limit=1,
+        )
+        items = resp.get('Items', [])
+        return items[0] if items else {}
+    except Exception as e:
+        logger.warning(f'Flow registry code lookup failed for {flow_code}: {e}')
+        return {}
+
+
+def _save_flow_submission(flow_config: Dict, phone: str, contact_id: str,
+                          sender_name: str, form_data: Dict, flow_token: str,
+                          request_id: str) -> Dict:
+    """Save a generic flow submission to FlowSubmissionsTable. Returns the saved item."""
+    try:
+        now = int(time.time())
+        submission_id = str(uuid.uuid4())
+        flow_code = flow_config.get('flowCode', '')
+        prefix = flow_config.get('submissionPrefix', 'WD')
+        submission_number = f'{prefix}-{uuid.uuid4().hex[:8].upper()}'
+
+        requires_payment = flow_config.get('requiresPayment', False)
+        payment_amount = int(flow_config.get('paymentAmount', 0)) if requires_payment else 0
+        payment_ref_id = f'WD-PAY-{uuid.uuid4().hex[:8].upper()}' if requires_payment else ''
+
+        item = {
+            'submissionId': submission_id,
+            'flowId': flow_config.get('flowId', ''),
+            'flowCode': flow_code,
+            'flowType': flow_config.get('flowType', ''),
+            'flowVersion': flow_config.get('flowVersion', ''),
+            'phone': phone,
+            'contactId': contact_id,
+            'senderName': sender_name,
+            'formData': json.dumps(form_data, default=str),
+            'orderId': form_data.get('order_id', ''),
+            'requestType': form_data.get('request_type', ''),
+            'subject': form_data.get('subject', ''),
+            'description': form_data.get('description', ''),
+            'submissionNumber': submission_number,
+            'flowToken': flow_token,
+            'paymentRequired': requires_payment,
+            'paymentAmount': payment_amount,
+            'paymentStatus': 'pending' if requires_payment else 'none',
+            'paymentRefId': payment_ref_id,
+            'status': 'open',
+            'createdAt': Decimal(str(now)),
+            'updatedAt': Decimal(str(now)),
+        }
+
+        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != '' and v is not False})
+
+        logger.info(json.dumps({
+            'event': 'flow_submission_saved',
+            'submissionId': submission_id,
+            'flowCode': flow_code,
+            'submissionNumber': submission_number,
+            'phone': phone[:6] + '***' if phone else '',
+            'paymentRequired': requires_payment,
+            'requestId': request_id,
+        }))
+        return item
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'flow_submission_save_error',
+            'error': str(e),
+            'flowCode': flow_config.get('flowCode', ''),
+            'requestId': request_id,
+        }))
+        return {}
+
+
+def _enrich_contact_from_flow(contact_id: str, form_data: Dict, contact_mapping: Dict):
+    """Update Contact record with data collected from a flow."""
+    if not contact_id or not contact_mapping:
+        return
+    try:
+        update_parts = []
+        expr_values = {}
+        expr_names = {}
+        now_iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+        for flow_field, contact_field in contact_mapping.items():
+            val = form_data.get(flow_field, '')
+            if val:
+                safe_key = contact_field.replace('.', '_')
+                update_parts.append(f'#{safe_key} = :{safe_key}')
+                expr_values[f':{safe_key}'] = str(val)
+                expr_names[f'#{safe_key}'] = contact_field
+
+        # Always update lastFlowInteractionAt and updatedAt
+        update_parts.append('#lfia = :lfia')
+        expr_values[':lfia'] = now_iso
+        expr_names['#lfia'] = 'lastFlowInteractionAt'
+        update_parts.append('#ua = :ua')
+        expr_values[':ua'] = now_iso
+        expr_names['#ua'] = 'updatedAt'
+
+        if update_parts:
+            table = dynamodb.Table(CONTACTS_TABLE)
+            table.update_item(
+                Key={'contactId': contact_id},
+                UpdateExpression='SET ' + ', '.join(update_parts),
+                ExpressionAttributeValues=expr_values,
+                ExpressionAttributeNames=expr_names,
+            )
+            logger.info(f'Contact {contact_id} enriched with {len(update_parts) - 2} flow fields')
+    except Exception as e:
+        logger.warning(f'Contact enrichment failed for {contact_id}: {e}')
+
+
+def _log_flow_interaction(flow_config: Dict, flow_token: str, phone: str,
+                          action: str, screen: str, data: Dict, request_id: str,
+                          is_error: bool = False, error_type: str = '', error_message: str = ''):
+    """Log a flow interaction to FlowLogsTable."""
+    try:
+        now = int(time.time())
+        table = dynamodb.Table(FLOW_LOGS_TABLE)
+        item = {
+            'logId': f'flog-{uuid.uuid4().hex[:12]}',
+            'flowId': flow_config.get('flowId', ''),
+            'flowCode': flow_config.get('flowCode', ''),
+            'flowToken': flow_token,
+            'phone': phone,
+            'action': action,
+            'screen': screen,
+            'requestId': request_id,
+            'createdAt': Decimal(str(now)),
+            'ttl': now + (90 * 86400),  # 90 days
+        }
+        if data:
+            try:
+                item['dataSnapshot'] = json.dumps(data, default=str)[:4000]  # Cap at 4KB
+            except Exception:
+                pass
+        if is_error:
+            item['isError'] = True
+            item['errorType'] = error_type
+            item['errorMessage'] = error_message
+        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
+    except Exception as e:
+        logger.warning(f'Flow log write failed: {e}')
+
+
+def _list_flow_submissions(params: Dict) -> Dict:
+    """List flow submissions with filtering."""
+    try:
+        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        limit = min(int(params.get('limit', '100')), 500)
+        flow_code = params.get('flowCode', '')
+        payment_status = params.get('paymentStatus', '')
+        status_filter = params.get('status', '')
+        phone_filter = params.get('phone', '')
+
+        if flow_code:
+            resp = table.query(
+                IndexName='flowCode', KeyConditionExpression='flowCode = :c',
+                ExpressionAttributeValues={':c': flow_code},
+                ScanIndexForward=False, Limit=limit,
+            )
+        elif payment_status:
+            resp = table.query(
+                IndexName='paymentStatus', KeyConditionExpression='paymentStatus = :s',
+                ExpressionAttributeValues={':s': payment_status},
+                ScanIndexForward=False, Limit=limit,
+            )
+        elif status_filter:
+            resp = table.query(
+                IndexName='status', KeyConditionExpression='#st = :s',
+                ExpressionAttributeNames={'#st': 'status'},
+                ExpressionAttributeValues={':s': status_filter},
+                ScanIndexForward=False, Limit=limit,
+            )
+        elif phone_filter:
+            resp = table.query(
+                IndexName='phone', KeyConditionExpression='phone = :p',
+                ExpressionAttributeValues={':p': phone_filter},
+                ScanIndexForward=False, Limit=limit,
+            )
+        else:
+            resp = table.scan(Limit=limit)
+
+        items = resp.get('Items', [])
+        for item in items:
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    item[k] = int(v) if v == int(v) else float(v)
+        items.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+        return _resp(200, {'submissions': items, 'count': len(items)})
+    except Exception as e:
+        logger.error(f'List flow submissions error: {e}')
+        return _resp(500, {'error': str(e)})
+
+
+def _list_flow_registry(params: Dict) -> Dict:
+    """List all registered flows."""
+    try:
+        table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+        resp = table.scan()
+        items = resp.get('Items', [])
+        for item in items:
+            for k, v in item.items():
+                if isinstance(v, Decimal):
+                    item[k] = int(v) if v == int(v) else float(v)
+        items.sort(key=lambda x: x.get('flowCode', ''))
+        return _resp(200, {'flows': items, 'count': len(items)})
+    except Exception as e:
+        logger.error(f'List flow registry error: {e}')
+        return _resp(500, {'error': str(e)})
+
+
+def _upsert_flow_registry(body: Dict) -> Dict:
+    """Create or update a flow registry entry."""
+    try:
+        flow_id = body.get('flowId', '')
+        if not flow_id:
+            return _resp(400, {'error': 'flowId required'})
+        now = int(time.time())
+        table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+        item = {
+            'flowId': flow_id,
+            'flowCode': body.get('flowCode', ''),
+            'flowName': body.get('flowName', ''),
+            'flowType': body.get('flowType', 'form_submit'),
+            'flowVersion': body.get('flowVersion', '7.3'),
+            'dataApiVersion': body.get('dataApiVersion', '4.0'),
+            'wabaId': body.get('wabaId', ''),
+            'status': body.get('status', 'DRAFT'),
+            'category': body.get('category', ''),
+            'requiresPayment': body.get('requiresPayment', False),
+            'paymentAmount': int(body.get('paymentAmount', 0)),
+            'paymentDescription': body.get('paymentDescription', ''),
+            'screenConfig': body.get('screenConfig', '{}'),
+            'contactMapping': body.get('contactMapping', '{}'),
+            'dataFetchers': body.get('dataFetchers', '{}'),
+            'submissionPrefix': body.get('submissionPrefix', 'WD'),
+            'endpointUri': body.get('endpointUri', 'https://api.wecare.digital/wa-business/flow-data'),
+            'createdAt': Decimal(str(body.get('createdAt', now))),
+            'updatedAt': Decimal(str(now)),
+        }
+        if body.get('publishedAt'):
+            item['publishedAt'] = Decimal(str(body['publishedAt']))
+        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
+        # Invalidate cache
+        global _flow_registry_cache_ts
+        _flow_registry_cache_ts = 0
+        return _resp(200, {'success': True, 'flowId': flow_id})
+    except Exception as e:
+        logger.error(f'Upsert flow registry error: {e}')
+        return _resp(500, {'error': str(e)})
+
+
+def _get_flow_submission_stats(params: Dict) -> Dict:
+    """Get aggregated stats for flow submissions — payment totals, status counts."""
+    try:
+        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        flow_code = params.get('flowCode', '')
+        if flow_code:
+            resp = table.query(
+                IndexName='flowCode', KeyConditionExpression='flowCode = :c',
+                ExpressionAttributeValues={':c': flow_code},
+                Limit=500,
+            )
+        else:
+            resp = table.scan(Limit=500)
+        items = resp.get('Items', [])
+        stats = {
+            'total': len(items),
+            'byStatus': {}, 'byPaymentStatus': {},
+            'totalPaymentAmount': 0, 'capturedAmount': 0, 'pendingAmount': 0,
+        }
+        for item in items:
+            s = item.get('status', 'open')
+            ps = item.get('paymentStatus', 'none')
+            amt = int(item.get('paymentAmount', 0))
+            stats['byStatus'][s] = stats['byStatus'].get(s, 0) + 1
+            stats['byPaymentStatus'][ps] = stats['byPaymentStatus'].get(ps, 0) + 1
+            if ps == 'captured':
+                stats['capturedAmount'] += amt
+            elif ps == 'pending':
+                stats['pendingAmount'] += amt
+            stats['totalPaymentAmount'] += amt
+        return _resp(200, stats)
+    except Exception as e:
+        logger.error(f'Flow submission stats error: {e}')
+        return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
+# FLOW A/B TESTING
+# ============================================================================
+
+def _get_ab_test_flow_id(flow_code: str, phone: str) -> str:
+    """For A/B testing: return flow ID based on deterministic phone hash split."""
+    config = _get_flow_registry_by_code(flow_code)
+    if not config:
+        return ''
+    ab_str = config.get('abTestConfig', '')
+    if not ab_str:
+        return config.get('flowId', '')
+    try:
+        ab = json.loads(ab_str)
+        if not ab.get('enabled'):
+            return config.get('flowId', '')
+        split = ab.get('splitPercent', 50)
+        phone_hash = int(hashlib.md5(phone.encode()).hexdigest()[:8], 16) % 100
+        if phone_hash < split:
+            return config.get('flowId', '')
+        return ab.get('variantB_flowId', config.get('flowId', ''))
+    except Exception:
+        return config.get('flowId', '')
+
+
+# ============================================================================
+# SLA TRACKING & AUTO-ESCALATION
+# ============================================================================
+
+def _check_sla_and_escalate(params: Dict) -> Dict:
+    """Check open submissions for SLA breaches. Auto-assign after 3d, escalate after 7d."""
+    try:
+        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        now = int(time.time())
+        sla_days = int(params.get('slaDays', '7'))
+        reminder_days = int(params.get('reminderDays', '3'))
+        default_assignee = params.get('defaultAssignee', 'support@wecare.digital')
+        resp = table.query(
+            IndexName='status', KeyConditionExpression='#st = :s',
+            ExpressionAttributeNames={'#st': 'status'},
+            ExpressionAttributeValues={':s': 'open'}, Limit=500,
+        )
+        items = resp.get('Items', [])
+        actions = {'reminded': 0, 'auto_assigned': 0, 'escalated': 0, 'overdue_payments': 0}
+        for item in items:
+            created = int(item.get('createdAt', 0))
+            if not created:
+                continue
+            days_old = (now - created) // 86400
+            sub_id = item.get('submissionId', '')
+            if item.get('paymentStatus') == 'pending' and days_old > sla_days:
+                actions['overdue_payments'] += 1
+                try:
+                    table.update_item(Key={'submissionId': sub_id},
+                        UpdateExpression='SET notes = :n, updatedAt = :u',
+                        ExpressionAttributeValues={':n': f'OVERDUE: Payment pending {days_old}d', ':u': Decimal(str(now))})
+                except Exception:
+                    pass
+            if days_old >= reminder_days and not item.get('assignedTo'):
+                actions['auto_assigned'] += 1
+                try:
+                    table.update_item(Key={'submissionId': sub_id},
+                        UpdateExpression='SET assignedTo = :a, #st = :s, updatedAt = :u',
+                        ExpressionAttributeNames={'#st': 'status'},
+                        ExpressionAttributeValues={':a': default_assignee, ':s': 'in_progress', ':u': Decimal(str(now))})
+                except Exception:
+                    pass
+            if days_old >= sla_days and item.get('assignedTo') and item.get('status') != 'escalated':
+                actions['escalated'] += 1
+                try:
+                    table.update_item(Key={'submissionId': sub_id},
+                        UpdateExpression='SET notes = :n, #st = :s, updatedAt = :u',
+                        ExpressionAttributeNames={'#st': 'status'},
+                        ExpressionAttributeValues={':n': f'ESCALATED: Open for {days_old}d', ':s': 'in_progress', ':u': Decimal(str(now))})
+                except Exception:
+                    pass
+        return _resp(200, {'actions': actions, 'checked': len(items)})
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
+# CUSTOMER JOURNEY VIEW
+# ============================================================================
+
+def _get_customer_journey(params: Dict) -> Dict:
+    """Get all flow submissions + logs for a phone number — full journey view."""
+    phone = params.get('phone', '')
+    if not phone:
+        return _resp(400, {'error': 'phone required'})
+    try:
+        fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        fs_resp = fs_table.query(IndexName='phone', KeyConditionExpression='phone = :p',
+            ExpressionAttributeValues={':p': phone}, Limit=100)
+        submissions = fs_resp.get('Items', [])
+        fl_table = dynamodb.Table(FLOW_LOGS_TABLE)
+        fl_resp = fl_table.query(IndexName='phone', KeyConditionExpression='phone = :p',
+            ExpressionAttributeValues={':p': phone}, Limit=200)
+        logs = fl_resp.get('Items', [])
+        contact_id = _find_contact_by_phone(phone)
+        contact = {}
+        if contact_id:
+            try:
+                ct = dynamodb.Table(CONTACTS_TABLE)
+                cr = ct.get_item(Key={'contactId': contact_id})
+                contact = cr.get('Item', {})
+            except Exception:
+                pass
+        for lst in [submissions, logs]:
+            for item in lst:
+                for k, v in item.items():
+                    if isinstance(v, Decimal):
+                        item[k] = int(v) if v == int(v) else float(v)
+        for k, v in contact.items():
+            if isinstance(v, Decimal):
+                contact[k] = int(v) if v == int(v) else float(v)
+        submissions.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+        logs.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
+        flows_completed = list(set(s.get('flowCode', '') for s in submissions))
+        total_paid = sum(int(s.get('paymentAmount', 0)) for s in submissions if s.get('paymentStatus') == 'captured')
+        return _resp(200, {
+            'phone': phone, 'contactId': contact_id, 'contact': contact,
+            'submissions': submissions, 'logs': logs,
+            'summary': {'flowsCompleted': flows_completed, 'totalSubmissions': len(submissions),
+                        'totalPaid': total_paid, 'totalInteractions': len(logs)},
+        })
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
+# FLOW TEMPLATE CLONING BETWEEN WABAs
+# ============================================================================
+
+def _clone_flow_to_waba(body: Dict) -> Dict:
+    """Clone a flow registry config to a different WABA with a new Meta flow ID."""
+    source_flow_code = body.get('sourceFlowCode', '')
+    target_waba_id = body.get('targetWabaId', '')
+    target_flow_id = body.get('targetFlowId', '')
+    if not source_flow_code or not target_waba_id or not target_flow_id:
+        return _resp(400, {'error': 'sourceFlowCode, targetWabaId, targetFlowId required'})
+    source = _get_flow_registry_by_code(source_flow_code)
+    if not source:
+        return _resp(404, {'error': f'Source flow {source_flow_code} not found'})
+    now = int(time.time())
+    clone = dict(source)
+    clone['flowId'] = target_flow_id
+    clone['wabaId'] = target_waba_id
+    clone['status'] = 'DRAFT'
+    clone['createdAt'] = Decimal(str(now))
+    clone['updatedAt'] = Decimal(str(now))
+    if 'publishedAt' in clone:
+        del clone['publishedAt']
+    try:
+        table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+        table.put_item(Item={k: v for k, v in clone.items() if v is not None and v != ''})
+        global _flow_registry_cache_ts
+        _flow_registry_cache_ts = 0
+        return _resp(200, {'success': True, 'clonedFlowId': target_flow_id, 'sourceFlowCode': source_flow_code})
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
+# WEBHOOK ALERTS (Slack/Email via SNS)
+# ============================================================================
+
+def _send_flow_alert(alert_type: str, flow_id: str, message: str, details: Dict = None):
+    """Send alert via SNS topic (fans out to Slack/email subscriptions)."""
+    try:
+        sns = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        topic_arn = os.environ.get('FLOW_ALERTS_SNS_TOPIC', '')
+        if not topic_arn:
+            logger.info(f'Flow alert (no SNS): {alert_type} - {message}')
+            return
+        sns.publish(TopicArn=topic_arn, Subject=f'Flow Alert: {alert_type}',
+            Message=json.dumps({'alertType': alert_type, 'flowId': flow_id,
+                'message': message, 'details': details or {}, 'timestamp': int(time.time())}, default=str))
+    except Exception as e:
+        logger.warning(f'Flow alert failed: {e}')
+
+
+# ============================================================================
+# CSV EXPORT FOR ACCOUNTING
+# ============================================================================
+
+def _export_submissions_csv(params: Dict) -> Dict:
+    """Export flow submissions as CSV for accounting reconciliation."""
+    try:
+        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        flow_code = params.get('flowCode', '')
+        payment_status = params.get('paymentStatus', '')
+        if flow_code:
+            resp = table.query(IndexName='flowCode', KeyConditionExpression='flowCode = :c',
+                ExpressionAttributeValues={':c': flow_code}, Limit=1000)
+        elif payment_status:
+            resp = table.query(IndexName='paymentStatus', KeyConditionExpression='paymentStatus = :s',
+                ExpressionAttributeValues={':s': payment_status}, Limit=1000)
+        else:
+            resp = table.scan(Limit=1000)
+        items = resp.get('Items', [])
+        items.sort(key=lambda x: int(x.get('createdAt', 0)), reverse=True)
+        headers = ['submissionNumber', 'flowCode', 'phone', 'senderName', 'orderId',
+                    'requestType', 'subject', 'paymentStatus', 'paymentAmount', 'paymentRefId',
+                    'invoiceId', 'transactionId', 'status', 'assignedTo', 'createdAt', 'paidAt']
+        lines = [','.join(headers)]
+        for item in items:
+            row = []
+            for h in headers:
+                val = item.get(h, '')
+                if isinstance(val, Decimal):
+                    val = int(val) if val == int(val) else float(val)
+                if h == 'paymentAmount' and val:
+                    val = f'{int(val) / 100:.2f}'
+                if h in ('createdAt', 'paidAt') and val:
+                    try:
+                        val = time.strftime('%Y-%m-%d %H:%M', time.gmtime(int(val)))
+                    except Exception:
+                        pass
+                s = str(val).replace('"', '""')
+                row.append(f'"{s}"' if ',' in s or '"' in s else str(s))
+            lines.append(','.join(row))
+        return _resp(200, {'csv': '\n'.join(lines), 'count': len(items)})
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
+# FLOW VERSION FREEZE MONITORING
+# ============================================================================
+
+def _check_flow_version_health(params: Dict) -> Dict:
+    """Check all registered flows for version freeze/expiry risks."""
+    FROZEN = {'2.1', '3.0', '3.1', '4.0', '5.0'}
+    RECOMMENDED = '7.3'
+    SUPPORTED = {'5.1', '6.0', '6.1', '6.2', '6.3', '7.0', '7.1', '7.2', '7.3'}
+    try:
+        table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+        resp = table.scan()
+        items = resp.get('Items', [])
+        results = []
+        for item in items:
+            v = item.get('flowVersion', '')
+            if v in FROZEN:
+                st, msg = 'frozen', f'Version {v} is FROZEN. Upgrade to {RECOMMENDED} immediately.'
+            elif v and v not in SUPPORTED:
+                st, msg = 'unknown', f'Version {v} not in known supported list.'
+            elif v != RECOMMENDED:
+                st, msg = 'outdated', f'Version {v} supported but not recommended. Upgrade to {RECOMMENDED}.'
+            else:
+                st, msg = 'ok', ''
+            results.append({'flowCode': item.get('flowCode', ''), 'flowName': item.get('flowName', ''),
+                'flowId': item.get('flowId', ''), 'flowVersion': v,
+                'dataApiVersion': item.get('dataApiVersion', ''), 'versionStatus': st, 'message': msg})
+            if st == 'frozen':
+                _send_flow_alert('VERSION_FROZEN', item.get('flowId', ''), msg, {'flowCode': item.get('flowCode', '')})
+        return _resp(200, {'flows': results, 'recommendedVersion': RECOMMENDED})
+    except Exception as e:
+        return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
 # FLOW DATA EXCHANGE (WhatsApp Flows)
 # ============================================================================
 def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
@@ -977,6 +1567,21 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
         except Exception as e:
             logger.warning(f'Flow log write failed: {e}')  # Never block flow for logging failures
 
+        # Also log to new FlowLogsTable
+        try:
+            _flow_config_for_log = {}
+            if flow_token:
+                parts = flow_token.split('-')
+                if len(parts) >= 2 and parts[0] not in ('sr',):
+                    _flow_config_for_log = _get_flow_registry_by_code(parts[0])
+            _log_flow_interaction(
+                flow_config=_flow_config_for_log or {'flowId': '', 'flowCode': ''},
+                flow_token=flow_token, phone=_flow_phone,
+                action=action, screen=screen, data=data, request_id=request_id,
+            )
+        except Exception as e:
+            logger.warning(f'New flow log write failed: {e}')
+
     # Step 2: Process the action
     # NOTE: Per Meta docs, encrypted responses must NOT include "version".
     # Ping → {"data": {"status": "active"}}
@@ -1005,24 +1610,36 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
         # Meta strips "screen" from payload data — so route by current screen ID.
 
         if screen == 'ORDER_SELECT':
-            # User selected an order → show SUBMIT_REQUEST_FORM
+            # User selected an order → show REQUEST_FORM with request types
             selected_order = data.get('order_id', '')
+            request_types = [
+                {'id': 'return', 'title': '🔄 Return'},
+                {'id': 'exchange', 'title': '🔁 Exchange'},
+                {'id': 'refund', 'title': '💰 Refund'},
+                {'id': 'complaint', 'title': '⚠️ Complaint'},
+                {'id': 'support', 'title': '🛟 Support'},
+                {'id': 'other', 'title': '📝 Other'},
+            ]
             response_payload = {
-                'screen': 'SUBMIT_REQUEST_FORM',
+                'screen': 'REQUEST_FORM',
                 'data': {
                     'order_id': selected_order,
+                    'request_types': request_types,
                 }
             }
 
-        elif screen == 'SUBMIT_REQUEST_FORM':
-            # User filled subject + description → show TERMS
+        elif screen == 'SUBMIT_REQUEST_FORM' or screen == 'REQUEST_FORM':
+            # User filled subject + description → handled by navigate to REVIEW (client-side)
+            # This path is only hit if the flow uses data_exchange instead of navigate
             order_id = data.get('order_id', '')
             subject = data.get('subject', '')
             description = data.get('description', '')
+            request_type = data.get('request_type', '')
             response_payload = {
-                'screen': 'TERMS',
+                'screen': 'REVIEW',
                 'data': {
                     'order_id': order_id,
+                    'request_type': request_type,
                     'subject': subject,
                     'description': description,
                 }
@@ -1033,6 +1650,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             order_id = data.get('order_id', '')
             subject = data.get('subject', '')
             description = data.get('description', '')
+            request_type = data.get('request_type', '')
 
             # Generate dynamic request number + separate payment reference
             request_number = f'WD-SR-{uuid.uuid4().hex[:8].upper()}'
@@ -1040,13 +1658,14 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
             logger.info(json.dumps({
                 'flow_submit': True, 'order_id': order_id,
+                'request_type': request_type,
                 'subject': subject, 'description': description,
                 'request_number': request_number,
                 'payment_ref_id': payment_ref_id,
                 'requestId': request_id,
             }))
 
-            # Save submission to DynamoDB
+            # Save submission to DynamoDB (legacy table)
             phone = ''
             if flow_token and '-ph-' in flow_token:
                 phone = flow_token.split('-ph-', 1)[1]
@@ -1065,9 +1684,77 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     'requestId': request_id,
                 }))
 
+            # Save to new FlowSubmissionsTable (generic flow engine)
+            try:
+                # Try to look up flow config from registry (by flow_token prefix or fallback)
+                flow_config = {}
+                flow_code_from_token = ''
+                if flow_token:
+                    # Token format: {flowCode}-{uuid}-ph-{phone} or sr-{uuid}-ph-{phone}
+                    parts = flow_token.split('-')
+                    if len(parts) >= 2 and parts[0] not in ('sr',):
+                        flow_code_from_token = parts[0]
+                        flow_config = _get_flow_registry_by_code(flow_code_from_token)
+
+                if not flow_config:
+                    # Fallback: use default config for 01.WD_SR
+                    flow_config = _get_flow_registry_by_code('01.WD_SR') or {
+                        'flowId': '', 'flowCode': '01.WD_SR', 'flowName': 'Submit Request',
+                        'flowType': 'form_submit', 'flowVersion': '7.3',
+                        'requiresPayment': True, 'paymentAmount': 4900,
+                        'submissionPrefix': 'WD-SR',
+                    }
+
+                contact_id = _find_contact_by_phone(phone)
+                sender_name = ''
+                if contact_id:
+                    try:
+                        ct = dynamodb.Table(CONTACTS_TABLE)
+                        cr = ct.get_item(Key={'contactId': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
+                        sender_name = cr.get('Item', {}).get('name', '')
+                    except Exception:
+                        pass
+
+                submission = _save_flow_submission(
+                    flow_config=flow_config, phone=phone, contact_id=contact_id,
+                    sender_name=sender_name,
+                    form_data={'order_id': order_id, 'subject': subject,
+                               'description': description, 'request_type': request_type},
+                    flow_token=flow_token, request_id=request_id,
+                )
+                # Override generated numbers with the ones we already created
+                if submission and submission.get('submissionId'):
+                    try:
+                        fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+                        fs_table.update_item(
+                            Key={'submissionId': submission['submissionId']},
+                            UpdateExpression='SET submissionNumber = :sn, paymentRefId = :pr, paymentStatus = :ps, paymentRequired = :preq, paymentAmount = :pa',
+                            ExpressionAttributeValues={
+                                ':sn': request_number, ':pr': payment_ref_id,
+                                ':ps': 'pending', ':preq': True, ':pa': 4900,
+                            },
+                        )
+                    except Exception:
+                        pass
+
+                # Enrich contact if flow has contactMapping
+                contact_mapping_str = flow_config.get('contactMapping', '{}')
+                try:
+                    contact_mapping = json.loads(contact_mapping_str) if contact_mapping_str else {}
+                except Exception:
+                    contact_mapping = {}
+                if contact_mapping and contact_id:
+                    _enrich_contact_from_flow(contact_id, data, contact_mapping)
+
+            except Exception as new_save_err:
+                logger.warning(f'FlowSubmission save failed (non-blocking): {new_save_err}')
+
             # Send payment + confirmation ASYNC via a separate Lambda invocation
             # to avoid blocking the flow response (Meta has a timeout on data_exchange)
             try:
+                # Read gateway config from flow registry
+                _gw = flow_config.get('preferredGateway', '') if flow_config else ''
+                _pg_config = flow_config.get('paymentConfigName', '') if flow_config else ''
                 lambda_client.invoke(
                     FunctionName=os.environ.get('AWS_LAMBDA_FUNCTION_NAME', 'wecare-whatsapp-business-api'),
                     InvocationType='Event',
@@ -1079,6 +1766,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'request_id': request_id,
                         'request_number': request_number,
                         'payment_ref_id': payment_ref_id,
+                        'preferred_gateway': _gw,
+                        'payment_config_name': _pg_config,
                     })
                 )
             except Exception as async_err:
@@ -1103,18 +1792,19 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 except Exception as e:
                     logger.error(f'[{request_id}] Invoice/confirmation send failed for order {order_id}: {e}')
 
-            # Navigate to THANK_YOU screen with generated IDs
-            # THANK_YOU is terminal:true — it closes the flow when user taps "Done"
+            # Navigate to SUCCESS screen with generated IDs
+            # SUCCESS is terminal:true — it closes the flow when user taps "Done"
             response_payload = {
-                'screen': 'THANK_YOU',
+                'screen': 'SUCCESS',
                 'data': {
                     'request_number': request_number,
                     'payment_ref_id': payment_ref_id,
+                    'message': f'✅ Your request {request_number} has been submitted successfully! A payment link for ₹49 will be sent shortly.',
                 }
             }
 
-        elif screen == 'THANK_YOU':
-            # User tapped "Done" on the terminal THANK_YOU screen → close flow
+        elif screen == 'THANK_YOU' or screen == 'SUCCESS':
+            # User tapped "Done" on the terminal screen → close flow
             response_payload = {
                 'screen': 'SUCCESS',
                 'data': {
@@ -1209,11 +1899,16 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
 
 
 def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id: str,
-                             request_number: str = '', payment_ref_id: str = '') -> str:
+                             request_number: str = '', payment_ref_id: str = '',
+                             preferred_gateway: str = '', payment_config_name: str = '') -> str:
     """
     Create an invoice via invoice-engine, then send payment link through that invoice.
     This integrates Submit Request payments into the common invoice infrastructure
     so they appear in the Pay Flow / Invoices tab alongside all other invoices.
+    
+    preferred_gateway: 'razorpay' or 'payu' — passed to invoice-engine
+    payment_config_name: specific Meta PG config name (e.g. 'WECARE-RAZOR-PAY')
+    
     Returns the invoice number (or empty string on failure).
     """
     logger.info(json.dumps({
@@ -1262,6 +1957,11 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
             'gstRate': 18,
         }],
     }
+    # Add gateway preference from flow registry config
+    if preferred_gateway:
+        invoice_body['preferredGateway'] = preferred_gateway
+    if payment_config_name:
+        invoice_body['paymentConfiguration'] = payment_config_name
 
     try:
         create_resp = lambda_client.invoke(
@@ -1504,70 +2204,130 @@ def _find_contact_by_phone(phone: str) -> str:
 def _fetch_orders_for_flow(phone: str, email: str) -> list:
     """
     Fetch WD-ORD numbers for a user by phone or email.
-    Queries the Wix /_functions/orders endpoint which returns orders with
-    customOrderNumber (WD-ORD) and buyerPhone/buyerEmail for matching.
+    Uses the wix-store Lambda (eCommerce Orders API) for rich order data.
+    Falls back to Wix Velo /_functions/orders if Lambda call fails.
     Returns list of {id, title} for WhatsApp Flow dropdown.
     """
     order_ids = []
 
+    # ── Method 1: Use wix-store Lambda (rich data) ──
+    try:
+        search_params = {'limit': '20'}
+        if email:
+            search_params['email'] = email
+
+        wix_resp = lambda_client.invoke(
+            FunctionName=os.environ.get('WIX_STORE_FUNCTION', 'wecare-wix-store'),
+            InvocationType='RequestResponse',
+            Payload=json.dumps({
+                'requestContext': {'http': {'method': 'GET'}},
+                'rawPath': '/wix-store/orders',
+                'queryStringParameters': search_params,
+                'headers': {'origin': 'https://admin.wecare.digital'},
+            })
+        )
+        wix_result = json.loads(wix_resp['Payload'].read())
+        wix_body = json.loads(wix_result.get('body', '{}'))
+        orders = wix_body.get('orders', [])
+
+        # Normalize phone for matching
+        clean_phone = ''
+        clean_phone_short = ''
+        if phone:
+            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
+            clean_phone_short = clean_phone[2:] if len(clean_phone) > 10 and clean_phone.startswith('91') else clean_phone
+
+        for order in orders:
+            summary = order.get('_summary', {})
+            wd_id = order.get('customOrderNumber', '') or summary.get('customOrderNumber', '')
+            if not wd_id or not wd_id.startswith('WD-ORD'):
+                continue
+
+            # Match by phone if no email filter
+            if not email and clean_phone:
+                billing_phone = (summary.get('billingPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
+                buyer_email = summary.get('buyerEmail', '')
+                if clean_phone_short not in billing_phone and clean_phone not in billing_phone:
+                    continue
+
+            # Build rich title: "WD-ORD-A1B2C3D4 — ₹499 — 2 items — 22 Mar"
+            total = summary.get('totalAmount', '0')
+            item_count = summary.get('lineItemCount', 0)
+            created = summary.get('createdDate', '')
+            date_str = ''
+            if created:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                    date_str = dt.strftime('%d %b %Y')
+                except Exception:
+                    date_str = created[:10]
+
+            # First item name for context
+            items = summary.get('lineItems', [])
+            first_item = items[0].get('name', '') if items else ''
+            title_parts = [wd_id]
+            if total and total != '0':
+                title_parts.append(f'₹{float(total):.0f}')
+            if first_item:
+                title_parts.append(first_item[:25])
+            if date_str:
+                title_parts.append(date_str)
+
+            order_ids.append({
+                'id': wd_id,
+                'title': ' — '.join(title_parts),
+            })
+
+        if order_ids:
+            logger.info(json.dumps({
+                'action': 'fetch_orders_for_flow', 'source': 'wix_store_lambda',
+                'count': len(order_ids), 'phone': (phone or '')[:6] + '***',
+            }))
+            return order_ids
+
+    except Exception as e:
+        logger.warning(json.dumps({'action': 'fetch_orders_wix_lambda_failed', 'error': str(e)}))
+
+    # ── Method 2: Fallback to Wix Velo /_functions/orders ──
     try:
         wix_site_url = os.environ.get('WIX_SITE_URL', 'https://www.wecare.digital')
-
-        # Get API key from env or Secrets Manager for Wix auth
         api_key = os.environ.get('WIX_API_KEY', '')
         if not api_key:
             try:
                 resp = secrets_client.get_secret_value(SecretId='wecare/wix-api-key')
                 api_key = resp.get('SecretString', '').strip()
             except Exception:
-                logger.warning(f'Wix API key fetch from Secrets Manager failed')
                 pass
 
-        # Normalize phone for matching
         clean_phone = ''
+        clean_phone_short = ''
         if phone:
             clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
-            # Strip country code if present (91XXXXXXXXXX → XXXXXXXXXX)
-            if len(clean_phone) > 10 and clean_phone.startswith('91'):
-                clean_phone_short = clean_phone[2:]
-            else:
-                clean_phone_short = clean_phone
+            clean_phone_short = clean_phone[2:] if len(clean_phone) > 10 and clean_phone.startswith('91') else clean_phone
 
-        # Query by email first (more reliable), then by phone
-        query_param = ''
-        if email:
-            query_param = f'email={urllib.parse.quote(email)}'
-        # Always fetch a reasonable batch
+        query_param = f'email={urllib.parse.quote(email)}' if email else ''
         url = f'{wix_site_url}/_functions/orders?limit=50&{query_param}'
-
         headers = {}
         if api_key:
             headers['x-api-key'] = api_key
-
         req = urllib.request.Request(url, headers=headers, method='GET')
         with urllib.request.urlopen(req, timeout=12) as resp:
             result = json.loads(resp.read().decode('utf-8'))
-            orders = result.get('orders', [])
-
-            for order in orders:
+            for order in result.get('orders', []):
                 wd_id = order.get('customOrderNumber', '') or (order.get('customField', {}) or {}).get('value', '')
                 if not wd_id or not wd_id.startswith('WD-ORD'):
                     continue
-
-                # Match by phone if no email filter was used
                 if not email and clean_phone:
                     order_phone = (order.get('buyerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
                     if clean_phone_short not in order_phone and clean_phone not in order_phone:
                         continue
-
                 order_ids.append({'id': wd_id, 'title': wd_id})
 
         logger.info(json.dumps({
-            'action': 'fetch_orders_for_flow', 'source': 'wix',
+            'action': 'fetch_orders_for_flow', 'source': 'wix_velo_fallback',
             'count': len(order_ids), 'phone': (phone or '')[:6] + '***',
-            'email': (email or '')[:3] + '***',
         }))
-
     except Exception as e:
         logger.error(json.dumps({'action': 'fetch_orders_for_flow', 'error': str(e)}))
 
@@ -1711,6 +2471,8 @@ def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
     subject = event.get('subject', '')
     request_number = event.get('request_number', '')
     payment_ref_id = event.get('payment_ref_id', '')
+    preferred_gateway = event.get('preferred_gateway', '')
+    payment_config_name = event.get('payment_config_name', '')
 
     logger.info(json.dumps({
         'event': 'async_post_submit_start',
@@ -1726,7 +2488,9 @@ def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
             phone=phone, order_id=order_id,
             subject=subject, request_id=request_id,
             request_number=request_number,
-            payment_ref_id=payment_ref_id
+            payment_ref_id=payment_ref_id,
+            preferred_gateway=preferred_gateway,
+            payment_config_name=payment_config_name
         ) or ''
     except Exception as pay_err:
         logger.error(json.dumps({
@@ -1749,6 +2513,30 @@ def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
             'error': str(conf_err),
             'requestId': request_id,
         }))
+
+    # Step 3: Update FlowSubmissionsTable with invoiceId (if invoice was created)
+    if invoice_number and payment_ref_id:
+        try:
+            fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+            fs_resp = fs_table.query(
+                IndexName='paymentRefId',
+                KeyConditionExpression='paymentRefId = :ref',
+                ExpressionAttributeValues={':ref': payment_ref_id},
+                Limit=1,
+            )
+            fs_items = fs_resp.get('Items', [])
+            if fs_items:
+                fs_table.update_item(
+                    Key={'submissionId': fs_items[0]['submissionId']},
+                    UpdateExpression='SET invoiceId = :inv, updatedAt = :u',
+                    ExpressionAttributeValues={
+                        ':inv': invoice_number,
+                        ':u': Decimal(str(int(time.time()))),
+                    },
+                )
+                logger.info(f'FlowSubmission updated with invoiceId for paymentRefId={payment_ref_id}')
+        except Exception as fs_err:
+            logger.warning(f'FlowSubmission invoice link failed: {fs_err}')
 
     return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'status': 'ok'})}
 
@@ -1994,6 +2782,49 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'POST':
                 return _handle_flow_data(body, request_id, origin)
             return _resp(405, {'error': 'POST only'})
+
+        # Flow Management Engine routes
+        elif '/flow-registry' in path:
+            if method == 'GET':
+                return _list_flow_registry(params)
+            elif method == 'POST' or method == 'PUT':
+                return _upsert_flow_registry(body)
+            return _resp(405, {'error': 'GET/POST/PUT only'})
+
+        elif '/flow-submissions/stats' in path:
+            if method == 'GET':
+                return _get_flow_submission_stats(params)
+            return _resp(405, {'error': 'GET only'})
+
+        elif '/flow-submissions/export' in path:
+            if method == 'GET':
+                return _export_submissions_csv(params)
+            return _resp(405, {'error': 'GET only'})
+
+        elif '/flow-submissions' in path:
+            if method == 'GET':
+                return _list_flow_submissions(params)
+            return _resp(405, {'error': 'GET only'})
+
+        elif '/flow-sla-check' in path:
+            if method == 'POST':
+                return _check_sla_and_escalate(body)
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/flow-customer-journey' in path:
+            if method == 'GET':
+                return _get_customer_journey(params)
+            return _resp(405, {'error': 'GET only'})
+
+        elif '/flow-clone' in path:
+            if method == 'POST':
+                return _clone_flow_to_waba(body)
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/flow-version-health' in path:
+            if method == 'GET':
+                return _check_flow_version_health(params)
+            return _resp(405, {'error': 'GET only'})
 
         elif '/submit-requests' in path:
             if method == 'GET':

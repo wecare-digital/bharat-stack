@@ -2,131 +2,242 @@
 inclusion: manual
 ---
 
-# Email to Meta: WhatsApp Payments Beta Access Request
+# Emails to Meta: Enable Beta Features on Both WABAs
+
+---
+
+## EMAIL 1 — MAIN REQUEST (Send This First)
 
 **To:** whatsappindia-bizpayments-support@meta.com
-**CC:** (your Meta representative if you have one)
-**Subject:** WhatsApp Payments Beta Access Request — WECARE.DIGITAL (WABA: 2094615664435155 + 2513394156072604)
+**Subject:** Enable Enhanced Payment Links + Checkout Endpoint + Coupons + TPV + Bot API — Both WABAs — WECARE.DIGITAL
 
 ---
 
 Dear WhatsApp India Business Payments Team,
 
-We are writing to request beta access for the following WhatsApp Payments features for our business, WECARE.DIGITAL. We have completed a full production-grade integration with PayU and Razorpay payment gateways and are actively processing payments via WhatsApp.
+We are WECARE.DIGITAL, an active WhatsApp Payments merchant processing live payments via Razorpay and PayU on two WABAs. We request enablement of the following beta features on BOTH our WhatsApp Business Accounts.
 
-## Business Details
+### WABAs to Enable
+
+| # | WABA ID | Phone Number | Display Name | API Mode | Payment Status |
+|---|---|---|---|---|---|
+| 1 | 2094615664435155 | +91 93309 94400 | WECARE.DIGITAL | Cloud API (Direct) | Active — processing payments |
+| 2 | 2513394156072604 | +91 99033 00044 | Manish Agarwal | Cloud API (Direct) | Active — processing payments |
+
+### Payment Configurations (Active on Both WABAs)
+
+| Config Name | WABA | Gateway | Merchant ID |
+|---|---|---|---|
+| WECARE-RAZOR-PAY | 2094615664435155 | Razorpay | acc_HDfub6wOfQybuH |
+| WECARE-PAYU | 2094615664435155 | PayU | 8629516 |
+| Razorpay_ManishAgarwal | 2513394156072604 | Razorpay | acc_HDfub6wOfQybuH |
+| PayU_ManishAgarwal | 2513394156072604 | PayU | 8629516 |
+
+### Features Requested (Enable on BOTH WABAs)
+
+#### 1. Enhanced Payment Links (EPL)
+
+Please allowlist both WABAs for Enhanced Payment Links.
+
+We want to use EPL as a fallback for out-of-session payment reminders. Our primary flow is PG Deep Integration (interactive order_details), but EPL gives better UX than plain links for template-based reminders outside the 24-hour window.
+
+- Preferred PGs: Razorpay, PayU
+- Sample Razorpay link format: https://rzp.io/i/{link_id}
+- Sample PayU link format: https://pmny.in/PAYUMN/{link_id}
+- We will provide live sample links upon request
+- Template ready: no-header, single dynamic URL button
+
+#### 2. Checkout Endpoint (Coupons + Address Collection + Real-time Pricing)
+
+Please enable the checkout endpoint (data_exchange) feature and link it to all four payment configurations listed above.
+
+We need this for:
+- Native address collection during checkout for physical goods (apply_shipping)
+- Coupon support (get_coupons, apply_coupon, remove_coupon)
+- Real-time inventory and serviceability checks
+- Shipping cost recalculation based on customer-selected address
+
+Our checkout endpoint is ready:
+- URL: https://api.wecare.digital/wa-business/flow-data
+- Encryption: RSA + AES-GCM (same as WhatsApp Flows)
+- We already handle data_exchange for WhatsApp Flows on this endpoint
+- Sub-actions to implement: get_coupons, apply_coupon, remove_coupon, apply_shipping
+
+Please link this endpoint to these payment configurations:
+1. WECARE-RAZOR-PAY (WABA 2094615664435155)
+2. WECARE-PAYU (WABA 2094615664435155)
+3. Razorpay_ManishAgarwal (WABA 2513394156072604)
+4. PayU_ManishAgarwal (WABA 2513394156072604)
+
+#### 3. Third Party Validation (TPV)
+
+Please enable TPV for both Razorpay and PayU on both WABAs.
+
+We process travel bookings (MCC 4722) and need to validate that high-value payments come from specific customer bank accounts. We understand this is in alpha and are ready to work with Razorpay/PayU to obtain the public encryption keys.
+
+#### 4. WhatsApp Business Bot API
+
+Please enable the WhatsApp Business Bot API on both WABAs listed above.
+
+We need access to the Bot API endpoints to configure automated bot responses, commands, prompts, and welcome messages programmatically via the Graph API. Specifically:
+
+- `GET /{WABA-Bot-ID}?fields=id,prompts,commands,enable_welcome_message` — to retrieve and audit bot configuration
+- Bot command management — to set up structured commands (e.g. /pay, /help, /status, /request) that customers can use
+- Welcome message configuration — to enable/disable and customize the automated welcome message
+- Bot prompts — to configure AI-powered automated responses
+
+We currently handle 65+ payment trigger keywords, AI-powered responses (via Amazon Bedrock), and structured WhatsApp Flows. The Bot API would allow us to:
+1. Define discoverable slash commands for customers (/pay, /help, /track, /request)
+2. Configure welcome messages that guide new customers
+3. Set up bot prompts for common queries
+4. Manage bot state programmatically from our admin dashboard
+
+We verified that the Bot API fields (`prompts`, `commands`, `enable_welcome_message`) are currently returning "nonexisting field" errors on both our WABAs, confirming the feature is not yet enabled for our accounts.
+
+### Business Details
 
 | Field | Value |
 |---|---|
 | Business Name | WECARE.DIGITAL |
-| Business Portfolio | Meta Business Manager |
 | GSTIN | 19AADFW7431N1ZK |
 | PAN | AADFW7431N |
 | MCC | 4722 (Travel Agencies and Tour Operators) |
 | Purpose Code | 03 (Travel) |
-| Business Address | The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7, Phears Ln, Kolkata, WB 700012 |
+| Address | The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7, Phears Ln, Kolkata, WB 700012 |
 | Website | https://wecare.digital |
-| Support Email | one@wecare.digital |
-| Support Phone | +91 93309 94400 |
+| App ID | 2238810740192680 |
+| App Name | WECARE.DIGITAL |
 
-## WABA Details
+### What We Have Built (Live in Production)
 
-| WABA | ID | Phone | Status |
-|---|---|---|---|
-| WABA 1 (WECARE.DIGITAL) | 2094615664435155 | +91 93309 94400 | Active, Direct API |
-| WABA 2 (Manish Agarwal) | 2513394156072604 | +91 99033 00044 | Active, Direct API |
+Our complete integration includes:
 
-## Payment Gateway Configurations
-
-| Config Name | WABA | Gateway | MID | Status |
-|---|---|---|---|---|
-| WECARE-RAZOR-PAY | WABA 1 | Razorpay | acc_HDfub6wOfQybuH | Active |
-| WECARE-PAYU | WABA 1 | PayU | 8629516 | Active |
-| Razorpay_ManishAgarwal | WABA 2 | Razorpay | acc_HDfub6wOfQybuH | Active |
-| PayU_ManishAgarwal | WABA 2 | PayU | 8629516 | Active |
-
-## What We Have Built (Production-Ready)
-
-Our integration covers the complete WhatsApp Payments-In specification:
-
-### Core Payment Flow
-- PG Deep Integration with both Razorpay and PayU
-- order_details interactive messages with full payload compliance (v25.0)
-- order_status messages for payment confirmation (completed, canceled)
-- Payment Lookup API verification (security compliance — not relying solely on webhooks)
-- Meta Refund API integration (POST /payments_refund)
-- Dual webhook processing: Meta payment webhooks (primary) + direct PG webhooks (backup)
+- PG Deep Integration with payment_settings (migrated from legacy payment_type)
+- Checkout Button Templates with order_details buttons (template: wecare_checkout_v1, APPROVED)
+- Interactive order_details messages for in-session payments
+- order_status messages for payment confirmation
+- Payment Lookup API verification on every capture
+- Meta Refund API integration
+- Dual webhook processing: Meta webhooks (primary) + direct PG webhooks (backup)
 - HMAC-SHA256 signature verification (Razorpay) + SHA-512 reverse hash (PayU)
 - Idempotent webhook processing with DynamoDB audit trail
+- GST-compliant invoice generation (PNG + PDF) with auto-send on WhatsApp
+- 65+ payment trigger keywords (English, Hindi, Hinglish)
+- Physical-goods support with beneficiaries
+- Order expiration, quick_pay mode, preferred UPI app, UPI limit auto-switch
+- WhatsApp Cloud API v25.0 (Direct API with appsecret_proof)
 
-### Invoice & Billing
-- GST-compliant invoice generation with sequential numbering (WD/FY/NNNNN)
-- POS receipt-style PNG generation (thermal receipt layout with PAID stamp)
-- PDF generation
-- Auto-send invoice image on WhatsApp after payment capture
-- Configurable convenience fee (rate + GST rate + skip flag)
-
-### Payment Routing
-- Per-WABA payment configuration isolation (cross-WABA safety net)
-- Strict 10-digit phone matching for customer invoice isolation
-- Invoice stores preferred gateway + configuration for keyword-triggered payments
-- Sequential payment flow (auto-sends next pending invoice after capture)
-
-### Customer Experience
-- 65+ payment trigger keywords (English, Hindi, Hinglish, Devanagari)
-- Physical-goods support with structured address fields
-- Native WhatsApp address collection (empty addresses[] for customer input)
-- Order expiration (configurable, default 24h, Meta minimum 300s enforced)
-- UPI limit auto-switch to web checkout above Rs 5,00,000
-- Preferred UPI app support (gpay, phonepe, paytm, etc.)
-
-### Advanced Features (Ready for Beta)
-- Enhanced Payment Links support (payment_link type with Razorpay/PayU URLs)
-- UPI Intent mode (upi_intent_link type)
-- quick_pay mode (hides "Review and Pay", shows only "Pay Now")
-- Third Party Validation (TPV) support for Razorpay and PayU
-- enabled_payment_options (restrict to UPI or web)
-
-## Beta Features We Are Requesting Access To
-
-### 1. Enhanced Payment Links
-We have implemented the template-based Enhanced Payment Links flow and are ready to test with production Razorpay and PayU payment links.
-
-**Sample Razorpay payment link:** (will provide upon request)
-**Sample PayU payment link:** (will provide upon request)
-**Preferred Payment Gateways:** Razorpay, PayU
-
-### 2. Checkout Button Templates with Coupons, Real-time Inventory, and Shipping
-We are ready to implement the checkout endpoint for data_exchange (get_coupons, apply_coupon, remove_coupon, apply_shipping). We have existing WhatsApp Flows encryption/decryption infrastructure that can be reused for the checkout endpoint.
-
-### 3. WhatsApp Business Calling + SIP
-All 3 phone numbers have calling enabled with SIP integration:
-
-| Phone | Meta ID | SIP Hostname | Port | Encryption | Status |
-|---|---|---|---|---|---|
-| +91 93309 94400 | 1016149501586345 | sip.wecare.digital | 5061 | SDES | ENABLED |
-| +91 99033 00044 | 1055232054343117 | sip.wecare.digital | 5061 | SDES | ENABLED |
-
-Asterisk PBX (22.8.2) on Lightsail instance at 52.3.44.165 with IVR (Polly TTS, multi-language).
-
-## Technical Stack
+### Technical Stack
 
 - AWS Lambda (Python 3.12) — 44 serverless functions
 - DynamoDB — 8 tables with GSIs
-- Meta WhatsApp Cloud API v25.0 (Direct API)
 - Next.js admin dashboard on AWS Amplify
-- S3 + CloudFront for invoice storage/delivery
+- S3 + CloudFront for media/invoice delivery
 
-## Contact
+### Contact
 
-| Role | Name | Contact |
-|---|---|---|
-| Technical Lead | Manish Agarwal | one@wecare.digital |
-| Business | WECARE.DIGITAL | +91 93309 94400 |
+| Name | Role | Email | Phone |
+|---|---|---|---|
+| Manish Agarwal | Owner / Technical Lead | one@wecare.digital | +91 93309 94400 |
 
-We are happy to provide any additional information, sample payloads, or schedule a technical walkthrough at your convenience.
+We can provide sample payloads, a live demo, or a technical walkthrough at your convenience.
 
-Thank you for your support.
+Thank you,
+Manish Agarwal
+WECARE.DIGITAL
 
-Best regards,
-WECARE.DIGITAL Team
+---
+
+## EMAIL 2 — WEBHOOK SUBSCRIPTION CONFIRMATION (Send if needed)
+
+**To:** whatsappindia-bizpayments-support@meta.com
+**Subject:** Confirm Webhook Subscription for Payment Status — WECARE.DIGITAL (Both WABAs)
+
+---
+
+Dear Team,
+
+We noticed that payment status webhooks (statuses with type="payment") are not arriving for our WABAs even though we have subscribed to the "messages" field via the subscribed_apps API.
+
+We confirmed via Payment Lookup API that payments are being captured successfully (status: CAPTURED), but the corresponding payment webhook with hasPaymentData=true is not being delivered to our webhook endpoint.
+
+Details:
+- WABA 1: 2094615664435155 (+91 93309 94400)
+- WABA 2: 2513394156072604 (+91 99033 00044)
+- App ID: 2238810740192680
+- Webhook URL: Configured via Meta Business Manager
+- API: Cloud API (Direct)
+- We called POST /{waba_id}/subscribed_apps with subscribed_fields=["messages"] and received success:true
+
+Recent test payments that were captured but no Meta payment webhook received:
+- Reference: WD-CT2-84251 — Captured via Razorpay (order_SXUI964OVzHEF4)
+- Reference: WD-PAY-CT1-83563 — Captured via Razorpay (order_SXTzve5ASNg0Gp)
+
+Both payments were confirmed captured via GET /{phone_id}/payments/{config}/{reference_id}.
+
+Could you please verify that:
+1. Payment status webhooks are enabled for both WABAs
+2. The "messages" webhook field subscription includes payment status events
+3. There are no configuration issues preventing payment webhook delivery
+
+Thank you,
+Manish Agarwal
+WECARE.DIGITAL
+one@wecare.digital | +91 93309 94400
+
+---
+
+## EMAIL 3 — CHECKOUT TEMPLATE CREATION ON WABA 1 (Send after Email 1)
+
+**To:** (internal note — do this yourself via API or Meta Business Manager)
+
+Create the same checkout button template on WABA 1 (2094615664435155):
+
+Template name: wecare_checkout_v1
+Language: en
+Category: MARKETING
+Body: "Your order for {{1}} is ready to ship! Total: {{2}}. Tap below to complete payment and confirm delivery address."
+Footer: "WECARE.DIGITAL"
+Button: type=order_details, text="Review and Pay"
+
+Run this command:
+```
+python scripts/_create_checkout_template.py
+```
+(Modify the script to use WABA1 ID: 2094615664435155)
+
+---
+
+## SENDING INSTRUCTIONS
+
+1. Send EMAIL 1 first — this is the main request for all beta features on both WABAs
+2. Send EMAIL 2 only if payment webhooks continue to not arrive after 24 hours
+3. Do EMAIL 3 yourself via API — create the checkout template on WABA 1
+4. Follow up in 5 business days if no response
+5. CC your Meta representative or BSP contact if you have one
+
+## AFTER META ENABLES THE FEATURES
+
+### Enhanced Payment Links:
+- Create templates with dynamic URL button (Razorpay: https://rzp.io/i/ prefix, PayU: https://pmny.in/PAYUMN/ prefix)
+- Send template messages with payment link suffix in button parameter
+- Payment renders as rich native checkout bubble
+
+### Checkout Endpoint (Coupons + Address):
+- Meta links your endpoint URL to payment configurations
+- Upload public encryption key via Cloud API
+- Implement get_coupons, apply_coupon, remove_coupon, apply_shipping in /wa-business/flow-data
+- Customers see "Apply a savings offer" and "Add shipping address" in checkout
+
+### TPV:
+- Get public encryption key from Razorpay/PayU
+- Encrypt customer bank account details
+- Pass encrypted_payment_gateway_data in payment_settings
+
+### WhatsApp Business Bot API:
+- Query bot config: `GET /{bot_id}?fields=prompts,commands,enable_welcome_message`
+- Set up slash commands: /pay, /help, /track, /request, /invoice
+- Enable welcome message for new customers
+- Configure bot prompts for automated responses
+- Integrate with existing AI automation (Bedrock) and keyword detection
+- Manage bot state from admin dashboard

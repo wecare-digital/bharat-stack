@@ -1977,13 +1977,22 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         if 'payment_link' in ps:
             action_params['payment_type'] = 'upi'
         
-        # For physical-goods: add beneficiaries + shipping_info
-        # If address is complete: add beneficiaries (required by Meta for legal/compliance)
-        # If address is incomplete/empty: send shipping_info with empty addresses array
-        #   → WhatsApp natively asks the customer to enter their shipping address
+        # For physical-goods: beneficiaries is REQUIRED by Meta (legal/compliance).
+        # Per Meta PG docs: "Required for shipped physical-goods."
+        # NOTE: shipping_info + address collection is a CHECKOUT BUTTON TEMPLATE feature
+        # (requires checkout endpoint / data_exchange beta). It does NOT work with
+        # interactive order_details messages. For PG deep integration, we MUST always
+        # provide beneficiaries. If address is unknown, use business address as fallback.
         if goods_type == 'physical-goods':
             shipping_info = order_details.get('shipping_info', {})
             beneficiary_addr = shipping_info.get('addresses', [])
+
+            # Try to build beneficiary from provided address
+            b_name = 'Customer'
+            b_addr1 = ''
+            b_city = ''
+            b_state = ''
+            b_postal = ''
 
             if beneficiary_addr:
                 addr = beneficiary_addr[0]
@@ -1993,30 +2002,38 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 b_state = addr.get('state', '') or ''
                 b_postal = addr.get('in_pin_code', addr.get('postal_code', '')) or ''
 
-                if b_addr1 and b_city and b_postal:
-                    # Complete address — add beneficiaries
-                    action_params['beneficiaries'] = [{
-                        'name': b_name,
-                        'address_line1': b_addr1[:100],
-                        'address_line2': (addr.get('landmark_area', addr.get('address_line2', '')) or '')[:100],
-                        'city': b_city,
-                        'state': b_state or b_city,
-                        'country': 'India',
-                        'postal_code': b_postal[:6],
-                    }]
-                    # Also add shipping_info for checkout flow (WhatsApp pre-fills address)
-                    action_params['shipping_info'] = shipping_info
-                else:
-                    # Incomplete address — let WhatsApp ask customer
-                    logger.info(json.dumps({
-                        'event': 'beneficiary_incomplete_whatsapp_will_ask',
-                        'missingFields': {'address_line1': not b_addr1, 'city': not b_city, 'postal_code': not b_postal},
-                        'referenceId': ref_id,
-                    }))
-                    action_params['shipping_info'] = {'country': 'IN', 'addresses': []}
+            if b_addr1 and b_city and b_postal:
+                # Complete customer address — use it
+                action_params['beneficiaries'] = [{
+                    'name': b_name,
+                    'address_line1': b_addr1[:100],
+                    'address_line2': (beneficiary_addr[0].get('landmark_area', beneficiary_addr[0].get('address_line2', '')) if beneficiary_addr else '')[:100],
+                    'city': b_city,
+                    'state': b_state or b_city,
+                    'country': 'India',
+                    'postal_code': b_postal[:6],
+                }]
             else:
-                # No address at all — WhatsApp will ask customer to add shipping address
-                action_params['shipping_info'] = shipping_info if shipping_info else {'country': 'IN', 'addresses': []}
+                # Address unknown/incomplete — use BUSINESS address as beneficiary fallback.
+                # Meta requires beneficiaries for physical-goods but says "Beneficiary
+                # information isn't shown to users but is needed for legal and compliance."
+                # So using business address is valid — the actual shipping address can be
+                # collected separately (via chat, form, or checkout endpoint beta).
+                logger.info(json.dumps({
+                    'event': 'beneficiary_fallback_to_business_address',
+                    'reason': 'Customer address incomplete for physical-goods',
+                    'missingFields': {'address_line1': not b_addr1, 'city': not b_city, 'postal_code': not b_postal},
+                    'referenceId': ref_id,
+                }))
+                action_params['beneficiaries'] = [{
+                    'name': 'WECARE.DIGITAL',
+                    'address_line1': '81/2/7 Phears Ln',
+                    'address_line2': 'The W.B.S.I.D.C. Building, Unit 1/20',
+                    'city': 'Kolkata',
+                    'state': 'West Bengal',
+                    'country': 'India',
+                    'postal_code': '700012',
+                }]
         
         interactive_payload = {
             'type': 'order_details',

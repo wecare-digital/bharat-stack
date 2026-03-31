@@ -371,8 +371,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     {filteredCust.map(c=>(
                       <div key={c.id} onClick={()=>{
                         setSelCustomer(c);
-                        // Auto-set goods type based on shipping address
-                        setGoodsType(c.shippingAddress ? 'physical-goods' : 'digital-goods');
+                        // Don't auto-set goods type — default is digital-goods.
+                        // Admin should explicitly select physical-goods when needed.
+                        // Auto-switching caused invoices to incorrectly trigger address collection.
                         // Auto-append Green Packing + Notification Fee as last items
                         setInvForm(prev => {
                           const items = [...prev.items];

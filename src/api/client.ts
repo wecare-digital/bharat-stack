@@ -3904,6 +3904,149 @@ export async function resendSubmitRequestPayment(invoiceId: string): Promise<boo
   } catch { return false; }
 }
 
+// ============================================================================
+// FLOW MANAGEMENT ENGINE
+// ============================================================================
+
+export interface FlowRegistryItem {
+  flowId: string;
+  flowCode: string;
+  flowName: string;
+  flowType: string;
+  flowVersion?: string;
+  dataApiVersion?: string;
+  wabaId?: string;
+  status: string;
+  category?: string;
+  requiresPayment?: boolean;
+  paymentAmount?: number;
+  paymentDescription?: string;
+  screenConfig?: string;
+  contactMapping?: string;
+  dataFetchers?: string;
+  submissionPrefix?: string;
+  endpointUri?: string;
+  publishedAt?: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface FlowSubmissionItem {
+  submissionId: string;
+  flowId: string;
+  flowCode: string;
+  flowType?: string;
+  flowVersion?: string;
+  phone: string;
+  contactId?: string;
+  senderName?: string;
+  formData?: string;
+  orderId?: string;
+  requestType?: string;
+  subject?: string;
+  description?: string;
+  submissionNumber?: string;
+  flowToken?: string;
+  paymentRequired?: boolean;
+  paymentAmount?: number;
+  paymentStatus: string;
+  paymentRefId?: string;
+  invoiceId?: string;
+  transactionId?: string;
+  paidAt?: number;
+  status: string;
+  assignedTo?: string;
+  notes?: string;
+  resolvedAt?: number;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface FlowSubmissionStats {
+  total: number;
+  byStatus: Record<string, number>;
+  byPaymentStatus: Record<string, number>;
+  totalPaymentAmount: number;
+  capturedAmount: number;
+  pendingAmount: number;
+}
+
+export async function listFlowRegistry(): Promise<FlowRegistryItem[]> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-registry`);
+  return data?.flows || [];
+}
+
+export async function upsertFlowRegistry(item: Partial<FlowRegistryItem>): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-registry`, {
+    method: 'POST',
+    body: JSON.stringify(item),
+  });
+  return !!data?.success;
+}
+
+export async function listFlowSubmissions(params?: {
+  flowCode?: string; paymentStatus?: string; status?: string; phone?: string; limit?: number;
+}): Promise<FlowSubmissionItem[]> {
+  const qs = new URLSearchParams();
+  if (params?.flowCode) qs.set('flowCode', params.flowCode);
+  if (params?.paymentStatus) qs.set('paymentStatus', params.paymentStatus);
+  if (params?.status) qs.set('status', params.status);
+  if (params?.phone) qs.set('phone', params.phone);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions${query ? '?' + query : ''}`);
+  return data?.submissions || [];
+}
+
+export async function getFlowSubmissionStats(flowCode?: string): Promise<FlowSubmissionStats | null> {
+  const qs = flowCode ? `?flowCode=${flowCode}` : '';
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions/stats${qs}`);
+  return data || null;
+}
+
+export interface CustomerJourney {
+  phone: string;
+  contactId: string;
+  contact: Record<string, any>;
+  submissions: FlowSubmissionItem[];
+  logs: any[];
+  summary: { flowsCompleted: string[]; totalSubmissions: number; totalPaid: number; totalInteractions: number };
+}
+
+export async function getCustomerJourney(phone: string): Promise<CustomerJourney | null> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-customer-journey?phone=${encodeURIComponent(phone)}`);
+  return data || null;
+}
+
+export async function runSlaCheck(params?: { slaDays?: number; reminderDays?: number; defaultAssignee?: string }): Promise<any> {
+  return apiCall<any>(`${WA_BIZ_BASE}/flow-sla-check`, { method: 'POST', body: JSON.stringify(params || {}) });
+}
+
+export async function cloneFlowToWaba(sourceFlowCode: string, targetWabaId: string, targetFlowId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-clone`, {
+    method: 'POST', body: JSON.stringify({ sourceFlowCode, targetWabaId, targetFlowId }),
+  });
+  return !!data?.success;
+}
+
+export async function exportSubmissionsCsv(params?: { flowCode?: string; paymentStatus?: string }): Promise<string> {
+  const qs = new URLSearchParams();
+  if (params?.flowCode) qs.set('flowCode', params.flowCode);
+  if (params?.paymentStatus) qs.set('paymentStatus', params.paymentStatus);
+  const query = qs.toString();
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions/export${query ? '?' + query : ''}`);
+  return data?.csv || '';
+}
+
+export interface FlowVersionHealth {
+  flowCode: string; flowName: string; flowId: string; flowVersion: string;
+  dataApiVersion: string; versionStatus: string; message: string;
+}
+
+export async function checkFlowVersionHealth(): Promise<{ flows: FlowVersionHealth[]; recommendedVersion: string } | null> {
+  return apiCall<any>(`${WA_BIZ_BASE}/flow-version-health`);
+}
+
 // ── WhatsApp Commerce Catalog ──
 
 const CATALOG_BASE = `${API_BASE}/catalog`;
