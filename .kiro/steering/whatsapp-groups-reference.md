@@ -230,6 +230,17 @@ To invite users at scale, create a template with `library_template_name: "group_
 }
 ```
 
+## Important Limitations (Confirmed via Live API)
+
+1. `join_approval_mode` can ONLY be set at group creation time. It CANNOT be changed after creation.
+   - To switch from auto_approve to approval_required, you must create a new group.
+2. `messaging_permission` and `member_visibility` settings return error 131009 — may require beta access or newer API version.
+3. Group image upload via multipart form returns error 131009 — may require specific permissions.
+4. `owner` and `invite_link` are NOT valid fields on GET /{group_id}. Use /{group_id}/invite_link endpoint.
+5. Group creation is ASYNC — returns request_id, group_id arrives via webhook.
+6. Business phones CANNOT join external/public groups via Cloud API. The API only supports creating and managing your own groups.
+7. You cannot add participants directly — they must join via invite link.
+
 ## Eligibility Requirements
 
 1. Business must have a verified Meta Business Portfolio

@@ -245,13 +245,23 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
               )}
             </div>
 
-            {/* Join Requests */}
-            {detail?.join_approval_mode === 'approval_required' && (
-              <div style={card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <h4 style={{ fontSize: 14, margin: 0 }}>Join Requests</h4>
+            {/* Join Requests — shown for approval_required groups, also always show with a load button */}
+            <div style={card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <h4 style={{ fontSize: 14, margin: 0 }}>Join Requests</h4>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {joinReqs.length > 0 && (
+                    <button onClick={async () => {
+                      const ids = joinReqs.map((r: any) => r.join_request_id);
+                      await api.approveGroupJoinRequests(sel.id, ids);
+                      toast.success(`Approved ${ids.length} request(s)`);
+                      setJoinReqs(await api.getGroupJoinRequests(sel.id));
+                      viewDetail(sel);
+                    }} style={btn()}>Approve All ({joinReqs.length})</button>
+                  )}
                   <button onClick={async () => { setJoinReqs(await api.getGroupJoinRequests(sel.id)); }} style={pill(false)}>Refresh</button>
                 </div>
+              </div>
                 {joinReqs.length === 0 ? <p style={{ fontSize: 12, color: '#666', margin: 0 }}>No pending requests</p> : (
                   <div style={{ display: 'grid', gap: 6 }}>
                     {joinReqs.map((r: any) => (
@@ -266,7 +276,6 @@ const GroupsPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =>
                   </div>
                 )}
               </div>
-            )}
 
             {/* Participants */}
             {detail?.participants && (
