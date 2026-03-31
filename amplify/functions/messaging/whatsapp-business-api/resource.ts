@@ -5,7 +5,11 @@
  *   GET/POST /profile           - Business profile
  *   GET/POST/PUT/DELETE /flows   - WhatsApp Flows management
  *   GET/POST/DELETE /webhooks    - Webhook subscriptions
- *   GET/POST/PUT/DELETE /groups  - WhatsApp Groups
+ *   GET/POST/PUT/DELETE /groups  - WhatsApp Groups (create, list, update, delete)
+ *   POST /groups/participants    - Add/remove group participants
+ *   POST /groups/send            - Send message to group
+ *   GET/POST /groups/invite-link - Get/reset group invite link
+ *   GET/POST/DELETE /groups/join-requests - Manage join requests
  *   POST /interactive-list       - Send interactive list messages
  *   GET/POST /calling-settings   - Calling configuration
  *   GET/POST /phone-settings     - Phone number settings

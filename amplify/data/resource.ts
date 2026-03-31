@@ -610,7 +610,33 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
-  // Table 22: WhatsAppInbound - Inbound WhatsApp messages
+  // Table 22: WhatsAppGroup - WhatsApp Business group tracking
+  WhatsAppGroup: a
+    .model({
+      id: a.id().required(),
+      groupId: a.string().required(), // Meta group ID
+      wabaId: a.string(),
+      phoneNumberId: a.string(),
+      subject: a.string(),
+      description: a.string(),
+      inviteLink: a.string(),
+      joinApprovalMode: a.string(), // auto_approve | approval_required
+      participantCount: a.integer().default(0),
+      maxParticipants: a.integer().default(512),
+      owner: a.string(),
+      suspended: a.boolean().default(false),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      ttl: a.integer(),
+    })
+    .identifier(['id'])
+    .secondaryIndexes((index) => [
+      index('groupId'),
+      index('wabaId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table 23: WhatsAppInbound - Inbound WhatsApp messages
   WhatsAppInbound: a
     .model({
       id: a.id().required(),

@@ -21,8 +21,13 @@ Routes:
   GET       /wa-business/groups?groupId= → Get group details
   PUT       /wa-business/groups        → Update group
   DELETE    /wa-business/groups        → Delete group
-  POST      /wa-business/groups/participants → Add/remove participants
+  POST      /wa-business/groups/participants → Remove participants
   POST      /wa-business/groups/send   → Send group message
+  GET       /wa-business/groups/invite-link → Get invite link
+  POST      /wa-business/groups/invite-link → Reset invite link
+  GET       /wa-business/groups/join-requests → List pending join requests
+  POST      /wa-business/groups/join-requests → Approve join requests
+  DELETE    /wa-business/groups/join-requests → Reject join requests
   GET       /wa-business/payment-config → Get payment configuration for phone
   GET       /wa-business/payment-config/check → Check payment gateway status via Meta API
   GET       /wa-business/payment-lookup → Meta Payment Lookup API (verify payment status)
@@ -379,8 +384,19 @@ def _get_bot_details(bot_id: str, params: Dict) -> Dict:
 # ============================================================================
 # GROUPS
 # ============================================================================
-def _list_groups(waba_id: str) -> Dict:
-    result = _graph_api(f'{waba_id}/groups', waba_id=waba_id)
+def _list_groups(waba_id: str, phone_id: str = None) -> Dict:
+    """List groups. Uses phone_id if provided, falls back to WABA phone mapping."""
+    # Groups API uses phone_number_id, not waba_id
+    if not phone_id:
+        # Map WABA to its primary phone
+        waba_phone_map = {
+            WABA1_ID: PHONE1_META_ID,
+            WABA2_ID: PHONE2_META_ID,
+        }
+        phone_id = waba_phone_map.get(waba_id, '')
+    if not phone_id:
+        return _resp(400, {'error': 'Could not resolve phone for WABA'})
+    result = _graph_api(f'{phone_id}/groups', phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'groups': result.get('data', [])})
@@ -388,7 +404,9 @@ def _list_groups(waba_id: str) -> Dict:
 def _get_group(group_id: str) -> Dict:
     if not group_id:
         return _resp(400, {'error': 'groupId required'})
-    result = _graph_api(group_id, params={'fields': 'id,subject,description,owner,creation_timestamp,participants'})
+    result = _graph_api(group_id, params={
+        'fields': 'id,subject,description,creation_timestamp,participants,total_participant_count,join_approval_mode,suspended,messaging_permission,member_visibility'
+    })
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'group': result})
@@ -404,19 +422,31 @@ def _create_group(phone_id: str, body: Dict) -> Dict:
         payload['description'] = body['description']
     if body.get('participants'):
         payload['participants'] = body['participants']
+    if body.get('join_approval_mode'):
+        payload['join_approval_mode'] = body['join_approval_mode']
     result = _graph_api(f'{phone_id}/groups', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'group': result})
 
 def _update_group(group_id: str, body: Dict) -> Dict:
+    """Update group settings: subject, description, join_approval_mode, messaging_permission, member_visibility."""
     if not group_id:
         return _resp(400, {'error': 'groupId required'})
-    payload = {}
+    payload = {'messaging_product': 'whatsapp'}
     if body.get('subject'):
         payload['subject'] = body['subject']
     if body.get('description'):
         payload['description'] = body['description']
+    # Privacy: who can send messages — 'all' (everyone) or 'admins' (admin-only)
+    if body.get('messaging_permission'):
+        payload['messaging_permission'] = body['messaging_permission']
+    # Privacy: whether non-admin members can see other participants
+    if body.get('member_visibility'):
+        payload['member_visibility'] = body['member_visibility']
+    # Join approval mode
+    if body.get('join_approval_mode'):
+        payload['join_approval_mode'] = body['join_approval_mode']
     result = _graph_api(group_id, method='POST', payload=payload)
     if 'error' in result:
         return _resp(400, result)
@@ -446,22 +476,162 @@ def _manage_group_participants(group_id: str, body: Dict) -> Dict:
     return _resp(200, {'success': True, 'action': action, 'count': len(participants)})
 
 def _send_group_message(phone_id: str, group_id: str, body: Dict) -> Dict:
+    """Send message to a group. Supports text, image, video, document, audio, template.
+    Body: { content: str (for text), type: 'text'|'image'|'video'|'document'|'audio'|'template',
+            mediaUrl/mediaId: str, caption: str, templateName: str, templateLanguage: str, templateComponents: [] }
+    """
     if not phone_id or not group_id:
         return _resp(400, {'error': 'phoneId and groupId required'})
-    content = body.get('content', '')
-    if not content:
-        return _resp(400, {'error': 'content required'})
+
+    msg_type = body.get('type', 'text')
     payload = {
         'messaging_product': 'whatsapp',
         'recipient_type': 'group',
         'to': group_id,
-        'type': 'text',
-        'text': {'body': content}
+        'type': msg_type,
     }
+
+    if msg_type == 'text':
+        content = body.get('content', '')
+        if not content:
+            return _resp(400, {'error': 'content required for text messages'})
+        payload['text'] = {'body': content, 'preview_url': body.get('preview_url', True)}
+
+    elif msg_type in ('image', 'video', 'document', 'audio'):
+        media_obj = {}
+        if body.get('mediaId'):
+            media_obj['id'] = body['mediaId']
+        elif body.get('mediaUrl'):
+            media_obj['link'] = body['mediaUrl']
+        else:
+            return _resp(400, {'error': f'mediaId or mediaUrl required for {msg_type}'})
+        if body.get('caption') and msg_type in ('image', 'video', 'document'):
+            media_obj['caption'] = body['caption']
+        if body.get('filename') and msg_type == 'document':
+            media_obj['filename'] = body['filename']
+        payload[msg_type] = media_obj
+
+    elif msg_type == 'template':
+        template_name = body.get('templateName', '')
+        template_lang = body.get('templateLanguage', 'en')
+        if not template_name:
+            return _resp(400, {'error': 'templateName required for template messages'})
+        template_obj = {'name': template_name, 'language': {'code': template_lang}}
+        if body.get('templateComponents'):
+            template_obj['components'] = body['templateComponents']
+        payload['template'] = template_obj
+
+    else:
+        return _resp(400, {'error': f'Unsupported message type: {msg_type}. Use text, image, video, document, audio, or template.'})
+
     result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
-    return _resp(200, {'success': True, 'messageId': result.get('messages', [{}])[0].get('id')})
+    msg_id = ''
+    msgs = result.get('messages', [])
+    if msgs:
+        msg_id = msgs[0].get('id', '')
+    return _resp(200, {'success': True, 'messageId': msg_id, 'type': msg_type})
+
+def _set_group_image(group_id: str, image_url: str) -> Dict:
+    """Set group profile picture from a URL. Downloads the image then uploads via multipart form."""
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    if not image_url:
+        return _resp(400, {'error': 'imageUrl required'})
+    # Download image
+    try:
+        img_req = urllib.request.Request(image_url)
+        with urllib.request.urlopen(img_req, timeout=10) as img_resp:
+            image_bytes = img_resp.read()
+    except Exception as e:
+        return _resp(400, {'error': f'Failed to download image: {str(e)}'})
+    # Determine content type
+    ct = 'image/png' if image_url.lower().endswith('.png') else 'image/jpeg'
+    ext = 'png' if 'png' in ct else 'jpg'
+    # Upload via multipart
+    token = _get_meta_token()
+    app_secret = _get_app_secret()
+    proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest() if app_secret else ''
+    url = f'{GRAPH_BASE}/{group_id}?appsecret_proof={proof}'
+    boundary = '----WecareGroupImage'
+    body = b''
+    body += f'--{boundary}\r\n'.encode()
+    body += b'Content-Disposition: form-data; name="messaging_product"\r\n\r\n'
+    body += b'whatsapp\r\n'
+    body += f'--{boundary}\r\n'.encode()
+    body += f'Content-Disposition: form-data; name="file"; filename="group.{ext}"\r\n'.encode()
+    body += f'Content-Type: {ct}\r\n\r\n'.encode()
+    body += image_bytes
+    body += b'\r\n'
+    body += f'--{boundary}--\r\n'.encode()
+    req = urllib.request.Request(url, data=body, method='POST')
+    req.add_header('Authorization', f'Bearer {token}')
+    req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+        return _resp(200, {'success': True, 'result': result})
+    except urllib.error.HTTPError as e:
+        err = e.read().decode() if e.fp else str(e)
+        logger.error(f'Group image upload error: {err}')
+        try:
+            return _resp(400, json.loads(err))
+        except:
+            return _resp(400, {'error': err})
+
+def _get_group_invite_link(group_id: str) -> Dict:
+    """Get the current invite link for a group."""
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    result = _graph_api(f'{group_id}/invite_link')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'invite_link': result.get('invite_link', '')})
+
+def _reset_group_invite_link(group_id: str) -> Dict:
+    """Reset (regenerate) the invite link for a group. Previous links become invalid."""
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    result = _graph_api(f'{group_id}/invite_link', method='POST', payload={'messaging_product': 'whatsapp'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'invite_link': result.get('invite_link', '')})
+
+def _get_group_join_requests(group_id: str) -> Dict:
+    """Get pending join requests for a group (when join_approval_mode=approval_required)."""
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    result = _graph_api(f'{group_id}/join_requests')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'join_requests': result.get('data', [])})
+
+def _approve_group_join_requests(group_id: str, body: Dict) -> Dict:
+    """Approve pending join requests."""
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    join_requests = body.get('join_requests', [])
+    if not join_requests:
+        return _resp(400, {'error': 'join_requests (array of IDs) required'})
+    payload = {'messaging_product': 'whatsapp', 'join_requests': join_requests}
+    result = _graph_api(f'{group_id}/join_requests', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, result)
+
+def _reject_group_join_requests(group_id: str, body: Dict) -> Dict:
+    """Reject pending join requests."""
+    if not group_id:
+        return _resp(400, {'error': 'groupId required'})
+    join_requests = body.get('join_requests', [])
+    if not join_requests:
+        return _resp(400, {'error': 'join_requests (array of IDs) required'})
+    payload = {'messaging_product': 'whatsapp', 'join_requests': join_requests}
+    result = _graph_api(f'{group_id}/join_requests', method='DELETE', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, result)
 
 # ============================================================================
 # INTERACTIVE LIST MESSAGES
@@ -2685,12 +2855,30 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _send_group_message(
                 params.get('phoneId') or body.get('phoneId') or '',
                 params.get('groupId') or body.get('groupId') or '', body)
+        elif '/groups/image' in path:
+            group_id = params.get('groupId') or body.get('groupId') or ''
+            image_url = body.get('imageUrl', '')
+            return _set_group_image(group_id, image_url)
+        elif '/groups/invite-link' in path:
+            group_id = params.get('groupId') or body.get('groupId') or ''
+            if method == 'GET':
+                return _get_group_invite_link(group_id)
+            elif method == 'POST':
+                return _reset_group_invite_link(group_id)
+        elif '/groups/join-requests' in path:
+            group_id = params.get('groupId') or body.get('groupId') or ''
+            if method == 'GET':
+                return _get_group_join_requests(group_id)
+            elif method == 'POST':
+                return _approve_group_join_requests(group_id, body)
+            elif method == 'DELETE':
+                return _reject_group_join_requests(group_id, body)
         elif '/groups' in path:
             waba_id = params.get('wabaId') or body.get('wabaId') or ''
             group_id = params.get('groupId') or body.get('groupId')
             phone_id = params.get('phoneId') or body.get('phoneId')
             if method == 'GET':
-                return _get_group(group_id) if group_id else _list_groups(waba_id)
+                return _get_group(group_id) if group_id else _list_groups(waba_id, phone_id)
             elif method == 'POST':
                 return _create_group(phone_id or '', body)
             elif method == 'PUT':

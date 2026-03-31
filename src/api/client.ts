@@ -3246,8 +3246,10 @@ export async function unsubscribeWebhook(wabaId: string): Promise<boolean> {
 }
 
 // Groups
-export async function listGroups(wabaId: string): Promise<any[]> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?wabaId=${wabaId}`);
+export async function listGroups(wabaId: string, phoneId?: string): Promise<any[]> {
+  const params = new URLSearchParams({ wabaId });
+  if (phoneId) params.set('phoneId', phoneId);
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?${params.toString()}`);
   return data?.groups || [];
 }
 
@@ -3256,10 +3258,10 @@ export async function getGroup(groupId: string): Promise<any> {
   return data?.group || null;
 }
 
-export async function createGroup(phoneId: string, subject: string, description?: string, participants?: string[]): Promise<any> {
+export async function createGroup(phoneId: string, subject: string, description?: string, participants?: string[], join_approval_mode?: string): Promise<any> {
   const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, subject, description, participants }),
+    body: JSON.stringify({ phoneId, subject, description, participants, join_approval_mode }),
   });
   return data?.group || null;
 }
@@ -3285,12 +3287,69 @@ export async function manageGroupParticipants(groupId: string, participants: str
   return data?.success === true;
 }
 
-export async function sendGroupMessage(phoneId: string, groupId: string, content: string): Promise<any> {
+export async function sendGroupMessage(phoneId: string, groupId: string, content: string, options?: {
+  type?: 'text' | 'image' | 'video' | 'document' | 'audio' | 'template';
+  mediaUrl?: string; mediaId?: string; caption?: string; filename?: string;
+  templateName?: string; templateLanguage?: string; templateComponents?: any[];
+}): Promise<any> {
   const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/send`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, groupId, content }),
+    body: JSON.stringify({ phoneId, groupId, content, ...options }),
   });
   return data;
+}
+
+export async function updateGroupSettings(groupId: string, settings: {
+  subject?: string; description?: string;
+  messaging_permission?: 'all' | 'admins';
+  member_visibility?: 'all' | 'admins';
+  join_approval_mode?: 'auto_approve' | 'approval_required';
+}): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
+    method: 'PUT',
+    body: JSON.stringify({ groupId, ...settings }),
+  });
+  return data?.success === true;
+}
+
+export async function setGroupImage(groupId: string, imageUrl: string): Promise<boolean> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/image`, {
+    method: 'POST',
+    body: JSON.stringify({ groupId, imageUrl }),
+  });
+  return data?.success === true;
+}
+
+export async function getGroupInviteLink(groupId: string): Promise<string> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/invite-link?groupId=${groupId}`);
+  return data?.invite_link || '';
+}
+
+export async function resetGroupInviteLink(groupId: string): Promise<string> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/invite-link`, {
+    method: 'POST',
+    body: JSON.stringify({ groupId }),
+  });
+  return data?.invite_link || '';
+}
+
+export async function getGroupJoinRequests(groupId: string): Promise<any[]> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/join-requests?groupId=${groupId}`);
+  return data?.join_requests || [];
+}
+
+export async function approveGroupJoinRequests(groupId: string, joinRequestIds: string[]): Promise<any> {
+  return apiCall<any>(`${WA_BIZ_BASE}/groups/join-requests`, {
+    method: 'POST',
+    body: JSON.stringify({ groupId, join_requests: joinRequestIds }),
+  });
+}
+
+export async function rejectGroupJoinRequests(groupId: string, joinRequestIds: string[]): Promise<any> {
+  return apiCall<any>(`${WA_BIZ_BASE}/groups/join-requests`, {
+    method: 'DELETE',
+    body: JSON.stringify({ groupId, join_requests: joinRequestIds }),
+  });
 }
 
 // Phone Settings

@@ -593,6 +593,28 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             'requestId': request_id
                         }))
                 
+                if field == 'group_lifecycle_update':
+                    try:
+                        _store_system_event('group_lifecycle_update', value, request_id)
+                        _process_group_event(value, 'lifecycle', request_id)
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': 'group_lifecycle_update_error',
+                            'error': str(e),
+                            'requestId': request_id
+                        }))
+                
+                if field == 'group_settings_update':
+                    try:
+                        _store_system_event('group_settings_update', value, request_id)
+                        _process_group_event(value, 'settings_update', request_id)
+                    except Exception as e:
+                        logger.error(json.dumps({
+                            'event': 'group_settings_update_error',
+                            'error': str(e),
+                            'requestId': request_id
+                        }))
+                
                 # ── Additional Meta webhook fields (per official docs) ──
                 # These are informational/system-level events that we log to SystemEvent
                 # for audit trail and operational awareness.
