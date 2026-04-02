@@ -12,7 +12,9 @@ export const smsAws = defineFunction({
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     SMS_AWS_TABLE: 'stack-wecare-digital-SmsAwsTable',
     // Amazon Pinpoint SMS Voice v2 (us-east-1)
-    ORIGINATION_IDENTITY: '', // Phone number or sender ID registered in Pinpoint
+    // Toll-free +18444891209 PENDING registration — use account default until approved
+    // Once approved, set to '+18444891209' to use toll-free as origination
+    ORIGINATION_IDENTITY: '',
     SENDER_ID: 'WECARE',
   },
 });

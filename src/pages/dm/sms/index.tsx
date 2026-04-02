@@ -67,7 +67,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [airtelContent, setAirtelContent] = useState('');
   const [airtelSending, setAirtelSending] = useState(false);
   const [airtelMsgType, setAirtelMsgType] = useState('SERVICE_IMPLICIT');
-  const [airtelApiVer, setAirtelApiVer] = useState('v4');
+  const [airtelApiVer, setAirtelApiVer] = useState('v5');
   const [airtelTemplateId, setAirtelTemplateId] = useState('1007974344269130859');
   const [airtelBulk, setAirtelBulk] = useState(false);
 

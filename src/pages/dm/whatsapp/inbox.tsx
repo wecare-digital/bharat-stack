@@ -821,9 +821,28 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
           </span>
         );
       }
+      // Detect view-once messages
+      const isViewOnce = content.toLowerCase().includes('view-once') || content.toLowerCase().includes('view once');
+      if (isViewOnce) {
+        return (
+          <span className="unsupported-msg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            View-once message — content hidden by WhatsApp
+          </span>
+        );
+      }
+      // Detect poll messages
+      if (content.includes('[Poll')) {
+        const pollMatch = content.match(/\[Poll: (.+?)\]/);
+        return <span className="special-msg">📊 Poll: {pollMatch ? pollMatch[1] : 'Poll'}</span>;
+      }
+      // Detect forwarded messages
+      if (content.includes('Forwarded message')) {
+        return <span className="unsupported-msg">↪ Forwarded message — content not available</span>;
+      }
       // Try to extract useful info from the content
       const match = content.match(/\[Unsupported: (.+?)\]/);
-      const detail = match ? match[1] : 'Message type not viewable';
+      const detail = match ? match[1] : (content.startsWith('[') ? content.replace(/[\[\]]/g, '') : 'Message type not viewable');
       return (
         <span className="unsupported-msg">
           {detail}

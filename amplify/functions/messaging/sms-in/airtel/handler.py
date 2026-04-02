@@ -235,7 +235,7 @@ def _handle_dlr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
 
     # Update message status in DynamoDB
     try:
-        table = dynamodb.Table(MESSAGES_TABLE)
+        table = dynamodb.Table(AIRTEL_SMS_TABLE)
         table.update_item(
             Key={'id': message_id},
             UpdateExpression='SET #s = :status, dlrStatusCode = :sc, dlrTimestamp = :ts, dlrErrorCode = :ec, dlrErrorDescription = :ed, updatedAt = :now',

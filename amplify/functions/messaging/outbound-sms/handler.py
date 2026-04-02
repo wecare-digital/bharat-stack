@@ -48,6 +48,8 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 AIRTEL_IQ_HOST = os.environ.get('AIRTEL_IQ_HOST', 'iqmessaging.airtel.in')
 AIRTEL_IQ_USERNAME = os.environ.get('AIRTEL_IQ_USERNAME', '')
 AIRTEL_IQ_PASSWORD = os.environ.get('AIRTEL_IQ_PASSWORD', '')
+# Static IP proxy for Airtel (Lightsail 52.3.44.165) — Airtel whitelists this IP
+SMS_PROXY_URL = os.environ.get('SMS_PROXY_URL', 'http://52.3.44.165:8899')
 AIRTEL_IQ_CUSTOMER_ID = os.environ.get('AIRTEL_IQ_CUSTOMER_ID', '')
 # DLT Registration - WECARE.DIGITAL
 AIRTEL_IQ_ENTITY_ID = os.environ.get('AIRTEL_IQ_ENTITY_ID', '1201161991108627443')  # PE ID
@@ -86,7 +88,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         source_address = body.get('sourceAddress', AIRTEL_IQ_SOURCE_ADDRESS)
         is_otp = body.get('otp', False)  # For SERVICE_IMPLICIT, indicates OTP traffic
         meta_data = body.get('metaData', {})
-        api_version = body.get('apiVersion', 'v4')  # v4, v5 (content moderation), v6 (enhanced)
+        api_version = body.get('apiVersion', 'v5')  # v5 (content moderation, auto-DLT), v4, v6
         
         if not contact_id and not phone_number:
             return _response(400, {'error': 'contactId or phoneNumber is required'})
@@ -332,7 +334,23 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
         }
         
         data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+        
+        # Route through Lightsail proxy (static IP whitelisted by Airtel)
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        proxy_payload = {
+            "path": parsed.path,
+            "headers": headers,
+            "body": payload
+        }
+        proxy_url = f"{SMS_PROXY_URL}/"
+        proxy_data = json.dumps(proxy_payload).encode('utf-8')
+        req = urllib.request.Request(
+            proxy_url,
+            data=proxy_data,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
         
         logger.info(json.dumps({
             'event': 'airtel_iq_sms_request',

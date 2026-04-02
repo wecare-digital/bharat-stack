@@ -248,7 +248,7 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
     
     Note: ORIGINATION_IDENTITY is only set if an SMS-capable pool/number exists.
     If not set, Pinpoint uses the default configuration for the account.
-    The toll-free +18444891209 is PENDING registration, so SMS uses account default.
+    Toll-free +18444891209 is PENDING registration — using account default for now.
     """
     try:
         params: Dict[str, Any] = {

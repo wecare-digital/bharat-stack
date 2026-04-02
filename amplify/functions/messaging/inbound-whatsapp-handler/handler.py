@@ -90,6 +90,28 @@ META_PHONE_ID_MAP = {
 DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
 
+def _get_welcome_config_key(phone_number_id: str) -> str:
+    """Return the SystemConfig key for welcome message based on phone number.
+    Phone 1 uses 'welcome_message', Phone 2 uses 'welcome_message_2'."""
+    if phone_number_id == PHONE_NUMBER_ID_2:
+        return 'welcome_message_2'
+    return 'welcome_message'
+
+
+def _load_welcome_text(phone_number_id: str, default_text: str) -> str:
+    """Load custom welcome text from SystemConfigTable for the given phone."""
+    try:
+        config_key = _get_welcome_config_key(phone_number_id)
+        _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': config_key}).get('Item')
+        if _wc:
+            _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
+            if _wc_val.get('textMessage'):
+                return _wc_val['textMessage']
+    except Exception:
+        pass
+    return default_text
+
+
 def _is_direct_api_phone(phone_number_id: str) -> bool:
     """Check if a phone number ID belongs to a Direct API WABA."""
     return phone_number_id in DIRECT_API_PHONE_IDS
@@ -722,6 +744,35 @@ def _process_message(
     msg_type = message.get('type', 'text')
     timestamp = int(message.get('timestamp', time.time()))
     
+    # ── Detect real content type for "unsupported" messages ──
+    # Meta marks many messages as 'unsupported' but they still carry media/text
+    # data. Detect the actual type so the inbox can render them properly.
+    if msg_type == 'unsupported':
+        for probe_type in ('image', 'video', 'audio', 'document', 'sticker', 'poll', 'location', 'contacts', 'reaction'):
+            probe_data = message.get(probe_type)
+            if isinstance(probe_data, dict) and probe_data.get('id'):
+                # Has a media ID — this is a real media message wrapped as unsupported
+                # (common for view-once, multi-image bundles)
+                msg_type = probe_type
+                logger.info(json.dumps({
+                    'event': 'unsupported_type_recovered',
+                    'recoveredType': probe_type,
+                    'whatsappMessageId': whatsapp_message_id,
+                    'requestId': request_id
+                }))
+                break
+        # Check for text body in unsupported wrapper
+        if msg_type == 'unsupported':
+            text_data = message.get('text', {})
+            if isinstance(text_data, dict) and text_data.get('body'):
+                msg_type = 'text'
+                logger.info(json.dumps({
+                    'event': 'unsupported_type_recovered',
+                    'recoveredType': 'text',
+                    'whatsappMessageId': whatsapp_message_id,
+                    'requestId': request_id
+                }))
+    
     # Log full message for unsupported or unrecognized types to help debug
     if msg_type in ('unsupported', 'unknown') or msg_type not in (
         'text', 'image', 'video', 'audio', 'document', 'sticker',
@@ -1041,14 +1092,7 @@ def _process_message(
             'requestId': request_id,
         }))
         _hi_text = "Hi! 👋 Here's the menu — tap below to get started 👇"
-        try:
-            _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'welcome_message'}).get('Item')
-            if _wc:
-                _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
-                if _wc_val.get('textMessage'):
-                    _hi_text = _wc_val['textMessage']
-        except Exception:
-            pass
+        _hi_text = _load_welcome_text(aws_phone_number_id, _hi_text)
         _send_ai_auto_reply(
             contact_id=contact_id,
             content=_hi_text,
@@ -1199,15 +1243,7 @@ def _process_message(
             }))
             # Send welcome/greeting text
             _hi_text = "Hi! 👋 Here's the menu — tap below to get started 👇"
-            # Try to load custom welcome text from SystemConfigTable
-            try:
-                _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'welcome_message'}).get('Item')
-                if _wc:
-                    _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
-                    if _wc_val.get('textMessage'):
-                        _hi_text = _wc_val['textMessage']
-            except Exception:
-                pass
+            _hi_text = _load_welcome_text(aws_phone_number_id, _hi_text)
             _send_ai_auto_reply(
                 contact_id=contact_id,
                 content=_hi_text,
@@ -1247,15 +1283,7 @@ def _process_message(
                 "Shop, pay, track requests, or get support — all right here.\n\n"
                 "Tap *Menu* to get started 👇"
             )
-            # Try to load custom welcome text from SystemConfigTable
-            try:
-                _wc = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'welcome_message'}).get('Item')
-                if _wc:
-                    _wc_val = json.loads(_wc.get('configValue', '{}')) if isinstance(_wc.get('configValue'), str) else _wc.get('configValue', {})
-                    if _wc_val.get('textMessage'):
-                        _welcome_text = _wc_val['textMessage']
-            except Exception:
-                pass  # Use default welcome text
+            _welcome_text = _load_welcome_text(aws_phone_number_id, _welcome_text)
 
             _send_ai_auto_reply(
                 contact_id=contact_id,

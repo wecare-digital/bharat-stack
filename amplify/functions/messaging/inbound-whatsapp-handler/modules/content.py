@@ -202,25 +202,17 @@ def extract_unsupported_content(message: Dict) -> str:
     errors = message.get('errors', [])
 
     # ── Detect OTP / authentication template ──
-    # Meta delivers these with error code 131051 ("Message type is
-    # currently not supported") but the sender is typically a short-code
-    # or Meta-owned number.  The error detail string is the best signal.
     for error in errors:
         code = error.get('code', 0)
         details = error.get('details', '')
         title = error.get('title', '')
         error_text = (details or title or '').lower()
 
-        # Error 131051 is the canonical "unsupported message type" code
-        # that Meta uses for authentication / OTP templates delivered to
-        # business numbers.
         if code == 131051 or 'not supported' in error_text:
-            # Check if it's specifically an OTP/auth message
             if any(kw in error_text for kw in ('otp', 'authentication', 'security', 'verification')):
                 return '[Unsupported: OTP or authentication message — content hidden by WhatsApp for security]'
             return f'[Unsupported: {details or title or "Message type not supported (error 131051)"}]'
 
-        # Ephemeral / disappearing message error
         if 'ephemeral' in error_text or 'disappearing' in error_text:
             return '[Unsupported: Disappearing message — disable disappearing messages in this chat to fix]'
 
@@ -228,6 +220,51 @@ def extract_unsupported_content(message: Dict) -> str:
             return f'[Unsupported: {details}]'
         if title:
             return f'[Unsupported: {title}]'
+
+    # ── Try to detect message subtype from payload keys ──
+    # Many "unsupported" messages still carry useful nested data
+
+    # View-once messages (photos/videos sent as view-once)
+    if 'image' in message or 'video' in message or 'audio' in message:
+        media_type = 'image' if 'image' in message else ('video' if 'video' in message else 'audio')
+        media = message.get(media_type, {})
+        caption = media.get('caption', '')
+        if caption:
+            return f'[View-once {media_type}] {caption}'
+        return f'[View-once {media_type} — content hidden by WhatsApp]'
+
+    # Sticker in unsupported wrapper
+    if 'sticker' in message:
+        return '[Sticker]'
+
+    # Poll messages
+    if 'poll' in message:
+        q = message['poll'].get('question', '')
+        return f'[Poll: {q[:60]}]' if q else '[Poll]'
+
+    # Reaction in unsupported wrapper
+    if 'reaction' in message:
+        emoji = message['reaction'].get('emoji', '')
+        return f'[Reaction: {emoji}]' if emoji else '[Reaction]'
+
+    # Location in unsupported wrapper
+    if 'location' in message:
+        loc = message['location']
+        return f"[Location: {loc.get('latitude')}, {loc.get('longitude')}]"
+
+    # Contacts in unsupported wrapper
+    if 'contacts' in message:
+        return '[Contact Card]'
+
+    # Document in unsupported wrapper
+    if 'document' in message:
+        fname = message['document'].get('filename', '')
+        return f'[Document: {fname}]' if fname else '[Document]'
+
+    # Interactive in unsupported wrapper
+    if 'interactive' in message:
+        itype = message['interactive'].get('type', '')
+        return f'[Interactive: {itype}]' if itype else '[Interactive message]'
 
     if 'referral' in message:
         src = message['referral'].get('source_type', '')
@@ -238,6 +275,7 @@ def extract_unsupported_content(message: Dict) -> str:
     if ctx.get('referred_product'):
         return '[Product Inquiry]'
 
+    # Try to extract any text content from the message
     for key in ('text', 'caption', 'body'):
         val = message.get(key, {})
         if isinstance(val, dict):
@@ -246,6 +284,10 @@ def extract_unsupported_content(message: Dict) -> str:
                 return body
         elif isinstance(val, str) and val:
             return val
+
+    # Check for forwarded/frequently_forwarded context — likely a view-once or multi-image
+    if ctx.get('forwarded') or ctx.get('frequently_forwarded'):
+        return '[Forwarded message — content not available via Business API]'
 
     # Log the full message keys for debugging unknown unsupported types
     logger.warning(json.dumps({

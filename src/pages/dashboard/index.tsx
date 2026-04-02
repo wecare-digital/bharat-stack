@@ -210,7 +210,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     arn: `arn:aws:sms-voice:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`, 
     accountId: AWS_ACCOUNT_ID,
     details: [
-      'SMS: Sender ID WECARE (no pool, account default)',
+      'SMS: Pinpoint SMS v2 (us-east-1, account default)',
       'Voice: +18444891209 (Toll-Free, Intl enabled)',
       'Voice: +18444891209 (Toll-Free, Intl enabled, PENDING)',
       'Pool: TBD (pending toll-free approval)',

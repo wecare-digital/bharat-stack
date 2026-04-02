@@ -604,6 +604,12 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         })
         logger.info(f"INBOUND CALL from {caller_name or from_number} (BSUID: {caller_bsuid or 'N/A'}) — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
 
+        # ── Send default IVR SMS to caller immediately on connect ──
+        if _is_sms_on_call_enabled():
+            _send_incoming_call_sms(from_number, call_id, request_id)
+        else:
+            logger.info(f"SMS-on-call disabled — skipping SMS for call {call_id}")
+
         # Auto-pickup: behaviour depends on mode (manual / ivr)
         # - manual: pre_accept only, wait for frontend browser to answer via WebRTC
         # - ivr: pre_accept, send IVR audio message, terminate after delay
@@ -811,13 +817,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     # we send the post-call text first, then react to it.
 
     # Step 2: Send post-call message
-    post_msg = (
-        "Thanks for contacting WECARE.DIGITAL!\n\n"
-        "Submit your request here: https://wecare.digital/selfservice "
-        "or send us a message / voice note on WhatsApp: "
-        "https://r.wecare.digital/wa.\n\n"
-        "We'll review it and follow up if needed."
-    )
+    post_msg = IVR_SMS_CONTENT
 
     result = _send_via_aws(aws_phone_id, caller_phone, {
         'type': 'text',
@@ -920,33 +920,43 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     # Step 5: Send post-call SMS (Airtel for Indian numbers, AWS Pinpoint for international)
     try:
         clean_phone = caller_phone.lstrip('+')
-        sms_text = (
-            "Thanks for contacting WECARE.DIGITAL!\n\n"
-            "Submit your request here: https://wecare.digital/selfservice "
-            "or send us a message / voice note on WhatsApp: "
-            "https://r.wecare.digital/wa.\n\n"
-            "We'll review it and follow up if needed."
-        )
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
-        sms_payload = {
-            'rawPath': '/sms/send',
-            'requestContext': {'http': {'method': 'POST'}},
-            'body': json.dumps({
-                'phoneNumber': caller_phone,
-                'content': sms_text,
-                'provider': 'airtel' if is_indian else 'aws',
-                'messageType': 'SERVICE_IMPLICIT',
-                'dltTemplateId': '1007277993798259629' if is_indian else '',
-                'sourceAddress': 'WDBEEP',
-            }),
-        }
-        sms_result = lambda_client.invoke(
-            FunctionName='wecare-outbound-sms',
-            InvocationType='Event',
-            Payload=json.dumps(sms_payload).encode(),
-        )
-        logger.info(f"Post-call SMS triggered for {caller_phone} (provider={'airtel' if is_indian else 'aws'})")
+        if is_indian:
+            # Indian: Airtel IQ via sms-in-airtel (v5 auto-DLT, proxy)
+            sms_payload = {
+                'rawPath': '/sms-in/airtel',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'SERVICE_IMPLICIT',
+                    'sourceAddress': IVR_SMS_SENDER_ID,
+                    'apiVersion': 'v5',
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_AIRTEL,
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+        else:
+            # International: Pinpoint SMS v2 (us-east-1, toll-free pool)
+            sms_payload = {
+                'rawPath': '/sms-aws/send',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'TRANSACTIONAL',
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_PINPOINT,
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+        logger.info(f"Post-call SMS triggered for {caller_phone} (provider={'airtel' if is_indian else 'pinpoint'})")
     except Exception as e:
         logger.warning(f"Post-call SMS failed: {e}")
 
@@ -1248,6 +1258,100 @@ PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-i
 PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 
 # All phones use Direct Meta API — full call control supported on all WABAs
+
+
+# ── SMS on Incoming Call (AWS Pinpoint) ──────────────────────────────
+# DLT Template: ivr-default
+# DLT Template ID: 1007277993798259629
+# Sender ID: WDBEEP
+# Category: Service Implicit
+# Registration: REGISTERED (airtel.com)
+IVR_SMS_DLT_TEMPLATE_ID = '1007277993798259629'
+IVR_SMS_SENDER_ID = 'WDBEEP'
+IVR_SMS_CONTENT = (
+    "Thanks for contacting WECARE.DIGITAL!\n\n"
+    "Submit your request here: https://wecare.digital/selfservice "
+    "or send us a message / voice note on WhatsApp: "
+    "https://r.wecare.digital/wa.\n\n"
+    "We'll review it and follow up if needed."
+)
+
+# SMS Lambda routing:
+#   Indian +91 → wecare-outbound-sms (Airtel IQ, ap-south-1, DLT: WDBEEP)
+#   International → wecare-sms-aws (Pinpoint SMS v2, us-east-1, toll-free pool)
+SMS_LAMBDA_AIRTEL = 'wecare-sms-in-airtel'  # Airtel IQ via Lightsail proxy (whitelisted IP)
+SMS_LAMBDA_PINPOINT = 'wecare-sms-aws'      # Pinpoint SMS v2 us-east-1
+
+# SMS routing comments:
+#   Indian +91 → wecare-sms-in-airtel (Airtel IQ, Lightsail proxy 52.3.44.165)
+#   International → wecare-sms-aws (Pinpoint SMS v2, us-east-1, toll-free pool)
+
+
+def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) -> None:
+    """Send default IVR SMS when a call comes in.
+    
+    Routing:
+      Indian +91 numbers  → Airtel IQ via wecare-sms-in-airtel (proxy, whitelisted IP)
+      International numbers → AWS Pinpoint SMS v2 via wecare-sms-aws (us-east-1, toll-free pool)
+    """
+    try:
+        if not caller_phone:
+            return
+        clean_phone = caller_phone.lstrip('+')
+        is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
+
+        if is_indian:
+            # ── Indian: Airtel IQ via sms-in-airtel (v5 auto-DLT, Lightsail proxy) ──
+            sms_payload = {
+                'rawPath': '/sms-in/airtel',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'SERVICE_IMPLICIT',
+                    'sourceAddress': IVR_SMS_SENDER_ID,
+                    'apiVersion': 'v5',
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_AIRTEL,
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+            logger.info(json.dumps({
+                'event': 'incoming_call_sms_triggered',
+                'callId': call_id,
+                'callerPhone': caller_phone[-4:],
+                'provider': 'airtel',
+                'region': 'ap-south-1',
+                'requestId': request_id,
+            }))
+        else:
+            # ── International: Pinpoint SMS v2 (us-east-1, toll-free pool) ──
+            sms_payload = {
+                'rawPath': '/sms-aws/send',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'TRANSACTIONAL',
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_PINPOINT,
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+            logger.info(json.dumps({
+                'event': 'incoming_call_sms_triggered',
+                'callId': call_id,
+                'callerPhone': caller_phone[-4:],
+                'provider': 'pinpoint',
+                'region': 'us-east-1',
+                'requestId': request_id,
+            }))
+    except Exception as e:
+        logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
 DIRECT_API_META_PHONE_IDS = {PHONE1_META_ID, PHONE2_META_ID}
 
 
@@ -1277,6 +1381,19 @@ def _get_auto_pickup_audio_url() -> Optional[str]:
     except Exception as e:
         logger.warning(f"Failed to read IVR URL config: {e}")
     return DEFAULT_IVR_URL
+
+
+def _is_sms_on_call_enabled() -> bool:
+    """Check if SMS-on-incoming-call is enabled via SystemConfig table. Default: True."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': 'whatsapp_calling_sms_on_call'})
+        item = result.get('Item')
+        if item:
+            return str(item.get('configValue', 'true')).lower() == 'true'
+    except Exception as e:
+        logger.warning(f"Failed to read sms_on_call config: {e}")
+    return True  # Default: enabled
 
 
 def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:
@@ -1818,15 +1935,17 @@ def _get_active_calls(params: Dict, request_id: str) -> Dict[str, Any]:
 # POST /whatsapp/config  → Update auto-pickup config
 
 def _get_config(request_id: str) -> Dict[str, Any]:
-    """Get auto-pickup configuration including mode."""
+    """Get auto-pickup configuration including mode and SMS-on-call toggle."""
     enabled = _is_auto_pickup_enabled()
     audio_url = _get_auto_pickup_audio_url()
     mode = _get_auto_pickup_mode()
+    sms_on_call = _is_sms_on_call_enabled()
     return _response(200, {
         'autoPickup': enabled,
         'ivrUrl': audio_url,
         'defaultIvrUrl': DEFAULT_IVR_URL,
         'autoPickupMode': mode,
+        'smsOnCall': sms_on_call,
     })
 
 
@@ -1893,7 +2012,20 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update auto-pickup mode: {e}")
             return _response(500, {'error': str(e)})
 
-    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': mode})
+    sms_on_call = body.get('smsOnCall')
+    if sms_on_call is not None:
+        try:
+            table.put_item(Item={
+                'id': 'whatsapp_calling_sms_on_call',
+                'configValue': str(sms_on_call).lower(),
+                'updatedAt': Decimal(str(int(time.time()))),
+            })
+            logger.info(f"SMS-on-call set to: {sms_on_call}")
+        except Exception as e:
+            logger.error(f"Failed to update sms_on_call config: {e}")
+            return _response(500, {'error': str(e)})
+
+    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': mode, 'smsOnCall': sms_on_call})
 
 
 # ─── AI Bot Endpoint ─────────────────────────────────────────────────
