@@ -1051,7 +1051,8 @@ def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[st
         if not waba_id:
             return _error_response(400, 'wabaId is required')
 
-        if not waba_id.startswith('waba-'):
+        # Don't prepend waba- to numeric Meta WABA IDs
+        if not waba_id.startswith('waba-') and not waba_id.replace('-', '').isdigit():
             waba_id = f'waba-{waba_id}'
 
         meta_waba_id = _resolve_meta_waba_id(waba_id)
@@ -1115,7 +1116,8 @@ def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dic
         if not waba_id:
             return _error_response(400, 'wabaId is required')
 
-        if not waba_id.startswith('waba-'):
+        # Don't prepend waba- to numeric Meta WABA IDs
+        if not waba_id.startswith('waba-') and not waba_id.replace('-', '').isdigit():
             waba_id = f'waba-{waba_id}'
 
         meta_waba_id = _resolve_meta_waba_id(waba_id)
@@ -1174,7 +1176,8 @@ def _get_sns_subscription_status(waba_id: str, request_id: str) -> Dict[str, Any
         if not waba_id:
             return _error_response(400, 'wabaId is required')
 
-        if not waba_id.startswith('waba-'):
+        # Don't prepend waba- to numeric Meta WABA IDs
+        if not waba_id.startswith('waba-') and not waba_id.replace('-', '').isdigit():
             waba_id = f'waba-{waba_id}'
 
         meta_waba_id = _resolve_meta_waba_id(waba_id)

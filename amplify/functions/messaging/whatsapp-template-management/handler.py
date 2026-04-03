@@ -54,6 +54,16 @@ def _appsecret_proof(access_token: str, app_secret: str) -> str:
 
 
 def _resolve_meta_waba_id(aws_waba_id: str) -> str:
+    """Map AWS WABA ID to Meta WABA ID.
+    Accepts either AWS format (waba-xxx) or Meta numeric ID directly.
+    """
+    # If it's already a numeric Meta WABA ID, return as-is
+    if aws_waba_id.replace('-', '').isdigit() and not aws_waba_id.startswith('waba-'):
+        if aws_waba_id in AWS_TO_META_WABA.values():
+            return aws_waba_id
+        return aws_waba_id
+    if not aws_waba_id.startswith('waba-'):
+        aws_waba_id = f'waba-{aws_waba_id}'
     return AWS_TO_META_WABA.get(aws_waba_id, DEFAULT_META_WABA_ID)
 
 
@@ -110,7 +120,8 @@ def handler(event, context):
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
         waba_id = query_params.get('wabaId', DEFAULT_WABA_ID)
-        if not waba_id.startswith('waba-'):
+        # Don't prepend waba- to numeric Meta WABA IDs
+        if not waba_id.startswith('waba-') and not waba_id.replace('-', '').isdigit():
             waba_id = f'waba-{waba_id}'
 
         # Route requests
