@@ -130,7 +130,16 @@ def _meta_request_raw(url: str) -> bytes:
 
 
 def _resolve_meta_waba_id(aws_waba_id: str) -> str:
-    """Map AWS WABA ID to Meta WABA ID."""
+    """Map AWS WABA ID to Meta WABA ID.
+    Accepts either AWS format (waba-xxx) or Meta numeric ID directly.
+    """
+    # If it's already a numeric Meta WABA ID, return as-is
+    if aws_waba_id.replace('-', '').isdigit() and not aws_waba_id.startswith('waba-'):
+        # Check if it's a known Meta WABA ID
+        if aws_waba_id in AWS_TO_META_WABA.values():
+            return aws_waba_id
+        # Could be a Meta ID we don't have mapped — return as-is
+        return aws_waba_id
     if not aws_waba_id.startswith('waba-'):
         aws_waba_id = f'waba-{aws_waba_id}'
     return AWS_TO_META_WABA.get(aws_waba_id, META_WABA_DEFAULT)
@@ -373,10 +382,7 @@ def _get_waba_details(waba_id: str, request_id: str) -> Dict[str, Any]:
     Meta Graph API: GET /{meta_waba_id}?fields=...
     """
     try:
-        # Ensure waba_id has correct format
-        if not waba_id.startswith('waba-'):
-            waba_id = f'waba-{waba_id}'
-
+        # Resolve to Meta WABA ID (handles both AWS format and Meta numeric IDs)
         meta_waba_id = _resolve_meta_waba_id(waba_id)
 
         fields = 'id,name,currency,timezone_id,message_template_namespace,account_review_status,on_behalf_of_business_info'
@@ -852,10 +858,7 @@ def _put_event_destinations(waba_id: str, body: Dict, request_id: str) -> Dict[s
 
         event_destinations = body.get('eventDestinations', [])
 
-        # Ensure waba_id has correct format
-        if not waba_id.startswith('waba-'):
-            waba_id = f'waba-{waba_id}'
-
+        # Resolve to Meta WABA ID (handles both AWS format and Meta numeric IDs)
         meta_waba_id = _resolve_meta_waba_id(waba_id)
 
         # Format event destinations for response

@@ -48,11 +48,11 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
           vertical: p.vertical || '',
         });
       } else {
-        setLoadError('Could not load business profile. The Meta API may be temporarily unavailable.');
+        setLoadError(`Could not load business profile for ${phone.name} (${phone.display}). The Meta API may be temporarily unavailable. Try refreshing.`);
       }
     } catch (e) {
-      setLoadError('Failed to load profile — check your Meta API token and permissions.');
-      toast.error('Failed to load profile');
+      setLoadError(`Failed to load profile for ${phone.name} — check your Meta API token and permissions.`);
+      toast.error(`Failed to load profile for ${phone.name}`);
     }
     setLoading(false);
   };

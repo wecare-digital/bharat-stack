@@ -181,7 +181,17 @@ def _get_business_profile(phone_id: str) -> Dict:
     fields = 'about,address,description,email,profile_picture_url,websites,vertical'
     result = _graph_api(f'{phone_id}/whatsapp_business_profile', params={'fields': fields}, phone_id=phone_id)
     if 'error' in result:
-        return _resp(400, result)
+        # Retry once — Meta Graph API can be flaky
+        logger.warning(f'Profile fetch failed for {phone_id}, retrying: {result}')
+        time.sleep(1)
+        result = _graph_api(f'{phone_id}/whatsapp_business_profile', params={'fields': fields}, phone_id=phone_id)
+        if 'error' in result:
+            logger.error(f'Profile fetch failed after retry for {phone_id}: {result}')
+            # Return 200 with error info so frontend can display the error message
+            error_msg = result.get('error', {})
+            if isinstance(error_msg, dict):
+                error_msg = error_msg.get('message', str(error_msg))
+            return _resp(200, {'profile': None, 'error': str(error_msg), 'phoneId': phone_id})
     data = result.get('data', [{}])
     profile = data[0] if data else {}
     return _resp(200, {'profile': profile})
@@ -774,7 +784,13 @@ def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
 def _get_phone_settings(phone_id: str) -> Dict:
     result = _graph_api(phone_id, params={'fields': 'display_phone_number,verified_name,quality_rating,messaging_limit_tier,is_official_business_account,name_status'}, phone_id=phone_id)
     if 'error' in result:
-        return _resp(400, result)
+        # Retry once
+        logger.warning(f'Phone settings fetch failed for {phone_id}, retrying: {result}')
+        time.sleep(1)
+        result = _graph_api(phone_id, params={'fields': 'display_phone_number,verified_name,quality_rating,messaging_limit_tier,is_official_business_account,name_status'}, phone_id=phone_id)
+        if 'error' in result:
+            logger.error(f'Phone settings fetch failed after retry for {phone_id}: {result}')
+            return _resp(200, {'settings': None, 'error': str(result.get('error', '')), 'phoneId': phone_id})
     return _resp(200, {'settings': result})
 
 def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
