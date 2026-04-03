@@ -68,7 +68,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [airtelSending, setAirtelSending] = useState(false);
   const [airtelMsgType, setAirtelMsgType] = useState('SERVICE_IMPLICIT');
   const [airtelApiVer, setAirtelApiVer] = useState('v5');
-  const [airtelTemplateId, setAirtelTemplateId] = useState('1007974344269130859');
+  const [airtelTemplateId, setAirtelTemplateId] = useState('');
   const [airtelBulk, setAirtelBulk] = useState(false);
 
   // DLT Templates state
@@ -240,6 +240,13 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   useEffect(() => { loadTemplates(); }, [loadTemplates]);
 
+  // Auto-select first DLT template when templates load (no hardcoded default)
+  useEffect(() => {
+    if (dltTemplates.length > 0 && !airtelTemplateId) {
+      setAirtelTemplateId(dltTemplates[0].templateId);
+    }
+  }, [dltTemplates, airtelTemplateId]);
+
   const handleCreateTemplate = async () => {
     if (!tplId || !tplContent) { toast.error('Template ID and content are required'); return; }
     setTplSaving(true);
@@ -377,7 +384,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   </tbody></table>
                 )}</div>
                 <div style={{ padding: '12px', background: '#f9fafb', borderTop: '1px solid #f3f4f6', fontSize: '12px', color: '#6b7280' }}>
-                  Default: <code>1007974344269130859</code> (WDBEEP / Service Implicit — Self-Service IVR) · Bulk: <code>1007101741507674990</code> · PE ID: <code>1201161991108627443</code>
+                  {dltTemplates.length} template(s) registered · PE ID: <code>1201161991108627443</code> · Sender: <code>WDBEEP</code> · Templates are managed in the DLT Templates tab
                 </div>
               </div>
             )}
@@ -399,7 +406,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 <div className="form-group half"><label>Message Type</label><select value={airtelMsgType} onChange={e => setAirtelMsgType(e.target.value)}><option value="SERVICE_IMPLICIT">SERVICE_IMPLICIT</option><option value="SERVICE_EXPLICIT">SERVICE_EXPLICIT</option><option value="TRANSACTIONAL">TRANSACTIONAL</option><option value="PROMOTIONAL">PROMOTIONAL</option></select></div>
                 <div className="form-group half"><label>API Version</label><select value={airtelApiVer} onChange={e => setAirtelApiVer(e.target.value)}><option value="v4">v4 (Standard)</option><option value="v5">v5 (Content Mod)</option><option value="v6">v6 (Enhanced)</option></select></div>
               </div>
-              <div className="form-group"><label>DLT Template ID</label><div className="input-row"><input type="text" value={airtelTemplateId} onChange={e => setAirtelTemplateId(e.target.value)} placeholder="1007974344269130859" />{dltTemplates.length > 0 && <select style={{maxWidth:'140px'}} onChange={e => { if (e.target.value) { const t = dltTemplates.find(x => x.templateId === e.target.value); if (t) { setAirtelTemplateId(t.templateId); setAirtelContent(t.content); setAirtelMsgType(t.messageType); }}}} defaultValue=""><option value="">Use template...</option>{dltTemplates.map(t => <option key={t.templateId} value={t.templateId}>{t.name || t.templateId.slice(0,12)}</option>)}</select>}</div></div>
+              <div className="form-group"><label>DLT Template</label><div className="input-row">{dltTemplates.length > 0 ? <select value={airtelTemplateId} onChange={e => { const t = dltTemplates.find(x => x.templateId === e.target.value); if (t) { setAirtelTemplateId(t.templateId); setAirtelContent(t.content); setAirtelMsgType(t.messageType); } else { setAirtelTemplateId(e.target.value); }}}>{dltTemplates.map(t => <option key={t.templateId} value={t.templateId}>{t.name || t.templateId.slice(0,16)} ({t.messageType})</option>)}<option value="">Custom...</option></select> : <input type="text" value={airtelTemplateId} onChange={e => setAirtelTemplateId(e.target.value)} placeholder="Add templates in DLT Templates tab" />}{!airtelTemplateId && <span style={{fontSize:'11px',color:'#ef4444'}}>Required for v4/v6</span>}</div></div>
               {airtelPhone.includes(',') && <div className="form-group"><label className="checkbox-label"><input type="checkbox" checked={airtelBulk} onChange={e => setAirtelBulk(e.target.checked)} /> Use Bulk/Conduit API <span style={{fontSize:'11px',color:'#9ca3af'}}>(per-recipient payload)</span></label></div>}
               <div style={{padding:'8px 0',fontSize:'11px',color:'#9ca3af'}}>Sender: WDBEEP · PE ID: 1201161991108627443{airtelMsgType === 'PROMOTIONAL' ? ' · No DLR for promotional' : ''}</div>
               <div className="modal-actions"><Button variant="secondary" onClick={() => setShowAirtelSendModal(false)}>Cancel</Button><Button variant="primary" onClick={handleSendAirtel} loading={airtelSending} disabled={!airtelPhone || !airtelContent}>Send{airtelPhone.includes(',') ? ` to ${airtelPhone.split(',').filter(Boolean).length}` : ''}</Button></div>
@@ -417,7 +424,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
             {showTemplateModal && (<div className="modal-overlay" onClick={() => setShowTemplateModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
               <h3>Add DLT Template</h3>
-              <div className="form-group"><label>Template ID (DLT) *</label><input type="text" value={tplId} onChange={e => setTplId(e.target.value)} placeholder="e.g. 1007974344269130859" /></div>
+              <div className="form-group"><label>Template ID (DLT) *</label><input type="text" value={tplId} onChange={e => setTplId(e.target.value)} placeholder="DLT Template ID from portal" /></div>
               <div className="form-group"><label>Name</label><input type="text" value={tplName} onChange={e => setTplName(e.target.value)} placeholder="e.g. Self-Service IVR" /></div>
               <div className="form-group"><label>Content *</label><textarea value={tplContent} onChange={e => setTplContent(e.target.value)} placeholder="Template text with {#var#} placeholders" rows={4} /></div>
               <div className="form-group"><label>Message Type</label><select value={tplMessageType} onChange={e => setTplMessageType(e.target.value)}><option value="SERVICE_EXPLICIT">SERVICE_EXPLICIT</option><option value="SERVICE_IMPLICIT">SERVICE_IMPLICIT</option><option value="TRANSACTIONAL">TRANSACTIONAL</option><option value="PROMOTIONAL">PROMOTIONAL</option></select></div>

@@ -917,48 +917,8 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.info(f"Call permission request failed: {e}")
 
-    # Step 5: Send post-call SMS (Airtel for Indian numbers, AWS Pinpoint for international)
-    try:
-        clean_phone = caller_phone.lstrip('+')
-        is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
-
-        if is_indian:
-            # Indian: Airtel IQ via sms-in-airtel (v5 auto-DLT, proxy)
-            sms_payload = {
-                'rawPath': '/sms-in/airtel',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'SERVICE_IMPLICIT',
-                    'sourceAddress': IVR_SMS_SENDER_ID,
-                    'apiVersion': 'v5',
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_AIRTEL,
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-        else:
-            # International: Pinpoint SMS v2 (us-east-1, toll-free pool)
-            sms_payload = {
-                'rawPath': '/sms-aws/send',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'TRANSACTIONAL',
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_PINPOINT,
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-        logger.info(f"Post-call SMS triggered for {caller_phone} (provider={'airtel' if is_indian else 'pinpoint'})")
-    except Exception as e:
-        logger.warning(f"Post-call SMS failed: {e}")
+    # Step 5: Post-call SMS — SKIPPED (already sent on incoming call connect via _send_incoming_call_sms with dedup)
+    # No need to send a second identical SMS after the call ends.
 
     return {'statusCode': 200, 'body': 'post_call_sent'}
 
@@ -1288,7 +1248,10 @@ SMS_LAMBDA_PINPOINT = 'wecare-sms-aws'      # Pinpoint SMS v2 us-east-1
 
 
 def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Send default IVR SMS when a call comes in.
+    """Send default IVR SMS when a call comes in — with dedup cooldown.
+    
+    Dedup: Only sends one SMS per phone number per SMS_DEDUP_WINDOW_SECONDS (default 10 min).
+    Uses SystemConfig table to track last SMS timestamp per phone.
     
     Routing:
       Indian +91 numbers  → Airtel IQ via wecare-sms-in-airtel (proxy, whitelisted IP)
@@ -1298,6 +1261,17 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
         if not caller_phone:
             return
         clean_phone = caller_phone.lstrip('+')
+
+        # ── Dedup: skip if we already sent SMS to this number recently ──
+        if _sms_sent_recently(clean_phone):
+            logger.info(json.dumps({
+                'event': 'incoming_call_sms_skipped_dedup',
+                'callId': call_id,
+                'callerPhone': caller_phone[-4:],
+                'requestId': request_id,
+            }))
+            return
+
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
         if is_indian:
@@ -1350,6 +1324,10 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
                 'region': 'us-east-1',
                 'requestId': request_id,
             }))
+
+        # ── Mark SMS as sent for dedup ──
+        _mark_sms_sent(clean_phone)
+
     except Exception as e:
         logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
 DIRECT_API_META_PHONE_IDS = {PHONE1_META_ID, PHONE2_META_ID}
@@ -1394,6 +1372,39 @@ def _is_sms_on_call_enabled() -> bool:
     except Exception as e:
         logger.warning(f"Failed to read sms_on_call config: {e}")
     return True  # Default: enabled
+
+
+# ── SMS Dedup: prevent duplicate SMS to the same number within a cooldown window ──
+SMS_DEDUP_WINDOW_SECONDS = 600  # 10 minutes — one SMS per phone per window
+
+
+def _sms_sent_recently(phone_digits: str) -> bool:
+    """Check if we already sent an IVR SMS to this phone number within the dedup window."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': f'sms_dedup_{phone_digits}'})
+        item = result.get('Item')
+        if item:
+            last_sent = float(item.get('configValue', 0))
+            if time.time() - last_sent < SMS_DEDUP_WINDOW_SECONDS:
+                return True
+    except Exception as e:
+        logger.warning(f"SMS dedup check failed (allowing send): {e}")
+    return False
+
+
+def _mark_sms_sent(phone_digits: str) -> None:
+    """Record that we just sent an IVR SMS to this phone number (for dedup)."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        now = int(time.time())
+        table.put_item(Item={
+            'id': f'sms_dedup_{phone_digits}',
+            'configValue': str(now),
+            'ttl': Decimal(str(now + SMS_DEDUP_WINDOW_SECONDS + 60)),  # auto-cleanup
+        })
+    except Exception as e:
+        logger.warning(f"SMS dedup mark failed: {e}")
 
 
 def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:

@@ -284,7 +284,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     content = body.get('content', '')
     message_type = body.get('messageType', 'SERVICE_EXPLICIT')
     dlt_template_id = body.get('dltTemplateId')
-    api_version = body.get('apiVersion', 'v4')
+    api_version = body.get('apiVersion', 'v5')
     meta_data = body.get('metaData')
     
     if not phone_numbers:

@@ -1015,7 +1015,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
             {/* IVR SMS Configuration + Test */}
             <div style={{ ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <h4 style={{ margin: 0, fontSize: '13px', color: '#0f2a1d' }}>IVR SMS (sent on incoming call + after call ends)</h4>
+                <h4 style={{ margin: 0, fontSize: '13px', color: '#0f2a1d' }}>IVR SMS (sent once on incoming call, 10-min dedup)</h4>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
                   <input type="checkbox" checked={smsOnCall} onChange={async () => {
                     const newVal = !smsOnCall;
@@ -1038,7 +1038,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   <div style={{ color: '#6b7280', fontSize: '11px' }}>Provider: Airtel IQ (ap-south-1)</div>
                   <div style={{ color: '#6b7280', fontSize: '11px' }}>Sender: WDBEEP</div>
                   <div style={{ color: '#6b7280', fontSize: '11px' }}>DLT: 1007277993798259629 (ivr-default)</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Lambda: wecare-outbound-sms</div>
+                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Lambda: wecare-sms-in-airtel</div>
                   <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' }}>REGISTERED</span>
                 </div>
                 <div style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
