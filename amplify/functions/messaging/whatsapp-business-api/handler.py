@@ -884,7 +884,7 @@ _RAZORPAY_MID = os.environ.get('RAZORPAY_MID', 'acc_HDfub6wOfQybuH')
 _RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', 'wecaredigital83.rzp@icici')
 _PAYU_MID = os.environ.get('PAYU_MID', '8629516')
 _PAYU_UPI_ID = os.environ.get('PAYU_UPI_ID', 'wecareqr.payu@indus')
-_PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '1728153881476046')
+_PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '2094615664435155')
 
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {
