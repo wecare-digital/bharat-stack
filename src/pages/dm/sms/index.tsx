@@ -22,6 +22,7 @@ interface SmsMessage {
 interface Campaign { id: string; name: string; recipients: number; sent: number; delivered: number; failed: number; createdAt: string; }
 interface AirtelMessage { messageId: string; phone: string; content: string; status: string; direction: string; templateId?: string; messageType?: string; apiVersion?: string; recipientCount?: number; providerMessageId?: string; timestamp: string; }
 interface DLTTemplate { templateId: string; name: string; content: string; messageType: string; senderId: string; entityId: string; variables: string[]; status: string; createdAt: number; }
+interface PinpointTemplate { templateName: string; body: string; templateDescription: string; defaultSubstitutions?: string; version?: string; creationDate?: string; lastModifiedDate?: string; tags?: Record<string, string>; }
 
 const ITEMS_PER_PAGE = 25;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
@@ -31,6 +32,7 @@ const TABS: ShellTab[] = [
   { id: 'airtel', label: 'Airtel IN' },
   { id: 'campaign', label: 'Campaign' },
   { id: 'templates', label: 'DLT Templates' },
+  { id: 'pinpoint-tpl', label: 'Pinpoint Templates' },
 ];
 
 const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
@@ -80,6 +82,28 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [tplContent, setTplContent] = useState('');
   const [tplMessageType, setTplMessageType] = useState('SERVICE_EXPLICIT');
   const [tplSaving, setTplSaving] = useState(false);
+  // Edit template state
+  const [editingTemplate, setEditingTemplate] = useState<DLTTemplate | null>(null);
+  const [showEditTemplateModal, setShowEditTemplateModal] = useState(false);
+  const [editTplName, setEditTplName] = useState('');
+  const [editTplContent, setEditTplContent] = useState('');
+  const [editTplMessageType, setEditTplMessageType] = useState('SERVICE_IMPLICIT');
+  const [editTplSaving, setEditTplSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  // Pinpoint Templates state (ap-south-1 India)
+  const [pinpointTemplates, setPinpointTemplates] = useState<PinpointTemplate[]>([]);
+  const [pinpointTplLoading, setPinpointTplLoading] = useState(false);
+  const [showPinpointTplModal, setShowPinpointTplModal] = useState(false);
+  const [ppTplName, setPpTplName] = useState('');
+  const [ppTplBody, setPpTplBody] = useState('');
+  const [ppTplDesc, setPpTplDesc] = useState('');
+  const [ppTplSaving, setPpTplSaving] = useState(false);
+  const [showEditPpTplModal, setShowEditPpTplModal] = useState(false);
+  const [editPpTpl, setEditPpTpl] = useState<PinpointTemplate | null>(null);
+  const [editPpTplBody, setEditPpTplBody] = useState('');
+  const [editPpTplDesc, setEditPpTplDesc] = useState('');
+  const [editPpTplSaving, setEditPpTplSaving] = useState(false);
 
   const toast = useToastContext();
   const confirm = useConfirm();
@@ -271,6 +295,95 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     } catch (err) { toast.error('Failed to delete template'); }
   };
 
+  const handleEditTemplate = (tpl: DLTTemplate) => {
+    setEditingTemplate(tpl);
+    setEditTplName(tpl.name);
+    setEditTplContent(tpl.content);
+    setEditTplMessageType(tpl.messageType);
+    setShowEditTemplateModal(true);
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate) return;
+    setEditTplSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-in/airtel/templates`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId: editingTemplate.templateId, name: editTplName, content: editTplContent, messageType: editTplMessageType })
+      });
+      const data = await res.json();
+      if (data.success) { toast.success('Template updated'); setShowEditTemplateModal(false); setEditingTemplate(null); await loadTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to update template'); } finally { setEditTplSaving(false); }
+  };
+
+  const handleSeedTemplates = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-in/airtel/templates?action=seed`);
+      const data = await res.json();
+      if (data.success) { toast.success(data.message || 'Templates seeded'); await loadTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to seed templates'); } finally { setSeeding(false); }
+  };
+
+  // Pinpoint Template functions (ap-south-1)
+  const loadPinpointTemplates = useCallback(async () => {
+    setPinpointTplLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-aws/templates`);
+      const data = await res.json();
+      setPinpointTemplates(data.templates || []);
+    } catch (err) { console.error('Load Pinpoint templates error:', err); } finally { setPinpointTplLoading(false); }
+  }, []);
+
+  useEffect(() => { loadPinpointTemplates(); }, [loadPinpointTemplates]);
+
+  const handleCreatePinpointTemplate = async () => {
+    if (!ppTplName || !ppTplBody) { toast.error('Template name and body are required'); return; }
+    setPpTplSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-aws/templates`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateName: ppTplName, body: ppTplBody, templateDescription: ppTplDesc })
+      });
+      const data = await res.json();
+      if (data.success) { toast.success('Pinpoint template created'); setShowPinpointTplModal(false); setPpTplName(''); setPpTplBody(''); setPpTplDesc(''); await loadPinpointTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to create template'); } finally { setPpTplSaving(false); }
+  };
+
+  const handleEditPinpointTemplate = (tpl: PinpointTemplate) => {
+    setEditPpTpl(tpl);
+    setEditPpTplBody(tpl.body);
+    setEditPpTplDesc(tpl.templateDescription || '');
+    setShowEditPpTplModal(true);
+  };
+
+  const handleUpdatePinpointTemplate = async () => {
+    if (!editPpTpl) return;
+    setEditPpTplSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/sms-aws/templates`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateName: editPpTpl.templateName, body: editPpTplBody, templateDescription: editPpTplDesc })
+      });
+      const data = await res.json();
+      if (data.success) { toast.success('Template updated'); setShowEditPpTplModal(false); setEditPpTpl(null); await loadPinpointTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to update template'); } finally { setEditPpTplSaving(false); }
+  };
+
+  const handleDeletePinpointTemplate = async (templateName: string) => {
+    if (!(await confirm(`Delete Pinpoint template "${templateName}"?`))) return;
+    try {
+      const res = await fetch(`${API_BASE}/sms-aws/templates?templateName=${encodeURIComponent(templateName)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { toast.success('Template deleted'); await loadPinpointTemplates(); }
+      else toast.error(data.error || 'Failed');
+    } catch (err) { toast.error('Failed to delete template'); }
+  };
+
   // AWS filtered
   const filteredMessages = messages.filter(msg => {
     if (directionFilter === 'inbound' && msg.direction !== 'INBOUND') return false;
@@ -374,17 +487,40 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <div className="tab-header-left"><span className="provider-badge airtel">DLT Templates</span><span className="region-badge">Airtel IQ</span></div>
                   <div className="tab-header-actions">
                     <Button variant="primary" onClick={() => setShowTemplateModal(true)}>Add Template</Button>
+                    <Button variant="secondary" onClick={handleSeedTemplates} disabled={seeding} loading={seeding}>Seed Defaults</Button>
                     <Button variant="secondary" icon="refresh" onClick={loadTemplates} disabled={templatesLoading} loading={templatesLoading}>Refresh</Button>
                   </div>
                 </div>
                 <div className="table-area">{templatesLoading ? <div className="loading-state">Loading...</div> : (
                   <table><thead><tr><th>Template ID</th><th>Name</th><th>Content</th><th>Type</th><th>Sender</th><th>Actions</th></tr></thead><tbody>
-                    {dltTemplates.map(tpl => (<tr key={tpl.templateId}><td className="phone-cell">{tpl.templateId}</td><td className="name-cell">{tpl.name}</td><td className="content-cell" title={tpl.content}>{tpl.content?.substring(0, 60)}{tpl.content?.length > 60 ? '...' : ''}</td><td><span className="st-badge">{tpl.messageType}</span></td><td>{tpl.senderId}</td><td><button className="pick-btn" onClick={() => handleDeleteTemplate(tpl.templateId)}>Delete</button></td></tr>))}
-                    {dltTemplates.length === 0 && <tr><td colSpan={6} className="empty-row">No DLT templates. Click "Add Template" to register one.</td></tr>}
+                    {dltTemplates.map(tpl => (<tr key={tpl.templateId}><td className="phone-cell">{tpl.templateId}</td><td className="name-cell">{tpl.name}</td><td className="content-cell" title={tpl.content}>{tpl.content?.substring(0, 60)}{tpl.content?.length > 60 ? '...' : ''}</td><td><span className="st-badge">{tpl.messageType}</span></td><td>{tpl.senderId}</td><td><button className="pick-btn" onClick={() => handleEditTemplate(tpl)}>Edit</button> <button className="pick-btn" onClick={() => handleDeleteTemplate(tpl.templateId)}>Delete</button></td></tr>))}
+                    {dltTemplates.length === 0 && <tr><td colSpan={6} className="empty-row">No DLT templates. Click "Add Template" to register one, or "Seed Defaults" to add WA-Alert + ivr-default.</td></tr>}
                   </tbody></table>
                 )}</div>
                 <div style={{ padding: '12px', background: '#f9fafb', borderTop: '1px solid #f3f4f6', fontSize: '12px', color: '#6b7280' }}>
                   {dltTemplates.length} template(s) registered · PE ID: <code>1201161991108627443</code> · Sender: <code>WDBEEP</code> · Templates are managed in the DLT Templates tab
+                </div>
+              </div>
+            )}
+
+            {/* ===== PINPOINT TEMPLATES TAB (ap-south-1) ===== */}
+            {activeTab === 'pinpoint-tpl' && (
+              <div className="sms-tab-content">
+                <div className="tab-header">
+                  <div className="tab-header-left"><span className="provider-badge">Pinpoint Templates</span><span className="region-badge">ap-south-1 (India)</span></div>
+                  <div className="tab-header-actions">
+                    <Button variant="primary" onClick={() => setShowPinpointTplModal(true)}>Create Template</Button>
+                    <Button variant="secondary" icon="refresh" onClick={loadPinpointTemplates} disabled={pinpointTplLoading} loading={pinpointTplLoading}>Refresh</Button>
+                  </div>
+                </div>
+                <div className="table-area">{pinpointTplLoading ? <div className="loading-state">Loading...</div> : (
+                  <table><thead><tr><th>Template Name</th><th>Body</th><th>Description</th><th>Version</th><th>Last Modified</th><th>Actions</th></tr></thead><tbody>
+                    {pinpointTemplates.map(tpl => (<tr key={tpl.templateName}><td className="name-cell">{tpl.templateName}</td><td className="content-cell" title={tpl.body}>{tpl.body?.substring(0, 60)}{tpl.body?.length > 60 ? '...' : ''}</td><td>{tpl.templateDescription || '-'}</td><td>{tpl.version || '-'}</td><td className="time-cell">{tpl.lastModifiedDate ? new Date(tpl.lastModifiedDate).toLocaleString() : '-'}</td><td><button className="pick-btn" onClick={() => handleEditPinpointTemplate(tpl)}>Edit</button> <button className="pick-btn" onClick={() => handleDeletePinpointTemplate(tpl.templateName)}>Delete</button></td></tr>))}
+                    {pinpointTemplates.length === 0 && <tr><td colSpan={6} className="empty-row">No Pinpoint SMS templates in ap-south-1. Click "Create Template" to add one.</td></tr>}
+                  </tbody></table>
+                )}</div>
+                <div style={{ padding: '12px', background: '#f9fafb', borderTop: '1px solid #f3f4f6', fontSize: '12px', color: '#6b7280' }}>
+                  {pinpointTemplates.length} template(s) · Region: <code>ap-south-1</code> · Sender ID: <code>WDBEEP</code> · India DLT compliant
                 </div>
               </div>
             )}
@@ -429,6 +565,35 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <div className="form-group"><label>Content *</label><textarea value={tplContent} onChange={e => setTplContent(e.target.value)} placeholder="Template text with {#var#} placeholders" rows={4} /></div>
               <div className="form-group"><label>Message Type</label><select value={tplMessageType} onChange={e => setTplMessageType(e.target.value)}><option value="SERVICE_EXPLICIT">SERVICE_EXPLICIT</option><option value="SERVICE_IMPLICIT">SERVICE_IMPLICIT</option><option value="TRANSACTIONAL">TRANSACTIONAL</option><option value="PROMOTIONAL">PROMOTIONAL</option></select></div>
               <div className="modal-actions"><Button variant="secondary" onClick={() => setShowTemplateModal(false)}>Cancel</Button><Button variant="primary" onClick={handleCreateTemplate} loading={tplSaving} disabled={!tplId || !tplContent}>Save</Button></div>
+            </div></div>)}
+
+            {/* Edit DLT Template Modal */}
+            {showEditTemplateModal && editingTemplate && (<div className="modal-overlay" onClick={() => setShowEditTemplateModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3>Edit DLT Template</h3>
+              <div className="form-group"><label>Template ID</label><input type="text" value={editingTemplate.templateId} disabled style={{ background: '#f3f4f6' }} /></div>
+              <div className="form-group"><label>Name</label><input type="text" value={editTplName} onChange={e => setEditTplName(e.target.value)} /></div>
+              <div className="form-group"><label>Content *</label><textarea value={editTplContent} onChange={e => setEditTplContent(e.target.value)} rows={4} /></div>
+              <div className="form-group"><label>Message Type</label><select value={editTplMessageType} onChange={e => setEditTplMessageType(e.target.value)}><option value="SERVICE_EXPLICIT">SERVICE_EXPLICIT</option><option value="SERVICE_IMPLICIT">SERVICE_IMPLICIT</option><option value="TRANSACTIONAL">TRANSACTIONAL</option><option value="PROMOTIONAL">PROMOTIONAL</option></select></div>
+              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowEditTemplateModal(false)}>Cancel</Button><Button variant="primary" onClick={handleUpdateTemplate} loading={editTplSaving} disabled={!editTplContent}>Update</Button></div>
+            </div></div>)}
+
+            {/* Create Pinpoint Template Modal */}
+            {showPinpointTplModal && (<div className="modal-overlay" onClick={() => setShowPinpointTplModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3>Create Pinpoint SMS Template</h3>
+              <div className="form-group"><label>Template Name *</label><input type="text" value={ppTplName} onChange={e => setPpTplName(e.target.value)} placeholder="e.g. wa-alert-india" /></div>
+              <div className="form-group"><label>Body *</label><textarea value={ppTplBody} onChange={e => setPpTplBody(e.target.value)} placeholder="SMS template body text..." rows={4} /></div>
+              <div className="form-group"><label>Description</label><input type="text" value={ppTplDesc} onChange={e => setPpTplDesc(e.target.value)} placeholder="Optional description" /></div>
+              <div style={{padding:'8px 0',fontSize:'11px',color:'#9ca3af'}}>Region: ap-south-1 · Sender ID: WDBEEP</div>
+              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowPinpointTplModal(false)}>Cancel</Button><Button variant="primary" onClick={handleCreatePinpointTemplate} loading={ppTplSaving} disabled={!ppTplName || !ppTplBody}>Create</Button></div>
+            </div></div>)}
+
+            {/* Edit Pinpoint Template Modal */}
+            {showEditPpTplModal && editPpTpl && (<div className="modal-overlay" onClick={() => setShowEditPpTplModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3>Edit Pinpoint Template</h3>
+              <div className="form-group"><label>Template Name</label><input type="text" value={editPpTpl.templateName} disabled style={{ background: '#f3f4f6' }} /></div>
+              <div className="form-group"><label>Body *</label><textarea value={editPpTplBody} onChange={e => setEditPpTplBody(e.target.value)} rows={4} /></div>
+              <div className="form-group"><label>Description</label><input type="text" value={editPpTplDesc} onChange={e => setEditPpTplDesc(e.target.value)} /></div>
+              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowEditPpTplModal(false)}>Cancel</Button><Button variant="primary" onClick={handleUpdatePinpointTemplate} loading={editPpTplSaving} disabled={!editPpTplBody}>Update</Button></div>
             </div></div>)}
 
             {showContactPicker && (<div className="modal-overlay" onClick={() => setShowContactPicker(null)}><div className="modal-content contact-picker" onClick={e => e.stopPropagation()}>

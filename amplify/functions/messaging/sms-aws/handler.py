@@ -1,8 +1,8 @@
 """
 AWS SMS Lambda Function
 
-Purpose: Send SMS messages via Amazon Pinpoint SMS (us-east-1)
-Supports: Transactional SMS, Promotional SMS
+Purpose: Send SMS messages via Amazon Pinpoint SMS (us-east-1 + ap-south-1 India)
+Supports: Transactional SMS, Promotional SMS, Pinpoint SMS Template Management
 Table: stack-wecare-digital-SmsAwsTable (dedicated)
 
 Endpoints:
@@ -11,6 +11,10 @@ Endpoints:
   POST /sms-aws/send              - Send SMS
   DELETE /sms-aws/messages/{id}   - Delete message
   DELETE /sms-aws/clear-logs      - Clear all logs
+  GET  /sms-aws/templates         - List Pinpoint SMS templates (ap-south-1)
+  POST /sms-aws/templates         - Create Pinpoint SMS template
+  PUT  /sms-aws/templates         - Update Pinpoint SMS template
+  DELETE /sms-aws/templates       - Delete Pinpoint SMS template
 """
 
 import os
@@ -29,13 +33,18 @@ from lambda_utils.validation import normalize_phone
 logger = get_logger(__name__)
 
 REGION = 'us-east-1'
+INDIA_REGION = 'ap-south-1'
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 pinpoint_sms = boto3.client('pinpoint-sms-voice-v2', region_name=REGION)
+# Pinpoint (classic) in ap-south-1 for India sender ID / template management
+pinpoint_india = boto3.client('pinpoint', region_name=INDIA_REGION)
 
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
 ORIGINATION_IDENTITY = os.environ.get('ORIGINATION_IDENTITY', '')
 SENDER_ID = os.environ.get('SENDER_ID', 'WECARE')
+INDIA_SENDER_ID = os.environ.get('INDIA_SENDER_ID', 'WDBEEP')
+INDIA_PINPOINT_APP_ID = os.environ.get('INDIA_PINPOINT_APP_ID', '')
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 
@@ -61,6 +70,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'}, origin)
+
+        # Pinpoint SMS Template management (ap-south-1 India)
+        if '/templates' in path:
+            if http_method == 'GET':
+                return _list_pinpoint_templates(query_params, request_id)
+            elif http_method == 'POST':
+                body = json.loads(event.get('body', '{}'))
+                return _create_pinpoint_template(body, request_id)
+            elif http_method == 'PUT':
+                body = json.loads(event.get('body', '{}'))
+                return _update_pinpoint_template(body, request_id)
+            elif http_method == 'DELETE':
+                tpl_name = query_params.get('templateName') or path_params.get('templateName')
+                return _delete_pinpoint_template(tpl_name, request_id)
 
         # DELETE /sms-aws/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
@@ -350,3 +373,155 @@ def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, 
         'headers': cors_headers(resp_origin or origin),
         'body': json.dumps(body, default=str)
     }
+
+
+# ─── Pinpoint SMS Template Management (ap-south-1 India) ───
+
+def _list_pinpoint_templates(params: Dict, request_id: str) -> Dict[str, Any]:
+    """List SMS templates from Pinpoint (ap-south-1)."""
+    try:
+        # Use Pinpoint list-templates API
+        kwargs = {'TemplateType': 'SMS'}
+        if params.get('pageSize'):
+            kwargs['PageSize'] = params['pageSize']
+        response = pinpoint_india.list_templates(**kwargs)
+        templates_meta = response.get('TemplatesResponse', {}).get('Item', [])
+
+        templates = []
+        for meta in templates_meta:
+            if meta.get('TemplateType') != 'SMS':
+                continue
+            try:
+                detail = pinpoint_india.get_sms_template(TemplateName=meta['TemplateName'])
+                tpl = detail.get('SMSTemplateResponse', {})
+                templates.append({
+                    'templateName': tpl.get('TemplateName', ''),
+                    'body': tpl.get('Body', ''),
+                    'defaultSubstitutions': tpl.get('DefaultSubstitutions', ''),
+                    'recommenderId': tpl.get('RecommenderId', ''),
+                    'templateDescription': tpl.get('TemplateDescription', ''),
+                    'version': tpl.get('Version', ''),
+                    'creationDate': tpl.get('CreationDate', ''),
+                    'lastModifiedDate': tpl.get('LastModifiedDate', ''),
+                    'tags': tpl.get('tags', {}),
+                })
+            except Exception as e:
+                logger.warning(f"Failed to get template {meta.get('TemplateName')}: {e}")
+                templates.append({
+                    'templateName': meta.get('TemplateName', ''),
+                    'body': '',
+                    'templateDescription': meta.get('Description', ''),
+                    'version': meta.get('Version', ''),
+                    'creationDate': meta.get('CreationDate', ''),
+                    'lastModifiedDate': meta.get('LastModifiedDate', ''),
+                })
+
+        return _response(200, {
+            'templates': templates,
+            'count': len(templates),
+            'region': INDIA_REGION,
+        })
+    except Exception as e:
+        logger.error(f"List Pinpoint templates error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _create_pinpoint_template(body: Dict, request_id: str) -> Dict[str, Any]:
+    """Create an SMS template in Pinpoint (ap-south-1)."""
+    template_name = body.get('templateName', '')
+    template_body = body.get('body', '')
+    description = body.get('templateDescription', '')
+
+    if not template_name:
+        return _response(400, {'error': 'templateName is required'})
+    if not template_body:
+        return _response(400, {'error': 'body is required'})
+
+    try:
+        request_payload = {
+            'Body': template_body,
+        }
+        if description:
+            request_payload['TemplateDescription'] = description
+        if body.get('defaultSubstitutions'):
+            request_payload['DefaultSubstitutions'] = body['defaultSubstitutions']
+        if body.get('tags'):
+            request_payload['tags'] = body['tags']
+
+        response = pinpoint_india.create_sms_template(
+            TemplateName=template_name,
+            SMSTemplateRequest=request_payload
+        )
+        result = response.get('CreateTemplateMessageBody', {})
+
+        return _response(200, {
+            'success': True,
+            'templateName': template_name,
+            'arn': result.get('Arn', ''),
+            'requestId': result.get('RequestID', ''),
+            'message': result.get('Message', 'Template created'),
+        })
+    except pinpoint_india.exceptions.BadRequestException as e:
+        return _response(400, {'error': f'Bad request: {str(e)}'})
+    except Exception as e:
+        logger.error(f"Create Pinpoint template error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _update_pinpoint_template(body: Dict, request_id: str) -> Dict[str, Any]:
+    """Update an SMS template in Pinpoint (ap-south-1)."""
+    template_name = body.get('templateName', '')
+    template_body = body.get('body', '')
+
+    if not template_name:
+        return _response(400, {'error': 'templateName is required'})
+
+    try:
+        request_payload = {}
+        if template_body:
+            request_payload['Body'] = template_body
+        if body.get('templateDescription') is not None:
+            request_payload['TemplateDescription'] = body['templateDescription']
+        if body.get('defaultSubstitutions'):
+            request_payload['DefaultSubstitutions'] = body['defaultSubstitutions']
+        if body.get('tags'):
+            request_payload['tags'] = body['tags']
+
+        kwargs = {
+            'TemplateName': template_name,
+            'SMSTemplateRequest': request_payload,
+            'CreateNewVersion': True,
+        }
+        if body.get('version'):
+            kwargs['Version'] = body['version']
+
+        response = pinpoint_india.update_sms_template(**kwargs)
+        result = response.get('MessageBody', {})
+
+        return _response(200, {
+            'success': True,
+            'templateName': template_name,
+            'message': result.get('Message', 'Template updated'),
+            'requestId': result.get('RequestID', ''),
+        })
+    except Exception as e:
+        logger.error(f"Update Pinpoint template error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
+def _delete_pinpoint_template(template_name: str, request_id: str) -> Dict[str, Any]:
+    """Delete an SMS template from Pinpoint (ap-south-1)."""
+    if not template_name:
+        return _response(400, {'error': 'templateName is required'})
+
+    try:
+        response = pinpoint_india.delete_sms_template(TemplateName=template_name)
+        result = response.get('MessageBody', {})
+        return _response(200, {
+            'success': True,
+            'deleted': template_name,
+            'message': result.get('Message', 'Template deleted'),
+        })
+    except Exception as e:
+        logger.error(f"Delete Pinpoint template error: {str(e)}")
+        return _response(500, {'error': str(e)})

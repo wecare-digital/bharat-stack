@@ -16,5 +16,8 @@ export const smsAws = defineFunction({
     // Once approved, set to '+18444891209' to use toll-free as origination
     ORIGINATION_IDENTITY: '',
     SENDER_ID: 'WECARE',
+    // India Pinpoint (ap-south-1) — for SMS template management & India sender ID
+    INDIA_SENDER_ID: 'WDBEEP',
+    INDIA_PINPOINT_APP_ID: '',
   },
 });

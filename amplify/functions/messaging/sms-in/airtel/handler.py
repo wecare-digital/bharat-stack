@@ -39,6 +39,10 @@ DLT Requirements:
   https://wecare.digital/selfservice or send us a message / voice note on WhatsApp:
   https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed."
   NOTE: Use \n\n (double newline) for line breaks — single \n is stripped by Airtel.
+- WA-Alert Template: 1007284579074821763 (WDBEEP / Service Implicit)
+  Text: "We've sent an essential notification about your order/request to your registered
+  WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL"
+  Status: REGISTERED · Domain: airtel.com
 - MSISDN: 10 or 12 digits
 
 Secrets: wecare/airtel/sms
@@ -159,10 +163,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Template management endpoints
         if '/templates' in path:
             if http_method == 'GET':
+                # GET /templates?action=seed → seed default templates
+                if query_params.get('action') == 'seed':
+                    return _seed_default_templates(request_id)
                 return _list_templates(query_params, request_id)
             elif http_method == 'POST':
                 body = json.loads(event.get('body', '{}'))
                 return _create_template(body, request_id)
+            elif http_method == 'PUT':
+                body = json.loads(event.get('body', '{}'))
+                return _update_template(body, request_id)
             elif http_method == 'DELETE':
                 template_id = path_params.get('templateId') or query_params.get('templateId')
                 return _delete_template(template_id, request_id)
@@ -536,6 +546,69 @@ def _create_template(body: Dict, request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
+def _update_template(body: Dict, request_id: str) -> Dict[str, Any]:
+    """Update an existing DLT template."""
+    template_id = body.get('templateId') or body.get('dltTemplateId')
+    if not template_id:
+        return _response(400, {'error': 'templateId is required'})
+
+    try:
+        import re
+        now = int(time.time())
+        table = dynamodb.Table(DLT_TEMPLATES_TABLE)
+
+        update_expr_parts = ['updatedAt = :now']
+        expr_values: Dict[str, Any] = {':now': Decimal(str(now))}
+
+        if 'name' in body:
+            update_expr_parts.append('#n = :name')
+            expr_values[':name'] = body['name']
+        if 'content' in body:
+            update_expr_parts.append('content = :content')
+            expr_values[':content'] = body['content']
+            vars_match = re.findall(r'\{#(\w+)#\}', body['content'])
+            update_expr_parts.append('variables = :vars')
+            expr_values[':vars'] = list(set(vars_match))
+        if 'messageType' in body:
+            update_expr_parts.append('messageType = :mt')
+            expr_values[':mt'] = body['messageType']
+        if 'senderId' in body:
+            update_expr_parts.append('senderId = :sid')
+            expr_values[':sid'] = body['senderId']
+        if 'entityId' in body:
+            update_expr_parts.append('entityId = :eid')
+            expr_values[':eid'] = body['entityId']
+        if 'status' in body:
+            update_expr_parts.append('#s = :status')
+            expr_values[':status'] = body['status']
+
+        expr_names = {}
+        if '#n = :name' in update_expr_parts:
+            expr_names['#n'] = 'name'
+        if '#s = :status' in update_expr_parts:
+            expr_names['#s'] = 'status'
+
+        update_kwargs = {
+            'Key': {'templateId': template_id},
+            'UpdateExpression': 'SET ' + ', '.join(update_expr_parts),
+            'ExpressionAttributeValues': expr_values,
+            'ReturnValues': 'ALL_NEW',
+        }
+        if expr_names:
+            update_kwargs['ExpressionAttributeNames'] = expr_names
+
+        result = table.update_item(**update_kwargs)
+        updated = result.get('Attributes', {})
+
+        return _response(200, {
+            'success': True,
+            'template': _normalize_template(updated)
+        })
+    except Exception as e:
+        logger.error(f"Update template error: {str(e)}")
+        return _response(500, {'error': str(e)})
+
+
 def _delete_template(template_id: str, request_id: str) -> Dict[str, Any]:
     """Delete a DLT template."""
     if not template_id:
@@ -571,6 +644,61 @@ def _normalize_template(item: Dict) -> Dict:
         'status': item.get('status', 'active'),
         'createdAt': int(float(item.get('createdAt', 0)))
     }
+
+
+# Default DLT templates — registered on Airtel DLT portal
+DEFAULT_DLT_TEMPLATES = [
+    {
+        'templateId': '1007284579074821763',
+        'name': 'WA-Alert',
+        'content': "We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
+        'messageType': 'SERVICE_IMPLICIT',
+        'senderId': 'WDBEEP',
+        'entityId': '1201161991108627443',
+        'variables': [],
+        'status': 'active',
+    },
+    {
+        'templateId': '1007277993798259629',
+        'name': 'ivr-default',
+        'content': "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
+        'messageType': 'SERVICE_IMPLICIT',
+        'senderId': 'WDBEEP',
+        'entityId': '1201161991108627443',
+        'variables': [],
+        'status': 'active',
+    },
+]
+
+
+def _seed_default_templates(request_id: str) -> Dict[str, Any]:
+    """Seed default DLT templates if they don't already exist."""
+    try:
+        table = dynamodb.Table(DLT_TEMPLATES_TABLE)
+        now = int(time.time())
+        seeded = []
+        skipped = []
+
+        for tpl in DEFAULT_DLT_TEMPLATES:
+            # Check if already exists
+            existing = table.get_item(Key={'templateId': tpl['templateId']}).get('Item')
+            if existing:
+                skipped.append(tpl['templateId'])
+                continue
+
+            item = {**tpl, 'createdAt': Decimal(str(now)), 'updatedAt': Decimal(str(now))}
+            table.put_item(Item=item)
+            seeded.append(tpl['templateId'])
+
+        return _response(200, {
+            'success': True,
+            'seeded': seeded,
+            'skipped': skipped,
+            'message': f'Seeded {len(seeded)} template(s), skipped {len(skipped)} existing'
+        })
+    except Exception as e:
+        logger.error(f"Seed templates error: {str(e)}")
+        return _response(500, {'error': str(e)})
 
 
 # Message storage and retrieval

@@ -685,6 +685,11 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             direction=direction,
         )
 
+        # ── Send Airtel IVR SMS on every call disconnect (both phone 1 & phone 2) ──
+        # Uses ivr-default DLT template via Airtel IQ with dedup
+        if _is_sms_on_call_enabled() and from_number:
+            _send_disconnect_sms(from_number, call_id, phone_number_id, reason, request_id)
+
     elif event_type in ('call_permission_response', 'call_permission_status'):
         # Meta sends call_permission_status with status: GRANTED/REJECTED/REVOKED
         permission = call.get('status', call.get('permission', ''))
@@ -917,8 +922,9 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.info(f"Call permission request failed: {e}")
 
-    # Step 5: Post-call SMS — SKIPPED (already sent on incoming call connect via _send_incoming_call_sms with dedup)
-    # No need to send a second identical SMS after the call ends.
+    # Step 5: Post-call SMS — send Airtel IVR SMS (ivr-default template) on disconnect
+    if caller_phone and _is_sms_on_call_enabled():
+        _send_disconnect_sms(caller_phone, f'sip_{caller_phone}', phone_number_id, 'sip_hangup', 'sip_post_call')
 
     return {'statusCode': 200, 'body': 'post_call_sent'}
 
@@ -1283,6 +1289,7 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
                     'phoneNumber': caller_phone,
                     'content': IVR_SMS_CONTENT,
                     'messageType': 'SERVICE_IMPLICIT',
+                    'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
                     'sourceAddress': IVR_SMS_SENDER_ID,
                     'apiVersion': 'v5',
                 }),
@@ -1330,6 +1337,101 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
 
     except Exception as e:
         logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
+
+
+def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
+                         reason: str, request_id: str) -> None:
+    """Send Airtel IVR SMS on every call disconnect — both WABA phone 1 & phone 2.
+
+    Always uses Airtel IQ for Indian +91 numbers (DLT compliant, ivr-default template).
+    Falls back to Pinpoint for international numbers.
+    Respects the same dedup window as _send_incoming_call_sms (10 min per phone).
+
+    This ensures the caller always receives the self-service SMS after a call ends,
+    regardless of whether the connect-time SMS was sent or skipped.
+    """
+    try:
+        if not caller_phone:
+            return
+        clean_phone = caller_phone.lstrip('+')
+
+        # Dedup: skip if we already sent SMS to this number recently
+        # (covers the case where connect-time SMS was already sent)
+        if _sms_sent_recently(clean_phone):
+            logger.info(json.dumps({
+                'event': 'disconnect_sms_skipped_dedup',
+                'callId': call_id,
+                'callerPhone': caller_phone[-4:],
+                'phoneNumberId': phone_number_id,
+                'reason': reason,
+                'requestId': request_id,
+            }))
+            return
+
+        is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
+
+        if is_indian:
+            # ── Indian: Airtel IQ via sms-in-airtel (ivr-default DLT template) ──
+            sms_payload = {
+                'rawPath': '/sms-in/airtel',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'SERVICE_IMPLICIT',
+                    'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
+                    'sourceAddress': IVR_SMS_SENDER_ID,
+                    'apiVersion': 'v5',
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_AIRTEL,
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+            logger.info(json.dumps({
+                'event': 'disconnect_sms_triggered',
+                'callId': call_id,
+                'callerPhone': caller_phone[-4:],
+                'phoneNumberId': phone_number_id,
+                'provider': 'airtel',
+                'template': IVR_SMS_DLT_TEMPLATE_ID,
+                'reason': reason,
+                'requestId': request_id,
+            }))
+        else:
+            # ── International: Pinpoint SMS v2 (us-east-1) ──
+            sms_payload = {
+                'rawPath': '/sms-aws/send',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'TRANSACTIONAL',
+                }),
+            }
+            lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_PINPOINT,
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+            logger.info(json.dumps({
+                'event': 'disconnect_sms_triggered',
+                'callId': call_id,
+                'callerPhone': caller_phone[-4:],
+                'phoneNumberId': phone_number_id,
+                'provider': 'pinpoint',
+                'reason': reason,
+                'requestId': request_id,
+            }))
+
+        # Mark SMS as sent for dedup
+        _mark_sms_sent(clean_phone)
+
+    except Exception as e:
+        logger.warning(f"Disconnect SMS failed (non-blocking): {e}")
+
+
 DIRECT_API_META_PHONE_IDS = {PHONE1_META_ID, PHONE2_META_ID}
 
 

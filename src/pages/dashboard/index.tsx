@@ -2715,19 +2715,26 @@ Content-Type: application/json`}</pre>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Default Template ID</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>1007974344269130859</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>1007277993798259629 (ivr-default)</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>API Host</label>
                       <code style={{ fontSize: '0.85rem', color: '#111827' }}>iqmessaging.airtel.in</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Self-Service IVR Template</label>
-                      <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007974344269130859 · WDBEEP / Service Implicit</code>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>ivr-default Template</label>
+                      <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007277993798259629 · WDBEEP / Service Implicit</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>WA-Alert Template</label>
+                      <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007284579074821763 · WDBEEP / Service Implicit</code>
                     </div>
                   </div>
+                  <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4', whiteSpace: 'pre-line' }}>
+                    ivr-default: Thanks for contacting WECARE.DIGITAL!{'\n\n'}Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.{'\n\n'}We&apos;ll review it and follow up if needed.
+                  </div>
                   <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4' }}>
-                    Self-Service IVR Template Text: Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self Service Portal at https://wecare.digital/selfservice. Once we receive it, we&apos;ll review it and contact you if anything else is needed.
+                    WA-Alert: We&apos;ve sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#E65100', marginTop: '0.75rem', lineHeight: '1.5' }}>
                     Note: v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br/>
@@ -2742,18 +2749,27 @@ Content-Type: application/json`}</pre>
 POST /sms-in/airtel
 {
   "phoneNumber": "8130078559",
-  "content": "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self Service Portal at https://wecare.digital/selfservice. Once we receive it, we'll review it and contact you if anything else is needed.",
-  "messageType": "SERVICE_EXPLICIT",
-  "dltTemplateId": "1007974344269130859"
+  "content": "Thanks for contacting WECARE.DIGITAL!\\n\\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\\n\\nWe'll review it and follow up if needed.",
+  "messageType": "SERVICE_IMPLICIT",
+  "dltTemplateId": "1007277993798259629"
+}
+
+# WA-Alert Template
+POST /sms-in/airtel
+{
+  "phoneNumber": "8130078559",
+  "content": "We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
+  "messageType": "SERVICE_IMPLICIT",
+  "dltTemplateId": "1007284579074821763"
 }
 
 # Multiple Recipients (same v4 endpoint)
 POST /sms-in/airtel
 {
   "phoneNumbers": ["8130078559", "7080003969"],
-  "content": "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self Service Portal at https://wecare.digital/selfservice. Once we receive it, we'll review it and contact you if anything else is needed.",
-  "messageType": "SERVICE_EXPLICIT",
-  "dltTemplateId": "1007974344269130859"
+  "content": "Thanks for contacting WECARE.DIGITAL!\\n\\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\\n\\nWe'll review it and follow up if needed.",
+  "messageType": "SERVICE_IMPLICIT",
+  "dltTemplateId": "1007277993798259629"
 }
 
 # Bulk via Conduit API (different format per recipient)
@@ -2761,9 +2777,9 @@ POST /sms-in/airtel
 {
   "bulk": true,
   "phoneNumbers": ["8130078559", "7080003969"],
-  "content": "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our online Self-Service Portal at https://selfservice.wecare.digital. Once we receive it, we'll review it and contact you if anything else is needed.",
-  "messageType": "SERVICE_EXPLICIT",
-  "dltTemplateId": "1007101741507674990"
+  "content": "Thanks for contacting WECARE.DIGITAL!\\n\\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\\n\\nWe'll review it and follow up if needed.",
+  "messageType": "SERVICE_IMPLICIT",
+  "dltTemplateId": "1007277993798259629"
 }
 
 apiVersion: "v4" (default) | "v5" (content mod) | "v6" (enhanced)
