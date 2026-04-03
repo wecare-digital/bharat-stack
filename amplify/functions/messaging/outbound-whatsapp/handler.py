@@ -339,6 +339,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Interactive payment support (for within 24h window - uses payment_settings)
         is_interactive_payment = body.get('isInteractivePayment', False)
         
+        # Checkout button template support (order_details button with sale_amount + shipping_info)
+        is_checkout_template = body.get('isCheckoutTemplate', False)
+        checkout_order_details = body.get('checkoutOrderDetails')  # Full Meta order_details object
+        
         # Interactive message support (list, buttons, location request)
         is_interactive = body.get('isInteractive', False)
         interactive_type = body.get('interactiveType')  # 'list', 'button', 'location_request'
@@ -446,6 +450,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 message_id, contact_id, recipient_phone, phone_number_id,
                 interactive_type, interactive_data, request_id,
                 recipient_bsuid=recipient_bsuid
+            )
+        
+        # Handle checkout button template (order_details button with sale_amount + shipping_info)
+        if is_checkout_template and checkout_order_details:
+            return _handle_checkout_template_send(
+                message_id, contact_id, recipient_phone, phone_number_id,
+                is_template, template_name, template_params,
+                checkout_order_details, header_image_url,
+                request_id, recipient_bsuid=recipient_bsuid
             )
         
         # Requirement 5.2: LIVE mode - call API
@@ -768,6 +781,245 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
         }))
         _emit_delivery_metric('failed', is_template=False)
         return _error_response(500, f'Failed to send order status: {error_msg}')
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CHECKOUT BUTTON TEMPLATE — Send handler
+# Per Meta docs: Checkout button templates use order_details button with
+# sale_amount, shipping_info, importer_address, and payment_settings.
+# https://developers.facebook.com/docs/whatsapp/cloud-api/payments-api/
+#   payments-in/checkout-button-templates
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _handle_checkout_template_send(
+        message_id: str, contact_id: str, recipient_phone: str,
+        phone_number_id: str, is_template: bool, template_name: str,
+        template_params: list, checkout_order_details: Dict,
+        header_image_url: Optional[str], request_id: str,
+        recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Send a checkout button template message with order_details action.
+    
+    The checkout_order_details dict is the FULL Meta order_details object including:
+    - reference_id, type (physical-goods/digital-goods), currency
+    - payment_settings (payment_gateway config)
+    - shipping_info (country, addresses with name/phone/address/city/state/pin)
+    - order (items with amount/sale_amount, subtotal, shipping, tax, discount, expiration)
+    - total_amount
+    
+    This builds the exact payload Meta expects for checkout button templates.
+    """
+    try:
+        formatted_phone = _normalize_phone_number(recipient_phone)
+        whatsapp_phone = f"+{formatted_phone}"
+
+        # Determine template language from params or auto-detect per WABA
+        # wecare_pay: WABA1 uses 'en', WABA-T uses 'en_US'
+        template_language = 'en_US'  # default
+        actual_params = list(template_params) if template_params else []
+        if actual_params and isinstance(actual_params[0], str) and (
+                len(actual_params[0]) == 2 or '_' in actual_params[0]):
+            template_language = actual_params[0]
+            actual_params = actual_params[1:]
+        elif '1016149501586345' in str(phone_number_id):
+            template_language = 'en'  # WABA1
+        else:
+            template_language = 'en_US'  # WABA-T
+
+        # Build payment_settings from checkout_order_details or infer from phone
+        payment_settings = checkout_order_details.get('payment_settings')
+        if not payment_settings:
+            # Auto-build from phone's configured gateway
+            payment_settings = _build_payment_settings(phone_number_id, checkout_order_details)
+
+        # Ensure reference_id is sanitized
+        ref_id = _sanitize_reference_id(checkout_order_details.get('reference_id', ''))
+        checkout_order_details['reference_id'] = ref_id
+
+        # Build the order_details action object (strip payment_settings — they go at top level)
+        order_obj = checkout_order_details.get('order', {})
+
+        # Ensure expiration has description (Meta requires it for templates)
+        if 'expiration' not in order_obj:
+            import time as _time
+            order_obj['expiration'] = {
+                'timestamp': str(int(_time.time()) + 86400),
+                'description': 'Order expires in 24 hours',
+            }
+        elif not order_obj.get('expiration', {}).get('description'):
+            order_obj['expiration']['description'] = 'Order expires in 24 hours'
+
+        # Ensure discount has description (Meta requires it)
+        if 'discount' in order_obj and not order_obj['discount'].get('description'):
+            order_obj['discount']['description'] = 'Discount'
+
+        # Calculate total_amount if not provided
+        total_amount = checkout_order_details.get('total_amount', {})
+        if not total_amount.get('value'):
+            subtotal = order_obj.get('subtotal', {}).get('value', 0)
+            shipping = order_obj.get('shipping', {}).get('value', 0)
+            tax = order_obj.get('tax', {}).get('value', 0)
+            discount = order_obj.get('discount', {}).get('value', 0)
+            total_amount = {'offset': 100, 'value': subtotal + shipping + tax - discount}
+
+        order_details_action = {
+            'reference_id': ref_id,
+            'type': checkout_order_details.get('type', 'physical-goods'),
+            'currency': checkout_order_details.get('currency', 'INR'),
+            'payment_settings': payment_settings,
+            'order': order_obj,
+            'total_amount': total_amount,
+        }
+
+        # Add shipping_info for physical-goods
+        if checkout_order_details.get('type', '') == 'physical-goods':
+            shipping_info = checkout_order_details.get('shipping_info')
+            if shipping_info:
+                order_details_action['shipping_info'] = shipping_info
+            else:
+                # Default: empty addresses array — WhatsApp will ask user to add address
+                order_details_action['shipping_info'] = {'country': 'IN', 'addresses': []}
+
+        # Ensure all items have required India compliance fields
+        WECARE_IMPORTER = {
+            'country_of_origin': 'India',
+            'importer_name': 'WECARE.DIGITAL',
+            'importer_address': {
+                'address_line1': '81/2/7 Phears Ln',
+                'city': 'Kolkata',
+                'zone_code': 'WB',
+                'postal_code': '700012',
+                'country_code': 'IN',
+            },
+        }
+        for item in order_obj.get('items', []):
+            if not item.get('importer_name'):
+                item.update(WECARE_IMPORTER)
+            if not item.get('country_of_origin'):
+                item['country_of_origin'] = 'India'
+
+        # Build template components
+        components = []
+
+        # Header (image or video) — wecare_pay template REQUIRES image header
+        DEFAULT_CHECKOUT_HEADER = 'https://app.wecare.digital/stream/media/m/wecare-digital.png'
+        checkout_header = header_image_url or DEFAULT_CHECKOUT_HEADER
+        if checkout_order_details.get('header_image_id'):
+            components.append({
+                'type': 'header',
+                'parameters': [{
+                    'type': 'image',
+                    'image': {'id': checkout_order_details['header_image_id']},
+                }],
+            })
+        else:
+            components.append({
+                'type': 'header',
+                'parameters': [{
+                    'type': 'image',
+                    'image': {'link': checkout_header},
+                }],
+            })
+
+        # Body parameters
+        if actual_params:
+            components.append({
+                'type': 'body',
+                'parameters': [{'type': 'text', 'text': str(p)} for p in actual_params],
+            })
+
+        # Checkout button (order_details) — always index 0
+        components.append({
+            'type': 'button',
+            'sub_type': 'order_details',
+            'index': 0,
+            'parameters': [{
+                'type': 'action',
+                'action': {
+                    'order_details': order_details_action,
+                },
+            }],
+        })
+
+        # Build full payload
+        payload = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': whatsapp_phone,
+            'type': 'template',
+            'template': {
+                'name': template_name,
+                'language': {
+                    'policy': 'deterministic',
+                    'code': template_language,
+                },
+                'components': components,
+            },
+        }
+
+        if recipient_bsuid:
+            payload['recipient'] = recipient_bsuid
+
+        logger.info(json.dumps({
+            'event': 'checkout_template_payload_built',
+            'templateName': template_name,
+            'language': template_language,
+            'referenceId': ref_id,
+            'goodsType': order_details_action.get('type'),
+            'itemCount': len(order_details_action.get('order', {}).get('items', [])),
+            'totalAmount': order_details_action.get('total_amount', {}).get('value', 0),
+            'hasShippingInfo': 'shipping_info' in order_details_action,
+            'hasHeaderImage': bool(header_image_url or checkout_order_details.get('header_image_id')),
+            'bodyParamCount': len(actual_params),
+            'requestId': request_id,
+        }))
+
+        # Send via Meta API
+        response = _send_message(phone_number_id, payload)
+        whatsapp_message_id = response.get('messageId', '')
+
+        # Store message record
+        item_names = ', '.join(
+            i.get('name', '') for i in order_details_action.get('order', {}).get('items', [])
+        )
+        _store_message_record(
+            message_id=message_id,
+            contact_id=contact_id,
+            content=f'[Checkout: {template_name}] {item_names} — Ref: {ref_id}',
+            status='sent',
+            is_template=True,
+            whatsapp_message_id=whatsapp_message_id,
+            phone_number_id=phone_number_id,
+            recipient_bsuid=recipient_bsuid,
+        )
+
+        _emit_delivery_metric('success', is_template=True)
+
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'messageId': message_id,
+                'whatsappMessageId': whatsapp_message_id,
+                'status': 'sent',
+                'mode': 'LIVE',
+                'type': 'checkout_template',
+                'templateName': template_name,
+                'referenceId': ref_id,
+            }),
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(json.dumps({
+            'event': 'checkout_template_send_error',
+            'messageId': message_id,
+            'templateName': template_name,
+            'error': error_msg,
+            'requestId': request_id,
+        }))
+        _emit_delivery_metric('failed', is_template=True)
+        return _error_response(500, f'Failed to send checkout template: {error_msg}')
 
 
 def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: str,

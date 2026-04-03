@@ -57,11 +57,12 @@ We need this for:
 - Real-time inventory and serviceability checks
 - Shipping cost recalculation based on customer-selected address
 
-Our checkout endpoint is ready:
-- URL: https://api.wecare.digital/wa-business/flow-data
-- Encryption: RSA + AES-GCM (same as WhatsApp Flows)
-- We already handle data_exchange for WhatsApp Flows on this endpoint
-- Sub-actions to implement: get_coupons, apply_coupon, remove_coupon, apply_shipping
+Our checkout endpoint is ready and deployed:
+- URL: https://api.wecare.digital/wa-business/checkout-data
+- Encryption: RSA + AES-128-GCM (same as WhatsApp Flows)
+- All sub-actions fully implemented: get_coupons, apply_coupon, remove_coupon, apply_shipping
+- Coupon system: percentage + flat discounts, min order, max discount, free shipping
+- Shipping: pin-code-based zone calculation (local/regional/metro/national/remote)
 
 Please link this endpoint to these payment configurations:
 1. WECARE-RAZOR-PAY (WABA 2094615664435155)

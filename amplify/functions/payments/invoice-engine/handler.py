@@ -1612,7 +1612,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
 
     order_details_obj = {
         'reference_id': reference_id,
-        'type': goods_type,
+        'type': 'physical-goods',  # Always physical-goods for checkout template (enables address + coupons)
         'payment_configuration': payment_configuration or invoice.get('paymentConfiguration', ''),
         'currency': 'INR',
         'itemName': order_items[0]['name'] if order_items else 'Payment',
@@ -1630,63 +1630,71 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         },
     }
 
-    # Add shipping address info for physical-goods (outbound handler builds beneficiaries from this)
-    # NOTE: For PG deep integration, shipping_info is NOT sent to Meta API.
-    # The outbound handler reads shipping_info.addresses to build the beneficiaries array.
-    # If no address is available, outbound handler uses business address as fallback.
-    if goods_type == 'physical-goods':
-        addr_line1 = invoice.get('addressLine1', '')
-        addr_city = invoice.get('city', '')
-        addr_state = invoice.get('state', '')
-        addr_postal = invoice.get('postalCode', '')
-        addr_line2 = invoice.get('addressLine2', '') or invoice.get('landmark', '')
+    # Always add shipping_info for checkout button template.
+    # If address is known, pre-fill it. If not, send empty addresses[] so WhatsApp asks user.
+    addr_line1 = invoice.get('addressLine1', '')
+    addr_city = invoice.get('city', '')
+    addr_state = invoice.get('state', '')
+    addr_postal = invoice.get('postalCode', '')
+    addr_line2 = invoice.get('addressLine2', '') or invoice.get('landmark', '')
 
-        # Try structured fields first
-        if addr_line1 and addr_city and addr_postal:
+    if addr_line1 and addr_city and addr_postal:
+        order_details_obj['shipping_info'] = {
+            'country': 'IN',
+            'addresses': [{
+                'name': cust_name,
+                'phone_number': customer_phone.replace('+', ''),
+                'address': addr_line1,
+                'city': addr_city,
+                'state': addr_state or addr_city,
+                'in_pin_code': addr_postal[:6],
+                'landmark_area': addr_line2,
+            }]
+        }
+    elif ship_addr:
+        # Fallback: parse flat string address
+        addr_obj = {}
+        try:
+            import json as _json
+            addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
+        except Exception:
+            addr_obj = {}
+
+        if addr_obj and addr_obj.get('city') and addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')):
             order_details_obj['shipping_info'] = {
                 'country': 'IN',
                 'addresses': [{
-                    'name': cust_name,
+                    'name': addr_obj.get('name', cust_name),
                     'phone_number': customer_phone.replace('+', ''),
-                    'address': addr_line1,
-                    'city': addr_city,
-                    'state': addr_state or addr_city,
-                    'in_pin_code': addr_postal[:6],
-                    'landmark_area': addr_line2,
+                    'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
+                    'city': addr_obj.get('city', ''),
+                    'state': addr_obj.get('state', ''),
+                    'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
+                    'landmark_area': addr_obj.get('landmark_area', ''),
                 }]
             }
-        elif ship_addr:
-            # Fallback: parse flat string address
-            addr_obj = {}
-            try:
-                import json as _json
-                addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
-            except Exception:
-                addr_obj = {}
-
-            if addr_obj and addr_obj.get('city') and addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')):
-                order_details_obj['shipping_info'] = {
-                    'country': 'IN',
-                    'addresses': [{
-                        'name': addr_obj.get('name', cust_name),
-                        'phone_number': customer_phone.replace('+', ''),
-                        'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
-                        'city': addr_obj.get('city', ''),
-                        'state': addr_obj.get('state', ''),
-                        'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
-                        'landmark_area': addr_obj.get('landmark_area', ''),
-                    }]
-                }
-            # else: no address — outbound handler will use business address as beneficiary fallback
-        # else: no address at all — outbound handler will use business address as beneficiary fallback
+        else:
+            # No address — empty array so WhatsApp asks user to add
+            order_details_obj['shipping_info'] = {'country': 'IN', 'addresses': []}
+    else:
+        # No address at all — empty array so WhatsApp asks user to add
+        order_details_obj['shipping_info'] = {'country': 'IN', 'addresses': []}
 
     wa_payload = {
         'body': json.dumps({
             'contactId': contact_id,
             'recipientPhone': customer_phone,
             'phoneNumberId': phone_number_id,
-            'isInteractivePayment': True,
-            'orderDetails': order_details_obj,
+            # ALWAYS use checkout button template (wecare_pay) for ALL payments.
+            # This enables: address display, coupon support, real-time pricing.
+            # Meta confirmed checkout endpoint is enabled — no separate linking needed.
+            # Set physical-goods to enable shipping_info + address collection.
+            'isCheckoutTemplate': True,
+            'isTemplate': True,
+            'templateName': 'wecare_pay',
+            'templateParams': [],  # wecare_pay has no body variables
+            'checkoutOrderDetails': order_details_obj,
+            'headerImageUrl': 'https://app.wecare.digital/stream/media/m/wecare-digital.png',
         })
     }
 

@@ -1550,21 +1550,17 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   const delivery = request.delivery || 0;
   const tax = request.tax || 0;
 
-  // Get first item details for backend
-  const firstItem = request.items[0] || { name: 'Service Fee', amount: 100, quantity: 1 };
-
-  // Build order_details payload
+  // Build order_details payload — always physical-goods for checkout template (address + coupons)
   const orderDetails: any = {
     reference_id: request.referenceId,
-    type: 'digital-goods',
+    type: 'physical-goods',
     payment_configuration: request.paymentConfiguration || 'WECARE-RAZOR-PAY',
     currency: request.currency || 'INR',
-    // First item name for backward compat
-    itemName: firstItem.name || 'Service Fee',
-    quantity: firstItem.quantity || 1,
+    itemName: request.items[0]?.name || 'Service Fee',
+    quantity: request.items[0]?.quantity || 1,
     gstin: request.gstin || DEFAULT_GSTIN,
     orderId: request.orderId || 'Offline',
-    // Per-item GST rates passed in items array
+    shipping_info: { country: 'IN', addresses: [] },
     order: {
       status: 'pending',
       items: request.items.map((item, idx) => ({
@@ -1581,35 +1577,19 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
     },
   };
 
-  // Use interactive mode if specified
-  if (request.useInteractive) {
-    const result = await apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
-      method: 'POST',
-      body: JSON.stringify({
-        contactId: request.contactId,
-        phoneNumberId: request.phoneNumberId,
-        recipientBsuid: request.recipientBsuid,
-        isInteractivePayment: true,
-        orderDetails: orderDetails,
-        headerImageUrl: request.headerImageUrl,
-      }),
-    });
-    return result;
-  }
-
-  // Template mode
+  // Always use checkout button template (wecare_pay) — enables address + coupons
   return apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
     method: 'POST',
     body: JSON.stringify({
       contactId: request.contactId,
       phoneNumberId: request.phoneNumberId,
       recipientBsuid: request.recipientBsuid,
+      isCheckoutTemplate: true,
       isTemplate: true,
-      templateName: request.templateName || '02_wd_order_payment',
-      templateParams: request.bodyText ? [request.bodyText] : [],
-      isPaymentTemplate: true,
-      orderDetails: orderDetails,
-      headerImageUrl: request.headerImageUrl,
+      templateName: 'wecare_pay',
+      templateParams: [],
+      checkoutOrderDetails: orderDetails,
+      headerImageUrl: request.headerImageUrl || 'https://app.wecare.digital/stream/media/m/wecare-digital.png',
     }),
   });
 }
@@ -3817,6 +3797,107 @@ export async function cancelInvoice(invoiceId: string, reason?: string): Promise
     method: 'POST',
     body: JSON.stringify({ invoiceId, reason }),
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHECKOUT BUTTON TEMPLATE — Send via outbound-whatsapp Lambda
+// Per Meta docs: Checkout button templates use order_details button with
+// sale_amount, shipping_info, importer_address, and payment_settings.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface CheckoutItem {
+  name: string;
+  amount: { offset: number; value: number };
+  sale_amount?: { offset: number; value: number };
+  quantity: number;
+  country_of_origin: string;
+  importer_name: string;
+  importer_address: {
+    address_line1: string;
+    address_line2?: string;
+    city: string;
+    zone_code: string;
+    postal_code: string;
+    country_code: string;
+  };
+}
+
+export interface CheckoutShippingAddress {
+  name: string;
+  phone_number: string;
+  address: string;
+  city: string;
+  state: string;
+  in_pin_code: string;
+  house_number?: string;
+  tower_number?: string;
+  building_name?: string;
+  landmark_area?: string;
+}
+
+export interface CheckoutOrderDetails {
+  reference_id: string;
+  type: 'physical-goods' | 'digital-goods';
+  currency: string;
+  payment_settings?: Array<{
+    type: string;
+    payment_gateway: {
+      type: string;
+      configuration_name: string;
+    };
+  }>;
+  shipping_info?: {
+    country: string;
+    addresses: CheckoutShippingAddress[];
+  };
+  order: {
+    items: CheckoutItem[];
+    subtotal: { offset: number; value: number };
+    shipping: { offset: number; value: number };
+    tax: { offset: number; value: number };
+    discount?: { offset: number; value: number; description?: string };
+    status: string;
+    expiration?: { timestamp: string; description?: string };
+  };
+  total_amount: { offset: number; value: number };
+  header_image_id?: string;
+}
+
+export interface SendCheckoutTemplateRequest {
+  contactId: string;
+  phoneNumberId: string;
+  templateName: string;
+  templateParams?: string[];
+  checkoutOrderDetails: CheckoutOrderDetails;
+  headerImageUrl?: string;
+  recipientBsuid?: string;
+}
+
+/**
+ * Send a checkout button template message via WhatsApp.
+ * This sends a marketing template with an order_details "Buy now" button
+ * that opens the native WhatsApp checkout flow with coupons + address.
+ */
+export async function sendCheckoutTemplate(
+  request: SendCheckoutTemplateRequest
+): Promise<{ messageId: string; whatsappMessageId: string; status: string; referenceId: string } | null> {
+  return apiCall<{ messageId: string; whatsappMessageId: string; status: string; referenceId: string }>(
+    `${API_BASE}/whatsapp/send`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        contactId: request.contactId,
+        phoneNumberId: request.phoneNumberId,
+        isTemplate: true,
+        isCheckoutTemplate: true,
+        templateName: request.templateName,
+        templateParams: request.templateParams || [],
+        checkoutOrderDetails: request.checkoutOrderDetails,
+        headerImageUrl: request.headerImageUrl,
+        recipientBsuid: request.recipientBsuid,
+      }),
+    }
+  );
 }
 
 // Get delivery log for an invoice

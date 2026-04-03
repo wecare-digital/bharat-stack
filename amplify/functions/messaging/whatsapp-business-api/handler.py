@@ -33,6 +33,7 @@ Routes:
   GET       /wa-business/payment-lookup → Meta Payment Lookup API (verify payment status)
   POST      /wa-business/payment-refund → Meta Refund API (initiate refund via WhatsApp)
   POST      /wa-business/flow-data     → WhatsApp Flow data_exchange endpoint
+  POST      /wa-business/checkout-data → Checkout Button Template data_exchange (coupons + address)
 """
 import os
 import json
@@ -1776,10 +1777,20 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
         }
 
     elif action == 'data_exchange':
+        # ── Checkout Button Template sub_actions (coupons, address, shipping) ──
+        # Meta Payments Checkout data_exchange has 'sub_action' + 'order_details' in data.
+        # WhatsApp Flows data_exchange has 'screen' but no 'sub_action'.
+        sub_action = decrypted_data.get('sub_action', '')
+        if sub_action and data.get('order_details'):
+            response_payload = _handle_checkout_data_exchange(
+                sub_action=sub_action, data=data,
+                version=decrypted_data.get('version', '1.0'),
+                request_id=request_id,
+            )
+        # ── WhatsApp Flows data_exchange (form-based) ──
         # `screen` = current screen the user is on (top-level field from Meta).
         # Meta strips "screen" from payload data — so route by current screen ID.
-
-        if screen == 'ORDER_SELECT':
+        elif screen == 'ORDER_SELECT':
             # User selected an order → show REQUEST_FORM with request types
             selected_order = data.get('order_id', '')
             request_types = [
@@ -2066,6 +2077,362 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
             'requestId': request_id,
         }))
         return ''
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CHECKOUT BUTTON TEMPLATE — data_exchange sub-action handlers
+# Per Meta docs: https://developers.facebook.com/docs/whatsapp/cloud-api/
+#   payments-api/payments-in/checkout-button-templates
+# Handles: get_coupons, apply_coupon, remove_coupon, apply_shipping
+# Uses same E2E encryption as WhatsApp Flows (shared /flow-data endpoint).
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Coupon Configuration ──
+# In-memory coupon store. Migrate to DynamoDB CouponsTable for dynamic management.
+# Each coupon: code, id, description, discount_type (percent|flat), discount_value (paise for flat, % for percent),
+#              min_order_paise, max_discount_paise, active, valid_until (epoch), usage_limit
+CHECKOUT_COUPONS = [
+    {
+        'code': 'WELCOME10', 'id': 'welcome_10',
+        'description': 'Save ₹10 on your first order',
+        'discount_type': 'percent', 'discount_value': 10,
+        'min_order_paise': 10000, 'max_discount_paise': 50000,
+        'active': True, 'valid_until': 0, 'usage_limit': 0,
+    },
+    {
+        'code': 'FLAT50', 'id': 'flat_50',
+        'description': 'Flat ₹50 off on orders above ₹200',
+        'discount_type': 'flat', 'discount_value': 5000,
+        'min_order_paise': 20000, 'max_discount_paise': 5000,
+        'active': True, 'valid_until': 0, 'usage_limit': 0,
+    },
+    {
+        'code': 'SAVE20', 'id': 'save_20',
+        'description': 'Save 20% up to ₹100',
+        'discount_type': 'percent', 'discount_value': 20,
+        'min_order_paise': 15000, 'max_discount_paise': 10000,
+        'active': True, 'valid_until': 0, 'usage_limit': 0,
+    },
+    {
+        'code': 'FREESHIP', 'id': 'free_ship',
+        'description': 'Free shipping on this order',
+        'discount_type': 'flat', 'discount_value': 0,  # Special: zeroes shipping
+        'min_order_paise': 0, 'max_discount_paise': 0,
+        'active': True, 'valid_until': 0, 'usage_limit': 0,
+        '_free_shipping': True,
+    },
+]
+
+# ── Pin-code based shipping rates (paise) ──
+# Zone → base rate. Kolkata (700xxx) is local, rest of WB is regional, others are national.
+# Override per pin prefix for granular control.
+SHIPPING_RATES_PAISE = {
+    'local': 4900,       # ₹49 — Kolkata (700xxx)
+    'regional': 7900,    # ₹79 — West Bengal (71x-74x)
+    'metro': 9900,       # ₹99 — Delhi, Mumbai, Bangalore, Chennai, Hyderabad
+    'national': 14900,   # ₹149 — Rest of India
+    'remote': 24900,     # ₹249 — NE states, J&K, Ladakh, A&N
+}
+
+# Pin prefix → zone mapping
+_PIN_ZONE_MAP = {
+    '700': 'local', '711': 'regional', '712': 'regional', '713': 'regional',
+    '721': 'regional', '722': 'regional', '723': 'regional', '731': 'regional',
+    '732': 'regional', '733': 'regional', '734': 'regional', '735': 'regional',
+    '736': 'regional', '741': 'regional', '742': 'regional', '743': 'regional',
+    # Metros
+    '110': 'metro', '400': 'metro', '560': 'metro', '600': 'metro', '500': 'metro',
+    # Remote / NE
+    '781': 'remote', '782': 'remote', '783': 'remote', '784': 'remote', '785': 'remote',
+    '786': 'remote', '787': 'remote', '788': 'remote', '790': 'remote', '791': 'remote',
+    '792': 'remote', '793': 'remote', '794': 'remote', '795': 'remote', '796': 'remote',
+    '797': 'remote', '798': 'remote', '799': 'remote',
+    '180': 'remote', '181': 'remote', '190': 'remote', '191': 'remote', '192': 'remote',
+    '193': 'remote', '194': 'remote', '744': 'remote',
+}
+
+
+def _get_shipping_zone(pin_code: str) -> str:
+    """Determine shipping zone from 6-digit Indian pin code."""
+    pin = (pin_code or '').strip()[:6]
+    if len(pin) < 3:
+        return 'national'
+    prefix3 = pin[:3]
+    if prefix3 in _PIN_ZONE_MAP:
+        return _PIN_ZONE_MAP[prefix3]
+    # Fallback: check 2-digit prefix for broad state mapping
+    prefix2 = pin[:2]
+    if prefix2 in ('70', '71', '72', '73', '74'):
+        return 'regional'  # West Bengal
+    return 'national'
+
+
+def _calculate_shipping_paise(pin_code: str) -> int:
+    """Calculate shipping cost in paise based on pin code zone."""
+    zone = _get_shipping_zone(pin_code)
+    return SHIPPING_RATES_PAISE.get(zone, SHIPPING_RATES_PAISE['national'])
+
+
+def _find_coupon(code: str) -> dict:
+    """Look up coupon by code (case-insensitive). Returns coupon dict or empty."""
+    code_upper = (code or '').strip().upper()
+    for c in CHECKOUT_COUPONS:
+        if c.get('code', '').upper() == code_upper and c.get('active', False):
+            return c
+    return {}
+
+
+def _calculate_coupon_discount_paise(coupon: dict, subtotal_paise: int) -> int:
+    """Calculate coupon discount in paise. Respects min_order and max_discount."""
+    if not coupon:
+        return 0
+    min_order = coupon.get('min_order_paise', 0)
+    if subtotal_paise < min_order:
+        return 0
+    dtype = coupon.get('discount_type', 'percent')
+    if dtype == 'flat':
+        discount = coupon.get('discount_value', 0)
+    else:
+        pct = coupon.get('discount_value', 0)
+        discount = int(subtotal_paise * pct / 100)
+    max_disc = coupon.get('max_discount_paise', 0)
+    if max_disc > 0 and discount > max_disc:
+        discount = max_disc
+    return discount
+
+
+def _recalculate_order_total(order_details: dict, coupon_discount_paise: int = 0) -> int:
+    """Recalculate total_amount from order components + optional coupon discount.
+    total = subtotal + shipping + tax - discount - coupon_discount
+    All values in paise."""
+    order = order_details.get('order', {})
+    subtotal = order.get('subtotal', {}).get('value', 0)
+    shipping = order.get('shipping', {}).get('value', 0)
+    tax = order.get('tax', {}).get('value', 0)
+    discount = order.get('discount', {}).get('value', 0)
+    total = subtotal + shipping + tax - discount - coupon_discount_paise
+    return max(total, 0)
+
+
+def _handle_checkout_data_exchange(sub_action: str, data: dict,
+                                   version: str, request_id: str) -> dict:
+    """Route checkout button template data_exchange sub-actions.
+    Per Meta Payments API: the decrypted payload has sub_action + data.order_details.
+    Response must match Meta's expected schema per sub_action."""
+
+    order_details = data.get('order_details', {})
+    input_data = data.get('input', {})
+    user_id = input_data.get('user_id', '')
+
+    logger.info(json.dumps({
+        'event': 'checkout_data_exchange',
+        'sub_action': sub_action,
+        'reference_id': order_details.get('reference_id', ''),
+        'user_id': user_id,
+        'version': version,
+        'requestId': request_id,
+    }))
+
+    if sub_action == 'get_coupons':
+        return _checkout_get_coupons(order_details, input_data, version, request_id)
+    elif sub_action == 'apply_coupon':
+        return _checkout_apply_coupon(order_details, input_data, version, request_id)
+    elif sub_action == 'remove_coupon':
+        return _checkout_remove_coupon(order_details, input_data, version, request_id)
+    elif sub_action == 'apply_shipping':
+        return _checkout_apply_shipping(order_details, input_data, version, request_id)
+    else:
+        logger.warning(json.dumps({
+            'event': 'checkout_unknown_sub_action',
+            'sub_action': sub_action, 'requestId': request_id,
+        }))
+        return {'data': {'error': f'Unknown sub_action: {sub_action}'}}
+
+
+def _checkout_get_coupons(order_details: dict, input_data: dict,
+                          version: str, request_id: str) -> dict:
+    """Return available coupons for the order. Meta shows these in the savings offer UI."""
+    subtotal_paise = order_details.get('order', {}).get('subtotal', {}).get('value', 0)
+    user_id = input_data.get('user_id', '')
+
+    # Filter coupons: only return those where min_order is met
+    import time as _time
+    now = int(_time.time())
+    available = []
+    for c in CHECKOUT_COUPONS:
+        if not c.get('active', False):
+            continue
+        valid_until = c.get('valid_until', 0)
+        if valid_until > 0 and now > valid_until:
+            continue
+        if subtotal_paise < c.get('min_order_paise', 0):
+            continue
+        available.append({
+            'code': c['code'],
+            'id': c['id'],
+            'description': c['description'],
+        })
+
+    logger.info(json.dumps({
+        'event': 'checkout_get_coupons',
+        'user_id': user_id,
+        'subtotal_paise': subtotal_paise,
+        'coupons_returned': len(available),
+        'requestId': request_id,
+    }))
+
+    return {
+        'version': version,
+        'sub_action': 'get_coupons',
+        'data': {
+            'coupons': available,
+        },
+    }
+
+
+def _checkout_apply_coupon(order_details: dict, input_data: dict,
+                           version: str, request_id: str) -> dict:
+    """Apply a coupon to the order. Recalculate totals and return updated order_details."""
+    coupon_input = input_data.get('coupon', {})
+    coupon_code = coupon_input.get('code', '')
+    coupon = _find_coupon(coupon_code)
+
+    subtotal_paise = order_details.get('order', {}).get('subtotal', {}).get('value', 0)
+
+    if not coupon:
+        logger.warning(json.dumps({
+            'event': 'checkout_coupon_not_found',
+            'code': coupon_code, 'requestId': request_id,
+        }))
+        # Return order unchanged — Meta will show "coupon not valid"
+        total = _recalculate_order_total(order_details, 0)
+        order_details['total_amount'] = {'offset': 100, 'value': total}
+        return {
+            'version': version,
+            'sub_action': 'apply_coupon',
+            'data': {'order_details': order_details},
+        }
+
+    # Special: free shipping coupon
+    if coupon.get('_free_shipping'):
+        order_details['order']['shipping'] = {'offset': 100, 'value': 0}
+        coupon_discount_paise = 0
+    else:
+        coupon_discount_paise = _calculate_coupon_discount_paise(coupon, subtotal_paise)
+
+    total = _recalculate_order_total(order_details, coupon_discount_paise)
+    order_details['total_amount'] = {'offset': 100, 'value': total}
+
+    # Attach coupon to order_details (Meta expects this in response)
+    order_details['coupon'] = {
+        'code': coupon['code'],
+        'discount': {
+            'value': coupon_discount_paise,
+            'offset': 100,
+        },
+    }
+
+    logger.info(json.dumps({
+        'event': 'checkout_coupon_applied',
+        'code': coupon_code,
+        'discount_paise': coupon_discount_paise,
+        'new_total_paise': total,
+        'requestId': request_id,
+    }))
+
+    return {
+        'version': version,
+        'sub_action': 'apply_coupon',
+        'data': {'order_details': order_details},
+    }
+
+
+def _checkout_remove_coupon(order_details: dict, input_data: dict,
+                            version: str, request_id: str) -> dict:
+    """Remove coupon from order. Recalculate totals and return order_details without coupon."""
+    removed_code = order_details.get('coupon', {}).get('code', '')
+
+    # If the removed coupon was a free-shipping coupon, restore default shipping
+    removed_coupon = _find_coupon(removed_code)
+    if removed_coupon and removed_coupon.get('_free_shipping'):
+        # Restore shipping based on address if available
+        addresses = order_details.get('shipping_info', {}).get('addresses', [])
+        if addresses:
+            pin = addresses[0].get('in_pin_code', '')
+            order_details['order']['shipping'] = {
+                'offset': 100, 'value': _calculate_shipping_paise(pin),
+            }
+
+    # Remove coupon from order_details
+    order_details.pop('coupon', None)
+
+    total = _recalculate_order_total(order_details, 0)
+    order_details['total_amount'] = {'offset': 100, 'value': total}
+
+    logger.info(json.dumps({
+        'event': 'checkout_coupon_removed',
+        'removed_code': removed_code,
+        'new_total_paise': total,
+        'requestId': request_id,
+    }))
+
+    return {
+        'version': version,
+        'sub_action': 'remove_coupon',
+        'data': {'order_details': order_details},
+    }
+
+
+def _checkout_apply_shipping(order_details: dict, input_data: dict,
+                             version: str, request_id: str) -> dict:
+    """Apply shipping address. Calculate shipping cost by pin code and update order."""
+    selected_address = input_data.get('selected_address', {})
+    pin_code = selected_address.get('in_pin_code', '')
+
+    # Calculate shipping based on pin code zone
+    shipping_paise = _calculate_shipping_paise(pin_code)
+
+    # Check if a free-shipping coupon is active
+    existing_coupon = order_details.get('coupon', {})
+    coupon_code = existing_coupon.get('code', '')
+    coupon = _find_coupon(coupon_code) if coupon_code else {}
+    if coupon.get('_free_shipping'):
+        shipping_paise = 0
+
+    # Update shipping in order
+    order_details['order']['shipping'] = {'offset': 100, 'value': shipping_paise}
+
+    # Update shipping_info with selected_address
+    if 'shipping_info' not in order_details:
+        order_details['shipping_info'] = {'country': 'IN', 'addresses': []}
+    order_details['shipping_info']['selected_address'] = selected_address
+
+    # Recalculate total (with coupon discount if present)
+    coupon_discount_paise = existing_coupon.get('discount', {}).get('value', 0)
+    total = _recalculate_order_total(order_details, coupon_discount_paise)
+    order_details['total_amount'] = {'offset': 100, 'value': total}
+
+    zone = _get_shipping_zone(pin_code)
+    logger.info(json.dumps({
+        'event': 'checkout_shipping_applied',
+        'pin_code': pin_code,
+        'zone': zone,
+        'shipping_paise': shipping_paise,
+        'new_total_paise': total,
+        'has_coupon': bool(coupon_code),
+        'requestId': request_id,
+    }))
+
+    return {
+        'version': version,
+        'sub_action': 'apply_shipping',
+        'data': {'order_details': order_details},
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# END CHECKOUT BUTTON TEMPLATE HANDLERS
+# ═══════════════════════════════════════════════════════════════════════════
 
 
 def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id: str,
@@ -2780,8 +3147,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if method == 'OPTIONS':
         return _resp(200, {})
 
-    # P0 Security: Verify X-Hub-Signature-256 on flow-data webhook POSTs from Meta
-    if method == 'POST' and '/flow-data' in path:
+    # P0 Security: Verify X-Hub-Signature-256 on flow-data and checkout-data webhook POSTs from Meta
+    if method == 'POST' and ('/flow-data' in path or '/checkout-data' in path):
         if not _verify_webhook_signature(event, request_id):
             logger.warning(json.dumps({'event': 'flow_data_signature_rejected', 'requestId': request_id}))
             return _resp(401, {'error': 'Invalid webhook signature'})
@@ -2967,6 +3334,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _unblock_users(waba_id, body)
 
         elif '/flow-data' in path:
+            if method == 'POST':
+                return _handle_flow_data(body, request_id, origin)
+            return _resp(405, {'error': 'POST only'})
+
+        # Dedicated checkout endpoint (same handler, separate URL for Meta linking)
+        # Link this URL with payment configuration via Meta support:
+        # https://api.wecare.digital/wa-business/checkout-data
+        elif '/checkout-data' in path:
             if method == 'POST':
                 return _handle_flow_data(body, request_id, origin)
             return _resp(405, {'error': 'POST only'})
