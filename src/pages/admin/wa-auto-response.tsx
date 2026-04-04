@@ -92,6 +92,9 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
   // Menu config state
   const [menu, setMenu] = useState<MenuConfig>(DEFAULT_MENU);
 
+  // AI auto-response toggle
+  const [aiEnabled, setAiEnabled] = useState(false);
+
   // Load config from API
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -102,6 +105,12 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
         if (resp.welcomeEnabled !== undefined) setWelcomeEnabled(resp.welcomeEnabled);
         if (resp.keywords) setKeywords(resp.keywords);
         if (resp.menu) setMenu(resp.menu);
+        if (resp.aiEnabled !== undefined) setAiEnabled(resp.aiEnabled);
+      }
+      // Also load AI config separately
+      const aiResp = await api.getSystemConfig('ai_config');
+      if (aiResp && aiResp.enabled !== undefined) {
+        setAiEnabled(aiResp.enabled);
       }
     } catch {
       // Use defaults
@@ -121,7 +130,10 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
         welcomeEnabled,
         keywords,
         menu,
+        aiEnabled,
       });
+      // Also update AI config separately so the inbound handler picks it up
+      await api.updateSystemConfig('ai_config', { enabled: aiEnabled });
       toast.success('Configuration saved');
     } catch {
       toast.error('Failed to save');
@@ -231,29 +243,58 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* ── Welcome Message Tab ── */}
         {activeTab === 'welcome' && (
-          <div style={S.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: '#1a3a2a' }}>Welcome Message</label>
-              <button
-                style={S.toggle(welcomeEnabled)}
-                onClick={() => setWelcomeEnabled(!welcomeEnabled)}
-                aria-label="Toggle welcome message"
-              >
-                <span style={{
-                  position: 'absolute', top: 2, left: welcomeEnabled ? 18 : 2,
-                  width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
-                }} />
-              </button>
+          <div>
+            {/* AI Auto-Response Control */}
+            <div style={{ ...S.card, borderLeft: '3px solid #dc2626', background: '#fef2f2' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div>
+                  <label style={{ fontSize: 14, fontWeight: 600, color: '#dc2626' }}>AI Auto-Response</label>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6b7280' }}>
+                    Per Meta policy (Jan 2026): General-purpose AI chatbots are prohibited on WhatsApp Business API.
+                    Only configured keyword responses and welcome messages are allowed.
+                  </p>
+                </div>
+                <button
+                  style={S.toggle(aiEnabled)}
+                  onClick={() => setAiEnabled(!aiEnabled)}
+                  aria-label="Toggle AI auto-response"
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: aiEnabled ? 18 : 2,
+                    width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+                  }} />
+                </button>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, color: aiEnabled ? '#dc2626' : '#059669', fontWeight: 600 }}>
+                {aiEnabled ? '⚠️ AI is ON — Only use for customer support, order tracking, and transactional tasks.' : '✅ AI is OFF — Only configured responses will be sent.'}
+              </p>
             </div>
-            <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 8px' }}>
-              Sent when a user messages &quot;hi&quot;, &quot;hello&quot;, &quot;hey&quot;, &quot;menu&quot;, or &quot;start&quot;.
-            </p>
-            <textarea
-              style={S.textarea}
-              value={welcomeMsg}
-              onChange={e => setWelcomeMsg(e.target.value)}
-              placeholder="Enter welcome message..."
-            />
+
+            {/* Welcome Message */}
+            <div style={S.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <label style={{ fontSize: 14, fontWeight: 600, color: '#1a3a2a' }}>Welcome Message</label>
+                <button
+                  style={S.toggle(welcomeEnabled)}
+                  onClick={() => setWelcomeEnabled(!welcomeEnabled)}
+                  aria-label="Toggle welcome message"
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: welcomeEnabled ? 18 : 2,
+                    width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+                  }} />
+                </button>
+              </div>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 8px' }}>
+                Sent when a user messages &quot;hi&quot;, &quot;hello&quot;, &quot;hey&quot;, &quot;menu&quot;, or &quot;start&quot;.
+              </p>
+              <textarea
+                style={S.textarea}
+                value={welcomeMsg}
+                onChange={e => setWelcomeMsg(e.target.value)}
+                placeholder="Enter welcome message..."
+              />
+            </div>
           </div>
         )}
 
