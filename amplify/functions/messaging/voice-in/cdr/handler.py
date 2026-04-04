@@ -981,15 +981,38 @@ IVR_NOTIFICATION_MSG = (
 )
 
 
+# ── IVR Notification: SMS + WhatsApp to both WABAs on inbound call ──
+WABA_PHONES = [
+    'phone-number-id-waba1-direct-1016149501586345',   # +91 93309 94400
+    'phone-number-id-waba-t-direct-1055232054343117',  # +91 99033 00044
+]
+
+# Admin phone numbers to receive SMS notifications
+ADMIN_PHONES = ['+919330994400', '+919903300044']
+
+# Default IVR notification message template
+IVR_NOTIFICATION_MSG = (
+    "Incoming WhatsApp Call\n"
+    "\n"
+    "From: {caller}\n"
+    "To: {destination}\n"
+    "Status: {status}\n"
+    "Duration: {duration}s\n"
+    "Time: {time}\n"
+    "\n"
+    "Ref: {session_id}"
+)
+
+
 def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
-    """Send IVR call notification as WhatsApp message to both WABA numbers."""
+    """Send inbound WhatsApp call notification via SMS + WhatsApp to admin numbers."""
     try:
         caller = cdr.get('callerNumber', 'Unknown')
         destination = cdr.get('destinationNumber', INBOUND_NUMBER)
         status = cdr.get('overallCallStatus', 'Unknown')
         duration = cdr.get('conversationDuration', 0)
         if isinstance(duration, (int, float)) and duration > 1000:
-            duration = int(duration / 1000)  # Convert ms to seconds
+            duration = int(duration / 1000)
         session_id = cdr.get('vmSessionId', cdr.get('id', ''))
         call_time = time.strftime('%d %b %Y %I:%M %p IST', time.gmtime(int(time.time()) + 19800))
 
@@ -1002,60 +1025,86 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
             session_id=session_id[:20] if session_id else '',
         )
 
-        # Find the contact for the caller number to get contactId
-        contact_id = ''
-        try:
-            contacts_table = dynamodb.Table(os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable'))
-            # Scan for phone match (caller number)
-            norm_caller = caller.replace('+', '').replace(' ', '')
-            if not norm_caller.startswith('+'):
-                norm_caller = f'+{norm_caller}' if not norm_caller.startswith('91') else f'+{norm_caller}'
-            from boto3.dynamodb.conditions import Attr
-            resp = contacts_table.scan(
-                FilterExpression=Attr('phone').contains(norm_caller[-10:]),
-                Limit=1,
-            )
-            items = resp.get('Items', [])
-            if items:
-                contact_id = items[0].get('id', items[0].get('contactId', ''))
-        except Exception:
-            pass
-
-        # Send to both WABA phone numbers
-        for phone_id in WABA_PHONES:
+        # ── 1. Send SMS to admin phones ──
+        for phone in ADMIN_PHONES:
             try:
-                # If we have a contactId, send via outbound-whatsapp
-                # Otherwise, we can't send (need a contact)
-                if not contact_id:
-                    logger.info(json.dumps({
-                        'event': 'ivr_notification_skip_no_contact',
-                        'caller': caller,
-                        'phoneId': phone_id,
-                        'requestId': request_id,
-                    }))
-                    continue
+                # Indian numbers → Airtel IQ (DLT compliant)
+                # International numbers → AWS Pinpoint
+                is_indian = phone.startswith('+91') or phone.startswith('91')
+                provider = 'airtel' if is_indian else 'aws'
 
                 payload = {
                     'body': json.dumps({
-                        'contactId': contact_id,
+                        'phoneNumber': phone,
                         'content': msg,
-                        'phoneNumberId': phone_id,
+                        'provider': provider,
                     })
                 }
                 lambda_client.invoke(
-                    FunctionName='wecare-outbound-whatsapp',
+                    FunctionName='wecare-outbound-sms',
                     InvocationType='Event',
                     Payload=json.dumps(payload),
                 )
                 logger.info(json.dumps({
-                    'event': 'ivr_notification_sent',
+                    'event': 'ivr_sms_sent',
                     'caller': caller,
-                    'contactId': contact_id,
-                    'phoneId': phone_id,
+                    'target': phone,
+                    'provider': provider,
                     'requestId': request_id,
                 }))
             except Exception as e:
-                logger.warning(f'IVR notification send failed for {phone_id}: {e}')
+                logger.warning(f'IVR SMS failed for {phone}: {e}')
+
+        # ── 2. Send WhatsApp message to both WABAs ──
+        # Find contact by caller phone
+        contact_id = ''
+        try:
+            contacts_table = dynamodb.Table(
+                os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+            )
+            norm = caller.replace('+', '').replace(' ', '')
+            if len(norm) >= 10:
+                from boto3.dynamodb.conditions import Attr
+                resp = contacts_table.scan(
+                    FilterExpression=Attr('phone').contains(norm[-10:]),
+                    Limit=1,
+                )
+                items = resp.get('Items', [])
+                if items:
+                    contact_id = items[0].get('id', items[0].get('contactId', ''))
+        except Exception:
+            pass
+
+        if contact_id:
+            wa_msg = f"📞 {msg}"
+            for phone_id in WABA_PHONES:
+                try:
+                    lambda_client.invoke(
+                        FunctionName='wecare-outbound-whatsapp',
+                        InvocationType='Event',
+                        Payload=json.dumps({
+                            'body': json.dumps({
+                                'contactId': contact_id,
+                                'content': wa_msg,
+                                'phoneNumberId': phone_id,
+                            })
+                        }),
+                    )
+                    logger.info(json.dumps({
+                        'event': 'ivr_whatsapp_sent',
+                        'caller': caller,
+                        'contactId': contact_id,
+                        'phoneId': phone_id,
+                        'requestId': request_id,
+                    }))
+                except Exception as e:
+                    logger.warning(f'IVR WhatsApp failed for {phone_id}: {e}')
+        else:
+            logger.info(json.dumps({
+                'event': 'ivr_whatsapp_skip_no_contact',
+                'caller': caller,
+                'requestId': request_id,
+            }))
 
     except Exception as e:
         logger.warning(f'IVR notification error: {e}')

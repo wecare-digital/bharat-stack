@@ -664,17 +664,17 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
       <div>
         <label htmlFor="contact-book-name" style={S.label}>Contact Book Name <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 11 }}>(auto from Meta)</span></label>
-        <input id="contact-book-name" style={{ ...S.input, background: '#f9fafb', color: '#6b7280' }} value={formContactBookName} onChange={e => setFormContactBookName(e.target.value)} placeholder="Auto-populated by Meta contact book" onFocus={focusStyle} onBlur={blurStyle} />
+        <input id="contact-book-name" style={{ ...S.input, background: '#f9fafb', color: '#6b7280' }} value={formContactBookName} onChange={e => setFormContactBookName(e.target.value)} placeholder="Enter company name" onFocus={focusStyle} onBlur={blurStyle} />
       </div>
       {/* Shipping + Billing row */}
       <div style={S.row}>
         <div>
           <label htmlFor="contact-shipping" style={S.label}>Shipping Address</label>
-          <textarea id="contact-shipping" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="[Shipping Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+          <textarea id="contact-shipping" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="Enter full shipping address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
         </div>
         <div>
           <label htmlFor="contact-billing" style={S.label}>Billing Address</label>
-          <textarea id="contact-billing" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="[Billing Address]" onFocus={focusStyle as any} onBlur={blurStyle as any} />
+          <textarea id="contact-billing" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="Enter full billing address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
           <button 
             type="button"
             onClick={() => setFormBillingAddress(formShippingAddress)}

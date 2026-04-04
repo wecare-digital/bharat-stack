@@ -1335,6 +1335,9 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
         # ── Mark SMS as sent for dedup ──
         _mark_sms_sent(clean_phone)
 
+        # ── Also send WhatsApp notification to both WABA admin numbers ──
+        _send_call_whatsapp_notification(caller_phone, call_id, request_id)
+
     except Exception as e:
         logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
 
@@ -2439,3 +2442,79 @@ def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, 
         'headers': cors_headers(resp_origin or origin),
         'body': json.dumps(body, default=str),
     }
+
+
+
+# ── WhatsApp notification to both WABAs on incoming call ──
+_WABA_PHONE_IDS = [
+    'phone-number-id-waba1-direct-1016149501586345',   # +91 93309 94400
+    'phone-number-id-waba-t-direct-1055232054343117',  # +91 99033 00044
+]
+
+
+def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id: str) -> None:
+    """Send WhatsApp message to both WABA numbers when an inbound call comes in."""
+    try:
+        # Find contact by caller phone
+        contact_id = ''
+        try:
+            contacts_table = dynamodb.Table(
+                os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+            )
+            norm = caller_phone.replace('+', '').replace(' ', '')
+            if len(norm) >= 10:
+                from boto3.dynamodb.conditions import Attr
+                resp = contacts_table.scan(
+                    FilterExpression=Attr('phone').contains(norm[-10:]),
+                    Limit=1,
+                )
+                items = resp.get('Items', [])
+                if items:
+                    contact_id = items[0].get('id', items[0].get('contactId', ''))
+        except Exception:
+            pass
+
+        if not contact_id:
+            logger.info(json.dumps({
+                'event': 'call_wa_notify_skip_no_contact',
+                'caller': caller_phone[-4:],
+                'callId': call_id,
+                'requestId': request_id,
+            }))
+            return
+
+        import time as _time
+        call_time = _time.strftime('%d %b %Y %I:%M %p IST', _time.gmtime(int(_time.time()) + 19800))
+        msg = (
+            f"\U0001f4de Incoming WhatsApp Call\n"
+            f"\n"
+            f"From: {caller_phone}\n"
+            f"Time: {call_time}\n"
+            f"Call ID: {call_id[:16]}"
+        )
+
+        for phone_id in _WABA_PHONE_IDS:
+            try:
+                lambda_client.invoke(
+                    FunctionName='wecare-outbound-whatsapp',
+                    InvocationType='Event',
+                    Payload=json.dumps({
+                        'body': json.dumps({
+                            'contactId': contact_id,
+                            'content': msg,
+                            'phoneNumberId': phone_id,
+                        })
+                    }),
+                )
+                logger.info(json.dumps({
+                    'event': 'call_wa_notify_sent',
+                    'caller': caller_phone[-4:],
+                    'contactId': contact_id,
+                    'phoneId': phone_id,
+                    'requestId': request_id,
+                }))
+            except Exception as e:
+                logger.warning(f'Call WA notify failed for {phone_id}: {e}')
+
+    except Exception as e:
+        logger.warning(f'Call WA notification error (non-blocking): {e}')
