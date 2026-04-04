@@ -3663,7 +3663,7 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
 
         flow_token = f'sub-{uuid.uuid4()}-ph-{sender_phone}'
         interactive_data = {
-            'body': msg.get('body', '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details below to get started.'),
+            'body': msg.get('body', '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details to get started with orders, payments, and updates.'),
             'footer': msg.get('footer', 'WECARE.DIGITAL'),
             'flowId': flow_id,
             'flowCta': msg.get('flowCta', 'Subscribe Now'),
@@ -4804,7 +4804,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': ['subscribe', 'signup', 'sign up', 'register', 'join', 'membership', 'enroll', 'enrol'],
         'flowId': '',
         'message': {
-            'body': '\U0001f4cb Subscribe to WECARE.DIGITAL — fill in your details below to get started with orders, payments, and updates.',
+            'body': '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details to get started with orders, payments, and updates.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Subscribe Now',
         },

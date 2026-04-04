@@ -35,7 +35,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Fill in your details to get started with orders, payments, and updates via WhatsApp."
+            "text": "Fill in your details to get started with orders, payments, and updates."
           },
           {
             "type": "TextInput",
@@ -43,7 +43,7 @@
             "label": "Full Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "Manish Agarwal"
+            "helper-text": "e.g. Manish Agarwal"
           },
           {
             "type": "TextInput",
@@ -51,7 +51,7 @@
             "label": "Phone",
             "required": true,
             "input-type": "phone",
-            "helper-text": "919933094400"
+            "helper-text": "Enter mobile number"
           },
           {
             "type": "TextInput",
@@ -59,7 +59,7 @@
             "label": "Email",
             "required": true,
             "input-type": "email",
-            "helper-text": "you@company.com"
+            "helper-text": "Enter email address"
           },
           {
             "type": "TextInput",
@@ -67,7 +67,7 @@
             "label": "Company",
             "required": true,
             "input-type": "text",
-            "helper-text": "WECARE.DIGITAL"
+            "helper-text": "e.g. WECARE.DIGITAL"
           },
           {
             "type": "Footer",
@@ -127,7 +127,7 @@
             "label": "Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "Manish Agarwal"
+            "helper-text": "e.g. Manish Agarwal"
           },
           {
             "type": "TextInput",
@@ -135,7 +135,7 @@
             "label": "Phone",
             "required": true,
             "input-type": "phone",
-            "helper-text": "919933094400"
+            "helper-text": "Enter mobile number"
           },
           {
             "type": "TextInput",
@@ -143,7 +143,7 @@
             "label": "House / Flat No",
             "required": true,
             "input-type": "text",
-            "helper-text": "12"
+            "helper-text": "e.g. Flat / House No."
           },
           {
             "type": "TextInput",
@@ -151,7 +151,7 @@
             "label": "Building",
             "required": true,
             "input-type": "text",
-            "helper-text": "One BKC"
+            "helper-text": "e.g. Building / Society Name"
           },
           {
             "type": "TextInput",
@@ -159,7 +159,7 @@
             "label": "Street",
             "required": true,
             "input-type": "text",
-            "helper-text": "Bandra Kurla Complex"
+            "helper-text": "e.g. Street / Locality"
           },
           {
             "type": "TextInput",
@@ -167,7 +167,7 @@
             "label": "Landmark",
             "required": true,
             "input-type": "text",
-            "helper-text": "Near BKC Circle"
+            "helper-text": "e.g. Nearby landmark"
           },
           {
             "type": "TextInput",
@@ -175,7 +175,7 @@
             "label": "City",
             "required": true,
             "input-type": "text",
-            "helper-text": "Mumbai"
+            "helper-text": "e.g. City"
           },
           {
             "type": "TextInput",
@@ -183,7 +183,7 @@
             "label": "State",
             "required": true,
             "input-type": "text",
-            "helper-text": "Maharashtra"
+            "helper-text": "e.g. State"
           },
           {
             "type": "TextInput",
@@ -191,7 +191,7 @@
             "label": "PIN Code",
             "required": true,
             "input-type": "text",
-            "helper-text": "400051"
+            "helper-text": "e.g. 6-digit PIN code"
           },
           {
             "type": "Footer",
@@ -306,7 +306,7 @@
                 "label": "Name",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Manish Agarwal"
+                "helper-text": "e.g. Manish Agarwal"
               },
               {
                 "type": "TextInput",
@@ -314,7 +314,7 @@
                 "label": "Phone",
                 "required": false,
                 "input-type": "phone",
-                "helper-text": "919933094400"
+                "helper-text": "Enter mobile number"
               },
               {
                 "type": "TextInput",
@@ -322,7 +322,7 @@
                 "label": "House / Flat No",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "12"
+                "helper-text": "e.g. Flat / House No."
               },
               {
                 "type": "TextInput",
@@ -330,7 +330,7 @@
                 "label": "Building",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "One BKC"
+                "helper-text": "e.g. Building / Society Name"
               },
               {
                 "type": "TextInput",
@@ -338,7 +338,7 @@
                 "label": "Street",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Bandra Kurla Complex"
+                "helper-text": "e.g. Street / Locality"
               },
               {
                 "type": "TextInput",
@@ -346,7 +346,7 @@
                 "label": "Landmark",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Near BKC Circle"
+                "helper-text": "e.g. Nearby landmark"
               },
               {
                 "type": "TextInput",
@@ -354,7 +354,7 @@
                 "label": "City",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Mumbai"
+                "helper-text": "e.g. City"
               },
               {
                 "type": "TextInput",
@@ -362,7 +362,7 @@
                 "label": "State",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Maharashtra"
+                "helper-text": "e.g. State"
               },
               {
                 "type": "TextInput",
@@ -370,7 +370,7 @@
                 "label": "PIN Code",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "400051"
+                "helper-text": "e.g. 6-digit PIN code"
               },
               {
                 "type": "OptIn",
@@ -686,7 +686,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Your saved address will auto-fill when you checkout via WhatsApp. You'll receive order updates, offers, and notifications."
+            "text": "Your saved details will help make checkout easier. You’ll receive order updates, offers, and notifications."
           },
           {
             "type": "TextCaption",

@@ -2173,7 +2173,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'screen': 'SUCCESS',
                 'data': {
                     'subscriber_id': subscriber_id,
-                    'message': f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}. Your saved address will auto-fill when you checkout via WhatsApp.',
+                    'message': f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}. Your saved details will help make checkout easier. You will receive order updates, offers, and notifications.',
                 }
             }
 
