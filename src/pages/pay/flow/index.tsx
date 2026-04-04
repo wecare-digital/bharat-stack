@@ -11,7 +11,7 @@ interface PP { signOut?: () => void; user?: any; embedded?: boolean; }
 interface FC { default_gst_rate:number; default_shipping:number; default_promo:number; gstin:string; default_item_name:string; purposes:string[]; }
 interface IR { name:string; unitPrice:string; quantity:string; gstRate:string; }
 
-const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'',addressLine1:'',addressLine2:'',city:'',state:'',postalCode:'',landmark:'' };
+const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'',addressLine1:'',addressLine2:'',city:'',state:'',postalCode:'',landmark:'',gstin:'',houseNumber:'',buildingName:'' };
 const NEW_ITEM = ():IR => ({ name:'', unitPrice:'', quantity:'1', gstRate:'18' });
 const EMPTY_INV = { items:[NEW_ITEM()] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'' };
 const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Gift Card','Service Fee','Consultation'] };
@@ -99,14 +99,56 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
   useEffect(() => { loadCustomers(); loadInvoices(); }, [loadCustomers, loadInvoices]);
 
   /* Customer handlers */
-  const openEditCust = (c:Contact) => { setEditCust(c); setCustForm({name:c.name||'',phone:c.phone||'',email:c.email||'',shippingAddress:c.shippingAddress||'',billingAddress:c.billingAddress||'',addressLine1:c.addressLine1||'',addressLine2:c.addressLine2||'',city:c.city||'',state:c.state||'',postalCode:c.postalCode||'',landmark:c.landmark||''}); };
+  const openEditCust = (c:Contact) => {
+    // Parse structured address JSON if available (from subscribe flow)
+    let addrFields = { addressLine1:'',addressLine2:'',city:'',state:'',postalCode:'',landmark:'',houseNumber:'',buildingName:'' };
+    if (c.shippingAddressJson) {
+      try {
+        const addr = JSON.parse(c.shippingAddressJson);
+        addrFields = {
+          addressLine1: addr.address || c.addressLine1 || '',
+          addressLine2: addr.landmark_area || c.addressLine2 || '',
+          city: addr.city || c.city || '',
+          state: addr.state || c.state || '',
+          postalCode: addr.in_pin_code || c.postalCode || '',
+          landmark: addr.landmark_area || c.landmark || '',
+          houseNumber: addr.house_number || '',
+          buildingName: addr.building_name || '',
+        };
+      } catch { /* use flat fields */ }
+    }
+    setEditCust(c);
+    setCustForm({
+      name:c.name||'', phone:c.phone||'', email:c.email||'',
+      shippingAddress:c.shippingAddress||'', billingAddress:c.billingAddress||'',
+      addressLine1: addrFields.addressLine1 || c.addressLine1 || '',
+      addressLine2: addrFields.addressLine2 || c.addressLine2 || '',
+      city: addrFields.city || c.city || '',
+      state: addrFields.state || c.state || '',
+      postalCode: addrFields.postalCode || c.postalCode || '',
+      landmark: addrFields.landmark || c.landmark || '',
+      gstin: (c as any).gstin || '',
+      houseNumber: addrFields.houseNumber || '',
+      buildingName: addrFields.buildingName || '',
+    });
+  };
   const closeEditCust = () => { setEditCust(null); setCustForm(EMPTY_FORM); };
   const saveCust = async () => {
     if(!editCust) return;
     setCustSaving(true);
     try {
-      if(editCust.id) { await api.updateContact(editCust.id, custForm); showMsg('Customer updated'); }
-      else { await api.createContact(custForm); showMsg('Customer created'); }
+      const saveData = {
+        ...custForm,
+        // Build structured address JSON for WhatsApp Payments
+        shippingAddressJson: JSON.stringify({
+          name: custForm.name, phone_number: custForm.phone?.replace('+','') || '',
+          address: custForm.addressLine1, city: custForm.city, state: custForm.state,
+          in_pin_code: custForm.postalCode, house_number: custForm.houseNumber,
+          building_name: custForm.buildingName, landmark_area: custForm.landmark,
+        }),
+      };
+      if(editCust.id) { await api.updateContact(editCust.id, saveData); showMsg('Customer updated'); }
+      else { await api.createContact(saveData); showMsg('Customer created'); }
       closeEditCust(); loadCustomers();
     } catch(e) { showMsg('Save failed','error'); }
     setCustSaving(false);
@@ -337,18 +379,27 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                       <h3>{editCust.id ? 'Edit Customer' : 'New Customer'}</h3>
                       <Button variant="ghost" size="sm" onClick={closeEditCust}>{'\u2715'}</Button>
                     </div>
-                    <div className="form-group"><label>Name</label><input type="text" value={custForm.name} onChange={e=>setCustForm({...custForm,name:e.target.value})} /></div>
-                    <div className="form-group"><label>Phone</label><input type="tel" value={custForm.phone} onChange={e=>setCustForm({...custForm,phone:e.target.value})} /></div>
-                    <div className="form-group"><label>Email</label><input type="email" value={custForm.email} onChange={e=>setCustForm({...custForm,email:e.target.value})} /></div>
-                    <div className="form-group"><label>Shipping Address</label><textarea value={custForm.shippingAddress} onChange={e=>setCustForm({...custForm,shippingAddress:e.target.value})} /></div>
-                    <div className="form-group"><label>Billing Address</label><textarea value={custForm.billingAddress} onChange={e=>setCustForm({...custForm,billingAddress:e.target.value})} /></div>
+                    <div className="form-group"><label>Name</label><input type="text" value={custForm.name} onChange={e=>setCustForm({...custForm,name:e.target.value})} placeholder="Enter full name" /></div>
+                    <div className="form-group"><label>Phone</label><input type="tel" value={custForm.phone} onChange={e=>setCustForm({...custForm,phone:e.target.value})} placeholder="Include country code" /></div>
+                    <div className="form-group"><label>Email</label><input type="email" value={custForm.email} onChange={e=>setCustForm({...custForm,email:e.target.value})} placeholder="Enter email address" /></div>
+                    <div className="form-group"><label>GSTIN</label><input type="text" value={custForm.gstin} onChange={e=>setCustForm({...custForm,gstin:e.target.value})} placeholder="e.g. 22AAAAA0000A1Z5" maxLength={15} /></div>
+                    <div className="form-group"><label>Shipping Address</label><textarea value={custForm.shippingAddress} onChange={e=>setCustForm({...custForm,shippingAddress:e.target.value})} placeholder="Full shipping address" /></div>
+                    <div className="form-group">
+                      <label>Billing Address</label>
+                      <textarea value={custForm.billingAddress} onChange={e=>setCustForm({...custForm,billingAddress:e.target.value})} placeholder="Full billing address" />
+                      <button type="button" onClick={() => setCustForm({...custForm, billingAddress: custForm.shippingAddress})} disabled={!custForm.shippingAddress} style={{fontSize:11,color:'#1a3a2a',background:'none',border:'none',cursor:custForm.shippingAddress?'pointer':'not-allowed',opacity:custForm.shippingAddress?1:0.5,marginTop:4,fontWeight:600}}>
+                        Copy from shipping
+                      </button>
+                    </div>
+                    <p style={{fontSize:12,fontWeight:600,color:'#1a3a2a',margin:'8px 0 4px'}}>Structured Address (for WhatsApp Payments)</p>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                      <div className="form-group"><label>Address Line 1</label><input value={custForm.addressLine1} onChange={e=>setCustForm({...custForm,addressLine1:e.target.value})} placeholder="Door/Street" /></div>
-                      <div className="form-group"><label>Address Line 2</label><input value={custForm.addressLine2} onChange={e=>setCustForm({...custForm,addressLine2:e.target.value})} placeholder="Landmark/Area" /></div>
-                      <div className="form-group"><label>City</label><input value={custForm.city} onChange={e=>setCustForm({...custForm,city:e.target.value})} placeholder="City" /></div>
-                      <div className="form-group"><label>State</label><input value={custForm.state} onChange={e=>setCustForm({...custForm,state:e.target.value})} placeholder="State" /></div>
+                      <div className="form-group"><label>House / Flat No</label><input value={custForm.houseNumber} onChange={e=>setCustForm({...custForm,houseNumber:e.target.value})} placeholder="e.g. 12" /></div>
+                      <div className="form-group"><label>Building</label><input value={custForm.buildingName} onChange={e=>setCustForm({...custForm,buildingName:e.target.value})} placeholder="e.g. One BKC" /></div>
+                      <div className="form-group"><label>Street / Locality</label><input value={custForm.addressLine1} onChange={e=>setCustForm({...custForm,addressLine1:e.target.value})} placeholder="e.g. Bandra Kurla Complex" /></div>
+                      <div className="form-group"><label>Landmark</label><input value={custForm.landmark} onChange={e=>setCustForm({...custForm,landmark:e.target.value})} placeholder="e.g. Near BKC Circle" /></div>
+                      <div className="form-group"><label>City</label><input value={custForm.city} onChange={e=>setCustForm({...custForm,city:e.target.value})} placeholder="e.g. Mumbai" /></div>
+                      <div className="form-group"><label>State</label><input value={custForm.state} onChange={e=>setCustForm({...custForm,state:e.target.value})} placeholder="e.g. Maharashtra" /></div>
                       <div className="form-group"><label>PIN Code</label><input value={custForm.postalCode} onChange={e=>setCustForm({...custForm,postalCode:e.target.value})} placeholder="6-digit PIN" maxLength={6} /></div>
-                      <div className="form-group"><label>Landmark</label><input value={custForm.landmark} onChange={e=>setCustForm({...custForm,landmark:e.target.value})} placeholder="Near..." /></div>
                     </div>
                     <div className="pf-modal-actions">
                       <Button variant="secondary" size="sm" onClick={closeEditCust}>Cancel</Button>
