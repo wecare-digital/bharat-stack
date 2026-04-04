@@ -967,6 +967,17 @@ def _process_message(
                     button_id=button_id,
                     request_id=request_id,
                 )
+        # List reply — user tapped a row in an interactive list message
+        elif interactive_type == 'list_reply':
+            list_id = interactive.get('list_reply', {}).get('id', '')
+            if list_id:
+                _handle_list_reply(
+                    list_id=list_id,
+                    contact_id=contact_id,
+                    phone_number_id=aws_phone_number_id,
+                    sender_phone=sender_phone,
+                    request_id=request_id,
+                )
     
     # Handle system status messages with user_changed_user_id
     # Per Meta BSUID docs: system messages can have type=user_changed_user_id
@@ -5026,6 +5037,137 @@ DEFAULT_FLOW_TRIGGERS = {
 }
 
 
+def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
+                      sender_phone: str, request_id: str) -> None:
+    """
+    Handle interactive list_reply selections from main menu and self-service menu.
+    Maps row IDs to keyword triggers or sub-menus.
+    """
+    logger.info(json.dumps({
+        'event': 'list_reply_received',
+        'listId': list_id,
+        'contactId': contact_id,
+        'requestId': request_id,
+    }))
+
+    # ── Main menu row IDs → actions ──
+    MENU_TO_KEYWORD = {
+        # Main menu
+        'menu_store': None,  # Opens store (no flow)
+        'menu_self_service': '_selfservice_menu',  # Opens self-service sub-menu
+        'menu_pay': 'pay',
+        'menu_subscribe': 'subscribe',
+        'menu_app': None,  # CTA link
+        'menu_about': None,  # Info text
+        'menu_audio': None,  # Toggle
+        'menu_language': '_language_menu',  # Opens language picker
+        'menu_notifications': None,
+        'menu_human': None,
+        # Self-service menu
+        'ss_submit_request': 'submit request',
+        'ss_amend_request': 'amend request',
+        'ss_track_request': 'track request',
+        'ss_order_notes': 'order notes',
+        'ss_subscribe': 'subscribe',
+        'ss_rx_slot': 'rx slot',
+        'ss_drop_docs': 'drop docs',
+        'ss_schedule_appointment': 'schedule appointment',
+        'ss_enterprise_assist': 'enterprise assist',
+        'ss_leave_review': 'leave review',
+        # Legacy IDs (old menu)
+        'ss_orders': 'track request',
+        'ss_payments': 'pay',
+        'ss_support': 'submit request',
+        # Bharat Stack
+        'bs_aadhaar': None,
+        'bs_upi': None,
+        'bs_digilocker': None,
+        'bs_esign': None,
+        'bs_ondc': None,
+        'bs_account_aggregator': None,
+    }
+
+    action = MENU_TO_KEYWORD.get(list_id)
+
+    # Sub-menu triggers
+    if action == '_selfservice_menu':
+        _send_interactive_list(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            list_config=_get_selfservice_menu(),
+            request_id=request_id,
+        )
+        return
+
+    if action == '_language_menu':
+        _send_interactive_list(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            list_config=_get_language_picker_config(),
+            request_id=request_id,
+        )
+        return
+
+    # Keyword-triggered flows
+    if action and action != 'pay':
+        flow_triggers = _get_flow_triggers_config()
+        for flow_key, trigger in flow_triggers.items():
+            if not trigger.get('enabled', True):
+                continue
+            keywords = [k.lower() for k in trigger.get('keywords', [])]
+            if action.lower() in keywords:
+                flow_id = trigger.get('flowId', '')
+                if flow_id:
+                    _send_generic_flow(
+                        contact_id=contact_id,
+                        phone_number_id=phone_number_id,
+                        sender_phone=sender_phone,
+                        request_id=request_id,
+                        flow_config=trigger,
+                        flow_key=flow_key,
+                    )
+                    return
+        # Fallback: send the keyword as text so it gets picked up by keyword matching
+        _send_ai_auto_reply(contact_id, f"You selected: {action.title()}. Processing...", phone_number_id, request_id)
+        return
+
+    # Pay keyword
+    if action == 'pay':
+        # Trigger pay flow by sending "pulling" message + invoice lookup
+        _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
+        try:
+            inv_payload = {
+                'rawPath': '/invoices/send-pending-by-phone',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'customerPhone': sender_phone,
+                    'phoneNumberId': phone_number_id,
+                }),
+            }
+            inv_response = lambda_client.invoke(
+                FunctionName='wecare-invoice-engine',
+                InvocationType='RequestResponse',
+                Payload=json.dumps(inv_payload),
+            )
+            inv_result = json.loads(inv_response['Payload'].read())
+            inv_body = json.loads(inv_result.get('body', '{}'))
+            if inv_body.get('total', 0) == 0:
+                _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
+        except Exception as e:
+            logger.warning(f"List reply pay flow error: {e}")
+            _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
+        return
+
+    # Unhandled list ID — log it
+    if not action:
+        logger.info(json.dumps({
+            'event': 'list_reply_unhandled',
+            'listId': list_id,
+            'contactId': contact_id,
+            'requestId': request_id,
+        }))
+
+
 def _get_flow_triggers_config() -> Dict:
     """Load flow triggers config from SystemConfigTable (id: 'flow_triggers_config')."""
     try:
@@ -5225,16 +5367,25 @@ DEFAULT_SELFSERVICE_MENU = {
     'buttonText': 'Options',
     'sections': [
         {
-            'title': 'Self-Service Options',
+            'title': 'Requests & Orders',
             'rows': [
-                {'id': 'ss_subscribe', 'title': 'Subscribe', 'description': 'Register for updates and orders'},
-                {'id': 'ss_orders', 'title': 'My Orders', 'description': 'Track and manage orders'},
-                {'id': 'ss_payments', 'title': 'Payments', 'description': 'Pay dues, view invoices'},
-                {'id': 'ss_support', 'title': 'Submit Request', 'description': 'Raise a service request'},
-                {'id': 'ss_profile', 'title': 'My Profile', 'description': 'View and update your details'},
-                {'id': 'ss_notifications', 'title': 'Notifications', 'description': 'Manage alert preferences'},
+                {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Raise a new service request'},
+                {'id': 'ss_amend_request', 'title': '\u270f\ufe0f Amend Request', 'description': 'Change or update an existing request'},
+                {'id': 'ss_track_request', 'title': '\U0001f50d Track Request', 'description': 'Check status of your request'},
+                {'id': 'ss_order_notes', 'title': '\U0001f4dd Order Notes', 'description': 'Add special instructions to an order'},
             ]
-        }
+        },
+        {
+            'title': 'Services',
+            'rows': [
+                {'id': 'ss_subscribe', 'title': '\U0001f4dd Subscribe', 'description': 'Register for updates and orders'},
+                {'id': 'ss_rx_slot', 'title': '\U0001f48a RX Slot', 'description': 'Book a prescription slot'},
+                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Drop Docs', 'description': 'Submit documents'},
+                {'id': 'ss_schedule_appointment', 'title': '\U0001f4c5 Schedule Appointment', 'description': 'Book an appointment'},
+                {'id': 'ss_enterprise_assist', 'title': '\U0001f3e2 Enterprise Assist', 'description': 'Business / corporate support'},
+                {'id': 'ss_leave_review', 'title': '\u2b50 Leave Review', 'description': 'Share your feedback'},
+            ]
+        },
     ]
 }
 
