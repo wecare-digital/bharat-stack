@@ -2006,16 +2006,41 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             phone_number = data.get('phone_number', '')
             email_address = data.get('email_address', '')
             company_name = data.get('company_name', '')
+
+            # Structured billing address (Meta shipping_info format)
             billing_name = data.get('billing_name', '')
+            billing_phone = data.get('billing_phone', '')
+            billing_house_number = data.get('billing_house_number', '')
+            billing_building_name = data.get('billing_building_name', '')
             billing_address = data.get('billing_address', '')
+            billing_landmark = data.get('billing_landmark', '')
+            billing_city = data.get('billing_city', '')
+            billing_state = data.get('billing_state', '')
+            billing_pin_code = data.get('billing_pin_code', '')
+
+            # Structured shipping address
             same_as_billing = data.get('same_as_billing', False)
             shipping_name = data.get('shipping_name', '')
+            shipping_phone = data.get('shipping_phone', '')
+            shipping_house_number = data.get('shipping_house_number', '')
+            shipping_building_name = data.get('shipping_building_name', '')
             shipping_address = data.get('shipping_address', '')
+            shipping_landmark = data.get('shipping_landmark', '')
+            shipping_city = data.get('shipping_city', '')
+            shipping_state = data.get('shipping_state', '')
+            shipping_pin_code = data.get('shipping_pin_code', '')
 
-            # If same_as_billing, copy billing to shipping
+            # If same_as_billing, copy all billing fields to shipping
             if same_as_billing or (not shipping_address and billing_address):
                 shipping_name = shipping_name or billing_name
+                shipping_phone = shipping_phone or billing_phone
+                shipping_house_number = shipping_house_number or billing_house_number
+                shipping_building_name = shipping_building_name or billing_building_name
                 shipping_address = shipping_address or billing_address
+                shipping_landmark = shipping_landmark or billing_landmark
+                shipping_city = shipping_city or billing_city
+                shipping_state = shipping_state or billing_state
+                shipping_pin_code = shipping_pin_code or billing_pin_code
 
             subscriber_id = f'WD-SUB-{uuid.uuid4().hex[:8].upper()}'
 
@@ -2024,29 +2049,65 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             if '-ph-' in flow_token:
                 phone = flow_token.split('-ph-', 1)[1]
 
+            # Build Meta shipping_info compatible address objects
+            billing_addr_obj = {
+                'name': billing_name, 'phone_number': billing_phone.replace('+', ''),
+                'address': billing_address, 'city': billing_city,
+                'state': billing_state, 'in_pin_code': billing_pin_code,
+                'house_number': billing_house_number, 'building_name': billing_building_name,
+                'landmark_area': billing_landmark,
+            }
+            shipping_addr_obj = {
+                'name': shipping_name, 'phone_number': shipping_phone.replace('+', ''),
+                'address': shipping_address, 'city': shipping_city,
+                'state': shipping_state, 'in_pin_code': shipping_pin_code,
+                'house_number': shipping_house_number, 'building_name': shipping_building_name,
+                'landmark_area': shipping_landmark,
+            }
+
+            # Build human-readable address strings for contact book
+            def _addr_str(a):
+                parts = [a.get('name', '')]
+                if a.get('house_number'):
+                    parts.append(a['house_number'])
+                if a.get('building_name'):
+                    parts.append(a['building_name'])
+                if a.get('address'):
+                    parts.append(a['address'])
+                if a.get('landmark_area'):
+                    parts.append(a['landmark_area'])
+                if a.get('city'):
+                    parts.append(a['city'])
+                if a.get('state'):
+                    parts.append(a['state'])
+                if a.get('in_pin_code'):
+                    parts.append(a['in_pin_code'])
+                return ', '.join(p for p in parts if p)
+
             # Find or create contact and enrich with subscription data
             contact_id = _find_contact_by_phone(phone)
             if contact_id:
                 try:
                     ct = dynamodb.Table(CONTACTS_TABLE)
-                    update_expr = 'SET #nm = :nm, #em = :em, #ba = :ba, #sa = :sa, #ua = :ua, #cbn = :cbn, #ow = :ow'
+                    update_expr = (
+                        'SET #nm = :nm, #em = :em, #ba = :ba, #sa = :sa, #ua = :ua, '
+                        '#cbn = :cbn, #ow = :ow, #baj = :baj, #saj = :saj'
+                    )
                     expr_names = {
                         '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
                         '#sa': 'shippingAddress', '#ua': 'updatedAt', '#cbn': 'contactBookName',
-                        '#ow': 'optInWhatsApp',
+                        '#ow': 'optInWhatsApp', '#baj': 'billingAddressJson', '#saj': 'shippingAddressJson',
                     }
-                    # Build full billing/shipping strings
-                    full_billing = f'{billing_name}\n{billing_address}' if billing_name else billing_address
-                    full_shipping = f'{shipping_name}\n{shipping_address}' if shipping_name else shipping_address
-
                     expr_values = {
                         ':nm': full_name or '',
                         ':em': email_address or '',
-                        ':ba': full_billing or '',
-                        ':sa': full_shipping or '',
+                        ':ba': _addr_str(billing_addr_obj),
+                        ':sa': _addr_str(shipping_addr_obj),
                         ':ua': int(time.time()),
                         ':cbn': company_name or '',
                         ':ow': True,
+                        ':baj': json.dumps(billing_addr_obj),
+                        ':saj': json.dumps(shipping_addr_obj),
                     }
                     ct.update_item(
                         Key={'id': contact_id},
@@ -2080,10 +2141,9 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'phone_number': phone_number,
                         'email_address': email_address,
                         'company_name': company_name,
-                        'billing_name': billing_name,
-                        'billing_address': billing_address,
-                        'shipping_name': shipping_name,
-                        'shipping_address': shipping_address,
+                        'billing_address': billing_addr_obj,
+                        'shipping_address': shipping_addr_obj,
+                        'same_as_billing': same_as_billing,
                     }),
                     'flowToken': flow_token,
                     'createdAt': Decimal(str(now)),
@@ -2105,7 +2165,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'screen': 'SUCCESS',
                 'data': {
                     'subscriber_id': subscriber_id,
-                    'message': f'✅ Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}. You will now receive updates, offers, and order notifications via WhatsApp.',
+                    'message': f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}. Your saved address will auto-fill when you checkout via WhatsApp.',
                 }
             }
 
