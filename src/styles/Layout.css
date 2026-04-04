@@ -954,7 +954,7 @@ input, textarea, select {
   margin: 4px 12px 12px;
   padding: 0;
   background: #ffffff;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -982,8 +982,24 @@ input, textarea, select {
 .inner-content-container .whatsapp-inbox {
   flex: 1;
   display: flex;
-  flex-direction: column;
   min-height: 0;
+}
+
+/* WhatsApp inbox needs row direction for side-by-side layout */
+.main-content .whatsapp-inbox,
+.inner-content-container .whatsapp-inbox {
+  flex-direction: row;
+}
+
+/* Other pages use column direction */
+.main-content .campaign-page,
+.inner-content-container .inner-page,
+.inner-content-container .page-shell,
+.inner-content-container .page,
+.inner-content-container .page-container,
+.inner-content-container .tabbed-page,
+.inner-content-container .campaign-page {
+  flex-direction: column;
 }
 
 /* Page transition */

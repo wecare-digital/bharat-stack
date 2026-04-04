@@ -332,11 +332,12 @@ export interface Message {
   detectedLanguage?: string;    // Detected language of voice note (e.g. "hi-IN")
 }
 
-export async function listMessages(contactId?: string, channel?: string): Promise<Message[]> {
+export async function listMessages(contactId?: string, channel?: string, limit: number = 1000): Promise<Message[]> {
   let url = `${API_BASE}/messages`;
   const params = new URLSearchParams();
   if (contactId) params.append('contactId', contactId);
   if (channel) params.append('channel', channel);
+  params.append('limit', String(limit));
   if (params.toString()) url += `?${params}`;
   
   const data = await apiCall<any>(url);

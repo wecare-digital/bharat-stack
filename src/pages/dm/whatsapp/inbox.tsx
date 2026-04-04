@@ -204,15 +204,18 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [contactsPage, setContactsPage] = useState(1);
   const [clearing, setClearing] = useState(false);
-  const [messagesPage, setMessagesPage] = useState(1);
   // Modal states
   const [showInteractiveComposer, setShowInteractiveComposer] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiSearch, setEmojiSearch] = useState('');
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const CONTACTS_PER_PAGE = 100;
-  const MESSAGES_PER_PAGE = 200;
+  const MESSAGES_PER_PAGE = 50;
+  const [visibleMessageCount, setVisibleMessageCount] = useState(MESSAGES_PER_PAGE);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesAreaRef = useRef<HTMLDivElement>(null);
+  const pendingScrollRestore = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToastContext();
   const confirm = useConfirm();
@@ -254,20 +257,42 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (force = false) => {
+    const area = messagesAreaRef.current;
+    if (!area) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    // Only auto-scroll if user is near the bottom (within 150px) or forced
+    const isNearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 150;
+    if (force || isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
+  // Auto-scroll on new messages (not on initial load — that's handled by contact selection)
+  const prevMessageCount = useRef(0);
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, selectedContact]);
+    if (pendingScrollRestore.current) return; // Don't auto-scroll during load-older
+    if (messages.length > prevMessageCount.current && prevMessageCount.current > 0) {
+      scrollToBottom();
+    }
+    prevMessageCount.current = messages.length;
+  }, [messages]);
+
+  // Scroll to bottom when selecting a new contact
+  useEffect(() => {
+    if (selectedContact) {
+      setTimeout(() => scrollToBottom(true), 50);
+    }
+  }, [selectedContact]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [contactsData, messagesData] = await Promise.all([
         api.listContacts(),
-        api.listMessages(undefined, 'WHATSAPP'),
+        api.listMessages(undefined, 'WHATSAPP', 2000),
       ]);
 
       // Process messages to get last message info per contact
@@ -365,20 +390,12 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         transcription: m.transcription,
         detectedLanguage: m.detectedLanguage,
       })));
-
-      // Auto-select WABA based on last message
-      if (selectedContact) {
-        const contact = displayContacts.find(c => c.id === selectedContact.id);
-        if (contact?.lastWabaId && WABA_CONFIG[contact.lastWabaId as keyof typeof WABA_CONFIG]) {
-          setSelectedWaba(contact.lastWabaId);
-        }
-      }
     } catch (err) {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
-  }, [selectedContact]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -391,6 +408,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     if (selectedContact?.lastWabaId && WABA_CONFIG[selectedContact.lastWabaId as keyof typeof WABA_CONFIG]) {
       setSelectedWaba(selectedContact.lastWabaId);
     }
+    setVisibleMessageCount(MESSAGES_PER_PAGE);
   }, [selectedContact]);
 
   const filteredMessages = messages
@@ -409,6 +427,36 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       return contactMatch;
     })
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  // Show only the most recent N messages, with option to load more
+  const totalFilteredCount = filteredMessages.length;
+  const hasOlderMessages = totalFilteredCount > visibleMessageCount;
+  const visibleMessages = hasOlderMessages
+    ? filteredMessages.slice(totalFilteredCount - visibleMessageCount)
+    : filteredMessages;
+
+  // Infinite scroll: load older messages when scrolled near top
+  useEffect(() => {
+    const area = messagesAreaRef.current;
+    if (!area) return;
+    const handleScroll = () => {
+      if (area.scrollTop < 80 && hasOlderMessages && !loadingOlder && !pendingScrollRestore.current) {
+        const prevScrollHeight = area.scrollHeight;
+        const prevScrollTop = area.scrollTop;
+        setLoadingOlder(true);
+        pendingScrollRestore.current = true;
+        setVisibleMessageCount(c => c + MESSAGES_PER_PAGE);
+        setTimeout(() => {
+          const newScrollHeight = area.scrollHeight;
+          area.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+          setLoadingOlder(false);
+          pendingScrollRestore.current = false;
+        }, 50);
+      }
+    };
+    area.addEventListener('scroll', handleScroll, { passive: true });
+    return () => area.removeEventListener('scroll', handleScroll);
+  }, [hasOlderMessages, loadingOlder]);
 
   const filteredContacts = contacts.filter(c => {
     const q = searchQuery.toLowerCase();
@@ -988,7 +1036,8 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               />
             </div>
             
-            {/* Pagination Controls - Below Search - Always visible */}
+            {/* Pagination Controls - Below Search - Show when multiple pages */}
+            {totalContactPages > 1 && (
             <div className="contacts-pagination top">
               <button 
                 onClick={() => setContactsPage(1)}
@@ -1004,7 +1053,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               >
                 ‹
               </button>
-              <span className="page-info">Page {contactsPage} of {totalContactPages || 1}</span>
+              <span className="page-info">{contactsPage} / {totalContactPages}</span>
               <button 
                 onClick={() => setContactsPage(p => Math.min(totalContactPages || 1, p + 1))}
                 disabled={contactsPage >= (totalContactPages || 1)}
@@ -1019,6 +1068,11 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               >
                 »»
               </button>
+            </div>
+            )}
+            {/* Contact count */}
+            <div style={{ textAlign: 'center', fontSize: 11, color: '#9ca3af', padding: '4px 0 0' }}>
+              {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''}{searchQuery ? ' found' : ''}
             </div>
           </div>
           
@@ -1105,6 +1159,11 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
                       {selectedContact.phone || selectedContact.bsuid || 'No identifier'}
                       {selectedContact.username ? ` · ${selectedContact.username}` : ''}
                       {!selectedContact.phone && selectedContact.bsuid ? ' (BSUID)' : ''}
+                      {totalFilteredCount > 0 && (
+                        <span style={{ marginLeft: 8, color: '#9ca3af', fontSize: 11 }}>
+                          {totalFilteredCount} message{totalFilteredCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1133,18 +1192,45 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               </div>
 
               {/* Messages */}
-              <div className="messages-area">
+              <div className="messages-area" ref={messagesAreaRef}>
                 {loading && filteredMessages.length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#6b7280', padding: '20px' }}>
+                  <div className="messages-loading-state">
                     Loading messages...
                   </div>
                 )}
                 
-                {filteredMessages.map((msg, idx) => {
+                {hasOlderMessages && (
+                  <div className="load-older-container">
+                    <button
+                      className="load-older-btn"
+                      onClick={() => {
+                        const area = messagesAreaRef.current;
+                        const prevScrollHeight = area?.scrollHeight || 0;
+                        const prevScrollTop = area?.scrollTop || 0;
+                        setLoadingOlder(true);
+                        pendingScrollRestore.current = true;
+                        setVisibleMessageCount(c => c + MESSAGES_PER_PAGE);
+                        setTimeout(() => {
+                          if (area) {
+                            const newScrollHeight = area.scrollHeight;
+                            area.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+                          }
+                          setLoadingOlder(false);
+                          pendingScrollRestore.current = false;
+                        }, 50);
+                      }}
+                      disabled={loadingOlder}
+                    >
+                      {loadingOlder ? 'Loading...' : `↑ Load ${Math.min(MESSAGES_PER_PAGE, totalFilteredCount - visibleMessageCount)} older messages (${totalFilteredCount - visibleMessageCount} remaining)`}
+                    </button>
+                  </div>
+                )}
+                
+                {visibleMessages.map((msg, idx) => {
                   const wabaInfo = getWabaInfo(msg.awsPhoneNumberId);
                   const showDate = idx === 0 || 
                     new Date(msg.timestamp).toDateString() !== 
-                    new Date(filteredMessages[idx - 1].timestamp).toDateString();
+                    new Date(visibleMessages[idx - 1].timestamp).toDateString();
                   
                   return (
                     <React.Fragment key={msg.id}>

@@ -34,8 +34,8 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
 
 # Pagination defaults
-DEFAULT_LIMIT = 200
-MAX_LIMIT = 500
+DEFAULT_LIMIT = 1000
+MAX_LIMIT = 5000
 PRESIGNED_URL_EXPIRY = 3600  # 1 hour
 
 
@@ -228,7 +228,7 @@ def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int,
             table_items = []
             last_key = None
             pages = 0
-            max_pages = 20  # safety cap
+            max_pages = 100  # safety cap — increased to load more messages
             
             while pages < max_pages:
                 if last_key:
@@ -247,7 +247,7 @@ def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int,
                 pages += 1
                 
                 last_key = response.get('LastEvaluatedKey')
-                if not last_key or len(table_items) >= limit * 3:
+                if not last_key or len(table_items) >= limit * 2:
                     break
             
             all_messages.extend(table_items)
