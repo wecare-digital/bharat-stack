@@ -2083,6 +2083,15 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
             if contact_id:
                 # Update existing contact with subscription data + default opt-in
+                # Save change log: read old values first
+                old_contact = {}
+                try:
+                    ct = dynamodb.Table(CONTACTS_TABLE)
+                    old_resp = ct.get_item(Key={'id': contact_id})
+                    old_contact = old_resp.get('Item', {})
+                except Exception:
+                    pass
+
                 try:
                     ct = dynamodb.Table(CONTACTS_TABLE)
                     ct.update_item(
@@ -2111,6 +2120,49 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     )
                 except Exception as e:
                     logger.warning(f'Subscribe contact update failed: {e}')
+
+                # Save change log if contact was updated (not new)
+                if old_contact:
+                    try:
+                        changes = {}
+                        field_map = {
+                            'name': full_name, 'email': email_address,
+                            'contactBookName': company_name,
+                            'shippingAddress': _addr_str(ship_addr_obj),
+                            'billingAddress': _addr_str(bill_addr_obj),
+                        }
+                        for field, new_val in field_map.items():
+                            old_val = str(old_contact.get(field, '') or '')
+                            if old_val != str(new_val):
+                                changes[field] = {'old': old_val, 'new': str(new_val)}
+                        if changes:
+                            fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+                            fs_table.put_item(Item={
+                                'submissionId': f'WD-CHG-{uuid.uuid4().hex[:8].upper()}',
+                                'flowCode': 'WD_SUBSCRIBE_UPDATE',
+                                'flowType': 'change_log',
+                                'phone': phone,
+                                'contactId': contact_id,
+                                'submissionNumber': subscriber_id,
+                                'status': 'updated',
+                                'formData': json.dumps({
+                                    'changes': changes,
+                                    'updated_by': 'subscribe_flow',
+                                    'subscriber_id': subscriber_id,
+                                }),
+                                'flowToken': flow_token,
+                                'createdAt': Decimal(str(now_ts)),
+                                'updatedAt': Decimal(str(now_ts)),
+                                'ttl': now_ts + (365 * 86400),
+                            })
+                            logger.info(json.dumps({
+                                'event': 'subscribe_change_log_saved',
+                                'contactId': contact_id,
+                                'changedFields': list(changes.keys()),
+                                'requestId': request_id,
+                            }))
+                    except Exception as cl_err:
+                        logger.warning(f'Change log save failed: {cl_err}')
             else:
                 # Create new contact with subscriber UUID as the contact ID
                 contact_id = subscriber_uuid
@@ -2171,7 +2223,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'screen': 'SUCCESS',
                 'data': {
                     'subscriber_id': subscriber_id,
-                    'message': f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}. Your saved details will help make checkout easier. You will receive order updates, offers, and notifications.',
+                    'contact_id': contact_id,
+                    'message': f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}.',
                 }
             }
 

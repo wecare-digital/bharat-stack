@@ -43,7 +43,7 @@
             "label": "Full Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Full name"
+            "helper-text": "Enter full name"
           },
           {
             "type": "TextInput",
@@ -51,7 +51,7 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "With country code"
+            "helper-text": "Enter mobile number"
           },
           {
             "type": "TextInput",
@@ -59,7 +59,7 @@
             "label": "Email",
             "required": true,
             "input-type": "email",
-            "helper-text": "e.g. you@company.com"
+            "helper-text": "Enter email address"
           },
           {
             "type": "TextInput",
@@ -67,7 +67,7 @@
             "label": "Company",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Company name"
+            "helper-text": "Enter company name"
           },
           {
             "type": "Footer",
@@ -127,7 +127,7 @@
             "label": "Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Full name"
+            "helper-text": "Enter full name"
           },
           {
             "type": "TextInput",
@@ -135,7 +135,7 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "With country code"
+            "helper-text": "Enter mobile number"
           },
           {
             "type": "TextInput",
@@ -143,7 +143,7 @@
             "label": "House / Flat No",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Flat / House No."
+            "helper-text": "Enter house / flat number"
           },
           {
             "type": "TextInput",
@@ -151,7 +151,7 @@
             "label": "Building",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Building / Society Name"
+            "helper-text": "Enter building name"
           },
           {
             "type": "TextInput",
@@ -159,7 +159,7 @@
             "label": "Street",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Street / Locality"
+            "helper-text": "Enter street / locality"
           },
           {
             "type": "TextInput",
@@ -167,7 +167,7 @@
             "label": "Landmark",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Nearby landmark"
+            "helper-text": "Enter nearby landmark"
           },
           {
             "type": "TextInput",
@@ -175,7 +175,7 @@
             "label": "City",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. City"
+            "helper-text": "Enter city"
           },
           {
             "type": "TextInput",
@@ -183,7 +183,7 @@
             "label": "State",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. State"
+            "helper-text": "Enter state"
           },
           {
             "type": "TextInput",
@@ -191,7 +191,7 @@
             "label": "PIN Code",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. 6-digit PIN code"
+            "helper-text": "Enter 6-digit PIN code"
           },
           {
             "type": "Footer",
@@ -306,7 +306,7 @@
                 "label": "House / Flat No",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. Flat / House No."
+                "helper-text": "Enter house / flat number"
               },
               {
                 "type": "TextInput",
@@ -314,7 +314,7 @@
                 "label": "Building",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. Building / Society Name"
+                "helper-text": "Enter building name"
               },
               {
                 "type": "TextInput",
@@ -322,7 +322,7 @@
                 "label": "Street",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. Street / Locality"
+                "helper-text": "Enter street / locality"
               },
               {
                 "type": "TextInput",
@@ -330,7 +330,7 @@
                 "label": "Landmark",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. Nearby landmark"
+                "helper-text": "Enter nearby landmark"
               },
               {
                 "type": "TextInput",
@@ -338,7 +338,7 @@
                 "label": "City",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. City"
+                "helper-text": "Enter city"
               },
               {
                 "type": "TextInput",
@@ -346,7 +346,7 @@
                 "label": "State",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. State"
+                "helper-text": "Enter state"
               },
               {
                 "type": "TextInput",
@@ -354,7 +354,7 @@
                 "label": "PIN Code",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. 6-digit PIN code"
+                "helper-text": "Enter 6-digit PIN code"
               },
               {
                 "type": "OptIn",
@@ -560,6 +560,10 @@
             "font-weight": "bold"
           },
           {
+            "type": "TextCaption",
+            "text": "(Copied from shipping if same)"
+          },
+          {
             "type": "TextBody",
             "text": "${data.bill_street}"
           },
@@ -629,6 +633,10 @@
         "message": {
           "type": "string",
           "__example__": "You have been successfully subscribed!"
+        },
+        "contact_id": {
+          "type": "string",
+          "__example__": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         }
       },
       "layout": {
@@ -655,6 +663,14 @@
           {
             "type": "TextSubheading",
             "text": "${data.subscriber_id}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Contact ID"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "${data.contact_id}"
           },
           {
             "type": "TextBody",
