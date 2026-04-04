@@ -2018,10 +2018,10 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             ship_state = data.get('ship_state', '')
             ship_pin = data.get('ship_pin', '')
 
-            # Billing address (copy from shipping if same_as_ship or blank)
+            # Billing address (copy name/phone from shipping always, other fields if same_as_ship)
             same_as_ship = data.get('same_as_ship', False)
-            bill_name = data.get('bill_name', '')
-            bill_phone = data.get('bill_phone', '')
+            bill_name = ship_name  # Always use shipping name for billing
+            bill_phone = ship_phone  # Always use shipping phone for billing
             bill_house = data.get('bill_house', '')
             bill_building = data.get('bill_building', '')
             bill_street = data.get('bill_street', '')
@@ -2030,10 +2030,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             bill_state = data.get('bill_state', '')
             bill_pin = data.get('bill_pin', '')
 
-            # Copy billing from shipping when same_as_ship or billing is empty
+            # Copy all billing address fields from shipping when same_as_ship or billing is empty
             if same_as_ship or not bill_street:
-                bill_name = bill_name or ship_name
-                bill_phone = bill_phone or ship_phone
                 bill_house = bill_house or ship_house
                 bill_building = bill_building or ship_building
                 bill_street = bill_street or ship_street

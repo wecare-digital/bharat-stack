@@ -43,15 +43,15 @@
             "label": "Full Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Manish Agarwal"
+            "helper-text": "e.g. Full name"
           },
           {
             "type": "TextInput",
             "name": "phone_number",
-            "label": "Phone",
+            "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "Enter mobile number"
+            "helper-text": "e.g. +91 98765 43210"
           },
           {
             "type": "TextInput",
@@ -59,7 +59,7 @@
             "label": "Email",
             "required": true,
             "input-type": "email",
-            "helper-text": "Enter email address"
+            "helper-text": "e.g. you@company.com"
           },
           {
             "type": "TextInput",
@@ -67,7 +67,7 @@
             "label": "Company",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. WECARE.DIGITAL"
+            "helper-text": "e.g. Company name"
           },
           {
             "type": "Footer",
@@ -127,15 +127,15 @@
             "label": "Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "e.g. Manish Agarwal"
+            "helper-text": "e.g. Full name"
           },
           {
             "type": "TextInput",
             "name": "ship_phone",
-            "label": "Phone",
+            "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "Enter mobile number"
+            "helper-text": "e.g. +91 98765 43210"
           },
           {
             "type": "TextInput",
@@ -288,7 +288,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Used for invoices and payment receipts. Leave blank to copy from shipping address."
+            "text": "Used for invoices and receipts. Check the box below to copy from shipping, or enter different details."
           },
           {
             "type": "Form",
@@ -299,22 +299,6 @@
                 "name": "same_as_ship",
                 "label": "Same as shipping",
                 "required": false
-              },
-              {
-                "type": "TextInput",
-                "name": "bill_name",
-                "label": "Name",
-                "required": false,
-                "input-type": "text",
-                "helper-text": "e.g. Manish Agarwal"
-              },
-              {
-                "type": "TextInput",
-                "name": "bill_phone",
-                "label": "Phone",
-                "required": false,
-                "input-type": "phone",
-                "helper-text": "Enter mobile number"
               },
               {
                 "type": "TextInput",
@@ -375,7 +359,7 @@
               {
                 "type": "OptIn",
                 "name": "accept_terms",
-                "label": "I agree to WhatsApp updates",
+                "label": "Agree to updates",
                 "required": true
               },
               {
@@ -402,8 +386,6 @@
                     "ship_state": "${data.ship_state}",
                     "ship_pin": "${data.ship_pin}",
                     "same_as_ship": "${form.same_as_ship}",
-                    "bill_name": "${form.bill_name}",
-                    "bill_phone": "${form.bill_phone}",
                     "bill_house": "${form.bill_house}",
                     "bill_building": "${form.bill_building}",
                     "bill_street": "${form.bill_street}",
@@ -478,14 +460,6 @@
         "same_as_ship": {
           "type": "boolean",
           "__example__": true
-        },
-        "bill_name": {
-          "type": "string",
-          "__example__": ""
-        },
-        "bill_phone": {
-          "type": "string",
-          "__example__": ""
         },
         "bill_house": {
           "type": "string",
@@ -604,7 +578,7 @@
               {
                 "type": "OptIn",
                 "name": "confirm_submit",
-                "label": "I confirm all details",
+                "label": "Confirm details",
                 "required": true
               },
               {
@@ -627,8 +601,6 @@
                     "ship_state": "${data.ship_state}",
                     "ship_pin": "${data.ship_pin}",
                     "same_as_ship": "${data.same_as_ship}",
-                    "bill_name": "${data.bill_name}",
-                    "bill_phone": "${data.bill_phone}",
                     "bill_house": "${data.bill_house}",
                     "bill_building": "${data.bill_building}",
                     "bill_street": "${data.bill_street}",
