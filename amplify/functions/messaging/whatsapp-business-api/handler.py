@@ -2042,9 +2042,9 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 bill_state = bill_state or ship_state
                 bill_pin = bill_pin or ship_pin
 
-            # Subscriber ID = short 4-digit ref, UUID for internal contact ID
+            # Subscriber ID = WD-SUB + 8-char UUID, full UUID for internal contact ID
             subscriber_uuid = str(uuid.uuid4())
-            subscriber_id = f'WD-SUB-{uuid.uuid4().hex[:4].upper()}'
+            subscriber_id = f'WD-SUB-{subscriber_uuid[:8].upper()}'
 
             # Extract phone from flow_token
             phone = ''

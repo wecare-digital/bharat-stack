@@ -684,7 +684,7 @@
       "data": {
         "subscriber_id": {
           "type": "string",
-          "__example__": "WD-SUB-1234"
+          "__example__": "WD-SUB-A1B2C3D4"
         },
         "message": {
           "type": "string",
