@@ -77,7 +77,7 @@ const DEFAULT_KEYWORDS: KeywordRule[] = [
 
 const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
   const toast = useToastContext();
-  const [activeTab, setActiveTab] = useState<'welcome' | 'keywords' | 'menu'>('welcome');
+  const [activeTab, setActiveTab] = useState<'welcome' | 'keywords' | 'menu' | 'icebreakers'>('welcome');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -236,9 +236,10 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* Tabs */}
         <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: 16, display: 'flex', gap: 4 }}>
-          <button style={S.tab(activeTab === 'welcome')} onClick={() => setActiveTab('welcome')}>Welcome Message</button>
-          <button style={S.tab(activeTab === 'keywords')} onClick={() => setActiveTab('keywords')}>Keyword Responses</button>
-          <button style={S.tab(activeTab === 'menu')} onClick={() => setActiveTab('menu')}>Menu Config</button>
+          <button style={S.tab(activeTab === 'welcome')} onClick={() => setActiveTab('welcome')}>Welcome</button>
+          <button style={S.tab(activeTab === 'keywords')} onClick={() => setActiveTab('keywords')}>Keywords</button>
+          <button style={S.tab(activeTab === 'menu')} onClick={() => setActiveTab('menu')}>Menu</button>
+          <button style={S.tab(activeTab === 'icebreakers')} onClick={() => setActiveTab('icebreakers')}>Ice Breakers</button>
         </div>
 
         {/* ── Welcome Message Tab ── */}
@@ -474,6 +475,76 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
             ))}
 
             <button style={S.btn} onClick={addSection}>+ Add Section</button>
+          </div>
+        )}
+
+        {/* ── Ice Breakers Tab ── */}
+        {activeTab === 'icebreakers' && (
+          <div>
+            <div style={S.card}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Ice Breakers</h3>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+                Tappable prompts shown when a user opens chat for the first time. Max 4, max 80 characters each. No emojis.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {['Browse Menu', 'Subscribe', 'Try Bharat Stack', 'Self-service'].map((ib, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 20, fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{i + 1}.</span>
+                    <input
+                      style={{ ...S.input, flex: 1 }}
+                      value={ib}
+                      readOnly
+                      placeholder={`Ice breaker ${i + 1}`}
+                    />
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{ib.length}/80</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#6b7280', margin: '10px 0 0' }}>
+                These are configured via Meta WhatsApp Manager or the Conversational Automation API.
+              </p>
+            </div>
+
+            <div style={S.card}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Ice Breaker Actions</h3>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+                What happens when a user taps each ice breaker:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {[
+                  { label: 'Browse Menu', action: 'Opens the main menu list message' },
+                  { label: 'Subscribe', action: 'Opens the Subscribe flow form' },
+                  { label: 'Try Bharat Stack', action: 'Opens the Bharat Stack services list' },
+                  { label: 'Self-service', action: 'Opens the Self-service options list' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f9fafb', borderRadius: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1a3a2a' }}>{item.label}</span>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>{item.action}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={S.card}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Slash Commands</h3>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+                Users type / to see available commands. Max 30 commands.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {[
+                  { cmd: '/menu', hint: 'Browse the main menu' },
+                  { cmd: '/subscribe', hint: 'Register for updates and orders' },
+                  { cmd: '/bharatstack', hint: 'Explore Bharat Stack services' },
+                  { cmd: '/selfservice', hint: 'Self-service options' },
+                  { cmd: '/pay', hint: 'Make a payment or check dues' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 10px', background: '#f9fafb', borderRadius: 6 }}>
+                    <code style={{ fontSize: 12, fontWeight: 600, color: '#1a3a2a', minWidth: 120 }}>{item.cmd}</code>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>{item.hint}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

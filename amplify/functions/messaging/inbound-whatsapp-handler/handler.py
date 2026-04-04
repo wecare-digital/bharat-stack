@@ -1241,7 +1241,7 @@ def _process_message(
             return  # Skip AI automation — payment flow handled
 
         # ── Direct "Hi" / greeting keyword trigger (LLM-independent) ──
-        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start'}
+        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu'}
         if content_lower in HI_KEYWORDS:
             logger.info(json.dumps({
                 'event': 'hi_keyword_triggered',
@@ -1272,6 +1272,40 @@ def _process_message(
                 'requestId': request_id,
             }))
             return  # Skip AI automation — welcome flow handled
+
+        # ── Ice breaker: "Try Bharat Stack" / "/bharatstack" ──
+        BHARAT_KEYWORDS = {'try bharat stack', 'bharat stack', '/bharatstack', 'bharat', 'aadhaar', 'upi', 'digilocker'}
+        if content_lower in BHARAT_KEYWORDS:
+            logger.info(json.dumps({
+                'event': 'bharat_stack_triggered',
+                'content': content_lower,
+                'contactId': contact_id,
+                'requestId': request_id,
+            }))
+            _send_interactive_list(
+                contact_id=contact_id,
+                phone_number_id=aws_phone_number_id,
+                list_config=_get_bharat_stack_menu(),
+                request_id=request_id
+            )
+            return
+
+        # ── Ice breaker: "Self-service" / "/selfservice" ──
+        SELFSERVICE_KEYWORDS = {'self-service', 'selfservice', 'self service', '/selfservice', '/service'}
+        if content_lower in SELFSERVICE_KEYWORDS:
+            logger.info(json.dumps({
+                'event': 'selfservice_triggered',
+                'content': content_lower,
+                'contactId': contact_id,
+                'requestId': request_id,
+            }))
+            _send_interactive_list(
+                contact_id=contact_id,
+                phone_number_id=aws_phone_number_id,
+                list_config=_get_selfservice_menu(),
+                request_id=request_id
+            )
+            return
 
     # Process AI automation for supported message types
     # Now includes media types (image, audio, video, document) for multimodal AI
@@ -4964,6 +4998,82 @@ def _get_welcome_config() -> Dict:
         return DEFAULT_MAIN_MENU.copy()
     except Exception:
         return DEFAULT_MAIN_MENU.copy()
+
+
+# ── Bharat Stack sub-menu ──
+DEFAULT_BHARAT_STACK_MENU = {
+    'header': 'Bharat Stack',
+    'body': 'Explore India\u2019s digital public infrastructure \U0001f1ee\U0001f1f3',
+    'footer': 'wecare.digital',
+    'buttonText': 'Explore',
+    'sections': [
+        {
+            'title': 'Bharat Stack Services',
+            'rows': [
+                {'id': 'bs_aadhaar', 'title': 'Aadhaar Services', 'description': 'Verify, link, update Aadhaar'},
+                {'id': 'bs_upi', 'title': 'UPI Payments', 'description': 'Send, receive, check balance'},
+                {'id': 'bs_digilocker', 'title': 'DigiLocker', 'description': 'Access digital documents'},
+                {'id': 'bs_esign', 'title': 'eSign', 'description': 'Digital signature services'},
+                {'id': 'bs_ondc', 'title': 'ONDC', 'description': 'Open Network for Digital Commerce'},
+                {'id': 'bs_account_aggregator', 'title': 'Account Aggregator', 'description': 'Consent-based financial data'},
+            ]
+        }
+    ]
+}
+
+
+def _get_bharat_stack_menu() -> Dict:
+    """Load Bharat Stack menu config from SystemConfigTable."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = config_table.get_item(Key={'id': 'bharat_stack_menu_config'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            merged = DEFAULT_BHARAT_STACK_MENU.copy()
+            merged.update(config)
+            return merged
+        return DEFAULT_BHARAT_STACK_MENU.copy()
+    except Exception:
+        return DEFAULT_BHARAT_STACK_MENU.copy()
+
+
+# ── Self-service sub-menu ──
+DEFAULT_SELFSERVICE_MENU = {
+    'header': 'Self-Service',
+    'body': 'Manage your account and requests \U0001f4cb',
+    'footer': 'wecare.digital',
+    'buttonText': 'Options',
+    'sections': [
+        {
+            'title': 'Self-Service Options',
+            'rows': [
+                {'id': 'ss_subscribe', 'title': 'Subscribe', 'description': 'Register for updates and orders'},
+                {'id': 'ss_orders', 'title': 'My Orders', 'description': 'Track and manage orders'},
+                {'id': 'ss_payments', 'title': 'Payments', 'description': 'Pay dues, view invoices'},
+                {'id': 'ss_support', 'title': 'Submit Request', 'description': 'Raise a service request'},
+                {'id': 'ss_profile', 'title': 'My Profile', 'description': 'View and update your details'},
+                {'id': 'ss_notifications', 'title': 'Notifications', 'description': 'Manage alert preferences'},
+            ]
+        }
+    ]
+}
+
+
+def _get_selfservice_menu() -> Dict:
+    """Load self-service menu config from SystemConfigTable."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = config_table.get_item(Key={'id': 'selfservice_menu_config'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            merged = DEFAULT_SELFSERVICE_MENU.copy()
+            merged.update(config)
+            return merged
+        return DEFAULT_SELFSERVICE_MENU.copy()
+    except Exception:
+        return DEFAULT_SELFSERVICE_MENU.copy()
 
 
 def _get_language_picker_config() -> Dict:
