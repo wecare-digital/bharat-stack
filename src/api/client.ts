@@ -184,6 +184,9 @@ export interface Contact {
   contactBookName?: string;
   shippingAddress?: string;
   billingAddress?: string;
+  // Structured address JSON (Meta shipping_info format) — set by subscribe flow
+  shippingAddressJson?: string;
+  billingAddressJson?: string;
   // Structured address fields for WhatsApp Payments shipping_info
   addressLine1?: string;
   addressLine2?: string;
@@ -267,6 +270,8 @@ function normalizeContact(item: any): Contact {
     contactBookName: item.contactBookName || '',
     shippingAddress: item.shippingAddress || '',
     billingAddress: item.billingAddress || '',
+    shippingAddressJson: item.shippingAddressJson || '',
+    billingAddressJson: item.billingAddressJson || '',
     // Opt-in fields
     optInWhatsApp: item.optInWhatsApp || false,
     optInSms: item.optInSms || false,

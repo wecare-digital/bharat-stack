@@ -51,7 +51,7 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "e.g. +91 98765 43210"
+            "helper-text": "With country code"
           },
           {
             "type": "TextInput",
@@ -135,7 +135,7 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "e.g. +91 98765 43210"
+            "helper-text": "With country code"
           },
           {
             "type": "TextInput",
