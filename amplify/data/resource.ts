@@ -40,6 +40,16 @@ const schema = a.schema({
       state: a.string(),
       pincode: a.string(),
       country: a.string().default('IN'),
+      // Structured address fields (WhatsApp Payments shipping_info)
+      houseNumber: a.string(),
+      buildingName: a.string(),
+      landmark: a.string(),
+      postalCode: a.string(),
+      shippingAddress: a.string(),
+      billingAddress: a.string(),
+      shippingAddressJson: a.string(),
+      billingAddressJson: a.string(),
+      gstin: a.string(),
       // Business/profile fields (enriched via flows)
       companyName: a.string(),
       gstNumber: a.string(),
@@ -47,6 +57,9 @@ const schema = a.schema({
       preferredLanguage: a.string(),
       lastFlowInteractionAt: a.datetime(),
       satisfactionScore: a.integer(), // NPS/CSAT from feedback flows
+      // Welcome message tracking
+      welcomeSent: a.boolean(),
+      welcomeSentAt: a.datetime(),
       tags: a.string().array(),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),

@@ -2977,6 +2977,18 @@ export async function updateSystemConfig(configKey: string, config: any): Promis
   return data !== null;
 }
 
+/**
+ * Push ice breakers + slash commands to Meta Conversational Automation API
+ * via the WABA management Lambda.
+ */
+export async function pushConversationalComponents(payload: { prompts: string[]; commands: { command_name: string; command_description: string }[] }): Promise<boolean> {
+  const data = await apiCall<any>(`${API_BASE}/waba/conversational-components`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data !== null && !data?.error;
+}
+
 
 // ============================================================================
 // CLEAR ALL DATA FUNCTIONS

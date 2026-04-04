@@ -128,6 +128,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formContactBookName, setFormContactBookName] = useState('');
   const [formShippingAddress, setFormShippingAddress] = useState('');
   const [formBillingAddress, setFormBillingAddress] = useState('');
+  const [formAddressLine1, setFormAddressLine1] = useState('');
+  const [formAddressLine2, setFormAddressLine2] = useState('');
+  const [formCity, setFormCity] = useState('');
+  const [formState, setFormState] = useState('');
+  const [formPostalCode, setFormPostalCode] = useState('');
+  const [formLandmark, setFormLandmark] = useState('');
+  const [formHouseNumber, setFormHouseNumber] = useState('');
+  const [formBuildingName, setFormBuildingName] = useState('');
+  const [formGstin, setFormGstin] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
@@ -290,6 +299,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormName(''); setFormPhone(''); setFormEmail('');
     setFormBsuid(''); setFormUsername(''); setFormContactBookName('');
     setFormShippingAddress(''); setFormBillingAddress(''); setFormCountryCode('+91');
+    setFormAddressLine1(''); setFormAddressLine2(''); setFormCity(''); setFormState('');
+    setFormPostalCode(''); setFormLandmark(''); setFormHouseNumber(''); setFormBuildingName('');
+    setFormGstin('');
     setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
     setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
   };
@@ -332,9 +344,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         name: formName, phone: fullPhone || undefined, email: formEmail || undefined,
         bsuid: formBsuid || undefined, username: formUsername || undefined, contactBookName: formContactBookName || undefined,
         shippingAddress: formShippingAddress || undefined, billingAddress: formBillingAddress || undefined,
+        addressLine1: formAddressLine1 || undefined, addressLine2: formAddressLine2 || undefined,
+        city: formCity || undefined, state: formState || undefined, postalCode: formPostalCode || undefined,
+        landmark: formLandmark || undefined, houseNumber: formHouseNumber || undefined, buildingName: formBuildingName || undefined,
+        gstin: formGstin || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
-      });
+      } as any);
       if (result) { toast.success('Contact created'); setShowModal(false); resetForm(); await loadContacts(); }
       else toast.error('Failed to create contact');
     } catch { toast.error('Failed to create contact'); }
@@ -367,6 +383,11 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormEmail(contact.email || '');
     setFormBsuid(contact.bsuid || ''); setFormUsername(contact.username || ''); setFormContactBookName(contact.contactBookName || '');
     setFormShippingAddress(contact.shippingAddress || ''); setFormBillingAddress(contact.billingAddress || '');
+    setFormAddressLine1(contact.addressLine1 || ''); setFormAddressLine2(contact.addressLine2 || '');
+    setFormCity(contact.city || ''); setFormState(contact.state || '');
+    setFormPostalCode(contact.postalCode || ''); setFormLandmark(contact.landmark || '');
+    setFormHouseNumber(contact.houseNumber || ''); setFormBuildingName(contact.buildingName || '');
+    setFormGstin((contact as any).gstin || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
     setFormAllowlistWA(contact.allowlistWhatsApp || false); setFormAllowlistSms(contact.allowlistSms || false); setFormAllowlistEmail(contact.allowlistEmail || false);
     setShowEditModal(true);
@@ -390,9 +411,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         name: formName, phone: fullPhone || undefined, email: formEmail || undefined,
         bsuid: formBsuid || undefined, username: formUsername || undefined, contactBookName: formContactBookName || undefined,
         shippingAddress: formShippingAddress || undefined, billingAddress: formBillingAddress || undefined,
+        addressLine1: formAddressLine1 || undefined, addressLine2: formAddressLine2 || undefined,
+        city: formCity || undefined, state: formState || undefined, postalCode: formPostalCode || undefined,
+        landmark: formLandmark || undefined, houseNumber: formHouseNumber || undefined, buildingName: formBuildingName || undefined,
+        gstin: formGstin || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
-      });
+      } as any);
       if (result) { toast.success('Contact updated'); setShowEditModal(false); setEditingContact(null); resetForm(); await loadContacts(); }
       else toast.error('Failed to update contact');
     } catch { toast.error('Failed to update contact'); }
@@ -700,6 +725,22 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
             </svg>
             Copy from shipping
           </button>
+        </div>
+      </div>
+      {/* Structured Address Fields (for WhatsApp Payments) */}
+      <div>
+        <button type="button" onClick={() => {}} style={{ fontSize: 13, color: '#1a3a2a', background: 'none', border: 'none', padding: 0, fontWeight: 600, marginBottom: 8, display: 'block' }}>
+          Structured Address (WhatsApp Payments)
+        </button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div><label style={S.label}>House / Flat No</label><input style={S.input} value={formHouseNumber} onChange={e => setFormHouseNumber(e.target.value)} placeholder="e.g. 12" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Building</label><input style={S.input} value={formBuildingName} onChange={e => setFormBuildingName(e.target.value)} placeholder="e.g. One BKC" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Street / Locality</label><input style={S.input} value={formAddressLine1} onChange={e => setFormAddressLine1(e.target.value)} placeholder="e.g. Bandra Kurla Complex" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Landmark</label><input style={S.input} value={formLandmark} onChange={e => setFormLandmark(e.target.value)} placeholder="e.g. Near BKC Circle" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>City</label><input style={S.input} value={formCity} onChange={e => setFormCity(e.target.value)} placeholder="e.g. Mumbai" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>State</label><input style={S.input} value={formState} onChange={e => setFormState(e.target.value)} placeholder="e.g. Maharashtra" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>PIN Code</label><input style={S.input} value={formPostalCode} onChange={e => setFormPostalCode(e.target.value)} placeholder="6-digit PIN" maxLength={6} onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>GSTIN</label><input style={S.input} value={formGstin} onChange={e => setFormGstin(e.target.value)} placeholder="e.g. 22AAAAA0000A1Z5" maxLength={15} onFocus={focusStyle} onBlur={blurStyle} /></div>
         </div>
       </div>
       {/* Opt-in toggle */}

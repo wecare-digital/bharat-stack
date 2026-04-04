@@ -281,6 +281,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if '/subscribe-sns' in path:
                 waba_id = path_params.get('wabaId') or path.split('/waba/')[-1].split('/')[0]
                 return _subscribe_waba_to_sns(waba_id, body, request_id)
+            elif '/conversational-components' in path:
+                return _push_conversational_components(body, request_id)
             elif '/waba/media' in path:
                 return _post_media(body, request_id)
             elif '/tags' in path:
@@ -1568,3 +1570,68 @@ def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id
         }))
         return _error_response(500, f'Failed to migrate phone: {str(e)}')
+
+
+# ============================================================================
+# CONVERSATIONAL COMPONENTS (Ice Breakers + Slash Commands)
+# ============================================================================
+
+# Both phone number Meta IDs
+_CONV_PHONE_IDS = ['1016149501586345', '1055232054343117']
+
+
+def _push_conversational_components(body: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    Push ice breakers (prompts) and slash commands to both phone numbers
+    via Meta Conversational Automation API.
+
+    POST /{phone_id}/conversational_automation
+    Body: { "prompts": ["Browse Menu", ...], "commands": [{"command_name": "menu", "command_description": "..."}] }
+    """
+    prompts = body.get('prompts', [])
+    commands = body.get('commands', [])
+
+    if not prompts and not commands:
+        return _error_response(400, 'prompts or commands required')
+
+    payload = {}
+    if prompts:
+        payload['prompts'] = prompts
+    if commands:
+        payload['commands'] = commands
+
+    results = []
+    for phone_id in _CONV_PHONE_IDS:
+        try:
+            result = _meta_request(
+                f'{phone_id}/conversational_automation',
+                method='POST',
+                data=json.dumps(payload).encode('utf-8'),
+                content_type='application/json',
+            )
+            results.append({'phoneId': phone_id, 'success': True, 'result': result})
+            logger.info(json.dumps({
+                'event': 'conversational_components_pushed',
+                'phoneId': phone_id,
+                'promptCount': len(prompts),
+                'commandCount': len(commands),
+                'requestId': request_id,
+            }))
+        except Exception as e:
+            results.append({'phoneId': phone_id, 'success': False, 'error': str(e)})
+            logger.error(json.dumps({
+                'event': 'conversational_components_push_error',
+                'phoneId': phone_id,
+                'error': str(e),
+                'requestId': request_id,
+            }))
+
+    all_success = all(r['success'] for r in results)
+    return {
+        'statusCode': 200 if all_success else 207,
+        'headers': cors_headers(origin),
+        'body': json.dumps({
+            'success': all_success,
+            'results': results,
+        }),
+    }

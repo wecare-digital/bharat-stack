@@ -75,6 +75,202 @@ const DEFAULT_KEYWORDS: KeywordRule[] = [
   { id: 'kw_hours', keywords: ['hours', 'timing', 'open', 'available', 'when'], response: '🕐 Business hours: Mon–Fri, 9 AM – 6 PM IST (excluding public holidays).', responseType: 'text', enabled: true },
 ];
 
+// ── Ice Breakers + Slash Commands Sub-Component ──
+interface IceBreaker { text: string; }
+interface SlashCommand { command_name: string; command_description: string; }
+
+const DEFAULT_ICE_BREAKERS: IceBreaker[] = [
+  { text: 'Browse Menu' },
+  { text: 'Subscribe' },
+  { text: 'Try Bharat Stack' },
+  { text: 'Self-service' },
+];
+
+const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
+  { command_name: 'menu', command_description: 'Browse the main menu' },
+  { command_name: 'subscribe', command_description: 'Register for updates and orders' },
+  { command_name: 'bharatstack', command_description: 'Explore Bharat Stack services' },
+  { command_name: 'selfservice', command_description: 'Self-service options' },
+  { command_name: 'pay', command_description: 'Make a payment or check dues' },
+];
+
+const IceBreakersTab: React.FC<{ S: Record<string, any> }> = ({ S }) => {
+  const toast = useToastContext();
+  const [iceBreakers, setIceBreakers] = useState<IceBreaker[]>(DEFAULT_ICE_BREAKERS);
+  const [commands, setCommands] = useState<SlashCommand[]>(DEFAULT_SLASH_COMMANDS);
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<string>('');
+  const [ibLoading, setIbLoading] = useState(false);
+
+  // Load saved config
+  useEffect(() => {
+    (async () => {
+      setIbLoading(true);
+      try {
+        const resp = await api.getSystemConfig('conversational_components');
+        if (resp) {
+          if (resp.prompts) setIceBreakers(resp.prompts.map((t: string) => ({ text: t })));
+          if (resp.commands) setCommands(resp.commands);
+        }
+      } catch { /* use defaults */ }
+      setIbLoading(false);
+    })();
+  }, []);
+
+  const saveAndPush = async () => {
+    // Validate
+    if (iceBreakers.length > 4) { toast.error('Max 4 ice breakers allowed'); return; }
+    for (const ib of iceBreakers) {
+      if (ib.text.length > 80) { toast.error(`Ice breaker "${ib.text.slice(0, 20)}..." exceeds 80 chars`); return; }
+      if (!ib.text.trim()) { toast.error('Ice breaker text cannot be empty'); return; }
+    }
+    for (const cmd of commands) {
+      if (!cmd.command_name.trim()) { toast.error('Command name cannot be empty'); return; }
+    }
+
+    setPushing(true);
+    setPushResult('');
+    try {
+      // Save to SystemConfig
+      const payload = {
+        prompts: iceBreakers.map(ib => ib.text),
+        commands: commands,
+      };
+      await api.updateSystemConfig('conversational_components', payload);
+
+      // Push to Meta via API (the backend will call Meta Conversational Automation API)
+      const pushResp = await api.pushConversationalComponents(payload);
+      if (pushResp) {
+        setPushResult('Pushed to both WABA phone numbers');
+        toast.success('Ice breakers & commands pushed to Meta');
+      } else {
+        setPushResult('Saved locally. Push to Meta failed — run scripts/_push_conversational_components.py manually.');
+        toast.warning('Saved but Meta push failed');
+      }
+    } catch (e) {
+      setPushResult('Save failed');
+      toast.error('Failed to save');
+    }
+    setPushing(false);
+  };
+
+  const updateIB = (idx: number, text: string) => {
+    setIceBreakers(prev => prev.map((ib, i) => i === idx ? { text } : ib));
+  };
+  const removeIB = (idx: number) => {
+    setIceBreakers(prev => prev.filter((_, i) => i !== idx));
+  };
+  const addIB = () => {
+    if (iceBreakers.length >= 4) { toast.warning('Max 4 ice breakers'); return; }
+    setIceBreakers(prev => [...prev, { text: '' }]);
+  };
+  const updateCmd = (idx: number, field: keyof SlashCommand, val: string) => {
+    setCommands(prev => prev.map((c, i) => i === idx ? { ...c, [field]: val } : c));
+  };
+  const removeCmd = (idx: number) => {
+    setCommands(prev => prev.filter((_, i) => i !== idx));
+  };
+  const addCmd = () => {
+    setCommands(prev => [...prev, { command_name: '', command_description: '' }]);
+  };
+
+  if (ibLoading) return <div style={{ padding: 20, color: '#6b7280' }}>Loading...</div>;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>
+          Edit ice breakers and slash commands, then push to Meta for both WABA numbers.
+        </p>
+        <button style={S.btnPrimary} onClick={saveAndPush} disabled={pushing}>
+          {pushing ? 'Pushing...' : 'Save & Push to Meta'}
+        </button>
+      </div>
+      {pushResult && (
+        <div style={{ padding: '8px 12px', background: pushResult.includes('failed') ? '#fef2f2' : '#f0fdf4', borderRadius: 6, fontSize: 12, marginBottom: 12, color: pushResult.includes('failed') ? '#dc2626' : '#166534' }}>
+          {pushResult}
+        </div>
+      )}
+
+      <div style={S.card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 15, color: '#1a3a2a' }}>Ice Breakers</h3>
+          <button style={S.btn} onClick={addIB} disabled={iceBreakers.length >= 4}>+ Add</button>
+        </div>
+        <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+          Tappable prompts shown when a user opens chat for the first time. Max 4, max 80 characters each. No emojis.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {iceBreakers.map((ib, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 20, fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{i + 1}.</span>
+              <input
+                style={{ ...S.input, flex: 1 }}
+                value={ib.text}
+                onChange={e => updateIB(i, e.target.value)}
+                placeholder={`Ice breaker ${i + 1}`}
+                maxLength={80}
+              />
+              <span style={{ fontSize: 11, color: ib.text.length > 70 ? '#dc2626' : '#9ca3af', minWidth: 40 }}>{ib.text.length}/80</span>
+              <button onClick={() => removeIB(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16 }}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={S.card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 15, color: '#1a3a2a' }}>Slash Commands</h3>
+          <button style={S.btn} onClick={addCmd}>+ Add</button>
+        </div>
+        <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+          Users type / to see available commands. Max 30 commands.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {commands.map((cmd, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#1a3a2a' }}>/</span>
+              <input
+                style={{ ...S.input, flex: 1, maxWidth: 160 }}
+                value={cmd.command_name}
+                onChange={e => updateCmd(i, 'command_name', e.target.value.replace(/\s/g, '').toLowerCase())}
+                placeholder="command"
+              />
+              <input
+                style={{ ...S.input, flex: 2 }}
+                value={cmd.command_description}
+                onChange={e => updateCmd(i, 'command_description', e.target.value)}
+                placeholder="Description"
+              />
+              <button onClick={() => removeCmd(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16 }}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={S.card}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Ice Breaker Actions</h3>
+        <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
+          What happens when a user taps each ice breaker (handled by keyword matching in the inbound handler):
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {[
+            { label: 'Browse Menu', action: 'Sends "Browse Menu" → matches hi/menu keywords → opens main menu list' },
+            { label: 'Subscribe', action: 'Sends "Subscribe" → matches subscribe keyword → opens Subscribe flow form' },
+            { label: 'Try Bharat Stack', action: 'Sends "Try Bharat Stack" → matches bharat keywords → opens Bharat Stack list' },
+            { label: 'Self-service', action: 'Sends "Self-service" → matches selfservice keywords → opens Self-service list' },
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f9fafb', borderRadius: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#1a3a2a' }}>{item.label}</span>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>{item.action}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
   const toast = useToastContext();
   const [activeTab, setActiveTab] = useState<'welcome' | 'keywords' | 'menu' | 'icebreakers'>('welcome');
@@ -499,72 +695,7 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
 
         {/* ── Ice Breakers Tab ── */}
         {activeTab === 'icebreakers' && (
-          <div>
-            <div style={S.card}>
-              <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Ice Breakers</h3>
-              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
-                Tappable prompts shown when a user opens chat for the first time. Max 4, max 80 characters each. No emojis.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {['Browse Menu', 'Subscribe', 'Try Bharat Stack', 'Self-service'].map((ib, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 20, fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{i + 1}.</span>
-                    <input
-                      style={{ ...S.input, flex: 1 }}
-                      value={ib}
-                      readOnly
-                      placeholder={`Ice breaker ${i + 1}`}
-                    />
-                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{ib.length}/80</span>
-                  </div>
-                ))}
-              </div>
-              <p style={{ fontSize: 11, color: '#6b7280', margin: '10px 0 0' }}>
-                These are configured via Meta WhatsApp Manager or the Conversational Automation API.
-              </p>
-            </div>
-
-            <div style={S.card}>
-              <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Ice Breaker Actions</h3>
-              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
-                What happens when a user taps each ice breaker:
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {[
-                  { label: 'Browse Menu', action: 'Opens the main menu list message' },
-                  { label: 'Subscribe', action: 'Opens the Subscribe flow form' },
-                  { label: 'Try Bharat Stack', action: 'Opens the Bharat Stack services list' },
-                  { label: 'Self-service', action: 'Opens the Self-service options list' },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f9fafb', borderRadius: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1a3a2a' }}>{item.label}</span>
-                    <span style={{ fontSize: 12, color: '#6b7280' }}>{item.action}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={S.card}>
-              <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#1a3a2a' }}>Slash Commands</h3>
-              <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 12px' }}>
-                Users type / to see available commands. Max 30 commands.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {[
-                  { cmd: '/menu', hint: 'Browse the main menu' },
-                  { cmd: '/subscribe', hint: 'Register for updates and orders' },
-                  { cmd: '/bharatstack', hint: 'Explore Bharat Stack services' },
-                  { cmd: '/selfservice', hint: 'Self-service options' },
-                  { cmd: '/pay', hint: 'Make a payment or check dues' },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 10px', background: '#f9fafb', borderRadius: 6 }}>
-                    <code style={{ fontSize: 12, fontWeight: 600, color: '#1a3a2a', minWidth: 120 }}>{item.cmd}</code>
-                    <span style={{ fontSize: 12, color: '#6b7280' }}>{item.hint}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <IceBreakersTab S={S} />
         )}
       </div>
     </Layout>
