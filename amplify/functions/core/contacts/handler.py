@@ -42,7 +42,7 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 
 ALLOWED_UPDATE_FIELDS = {
     'name', 'phone', 'email', 'shippingAddress', 'billingAddress',
-    'shippingAddressJson', 'billingAddressJson',
+    'shippingAddressJson', 'billingAddressJson', 'gstin',
     'optInWhatsApp', 'optInSms', 'optInEmail',
     'allowlistWhatsApp', 'allowlistSms', 'allowlistEmail',
     'tags', 'bsuid', 'parentBsuid', 'username', 'contactBookName',

@@ -2006,6 +2006,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             phone_number = data.get('phone_number', '')
             email_address = data.get('email_address', '')
             company_name = data.get('company_name', '')
+            wa_username = data.get('wa_username', '')
+            gstin = data.get('gstin', '')
 
             # Shipping address (primary — entered first)
             ship_name = data.get('ship_name', '')
@@ -2100,7 +2102,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             'SET #nm = :nm, #em = :em, #ba = :ba, #sa = :sa, #ua = :ua, '
                             '#cbn = :cbn, #ow = :ow, #os = :os, #oe = :oe, '
                             '#aw = :aw, #as2 = :as2, #ae = :ae, '
-                            '#baj = :baj, #saj = :saj'
+                            '#baj = :baj, #saj = :saj, #un = :un, #gst = :gst'
                         ),
                         ExpressionAttributeNames={
                             '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
@@ -2108,6 +2110,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#ow': 'optInWhatsApp', '#os': 'optInSms', '#oe': 'optInEmail',
                             '#aw': 'allowlistWhatsApp', '#as2': 'allowlistSms', '#ae': 'allowlistEmail',
                             '#baj': 'billingAddressJson', '#saj': 'shippingAddressJson',
+                            '#un': 'username', '#gst': 'gstin',
                         },
                         ExpressionAttributeValues={
                             ':nm': full_name, ':em': email_address,
@@ -2116,6 +2119,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             ':ow': True, ':os': True, ':oe': True,
                             ':aw': True, ':as2': True, ':ae': True,
                             ':baj': json.dumps(bill_addr_obj), ':saj': json.dumps(ship_addr_obj),
+                            ':un': wa_username, ':gst': gstin,
                         },
                     )
                 except Exception as e:
@@ -2128,6 +2132,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         field_map = {
                             'name': full_name, 'email': email_address,
                             'contactBookName': company_name,
+                            'username': wa_username, 'gstin': gstin,
                             'shippingAddress': _addr_str(ship_addr_obj),
                             'billingAddress': _addr_str(bill_addr_obj),
                         }
@@ -2176,6 +2181,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'id': contact_id, 'contactId': contact_id,
                         'name': full_name, 'phone': norm_phone, 'email': email_address,
                         'contactBookName': company_name,
+                        'username': wa_username, 'gstin': gstin,
                         'billingAddress': _addr_str(bill_addr_obj),
                         'shippingAddress': _addr_str(ship_addr_obj),
                         'billingAddressJson': json.dumps(bill_addr_obj),
@@ -2208,6 +2214,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     'formData': json.dumps({
                         'full_name': full_name, 'phone_number': phone_number,
                         'email_address': email_address, 'company_name': company_name,
+                        'wa_username': wa_username, 'gstin': gstin,
                         'shipping_address': ship_addr_obj, 'billing_address': bill_addr_obj,
                         'same_as_ship': same_as_ship,
                     }),

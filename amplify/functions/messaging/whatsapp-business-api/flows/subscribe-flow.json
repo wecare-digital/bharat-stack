@@ -51,7 +51,15 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "Enter mobile number"
+            "helper-text": "Include country code"
+          },
+          {
+            "type": "TextInput",
+            "name": "wa_username",
+            "label": "WhatsApp Username",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "e.g. @yourname"
           },
           {
             "type": "TextInput",
@@ -70,6 +78,14 @@
             "helper-text": "Enter company name"
           },
           {
+            "type": "TextInput",
+            "name": "gstin",
+            "label": "GSTIN",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "e.g. 22AAAAA0000A1Z5"
+          },
+          {
             "type": "Footer",
             "label": "Next",
             "on-click-action": {
@@ -82,7 +98,9 @@
                 "full_name": "${form.full_name}",
                 "phone_number": "${form.phone_number}",
                 "email_address": "${form.email_address}",
-                "company_name": "${form.company_name}"
+                "company_name": "${form.company_name}",
+                "wa_username": "${form.wa_username}",
+                "gstin": "${form.gstin}"
               }
             }
           }
@@ -108,6 +126,14 @@
         "company_name": {
           "type": "string",
           "__example__": "WECARE.DIGITAL"
+        },
+        "wa_username": {
+          "type": "string",
+          "__example__": "@manish"
+        },
+        "gstin": {
+          "type": "string",
+          "__example__": "22AAAAA0000A1Z5"
         }
       },
       "layout": {
@@ -135,7 +161,7 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "Enter mobile number"
+            "helper-text": "Include country code"
           },
           {
             "type": "TextInput",
@@ -215,7 +241,9 @@
                 "ship_landmark": "${form.ship_landmark}",
                 "ship_city": "${form.ship_city}",
                 "ship_state": "${form.ship_state}",
-                "ship_pin": "${form.ship_pin}"
+                "ship_pin": "${form.ship_pin}",
+                "wa_username": "${data.wa_username}",
+                "gstin": "${data.gstin}"
               }
             }
           }
@@ -277,6 +305,14 @@
         "ship_pin": {
           "type": "string",
           "__example__": "400051"
+        },
+        "wa_username": {
+          "type": "string",
+          "__example__": "@manish"
+        },
+        "gstin": {
+          "type": "string",
+          "__example__": "22AAAAA0000A1Z5"
         }
       },
       "layout": {
@@ -288,7 +324,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Used for invoices and receipts. Check the box below to copy from shipping, or enter different details."
+            "text": "Used for invoices and receipts. Check the box below to use your shipping address, or enter different details."
           },
           {
             "type": "Form",
@@ -392,7 +428,9 @@
                     "bill_landmark": "${form.bill_landmark}",
                     "bill_city": "${form.bill_city}",
                     "bill_state": "${form.bill_state}",
-                    "bill_pin": "${form.bill_pin}"
+                    "bill_pin": "${form.bill_pin}",
+                    "wa_username": "${data.wa_username}",
+                    "gstin": "${data.gstin}"
                   }
                 }
               }
@@ -488,6 +526,14 @@
         "bill_pin": {
           "type": "string",
           "__example__": ""
+        },
+        "wa_username": {
+          "type": "string",
+          "__example__": "@manish"
+        },
+        "gstin": {
+          "type": "string",
+          "__example__": "22AAAAA0000A1Z5"
         }
       },
       "layout": {
@@ -539,6 +585,24 @@
           },
           {
             "type": "TextCaption",
+            "text": "Username",
+            "font-weight": "bold"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.wa_username}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "GSTIN",
+            "font-weight": "bold"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.gstin}"
+          },
+          {
+            "type": "TextCaption",
             "text": "Shipping",
             "font-weight": "bold"
           },
@@ -561,7 +625,7 @@
           },
           {
             "type": "TextCaption",
-            "text": "(Copied from shipping if same)"
+            "text": "Same as shipping address"
           },
           {
             "type": "TextBody",
@@ -612,7 +676,9 @@
                     "bill_city": "${data.bill_city}",
                     "bill_state": "${data.bill_state}",
                     "bill_pin": "${data.bill_pin}",
-                    "confirmed": "${form.confirm_submit}"
+                    "confirmed": "${form.confirm_submit}",
+                    "wa_username": "${data.wa_username}",
+                    "gstin": "${data.gstin}"
                   }
                 }
               }
@@ -633,10 +699,6 @@
         "message": {
           "type": "string",
           "__example__": "You have been successfully subscribed!"
-        },
-        "contact_id": {
-          "type": "string",
-          "__example__": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         }
       },
       "layout": {
@@ -658,19 +720,11 @@
           },
           {
             "type": "TextCaption",
-            "text": "Subscriber ID"
+            "text": "Reference"
           },
           {
             "type": "TextSubheading",
             "text": "${data.subscriber_id}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "Contact ID"
-          },
-          {
-            "type": "TextSubheading",
-            "text": "${data.contact_id}"
           },
           {
             "type": "TextBody",
