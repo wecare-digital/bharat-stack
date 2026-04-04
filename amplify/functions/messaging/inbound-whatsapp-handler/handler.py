@@ -1143,24 +1143,19 @@ def _process_message(
                 continue
             keywords = [k.lower() for k in trigger.get('keywords', [])]
             if content_lower in keywords:
-                if flow_key == 'submit_request':
-                    _send_submit_request_flow(
-                        contact_id=contact_id,
-                        phone_number_id=aws_phone_number_id,
-                        sender_phone=sender_phone,
-                        request_id=request_id,
-                        flow_config=trigger,
-                    )
-                    return  # Skip AI automation — flow handles the rest
-                elif flow_key == 'subscribe':
-                    _send_subscribe_flow(
-                        contact_id=contact_id,
-                        phone_number_id=aws_phone_number_id,
-                        sender_phone=sender_phone,
-                        request_id=request_id,
-                        flow_config=trigger,
-                    )
-                    return  # Skip AI automation — flow handles the rest
+                flow_id = trigger.get('flowId', '')
+                if not flow_id:
+                    continue
+                # All flow types use the same generic flow sender
+                _send_generic_flow(
+                    contact_id=contact_id,
+                    phone_number_id=aws_phone_number_id,
+                    sender_phone=sender_phone,
+                    request_id=request_id,
+                    flow_config=trigger,
+                    flow_key=flow_key,
+                )
+                return  # Skip AI automation — flow handles the rest
 
         # ── Direct "Pay" keyword trigger (LLM-independent, hardcoded) ──
         # Exact matches (content_lower must be exactly one of these)
@@ -3770,6 +3765,86 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
         }))
 
 
+def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
+                       request_id: str, flow_config: Dict = None, flow_key: str = '') -> None:
+    """
+    Generic flow sender — works for all flow types (amend, track, rx_slot, drop_docs,
+    enterprise_assist, schedule_appointment, leave_review, order_notes, subscribe, submit_request).
+    Sends a WhatsApp Flow interactive message using the flow config from DEFAULT_FLOW_TRIGGERS.
+    """
+    try:
+        flow_id = (flow_config or {}).get('flowId', '')
+        if not flow_id:
+            logger.warning(json.dumps({
+                'event': 'generic_flow_no_id',
+                'flowKey': flow_key,
+                'contactId': contact_id,
+                'requestId': request_id,
+            }))
+            return
+        msg = (flow_config or {}).get('message', {})
+
+        flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-ph-{sender_phone}'
+
+        # Use navigate for flows with WELCOME screen, data_exchange for submit_request
+        flow_action = 'data_exchange' if flow_key == 'submit_request' else 'navigate'
+
+        interactive_data = {
+            'body': msg.get('body', 'Please fill in the details below.'),
+            'footer': msg.get('footer', 'WECARE.DIGITAL'),
+            'flowId': flow_id,
+            'flowCta': msg.get('flowCta', flow_key.replace('_', ' ').title()),
+            'flowAction': flow_action,
+            'flowToken': flow_token,
+        }
+
+        # For navigate flows, start at WELCOME screen
+        if flow_action == 'navigate':
+            interactive_data['flowActionPayload'] = {
+                'screen': 'WELCOME',
+            }
+
+        header_val = msg.get('header', '')
+        if header_val:
+            interactive_data['header'] = header_val
+
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'phoneNumberId': phone_number_id,
+                'isInteractive': True,
+                'interactiveType': 'flow',
+                'interactiveData': interactive_data,
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'generic_flow_sent',
+            'flowKey': flow_key,
+            'contactId': contact_id,
+            'senderPhone': sender_phone,
+            'flowId': flow_id,
+            'flowToken': flow_token,
+            'statusCode': response.get('StatusCode'),
+            'requestId': request_id
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'generic_flow_error',
+            'flowKey': flow_key,
+            'contactId': contact_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+
+
 def _send_interactive_list(contact_id: str, phone_number_id: str, list_config: Dict, request_id: str) -> None:
     """
     Send a WhatsApp interactive list message.
@@ -4849,8 +4924,8 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 # Default flow triggers config — keyword-to-flow mapping
 DEFAULT_FLOW_TRIGGERS = {
     'submit_request': {
-        'keywords': ['submit request', 'sr', 'raise request'],
-        'flowId': '2126971738077819',
+        'keywords': ['submit request', 'sr', 'raise request', 'submit', 'request'],
+        'flowId': '931522532810297',
         'message': {
             'body': '\U0001f447Please use the self-service option below. Once we receive it, we\u2019ll review it and follow up if needed.',
             'footer': 'WECARE.DIGITAL',
@@ -4860,13 +4935,93 @@ DEFAULT_FLOW_TRIGGERS = {
     },
     'subscribe': {
         'keywords': ['subscribe', 'signup', 'sign up', 'register', 'join', 'membership', 'enroll', 'enrol'],
-        'flowId': '',
+        'flowId': '932104319588449',
         'message': {
             'body': '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details to get started with orders, payments, and updates.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Subscribe Now',
         },
-        'enabled': False,
+        'enabled': True,
+    },
+    'amend_request': {
+        'keywords': ['amend request', 'amend', 'change request', 'modify request', 'update request', 'edit request'],
+        'flowId': '1533536534833353',
+        'message': {
+            'body': '\u270f\ufe0f Need to amend a request? Fill in the details below and we\u2019ll update it.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Amend Request',
+        },
+        'enabled': True,
+    },
+    'track_request': {
+        'keywords': ['track request', 'track', 'status', 'where is my request', 'check status', 'request status', 'track order'],
+        'flowId': '973888792200167',
+        'message': {
+            'body': '\U0001f50d Track your request \u2014 enter your reference ID to check the status.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Track Request',
+        },
+        'enabled': True,
+    },
+    'rx_slot': {
+        'keywords': ['rx slot', 'rx', 'prescription', 'book rx', 'medicine', 'pharmacy', 'chemist'],
+        'flowId': '1892784521355352',
+        'message': {
+            'body': '\U0001f48a Book an RX slot \u2014 share your prescription details and preferred time.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Book RX Slot',
+        },
+        'enabled': True,
+    },
+    'drop_docs': {
+        'keywords': ['drop docs', 'drop documents', 'upload docs', 'send docs', 'documents', 'upload documents', 'share docs'],
+        'flowId': '1737801600902350',
+        'message': {
+            'body': '\U0001f4c4 Drop your documents \u2014 tell us what you\u2019re sending and any instructions.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Drop Docs',
+        },
+        'enabled': True,
+    },
+    'enterprise_assist': {
+        'keywords': ['enterprise assist', 'enterprise', 'business assist', 'corporate', 'b2b', 'enterprise help'],
+        'flowId': '2132515287534606',
+        'message': {
+            'body': '\U0001f3e2 Enterprise Assist \u2014 tell us about your business requirement.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Enterprise Assist',
+        },
+        'enabled': True,
+    },
+    'schedule_appointment': {
+        'keywords': ['schedule appointment', 'appointment', 'book appointment', 'schedule', 'meeting', 'book meeting', 'schedule meeting'],
+        'flowId': '1475722977488573',
+        'message': {
+            'body': '\U0001f4c5 Schedule an appointment \u2014 pick a time that works for you.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Schedule Appointment',
+        },
+        'enabled': True,
+    },
+    'leave_review': {
+        'keywords': ['leave review', 'review', 'feedback', 'rate', 'rating', 'testimonial'],
+        'flowId': '963443293213262',
+        'message': {
+            'body': '\u2b50 We\u2019d love your feedback! Share your experience with us.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Leave Review',
+        },
+        'enabled': True,
+    },
+    'order_notes': {
+        'keywords': ['order notes', 'order note', 'special instructions', 'delivery notes', 'order instructions'],
+        'flowId': '727503180451487',
+        'message': {
+            'body': '\U0001f4dd Add notes to your order \u2014 share any special instructions.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Order Notes',
+        },
+        'enabled': True,
     },
 }
 
