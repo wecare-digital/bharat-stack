@@ -134,6 +134,8 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
       });
       // Also update AI config separately so the inbound handler picks it up
       await api.updateSystemConfig('ai_config', { enabled: aiEnabled });
+      // Save menu config to welcome_message_config (read by inbound handler)
+      await api.updateSystemConfig('welcome_message_config', menu);
       toast.success('Configuration saved');
     } catch {
       toast.error('Failed to save');

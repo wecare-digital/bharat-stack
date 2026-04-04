@@ -545,6 +545,29 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="pf-preview-row"><span>Conv Fee</span><span>{fmtMoney(calcConvFee())}</span></div>
                     <div className="pf-preview-total"><span>Total</span><span>{fmtMoney(calcTotal())}</span></div>
                   </div>
+
+                  {/* Post-payment messaging options */}
+                  <div className="inner-card" style={{marginBottom:16,maxWidth:500,padding:'10px 14px'}}>
+                    <h4 style={{margin:'0 0 6px',fontSize:13,color:'#1a3a2a'}}>After Payment</h4>
+                    <p style={{fontSize:11,color:'#6b7280',margin:'0 0 8px'}}>
+                      When payment is captured, these messages are sent automatically via WhatsApp.
+                    </p>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#374151'}}>
+                        <input type="checkbox" defaultChecked disabled style={{accentColor:'#1a3a2a'}} />
+                        Invoice PDF + payment confirmation
+                      </label>
+                      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#374151'}}>
+                        <input type="checkbox" defaultChecked disabled style={{accentColor:'#1a3a2a'}} />
+                        Order status interactive message
+                      </label>
+                      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#6b7280'}}>
+                        <input type="checkbox" disabled style={{accentColor:'#1a3a2a'}} />
+                        Template message (requires approved template)
+                      </label>
+                    </div>
+                  </div>
+
                   <Button variant="primary" size="md" loading={creating} onClick={submitInvoice}>Create Invoice</Button>
                 </div>
               )}
