@@ -245,19 +245,19 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
         {activeTab === 'welcome' && (
           <div>
             {/* AI Auto-Response Control */}
-            <div style={{ ...S.card, borderLeft: '3px solid #dc2626', background: '#fef2f2' }}>
+            <div style={{ ...S.card, borderLeft: '3px solid #1a3a2a' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <div>
-                  <label style={{ fontSize: 14, fontWeight: 600, color: '#dc2626' }}>AI Auto-Response</label>
+                  <label style={{ fontSize: 14, fontWeight: 600, color: '#1a3a2a' }}>AI Response Smoothing</label>
                   <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6b7280' }}>
-                    Per Meta policy (Jan 2026): General-purpose AI chatbots are prohibited on WhatsApp Business API.
-                    Only configured keyword responses and welcome messages are allowed.
+                    When ON, AI polishes your configured responses — better grammar, tone, and context.
+                    It does NOT generate free-form answers. Only your welcome message, keyword responses, and menu options are sent.
                   </p>
                 </div>
                 <button
                   style={S.toggle(aiEnabled)}
                   onClick={() => setAiEnabled(!aiEnabled)}
-                  aria-label="Toggle AI auto-response"
+                  aria-label="Toggle AI smoothing"
                 >
                   <span style={{
                     position: 'absolute', top: 2, left: aiEnabled ? 18 : 2,
@@ -265,9 +265,16 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
                   }} />
                 </button>
               </div>
-              <p style={{ margin: 0, fontSize: 11, color: aiEnabled ? '#dc2626' : '#059669', fontWeight: 600 }}>
-                {aiEnabled ? '⚠️ AI is ON — Only use for customer support, order tracking, and transactional tasks.' : '✅ AI is OFF — Only configured responses will be sent.'}
+              <p style={{ margin: 0, fontSize: 11, color: aiEnabled ? '#1a3a2a' : '#6b7280', fontWeight: 600 }}>
+                {aiEnabled
+                  ? '✅ AI smoothing ON — Responses are polished before sending. Content stays within your configured messages.'
+                  : '📝 AI smoothing OFF — Responses sent exactly as configured, word for word.'}
               </p>
+              <div style={{ marginTop: 8, padding: '6px 10px', background: '#f9fafb', borderRadius: 6, fontSize: 11, color: '#6b7280' }}>
+                <span style={{ fontWeight: 600 }}>Meta Policy (Jan 2026):</span> General-purpose AI chatbots are prohibited.
+                Customer support bots, FAQ handling, order tracking, and transactional automation are allowed.
+                AI here only smooths your pre-configured responses — it never acts as a standalone assistant.
+              </div>
             </div>
 
             {/* Welcome Message */}
