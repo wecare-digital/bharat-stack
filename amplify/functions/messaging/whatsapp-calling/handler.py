@@ -1260,7 +1260,7 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
     Uses SystemConfig table to track last SMS timestamp per phone.
     
     Routing:
-      Indian +91 numbers  → Airtel IQ via wecare-sms-in-airtel (proxy, whitelisted IP)
+      Indian +91 numbers  → Airtel IQ (primary) → Pinpoint ap-south-1 (fallback)
       International numbers → AWS Pinpoint SMS v2 via wecare-sms-aws (us-east-1, toll-free pool)
     """
     try:
@@ -1281,32 +1281,16 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
         if is_indian:
-            # ── Indian: Airtel IQ via sms-in-airtel (v5 auto-DLT, Lightsail proxy) ──
-            sms_payload = {
-                'rawPath': '/sms-in/airtel',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'SERVICE_IMPLICIT',
-                    'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
-                    'sourceAddress': IVR_SMS_SENDER_ID,
-                    'apiVersion': 'v5',
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_AIRTEL,
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-            logger.info(json.dumps({
-                'event': 'incoming_call_sms_triggered',
-                'callId': call_id,
-                'callerPhone': caller_phone[-4:],
-                'provider': 'airtel',
-                'region': 'ap-south-1',
-                'requestId': request_id,
-            }))
+            # ── Indian: Try Airtel IQ first (sync), fall back to Pinpoint ap-south-1 ──
+            airtel_ok = _try_airtel_sms(caller_phone, call_id, request_id)
+            if not airtel_ok:
+                logger.warning(json.dumps({
+                    'event': 'airtel_sms_failed_falling_back_to_pinpoint',
+                    'callId': call_id,
+                    'callerPhone': caller_phone[-4:],
+                    'requestId': request_id,
+                }))
+                _send_pinpoint_india_sms(caller_phone, call_id, request_id)
         else:
             # ── International: Pinpoint SMS v2 (us-east-1, toll-free pool) ──
             sms_payload = {
@@ -1342,12 +1326,90 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
         logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
 
 
+def _try_airtel_sms(caller_phone: str, call_id: str, request_id: str) -> bool:
+    """Try sending SMS via Airtel IQ (synchronous). Returns True if successful."""
+    try:
+        sms_payload = {
+            'rawPath': '/sms-in/airtel',
+            'requestContext': {'http': {'method': 'POST'}},
+            'body': json.dumps({
+                'phoneNumber': caller_phone,
+                'content': IVR_SMS_CONTENT,
+                'messageType': 'SERVICE_IMPLICIT',
+                'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
+                'sourceAddress': IVR_SMS_SENDER_ID,
+                'apiVersion': 'v5',
+            }),
+        }
+        response = lambda_client.invoke(
+            FunctionName=SMS_LAMBDA_AIRTEL,
+            InvocationType='RequestResponse',
+            Payload=json.dumps(sms_payload).encode(),
+        )
+        result = json.loads(response['Payload'].read())
+        status_code = result.get('statusCode', 500)
+        if status_code == 200:
+            body = json.loads(result.get('body', '{}'))
+            if body.get('success'):
+                logger.info(json.dumps({
+                    'event': 'incoming_call_sms_triggered',
+                    'callId': call_id,
+                    'callerPhone': caller_phone[-4:],
+                    'provider': 'airtel',
+                    'requestId': request_id,
+                }))
+                return True
+        logger.warning(json.dumps({
+            'event': 'airtel_sms_invoke_failed',
+            'callId': call_id,
+            'statusCode': status_code,
+            'result': str(result)[:200],
+            'requestId': request_id,
+        }))
+        return False
+    except Exception as e:
+        logger.warning(f"Airtel SMS invoke error: {e}")
+        return False
+
+
+def _send_pinpoint_india_sms(caller_phone: str, call_id: str, request_id: str) -> None:
+    """Fallback: Send SMS via AWS Pinpoint SMS v2 in ap-south-1 for Indian numbers."""
+    try:
+        sms_payload = {
+            'rawPath': '/sms-aws/send',
+            'requestContext': {'http': {'method': 'POST'}},
+            'body': json.dumps({
+                'phoneNumber': caller_phone,
+                'content': IVR_SMS_CONTENT,
+                'messageType': 'TRANSACTIONAL',
+                'region': 'ap-south-1',
+            }),
+        }
+        lambda_client.invoke(
+            FunctionName=SMS_LAMBDA_PINPOINT,
+            InvocationType='Event',
+            Payload=json.dumps(sms_payload).encode(),
+        )
+        logger.info(json.dumps({
+            'event': 'incoming_call_sms_triggered',
+            'callId': call_id,
+            'callerPhone': caller_phone[-4:],
+            'provider': 'pinpoint',
+            'region': 'ap-south-1',
+            'fallback': True,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(f"Pinpoint India SMS fallback failed: {e}")
+
+
 def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                          reason: str, request_id: str) -> None:
     """Send Airtel IVR SMS on every call disconnect — both WABA phone 1 & phone 2.
 
     Always uses Airtel IQ for Indian +91 numbers (DLT compliant, ivr-default template).
-    Falls back to Pinpoint for international numbers.
+    Falls back to Pinpoint ap-south-1 if Airtel fails.
+    Falls back to Pinpoint us-east-1 for international numbers.
     Respects the same dedup window as _send_incoming_call_sms (10 min per phone).
 
     This ensures the caller always receives the self-service SMS after a call ends,
@@ -1374,34 +1436,27 @@ def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
         if is_indian:
-            # ── Indian: Airtel IQ via sms-in-airtel (ivr-default DLT template) ──
-            sms_payload = {
-                'rawPath': '/sms-in/airtel',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'SERVICE_IMPLICIT',
-                    'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
-                    'sourceAddress': IVR_SMS_SENDER_ID,
-                    'apiVersion': 'v5',
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_AIRTEL,
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-            logger.info(json.dumps({
-                'event': 'disconnect_sms_triggered',
-                'callId': call_id,
-                'callerPhone': caller_phone[-4:],
-                'phoneNumberId': phone_number_id,
-                'provider': 'airtel',
-                'template': IVR_SMS_DLT_TEMPLATE_ID,
-                'reason': reason,
-                'requestId': request_id,
-            }))
+            # ── Indian: Try Airtel IQ first, fall back to Pinpoint ap-south-1 ──
+            airtel_ok = _try_airtel_sms(caller_phone, call_id, request_id)
+            if not airtel_ok:
+                logger.warning(json.dumps({
+                    'event': 'disconnect_airtel_failed_falling_back',
+                    'callId': call_id,
+                    'callerPhone': caller_phone[-4:],
+                    'reason': reason,
+                    'requestId': request_id,
+                }))
+                _send_pinpoint_india_sms(caller_phone, call_id, request_id)
+            else:
+                logger.info(json.dumps({
+                    'event': 'disconnect_sms_triggered',
+                    'callId': call_id,
+                    'callerPhone': caller_phone[-4:],
+                    'phoneNumberId': phone_number_id,
+                    'provider': 'airtel',
+                    'reason': reason,
+                    'requestId': request_id,
+                }))
         else:
             # ── International: Pinpoint SMS v2 (us-east-1) ──
             sms_payload = {

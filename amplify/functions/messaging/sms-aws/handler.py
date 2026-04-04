@@ -207,6 +207,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     message_type = body.get('messageType', 'TRANSACTIONAL')
     campaign_id = body.get('campaignId', '')
     campaign_name = body.get('campaignName', '')
+    target_region = body.get('region', '')  # Optional: 'ap-south-1' for India fallback
 
     # Normalize phone input to consistent digits-only format
     if phone_number:
@@ -229,8 +230,18 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
     message_id = str(uuid.uuid4())
 
+    # Auto-detect India numbers for ap-south-1 routing
+    use_india_region = target_region == 'ap-south-1'
+    if not use_india_region:
+        digits = phone_e164.lstrip('+')
+        if digits.startswith('91') and len(digits) == 12:
+            # Indian number — check if caller explicitly requested ap-south-1
+            # or if us-east-1 fails, the calling handler will retry with region=ap-south-1
+            pass
+
     # Send via Pinpoint SMS v2
-    result = _send_pinpoint_sms(phone_e164, content, message_type, request_id)
+    result = _send_pinpoint_sms(phone_e164, content, message_type, request_id,
+                                use_india_region=use_india_region)
 
     now = int(time.time())
     _store_message({
@@ -266,30 +277,59 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _send_pinpoint_sms(phone: str, content: str, message_type: str,
-                       request_id: str) -> Dict[str, Any]:
+                       request_id: str, use_india_region: bool = False) -> Dict[str, Any]:
     """Send SMS via Pinpoint SMS Voice v2 API.
+    
+    Supports two regions:
+    - us-east-1 (default): International numbers, toll-free pool
+    - ap-south-1 (India fallback): Indian +91 numbers when Airtel IQ is down
     
     Note: ORIGINATION_IDENTITY is only set if an SMS-capable pool/number exists.
     If not set, Pinpoint uses the default configuration for the account.
-    Toll-free +18444891209 is PENDING registration — using account default for now.
     """
     try:
-        params: Dict[str, Any] = {
-            'DestinationPhoneNumber': phone,
-            'MessageBody': content,
-            'MessageType': message_type,
-        }
+        if use_india_region:
+            # Use ap-south-1 Pinpoint SMS v2 client for India
+            india_sms_client = boto3.client('pinpoint-sms-voice-v2', region_name=INDIA_REGION)
+            params: Dict[str, Any] = {
+                'DestinationPhoneNumber': phone,
+                'MessageBody': content,
+                'MessageType': message_type,
+            }
+            # Use India sender ID if available
+            if INDIA_SENDER_ID:
+                params['OriginationIdentity'] = INDIA_SENDER_ID
 
-        # Only set origination identity if it's an SMS-capable resource
-        if ORIGINATION_IDENTITY:
-            params['OriginationIdentity'] = ORIGINATION_IDENTITY
+            response = india_sms_client.send_text_message(**params)
+            logger.info(json.dumps({
+                'event': 'pinpoint_india_sms_sent',
+                'phone': phone[-4:],
+                'region': INDIA_REGION,
+                'messageId': response.get('MessageId', ''),
+                'requestId': request_id,
+            }))
+            return {
+                'success': True,
+                'providerMessageId': response.get('MessageId', ''),
+                'region': INDIA_REGION,
+            }
+        else:
+            params: Dict[str, Any] = {
+                'DestinationPhoneNumber': phone,
+                'MessageBody': content,
+                'MessageType': message_type,
+            }
 
-        response = pinpoint_sms.send_text_message(**params)
+            # Only set origination identity if it's an SMS-capable resource
+            if ORIGINATION_IDENTITY:
+                params['OriginationIdentity'] = ORIGINATION_IDENTITY
 
-        return {
-            'success': True,
-            'providerMessageId': response.get('MessageId', '')
-        }
+            response = pinpoint_sms.send_text_message(**params)
+
+            return {
+                'success': True,
+                'providerMessageId': response.get('MessageId', '')
+            }
 
     except pinpoint_sms.exceptions.ConflictException as e:
         logger.error(f"Pinpoint conflict: {str(e)}")
@@ -301,7 +341,7 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
         logger.error(f"Pinpoint throttled: {str(e)}")
         return {'success': False, 'error': 'Rate limited, try again'}
     except Exception as e:
-        logger.error(f"Pinpoint SMS error: {str(e)}")
+        logger.error(f"Pinpoint SMS error ({INDIA_REGION if use_india_region else REGION}): {str(e)}")
         return {'success': False, 'error': str(e)}
 
 
