@@ -93,6 +93,23 @@ DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 def _get_welcome_config_key(phone_number_id: str) -> str:
     """Return the SystemConfig key for welcome message based on phone number.
     Phone 1 uses 'welcome_message', Phone 2 uses 'welcome_message_2'."""
+
+
+DEFAULT_FALLBACK_MESSAGE = "Thanks for your message! Type 'menu' to see available options, or 'subscribe' to get started."
+
+
+def _load_fallback_message(phone_number_id: str) -> str:
+    """Load configurable fallback message from SystemConfigTable."""
+    try:
+        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        response = config_table.get_item(Key={'id': 'wa_auto_response'})
+        if 'Item' in response:
+            config_value = response['Item'].get('configValue', '{}')
+            config = json.loads(config_value) if isinstance(config_value, str) else config_value
+            return config.get('fallbackMessage', DEFAULT_FALLBACK_MESSAGE)
+        return DEFAULT_FALLBACK_MESSAGE
+    except Exception:
+        return DEFAULT_FALLBACK_MESSAGE
     if phone_number_id == PHONE_NUMBER_ID_2:
         return 'welcome_message_2'
     return 'welcome_message'
@@ -1360,18 +1377,40 @@ def _process_message(
             logger.warning(f"Welcome message failed (non-blocking): {_we}")
 
     if msg_type in ai_eligible_types and (content or s3_key) and not _is_brand_new_contact:
-        _process_ai_automation(
-            message_id=message_id,
-            contact_id=contact_id,
-            content=content,
-            message_type=msg_type,
-            phone_number_id=aws_phone_number_id,
-            sender_phone=sender_phone,
-            sender_bsuid=msg_bsuid,
-            s3_key=s3_key,
-            mime_type=message.get(msg_type, {}).get('mime_type', '') if msg_type in ('image', 'video', 'audio', 'document') else '',
-            request_id=request_id
-        )
+        # ── AI auto-response DISABLED per Meta policy (Jan 2026) ──
+        # Only configured keyword responses and welcome messages are sent.
+        # If no keyword matched and AI is disabled, send a default fallback.
+        _ai_enabled = _is_ai_enabled()
+        if not _ai_enabled:
+            # Send configurable fallback message for unmatched messages
+            _fallback = _load_fallback_message(aws_phone_number_id)
+            if _fallback:
+                _send_ai_auto_reply(
+                    contact_id=contact_id,
+                    content=_fallback,
+                    phone_number_id=aws_phone_number_id,
+                    request_id=request_id
+                )
+                logger.info(json.dumps({
+                    'event': 'fallback_message_sent',
+                    'contactId': contact_id,
+                    'contentLength': len(_fallback),
+                    'requestId': request_id,
+                }))
+        else:
+            # AI smoothing enabled — only polish configured responses, not free-form
+            _process_ai_automation(
+                message_id=message_id,
+                contact_id=contact_id,
+                content=content,
+                message_type=msg_type,
+                phone_number_id=aws_phone_number_id,
+                sender_phone=sender_phone,
+                sender_bsuid=msg_bsuid,
+                s3_key=s3_key,
+                mime_type=message.get(msg_type, {}).get('mime_type', '') if msg_type in ('image', 'video', 'audio', 'document') else '',
+                request_id=request_id
+            )
 
 
 def _extract_content(message: Dict, msg_type: str) -> str:

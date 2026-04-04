@@ -84,6 +84,7 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
   // Welcome message state
   const [welcomeMsg, setWelcomeMsg] = useState(DEFAULT_WELCOME);
   const [welcomeEnabled, setWelcomeEnabled] = useState(true);
+  const [fallbackMsg, setFallbackMsg] = useState("Thanks for your message! Type 'menu' to see available options, or 'subscribe' to get started.");
 
   // Keyword rules state
   const [keywords, setKeywords] = useState<KeywordRule[]>(DEFAULT_KEYWORDS);
@@ -103,6 +104,7 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
       if (resp) {
         if (resp.welcomeMessage) setWelcomeMsg(resp.welcomeMessage);
         if (resp.welcomeEnabled !== undefined) setWelcomeEnabled(resp.welcomeEnabled);
+        if (resp.fallbackMessage) setFallbackMsg(resp.fallbackMessage);
         if (resp.keywords) setKeywords(resp.keywords);
         if (resp.menu) setMenu(resp.menu);
         if (resp.aiEnabled !== undefined) setAiEnabled(resp.aiEnabled);
@@ -128,6 +130,7 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
       await api.updateSystemConfig('wa_auto_response', {
         welcomeMessage: welcomeMsg,
         welcomeEnabled,
+        fallbackMessage: fallbackMsg,
         keywords,
         menu,
         aiEnabled,
@@ -303,6 +306,20 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
                 value={welcomeMsg}
                 onChange={e => setWelcomeMsg(e.target.value)}
                 placeholder="Enter welcome message..."
+              />
+            </div>
+
+            {/* Fallback Message */}
+            <div style={S.card}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: '#1a3a2a' }}>Fallback Message</label>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 8px' }}>
+                Sent when a user sends a message that doesn&apos;t match any keyword or command.
+              </p>
+              <textarea
+                style={S.textarea}
+                value={fallbackMsg}
+                onChange={e => setFallbackMsg(e.target.value)}
+                placeholder="Thanks for your message! Type 'menu' to see available options."
               />
             </div>
           </div>
