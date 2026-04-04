@@ -1,0 +1,292 @@
+{
+  "version": "6.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PERSONAL_INFO": ["ADDRESS_INFO"],
+    "ADDRESS_INFO": ["REVIEW"],
+    "REVIEW": ["SUCCESS"]
+  },
+  "screens": [
+    {
+      "id": "PERSONAL_INFO",
+      "title": "Subscribe",
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "📋 WECARE.DIGITAL"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "Subscribe to our services"
+          },
+          {
+            "type": "TextBody",
+            "text": "Please fill in your details below to get started."
+          },
+          {
+            "type": "TextInput",
+            "name": "full_name",
+            "label": "Full Name",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Your full name as it appears on documents"
+          },
+          {
+            "type": "TextInput",
+            "name": "phone_number",
+            "label": "Phone Number",
+            "required": true,
+            "input-type": "phone",
+            "helper-text": "e.g. +91 98765 43210"
+          },
+          {
+            "type": "TextInput",
+            "name": "email_address",
+            "label": "Email Address",
+            "required": true,
+            "input-type": "email",
+            "helper-text": "e.g. you@company.com"
+          },
+          {
+            "type": "TextInput",
+            "name": "company_name",
+            "label": "Company Name",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "Your business or company name"
+          },
+          {
+            "type": "Footer",
+            "label": "Next — Address Details →",
+            "on-click-action": {
+              "name": "navigate",
+              "next": { "type": "screen", "name": "ADDRESS_INFO" },
+              "payload": {
+                "full_name": "${form.full_name}",
+                "phone_number": "${form.phone_number}",
+                "email_address": "${form.email_address}",
+                "company_name": "${form.company_name}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ADDRESS_INFO",
+      "title": "Address Details",
+      "data": {
+        "full_name": { "type": "string", "__example__": "Manish Agarwal" },
+        "phone_number": { "type": "string", "__example__": "+919876543210" },
+        "email_address": { "type": "string", "__example__": "manish@wecare.digital" },
+        "company_name": { "type": "string", "__example__": "WECARE.DIGITAL" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "📍 Billing Address"
+          },
+          {
+            "type": "TextInput",
+            "name": "billing_name",
+            "label": "Billing Name",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Name on the billing address"
+          },
+          {
+            "type": "TextArea",
+            "name": "billing_address",
+            "label": "Billing Address",
+            "required": true,
+            "helper-text": "Full street address, city, state, PIN code"
+          },
+          {
+            "type": "TextHeading",
+            "text": "📦 Shipping Address"
+          },
+          {
+            "type": "OptIn",
+            "name": "same_as_billing",
+            "label": "Same as billing address",
+            "required": false
+          },
+          {
+            "type": "TextInput",
+            "name": "shipping_name",
+            "label": "Shipping Name",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "Leave blank if same as billing"
+          },
+          {
+            "type": "TextArea",
+            "name": "shipping_address",
+            "label": "Shipping Address",
+            "required": false,
+            "helper-text": "Leave blank if same as billing"
+          },
+          {
+            "type": "OptIn",
+            "name": "terms_accepted",
+            "label": "I agree to receive updates and promotional messages via WhatsApp",
+            "required": true
+          },
+          {
+            "type": "Footer",
+            "label": "Review →",
+            "on-click-action": {
+              "name": "navigate",
+              "next": { "type": "screen", "name": "REVIEW" },
+              "payload": {
+                "full_name": "${data.full_name}",
+                "phone_number": "${data.phone_number}",
+                "email_address": "${data.email_address}",
+                "company_name": "${data.company_name}",
+                "billing_name": "${form.billing_name}",
+                "billing_address": "${form.billing_address}",
+                "same_as_billing": "${form.same_as_billing}",
+                "shipping_name": "${form.shipping_name}",
+                "shipping_address": "${form.shipping_address}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "REVIEW",
+      "title": "Review & Confirm",
+      "data": {
+        "full_name": { "type": "string", "__example__": "Manish Agarwal" },
+        "phone_number": { "type": "string", "__example__": "+919876543210" },
+        "email_address": { "type": "string", "__example__": "manish@wecare.digital" },
+        "company_name": { "type": "string", "__example__": "WECARE.DIGITAL" },
+        "billing_name": { "type": "string", "__example__": "Manish Agarwal" },
+        "billing_address": { "type": "string", "__example__": "123 Main St, Kolkata, WB 700001" },
+        "same_as_billing": { "type": "boolean", "__example__": true },
+        "shipping_name": { "type": "string", "__example__": "" },
+        "shipping_address": { "type": "string", "__example__": "" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "📝 Review Your Details"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Please verify all information before confirming."
+          },
+          {
+            "type": "TextSubheading",
+            "text": "👤 Personal Info"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.full_name}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.phone_number}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.email_address}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.company_name}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "📍 Billing Address"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.billing_name}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.billing_address}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "📦 Shipping Address"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.shipping_address}"
+          },
+          {
+            "type": "Footer",
+            "label": "Confirm Subscription ✓",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "full_name": "${data.full_name}",
+                "phone_number": "${data.phone_number}",
+                "email_address": "${data.email_address}",
+                "company_name": "${data.company_name}",
+                "billing_name": "${data.billing_name}",
+                "billing_address": "${data.billing_address}",
+                "same_as_billing": "${data.same_as_billing}",
+                "shipping_name": "${data.shipping_name}",
+                "shipping_address": "${data.shipping_address}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "✅ Subscribed!",
+      "terminal": true,
+      "data": {
+        "subscriber_id": { "type": "string", "__example__": "WD-SUB-12345678" },
+        "message": { "type": "string", "__example__": "You have been successfully subscribed!" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "✅ Subscription Confirmed!"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.message}"
+          },
+          {
+            "type": "TextSubheading",
+            "text": "🔖 Subscriber ID"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.subscriber_id}"
+          },
+          {
+            "type": "TextBody",
+            "text": "📱 You'll receive updates via WhatsApp\n📩 Confirmation sent to your email\n🛒 You're all set for payments & orders"
+          },
+          {
+            "type": "Footer",
+            "label": "Done ✓",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "status": "completed"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

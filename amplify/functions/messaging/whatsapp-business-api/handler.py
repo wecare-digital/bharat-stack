@@ -1842,7 +1842,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 }
             }
 
-        elif screen == 'REVIEW':
+        elif screen == 'REVIEW' and not (flow_token and flow_token.startswith('sub-')):
             # User confirmed and tapped Submit Request ₹49 → save, pay, confirm, close flow
             order_id = data.get('order_id', '')
             subject = data.get('subject', '')
@@ -1997,6 +1997,115 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     'request_number': request_number,
                     'payment_ref_id': payment_ref_id,
                     'message': f'✅ Your request {request_number} has been submitted successfully! A payment link for ₹49 will be sent shortly.',
+                }
+            }
+
+        # ── Subscribe Flow: REVIEW screen (data_exchange) ──
+        elif screen == 'REVIEW' and flow_token and flow_token.startswith('sub-'):
+            full_name = data.get('full_name', '')
+            phone_number = data.get('phone_number', '')
+            email_address = data.get('email_address', '')
+            company_name = data.get('company_name', '')
+            billing_name = data.get('billing_name', '')
+            billing_address = data.get('billing_address', '')
+            same_as_billing = data.get('same_as_billing', False)
+            shipping_name = data.get('shipping_name', '')
+            shipping_address = data.get('shipping_address', '')
+
+            # If same_as_billing, copy billing to shipping
+            if same_as_billing or (not shipping_address and billing_address):
+                shipping_name = shipping_name or billing_name
+                shipping_address = shipping_address or billing_address
+
+            subscriber_id = f'WD-SUB-{uuid.uuid4().hex[:8].upper()}'
+
+            # Extract phone from flow_token
+            phone = ''
+            if '-ph-' in flow_token:
+                phone = flow_token.split('-ph-', 1)[1]
+
+            # Find or create contact and enrich with subscription data
+            contact_id = _find_contact_by_phone(phone)
+            if contact_id:
+                try:
+                    ct = dynamodb.Table(CONTACTS_TABLE)
+                    update_expr = 'SET #nm = :nm, #em = :em, #ba = :ba, #sa = :sa, #ua = :ua, #cbn = :cbn, #ow = :ow'
+                    expr_names = {
+                        '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
+                        '#sa': 'shippingAddress', '#ua': 'updatedAt', '#cbn': 'contactBookName',
+                        '#ow': 'optInWhatsApp',
+                    }
+                    # Build full billing/shipping strings
+                    full_billing = f'{billing_name}\n{billing_address}' if billing_name else billing_address
+                    full_shipping = f'{shipping_name}\n{shipping_address}' if shipping_name else shipping_address
+
+                    expr_values = {
+                        ':nm': full_name or '',
+                        ':em': email_address or '',
+                        ':ba': full_billing or '',
+                        ':sa': full_shipping or '',
+                        ':ua': int(time.time()),
+                        ':cbn': company_name or '',
+                        ':ow': True,
+                    }
+                    ct.update_item(
+                        Key={'id': contact_id},
+                        UpdateExpression=update_expr,
+                        ExpressionAttributeNames=expr_names,
+                        ExpressionAttributeValues=expr_values,
+                    )
+                    logger.info(json.dumps({
+                        'event': 'subscribe_contact_enriched',
+                        'contactId': contact_id,
+                        'subscriberId': subscriber_id,
+                        'requestId': request_id,
+                    }))
+                except Exception as enrich_err:
+                    logger.warning(f'Subscribe contact enrichment failed: {enrich_err}')
+
+            # Save subscription to FlowSubmissionsTable
+            try:
+                fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+                now = int(time.time())
+                fs_table.put_item(Item={
+                    'submissionId': subscriber_id,
+                    'flowCode': 'WD_SUBSCRIBE',
+                    'flowType': 'subscription',
+                    'phone': phone,
+                    'contactId': contact_id or '',
+                    'submissionNumber': subscriber_id,
+                    'status': 'completed',
+                    'formData': json.dumps({
+                        'full_name': full_name,
+                        'phone_number': phone_number,
+                        'email_address': email_address,
+                        'company_name': company_name,
+                        'billing_name': billing_name,
+                        'billing_address': billing_address,
+                        'shipping_name': shipping_name,
+                        'shipping_address': shipping_address,
+                    }),
+                    'flowToken': flow_token,
+                    'createdAt': Decimal(str(now)),
+                    'updatedAt': Decimal(str(now)),
+                    'ttl': now + (365 * 86400),
+                })
+            except Exception as sub_save_err:
+                logger.warning(f'Subscribe submission save failed: {sub_save_err}')
+
+            logger.info(json.dumps({
+                'event': 'subscribe_flow_completed',
+                'subscriberId': subscriber_id,
+                'phone': phone,
+                'contactId': contact_id or '',
+                'requestId': request_id,
+            }))
+
+            response_payload = {
+                'screen': 'SUCCESS',
+                'data': {
+                    'subscriber_id': subscriber_id,
+                    'message': f'✅ Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}. You will now receive updates, offers, and order notifications via WhatsApp.',
                 }
             }
 

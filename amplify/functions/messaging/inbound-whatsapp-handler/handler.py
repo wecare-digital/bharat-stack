@@ -1135,6 +1135,15 @@ def _process_message(
                         flow_config=trigger,
                     )
                     return  # Skip AI automation — flow handles the rest
+                elif flow_key == 'subscribe':
+                    _send_subscribe_flow(
+                        contact_id=contact_id,
+                        phone_number_id=aws_phone_number_id,
+                        sender_phone=sender_phone,
+                        request_id=request_id,
+                        flow_config=trigger,
+                    )
+                    return  # Skip AI automation — flow handles the rest
 
         # ── Direct "Pay" keyword trigger (LLM-independent, hardcoded) ──
         # Exact matches (content_lower must be exactly one of these)
@@ -3635,6 +3644,74 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
         }))
 
 
+def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: str, request_id: str, flow_config: Dict = None) -> None:
+    """
+    Send the Subscribe WhatsApp Flow to the user.
+    Collects: name, phone, email, company, billing + shipping address.
+    On completion, updates the contact book via _enrich_contact_from_flow.
+    """
+    try:
+        flow_id = (flow_config or {}).get('flowId', '')
+        if not flow_id:
+            logger.warning(json.dumps({
+                'event': 'subscribe_flow_no_id',
+                'contactId': contact_id,
+                'requestId': request_id,
+            }))
+            return
+        msg = (flow_config or {}).get('message', {})
+
+        flow_token = f'sub-{uuid.uuid4()}-ph-{sender_phone}'
+        interactive_data = {
+            'body': msg.get('body', '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details below to get started.'),
+            'footer': msg.get('footer', 'WECARE.DIGITAL'),
+            'flowId': flow_id,
+            'flowCta': msg.get('flowCta', 'Subscribe Now'),
+            'flowAction': 'navigate',
+            'flowToken': flow_token,
+            'flowActionPayload': {
+                'screen': 'PERSONAL_INFO',
+            },
+        }
+        header_val = msg.get('header', '')
+        if header_val:
+            interactive_data['header'] = header_val
+
+        payload = {
+            'body': json.dumps({
+                'contactId': contact_id,
+                'phoneNumberId': phone_number_id,
+                'isInteractive': True,
+                'interactiveType': 'flow',
+                'interactiveData': interactive_data,
+            })
+        }
+
+        response = lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+
+        logger.info(json.dumps({
+            'event': 'subscribe_flow_sent',
+            'contactId': contact_id,
+            'senderPhone': sender_phone,
+            'flowId': flow_id,
+            'flowToken': flow_token,
+            'statusCode': response.get('StatusCode'),
+            'requestId': request_id
+        }))
+
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'subscribe_flow_error',
+            'contactId': contact_id,
+            'error': str(e),
+            'requestId': request_id
+        }))
+
+
 def _send_interactive_list(contact_id: str, phone_number_id: str, list_config: Dict, request_id: str) -> None:
     """
     Send a WhatsApp interactive list message.
@@ -4722,7 +4799,17 @@ DEFAULT_FLOW_TRIGGERS = {
             'flowCta': 'Submit Request',
         },
         'enabled': True,
-    }
+    },
+    'subscribe': {
+        'keywords': ['subscribe', 'signup', 'sign up', 'register', 'join', 'membership', 'enroll', 'enrol'],
+        'flowId': '',
+        'message': {
+            'body': '\U0001f4cb Subscribe to WECARE.DIGITAL — fill in your details below to get started with orders, payments, and updates.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Subscribe Now',
+        },
+        'enabled': False,
+    },
 }
 
 
