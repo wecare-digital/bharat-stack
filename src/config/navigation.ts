@@ -80,6 +80,10 @@ export const navigationConfig: NavItem[] = [
     icon: 'form',
     badge: 'Soon',
     sectionLabel: 'Coming Soon',
+    children: [
+      { path: '/forms', label: 'Forms Builder', icon: 'form' },
+      { path: '/forms/selfservice', label: 'Self-Service', icon: 'checklist' },
+    ],
   },
   {
     path: '/task',

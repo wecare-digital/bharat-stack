@@ -2253,6 +2253,104 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
     if not response_payload and data.get('error'):
         response_payload = {'data': {'acknowledged': True}}
 
+    # ── Generic flow handler: catch-all for new draft flows ──
+    # Handles: amend_request, track_request, rx_slot, drop_docs,
+    # enterprise_assist, schedule_appointment, leave_review, order_notes
+    if not response_payload and flow_token:
+        # Extract flow_key from token (format: {flow_key}-{uuid}-ph-{phone})
+        _flow_key = ''
+        _phone = ''
+        if '-ph-' in flow_token:
+            _phone = flow_token.split('-ph-', 1)[1]
+            _prefix = flow_token.split('-ph-', 1)[0]
+            # flow_key is everything before the first UUID segment
+            _parts = _prefix.split('-')
+            # Reconstruct flow_key (e.g. "amend_req" from "amend_req-uuid...")
+            _flow_key_parts = []
+            for _p in _parts:
+                if len(_p) > 10:  # UUID segment
+                    break
+                _flow_key_parts.append(_p)
+            _flow_key = '_'.join(_flow_key_parts) if _flow_key_parts else _parts[0]
+
+        GENERIC_FLOW_KEYS = {
+            'amend_requ', 'track_requ', 'rx_slot', 'drop_docs',
+            'enterprise', 'schedule_a', 'leave_revi', 'order_note',
+        }
+        _is_generic = any(_flow_key.startswith(k) for k in GENERIC_FLOW_KEYS)
+
+        if _is_generic:
+            # Save submission to FlowSubmissionsTable
+            submission_id = f'WD-{_flow_key[:6].upper()}-{uuid.uuid4().hex[:8].upper()}'
+            contact_id = _find_contact_by_phone(_phone) if _phone else ''
+
+            try:
+                fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+                now_ts = int(time.time())
+                fs_table.put_item(Item={
+                    'submissionId': submission_id,
+                    'flowKey': _flow_key,
+                    'flowToken': flow_token,
+                    'phone': _phone,
+                    'contactId': contact_id or '',
+                    'screen': screen,
+                    'formData': json.dumps(data),
+                    'status': 'submitted',
+                    'createdAt': Decimal(str(now_ts)),
+                    'updatedAt': Decimal(str(now_ts)),
+                    'expiresAt': Decimal(str(now_ts + 90 * 86400)),
+                })
+                logger.info(json.dumps({
+                    'event': 'generic_flow_submission_saved',
+                    'submissionId': submission_id,
+                    'flowKey': _flow_key,
+                    'phone': _phone[-4:] if _phone else '',
+                    'screen': screen,
+                    'requestId': request_id,
+                }))
+            except Exception as gfs_err:
+                logger.warning(f'Generic flow submission save failed: {gfs_err}')
+
+            # Enrich contact with form data if available
+            if contact_id and _phone:
+                try:
+                    ct = dynamodb.Table(CONTACTS_TABLE)
+                    update_parts = ['updatedAt = :now']
+                    vals = {':now': Decimal(str(int(time.time())))}
+                    if data.get('name'):
+                        update_parts.append('#n = :name')
+                        vals[':name'] = data['name']
+                    if data.get('phone'):
+                        update_parts.append('phone = :phone')
+                        vals[':phone'] = data['phone']
+                    if data.get('email'):
+                        update_parts.append('email = :email')
+                        vals[':email'] = data['email']
+                    if data.get('company'):
+                        update_parts.append('companyName = :company')
+                        vals[':company'] = data['company']
+                    names = {}
+                    if ':name' in vals:
+                        names['#n'] = 'name'
+                    kwargs = {
+                        'Key': {'id': contact_id},
+                        'UpdateExpression': 'SET ' + ', '.join(update_parts),
+                        'ExpressionAttributeValues': vals,
+                    }
+                    if names:
+                        kwargs['ExpressionAttributeNames'] = names
+                    ct.update_item(**kwargs)
+                except Exception:
+                    pass
+
+            response_payload = {
+                'screen': 'SUCCESS',
+                'data': {
+                    'submission_id': submission_id,
+                    'message': f'Your {_flow_key.replace("_", " ").title()} has been submitted. Reference: {submission_id}',
+                }
+            }
+
     if not response_payload:
         response_payload = {'data': {'error': f'Unknown action: {action}'}}
 
