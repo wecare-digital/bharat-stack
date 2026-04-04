@@ -3,12 +3,12 @@
   "data_api_version": "4.0",
   "routing_model": {
     "PERSONAL_INFO": [
-      "BILLING_ADDRESS"
-    ],
-    "BILLING_ADDRESS": [
       "SHIPPING_ADDRESS"
     ],
     "SHIPPING_ADDRESS": [
+      "BILLING_ADDRESS"
+    ],
+    "BILLING_ADDRESS": [
       "REVIEW"
     ],
     "REVIEW": [
@@ -31,7 +31,7 @@
           },
           {
             "type": "TextHeading",
-            "text": "Subscribe to WECARE.DIGITAL"
+            "text": "Subscribe"
           },
           {
             "type": "TextBody",
@@ -43,159 +43,35 @@
             "label": "Full Name",
             "required": true,
             "input-type": "text",
-            "helper-text": "As it appears on documents"
+            "helper-text": "Manish Agarwal"
           },
           {
             "type": "TextInput",
             "name": "phone_number",
-            "label": "Phone Number",
+            "label": "Phone",
             "required": true,
             "input-type": "phone",
-            "helper-text": "e.g. +91 98765 43210"
+            "helper-text": "919933094400"
           },
           {
             "type": "TextInput",
             "name": "email_address",
-            "label": "Email Address",
+            "label": "Email",
             "required": true,
             "input-type": "email",
-            "helper-text": "e.g. you@company.com"
+            "helper-text": "you@company.com"
           },
           {
             "type": "TextInput",
             "name": "company_name",
-            "label": "Company / Business Name",
-            "required": false,
+            "label": "Company",
+            "required": true,
             "input-type": "text",
-            "helper-text": "Optional"
+            "helper-text": "WECARE.DIGITAL"
           },
           {
             "type": "Footer",
-            "label": "Next — Billing Address",
-            "on-click-action": {
-              "name": "navigate",
-              "next": {
-                "type": "screen",
-                "name": "BILLING_ADDRESS"
-              },
-              "payload": {
-                "full_name": "${form.full_name}",
-                "phone_number": "${form.phone_number}",
-                "email_address": "${form.email_address}",
-                "company_name": "${form.company_name}"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "id": "BILLING_ADDRESS",
-      "title": "Billing Address",
-      "data": {
-        "full_name": {
-          "type": "string",
-          "__example__": "Manish Agarwal"
-        },
-        "phone_number": {
-          "type": "string",
-          "__example__": "+919933094400"
-        },
-        "email_address": {
-          "type": "string",
-          "__example__": "manish@wecare.digital"
-        },
-        "company_name": {
-          "type": "string",
-          "__example__": "WECARE.DIGITAL"
-        }
-      },
-      "layout": {
-        "type": "SingleColumnLayout",
-        "children": [
-          {
-            "type": "TextHeading",
-            "text": "Billing Address"
-          },
-          {
-            "type": "TextBody",
-            "text": "Enter your billing address. This will be used for invoices and payment receipts."
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_name",
-            "label": "Full Name",
-            "required": true,
-            "input-type": "text",
-            "helper-text": "Name on billing address"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_phone",
-            "label": "Phone Number",
-            "required": true,
-            "input-type": "phone",
-            "helper-text": "e.g. 919933094400"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_house_number",
-            "label": "House / Flat Number",
-            "required": false,
-            "input-type": "text",
-            "helper-text": "e.g. 12"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_building_name",
-            "label": "Building Name",
-            "required": false,
-            "input-type": "text",
-            "helper-text": "e.g. One BKC"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_address",
-            "label": "Street Address",
-            "required": true,
-            "input-type": "text",
-            "helper-text": "e.g. Bandra Kurla Complex"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_landmark",
-            "label": "Landmark / Area",
-            "required": false,
-            "input-type": "text",
-            "helper-text": "e.g. Near BKC Circle"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_city",
-            "label": "City",
-            "required": true,
-            "input-type": "text",
-            "helper-text": "e.g. Mumbai"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_state",
-            "label": "State",
-            "required": true,
-            "input-type": "text",
-            "helper-text": "e.g. Maharashtra"
-          },
-          {
-            "type": "TextInput",
-            "name": "billing_pin_code",
-            "label": "PIN Code",
-            "required": true,
-            "input-type": "text",
-            "helper-text": "6-digit PIN code"
-          },
-          {
-            "type": "Footer",
-            "label": "Next — Shipping Address",
+            "label": "Next",
             "on-click-action": {
               "name": "navigate",
               "next": {
@@ -203,19 +79,10 @@
                 "name": "SHIPPING_ADDRESS"
               },
               "payload": {
-                "full_name": "${data.full_name}",
-                "phone_number": "${data.phone_number}",
-                "email_address": "${data.email_address}",
-                "company_name": "${data.company_name}",
-                "billing_name": "${form.billing_name}",
-                "billing_phone": "${form.billing_phone}",
-                "billing_house_number": "${form.billing_house_number}",
-                "billing_building_name": "${form.billing_building_name}",
-                "billing_address": "${form.billing_address}",
-                "billing_landmark": "${form.billing_landmark}",
-                "billing_city": "${form.billing_city}",
-                "billing_state": "${form.billing_state}",
-                "billing_pin_code": "${form.billing_pin_code}"
+                "full_name": "${form.full_name}",
+                "phone_number": "${form.phone_number}",
+                "email_address": "${form.email_address}",
+                "company_name": "${form.company_name}"
               }
             }
           }
@@ -232,7 +99,7 @@
         },
         "phone_number": {
           "type": "string",
-          "__example__": "+919933094400"
+          "__example__": "919933094400"
         },
         "email_address": {
           "type": "string",
@@ -241,42 +108,6 @@
         "company_name": {
           "type": "string",
           "__example__": "WECARE.DIGITAL"
-        },
-        "billing_name": {
-          "type": "string",
-          "__example__": "Manish Agarwal"
-        },
-        "billing_phone": {
-          "type": "string",
-          "__example__": "919933094400"
-        },
-        "billing_house_number": {
-          "type": "string",
-          "__example__": "12"
-        },
-        "billing_building_name": {
-          "type": "string",
-          "__example__": "One BKC"
-        },
-        "billing_address": {
-          "type": "string",
-          "__example__": "Bandra Kurla Complex"
-        },
-        "billing_landmark": {
-          "type": "string",
-          "__example__": "Near BKC Circle"
-        },
-        "billing_city": {
-          "type": "string",
-          "__example__": "Mumbai"
-        },
-        "billing_state": {
-          "type": "string",
-          "__example__": "Maharashtra"
-        },
-        "billing_pin_code": {
-          "type": "string",
-          "__example__": "400051"
         }
       },
       "layout": {
@@ -288,88 +119,263 @@
           },
           {
             "type": "TextBody",
-            "text": "Where should we deliver your orders? Leave fields blank to copy from billing address."
+            "text": "Where should we deliver your orders?"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_name",
+            "label": "Name",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Manish Agarwal"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_phone",
+            "label": "Phone",
+            "required": true,
+            "input-type": "phone",
+            "helper-text": "919933094400"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_house",
+            "label": "House / Flat No",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "12"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_building",
+            "label": "Building",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "One BKC"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_street",
+            "label": "Street",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Bandra Kurla Complex"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_landmark",
+            "label": "Landmark",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Near BKC Circle"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_city",
+            "label": "City",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Mumbai"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_state",
+            "label": "State",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Maharashtra"
+          },
+          {
+            "type": "TextInput",
+            "name": "ship_pin",
+            "label": "PIN Code",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "400051"
+          },
+          {
+            "type": "Footer",
+            "label": "Next",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {
+                "type": "screen",
+                "name": "BILLING_ADDRESS"
+              },
+              "payload": {
+                "full_name": "${data.full_name}",
+                "phone_number": "${data.phone_number}",
+                "email_address": "${data.email_address}",
+                "company_name": "${data.company_name}",
+                "ship_name": "${form.ship_name}",
+                "ship_phone": "${form.ship_phone}",
+                "ship_house": "${form.ship_house}",
+                "ship_building": "${form.ship_building}",
+                "ship_street": "${form.ship_street}",
+                "ship_landmark": "${form.ship_landmark}",
+                "ship_city": "${form.ship_city}",
+                "ship_state": "${form.ship_state}",
+                "ship_pin": "${form.ship_pin}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "BILLING_ADDRESS",
+      "title": "Billing Address",
+      "data": {
+        "full_name": {
+          "type": "string",
+          "__example__": "Manish Agarwal"
+        },
+        "phone_number": {
+          "type": "string",
+          "__example__": "919933094400"
+        },
+        "email_address": {
+          "type": "string",
+          "__example__": "manish@wecare.digital"
+        },
+        "company_name": {
+          "type": "string",
+          "__example__": "WECARE.DIGITAL"
+        },
+        "ship_name": {
+          "type": "string",
+          "__example__": "Manish Agarwal"
+        },
+        "ship_phone": {
+          "type": "string",
+          "__example__": "919933094400"
+        },
+        "ship_house": {
+          "type": "string",
+          "__example__": "12"
+        },
+        "ship_building": {
+          "type": "string",
+          "__example__": "One BKC"
+        },
+        "ship_street": {
+          "type": "string",
+          "__example__": "Bandra Kurla Complex"
+        },
+        "ship_landmark": {
+          "type": "string",
+          "__example__": "Near BKC Circle"
+        },
+        "ship_city": {
+          "type": "string",
+          "__example__": "Mumbai"
+        },
+        "ship_state": {
+          "type": "string",
+          "__example__": "Maharashtra"
+        },
+        "ship_pin": {
+          "type": "string",
+          "__example__": "400051"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Billing Address"
+          },
+          {
+            "type": "TextBody",
+            "text": "Used for invoices and payment receipts. Leave blank to copy from shipping address."
           },
           {
             "type": "Form",
-            "name": "shipping_form",
+            "name": "billing_form",
             "children": [
               {
                 "type": "OptIn",
-                "name": "same_as_billing",
-                "label": "Same as billing address",
+                "name": "same_as_ship",
+                "label": "Same as shipping",
                 "required": false
               },
               {
                 "type": "TextInput",
-                "name": "shipping_name",
-                "label": "Full Name",
+                "name": "bill_name",
+                "label": "Name",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Leave blank if same as billing"
+                "helper-text": "Manish Agarwal"
               },
               {
                 "type": "TextInput",
-                "name": "shipping_phone",
-                "label": "Phone Number",
+                "name": "bill_phone",
+                "label": "Phone",
                 "required": false,
                 "input-type": "phone",
-                "helper-text": "Leave blank if same as billing"
+                "helper-text": "919933094400"
               },
               {
                 "type": "TextInput",
-                "name": "shipping_house_number",
-                "label": "House / Flat Number",
-                "required": false,
-                "input-type": "text"
-              },
-              {
-                "type": "TextInput",
-                "name": "shipping_building_name",
-                "label": "Building Name",
-                "required": false,
-                "input-type": "text"
-              },
-              {
-                "type": "TextInput",
-                "name": "shipping_address",
-                "label": "Street Address",
+                "name": "bill_house",
+                "label": "House / Flat No",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Leave blank if same as billing"
+                "helper-text": "12"
               },
               {
                 "type": "TextInput",
-                "name": "shipping_landmark",
-                "label": "Landmark / Area",
+                "name": "bill_building",
+                "label": "Building",
                 "required": false,
-                "input-type": "text"
+                "input-type": "text",
+                "helper-text": "One BKC"
               },
               {
                 "type": "TextInput",
-                "name": "shipping_city",
+                "name": "bill_street",
+                "label": "Street",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "Bandra Kurla Complex"
+              },
+              {
+                "type": "TextInput",
+                "name": "bill_landmark",
+                "label": "Landmark",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "Near BKC Circle"
+              },
+              {
+                "type": "TextInput",
+                "name": "bill_city",
                 "label": "City",
                 "required": false,
-                "input-type": "text"
+                "input-type": "text",
+                "helper-text": "Mumbai"
               },
               {
                 "type": "TextInput",
-                "name": "shipping_state",
+                "name": "bill_state",
                 "label": "State",
                 "required": false,
-                "input-type": "text"
+                "input-type": "text",
+                "helper-text": "Maharashtra"
               },
               {
                 "type": "TextInput",
-                "name": "shipping_pin_code",
+                "name": "bill_pin",
                 "label": "PIN Code",
                 "required": false,
-                "input-type": "text"
+                "input-type": "text",
+                "helper-text": "400051"
               },
               {
                 "type": "OptIn",
-                "name": "terms_accepted",
-                "label": "I agree to receive updates and promotional messages via WhatsApp",
+                "name": "accept_terms",
+                "label": "I agree to WhatsApp updates",
                 "required": true
               },
               {
@@ -386,25 +392,25 @@
                     "phone_number": "${data.phone_number}",
                     "email_address": "${data.email_address}",
                     "company_name": "${data.company_name}",
-                    "billing_name": "${data.billing_name}",
-                    "billing_phone": "${data.billing_phone}",
-                    "billing_house_number": "${data.billing_house_number}",
-                    "billing_building_name": "${data.billing_building_name}",
-                    "billing_address": "${data.billing_address}",
-                    "billing_landmark": "${data.billing_landmark}",
-                    "billing_city": "${data.billing_city}",
-                    "billing_state": "${data.billing_state}",
-                    "billing_pin_code": "${data.billing_pin_code}",
-                    "same_as_billing": "${form.same_as_billing}",
-                    "shipping_name": "${form.shipping_name}",
-                    "shipping_phone": "${form.shipping_phone}",
-                    "shipping_house_number": "${form.shipping_house_number}",
-                    "shipping_building_name": "${form.shipping_building_name}",
-                    "shipping_address": "${form.shipping_address}",
-                    "shipping_landmark": "${form.shipping_landmark}",
-                    "shipping_city": "${form.shipping_city}",
-                    "shipping_state": "${form.shipping_state}",
-                    "shipping_pin_code": "${form.shipping_pin_code}"
+                    "ship_name": "${data.ship_name}",
+                    "ship_phone": "${data.ship_phone}",
+                    "ship_house": "${data.ship_house}",
+                    "ship_building": "${data.ship_building}",
+                    "ship_street": "${data.ship_street}",
+                    "ship_landmark": "${data.ship_landmark}",
+                    "ship_city": "${data.ship_city}",
+                    "ship_state": "${data.ship_state}",
+                    "ship_pin": "${data.ship_pin}",
+                    "same_as_ship": "${form.same_as_ship}",
+                    "bill_name": "${form.bill_name}",
+                    "bill_phone": "${form.bill_phone}",
+                    "bill_house": "${form.bill_house}",
+                    "bill_building": "${form.bill_building}",
+                    "bill_street": "${form.bill_street}",
+                    "bill_landmark": "${form.bill_landmark}",
+                    "bill_city": "${form.bill_city}",
+                    "bill_state": "${form.bill_state}",
+                    "bill_pin": "${form.bill_pin}"
                   }
                 }
               }
@@ -423,7 +429,7 @@
         },
         "phone_number": {
           "type": "string",
-          "__example__": "+919933094400"
+          "__example__": "919933094400"
         },
         "email_address": {
           "type": "string",
@@ -433,79 +439,79 @@
           "type": "string",
           "__example__": "WECARE.DIGITAL"
         },
-        "billing_name": {
+        "ship_name": {
           "type": "string",
           "__example__": "Manish Agarwal"
         },
-        "billing_phone": {
+        "ship_phone": {
           "type": "string",
           "__example__": "919933094400"
         },
-        "billing_house_number": {
+        "ship_house": {
           "type": "string",
           "__example__": "12"
         },
-        "billing_building_name": {
+        "ship_building": {
           "type": "string",
           "__example__": "One BKC"
         },
-        "billing_address": {
+        "ship_street": {
           "type": "string",
           "__example__": "Bandra Kurla Complex"
         },
-        "billing_landmark": {
+        "ship_landmark": {
           "type": "string",
           "__example__": "Near BKC Circle"
         },
-        "billing_city": {
+        "ship_city": {
           "type": "string",
           "__example__": "Mumbai"
         },
-        "billing_state": {
+        "ship_state": {
           "type": "string",
           "__example__": "Maharashtra"
         },
-        "billing_pin_code": {
+        "ship_pin": {
           "type": "string",
           "__example__": "400051"
         },
-        "same_as_billing": {
+        "same_as_ship": {
           "type": "boolean",
           "__example__": true
         },
-        "shipping_name": {
+        "bill_name": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_phone": {
+        "bill_phone": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_house_number": {
+        "bill_house": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_building_name": {
+        "bill_building": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_address": {
+        "bill_street": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_landmark": {
+        "bill_landmark": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_city": {
+        "bill_city": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_state": {
+        "bill_state": {
           "type": "string",
           "__example__": ""
         },
-        "shipping_pin_code": {
+        "bill_pin": {
           "type": "string",
           "__example__": ""
         }
@@ -558,52 +564,38 @@
             "text": "${data.company_name}"
           },
           {
-            "type": "TextSubheading",
-            "text": "Billing Address"
+            "type": "TextCaption",
+            "text": "Shipping",
+            "font-weight": "bold"
           },
           {
             "type": "TextBody",
-            "text": "${data.billing_name}"
+            "text": "${data.ship_street}"
           },
           {
             "type": "TextBody",
-            "text": "${data.billing_address}"
+            "text": "${data.ship_city}"
           },
           {
             "type": "TextBody",
-            "text": "${data.billing_city}"
+            "text": "${data.ship_pin}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Billing",
+            "font-weight": "bold"
           },
           {
             "type": "TextBody",
-            "text": "${data.billing_state}"
+            "text": "${data.bill_street}"
           },
           {
             "type": "TextBody",
-            "text": "${data.billing_pin_code}"
-          },
-          {
-            "type": "TextSubheading",
-            "text": "Shipping Address"
+            "text": "${data.bill_city}"
           },
           {
             "type": "TextBody",
-            "text": "${data.shipping_name}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.shipping_address}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.shipping_city}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.shipping_state}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.shipping_pin_code}"
+            "text": "${data.bill_pin}"
           },
           {
             "type": "Form",
@@ -612,12 +604,12 @@
               {
                 "type": "OptIn",
                 "name": "confirm_submit",
-                "label": "I confirm the details above are correct",
+                "label": "I confirm all details",
                 "required": true
               },
               {
                 "type": "Footer",
-                "label": "Confirm Subscription",
+                "label": "Confirm",
                 "on-click-action": {
                   "name": "data_exchange",
                   "payload": {
@@ -625,25 +617,25 @@
                     "phone_number": "${data.phone_number}",
                     "email_address": "${data.email_address}",
                     "company_name": "${data.company_name}",
-                    "billing_name": "${data.billing_name}",
-                    "billing_phone": "${data.billing_phone}",
-                    "billing_house_number": "${data.billing_house_number}",
-                    "billing_building_name": "${data.billing_building_name}",
-                    "billing_address": "${data.billing_address}",
-                    "billing_landmark": "${data.billing_landmark}",
-                    "billing_city": "${data.billing_city}",
-                    "billing_state": "${data.billing_state}",
-                    "billing_pin_code": "${data.billing_pin_code}",
-                    "same_as_billing": "${data.same_as_billing}",
-                    "shipping_name": "${data.shipping_name}",
-                    "shipping_phone": "${data.shipping_phone}",
-                    "shipping_house_number": "${data.shipping_house_number}",
-                    "shipping_building_name": "${data.shipping_building_name}",
-                    "shipping_address": "${data.shipping_address}",
-                    "shipping_landmark": "${data.shipping_landmark}",
-                    "shipping_city": "${data.shipping_city}",
-                    "shipping_state": "${data.shipping_state}",
-                    "shipping_pin_code": "${data.shipping_pin_code}",
+                    "ship_name": "${data.ship_name}",
+                    "ship_phone": "${data.ship_phone}",
+                    "ship_house": "${data.ship_house}",
+                    "ship_building": "${data.ship_building}",
+                    "ship_street": "${data.ship_street}",
+                    "ship_landmark": "${data.ship_landmark}",
+                    "ship_city": "${data.ship_city}",
+                    "ship_state": "${data.ship_state}",
+                    "ship_pin": "${data.ship_pin}",
+                    "same_as_ship": "${data.same_as_ship}",
+                    "bill_name": "${data.bill_name}",
+                    "bill_phone": "${data.bill_phone}",
+                    "bill_house": "${data.bill_house}",
+                    "bill_building": "${data.bill_building}",
+                    "bill_street": "${data.bill_street}",
+                    "bill_landmark": "${data.bill_landmark}",
+                    "bill_city": "${data.bill_city}",
+                    "bill_state": "${data.bill_state}",
+                    "bill_pin": "${data.bill_pin}",
                     "confirmed": "${form.confirm_submit}"
                   }
                 }
@@ -655,7 +647,7 @@
     },
     {
       "id": "SUCCESS",
-      "title": "Subscribed!",
+      "title": "Subscribed",
       "terminal": true,
       "data": {
         "subscriber_id": {
@@ -694,7 +686,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Your saved address will auto-fill when you make payments via WhatsApp. You'll receive order updates, offers, and notifications."
+            "text": "Your saved address will auto-fill when you checkout via WhatsApp. You'll receive order updates, offers, and notifications."
           },
           {
             "type": "TextCaption",
