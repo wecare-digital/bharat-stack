@@ -5381,14 +5381,14 @@ def _get_bharat_stack_menu() -> Dict:
 # ── Self-service sub-menu ──
 DEFAULT_SELFSERVICE_MENU = {
     'header': 'Self-Service',
-    'body': 'What would you like to do? \U0001f447',
-    'footer': 'r.wecare.digital',
-    'buttonText': 'Options',
+    'body': "Choose what you\u2019d like to do. You can submit or track a request, book a visit, upload documents, or get business support.",
+    'footer': 'Tap an option to continue.',
+    'buttonText': 'Browse Options',
     'sections': [
         {
             'title': 'New Request',
             'rows': [
-                {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Start a new service or support request'},
+                {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Start a new support request'},
             ]
         },
         {
@@ -5418,13 +5418,13 @@ DEFAULT_SELFSERVICE_MENU = {
         {
             'title': 'Documents',
             'rows': [
-                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Upload Documents', 'description': 'Send supporting documents for your request'},
+                {'id': 'ss_drop_docs', 'title': '\U0001f587\ufe0f Upload Documents', 'description': 'Send supporting documents for your request'},
             ]
         },
         {
             'title': 'Business Support',
             'rows': [
-                {'id': 'ss_enterprise_assist', 'title': '\U0001f3e2 Enterprise Support', 'description': 'Corporate, B2B, and bulk enquiries'},
+                {'id': 'ss_enterprise_assist', 'title': '\U0001f4bc Enterprise Support', 'description': 'Corporate, B2B, and bulk enquiries'},
             ]
         },
         {
@@ -5436,13 +5436,13 @@ DEFAULT_SELFSERVICE_MENU = {
         {
             'title': 'Updates',
             'rows': [
-                {'id': 'ss_subscribe', 'title': '\U0001f4dd Subscribe for Updates', 'description': 'Get updates, offers, and service news'},
+                {'id': 'ss_subscribe', 'title': '\U0001f514 Subscribe for Updates', 'description': 'Get updates, offers, and service news'},
             ]
         },
         {
             'title': 'Navigation',
             'rows': [
-                {'id': 'ss_main_menu', 'title': '\U0001f3e0 Main Menu', 'description': 'Return to the main menu'},
+                {'id': 'ss_main_menu', 'title': '\U0001f446 Main Menu', 'description': 'Return to the main menu'},
             ]
         },
     ]
