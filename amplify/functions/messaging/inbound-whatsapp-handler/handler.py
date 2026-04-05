@@ -5052,9 +5052,11 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
 
     # ── Main menu row IDs → actions ──
     MENU_TO_KEYWORD = {
-        # Main menu
+        # Main menu (Explore)
         'menu_store': None,  # Opens store (no flow)
         'menu_self_service': '_selfservice_menu',  # Opens self-service sub-menu
+        'menu_bharat_stack': '_bharat_stack_menu',  # Opens Bharat Stack sub-menu
+        'menu_faq': 'faq',  # FAQ
         'menu_pay': 'pay',
         'menu_subscribe': 'subscribe',
         'menu_app': None,  # CTA link
@@ -5099,6 +5101,15 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         )
         return
 
+    if action == '_bharat_stack_menu':
+        _send_interactive_list(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            list_config=_get_bharat_stack_menu(),
+            request_id=request_id,
+        )
+        return
+
     if action == '_language_menu':
         _send_interactive_list(
             contact_id=contact_id,
@@ -5109,7 +5120,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         return
 
     # Keyword-triggered flows
-    if action and action != 'pay':
+    if action and action not in ('pay', 'faq'):
         flow_triggers = _get_flow_triggers_config()
         for flow_key, trigger in flow_triggers.items():
             if not trigger.get('enabled', True):
@@ -5129,6 +5140,12 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
                     return
         # Fallback: send the keyword as text so it gets picked up by keyword matching
         _send_ai_auto_reply(contact_id, f"You selected: {action.title()}. Processing...", phone_number_id, request_id)
+        return
+
+    # FAQ
+    if action == 'faq':
+        _fallback = _load_fallback_message(phone_number_id)
+        _send_ai_auto_reply(contact_id, _fallback or "Type your question and we'll help you out.", phone_number_id, request_id)
         return
 
     # Pay keyword
@@ -5199,7 +5216,7 @@ def _get_flow_triggers_config() -> Dict:
 DEFAULT_MAIN_MENU = {
     'header': 'WECARE.DIGITAL',
     'body': "Pick what you need \U0001f447",
-    'footer': 'wecare.digital',
+    'footer': 'r.wecare.digital',
     'buttonText': 'Menu',
     'sections': [
         {
@@ -5207,21 +5224,10 @@ DEFAULT_MAIN_MENU = {
             'rows': [
                 {'id': 'menu_store', 'title': '\U0001f6d2 Store', 'description': 'Shop our brand marketplaces'},
                 {'id': 'menu_self_service', 'title': '\U0001f680 Self Service', 'description': 'Submit, track & manage requests'},
-                {'id': 'menu_pay', 'title': '\U0001f4b3 Pay', 'description': 'Make a payment via WhatsApp'},
-                {'id': 'menu_subscribe', 'title': '\U0001f4dd Subscribe', 'description': 'Sign up with name, email & phone'},
+                {'id': 'menu_bharat_stack', 'title': '\U0001f1ee\U0001f1f3 Bharat Stack', 'description': 'India digital public infra'},
+                {'id': 'menu_faq', 'title': '\u2753 FAQ', 'description': 'Frequently asked questions'},
             ]
         },
-        {
-            'title': 'More',
-            'rows': [
-                {'id': 'menu_app', 'title': '\U0001f4f1 Download App', 'description': 'Get the WECARE.DIGITAL app'},
-                {'id': 'menu_about', 'title': '\U0001f49b About Us', 'description': 'Our mission & brands'},
-                {'id': 'menu_audio', 'title': '\U0001f3a7 Audio Response', 'description': 'Get replies as voice messages'},
-                {'id': 'menu_language', 'title': '\U0001f310 Change Language', 'description': 'Choose your response language'},
-                {'id': 'menu_notifications', 'title': '\U0001f514 Notifications', 'description': 'Manage your alert preferences'},
-                {'id': 'menu_human', 'title': '\U0001f4ac Talk to Human', 'description': 'Connect with a live agent'},
-            ]
-        }
     ]
 }
 
@@ -5362,26 +5368,31 @@ def _get_bharat_stack_menu() -> Dict:
 # ── Self-service sub-menu ──
 DEFAULT_SELFSERVICE_MENU = {
     'header': 'Self-Service',
-    'body': 'Manage your account and requests \U0001f4cb',
-    'footer': 'wecare.digital',
+    'body': 'What would you like to do? \U0001f447',
+    'footer': 'r.wecare.digital',
     'buttonText': 'Options',
     'sections': [
         {
-            'title': 'Requests & Orders',
+            'title': 'Requests',
             'rows': [
                 {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Raise a new service request'},
-                {'id': 'ss_amend_request', 'title': '\u270f\ufe0f Amend Request', 'description': 'Change or update an existing request'},
+                {'id': 'ss_amend_request', 'title': '\u270f\ufe0f Amend Request', 'description': 'Change or update existing request'},
                 {'id': 'ss_track_request', 'title': '\U0001f50d Track Request', 'description': 'Check status of your request'},
-                {'id': 'ss_order_notes', 'title': '\U0001f4dd Order Notes', 'description': 'Add special instructions to an order'},
             ]
         },
         {
-            'title': 'Services',
+            'title': 'Book & Schedule',
             'rows': [
-                {'id': 'ss_subscribe', 'title': '\U0001f4dd Subscribe', 'description': 'Register for updates and orders'},
+                {'id': 'ss_schedule_appointment', 'title': '\U0001f4c5 Schedule Appointment', 'description': 'Book a meeting or visit'},
                 {'id': 'ss_rx_slot', 'title': '\U0001f48a RX Slot', 'description': 'Book a prescription slot'},
-                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Drop Docs', 'description': 'Submit documents'},
-                {'id': 'ss_schedule_appointment', 'title': '\U0001f4c5 Schedule Appointment', 'description': 'Book an appointment'},
+                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Drop Docs', 'description': 'Submit your documents'},
+            ]
+        },
+        {
+            'title': 'Account & More',
+            'rows': [
+                {'id': 'ss_subscribe', 'title': '\U0001f4dd Subscribe', 'description': 'Register for updates & orders'},
+                {'id': 'ss_order_notes', 'title': '\U0001f4e6 Order Notes', 'description': 'Add instructions to an order'},
                 {'id': 'ss_enterprise_assist', 'title': '\U0001f3e2 Enterprise Assist', 'description': 'Business / corporate support'},
                 {'id': 'ss_leave_review', 'title': '\u2b50 Leave Review', 'description': 'Share your feedback'},
             ]
