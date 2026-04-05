@@ -3984,22 +3984,31 @@ def _send_interactive_list(contact_id: str, phone_number_id: str, list_config: D
         }))
 
 
-def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_url: str, request_id: str) -> None:
-    """Send a WhatsApp CTA URL button message."""
+def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_url: str, request_id: str,
+                     body_text: str = '', header_text: str = '', footer_text: str = '') -> None:
+    """Send a WhatsApp CTA URL button message with body text.
+    Sends ONE interactive message with body text + CTA button."""
     if not contact_id or not cta_url:
         return
 
     try:
+        interactive_data: Dict[str, Any] = {
+            'body': body_text or cta_text,
+            'buttonText': cta_text[:20],  # Max 20 chars for CTA display text
+            'url': cta_url,
+        }
+        if header_text:
+            interactive_data['header'] = header_text
+        if footer_text:
+            interactive_data['footer'] = footer_text
+
         payload = {
             'body': json.dumps({
                 'contactId': contact_id,
                 'phoneNumberId': phone_number_id,
                 'isInteractive': True,
                 'interactiveType': 'cta_url',
-                'interactiveData': {
-                    'body': cta_text,
-                    'buttons': [{'type': 'url', 'title': cta_text, 'url': cta_url}],
-                }
+                'interactiveData': interactive_data,
             })
         }
 
@@ -5274,36 +5283,29 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         return
 
     # ── CTA URL buttons (Store, Gift Card, FAQ, Bharat Stack) ──
-    # Each sends a descriptive text + CTA URL button + follow-up reply buttons
+    # Each sends ONE interactive CTA message with body text + button
+    # Then followup reply buttons as second message
     if action == '_cta_faq':
-        _send_ai_auto_reply(contact_id,
-            "Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447",
-            phone_number_id, request_id)
-        _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id)
+        _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id,
+            body_text="Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447")
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     if action == '_cta_gift_card':
-        _send_ai_auto_reply(contact_id,
-            "Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447",
-            phone_number_id, request_id)
-        _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/gift-card', request_id)
+        _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/gift-card', request_id,
+            body_text="Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447")
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     if action == '_cta_store':
-        _send_ai_auto_reply(contact_id,
-            "Browse WECARE.DIGITAL services, brands, and offers \u2014 all in one place.\n\nTap below to explore. \U0001f447",
-            phone_number_id, request_id)
-        _send_cta_button(contact_id, phone_number_id, 'Visit Store', 'https://wecare.digital', request_id)
+        _send_cta_button(contact_id, phone_number_id, 'Visit Store', 'https://wecare.digital', request_id,
+            body_text="Browse WECARE.DIGITAL services, brands, and offers \u2014 all in one place.\n\nTap below to explore. \U0001f447")
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     if action == '_cta_bharat_stack':
-        _send_ai_auto_reply(contact_id,
-            "Explore Bharat Stack and discover services designed for everyday Bharat.",
-            phone_number_id, request_id)
-        _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id)
+        _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id,
+            body_text="Explore Bharat Stack and discover services designed for everyday Bharat.")
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
