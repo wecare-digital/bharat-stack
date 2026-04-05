@@ -957,6 +957,7 @@ def _process_message(
                 aws_phone_number_id=aws_phone_number_id,
                 interactive=interactive,
             )
+            return  # Stop processing — call permission handled
         # IVR button responses — route to appropriate department/action
         elif interactive_type == 'button_reply':
             button_id = interactive.get('button_reply', {}).get('id', '')
@@ -967,6 +968,7 @@ def _process_message(
                     button_id=button_id,
                     request_id=request_id,
                 )
+                return  # Stop processing — IVR button handled
         # List reply — user tapped a row in an interactive list message
         elif interactive_type == 'list_reply':
             list_id = interactive.get('list_reply', {}).get('id', '')
@@ -978,6 +980,7 @@ def _process_message(
                     sender_phone=sender_phone,
                     request_id=request_id,
                 )
+                return  # Stop processing — list reply handled
     
     # Handle system status messages with user_changed_user_id
     # Per Meta BSUID docs: system messages can have type=user_changed_user_id

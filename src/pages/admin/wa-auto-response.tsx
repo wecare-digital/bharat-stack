@@ -75,6 +75,158 @@ const DEFAULT_KEYWORDS: KeywordRule[] = [
   { id: 'kw_hours', keywords: ['hours', 'timing', 'open', 'available', 'when'], response: '🕐 Business hours: Mon–Fri, 9 AM – 6 PM IST (excluding public holidays).', responseType: 'text', enabled: true },
 ];
 
+// ── Flow Triggers Sub-Component ──
+interface FlowTrigger {
+  keywords: string[];
+  flowId: string;
+  message: { body: string; footer: string; flowCta: string; header?: string };
+  enabled: boolean;
+}
+
+const FlowTriggersTab: React.FC<{ S: Record<string, any> }> = ({ S }) => {
+  const toast = useToastContext();
+  const [triggers, setTriggers] = useState<Record<string, FlowTrigger>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editKey, setEditKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const resp = await api.getSystemConfig('flow_triggers_config');
+        if (resp && typeof resp === 'object' && Object.keys(resp).length > 0) {
+          setTriggers(resp as Record<string, FlowTrigger>);
+        }
+      } catch { /* use empty — Lambda defaults will apply */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  const saveAll = async () => {
+    setSaving(true);
+    try {
+      await api.updateSystemConfig('flow_triggers_config', triggers);
+      toast.success('Flow triggers saved — changes are live');
+    } catch { toast.error('Failed to save'); }
+    setSaving(false);
+  };
+
+  const updateTrigger = (key: string, field: string, value: any) => {
+    setTriggers(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: value },
+    }));
+  };
+
+  const updateMessage = (key: string, field: string, value: string) => {
+    setTriggers(prev => ({
+      ...prev,
+      [key]: { ...prev[key], message: { ...prev[key]?.message, [field]: value } },
+    }));
+  };
+
+  const addTrigger = () => {
+    const id = `custom_${Date.now()}`;
+    setTriggers(prev => ({
+      ...prev,
+      [id]: { keywords: [''], flowId: '', message: { body: '', footer: 'WECARE.DIGITAL', flowCta: 'Open' }, enabled: true },
+    }));
+    setEditKey(id);
+  };
+
+  const removeTrigger = (key: string) => {
+    setTriggers(prev => { const n = { ...prev }; delete n[key]; return n; });
+  };
+
+  if (loading) return <div style={{ padding: 20, color: '#6b7280' }}>Loading...</div>;
+
+  const keys = Object.keys(triggers);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div>
+          <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>
+            Each trigger maps keywords to a WhatsApp Flow. When a user sends a matching keyword (or taps a selfservice menu item), the flow form is sent.
+          </p>
+          <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
+            Leave empty to use Lambda defaults. Only overrides you set here are saved.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button style={S.btn} onClick={addTrigger}>+ Add Trigger</button>
+          <button style={S.btnPrimary} onClick={saveAll} disabled={saving}>{saving ? 'Saving...' : 'Save All'}</button>
+        </div>
+      </div>
+
+      {keys.length === 0 && (
+        <div style={{ ...S.card, textAlign: 'center' as const, padding: 32, color: '#9ca3af' }}>
+          No custom flow triggers configured. Using Lambda defaults.
+          <br />Click &quot;+ Add Trigger&quot; to override, or the defaults will work automatically.
+        </div>
+      )}
+
+      {keys.map(key => {
+        const t = triggers[key];
+        const isEditing = editKey === key;
+        return (
+          <div key={key} style={{ ...S.card, marginBottom: 10, opacity: t.enabled ? 1 : 0.5, borderLeft: `3px solid ${t.enabled ? '#d1f470' : '#d1d5db'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <code style={{ fontSize: 13, fontWeight: 600, color: '#1a3a2a' }}>{key}</code>
+                  {t.flowId && <span style={{ fontSize: 10, color: '#6b7280', fontFamily: 'monospace' }}>Flow: {t.flowId}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                  {(t.keywords || []).map((kw, i) => (
+                    <span key={i} style={{ padding: '1px 6px', background: '#d1f470', borderRadius: 4, fontSize: 11 }}>{kw}</span>
+                  ))}
+                </div>
+                {!isEditing && <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>{t.message?.body?.slice(0, 80)}{(t.message?.body?.length || 0) > 80 ? '...' : ''}</p>}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button style={S.toggle(t.enabled)} onClick={() => updateTrigger(key, 'enabled', !t.enabled)} aria-label="Toggle">
+                  <span style={{ position: 'absolute' as const, top: 2, left: t.enabled ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                </button>
+                <button style={{ ...S.btn, fontSize: 11, padding: '4px 8px' }} onClick={() => setEditKey(isEditing ? null : key)}>{isEditing ? 'Close' : 'Edit'}</button>
+                <button style={{ ...S.btn, fontSize: 11, padding: '4px 8px', color: '#dc2626', borderColor: '#fecaca' }} onClick={() => removeTrigger(key)}>Del</button>
+              </div>
+            </div>
+
+            {isEditing && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column' as const, gap: 8, padding: 12, background: '#f9fafb', borderRadius: 8 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>Keywords (comma-separated)</label>
+                  <input style={S.input} value={(t.keywords || []).join(', ')} onChange={e => updateTrigger(key, 'keywords', e.target.value.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>Flow ID</label>
+                  <input style={S.input} value={t.flowId || ''} onChange={e => updateTrigger(key, 'flowId', e.target.value.trim())} placeholder="Meta Flow ID (e.g. 1533536534833353)" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600 }}>Message Body</label>
+                  <textarea style={S.textarea} value={t.message?.body || ''} onChange={e => updateMessage(key, 'body', e.target.value)} placeholder="Message shown above the flow button" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600 }}>CTA Button Text</label>
+                    <input style={S.input} value={t.message?.flowCta || ''} onChange={e => updateMessage(key, 'flowCta', e.target.value)} placeholder="e.g. Submit Request" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600 }}>Footer</label>
+                    <input style={S.input} value={t.message?.footer || ''} onChange={e => updateMessage(key, 'footer', e.target.value)} placeholder="WECARE.DIGITAL" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ── Ice Breakers + Slash Commands Sub-Component ──
 interface IceBreaker { text: string; }
 interface SlashCommand { command_name: string; command_description: string; }
@@ -273,7 +425,7 @@ const IceBreakersTab: React.FC<{ S: Record<string, any> }> = ({ S }) => {
 
 const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
   const toast = useToastContext();
-  const [activeTab, setActiveTab] = useState<'welcome' | 'keywords' | 'menu' | 'icebreakers'>('welcome');
+  const [activeTab, setActiveTab] = useState<'welcome' | 'keywords' | 'menu' | 'icebreakers' | 'flows'>('welcome');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -438,6 +590,7 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
         {/* Tabs */}
         <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: 16, display: 'flex', gap: 4 }}>
           <button style={S.tab(activeTab === 'welcome')} onClick={() => setActiveTab('welcome')}>Welcome</button>
+          <button style={S.tab(activeTab === 'flows')} onClick={() => setActiveTab('flows')}>Flow Triggers</button>
           <button style={S.tab(activeTab === 'keywords')} onClick={() => setActiveTab('keywords')}>Keywords</button>
           <button style={S.tab(activeTab === 'menu')} onClick={() => setActiveTab('menu')}>Menu</button>
           <button style={S.tab(activeTab === 'icebreakers')} onClick={() => setActiveTab('icebreakers')}>Ice Breakers</button>
@@ -691,6 +844,11 @@ const CodeRepo: React.FC<PageProps> = ({ signOut, user }) => {
 
             <button style={S.btn} onClick={addSection}>+ Add Section</button>
           </div>
+        )}
+
+        {/* ── Flow Triggers Tab ── */}
+        {activeTab === 'flows' && (
+          <FlowTriggersTab S={S} />
         )}
 
         {/* ── Ice Breakers Tab ── */}
