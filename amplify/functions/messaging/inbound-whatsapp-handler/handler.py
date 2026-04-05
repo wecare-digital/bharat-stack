@@ -971,9 +971,6 @@ def _process_message(
                 return  # Stop processing — IVR button handled
             # Follow-up buttons: Explore More / Done for Now
             if button_id == 'followup_explore':
-                _hi_text = "Hi! \U0001f44b Here\u2019s the menu \u2014 tap below to get started \U0001f447"
-                _hi_text = _load_welcome_text(aws_phone_number_id, _hi_text)
-                _send_ai_auto_reply(contact_id, _hi_text, aws_phone_number_id, request_id)
                 _send_interactive_list(
                     contact_id=contact_id,
                     phone_number_id=aws_phone_number_id,
@@ -1139,14 +1136,7 @@ def _process_message(
             'senderPhone': sender_phone,
             'requestId': request_id,
         }))
-        _hi_text = "Hi! 👋 Here's the menu — tap below to get started 👇"
-        _hi_text = _load_welcome_text(aws_phone_number_id, _hi_text)
-        _send_ai_auto_reply(
-            contact_id=contact_id,
-            content=_hi_text,
-            phone_number_id=aws_phone_number_id,
-            request_id=request_id
-        )
+        # Send ONLY the main menu (header/body already contains greeting)
         _send_interactive_list(
             contact_id=contact_id,
             phone_number_id=aws_phone_number_id,
@@ -1294,7 +1284,7 @@ def _process_message(
             return  # Skip AI automation — payment flow handled
 
         # ── Direct "Hi" / greeting keyword trigger (LLM-independent) ──
-        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu'}
+        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu', 'need help!'}
         if content_lower in HI_KEYWORDS:
             logger.info(json.dumps({
                 'event': 'hi_keyword_triggered',
@@ -1303,16 +1293,8 @@ def _process_message(
                 'senderPhone': sender_phone,
                 'requestId': request_id,
             }))
-            # Send welcome/greeting text
-            _hi_text = "Hi! 👋 Here's the menu — tap below to get started 👇"
-            _hi_text = _load_welcome_text(aws_phone_number_id, _hi_text)
-            _send_ai_auto_reply(
-                contact_id=contact_id,
-                content=_hi_text,
-                phone_number_id=aws_phone_number_id,
-                request_id=request_id
-            )
-            # Send the main menu interactive list
+            # Send ONLY the main menu interactive list (no separate welcome text)
+            # The menu header/body already contains the greeting
             _send_interactive_list(
                 contact_id=contact_id,
                 phone_number_id=aws_phone_number_id,
@@ -1398,20 +1380,8 @@ def _process_message(
     _is_brand_new_contact = not _welcome_already_sent
     if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document', 'request_welcome'):
         try:
-            _welcome_text = (
-                "Hi there! 👋 Welcome to WECARE.DIGITAL\n\n"
-                "Shop, pay, track requests, or get support — all right here.\n\n"
-                "Tap *Menu* to get started 👇"
-            )
-            _welcome_text = _load_welcome_text(aws_phone_number_id, _welcome_text)
-
-            _send_ai_auto_reply(
-                contact_id=contact_id,
-                content=_welcome_text,
-                phone_number_id=aws_phone_number_id,
-                request_id=request_id
-            )
-            # Also send the main menu interactive list
+            # Send ONLY the main menu (header/body already contains greeting)
+            # No separate welcome text — the menu IS the welcome
             _send_interactive_list(
                 contact_id=contact_id,
                 phone_number_id=aws_phone_number_id,
@@ -5262,9 +5232,6 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         return
 
     if action == '_main_menu':
-        _hi_text = "Hi! \U0001f44b Here's the menu \u2014 tap below to get started \U0001f447"
-        _hi_text = _load_welcome_text(phone_number_id, _hi_text)
-        _send_ai_auto_reply(contact_id, _hi_text, phone_number_id, request_id)
         _send_interactive_list(
             contact_id=contact_id,
             phone_number_id=phone_number_id,
