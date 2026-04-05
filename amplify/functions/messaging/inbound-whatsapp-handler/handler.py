@@ -1383,25 +1383,11 @@ def _process_message(
             logger.warning(f"Welcome message failed (non-blocking): {_we}")
 
     if msg_type in ai_eligible_types and (content or s3_key) and not _is_brand_new_contact:
-        # ── WhatsApp AI auto-response REMOVED ──
-        # AI response generation is disabled for WhatsApp. Only keyword-triggered
-        # flows (pay, hi/menu, submit request, subscribe, bharat stack, selfservice)
-        # and welcome messages are sent. Unmatched messages get a static fallback.
-        # The FloatingAgent (internal admin) still uses AI via ai-generate-response Lambda.
-        _fallback = _load_fallback_message(aws_phone_number_id)
-        if _fallback:
-            _send_ai_auto_reply(
-                contact_id=contact_id,
-                content=_fallback,
-                phone_number_id=aws_phone_number_id,
-                request_id=request_id
-            )
-            logger.info(json.dumps({
-                'event': 'fallback_message_sent',
-                'contactId': contact_id,
-                'contentLength': len(_fallback),
-                'requestId': request_id,
-            }))
+        # ── No auto-response for unmatched messages ──
+        # Only keyword-triggered flows, welcome messages, and menu responses are sent.
+        # Unmatched messages are stored but no reply is sent.
+        # The admin can see all messages in the dashboard inbox and reply manually.
+        pass
 
 
 def _extract_content(message: Dict, msg_type: str) -> str:
@@ -5380,7 +5366,7 @@ def _get_bharat_stack_menu() -> Dict:
 
 # ── Self-service sub-menu ──
 DEFAULT_SELFSERVICE_MENU = {
-    'header': 'Self-Service',
+    'header': 'Selfservice',
     'body': "Choose what you\u2019d like to do. You can submit or track a request, book a visit, upload documents, or get business support.",
     'footer': 'Tap an option to continue.',
     'buttonText': 'Browse Options',
