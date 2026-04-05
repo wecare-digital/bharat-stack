@@ -1787,21 +1787,34 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
         # Route INIT based on flow_token prefix
         _ft_prefix = flow_token.split('-')[0] if flow_token else ''
 
-        if _ft_prefix in ('submit_req', 'sr'):
-            # Submit Request flow — show order select
-            email = data.get('email', '')
-            orders = _fetch_orders_for_flow(phone, email)
-            response_payload = {
-                'screen': 'ORDER_SELECT',
-                'data': {
-                    'orders': orders if orders else [{'id': 'none', 'title': 'No orders found'}],
-                }
-            }
-        else:
-            # All other flows (Track, Update, Subscribe, etc.) — show WELCOME/FORM screen
+        # Flows that DON'T need order lookup
+        NO_ORDER_FLOWS = ('subscribe', 'leave_revi', 'rx_slot')
+
+        if any(_ft_prefix.startswith(p) for p in NO_ORDER_FLOWS):
+            # Subscribe, Leave Feedback, Medical Visit — no order needed
             response_payload = {
                 'screen': 'WELCOME',
                 'data': {}
+            }
+        else:
+            # All other flows — fetch orders for the user
+            # Submit Request, Track, Update, Appointment, Docs, Enterprise, Order Notes
+            email = data.get('email', '')
+            orders = _fetch_orders_for_flow(phone, email)
+
+            # Determine first screen based on flow type
+            if _ft_prefix in ('submit_req', 'sr'):
+                first_screen = 'ORDER_SELECT'
+            else:
+                # Other flows: if they have ORDER_SELECT screen, use it
+                # Otherwise fall back to WELCOME with orders in data
+                first_screen = 'WELCOME'
+
+            response_payload = {
+                'screen': first_screen,
+                'data': {
+                    'orders': orders if orders else [{'id': 'none', 'title': 'No orders found'}],
+                }
             }
 
     elif action == 'data_exchange':
