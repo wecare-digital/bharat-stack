@@ -59,7 +59,7 @@
             "label": "WhatsApp Username",
             "required": false,
             "input-type": "text",
-            "helper-text": "e.g. @username"
+            "helper-text": "@username"
           },
           {
             "type": "TextInput",
