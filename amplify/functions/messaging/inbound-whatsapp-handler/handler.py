@@ -4929,6 +4929,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': [
             'submit request', 'sr', 'raise request', 'submit', 'request',
             'new request', 'start a new support request', 'support request',
+            '\U0001f4cb submit request',
         ],
         'flowId': '931522532810297',
         'message': {
@@ -4942,6 +4943,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': [
             'track request', 'track', 'status', 'where is my request', 'check status',
             'request status', 'track order', 'check the status',
+            '\U0001f50d track request',
         ],
         'flowId': '973888792200167',
         'message': {
@@ -4956,6 +4958,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'amend request', 'amend', 'change request', 'modify request',
             'update request', 'edit request', 'correct request',
             'edit or correct', 'existing request',
+            '\u270f\ufe0f update request',
         ],
         'flowId': '1533536534833353',
         'message': {
@@ -4970,6 +4973,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'schedule appointment', 'appointment', 'book appointment', 'schedule',
             'meeting', 'book meeting', 'schedule meeting', 'consultation',
             'schedule a consultation', 'service visit',
+            '\U0001f4c5 book appointment',
         ],
         'flowId': '1475722977488573',
         'message': {
@@ -4983,6 +4987,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': [
             'rx slot', 'rx', 'prescription', 'book rx', 'medicine', 'pharmacy',
             'chemist', 'book medical visit', 'medical visit', 'medical tourism',
+            '\U0001fa7a book medical visit',
         ],
         'flowId': '1892784521355352',
         'message': {
@@ -4996,6 +5001,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': [
             'drop docs', 'drop documents', 'upload docs', 'send docs', 'documents',
             'upload documents', 'share docs', 'supporting documents',
+            '\U0001f587\ufe0f upload documents',
         ],
         'flowId': '1737801600902350',
         'message': {
@@ -5010,6 +5016,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'enterprise assist', 'enterprise', 'business assist', 'corporate',
             'b2b', 'enterprise help', 'enterprise support', 'business support',
             'bulk enquiries', 'bulk',
+            '\U0001f4bc enterprise support',
         ],
         'flowId': '2132515287534606',
         'message': {
@@ -5023,6 +5030,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': [
             'leave review', 'review', 'feedback', 'rate', 'rating', 'testimonial',
             'leave feedback', 'share your experience',
+            '\u2b50 leave feedback',
         ],
         'flowId': '963443293213262',
         'message': {
@@ -5036,6 +5044,7 @@ DEFAULT_FLOW_TRIGGERS = {
         'keywords': [
             'subscribe', 'signup', 'sign up', 'register', 'join', 'membership',
             'enroll', 'enrol', 'subscribe for updates', 'updates',
+            '\U0001f514 subscribe for updates',
         ],
         'flowId': '932104319588449',
         'message': {
