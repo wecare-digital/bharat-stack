@@ -1320,12 +1320,10 @@ def _process_message(
                 'contactId': contact_id,
                 'requestId': request_id,
             }))
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=aws_phone_number_id,
-                list_config=_get_bharat_stack_menu(),
-                request_id=request_id
-            )
+            _send_cta_button(contact_id, aws_phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id,
+                body_text="Explore Bharat Stack and discover services designed for everyday Bharat.",
+                footer_text='WECARE.DIGITAL')
+            _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
             return
 
         # ── Ice breaker: "Self-service" / "/selfservice" ──
@@ -2159,7 +2157,9 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
             }))
     
     if not updated:
-        logger.warning(json.dumps({
+        # Downgrade to debug — this is normal for auto-reaction/read-receipt messages
+        # which are not stored in the outbound table
+        logger.debug(json.dumps({
             'event': 'status_update_message_not_found',
             'whatsappMessageId': whatsapp_message_id,
             'status': status_value,
