@@ -980,7 +980,7 @@ def _process_message(
                 return
             if button_id == 'followup_done':
                 _send_ai_auto_reply(contact_id,
-                    "You\u2019re all set for now. Thanks for stopping by! \U0001f49b",
+                    "You\u2019re all set for now. Thanks for choosing WECARE.DIGITAL! \U0001f49b\n\nType *hi* or *menu* anytime to start again.",
                     aws_phone_number_id, request_id)
                 return
         # List reply — user tapped a row in an interactive list message
@@ -5250,29 +5250,33 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         return
 
     # ── CTA URL buttons (Store, Gift Card, FAQ, Bharat Stack) ──
-    # Each sends ONE interactive CTA message with body text + button
+    # Each sends ONE interactive CTA message with body + button + footer
     # Then followup reply buttons as second message
     if action == '_cta_faq':
         _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id,
-            body_text="Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447")
+            body_text="Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447",
+            footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     if action == '_cta_gift_card':
         _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/gift-card', request_id,
-            body_text="Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447")
+            body_text="Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447",
+            footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     if action == '_cta_store':
         _send_cta_button(contact_id, phone_number_id, 'Visit Store', 'https://wecare.digital', request_id,
-            body_text="Browse WECARE.DIGITAL services, brands, and offers \u2014 all in one place.\n\nTap below to explore. \U0001f447")
+            body_text="Browse WECARE.DIGITAL services, brands, and offers \u2014 all in one place.\n\nTap below to explore. \U0001f447",
+            footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     if action == '_cta_bharat_stack':
         _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id,
-            body_text="Explore Bharat Stack and discover services designed for everyday Bharat.")
+            body_text="Explore Bharat Stack and discover services designed for everyday Bharat.",
+            footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
