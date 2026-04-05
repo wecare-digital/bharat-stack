@@ -20,6 +20,7 @@ import BusinessProfilePage from './business-profile';
 import WebhooksPage from './webhooks';
 import AIConfigPage from './ai-config';
 import AutoResponsePage from './auto-response';
+import ScriptsPage from './scripts';
 import FlowResponsesPage from './flow-responses';
 import FlowHubPage from './flow-hub';
 import MigrationPage from './migration';
@@ -31,6 +32,7 @@ interface PageProps {
 
 const TABS: ShellTab[] = [
   { id: 'auto-response', label: 'Auto-Response' },
+  { id: 'scripts', label: 'Scripts' },
   { id: 'campaign', label: 'Campaign' },
   { id: 'templates', label: 'Templates' },
   { id: 'lists', label: 'List Msgs', divider: true },
@@ -59,6 +61,7 @@ const WhatsAppSettingsPage: React.FC<PageProps> = ({ signOut, user }) => (
       {(activeTab) => (
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
           {activeTab === 'auto-response' && <AutoResponsePage signOut={signOut} user={user} embedded />}
+          {activeTab === 'scripts' && <ScriptsPage signOut={signOut} user={user} embedded />}
           {activeTab === 'campaign' && <CampaignPage signOut={signOut} user={user} embedded />}
           {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}
           {activeTab === 'lists' && <InteractiveListsPage signOut={signOut} user={user} embedded />}

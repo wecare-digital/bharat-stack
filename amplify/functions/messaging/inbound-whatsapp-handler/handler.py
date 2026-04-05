@@ -1218,7 +1218,17 @@ def _process_message(
                 'phoneNumberId': aws_phone_number_id,
                 'requestId': request_id,
             }))
-            # Step 1: Send "pulling" message immediately
+            # Phone 2: send CTA link to Phone 1 for payment
+            if aws_phone_number_id == PHONE_NUMBER_ID_2:
+                _send_cta_button(
+                    contact_id=contact_id,
+                    phone_number_id=aws_phone_number_id,
+                    cta_text='Pay Now',
+                    cta_url='https://r.wecare.digital/pay',
+                    request_id=request_id,
+                )
+                return
+            # Phone 1: Step 1: Send "pulling" message immediately
             _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], aws_phone_number_id, request_id)
             try:
                 inv_payload = {
@@ -5232,7 +5242,17 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
 
     # Pay keyword
     if action == 'pay':
-        # Trigger pay flow by sending "pulling" message + invoice lookup
+        # Phone 2: send CTA link to Phone 1 for payment
+        if phone_number_id == PHONE_NUMBER_ID_2:
+            _send_cta_button(
+                contact_id=contact_id,
+                phone_number_id=phone_number_id,
+                cta_text='Pay Now',
+                cta_url='https://r.wecare.digital/pay',
+                request_id=request_id,
+            )
+            return
+        # Phone 1: trigger pay flow directly
         _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
         try:
             inv_payload = {
