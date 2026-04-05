@@ -3768,9 +3768,11 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
 def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                        request_id: str, flow_config: Dict = None, flow_key: str = '') -> None:
     """
-    Generic flow sender — works for all flow types (amend, track, rx_slot, drop_docs,
-    enterprise_assist, schedule_appointment, leave_review, order_notes, subscribe, submit_request).
-    Sends a WhatsApp Flow interactive message using the flow config from DEFAULT_FLOW_TRIGGERS.
+    Generic flow sender — works for all flow types.
+    
+    Phone 1 (WABA 1): Sends WhatsApp Flow interactive message (flows exist on WABA 1).
+    Phone 2 (WABA 2): Sends CTA URL button with short link → wa.me message link on Phone 1.
+    Flows are WABA-specific — they only exist on the WABA where they were created.
     """
     try:
         flow_id = (flow_config or {}).get('flowId', '')
@@ -3784,6 +3786,43 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             return
         msg = (flow_config or {}).get('message', {})
 
+        # ── Phone 2 fallback: send CTA URL with short link instead of flow ──
+        # Flows only exist on WABA 1. Phone 2 sends a link to Phone 1's wa.me message link.
+        if phone_number_id == PHONE_NUMBER_ID_2:
+            SHORT_URLS = {
+                'submit_request': 'https://r.wecare.digital/sr',
+                'track_request': 'https://r.wecare.digital/tr',
+                'amend_request': 'https://r.wecare.digital/ar',
+                'schedule_appointment': 'https://r.wecare.digital/sa',
+                'rx_slot': 'https://r.wecare.digital/rx',
+                'drop_docs': 'https://r.wecare.digital/dd',
+                'enterprise_assist': 'https://r.wecare.digital/ea',
+                'leave_review': 'https://r.wecare.digital/lr',
+                'subscribe': 'https://r.wecare.digital/sub',
+                'order_notes': 'https://r.wecare.digital/on',
+            }
+            short_url = SHORT_URLS.get(flow_key, 'https://r.wecare.digital/sr')
+            cta_text = msg.get('flowCta', flow_key.replace('_', ' ').title())
+            body_text = msg.get('body', 'Tap below to continue.')
+
+            _send_cta_button(
+                contact_id=contact_id,
+                phone_number_id=phone_number_id,
+                cta_text=cta_text,
+                cta_url=short_url,
+                request_id=request_id,
+            )
+            logger.info(json.dumps({
+                'event': 'generic_flow_phone2_cta_sent',
+                'flowKey': flow_key,
+                'contactId': contact_id,
+                'shortUrl': short_url,
+                'phoneNumberId': phone_number_id,
+                'requestId': request_id,
+            }))
+            return
+
+        # ── Phone 1: send WhatsApp Flow interactive message ──
         flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-ph-{sender_phone}'
 
         # Use navigate for flows with WELCOME screen, data_exchange for submit_request
