@@ -1343,6 +1343,30 @@ def _process_message(
             )
             return
 
+        # ── Keyword: "store" / "shop" / "explore store" ──
+        STORE_KEYWORDS = {'store', 'shop', 'explore store', 'brands', 'marketplace', '\U0001f6cd\ufe0f explore store'}
+        if content_lower in STORE_KEYWORDS:
+            _send_cta_button(contact_id, aws_phone_number_id, 'Explore Store', 'https://wecare.digital', request_id)
+            return
+
+        # ── Keyword: "gift card" / "gift" ──
+        GIFT_KEYWORDS = {'gift card', 'gift cards', 'gift', 'buy gift card', '\U0001f381 gift cards'}
+        if content_lower in GIFT_KEYWORDS:
+            _send_cta_button(contact_id, aws_phone_number_id, 'Gift Cards', 'https://wecare.digital/gift-card', request_id)
+            return
+
+        # ── Keyword: "faq" / "faqs" / "help" / "questions" ──
+        FAQ_KEYWORDS = {'faq', 'faqs', 'help', 'questions', 'common questions', '\u2753 faqs'}
+        if content_lower in FAQ_KEYWORDS:
+            _send_cta_button(contact_id, aws_phone_number_id, 'FAQs', 'https://wecare.digital/faq', request_id)
+            return
+
+        # ── Keyword: "about" / "about us" / "about wecare" ──
+        ABOUT_KEYWORDS = {'about', 'about us', 'about wecare', 'about wecare.digital', '\U0001f49b about wecare.digital'}
+        if content_lower in ABOUT_KEYWORDS:
+            _send_cta_button(contact_id, aws_phone_number_id, 'About Us', 'https://wecare.digital', request_id)
+            return
+
     # Process AI automation for supported message types
     # Now includes media types (image, audio, video, document) for multimodal AI
     ai_eligible_types = ['text', 'interactive', 'button', 'location', 'image', 'video', 'audio', 'document']
@@ -5131,17 +5155,22 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
 
     # ── Main menu row IDs → actions ──
     MENU_TO_KEYWORD = {
-        # Main menu (Explore)
-        'menu_store': None,  # Opens store (no flow)
-        'menu_self_service': '_selfservice_menu',  # Opens self-service sub-menu
-        'menu_bharat_stack': '_bharat_stack_menu',  # Opens Bharat Stack sub-menu
-        'menu_faq': 'faq',  # FAQ
-        'menu_pay': 'pay',
+        # Main menu — Start Here
+        'menu_selfservice': '_selfservice_menu',
+        'menu_self_service': '_selfservice_menu',  # legacy
         'menu_subscribe': 'subscribe',
-        'menu_app': None,  # CTA link
-        'menu_about': None,  # Info text
-        'menu_audio': None,  # Toggle
-        'menu_language': '_language_menu',  # Opens language picker
+        'menu_pay': 'pay',
+        # Main menu — Explore WECARE
+        'menu_store': '_cta_store',
+        'menu_gift_card': '_cta_gift_card',
+        'menu_bharat_stack': '_bharat_stack_menu',
+        # Main menu — Help & Answers
+        'menu_faq': '_cta_faq',
+        'menu_about': '_cta_about',
+        # Legacy main menu IDs (old menu, may be cached)
+        'menu_app': '_cta_about',
+        'menu_audio': None,
+        'menu_language': '_language_menu',
         'menu_notifications': None,
         'menu_human': None,
         # Self-service menu
@@ -5156,7 +5185,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         'ss_enterprise_assist': 'enterprise assist',
         'ss_leave_review': 'leave review',
         'ss_main_menu': '_main_menu',
-        # Legacy IDs (old menu)
+        # Legacy self-service IDs
         'ss_orders': 'track request',
         'ss_payments': 'pay',
         'ss_support': 'submit request',
@@ -5211,8 +5240,26 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         )
         return
 
+    # ── CTA URL buttons (Store, Gift Card, FAQ, About) ──
+    CTA_ACTIONS = {
+        '_cta_store': ('Explore Store', 'https://wecare.digital'),
+        '_cta_gift_card': ('Gift Cards', 'https://wecare.digital/gift-card'),
+        '_cta_faq': ('FAQs', 'https://wecare.digital/faq'),
+        '_cta_about': ('About Us', 'https://wecare.digital'),
+    }
+    if action in CTA_ACTIONS:
+        cta_text, cta_url = CTA_ACTIONS[action]
+        _send_cta_button(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            cta_text=cta_text,
+            cta_url=cta_url,
+            request_id=request_id,
+        )
+        return
+
     # Keyword-triggered flows
-    if action and action not in ('pay', 'faq'):
+    if action and action != 'pay':
         flow_triggers = _get_flow_triggers_config()
         for flow_key, trigger in flow_triggers.items():
             if not trigger.get('enabled', True):
@@ -5232,12 +5279,6 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
                     return
         # Fallback: send the keyword as text so it gets picked up by keyword matching
         _send_ai_auto_reply(contact_id, f"You selected: {action.title()}. Processing...", phone_number_id, request_id)
-        return
-
-    # FAQ
-    if action == 'faq':
-        _fallback = _load_fallback_message(phone_number_id)
-        _send_ai_auto_reply(contact_id, _fallback or "Type your question and we'll help you out.", phone_number_id, request_id)
         return
 
     # Pay keyword
@@ -5317,17 +5358,31 @@ def _get_flow_triggers_config() -> Dict:
 
 DEFAULT_MAIN_MENU = {
     'header': 'WECARE.DIGITAL',
-    'body': "Pick what you need \U0001f447",
-    'footer': 'r.wecare.digital',
+    'body': "Everyday Bharat, made easy. Tap below to explore, manage requests, or get help.",
+    'footer': 'wecare.digital',
     'buttonText': 'Menu',
     'sections': [
         {
-            'title': 'Explore',
+            'title': 'Start Here',
             'rows': [
-                {'id': 'menu_store', 'title': '\U0001f6d2 Store', 'description': 'Shop our brand marketplaces'},
-                {'id': 'menu_self_service', 'title': '\U0001f680 Self Service', 'description': 'Submit, track & manage requests'},
-                {'id': 'menu_bharat_stack', 'title': '\U0001f1ee\U0001f1f3 Bharat Stack', 'description': 'India digital public infra'},
-                {'id': 'menu_faq', 'title': '\u2753 FAQ', 'description': 'Frequently asked questions'},
+                {'id': 'menu_selfservice', 'title': '\U0001f680 Selfservice', 'description': 'Requests, appointments, documents, and support'},
+                {'id': 'menu_subscribe', 'title': '\U0001f514 Subscribe for Updates', 'description': 'Get updates, offers, and service news'},
+                {'id': 'menu_pay', 'title': '\U0001f4b3 Make a Payment', 'description': 'Pay an invoice or complete a pending payment'},
+            ]
+        },
+        {
+            'title': 'Explore WECARE',
+            'rows': [
+                {'id': 'menu_store', 'title': '\U0001f6cd\ufe0f Explore Store', 'description': 'Browse services, brands, and offers'},
+                {'id': 'menu_gift_card', 'title': '\U0001f381 Gift Cards', 'description': 'Send a digital gift card'},
+                {'id': 'menu_bharat_stack', 'title': '\U0001f1ee\U0001f1f3 Bharat Stack', 'description': 'Discover Bharat Stack and services'},
+            ]
+        },
+        {
+            'title': 'Help & Answers',
+            'rows': [
+                {'id': 'menu_faq', 'title': '\u2753 FAQs', 'description': 'Find answers to common questions'},
+                {'id': 'menu_about', 'title': '\U0001f49b About WECARE.DIGITAL', 'description': 'Learn more about WECARE.DIGITAL'},
             ]
         },
     ]
