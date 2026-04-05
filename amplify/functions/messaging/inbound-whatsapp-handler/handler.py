@@ -5357,10 +5357,10 @@ def _get_flow_triggers_config() -> Dict:
         return {k: v.copy() for k, v in DEFAULT_FLOW_TRIGGERS.items()}
 
 DEFAULT_MAIN_MENU = {
-    'header': 'WECARE.DIGITAL',
-    'body': "Everyday Bharat, made easy. Tap below to explore, manage requests, or get help.",
-    'footer': 'wecare.digital',
-    'buttonText': 'Menu',
+    'header': 'Welcome to WECARE.DIGITAL',
+    'body': "Choose what you\u2019d like to do \u2014 get started, explore our services, or find quick answers.",
+    'footer': 'Tap an option to continue.',
+    'buttonText': 'Explore Menu',
     'sections': [
         {
             'title': 'Start Here',
