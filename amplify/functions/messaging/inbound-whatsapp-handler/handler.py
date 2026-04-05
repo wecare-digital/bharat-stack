@@ -4922,94 +4922,126 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 # ============================================================================
 
 # Default flow triggers config — keyword-to-flow mapping
+# Keywords MUST include: exact keyword, selfservice menu row title (without emoji),
+# natural variations, and the list_reply action keyword from MENU_TO_KEYWORD.
 DEFAULT_FLOW_TRIGGERS = {
     'submit_request': {
-        'keywords': ['submit request', 'sr', 'raise request', 'submit', 'request'],
+        'keywords': [
+            'submit request', 'sr', 'raise request', 'submit', 'request',
+            'new request', 'start a new support request', 'support request',
+        ],
         'flowId': '931522532810297',
         'message': {
-            'body': '\U0001f447Please use the self-service option below. Once we receive it, we\u2019ll review it and follow up if needed.',
+            'body': '\U0001f4cb Start a new support request. Fill in the details and we\u2019ll follow up.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Submit Request',
         },
         'enabled': True,
     },
-    'subscribe': {
-        'keywords': ['subscribe', 'signup', 'sign up', 'register', 'join', 'membership', 'enroll', 'enrol'],
-        'flowId': '932104319588449',
-        'message': {
-            'body': '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details to get started with orders, payments, and updates.',
-            'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Subscribe Now',
-        },
-        'enabled': True,
-    },
-    'amend_request': {
-        'keywords': ['amend request', 'amend', 'change request', 'modify request', 'update request', 'edit request'],
-        'flowId': '1533536534833353',
-        'message': {
-            'body': '\u270f\ufe0f Need to amend a request? Fill in the details below and we\u2019ll update it.',
-            'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Amend Request',
-        },
-        'enabled': True,
-    },
     'track_request': {
-        'keywords': ['track request', 'track', 'status', 'where is my request', 'check status', 'request status', 'track order'],
+        'keywords': [
+            'track request', 'track', 'status', 'where is my request', 'check status',
+            'request status', 'track order', 'check the status',
+        ],
         'flowId': '973888792200167',
         'message': {
-            'body': '\U0001f50d Track your request \u2014 enter your reference ID to check the status.',
+            'body': '\U0001f50d Check the status of your request. Enter your reference ID below.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Track Request',
         },
         'enabled': True,
     },
-    'rx_slot': {
-        'keywords': ['rx slot', 'rx', 'prescription', 'book rx', 'medicine', 'pharmacy', 'chemist'],
-        'flowId': '1892784521355352',
+    'amend_request': {
+        'keywords': [
+            'amend request', 'amend', 'change request', 'modify request',
+            'update request', 'edit request', 'correct request',
+            'edit or correct', 'existing request',
+        ],
+        'flowId': '1533536534833353',
         'message': {
-            'body': '\U0001f48a Book an RX slot \u2014 share your prescription details and preferred time.',
+            'body': '\u270f\ufe0f Edit or correct a submitted request. Tell us what needs to change.',
             'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Book RX Slot',
-        },
-        'enabled': True,
-    },
-    'drop_docs': {
-        'keywords': ['drop docs', 'drop documents', 'upload docs', 'send docs', 'documents', 'upload documents', 'share docs'],
-        'flowId': '1737801600902350',
-        'message': {
-            'body': '\U0001f4c4 Drop your documents \u2014 tell us what you\u2019re sending and any instructions.',
-            'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Drop Docs',
-        },
-        'enabled': True,
-    },
-    'enterprise_assist': {
-        'keywords': ['enterprise assist', 'enterprise', 'business assist', 'corporate', 'b2b', 'enterprise help'],
-        'flowId': '2132515287534606',
-        'message': {
-            'body': '\U0001f3e2 Enterprise Assist \u2014 tell us about your business requirement.',
-            'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Enterprise Assist',
+            'flowCta': 'Update Request',
         },
         'enabled': True,
     },
     'schedule_appointment': {
-        'keywords': ['schedule appointment', 'appointment', 'book appointment', 'schedule', 'meeting', 'book meeting', 'schedule meeting'],
+        'keywords': [
+            'schedule appointment', 'appointment', 'book appointment', 'schedule',
+            'meeting', 'book meeting', 'schedule meeting', 'consultation',
+            'schedule a consultation', 'service visit',
+        ],
         'flowId': '1475722977488573',
         'message': {
-            'body': '\U0001f4c5 Schedule an appointment \u2014 pick a time that works for you.',
+            'body': '\U0001f4c5 Schedule a consultation or service visit. Pick a time that works for you.',
             'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Schedule Appointment',
+            'flowCta': 'Book Appointment',
+        },
+        'enabled': True,
+    },
+    'rx_slot': {
+        'keywords': [
+            'rx slot', 'rx', 'prescription', 'book rx', 'medicine', 'pharmacy',
+            'chemist', 'book medical visit', 'medical visit', 'medical tourism',
+        ],
+        'flowId': '1892784521355352',
+        'message': {
+            'body': '\U0001fa7a Schedule a medical tourism or prescription-related visit.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Book Medical Visit',
+        },
+        'enabled': True,
+    },
+    'drop_docs': {
+        'keywords': [
+            'drop docs', 'drop documents', 'upload docs', 'send docs', 'documents',
+            'upload documents', 'share docs', 'supporting documents',
+        ],
+        'flowId': '1737801600902350',
+        'message': {
+            'body': '\U0001f587\ufe0f Send supporting documents for your request.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Upload Documents',
+        },
+        'enabled': True,
+    },
+    'enterprise_assist': {
+        'keywords': [
+            'enterprise assist', 'enterprise', 'business assist', 'corporate',
+            'b2b', 'enterprise help', 'enterprise support', 'business support',
+            'bulk enquiries', 'bulk',
+        ],
+        'flowId': '2132515287534606',
+        'message': {
+            'body': '\U0001f4bc Corporate, B2B, and bulk enquiries. Tell us about your requirement.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Enterprise Support',
         },
         'enabled': True,
     },
     'leave_review': {
-        'keywords': ['leave review', 'review', 'feedback', 'rate', 'rating', 'testimonial'],
+        'keywords': [
+            'leave review', 'review', 'feedback', 'rate', 'rating', 'testimonial',
+            'leave feedback', 'share your experience',
+        ],
         'flowId': '963443293213262',
         'message': {
-            'body': '\u2b50 We\u2019d love your feedback! Share your experience with us.',
+            'body': '\u2b50 Share your experience with our service.',
             'footer': 'WECARE.DIGITAL',
-            'flowCta': 'Leave Review',
+            'flowCta': 'Leave Feedback',
+        },
+        'enabled': True,
+    },
+    'subscribe': {
+        'keywords': [
+            'subscribe', 'signup', 'sign up', 'register', 'join', 'membership',
+            'enroll', 'enrol', 'subscribe for updates', 'updates',
+        ],
+        'flowId': '932104319588449',
+        'message': {
+            'body': '\U0001f514 Get updates, offers, and service news. Fill in your details to subscribe.',
+            'footer': 'WECARE.DIGITAL',
+            'flowCta': 'Subscribe for Updates',
         },
         'enabled': True,
     },
