@@ -969,6 +969,23 @@ def _process_message(
                     request_id=request_id,
                 )
                 return  # Stop processing — IVR button handled
+            # Follow-up buttons: Explore More / Done for Now
+            if button_id == 'followup_explore':
+                _hi_text = "Hi! \U0001f44b Here\u2019s the menu \u2014 tap below to get started \U0001f447"
+                _hi_text = _load_welcome_text(aws_phone_number_id, _hi_text)
+                _send_ai_auto_reply(contact_id, _hi_text, aws_phone_number_id, request_id)
+                _send_interactive_list(
+                    contact_id=contact_id,
+                    phone_number_id=aws_phone_number_id,
+                    list_config=_get_welcome_config(),
+                    request_id=request_id,
+                )
+                return
+            if button_id == 'followup_done':
+                _send_ai_auto_reply(contact_id,
+                    "You\u2019re all set for now. Thanks for stopping by! \U0001f49b",
+                    aws_phone_number_id, request_id)
+                return
         # List reply — user tapped a row in an interactive list message
         elif interactive_type == 'list_reply':
             list_id = interactive.get('list_reply', {}).get('id', '')
@@ -4057,6 +4074,22 @@ def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Di
         }))
 
 
+def _send_followup_buttons(contact_id: str, phone_number_id: str, request_id: str) -> None:
+    """Send 'Explore More / Done for Now' reply buttons after any CTA response."""
+    _send_reply_buttons(
+        contact_id=contact_id,
+        phone_number_id=phone_number_id,
+        button_config={
+            'body': "Here\u2019s what you can do next. \U0001f447",
+            'buttons': [
+                {'id': 'followup_explore', 'title': '\U0001f9ed Explore More'},
+                {'id': 'followup_done', 'title': '\u270c\ufe0f Done for Now'},
+            ],
+        },
+        request_id=request_id,
+    )
+
+
 def _send_audio_response(contact_id: str, phone_number_id: str, text: str, language: str, request_id: str,
                          sender_phone: str = '', sender_bsuid: str = '') -> None:
     """
@@ -5163,7 +5196,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         # Main menu — Explore WECARE
         'menu_store': '_cta_store',
         'menu_gift_card': '_cta_gift_card',
-        'menu_bharat_stack': '_bharat_stack_menu',
+        'menu_bharat_stack': '_cta_bharat_stack',
         # Main menu — Help & Answers
         'menu_faq': '_cta_faq',
         'menu_about': '_cta_about',
@@ -5240,22 +5273,52 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         )
         return
 
-    # ── CTA URL buttons (Store, Gift Card, FAQ, About) ──
-    CTA_ACTIONS = {
-        '_cta_store': ('Explore Store', 'https://wecare.digital'),
-        '_cta_gift_card': ('Gift Cards', 'https://wecare.digital/gift-card'),
-        '_cta_faq': ('FAQs', 'https://wecare.digital/faq'),
-        '_cta_about': ('About Us', 'https://wecare.digital'),
-    }
-    if action in CTA_ACTIONS:
-        cta_text, cta_url = CTA_ACTIONS[action]
-        _send_cta_button(
-            contact_id=contact_id,
-            phone_number_id=phone_number_id,
-            cta_text=cta_text,
-            cta_url=cta_url,
-            request_id=request_id,
+    # ── CTA URL buttons (Store, Gift Card, FAQ, Bharat Stack) ──
+    # Each sends a descriptive text + CTA URL button + follow-up reply buttons
+    if action == '_cta_faq':
+        _send_ai_auto_reply(contact_id,
+            "Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447",
+            phone_number_id, request_id)
+        _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id)
+        _send_followup_buttons(contact_id, phone_number_id, request_id)
+        return
+
+    if action == '_cta_gift_card':
+        _send_ai_auto_reply(contact_id,
+            "Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447",
+            phone_number_id, request_id)
+        _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/gift-card', request_id)
+        _send_followup_buttons(contact_id, phone_number_id, request_id)
+        return
+
+    if action == '_cta_store':
+        _send_ai_auto_reply(contact_id,
+            "Browse WECARE.DIGITAL services, brands, and offers \u2014 all in one place.\n\nTap below to explore. \U0001f447",
+            phone_number_id, request_id)
+        _send_cta_button(contact_id, phone_number_id, 'Visit Store', 'https://wecare.digital', request_id)
+        _send_followup_buttons(contact_id, phone_number_id, request_id)
+        return
+
+    if action == '_cta_bharat_stack':
+        _send_ai_auto_reply(contact_id,
+            "Explore Bharat Stack and discover services designed for everyday Bharat.",
+            phone_number_id, request_id)
+        _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id)
+        _send_followup_buttons(contact_id, phone_number_id, request_id)
+        return
+
+    # About WECARE.DIGITAL — text only, no CTA + follow-up buttons
+    if action == '_cta_about':
+        about_text = (
+            "*Building digital railroads for everyday Bharat*\n\n"
+            "WECARE.DIGITAL is a network of microservice brands serving everyday Bharat\u2014"
+            "across travel, paperwork, disputes, rituals, and reflection.\n\n"
+            "We focus on simple access, transparent pricing, and reliable service through "
+            "Bnb Club, Expo Week, Legal Champ, No Fault, Ritual Guru, Swdhya, and Bharat Stack.\n\n"
+            "Made to serve what matters most."
         )
+        _send_ai_auto_reply(contact_id, about_text, phone_number_id, request_id)
+        _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
     # Keyword-triggered flows
@@ -5360,7 +5423,7 @@ DEFAULT_MAIN_MENU = {
     'header': 'Welcome to WECARE.DIGITAL',
     'body': "Choose what you\u2019d like to do \u2014 get started, explore our services, or find quick answers.",
     'footer': 'Tap an option to continue.',
-    'buttonText': 'Explore Menu',
+    'buttonText': 'Get Started',
     'sections': [
         {
             'title': 'Start Here',
@@ -5527,7 +5590,7 @@ DEFAULT_SELFSERVICE_MENU = {
     'header': 'Selfservice',
     'body': "Choose what you\u2019d like to do. You can submit or track a request, book a visit, upload documents, or get business support.",
     'footer': 'Tap an option to continue.',
-    'buttonText': 'Browse Options',
+    'buttonText': 'Browse Services',
     'sections': [
         {
             'title': 'New Request',
