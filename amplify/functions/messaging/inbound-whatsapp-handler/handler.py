@@ -3810,56 +3810,55 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             return
         msg = (flow_config or {}).get('message', {})
 
-        # ── Phone 2 fallback: send CTA URL with short link instead of flow ──
-        # Flows only exist on WABA 1. Phone 2 sends a CTA with body text + footer.
+        # ── Phone 2: check if WABA 2 has its own flow, otherwise CTA fallback ──
         if phone_number_id == PHONE_NUMBER_ID_2:
-            SHORT_URLS = {
-                'submit_request': 'https://r.wecare.digital/sr',
-                'track_request': 'https://r.wecare.digital/tr',
-                'amend_request': 'https://r.wecare.digital/ar',
-                'schedule_appointment': 'https://r.wecare.digital/sa',
-                'rx_slot': 'https://r.wecare.digital/rx',
-                'drop_docs': 'https://r.wecare.digital/dd',
-                'enterprise_assist': 'https://r.wecare.digital/ea',
-                'leave_review': 'https://r.wecare.digital/lr',
-                'subscribe': 'https://r.wecare.digital/sub',
-                'order_notes': 'https://r.wecare.digital/on',
-            }
-            PHONE2_BODY = {
-                'submit_request': '\U0001f4cb Start a new support request. Share the details and our team will follow up with you.',
-                'track_request': '\U0001f50d Check the status of your request anytime. Enter your reference ID below.',
-                'amend_request': '\u270f\ufe0f Need to make a change? Update your submitted request with the correct details.',
-                'schedule_appointment': '\U0001f4c5 Schedule a consultation or service visit at a time that works best for you.',
-                'rx_slot': '\U0001fa7a Arrange a medical tourism or prescription-related visit quickly and easily.',
-                'drop_docs': '\U0001f587\ufe0f Send your supporting documents securely to help us process your request.',
-                'enterprise_assist': '\U0001f4bc Corporate, B2B, and bulk inquiries. Tell us what you need and our team will assist you.',
-                'leave_review': '\u2b50 Share your experience with us and help us improve our service.',
-                'subscribe': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
-                'order_notes': '\U0001f4dd Add notes to your order with any special instructions.',
-            }
-            short_url = SHORT_URLS.get(flow_key, 'https://r.wecare.digital/sr')
-            cta_text = msg.get('flowCta', flow_key.replace('_', ' ').title())
-            body_text = PHONE2_BODY.get(flow_key, msg.get('body', 'Tap below to continue.'))
-
-            _send_cta_button(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                cta_text=cta_text,
-                cta_url=short_url,
-                request_id=request_id,
-                body_text=body_text,
-                footer_text='WECARE.DIGITAL',
-            )
-            _send_followup_buttons(contact_id, phone_number_id, request_id)
-            logger.info(json.dumps({
-                'event': 'generic_flow_phone2_cta_sent',
-                'flowKey': flow_key,
-                'contactId': contact_id,
-                'shortUrl': short_url,
-                'phoneNumberId': phone_number_id,
-                'requestId': request_id,
-            }))
-            return
+            flow_id_2 = (flow_config or {}).get('flowId2', '')
+            if flow_id_2:
+                # WABA 2 has its own flow — use it instead of WABA 1 flow
+                flow_id = flow_id_2
+                logger.info(json.dumps({
+                    'event': 'generic_flow_using_waba2_flow',
+                    'flowKey': flow_key, 'flowId2': flow_id_2, 'requestId': request_id,
+                }))
+                # Fall through to flow sending logic below
+            else:
+                # No WABA 2 flow — send CTA URL fallback
+                SHORT_URLS = {
+                    'submit_request': 'https://r.wecare.digital/sr',
+                    'track_request': 'https://r.wecare.digital/tr',
+                    'amend_request': 'https://r.wecare.digital/ar',
+                    'schedule_appointment': 'https://r.wecare.digital/sa',
+                    'rx_slot': 'https://r.wecare.digital/rx',
+                    'drop_docs': 'https://r.wecare.digital/dd',
+                    'enterprise_assist': 'https://r.wecare.digital/ea',
+                    'leave_review': 'https://r.wecare.digital/lr',
+                    'subscribe': 'https://r.wecare.digital/sub',
+                    'order_notes': 'https://r.wecare.digital/on',
+                }
+                PHONE2_BODY = {
+                    'submit_request': '\U0001f4cb Start a new support request. Share the details and our team will follow up with you.',
+                    'track_request': '\U0001f50d Check the status of your request anytime. Enter your reference ID below.',
+                    'amend_request': '\u270f\ufe0f Need to make a change? Update your submitted request with the correct details.',
+                    'schedule_appointment': '\U0001f4c5 Schedule a consultation or service visit at a time that works best for you.',
+                    'rx_slot': '\U0001fa7a Arrange a medical tourism or prescription-related visit quickly and easily.',
+                    'drop_docs': '\U0001f587\ufe0f Send your supporting documents securely to help us process your request.',
+                    'enterprise_assist': '\U0001f4bc Corporate, B2B, and bulk inquiries. Tell us what you need and our team will assist you.',
+                    'leave_review': '\u2b50 Share your experience with us and help us improve our service.',
+                    'subscribe': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
+                    'order_notes': '\U0001f4dd Add notes to your order with any special instructions.',
+                }
+                short_url = SHORT_URLS.get(flow_key, 'https://r.wecare.digital/sr')
+                cta_text = msg.get('flowCta', flow_key.replace('_', ' ').title())
+                body_text = PHONE2_BODY.get(flow_key, msg.get('body', 'Tap below to continue.'))
+                _send_cta_button(contact_id, phone_number_id, cta_text, short_url, request_id,
+                    body_text=body_text, footer_text='WECARE.DIGITAL')
+                _send_followup_buttons(contact_id, phone_number_id, request_id)
+                logger.info(json.dumps({
+                    'event': 'generic_flow_phone2_cta_sent',
+                    'flowKey': flow_key, 'contactId': contact_id, 'shortUrl': short_url,
+                    'phoneNumberId': phone_number_id, 'requestId': request_id,
+                }))
+                return
 
         # ── Phone 1: send WhatsApp Flow interactive message ──
         flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-ph-{sender_phone}'
@@ -5150,7 +5149,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'enroll', 'enrol', 'subscribe for updates', 'updates',
             '\U0001f514 subscribe for updates',
         ],
-        'flowId': '932104319588449',
+        'flowId': '923137577254264',
+        'flowId2': '3871908859611342',
         'message': {
             'body': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
             'footer': 'WECARE.DIGITAL',
