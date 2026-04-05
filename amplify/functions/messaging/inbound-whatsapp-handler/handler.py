@@ -5076,6 +5076,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         'ss_schedule_appointment': 'schedule appointment',
         'ss_enterprise_assist': 'enterprise assist',
         'ss_leave_review': 'leave review',
+        'ss_main_menu': '_main_menu',
         # Legacy IDs (old menu)
         'ss_orders': 'track request',
         'ss_payments': 'pay',
@@ -5106,6 +5107,18 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
             contact_id=contact_id,
             phone_number_id=phone_number_id,
             list_config=_get_bharat_stack_menu(),
+            request_id=request_id,
+        )
+        return
+
+    if action == '_main_menu':
+        _hi_text = "Hi! \U0001f44b Here's the menu \u2014 tap below to get started \U0001f447"
+        _hi_text = _load_welcome_text(phone_number_id, _hi_text)
+        _send_ai_auto_reply(contact_id, _hi_text, phone_number_id, request_id)
+        _send_interactive_list(
+            contact_id=contact_id,
+            phone_number_id=phone_number_id,
+            list_config=_get_welcome_config(),
             request_id=request_id,
         )
         return
@@ -5373,28 +5386,63 @@ DEFAULT_SELFSERVICE_MENU = {
     'buttonText': 'Options',
     'sections': [
         {
-            'title': 'Requests',
+            'title': 'New Request',
             'rows': [
-                {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Raise a new service request'},
-                {'id': 'ss_amend_request', 'title': '\u270f\ufe0f Amend Request', 'description': 'Change or update existing request'},
-                {'id': 'ss_track_request', 'title': '\U0001f50d Track Request', 'description': 'Check status of your request'},
+                {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Start a new service or support request'},
             ]
         },
         {
-            'title': 'Book & Schedule',
+            'title': 'Request Status',
             'rows': [
-                {'id': 'ss_schedule_appointment', 'title': '\U0001f4c5 Schedule Appointment', 'description': 'Book a meeting or visit'},
-                {'id': 'ss_rx_slot', 'title': '\U0001f48a RX Slot', 'description': 'Book a prescription slot'},
-                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Drop Docs', 'description': 'Submit your documents'},
+                {'id': 'ss_track_request', 'title': '\U0001f50d Track Request', 'description': 'Check the status of your request'},
             ]
         },
         {
-            'title': 'Account & More',
+            'title': 'Existing Request',
             'rows': [
-                {'id': 'ss_subscribe', 'title': '\U0001f4dd Subscribe', 'description': 'Register for updates & orders'},
-                {'id': 'ss_order_notes', 'title': '\U0001f4e6 Order Notes', 'description': 'Add instructions to an order'},
-                {'id': 'ss_enterprise_assist', 'title': '\U0001f3e2 Enterprise Assist', 'description': 'Business / corporate support'},
-                {'id': 'ss_leave_review', 'title': '\u2b50 Leave Review', 'description': 'Share your feedback'},
+                {'id': 'ss_amend_request', 'title': '\u270f\ufe0f Update Request', 'description': 'Edit or correct a submitted request'},
+            ]
+        },
+        {
+            'title': 'Appointments',
+            'rows': [
+                {'id': 'ss_schedule_appointment', 'title': '\U0001f4c5 Book Appointment', 'description': 'Schedule a consultation or service visit'},
+            ]
+        },
+        {
+            'title': 'Medical Tourism',
+            'rows': [
+                {'id': 'ss_rx_slot', 'title': '\U0001fa7a Book Medical Visit', 'description': 'Schedule a medical tourism or prescription-related visit'},
+            ]
+        },
+        {
+            'title': 'Documents',
+            'rows': [
+                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Upload Documents', 'description': 'Send supporting documents for your request'},
+            ]
+        },
+        {
+            'title': 'Business Support',
+            'rows': [
+                {'id': 'ss_enterprise_assist', 'title': '\U0001f3e2 Enterprise Support', 'description': 'Corporate, B2B, and bulk enquiries'},
+            ]
+        },
+        {
+            'title': 'Feedback',
+            'rows': [
+                {'id': 'ss_leave_review', 'title': '\u2b50 Leave Feedback', 'description': 'Share your experience with our service'},
+            ]
+        },
+        {
+            'title': 'Updates',
+            'rows': [
+                {'id': 'ss_subscribe', 'title': '\U0001f4dd Subscribe for Updates', 'description': 'Get updates, offers, and service news'},
+            ]
+        },
+        {
+            'title': 'Navigation',
+            'rows': [
+                {'id': 'ss_main_menu', 'title': '\U0001f3e0 Main Menu', 'description': 'Return to the main menu'},
             ]
         },
     ]
