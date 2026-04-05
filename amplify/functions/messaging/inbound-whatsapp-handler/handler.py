@@ -980,7 +980,7 @@ def _process_message(
                 return
             if button_id == 'followup_done':
                 _send_ai_auto_reply(contact_id,
-                    "You\u2019re all set for now. Thanks for choosing WECARE.DIGITAL! \U0001f49b\n\nType *hi* or *menu* anytime to start again.",
+                    "Awesome \u2014 you\u2019re all set for now \U0001f49b\n\nType *hi* anytime to come back.",
                     aws_phone_number_id, request_id)
                 return
         # List reply — user tapped a row in an interactive list message
@@ -1233,7 +1233,10 @@ def _process_message(
                     cta_text='Pay Now',
                     cta_url='https://r.wecare.digital/pay',
                     request_id=request_id,
+                    body_text='\U0001f4b3 Make your payment quickly and securely online.',
+                    footer_text='WECARE.DIGITAL',
                 )
+                _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
                 return
             # Phone 1: Step 1: Send "pulling" message immediately
             _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], aws_phone_number_id, request_id)
@@ -3808,7 +3811,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         msg = (flow_config or {}).get('message', {})
 
         # ── Phone 2 fallback: send CTA URL with short link instead of flow ──
-        # Flows only exist on WABA 1. Phone 2 sends a link to Phone 1's wa.me message link.
+        # Flows only exist on WABA 1. Phone 2 sends a CTA with body text + footer.
         if phone_number_id == PHONE_NUMBER_ID_2:
             SHORT_URLS = {
                 'submit_request': 'https://r.wecare.digital/sr',
@@ -3822,9 +3825,21 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                 'subscribe': 'https://r.wecare.digital/sub',
                 'order_notes': 'https://r.wecare.digital/on',
             }
+            PHONE2_BODY = {
+                'submit_request': '\U0001f4cb Start a new support request. Share the details and our team will follow up with you.',
+                'track_request': '\U0001f50d Check the status of your request anytime. Enter your reference ID below.',
+                'amend_request': '\u270f\ufe0f Need to make a change? Update your submitted request with the correct details.',
+                'schedule_appointment': '\U0001f4c5 Schedule a consultation or service visit at a time that works best for you.',
+                'rx_slot': '\U0001fa7a Arrange a medical tourism or prescription-related visit quickly and easily.',
+                'drop_docs': '\U0001f587\ufe0f Send your supporting documents securely to help us process your request.',
+                'enterprise_assist': '\U0001f4bc Corporate, B2B, and bulk inquiries. Tell us what you need and our team will assist you.',
+                'leave_review': '\u2b50 Share your experience with us and help us improve our service.',
+                'subscribe': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
+                'order_notes': '\U0001f4dd Add notes to your order with any special instructions.',
+            }
             short_url = SHORT_URLS.get(flow_key, 'https://r.wecare.digital/sr')
             cta_text = msg.get('flowCta', flow_key.replace('_', ' ').title())
-            body_text = msg.get('body', 'Tap below to continue.')
+            body_text = PHONE2_BODY.get(flow_key, msg.get('body', 'Tap below to continue.'))
 
             _send_cta_button(
                 contact_id=contact_id,
@@ -3832,7 +3847,10 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                 cta_text=cta_text,
                 cta_url=short_url,
                 request_id=request_id,
+                body_text=body_text,
+                footer_text='WECARE.DIGITAL',
             )
+            _send_followup_buttons(contact_id, phone_number_id, request_id)
             logger.info(json.dumps({
                 'event': 'generic_flow_phone2_cta_sent',
                 'flowKey': flow_key,
@@ -4054,15 +4072,16 @@ def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Di
 
 
 def _send_followup_buttons(contact_id: str, phone_number_id: str, request_id: str) -> None:
-    """Send 'Explore More / Done for Now' reply buttons after any CTA response."""
+    """Send 'Explore More / All Set' reply buttons after any CTA response."""
     _send_reply_buttons(
         contact_id=contact_id,
         phone_number_id=phone_number_id,
         button_config={
-            'body': "Here\u2019s what you can do next. \U0001f447",
+            'body': "What next? \U0001f447",
+            'footer': 'WECARE.DIGITAL',
             'buttons': [
                 {'id': 'followup_explore', 'title': '\U0001f9ed Explore More'},
-                {'id': 'followup_done', 'title': '\u270c\ufe0f Done for Now'},
+                {'id': 'followup_done', 'title': '\U0001faf6 All Set'},
             ],
         },
         request_id=request_id,
@@ -5018,7 +5037,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '931522532810297',
         'message': {
-            'body': '\U0001f4cb Start a new support request. Fill in the details and we\u2019ll follow up.',
+            'body': '\U0001f4cb Start a new support request. Share the details and our team will follow up with you.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Submit Request',
         },
@@ -5032,7 +5051,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '973888792200167',
         'message': {
-            'body': '\U0001f50d Check the status of your request. Enter your reference ID below.',
+            'body': '\U0001f50d Check the status of your request anytime. Enter your reference ID below.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Track Request',
         },
@@ -5047,7 +5066,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '1533536534833353',
         'message': {
-            'body': '\u270f\ufe0f Edit or correct a submitted request. Tell us what needs to change.',
+            'body': '\u270f\ufe0f Need to make a change? Update your submitted request with the correct details.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Update Request',
         },
@@ -5062,7 +5081,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '1475722977488573',
         'message': {
-            'body': '\U0001f4c5 Schedule a consultation or service visit. Pick a time that works for you.',
+            'body': '\U0001f4c5 Schedule a consultation or service visit at a time that works best for you.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Book Appointment',
         },
@@ -5076,7 +5095,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '1892784521355352',
         'message': {
-            'body': '\U0001fa7a Schedule a medical tourism or prescription-related visit.',
+            'body': '\U0001fa7a Arrange a medical tourism or prescription-related visit quickly and easily.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Book Medical Visit',
         },
@@ -5090,7 +5109,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '1737801600902350',
         'message': {
-            'body': '\U0001f587\ufe0f Send supporting documents for your request.',
+            'body': '\U0001f587\ufe0f Send your supporting documents securely to help us process your request.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Upload Documents',
         },
@@ -5105,7 +5124,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '2132515287534606',
         'message': {
-            'body': '\U0001f4bc Corporate, B2B, and bulk enquiries. Tell us about your requirement.',
+            'body': '\U0001f4bc Corporate, B2B, and bulk inquiries. Tell us what you need and our team will assist you.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Enterprise Support',
         },
@@ -5119,7 +5138,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '963443293213262',
         'message': {
-            'body': '\u2b50 Share your experience with our service.',
+            'body': '\u2b50 Share your experience with us and help us improve our service.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Leave Feedback',
         },
@@ -5133,7 +5152,7 @@ DEFAULT_FLOW_TRIGGERS = {
         ],
         'flowId': '932104319588449',
         'message': {
-            'body': '\U0001f514 Get updates, offers, and service news. Fill in your details to subscribe.',
+            'body': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
             'footer': 'WECARE.DIGITAL',
             'flowCta': 'Subscribe for Updates',
         },
@@ -5327,7 +5346,10 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
                 cta_text='Pay Now',
                 cta_url='https://r.wecare.digital/pay',
                 request_id=request_id,
+                body_text='\U0001f4b3 Make your payment quickly and securely online.',
+                footer_text='WECARE.DIGITAL',
             )
+            _send_followup_buttons(contact_id, phone_number_id, request_id)
             return
         # Phone 1: trigger pay flow directly
         _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
