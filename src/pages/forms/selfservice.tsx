@@ -11,16 +11,7 @@ import * as api from '../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
-interface FlowSubmission {
-  submissionId: string;
-  flowKey: string;
-  phone: string;
-  contactId: string;
-  screen: string;
-  formData: string;
-  status: string;
-  createdAt: number;
-}
+type FlowSubmission = api.FlowLog;
 
 const FLOW_TYPES = [
   { key: 'submit_request', label: 'Submit Request', icon: '📋', flowId: '931522532810297' },
@@ -74,7 +65,7 @@ const SelfServicePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   useEffect(() => { if (activeTab === 'submissions') loadSubmissions(); }, [activeTab, loadSubmissions]);
 
-  const filtered = filterKey === 'all' ? submissions : submissions.filter(s => s.flowKey === filterKey);
+  const filtered = filterKey === 'all' ? submissions : submissions.filter(s => s.type === filterKey || s.action === filterKey);
 
   const S = {
     tab: (active: boolean): React.CSSProperties => ({
@@ -148,7 +139,7 @@ const SelfServicePage: React.FC<PageProps> = ({ signOut, user }) => {
               <table className="inner-table" style={{ width: '100%', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th>ID</th><th>Flow</th><th>Phone</th><th>Status</th><th>Date</th><th>Data</th>
+                    <th>ID</th><th>Type</th><th>Phone</th><th>Screen</th><th>Date</th><th>Data</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -158,23 +149,15 @@ const SelfServicePage: React.FC<PageProps> = ({ signOut, user }) => {
                     </td></tr>
                   )}
                   {filtered.map(s => {
-                    let formObj: Record<string, string> = {};
-                    try { formObj = JSON.parse(s.formData || '{}'); } catch { /* ignore */ }
                     return (
-                      <tr key={s.submissionId}>
-                        <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{s.submissionId}</td>
-                        <td>{s.flowKey?.replace(/_/g, ' ')}</td>
+                      <tr key={s.id}>
+                        <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{s.id?.slice(0, 12)}</td>
+                        <td>{s.type || s.action || '—'}</td>
                         <td>{s.phone || '—'}</td>
-                        <td>
-                          <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600,
-                            background: s.status === 'submitted' ? '#d1f470' : s.status === 'paid' ? '#bbf7d0' : '#f3f4f6',
-                            color: '#1a3a2a' }}>
-                            {s.status}
-                          </span>
-                        </td>
+                        <td>{s.screen || '—'}</td>
                         <td>{fmtDate(s.createdAt)}</td>
                         <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11, color: '#6b7280' }}>
-                          {Object.entries(formObj).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+                          {s.subject || s.order_id || s.flowData?.slice(0, 60) || '—'}
                         </td>
                       </tr>
                     );
