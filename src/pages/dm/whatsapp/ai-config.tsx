@@ -177,6 +177,29 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
           subtitle="Control AI auto-reply settings for WhatsApp messages (customer-facing)"
           icon="ai"
         />
+
+        {/* WhatsApp AI Disabled Banner */}
+        <div style={{
+          padding: '1rem 1.25rem',
+          background: '#fef3c7',
+          border: '1px solid #f59e0b',
+          borderRadius: '0.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.75rem',
+        }}>
+          <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>⚠️</span>
+          <div>
+            <p style={{ fontWeight: 600, color: '#92400e', margin: 0 }}>
+              WhatsApp AI Auto-Reply is Disabled
+            </p>
+            <p style={{ fontSize: '0.85rem', color: '#92400e', margin: '0.25rem 0 0' }}>
+              AI-generated responses for WhatsApp messages have been removed. Customers receive keyword-triggered flows (menu, pay, subscribe) and a static fallback message for unmatched messages. The internal FloatingAgent (Dashboard → AI) still uses AI.
+            </p>
+          </div>
+        </div>
+
         <div style={{ marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <span style={{ padding: '0.25rem 0.5rem', background: '#f5f5f5', color: '#1a1a1a', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #000' }}>

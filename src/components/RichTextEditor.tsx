@@ -293,39 +293,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setAiError(null);
     setShowSuggestions(false);
     
-    try {
-      // Use the AI generate API with external context for inbox
-      const result = await api.generateAIResponse(value, {
-        contactName: contactContext,
-        channel: channel,
-      });
-      
-      if (result && result.response && result.response.trim()) {
-        setAiSuggestions([result.response]);
-        setShowSuggestions(true);
-        setAiError(null);
-      } else {
-        // Show fallback if no response
-        setAiSuggestions([
-          'Thank you for reaching out! How can I assist you today?',
-          'I understand. Let me help you with that.',
-        ]);
-        setShowSuggestions(true);
-      }
-    } catch (error: any) {
-      console.error('AI suggestions error:', error);
-      setAiError('AI service error');
-      setTimeout(() => setAiError(null), 3000);
-      
-      // Show fallback suggestions even on error
-      setAiSuggestions([
-        'Thank you for your message. How can I help you?',
-        'Is there anything else you need assistance with?',
-      ]);
-      setShowSuggestions(true);
-    } finally {
-      setLoadingAI(false);
-    }
+    // WhatsApp AI auto-reply is disabled — show static suggestions only
+    setAiSuggestions([
+      'Thank you for reaching out! How can I assist you today?',
+      'I understand. Let me help you with that.',
+    ]);
+    setShowSuggestions(true);
+    setLoadingAI(false);
   };
 
   // Send payment message - ALWAYS use interactive mode from inbox

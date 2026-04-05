@@ -733,23 +733,33 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'suggestedResponse': '', 'mode': 'DRY_RUN'})}
 
     try:
-        # -- INTERNAL (admin) path - unchanged, uses Bedrock Agent --
+        # -- INTERNAL (admin) path - uses Bedrock Converse API with tool use --
         if agent_context == 'internal-admin':
             return _handle_internal(body, headers, request_id)
 
-        # -- EXTERNAL (WhatsApp) path - Converse API with multimodal --
-        return _handle_external(body, headers, request_id)
+        # -- EXTERNAL (WhatsApp) path - DISABLED --
+        # WhatsApp AI auto-reply has been removed. Only the FloatingAgent
+        # (internal-admin) uses this Lambda. Return empty response.
+        logger.info(json.dumps({
+            'event': 'external_path_disabled',
+            'requestId': request_id
+        }))
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'suggestedResponse': '',
+                'disabled': True,
+                'reason': 'WhatsApp AI auto-reply is disabled'
+            })
+        }
 
     except Exception as e:
         logger.error(json.dumps({'event': 'ai_generate_error', 'error': str(e), 'errorType': type(e).__name__, 'requestId': request_id, 'context': agent_context}))
         import traceback
         logger.error(f"TRACEBACK: {traceback.format_exc()}")
         
-        # Different fallback for internal vs external
-        if agent_context == 'internal-admin':
-            fallback_msg = "Sorry, I encountered an error. Please try again or contact support."
-        else:
-            fallback_msg = _get_fallback_response()
+        fallback_msg = "Sorry, I encountered an error. Please try again or contact support."
         
         return {
             'statusCode': 200,
