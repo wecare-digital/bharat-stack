@@ -1779,18 +1779,30 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
         response_payload = {'data': {'status': 'active'}}
 
     elif action == 'INIT':
-        # Extract phone from flow_token (format: sr-{uuid}-ph-{phone})
+        # Extract phone from flow_token (format: {flow_key}-{uuid}-ph-{phone})
         phone = data.get('phone', '') or data.get('wa_id', '')
         if not phone and flow_token and '-ph-' in flow_token:
             phone = flow_token.split('-ph-', 1)[1]
-        email = data.get('email', '')
-        orders = _fetch_orders_for_flow(phone, email)
-        response_payload = {
-            'screen': 'ORDER_SELECT',
-            'data': {
-                'orders': orders if orders else [{'id': 'none', 'title': 'No orders found'}],
+
+        # Route INIT based on flow_token prefix
+        _ft_prefix = flow_token.split('-')[0] if flow_token else ''
+
+        if _ft_prefix in ('submit_req', 'sr'):
+            # Submit Request flow — show order select
+            email = data.get('email', '')
+            orders = _fetch_orders_for_flow(phone, email)
+            response_payload = {
+                'screen': 'ORDER_SELECT',
+                'data': {
+                    'orders': orders if orders else [{'id': 'none', 'title': 'No orders found'}],
+                }
             }
-        }
+        else:
+            # All other flows (Track, Update, Subscribe, etc.) — show WELCOME/FORM screen
+            response_payload = {
+                'screen': 'WELCOME',
+                'data': {}
+            }
 
     elif action == 'data_exchange':
         # ── Checkout Button Template sub_actions (coupons, address, shipping) ──
@@ -2276,6 +2288,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
         GENERIC_FLOW_KEYS = {
             'amend_requ', 'track_requ', 'rx_slot', 'drop_docs',
             'enterprise', 'schedule_a', 'leave_revi', 'order_note',
+            'subscribe',
         }
         _is_generic = any(_flow_key.startswith(k) for k in GENERIC_FLOW_KEYS)
 

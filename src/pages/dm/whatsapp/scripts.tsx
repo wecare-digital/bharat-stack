@@ -22,7 +22,7 @@ interface ScriptItem {
   configKey?: string;
 }
 
-const CATEGORIES = ['All', 'Welcome', 'Menu', 'Flow Trigger', 'Pay', 'CTA Link', 'System'];
+const CATEGORIES = ['All', 'Welcome', 'Menu', 'CTA', 'Flow Trigger', 'Pay', 'CTA Link', 'System'];
 
 const ScriptsPage: React.FC<Props> = () => {
   const toast = useToastContext();
@@ -37,52 +37,80 @@ const ScriptsPage: React.FC<Props> = () => {
     setLoading(true);
     const items: ScriptItem[] = [];
 
-    // Hardcoded scripts (Lambda defaults)
+    // Load live configs from SystemConfigTable
+    let welcomeConfig: any = null;
+    let mainMenuConfig: any = null;
+    let ssMenuConfig: any = null;
+    try { welcomeConfig = await api.getSystemConfig('wa_auto_response'); } catch {}
+    try { mainMenuConfig = await api.getSystemConfig('welcome_message_config'); } catch {}
+    try { ssMenuConfig = await api.getSystemConfig('selfservice_menu_config'); } catch {}
+
+    // Welcome messages — use live config or defaults
+    const welcomeText = welcomeConfig?.welcomeMessage || '(Using Lambda default — no custom welcome set)';
     items.push(
-      { id: 'welcome_new', category: 'Welcome', trigger: 'Brand-new contact first message', messageType: 'Text', content: "Hi there! 👋 Welcome to WECARE.DIGITAL\n\nShop, pay, track requests, or get support — all right here.\n\nTap *Menu* to get started 👇", phone: 'Both', editable: true, configKey: 'wa_auto_response' },
-      { id: 'welcome_hi', category: 'Welcome', trigger: '"hi" / "hello" / "menu" / "start"', messageType: 'Text', content: "Hi! 👋 Here's the menu — tap below to get started 👇", phone: 'Both', editable: true, configKey: 'welcome_message' },
+      { id: 'welcome_new', category: 'Welcome', trigger: 'Brand-new contact first message', messageType: 'Interactive List', content: 'Sends main menu list directly (no separate welcome text)', phone: 'Both', editable: true, configKey: 'wa_auto_response' },
+      { id: 'welcome_hi', category: 'Welcome', trigger: '"hi" / "hello" / "menu" / "start" / "need help!"', messageType: 'Interactive List', content: 'Sends main menu list directly (1 message)', phone: 'Both', editable: false },
     );
 
-    // Main menu
+    // Main menu — use live config or show defaults
+    const mmHeader = mainMenuConfig?.header || 'Welcome to WECARE.DIGITAL';
+    const mmBody = mainMenuConfig?.body || "Choose what you\u2019d like to do \u2014 get started, explore our services, or find quick answers.";
+    const mmButton = mainMenuConfig?.buttonText || 'Get Started';
+    const mmSections = mainMenuConfig?.sections?.length || 3;
     items.push(
-      { id: 'main_menu', category: 'Menu', trigger: '"hi" / "menu" / "start" (after welcome text)', messageType: 'Interactive List', content: 'Header: WECARE.DIGITAL\nBody: Pick what you need 👇\nButton: Menu\nSections: Explore (4 items)', phone: 'Both', editable: true, configKey: 'welcome_message_config' },
+      { id: 'main_menu', category: 'Menu', trigger: 'hi / menu / start / Explore More button', messageType: 'Interactive List', content: `Header: ${mmHeader}\nBody: ${mmBody}\nButton: ${mmButton}\nSections: ${mmSections}`, phone: 'Both', editable: true, configKey: 'welcome_message_config' },
     );
 
-    // Selfservice menu
+    // Selfservice menu — use live config or show defaults
+    const ssHeader = ssMenuConfig?.header || 'Selfservice';
+    const ssBody = ssMenuConfig?.body || "Choose what you\u2019d like to do...";
+    const ssButton = ssMenuConfig?.buttonText || 'Browse Services';
+    const ssSections = ssMenuConfig?.sections?.length || 10;
     items.push(
-      { id: 'ss_menu', category: 'Menu', trigger: '"selfservice" / "self-service" / tapping Self Service', messageType: 'Interactive List', content: 'Header: Selfservice\nBody: Choose what you\'d like to do...\nButton: Browse Options\n10 items across 10 sections', phone: 'Both', editable: true, configKey: 'selfservice_menu_config' },
+      { id: 'ss_menu', category: 'Menu', trigger: '"selfservice" / tapping Selfservice from main menu', messageType: 'Interactive List', content: `Header: ${ssHeader}\nBody: ${ssBody}\nButton: ${ssButton}\nSections: ${ssSections}`, phone: 'Both', editable: true, configKey: 'selfservice_menu_config' },
     );
 
-    // Bharat Stack menu
+    // CTA messages (hardcoded in Lambda — shown for content review)
     items.push(
-      { id: 'bs_menu', category: 'Menu', trigger: '"bharat stack" / "/bharatstack" / tapping Bharat Stack', messageType: 'Interactive List', content: 'Header: Bharat Stack\nBody: Explore India\'s digital public infrastructure 🇮🇳\n6 items: Aadhaar, UPI, DigiLocker, eSign, ONDC, Account Aggregator', phone: 'Both', editable: true, configKey: 'bharat_stack_menu_config' },
+      { id: 'cta_faq', category: 'CTA', trigger: 'Tapping FAQs from main menu', messageType: 'CTA URL', content: 'Body: Find quick answers about requests, payments, appointments, business hours, the app, and more.\nButton: Open FAQs\nURL: wecare.digital/faq\nFooter: WECARE.DIGITAL', phone: 'Both', editable: false },
+      { id: 'cta_store', category: 'CTA', trigger: 'Tapping Explore Store from main menu', messageType: 'CTA URL', content: 'Body: Browse WECARE.DIGITAL services, brands, and offers — all in one place.\nButton: Visit Store\nURL: wecare.digital\nFooter: WECARE.DIGITAL', phone: 'Both', editable: false },
+      { id: 'cta_gift', category: 'CTA', trigger: 'Tapping Gift Cards from main menu', messageType: 'CTA URL', content: 'Body: Send a digital gift card in just a few taps — quick, easy, and thoughtful.\nButton: View Gift Cards\nURL: wecare.digital/gift-card\nFooter: WECARE.DIGITAL', phone: 'Both', editable: false },
+      { id: 'cta_bharat', category: 'CTA', trigger: 'Tapping Bharat Stack / typing "bharat stack"', messageType: 'CTA URL', content: 'Body: Explore Bharat Stack and discover services designed for everyday Bharat.\nButton: Explore Bharat Stack\nURL: stack.wecare.digital\nFooter: WECARE.DIGITAL', phone: 'Both', editable: false },
+      { id: 'cta_about', category: 'CTA', trigger: 'Tapping About WECARE.DIGITAL from main menu', messageType: 'Text', content: '*Building digital railroads for everyday Bharat*\n\nWECARE.DIGITAL is a network of microservice brands serving everyday Bharat — across travel, paperwork, disputes, rituals, and reflection.\n\nMade to serve what matters most.', phone: 'Both', editable: false },
     );
 
-    // Flow trigger messages
-    const flowTriggers: Record<string, { keywords: string[]; message: { body: string; flowCta: string }; flowId: string }> = {
-      submit_request: { keywords: ['submit request', 'sr'], message: { body: '📋 Start a new support request...', flowCta: 'Submit Request' }, flowId: '931522532810297' },
-      track_request: { keywords: ['track request', 'track', 'status'], message: { body: '🔍 Check the status of your request...', flowCta: 'Track Request' }, flowId: '973888792200167' },
-      amend_request: { keywords: ['amend request', 'update request'], message: { body: '✏️ Edit or correct a submitted request...', flowCta: 'Update Request' }, flowId: '1533536534833353' },
-      schedule_appointment: { keywords: ['appointment', 'book appointment'], message: { body: '📅 Schedule a consultation or service visit...', flowCta: 'Book Appointment' }, flowId: '1475722977488573' },
-      rx_slot: { keywords: ['rx slot', 'medical visit'], message: { body: '🩺 Schedule a medical tourism or prescription visit...', flowCta: 'Book Medical Visit' }, flowId: '1892784521355352' },
-      drop_docs: { keywords: ['drop docs', 'upload documents'], message: { body: '🖇️ Send supporting documents...', flowCta: 'Upload Documents' }, flowId: '1737801600902350' },
-      enterprise_assist: { keywords: ['enterprise', 'b2b'], message: { body: '💼 Corporate, B2B, and bulk enquiries...', flowCta: 'Enterprise Support' }, flowId: '2132515287534606' },
-      leave_review: { keywords: ['review', 'feedback'], message: { body: '⭐ Share your experience...', flowCta: 'Leave Feedback' }, flowId: '963443293213262' },
-      subscribe: { keywords: ['subscribe', 'register'], message: { body: '🔔 Get updates, offers, and service news...', flowCta: 'Subscribe for Updates' }, flowId: '932104319588449' },
+    // Followup buttons
+    items.push(
+      { id: 'followup', category: 'System', trigger: 'After every CTA / About response', messageType: 'Reply Buttons', content: 'Body: What next? 👇\nButton 1: 🧭 Explore More → Main Menu\nButton 2: 🫶 All Set → Goodbye\nFooter: WECARE.DIGITAL', phone: 'Both', editable: false },
+      { id: 'followup_done', category: 'System', trigger: 'Tapping All Set button', messageType: 'Text', content: 'Awesome — you\u2019re all set for now 💛\nType hi anytime to come back.', phone: 'Both', editable: false },
+      { id: 'sys_reaction', category: 'System', trigger: 'Every inbound message (except reactions)', messageType: 'Reaction + Read Receipt', content: '👍 Auto-reaction + ✅ Read receipt (blue tick)', phone: 'Both', editable: false },
+    );
+
+    // Flow trigger messages — load from SystemConfig with fallback defaults
+    const defaultFlowTriggers: Record<string, { keywords: string[]; message: { body: string; flowCta: string }; flowId: string }> = {
+      submit_request: { keywords: ['submit request', 'sr'], message: { body: '📋 Start a new support request. Share the details and our team will follow up with you.', flowCta: 'Submit Request' }, flowId: '931522532810297' },
+      track_request: { keywords: ['track request', 'track', 'status'], message: { body: '🔍 Check the status of your request anytime. Enter your reference ID below.', flowCta: 'Track Request' }, flowId: '973888792200167' },
+      amend_request: { keywords: ['amend request', 'update request'], message: { body: '✏️ Need to make a change? Update your submitted request with the correct details.', flowCta: 'Update Request' }, flowId: '1533536534833353' },
+      schedule_appointment: { keywords: ['appointment', 'book appointment'], message: { body: '📅 Schedule a consultation or service visit at a time that works best for you.', flowCta: 'Book Appointment' }, flowId: '1475722977488573' },
+      rx_slot: { keywords: ['rx slot', 'medical visit'], message: { body: '🩺 Arrange a medical tourism or prescription-related visit quickly and easily.', flowCta: 'Book Medical Visit' }, flowId: '1892784521355352' },
+      drop_docs: { keywords: ['drop docs', 'upload documents'], message: { body: '🖇️ Send your supporting documents securely to help us process your request.', flowCta: 'Upload Documents' }, flowId: '1737801600902350' },
+      enterprise_assist: { keywords: ['enterprise', 'b2b'], message: { body: '💼 Corporate, B2B, and bulk inquiries. Tell us what you need and our team will assist you.', flowCta: 'Enterprise Support' }, flowId: '2132515287534606' },
+      leave_review: { keywords: ['review', 'feedback'], message: { body: '⭐ Share your experience with us and help us improve our service.', flowCta: 'Leave Feedback' }, flowId: '963443293213262' },
+      subscribe: { keywords: ['subscribe', 'register'], message: { body: '🔔 Get updates, offers, and service news. Fill in your details to stay connected.', flowCta: 'Subscribe for Updates' }, flowId: '923137577254264' },
     };
 
-    // Try to load overrides from SystemConfig
+    // Load overrides from SystemConfig
+    const flowTriggers = { ...defaultFlowTriggers };
     try {
       const configTriggers = await api.getSystemConfig('flow_triggers_config');
       if (configTriggers && typeof configTriggers === 'object') {
         for (const [key, val] of Object.entries(configTriggers as Record<string, any>)) {
-          if (val?.message?.body) {
-            if (flowTriggers[key]) {
-              flowTriggers[key].message.body = val.message.body;
-              flowTriggers[key].message.flowCta = val.message.flowCta || flowTriggers[key].message.flowCta;
-            }
-            if (val.keywords) flowTriggers[key] = { ...flowTriggers[key], keywords: val.keywords };
+          if (val?.message?.body && flowTriggers[key]) {
+            flowTriggers[key].message.body = val.message.body;
+            flowTriggers[key].message.flowCta = val.message.flowCta || flowTriggers[key].message.flowCta;
           }
+          if (val?.keywords && flowTriggers[key]) flowTriggers[key].keywords = val.keywords;
+          if (val?.flowId && flowTriggers[key]) flowTriggers[key].flowId = val.flowId;
         }
       }
     } catch { /* use defaults */ }
@@ -92,9 +120,9 @@ const ScriptsPage: React.FC<Props> = () => {
         id: `flow_${key}`,
         category: 'Flow Trigger',
         trigger: `Keywords: ${ft.keywords.slice(0, 4).join(', ')}`,
-        messageType: 'Interactive Flow (Phone 1) / CTA URL (Phone 2)',
+        messageType: 'Flow Form (data_exchange)',
         content: `Body: ${ft.message.body}\nCTA: ${ft.message.flowCta}\nFlow ID: ${ft.flowId}`,
-        phone: 'Phone 1: Flow form\nPhone 2: CTA link → r.wecare.digital',
+        phone: 'Phone 1: Flow form\nPhone 2: Flow form (if flowId2) or CTA link',
         editable: true,
         configKey: 'flow_triggers_config',
       });
@@ -148,7 +176,7 @@ const ScriptsPage: React.FC<Props> = () => {
   });
 
   const catColor: Record<string, string> = {
-    Welcome: '#d1f470', Menu: '#bfdbfe', 'Flow Trigger': '#fde68a', Pay: '#bbf7d0', 'CTA Link': '#e0e7ff', System: '#f3f4f6',
+    Welcome: '#d1f470', Menu: '#bfdbfe', CTA: '#ddd6fe', 'Flow Trigger': '#fde68a', Pay: '#bbf7d0', 'CTA Link': '#e0e7ff', System: '#f3f4f6',
   };
 
   return (

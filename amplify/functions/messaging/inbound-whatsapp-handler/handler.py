@@ -3863,8 +3863,8 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         # ── Phone 1: send WhatsApp Flow interactive message ──
         flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-ph-{sender_phone}'
 
-        # Use navigate for flows with WELCOME screen, data_exchange for submit_request
-        flow_action = 'data_exchange' if flow_key == 'submit_request' else 'navigate'
+        # All flows use data_exchange so backend receives form submissions
+        flow_action = 'data_exchange'
 
         interactive_data = {
             'body': msg.get('body', 'Please fill in the details below.'),
@@ -3874,12 +3874,6 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             'flowAction': flow_action,
             'flowToken': flow_token,
         }
-
-        # For navigate flows, start at WELCOME screen
-        if flow_action == 'navigate':
-            interactive_data['flowActionPayload'] = {
-                'screen': 'WELCOME',
-            }
 
         header_val = msg.get('header', '')
         if header_val:
