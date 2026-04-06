@@ -207,6 +207,11 @@ export interface Contact {
   companyName?: string;
   designation?: string;
   preferredLanguage?: string;
+  // Tracking fields (read-only, set by backend)
+  lastFlowInteractionAt?: string;
+  satisfactionScore?: number;
+  welcomeSent?: boolean;
+  welcomeSentAt?: string;
   // Opt-in fields (Requirement 3.2)
   optInWhatsApp: boolean;
   optInSms: boolean;
@@ -300,6 +305,10 @@ function normalizeContact(item: any): Contact {
     companyName: item.companyName || item.contactBookName || '',
     designation: item.designation || '',
     preferredLanguage: item.preferredLanguage || '',
+    lastFlowInteractionAt: normalizeTimestamp(item.lastFlowInteractionAt),
+    satisfactionScore: item.satisfactionScore || undefined,
+    welcomeSent: item.welcomeSent || false,
+    welcomeSentAt: normalizeTimestamp(item.welcomeSentAt),
     // Opt-in fields
     optInWhatsApp: item.optInWhatsApp || false,
     optInSms: item.optInSms || false,

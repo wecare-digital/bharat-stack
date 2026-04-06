@@ -1230,7 +1230,7 @@ def _enrich_contact_from_flow(contact_id: str, form_data: Dict, contact_mapping:
         update_parts = []
         expr_values = {}
         expr_names = {}
-        now_iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        now_ts = int(time.time())
 
         for flow_field, contact_field in contact_mapping.items():
             val = form_data.get(flow_field, '')
@@ -1240,12 +1240,12 @@ def _enrich_contact_from_flow(contact_id: str, form_data: Dict, contact_mapping:
                 expr_values[f':{safe_key}'] = str(val)
                 expr_names[f'#{safe_key}'] = contact_field
 
-        # Always update lastFlowInteractionAt and updatedAt
+        # Always update lastFlowInteractionAt and updatedAt (epoch seconds for consistency)
         update_parts.append('#lfia = :lfia')
-        expr_values[':lfia'] = now_iso
+        expr_values[':lfia'] = Decimal(str(now_ts))
         expr_names['#lfia'] = 'lastFlowInteractionAt'
         update_parts.append('#ua = :ua')
-        expr_values[':ua'] = now_iso
+        expr_values[':ua'] = Decimal(str(now_ts))
         expr_names['#ua'] = 'updatedAt'
 
         if update_parts:

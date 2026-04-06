@@ -54,7 +54,6 @@ const schema = a.schema({
       gstin: a.string(),
       // Business/profile fields (enriched via flows)
       companyName: a.string(),
-      gstNumber: a.string(),
       designation: a.string(),
       preferredLanguage: a.string(),
       lastFlowInteractionAt: a.datetime(),

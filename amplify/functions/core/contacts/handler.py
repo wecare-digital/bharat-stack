@@ -49,6 +49,7 @@ ALLOWED_UPDATE_FIELDS = {
     'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'pincode',
     'houseNumber', 'buildingName', 'towerNumber', 'floorNumber',
     'landmark', 'country', 'companyName', 'designation', 'preferredLanguage',
+    'satisfactionScore',
 }
 OPT_IN_FIELDS = {
     'optInWhatsApp', 'optInSms', 'optInEmail',

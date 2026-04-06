@@ -271,6 +271,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formBuildingName, setFormBuildingName] = useState('');
   const [formTowerNumber, setFormTowerNumber] = useState('');
   const [formFloorNumber, setFormFloorNumber] = useState('');
+  const [formCountry, setFormCountry] = useState('India');
   const [formGstin, setFormGstin] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
@@ -437,6 +438,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormAddressLine1(''); setFormAddressLine2(''); setFormCity(''); setFormState('');
     setFormPostalCode(''); setFormLandmark(''); setFormHouseNumber(''); setFormBuildingName('');
     setFormTowerNumber(''); setFormFloorNumber('');
+    setFormCountry('India');
     setFormGstin('');
     setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
     setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
@@ -484,6 +486,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         city: formCity || undefined, state: formState || undefined, postalCode: formPostalCode || undefined,
         landmark: formLandmark || undefined, houseNumber: formHouseNumber || undefined, buildingName: formBuildingName || undefined,
         towerNumber: formTowerNumber || undefined, floorNumber: formFloorNumber || undefined,
+        country: formCountry || undefined,
         gstin: formGstin || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
@@ -525,6 +528,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormPostalCode(contact.postalCode || ''); setFormLandmark(contact.landmark || '');
     setFormHouseNumber(contact.houseNumber || ''); setFormBuildingName(contact.buildingName || '');
     setFormTowerNumber(contact.towerNumber || ''); setFormFloorNumber(contact.floorNumber || '');
+    setFormCountry(contact.country || 'India');
     setFormGstin((contact as any).gstin || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
     setFormAllowlistWA(contact.allowlistWhatsApp || false); setFormAllowlistSms(contact.allowlistSms || false); setFormAllowlistEmail(contact.allowlistEmail || false);
@@ -553,6 +557,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         city: formCity || undefined, state: formState || undefined, postalCode: formPostalCode || undefined,
         landmark: formLandmark || undefined, houseNumber: formHouseNumber || undefined, buildingName: formBuildingName || undefined,
         towerNumber: formTowerNumber || undefined, floorNumber: formFloorNumber || undefined,
+        country: formCountry || undefined,
         gstin: formGstin || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
@@ -881,7 +886,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           <div><label style={S.label}>City</label><input style={S.input} value={formCity} onChange={e => setFormCity(e.target.value)} placeholder="e.g. Mumbai" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>State</label><input style={S.input} value={formState} onChange={e => setFormState(e.target.value)} placeholder="e.g. Maharashtra" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>PIN Code</label><input style={S.input} value={formPostalCode} onChange={e => setFormPostalCode(e.target.value)} placeholder="6-digit PIN" maxLength={6} onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>GSTIN</label><input style={S.input} value={formGstin} onChange={e => setFormGstin(e.target.value)} placeholder="e.g. 22AAAAA0000A1Z5" maxLength={15} onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Country</label><input style={S.input} value={formCountry} onChange={e => setFormCountry(e.target.value)} placeholder="India" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>GSTIN</label><input style={S.input} value={formGstin} onChange={e => setFormGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" maxLength={15} onFocus={focusStyle} onBlur={blurStyle} /></div>
         </div>
       </div>
       {/* Opt-in toggle */}
