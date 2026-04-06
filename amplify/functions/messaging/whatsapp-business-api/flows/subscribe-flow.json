@@ -86,28 +86,22 @@
             "helper-text": "Your role in the company"
           },
           {
+            "type": "TextCaption",
+            "text": "Politically Exposed Person (PEP) or restricted-sector link?"
+          },
+          {
             "type": "OptIn",
             "name": "is_pep",
-            "label": "PEP / restricted sector",
+            "label": "Applies to me",
             "required": true
           },
           {
             "type": "TextInput",
             "name": "pep_details",
             "label": "PEP Details",
-            "required": false,
-            "input-type": "text",
-            "helper-text": "If PEP, provide details"
-          },
-          {
-            "type": "Dropdown",
-            "name": "paid_by",
-            "label": "Who is paying?",
             "required": true,
-            "data-source": [
-              {"id": "self", "title": "Self"},
-              {"id": "company", "title": "Company"}
-            ]
+            "input-type": "text",
+            "helper-text": "Enter details or type None"
           },
           {
             "type": "Footer",
@@ -126,8 +120,7 @@
                 "wa_username": "${form.wa_username}",
                 "designation": "${form.designation}",
                 "is_pep": "${form.is_pep}",
-                "pep_details": "${form.pep_details}",
-                "paid_by": "${form.paid_by}"
+                "pep_details": "${form.pep_details}"
               }
             }
           }
@@ -169,10 +162,6 @@
         "pep_details": {
           "type": "string",
           "__example__": ""
-        },
-        "paid_by": {
-          "type": "string",
-          "__example__": "self"
         }
       },
       "layout": {
@@ -222,7 +211,7 @@
             "type": "TextInput",
             "name": "ship_tower",
             "label": "Tower",
-            "required": true,
+            "required": false,
             "input-type": "text",
             "helper-text": "Enter tower number"
           },
@@ -230,7 +219,7 @@
             "type": "TextInput",
             "name": "ship_floor",
             "label": "Floor",
-            "required": true,
+            "required": false,
             "input-type": "text",
             "helper-text": "Enter floor number"
           },
@@ -280,7 +269,7 @@
             "label": "Country",
             "required": true,
             "input-type": "text",
-            "helper-text": "Default: India"
+            "helper-text": "Enter country name"
           },
           {
             "type": "Footer",
@@ -311,8 +300,7 @@
                 "wa_username": "${data.wa_username}",
                 "designation": "${data.designation}",
                 "is_pep": "${data.is_pep}",
-                "pep_details": "${data.pep_details}",
-                "paid_by": "${data.paid_by}"
+                "pep_details": "${data.pep_details}"
               }
             }
           }
@@ -402,10 +390,6 @@
         "pep_details": {
           "type": "string",
           "__example__": ""
-        },
-        "paid_by": {
-          "type": "string",
-          "__example__": "self"
         }
       },
       "layout": {
@@ -417,7 +401,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Used for invoices and receipts. Check the box below to use your shipping address, or enter different details."
+            "text": "Use the checkbox to apply your shipping address for billing, or enter different billing details below."
           },
           {
             "type": "Form",
@@ -426,7 +410,7 @@
               {
                 "type": "OptIn",
                 "name": "same_as_ship",
-                "label": "Same as shipping",
+                "label": "Use shipping address for billing",
                 "required": false
               },
               {
@@ -507,7 +491,7 @@
                 "label": "Country",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Default: India"
+                "helper-text": "Enter country name"
               },
               {
                 "type": "TextInput",
@@ -515,13 +499,17 @@
                 "label": "GSTIN",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "22AAAAA0000A1Z5"
+                "helper-text": "Enter GSTIN number"
               },
               {
-                "type": "OptIn",
-                "name": "gst_invoice",
-                "label": "I need a GST invoice",
-                "required": false
+                "type": "Dropdown",
+                "name": "paid_by",
+                "label": "Who is paying?",
+                "required": true,
+                "data-source": [
+                  {"id": "self", "title": "Self"},
+                  {"id": "company", "title": "Company"}
+                ]
               },
               {
                 "type": "OptIn",
@@ -570,9 +558,8 @@
                     "designation": "${data.designation}",
                     "is_pep": "${data.is_pep}",
                     "pep_details": "${data.pep_details}",
-                    "paid_by": "${data.paid_by}",
                     "gstin": "${form.gstin}",
-                    "gst_invoice": "${form.gst_invoice}"
+                    "paid_by": "${form.paid_by}"
                   }
                 }
               }
@@ -709,10 +696,6 @@
           "type": "string",
           "__example__": "company"
         },
-        "gst_invoice": {
-          "type": "boolean",
-          "__example__": true
-        },
         "is_pep": {
           "type": "boolean",
           "__example__": false
@@ -789,26 +772,12 @@
           },
           {
             "type": "TextCaption",
-            "text": "GSTIN",
+            "text": "Shipping Address",
             "font-weight": "bold"
           },
           {
             "type": "TextBody",
-            "text": "${data.gstin}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "Paid By",
-            "font-weight": "bold"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.paid_by}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "Shipping",
-            "font-weight": "bold"
+            "text": "${data.ship_house}"
           },
           {
             "type": "TextBody",
@@ -828,24 +797,34 @@
           },
           {
             "type": "TextCaption",
-            "text": "Billing",
+            "text": "Billing Address",
+            "font-weight": "bold"
+          },
+          {
+            "type": "TextCaption",
+            "text": "If selected, use shipping address for billing."
+          },
+          {
+            "type": "TextCaption",
+            "text": "Payment",
             "font-weight": "bold"
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_street}"
+            "text": "${data.paid_by}"
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_city}"
+            "text": "${data.gstin}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "PEP Details",
+            "font-weight": "bold"
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_pin}"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.bill_country}"
+            "text": "${data.pep_details}"
           },
           {
             "type": "Form",
@@ -895,7 +874,6 @@
                     "designation": "${data.designation}",
                     "gstin": "${data.gstin}",
                     "paid_by": "${data.paid_by}",
-                    "gst_invoice": "${data.gst_invoice}",
                     "is_pep": "${data.is_pep}",
                     "pep_details": "${data.pep_details}"
                   }

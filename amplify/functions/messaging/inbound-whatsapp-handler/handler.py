@@ -1182,7 +1182,7 @@ def _process_message(
         # Exact matches (content_lower must be exactly one of these)
         PAY_KEYWORDS = {
             # English — core
-            'pay', 'payment', 'pay now', 'pay bill', 'bill pay',
+            'pay', 'payment', 'pay now', 'pay bill', 'bill pay', '/pay',
             'pay due', 'pay dues', 'pay invoice', 'invoice',
             'pending payment', 'pending due', 'pending dues',
             'send payment', 'make payment', 'make a payment',
@@ -1287,7 +1287,7 @@ def _process_message(
             return  # Skip AI automation — payment flow handled
 
         # ── Direct "Hi" / greeting keyword trigger (LLM-independent) ──
-        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu', 'need help!'}
+        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu', 'need help!', 'get started'}
         if content_lower in HI_KEYWORDS:
             logger.info(json.dumps({
                 'event': 'hi_keyword_triggered',
@@ -1341,6 +1341,21 @@ def _process_message(
                 list_config=_get_selfservice_menu(),
                 request_id=request_id
             )
+            return
+
+        # ── Ice breaker: "Commands" / "/commands" / "/help" ──
+        COMMANDS_KEYWORDS = {'commands', '/commands', '/help', 'help'}
+        if content_lower in COMMANDS_KEYWORDS:
+            commands_text = (
+                "*Available Commands*\n\n"
+                "/menu - Browse the main menu\n"
+                "/subscribe - Register for updates and orders\n"
+                "/bharatstack - Explore Bharat Stack services\n"
+                "/selfservice - Self-service options\n"
+                "/pay - Make a payment or check dues\n"
+                "/help - Show this list"
+            )
+            _send_ai_auto_reply(contact_id, commands_text, aws_phone_number_id, request_id)
             return
 
         # ── Keyword: "store" / "shop" / "explore store" ──
@@ -5140,7 +5155,7 @@ DEFAULT_FLOW_TRIGGERS = {
     'subscribe': {
         'keywords': [
             'subscribe', 'signup', 'sign up', 'register', 'join', 'membership',
-            'enroll', 'enrol', 'subscribe for updates', 'updates',
+            'enroll', 'enrol', 'subscribe for updates', 'updates', '/subscribe',
             '\U0001f514 subscribe for updates',
         ],
         'flowId': '1557815099200456',

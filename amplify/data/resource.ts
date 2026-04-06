@@ -58,8 +58,7 @@ const schema = a.schema({
       preferredLanguage: a.string(),
       isPep: a.boolean().default(false),
       pepDetails: a.string(),
-      paidBy: a.string(), // self, company, other
-      gstInvoice: a.boolean().default(false),
+      paidBy: a.string(), // self, company
       lastFlowInteractionAt: a.datetime(),
       satisfactionScore: a.integer(), // NPS/CSAT from feedback flows
       // Welcome message tracking

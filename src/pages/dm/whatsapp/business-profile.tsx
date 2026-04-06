@@ -62,8 +62,14 @@ const BusinessProfilePage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updates: any = { about: form.about, description: form.description, email: form.email, address: form.address, vertical: form.vertical };
-      if (form.websites.trim()) updates.websites = form.websites.split(',').map(w => w.trim()).filter(Boolean);
+      const updates: any = {};
+      if (form.about) updates.about = form.about;
+      if (form.description) updates.description = form.description;
+      if (form.email) updates.email = form.email;
+      if (form.address) updates.address = form.address;
+      if (form.vertical) updates.vertical = form.vertical;
+      if (form.websites.trim()) updates.websites = form.websites.split(',').map((w: string) => w.trim()).filter(Boolean);
+      if (Object.keys(updates).length === 0) { toast.warning('No changes to save'); setSaving(false); return; }
       const ok = await api.updateBusinessProfile(selectedPhone.metaId, updates);
       if (ok) { toast.success('Profile updated'); loadProfile(selectedPhone); }
       else toast.error('Update failed');

@@ -198,7 +198,7 @@ def _get_business_profile(phone_id: str) -> Dict:
 
 def _update_business_profile(phone_id: str, body: Dict) -> Dict:
     allowed = ['about', 'address', 'description', 'email', 'websites', 'vertical', 'profile_picture_url']
-    payload = {k: v for k, v in body.items() if k in allowed and v is not None}
+    payload = {k: v for k, v in body.items() if k in allowed and v is not None and v != ''}
     if not payload:
         return _resp(400, {'error': 'No valid fields to update'})
     payload['messaging_product'] = 'whatsapp'
@@ -2069,7 +2069,6 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             gstin = data.get('gstin', '')
             designation = data.get('designation', '')
             paid_by = data.get('paid_by', 'self')
-            gst_invoice = data.get('gst_invoice', False)
             is_pep = data.get('is_pep', False)
             pep_details = data.get('pep_details', '')
 
@@ -2179,18 +2178,19 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         UpdateExpression=(
                             'SET #nm = :nm, #em = :em, #ba = :ba, #sa = :sa, #ua = :ua, '
                             '#cbn = :cbn, #ow = :ow, #os = :os, #oe = :oe, '
-                            '#aw = :aw, #as2 = :as2, #ae = :ae, '
+                            '#aw = :aw, #as2 = :as2, #ae = :ae, #cmn = :cmn, '
                             '#baj = :baj, #saj = :saj, #un = :un, #gst = :gst, '
                             '#al1 = :al1, #al2 = :al2, #ct = :ct, #st = :st, '
                             '#pc = :pc, #hn = :hn, #bn = :bn, #tn = :tn, #fn = :fn, '
                             '#lm = :lm, #co = :co, #pin = :pin, '
-                            '#dsg = :dsg, #pby = :pby, #ginv = :ginv, #pep = :pep, #pepd = :pepd'
+                            '#dsg = :dsg, #pby = :pby, #pep = :pep, #pepd = :pepd'
                         ),
                         ExpressionAttributeNames={
                             '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
                             '#sa': 'shippingAddress', '#ua': 'updatedAt', '#cbn': 'contactBookName',
                             '#ow': 'optInWhatsApp', '#os': 'optInSms', '#oe': 'optInEmail',
                             '#aw': 'allowlistWhatsApp', '#as2': 'allowlistSms', '#ae': 'allowlistEmail',
+                            '#cmn': 'companyName',
                             '#baj': 'billingAddressJson', '#saj': 'shippingAddressJson',
                             '#un': 'username', '#gst': 'gstin',
                             '#al1': 'addressLine1', '#al2': 'addressLine2',
@@ -2198,7 +2198,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#hn': 'houseNumber', '#bn': 'buildingName',
                             '#tn': 'towerNumber', '#fn': 'floorNumber',
                             '#lm': 'landmark', '#co': 'country', '#pin': 'pincode',
-                            '#dsg': 'designation', '#pby': 'paidBy', '#ginv': 'gstInvoice',
+                            '#dsg': 'designation', '#pby': 'paidBy',
                             '#pep': 'isPep', '#pepd': 'pepDetails',
                         },
                         ExpressionAttributeValues={
@@ -2207,6 +2207,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             ':ua': now_ts, ':cbn': company_name,
                             ':ow': True, ':os': True, ':oe': True,
                             ':aw': True, ':as2': True, ':ae': True,
+                            ':cmn': company_name,
                             ':baj': json.dumps(bill_addr_obj), ':saj': json.dumps(ship_addr_obj),
                             ':un': wa_username, ':gst': gstin,
                             ':al1': ship_street, ':al2': ship_landmark,
@@ -2214,7 +2215,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             ':hn': ship_house, ':bn': ship_building,
                             ':tn': ship_tower, ':fn': ship_floor,
                             ':lm': ship_landmark, ':co': ship_country, ':pin': ship_pin,
-                            ':dsg': designation, ':pby': paid_by, ':ginv': gst_invoice,
+                            ':dsg': designation, ':pby': paid_by,
                             ':pep': is_pep, ':pepd': pep_details,
                         },
                     )
@@ -2276,7 +2277,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     ct.put_item(Item={
                         'id': contact_id, 'contactId': contact_id,
                         'name': full_name, 'phone': norm_phone, 'email': email_address,
-                        'contactBookName': company_name,
+                        'contactBookName': company_name, 'companyName': company_name,
                         'username': wa_username, 'gstin': gstin,
                         'billingAddress': _addr_str(bill_addr_obj),
                         'shippingAddress': _addr_str(ship_addr_obj),
@@ -2289,7 +2290,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'towerNumber': ship_tower, 'floorNumber': ship_floor,
                         'landmark': ship_landmark, 'country': ship_country,
                         'designation': designation,
-                        'paidBy': paid_by, 'gstInvoice': gst_invoice,
+                        'paidBy': paid_by,
                         'isPep': is_pep, 'pepDetails': pep_details,
                         'optInWhatsApp': True, 'optInSms': True, 'optInEmail': True,
                         'allowlistWhatsApp': True, 'allowlistSms': True, 'allowlistEmail': True,
