@@ -269,6 +269,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formLandmark, setFormLandmark] = useState('');
   const [formHouseNumber, setFormHouseNumber] = useState('');
   const [formBuildingName, setFormBuildingName] = useState('');
+  const [formTowerNumber, setFormTowerNumber] = useState('');
+  const [formFloorNumber, setFormFloorNumber] = useState('');
   const [formGstin, setFormGstin] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
@@ -434,6 +436,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormShippingAddress(''); setFormBillingAddress(''); setFormCountryCode('+91');
     setFormAddressLine1(''); setFormAddressLine2(''); setFormCity(''); setFormState('');
     setFormPostalCode(''); setFormLandmark(''); setFormHouseNumber(''); setFormBuildingName('');
+    setFormTowerNumber(''); setFormFloorNumber('');
     setFormGstin('');
     setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
     setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
@@ -480,6 +483,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         addressLine1: formAddressLine1 || undefined, addressLine2: formAddressLine2 || undefined,
         city: formCity || undefined, state: formState || undefined, postalCode: formPostalCode || undefined,
         landmark: formLandmark || undefined, houseNumber: formHouseNumber || undefined, buildingName: formBuildingName || undefined,
+        towerNumber: formTowerNumber || undefined, floorNumber: formFloorNumber || undefined,
         gstin: formGstin || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
@@ -520,6 +524,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormCity(contact.city || ''); setFormState(contact.state || '');
     setFormPostalCode(contact.postalCode || ''); setFormLandmark(contact.landmark || '');
     setFormHouseNumber(contact.houseNumber || ''); setFormBuildingName(contact.buildingName || '');
+    setFormTowerNumber(contact.towerNumber || ''); setFormFloorNumber(contact.floorNumber || '');
     setFormGstin((contact as any).gstin || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
     setFormAllowlistWA(contact.allowlistWhatsApp || false); setFormAllowlistSms(contact.allowlistSms || false); setFormAllowlistEmail(contact.allowlistEmail || false);
@@ -547,6 +552,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         addressLine1: formAddressLine1 || undefined, addressLine2: formAddressLine2 || undefined,
         city: formCity || undefined, state: formState || undefined, postalCode: formPostalCode || undefined,
         landmark: formLandmark || undefined, houseNumber: formHouseNumber || undefined, buildingName: formBuildingName || undefined,
+        towerNumber: formTowerNumber || undefined, floorNumber: formFloorNumber || undefined,
         gstin: formGstin || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
@@ -867,7 +873,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </button>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div><label style={S.label}>House / Flat No</label><input style={S.input} value={formHouseNumber} onChange={e => setFormHouseNumber(e.target.value)} placeholder="e.g. 12" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>Building</label><input style={S.input} value={formBuildingName} onChange={e => setFormBuildingName(e.target.value)} placeholder="e.g. One BKC" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Building</label><input style={S.input} value={formBuildingName} onChange={e => setFormBuildingName(e.target.value)} placeholder="One BKC" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Tower</label><input style={S.input} value={formTowerNumber} onChange={e => setFormTowerNumber(e.target.value)} placeholder="5" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Floor</label><input style={S.input} value={formFloorNumber} onChange={e => setFormFloorNumber(e.target.value)} placeholder="3" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>Street / Locality</label><input style={S.input} value={formAddressLine1} onChange={e => setFormAddressLine1(e.target.value)} placeholder="e.g. Bandra Kurla Complex" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>Landmark</label><input style={S.input} value={formLandmark} onChange={e => setFormLandmark(e.target.value)} placeholder="e.g. Near BKC Circle" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>City</label><input style={S.input} value={formCity} onChange={e => setFormCity(e.target.value)} placeholder="e.g. Mumbai" onFocus={focusStyle} onBlur={blurStyle} /></div>

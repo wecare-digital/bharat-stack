@@ -170,7 +170,7 @@
             "type": "TextInput",
             "name": "ship_tower",
             "label": "Tower",
-            "required": false,
+            "required": true,
             "input-type": "text",
             "helper-text": "Enter tower number"
           },
@@ -178,7 +178,7 @@
             "type": "TextInput",
             "name": "ship_floor",
             "label": "Floor",
-            "required": false,
+            "required": true,
             "input-type": "text",
             "helper-text": "Enter floor number"
           },
@@ -226,7 +226,7 @@
             "type": "TextInput",
             "name": "ship_country",
             "label": "Country",
-            "required": false,
+            "required": true,
             "input-type": "text",
             "helper-text": "Default: India"
           },

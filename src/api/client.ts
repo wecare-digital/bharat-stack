@@ -277,6 +277,17 @@ function normalizeContact(item: any): Contact {
     shippingAddressJson: item.shippingAddressJson || '',
     billingAddressJson: item.billingAddressJson || '',
     gstin: item.gstin || '',
+    // Structured address fields
+    addressLine1: item.addressLine1 || '',
+    addressLine2: item.addressLine2 || '',
+    city: item.city || '',
+    state: item.state || '',
+    postalCode: item.postalCode || '',
+    landmark: item.landmark || '',
+    houseNumber: item.houseNumber || '',
+    buildingName: item.buildingName || '',
+    towerNumber: item.towerNumber || '',
+    floorNumber: item.floorNumber || '',
     // Opt-in fields
     optInWhatsApp: item.optInWhatsApp || false,
     optInSms: item.optInSms || false,

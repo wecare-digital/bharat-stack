@@ -2141,7 +2141,10 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             'SET #nm = :nm, #em = :em, #ba = :ba, #sa = :sa, #ua = :ua, '
                             '#cbn = :cbn, #ow = :ow, #os = :os, #oe = :oe, '
                             '#aw = :aw, #as2 = :as2, #ae = :ae, '
-                            '#baj = :baj, #saj = :saj, #un = :un, #gst = :gst'
+                            '#baj = :baj, #saj = :saj, #un = :un, #gst = :gst, '
+                            '#al1 = :al1, #al2 = :al2, #ct = :ct, #st = :st, '
+                            '#pc = :pc, #hn = :hn, #bn = :bn, #tn = :tn, #fn = :fn, '
+                            '#lm = :lm, #co = :co, #pin = :pin'
                         ),
                         ExpressionAttributeNames={
                             '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
@@ -2150,6 +2153,11 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#aw': 'allowlistWhatsApp', '#as2': 'allowlistSms', '#ae': 'allowlistEmail',
                             '#baj': 'billingAddressJson', '#saj': 'shippingAddressJson',
                             '#un': 'username', '#gst': 'gstin',
+                            '#al1': 'addressLine1', '#al2': 'addressLine2',
+                            '#ct': 'city', '#st': 'state', '#pc': 'postalCode',
+                            '#hn': 'houseNumber', '#bn': 'buildingName',
+                            '#tn': 'towerNumber', '#fn': 'floorNumber',
+                            '#lm': 'landmark', '#co': 'country', '#pin': 'pincode',
                         },
                         ExpressionAttributeValues={
                             ':nm': full_name, ':em': email_address,
@@ -2159,6 +2167,11 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             ':aw': True, ':as2': True, ':ae': True,
                             ':baj': json.dumps(bill_addr_obj), ':saj': json.dumps(ship_addr_obj),
                             ':un': wa_username, ':gst': gstin,
+                            ':al1': ship_street, ':al2': ship_landmark,
+                            ':ct': ship_city, ':st': ship_state, ':pc': ship_pin,
+                            ':hn': ship_house, ':bn': ship_building,
+                            ':tn': ship_tower, ':fn': ship_floor,
+                            ':lm': ship_landmark, ':co': ship_country, ':pin': ship_pin,
                         },
                     )
                 except Exception as e:
@@ -2225,6 +2238,12 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'shippingAddress': _addr_str(ship_addr_obj),
                         'billingAddressJson': json.dumps(bill_addr_obj),
                         'shippingAddressJson': json.dumps(ship_addr_obj),
+                        'addressLine1': ship_street, 'addressLine2': ship_landmark,
+                        'city': ship_city, 'state': ship_state,
+                        'postalCode': ship_pin, 'pincode': ship_pin,
+                        'houseNumber': ship_house, 'buildingName': ship_building,
+                        'towerNumber': ship_tower, 'floorNumber': ship_floor,
+                        'landmark': ship_landmark, 'country': ship_country,
                         'optInWhatsApp': True, 'optInSms': True, 'optInEmail': True,
                         'allowlistWhatsApp': True, 'allowlistSms': True, 'allowlistEmail': True,
                         'tags': ['subscriber'],
