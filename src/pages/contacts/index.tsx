@@ -86,6 +86,139 @@ function timeAgo(dateStr?: string | number): string {
 
 interface PageProps { signOut?: () => void; user?: any; }
 
+// ── Contact Activity Timeline ──
+interface ActivityItem {
+  id: string;
+  type: 'flow' | 'change' | 'message' | 'created';
+  icon: string;
+  title: string;
+  details?: { field: string; old: string; new: string }[];
+  meta?: string;
+  timestamp: number;
+}
+
+const ContactActivityTimeline: React.FC<{ phone: string; contactId: string; createdAt: string }> = ({ phone, contactId, createdAt }) => {
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    if (!phone && !contactId) return;
+    setLoading(true);
+    (async () => {
+      const items: ActivityItem[] = [];
+
+      // Load flow logs/submissions for this phone
+      try {
+        const logs = await api.listFlowLogs(phone);
+        for (const log of logs) {
+          // Check if it's a change log
+          let flowData: any = {};
+          try { flowData = log.flowData ? JSON.parse(log.flowData) : {}; } catch {}
+          const changes = flowData?.changes;
+
+          if (changes && typeof changes === 'object' && Object.keys(changes).length > 0) {
+            // Change log entry
+            const details = Object.entries(changes).map(([field, vals]: [string, any]) => ({
+              field,
+              old: vals?.old || '(empty)',
+              new: vals?.new || '(empty)',
+            }));
+            items.push({
+              id: log.id,
+              type: 'change',
+              icon: '🔄',
+              title: `${flowData.updated_by?.replace(/_/g, ' ') || 'Flow'} updated contact`,
+              details,
+              meta: flowData.subscriber_id || '',
+              timestamp: log.createdAt,
+            });
+          } else {
+            // Flow submission
+            items.push({
+              id: log.id,
+              type: 'flow',
+              icon: '📋',
+              title: `${log.type || log.action || 'Flow'} submission`,
+              meta: log.subject || log.order_id || '',
+              timestamp: log.createdAt,
+            });
+          }
+        }
+      } catch { /* ignore */ }
+
+      // Add contact created event
+      if (createdAt) {
+        const ts = Number(createdAt);
+        const epoch = !isNaN(ts) ? (ts < 1e12 ? ts : Math.floor(ts / 1000)) : 0;
+        if (epoch > 0) {
+          items.push({
+            id: 'created',
+            type: 'created',
+            icon: '✨',
+            title: 'Contact created',
+            meta: 'Auto-created from inbound message',
+            timestamp: epoch,
+          });
+        }
+      }
+
+      // Sort by timestamp descending (newest first)
+      items.sort((a, b) => b.timestamp - a.timestamp);
+      setActivities(items);
+      setLoading(false);
+    })();
+  }, [phone, contactId, createdAt]);
+
+  const fmtTs = (ts: number) => {
+    if (!ts) return '—';
+    const ms = ts > 1e12 ? ts : ts * 1000;
+    return new Date(ms).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+  };
+
+  return (
+    <div style={{ marginTop: 20, borderTop: '2px solid #f3f4f6', paddingTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <button onClick={() => setExpanded(!expanded)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#1a3a2a' }}>
+          <span style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>▶</span>
+          Activity ({activities.length})
+        </button>
+      </div>
+      {expanded && (
+        <div>
+          {loading && <p style={{ fontSize: 12, color: '#9ca3af' }}>Loading...</p>}
+          {!loading && activities.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>No activity yet</p>}
+          {activities.map(a => (
+            <div key={a.id} style={{ display: 'flex', gap: 8, marginBottom: 12, position: 'relative' }}>
+              {/* Timeline line */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+                <span style={{ fontSize: 14 }}>{a.icon}</span>
+                <div style={{ flex: 1, width: 1, background: '#e5e7eb', marginTop: 4 }} />
+              </div>
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#374151' }}>{a.title}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 10, color: '#9ca3af' }}>{fmtTs(a.timestamp)}{a.meta ? ` · ${a.meta}` : ''}</p>
+                {a.details && a.details.length > 0 && (
+                  <div style={{ marginTop: 4, padding: '6px 8px', background: '#f9fafb', borderRadius: 6, fontSize: 11 }}>
+                    {a.details.map(d => (
+                      <div key={d.field} style={{ marginBottom: 2 }}>
+                        <span style={{ color: '#6b7280' }}>{d.field}:</span>{' '}
+                        <span style={{ color: '#dc2626', textDecoration: 'line-through' }}>{d.old}</span>{' → '}
+                        <span style={{ color: '#059669', fontWeight: 500 }}>{d.new}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1151,6 +1284,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   <button onClick={() => { handleEdit(detailContact); setDetailContact(null); }} style={{ flex: 1, padding: '8px 12px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
                   <button onClick={() => { const c = detailContact; setDetailContact(null); handleDelete(c.contactId, c.name); }} style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#1a3a2a', border: '2px solid #1a3a2a', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                 </div>
+
+                {/* Activity Timeline */}
+                <ContactActivityTimeline phone={detailContact.phone} contactId={detailContact.contactId} createdAt={detailContact.createdAt} />
               </div>
             </div>
           )}
