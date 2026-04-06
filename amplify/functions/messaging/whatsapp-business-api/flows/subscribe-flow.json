@@ -228,8 +228,7 @@
             "label": "Country",
             "required": false,
             "input-type": "text",
-            "helper-text": "Default: India",
-            "init-value": "India"
+            "helper-text": "Default: India"
           },
           {
             "type": "Footer",
@@ -436,8 +435,7 @@
                 "label": "Country",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "Default: India",
-                "init-value": "India"
+                "helper-text": "Default: India"
               },
               {
                 "type": "TextInput",
@@ -471,11 +469,14 @@
                     "ship_phone": "${data.ship_phone}",
                     "ship_house": "${data.ship_house}",
                     "ship_building": "${data.ship_building}",
+                    "ship_tower": "${data.ship_tower}",
+                    "ship_floor": "${data.ship_floor}",
                     "ship_street": "${data.ship_street}",
                     "ship_landmark": "${data.ship_landmark}",
                     "ship_city": "${data.ship_city}",
                     "ship_state": "${data.ship_state}",
                     "ship_pin": "${data.ship_pin}",
+                    "ship_country": "${data.ship_country}",
                     "same_as_ship": "${form.same_as_ship}",
                     "bill_house": "${form.bill_house}",
                     "bill_building": "${form.bill_building}",
@@ -690,15 +691,15 @@
           },
           {
             "type": "TextBody",
-            "text": "${data.ship_house}, ${data.ship_building}"
-          },
-          {
-            "type": "TextBody",
             "text": "${data.ship_street}"
           },
           {
             "type": "TextBody",
-            "text": "${data.ship_city}, ${data.ship_state} ${data.ship_pin}"
+            "text": "${data.ship_city}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_pin}"
           },
           {
             "type": "TextBody",
@@ -715,15 +716,15 @@
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_house}, ${data.bill_building}"
-          },
-          {
-            "type": "TextBody",
             "text": "${data.bill_street}"
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_city}, ${data.bill_state} ${data.bill_pin}"
+            "text": "${data.bill_city}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.bill_pin}"
           },
           {
             "type": "TextBody",
