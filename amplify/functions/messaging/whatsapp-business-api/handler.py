@@ -2039,6 +2039,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             ship_phone = data.get('ship_phone', '')
             ship_house = data.get('ship_house', '')
             ship_building = data.get('ship_building', '')
+            ship_tower = data.get('ship_tower', '')
             ship_floor = data.get('ship_floor', '')
             ship_street = data.get('ship_street', '')
             ship_landmark = data.get('ship_landmark', '')
@@ -2053,6 +2054,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             bill_phone = ship_phone  # Always use shipping phone for billing
             bill_house = data.get('bill_house', '')
             bill_building = data.get('bill_building', '')
+            bill_tower = data.get('bill_tower', '')
             bill_floor = data.get('bill_floor', '')
             bill_street = data.get('bill_street', '')
             bill_landmark = data.get('bill_landmark', '')
@@ -2065,6 +2067,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             if same_as_ship or not bill_street:
                 bill_house = bill_house or ship_house
                 bill_building = bill_building or ship_building
+                bill_tower = bill_tower or ship_tower
                 bill_floor = bill_floor or ship_floor
                 bill_street = bill_street or ship_street
                 bill_landmark = bill_landmark or ship_landmark
@@ -2088,7 +2091,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'address': ship_street, 'city': ship_city,
                 'state': ship_state, 'in_pin_code': ship_pin,
                 'house_number': ship_house, 'building_name': ship_building,
-                'floor_number': ship_floor, 'landmark_area': ship_landmark,
+                'tower_number': ship_tower, 'floor_number': ship_floor, 'landmark_area': ship_landmark,
                 'country': ship_country,
             }
             bill_addr_obj = {
@@ -2096,7 +2099,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'address': bill_street, 'city': bill_city,
                 'state': bill_state, 'in_pin_code': bill_pin,
                 'house_number': bill_house, 'building_name': bill_building,
-                'floor_number': bill_floor, 'landmark_area': bill_landmark,
+                'tower_number': bill_tower, 'floor_number': bill_floor, 'landmark_area': bill_landmark,
                 'country': bill_country,
             }
 
@@ -2105,11 +2108,14 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 if a.get('name'): parts.append(a['name'])
                 if a.get('house_number'): parts.append(a['house_number'])
                 if a.get('building_name'): parts.append(a['building_name'])
+                if a.get('tower_number'): parts.append(f"Tower {a['tower_number']}")
+                if a.get('floor_number'): parts.append(f"Floor {a['floor_number']}")
                 if a.get('address'): parts.append(a['address'])
                 if a.get('landmark_area'): parts.append(a['landmark_area'])
                 if a.get('city'): parts.append(a['city'])
                 if a.get('state'): parts.append(a['state'])
                 if a.get('in_pin_code'): parts.append(a['in_pin_code'])
+                if a.get('country'): parts.append(a['country'])
                 return ', '.join(p for p in parts if p)
 
             # Find existing contact or create new one with subscriber UUID as contact ID

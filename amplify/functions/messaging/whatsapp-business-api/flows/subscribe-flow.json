@@ -168,6 +168,14 @@
           },
           {
             "type": "TextInput",
+            "name": "ship_tower",
+            "label": "Tower",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "Enter tower number"
+          },
+          {
+            "type": "TextInput",
             "name": "ship_floor",
             "label": "Floor",
             "required": false,
@@ -241,6 +249,7 @@
                 "ship_phone": "${form.ship_phone}",
                 "ship_house": "${form.ship_house}",
                 "ship_building": "${form.ship_building}",
+                "ship_tower": "${form.ship_tower}",
                 "ship_floor": "${form.ship_floor}",
                 "ship_street": "${form.ship_street}",
                 "ship_landmark": "${form.ship_landmark}",
@@ -311,6 +320,18 @@
           "type": "string",
           "__example__": "400051"
         },
+        "ship_tower": {
+          "type": "string",
+          "__example__": "5"
+        },
+        "ship_floor": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "ship_country": {
+          "type": "string",
+          "__example__": "India"
+        },
         "wa_username": {
           "type": "string",
           "__example__": "@manish"
@@ -352,6 +373,14 @@
                 "required": false,
                 "input-type": "text",
                 "helper-text": "Enter building name"
+              },
+              {
+                "type": "TextInput",
+                "name": "bill_tower",
+                "label": "Tower",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "Enter tower number"
               },
               {
                 "type": "TextInput",
@@ -416,7 +445,7 @@
                 "label": "GSTIN",
                 "required": false,
                 "input-type": "text",
-                "helper-text": "e.g. 22AAAAA0000A1Z5"
+                "helper-text": "22AAAAA0000A1Z5"
               },
               {
                 "type": "OptIn",
@@ -450,6 +479,7 @@
                     "same_as_ship": "${form.same_as_ship}",
                     "bill_house": "${form.bill_house}",
                     "bill_building": "${form.bill_building}",
+                    "bill_tower": "${form.bill_tower}",
                     "bill_floor": "${form.bill_floor}",
                     "bill_street": "${form.bill_street}",
                     "bill_landmark": "${form.bill_landmark}",
@@ -523,6 +553,18 @@
           "type": "string",
           "__example__": "400051"
         },
+        "ship_tower": {
+          "type": "string",
+          "__example__": "5"
+        },
+        "ship_floor": {
+          "type": "string",
+          "__example__": "3"
+        },
+        "ship_country": {
+          "type": "string",
+          "__example__": "India"
+        },
         "same_as_ship": {
           "type": "boolean",
           "__example__": true
@@ -532,6 +574,14 @@
           "__example__": ""
         },
         "bill_building": {
+          "type": "string",
+          "__example__": ""
+        },
+        "bill_tower": {
+          "type": "string",
+          "__example__": ""
+        },
+        "bill_floor": {
           "type": "string",
           "__example__": ""
         },
@@ -554,6 +604,10 @@
         "bill_pin": {
           "type": "string",
           "__example__": ""
+        },
+        "bill_country": {
+          "type": "string",
+          "__example__": "India"
         },
         "wa_username": {
           "type": "string",
@@ -636,15 +690,19 @@
           },
           {
             "type": "TextBody",
+            "text": "${data.ship_house}, ${data.ship_building}"
+          },
+          {
+            "type": "TextBody",
             "text": "${data.ship_street}"
           },
           {
             "type": "TextBody",
-            "text": "${data.ship_city}"
+            "text": "${data.ship_city}, ${data.ship_state} ${data.ship_pin}"
           },
           {
             "type": "TextBody",
-            "text": "${data.ship_pin}"
+            "text": "${data.ship_country}"
           },
           {
             "type": "TextCaption",
@@ -657,15 +715,19 @@
           },
           {
             "type": "TextBody",
+            "text": "${data.bill_house}, ${data.bill_building}"
+          },
+          {
+            "type": "TextBody",
             "text": "${data.bill_street}"
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_city}"
+            "text": "${data.bill_city}, ${data.bill_state} ${data.bill_pin}"
           },
           {
             "type": "TextBody",
-            "text": "${data.bill_pin}"
+            "text": "${data.bill_country}"
           },
           {
             "type": "Form",
@@ -691,19 +753,25 @@
                     "ship_phone": "${data.ship_phone}",
                     "ship_house": "${data.ship_house}",
                     "ship_building": "${data.ship_building}",
+                    "ship_tower": "${data.ship_tower}",
+                    "ship_floor": "${data.ship_floor}",
                     "ship_street": "${data.ship_street}",
                     "ship_landmark": "${data.ship_landmark}",
                     "ship_city": "${data.ship_city}",
                     "ship_state": "${data.ship_state}",
                     "ship_pin": "${data.ship_pin}",
+                    "ship_country": "${data.ship_country}",
                     "same_as_ship": "${data.same_as_ship}",
                     "bill_house": "${data.bill_house}",
                     "bill_building": "${data.bill_building}",
+                    "bill_tower": "${data.bill_tower}",
+                    "bill_floor": "${data.bill_floor}",
                     "bill_street": "${data.bill_street}",
                     "bill_landmark": "${data.bill_landmark}",
                     "bill_city": "${data.bill_city}",
                     "bill_state": "${data.bill_state}",
                     "bill_pin": "${data.bill_pin}",
+                    "bill_country": "${data.bill_country}",
                     "confirmed": "${form.confirm_submit}",
                     "wa_username": "${data.wa_username}",
                     "gstin": "${data.gstin}"

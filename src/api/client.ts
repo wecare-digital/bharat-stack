@@ -198,6 +198,8 @@ export interface Contact {
   landmark?: string;
   houseNumber?: string;
   buildingName?: string;
+  towerNumber?: string;
+  floorNumber?: string;
   // Opt-in fields (Requirement 3.2)
   optInWhatsApp: boolean;
   optInSms: boolean;

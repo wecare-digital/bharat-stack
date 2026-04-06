@@ -43,6 +43,8 @@ const schema = a.schema({
       // Structured address fields (WhatsApp Payments shipping_info)
       houseNumber: a.string(),
       buildingName: a.string(),
+      towerNumber: a.string(),
+      floorNumber: a.string(),
       landmark: a.string(),
       postalCode: a.string(),
       shippingAddress: a.string(),
