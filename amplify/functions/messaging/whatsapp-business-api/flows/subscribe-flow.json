@@ -168,6 +168,14 @@
           },
           {
             "type": "TextInput",
+            "name": "ship_floor",
+            "label": "Floor",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "Enter floor number"
+          },
+          {
+            "type": "TextInput",
             "name": "ship_street",
             "label": "Street",
             "required": true,
@@ -207,6 +215,15 @@
             "helper-text": "Enter 6-digit PIN code"
           },
           {
+            "type": "TextInput",
+            "name": "ship_country",
+            "label": "Country",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "Default: India",
+            "init-value": "India"
+          },
+          {
             "type": "Footer",
             "label": "Next",
             "on-click-action": {
@@ -224,11 +241,13 @@
                 "ship_phone": "${form.ship_phone}",
                 "ship_house": "${form.ship_house}",
                 "ship_building": "${form.ship_building}",
+                "ship_floor": "${form.ship_floor}",
                 "ship_street": "${form.ship_street}",
                 "ship_landmark": "${form.ship_landmark}",
                 "ship_city": "${form.ship_city}",
                 "ship_state": "${form.ship_state}",
                 "ship_pin": "${form.ship_pin}",
+                "ship_country": "${form.ship_country}",
                 "wa_username": "${data.wa_username}"
               }
             }
@@ -336,6 +355,14 @@
               },
               {
                 "type": "TextInput",
+                "name": "bill_floor",
+                "label": "Floor",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "Enter floor number"
+              },
+              {
+                "type": "TextInput",
                 "name": "bill_street",
                 "label": "Street",
                 "required": false,
@@ -373,6 +400,15 @@
                 "required": false,
                 "input-type": "text",
                 "helper-text": "Enter 6-digit PIN code"
+              },
+              {
+                "type": "TextInput",
+                "name": "bill_country",
+                "label": "Country",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "Default: India",
+                "init-value": "India"
               },
               {
                 "type": "TextInput",
@@ -414,11 +450,13 @@
                     "same_as_ship": "${form.same_as_ship}",
                     "bill_house": "${form.bill_house}",
                     "bill_building": "${form.bill_building}",
+                    "bill_floor": "${form.bill_floor}",
                     "bill_street": "${form.bill_street}",
                     "bill_landmark": "${form.bill_landmark}",
                     "bill_city": "${form.bill_city}",
                     "bill_state": "${form.bill_state}",
                     "bill_pin": "${form.bill_pin}",
+                    "bill_country": "${form.bill_country}",
                     "wa_username": "${data.wa_username}",
                     "gstin": "${form.gstin}"
                   }

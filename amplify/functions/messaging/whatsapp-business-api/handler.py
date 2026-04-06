@@ -2039,11 +2039,13 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             ship_phone = data.get('ship_phone', '')
             ship_house = data.get('ship_house', '')
             ship_building = data.get('ship_building', '')
+            ship_floor = data.get('ship_floor', '')
             ship_street = data.get('ship_street', '')
             ship_landmark = data.get('ship_landmark', '')
             ship_city = data.get('ship_city', '')
             ship_state = data.get('ship_state', '')
             ship_pin = data.get('ship_pin', '')
+            ship_country = data.get('ship_country', 'India')
 
             # Billing address (copy name/phone from shipping always, other fields if same_as_ship)
             same_as_ship = data.get('same_as_ship', False)
@@ -2051,21 +2053,25 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             bill_phone = ship_phone  # Always use shipping phone for billing
             bill_house = data.get('bill_house', '')
             bill_building = data.get('bill_building', '')
+            bill_floor = data.get('bill_floor', '')
             bill_street = data.get('bill_street', '')
             bill_landmark = data.get('bill_landmark', '')
             bill_city = data.get('bill_city', '')
             bill_state = data.get('bill_state', '')
             bill_pin = data.get('bill_pin', '')
+            bill_country = data.get('bill_country', 'India')
 
             # Copy all billing address fields from shipping when same_as_ship or billing is empty
             if same_as_ship or not bill_street:
                 bill_house = bill_house or ship_house
                 bill_building = bill_building or ship_building
+                bill_floor = bill_floor or ship_floor
                 bill_street = bill_street or ship_street
                 bill_landmark = bill_landmark or ship_landmark
                 bill_city = bill_city or ship_city
                 bill_state = bill_state or ship_state
                 bill_pin = bill_pin or ship_pin
+                bill_country = bill_country or ship_country
 
             # Subscriber ID = WD-SUB + 8-char UUID, full UUID for internal contact ID
             subscriber_uuid = str(uuid.uuid4())
@@ -2082,14 +2088,16 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'address': ship_street, 'city': ship_city,
                 'state': ship_state, 'in_pin_code': ship_pin,
                 'house_number': ship_house, 'building_name': ship_building,
-                'landmark_area': ship_landmark,
+                'floor_number': ship_floor, 'landmark_area': ship_landmark,
+                'country': ship_country,
             }
             bill_addr_obj = {
                 'name': bill_name, 'phone_number': bill_phone.replace('+', ''),
                 'address': bill_street, 'city': bill_city,
                 'state': bill_state, 'in_pin_code': bill_pin,
                 'house_number': bill_house, 'building_name': bill_building,
-                'landmark_area': bill_landmark,
+                'floor_number': bill_floor, 'landmark_area': bill_landmark,
+                'country': bill_country,
             }
 
             def _addr_str(a):
