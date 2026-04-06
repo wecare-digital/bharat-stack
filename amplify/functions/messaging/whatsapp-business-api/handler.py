@@ -1251,7 +1251,7 @@ def _enrich_contact_from_flow(contact_id: str, form_data: Dict, contact_mapping:
         if update_parts:
             table = dynamodb.Table(CONTACTS_TABLE)
             table.update_item(
-                Key={'contactId': contact_id},
+                Key={'id': contact_id},
                 UpdateExpression='SET ' + ', '.join(update_parts),
                 ExpressionAttributeValues=expr_values,
                 ExpressionAttributeNames=expr_names,
@@ -1542,7 +1542,7 @@ def _get_customer_journey(params: Dict) -> Dict:
         if contact_id:
             try:
                 ct = dynamodb.Table(CONTACTS_TABLE)
-                cr = ct.get_item(Key={'contactId': contact_id})
+                cr = ct.get_item(Key={'id': contact_id})
                 contact = cr.get('Item', {})
             except Exception:
                 pass
@@ -1932,7 +1932,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 if contact_id:
                     try:
                         ct = dynamodb.Table(CONTACTS_TABLE)
-                        cr = ct.get_item(Key={'contactId': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
+                        cr = ct.get_item(Key={'id': contact_id}, ProjectionExpression='#n', ExpressionAttributeNames={'#n': 'name'})
                         sender_name = cr.get('Item', {}).get('name', '')
                     except Exception:
                         pass
