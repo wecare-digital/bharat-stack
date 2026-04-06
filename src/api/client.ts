@@ -200,6 +200,13 @@ export interface Contact {
   buildingName?: string;
   towerNumber?: string;
   floorNumber?: string;
+  // Country
+  country?: string;
+  pincode?: string;
+  // Business/profile fields
+  companyName?: string;
+  designation?: string;
+  preferredLanguage?: string;
   // Opt-in fields (Requirement 3.2)
   optInWhatsApp: boolean;
   optInSms: boolean;
@@ -288,6 +295,11 @@ function normalizeContact(item: any): Contact {
     buildingName: item.buildingName || '',
     towerNumber: item.towerNumber || '',
     floorNumber: item.floorNumber || '',
+    country: item.country || '',
+    pincode: item.pincode || item.postalCode || '',
+    companyName: item.companyName || item.contactBookName || '',
+    designation: item.designation || '',
+    preferredLanguage: item.preferredLanguage || '',
     // Opt-in fields
     optInWhatsApp: item.optInWhatsApp || false,
     optInSms: item.optInSms || false,
