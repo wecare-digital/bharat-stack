@@ -3470,7 +3470,7 @@ def log_tool_execution(tool_name: str, params: Dict, result: Any, duration: floa
 def check_rate_limit(session_id: str, tool_name: str, limit: int = 10, window: int = 60) -> Tuple[bool, str]:
     """Check if rate limit exceeded (10 requests per minute per tool)"""
     try:
-        table = dynamodb.Table('stack-wecare-digital-RateLimitTracker')
+        table = dynamodb.Table('stack-wecare-digital-RateLimitTable')
         key = f"{session_id}:{tool_name}"
         now = int(time.time())
         window_start = now - window
@@ -4794,17 +4794,16 @@ def _tool_list_scheduled_messages(params: Dict, request_id: str) -> Dict:
         status_filter = params.get('status', 'PENDING')
 
         if contact_id:
-            response = table.query(
-                IndexName='contactId-index',
-                KeyConditionExpression='contactId = :cid',
-                FilterExpression='#s = :st',
+            # contactId-index doesn't exist yet — fall back to scan with filter
+            response = table.scan(
+                FilterExpression='contactId = :cid AND #s = :st',
                 ExpressionAttributeNames={'#s': 'status'},
                 ExpressionAttributeValues={':cid': contact_id, ':st': status_filter},
                 Limit=50,
             )
         else:
             response = table.query(
-                IndexName='status-index',
+                IndexName='status-scheduledAt-index',
                 KeyConditionExpression='#s = :st',
                 ExpressionAttributeNames={'#s': 'status'},
                 ExpressionAttributeValues={':st': status_filter},
