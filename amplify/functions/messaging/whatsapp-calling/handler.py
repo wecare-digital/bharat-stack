@@ -901,26 +901,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
             else:
                 logger.info(f"Post-call thumbs up sent for {msg_id}")
 
-    # Step 4: Send callback permission request (auto-grant calling permission)
-    try:
-        perm_result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
-            'messaging_product': 'whatsapp',
-            'to': caller_phone,
-            'type': 'interactive',
-            'interactive': {
-                'type': 'call_permission_request',
-                'body': {'text': 'Allow us to call you back on WhatsApp?'},
-                'action': {
-                    'name': 'call_permission_request',
-                },
-            },
-        }, phone_number_id=phone_number_id)
-        if perm_result.get('error'):
-            logger.info(f"Call permission request skipped: {str(perm_result.get('detail', ''))[:100]}")
-        else:
-            logger.info(f"Call permission request sent to {caller_phone}")
-    except Exception as e:
-        logger.info(f"Call permission request failed: {e}")
+    # Step 4: Call permission request removed — not sending interactive permission_response after calls
 
     # Step 5: Post-call SMS — send Airtel IVR SMS (ivr-default template) on disconnect
     if caller_phone and _is_sms_on_call_enabled():
