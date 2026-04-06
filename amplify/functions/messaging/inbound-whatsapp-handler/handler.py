@@ -64,7 +64,7 @@ OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecar
 # WhatsApp Voice Lambda function name (TTS via Amazon Polly)
 WHATSAPP_VOICE_FUNCTION = os.environ.get('WHATSAPP_VOICE_FUNCTION', 'wecare-whatsapp-voice')
 
-# Fix #6: Circuit breaker for AI failures — skip AI if too many consecutive failures
+# Fix #6: Circuit breaker for AI failures  -  skip AI if too many consecutive failures
 _ai_fail_count = 0
 _ai_fail_reset_time = 0
 AI_CIRCUIT_BREAKER_THRESHOLD = 5   # failures before tripping
@@ -270,7 +270,7 @@ def _send_direct_api_typing(to_number: str) -> Dict:
     Uses read receipt as proxy since Meta doesn't expose typing via API."""
     # Meta doesn't have a public typing indicator API for Cloud API.
     # We use read receipt as the closest proxy.
-    # This is a no-op placeholder — the read receipt already signals engagement.
+    # This is a no-op placeholder  -  the read receipt already signals engagement.
     return {'success': True, 'note': 'typing_proxy_via_read_receipt'}
 
 
@@ -563,7 +563,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             'requestId': request_id
                         }))
                 
-                # Process BSUID changes (user_id_update) — separate webhook field
+                # Process BSUID changes (user_id_update)  -  separate webhook field
                 if field == 'user_id_update':
                     for uid_update in value.get('user_id_update', []):
                         try:
@@ -768,7 +768,7 @@ def _process_message(
         for probe_type in ('image', 'video', 'audio', 'document', 'sticker', 'poll', 'location', 'contacts', 'reaction'):
             probe_data = message.get(probe_type)
             if isinstance(probe_data, dict) and probe_data.get('id'):
-                # Has a media ID — this is a real media message wrapped as unsupported
+                # Has a media ID  -  this is a real media message wrapped as unsupported
                 # (common for view-once, multi-image bundles)
                 msg_type = probe_type
                 logger.info(json.dumps({
@@ -851,7 +851,7 @@ def _process_message(
             if s3_key:
                 media_id = _store_media_record(message_id, s3_key, media_data, whatsapp_media_id)
     
-    # Ephemeral messages may carry media nested inside — try to extract
+    # Ephemeral messages may carry media nested inside  -  try to extract
     if msg_type == 'ephemeral' and not s3_key:
         ephemeral_data = message.get('ephemeral', {})
         if isinstance(ephemeral_data, dict):
@@ -957,8 +957,8 @@ def _process_message(
                 aws_phone_number_id=aws_phone_number_id,
                 interactive=interactive,
             )
-            return  # Stop processing — call permission handled
-        # IVR button responses — route to appropriate department/action
+            return  # Stop processing  -  call permission handled
+        # IVR button responses  -  route to appropriate department/action
         elif interactive_type == 'button_reply':
             button_id = interactive.get('button_reply', {}).get('id', '')
             if button_id.startswith('ivr_'):
@@ -968,7 +968,7 @@ def _process_message(
                     button_id=button_id,
                     request_id=request_id,
                 )
-                return  # Stop processing — IVR button handled
+                return  # Stop processing  -  IVR button handled
             # Follow-up buttons: Explore More / Done for Now
             if button_id == 'followup_explore':
                 _send_interactive_list(
@@ -983,7 +983,7 @@ def _process_message(
                     "Awesome \u2014 you\u2019re all set for now \U0001f49b\n\nType *hi* anytime to come back.",
                     aws_phone_number_id, request_id)
                 return
-        # List reply — user tapped a row in an interactive list message
+        # List reply  -  user tapped a row in an interactive list message
         elif interactive_type == 'list_reply':
             list_id = interactive.get('list_reply', {}).get('id', '')
             if list_id:
@@ -994,7 +994,7 @@ def _process_message(
                     sender_phone=sender_phone,
                     request_id=request_id,
                 )
-                return  # Stop processing — list reply handled
+                return  # Stop processing  -  list reply handled
     
     # Handle system status messages with user_changed_user_id
     # Per Meta BSUID docs: system messages can have type=user_changed_user_id
@@ -1128,7 +1128,7 @@ def _process_message(
                 request_id=request_id
             )
     
-    # ── request_welcome: user tapped "Start" — always send welcome + menu ──
+    # ── request_welcome: user tapped "Start"  -  always send welcome + menu ──
     if msg_type == 'request_welcome':
         logger.info(json.dumps({
             'event': 'request_welcome_triggered',
@@ -1152,7 +1152,7 @@ def _process_message(
             )
         except Exception:
             pass
-        return  # Skip AI automation — welcome flow handled
+        return  # Skip AI automation  -  welcome flow handled
 
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
@@ -1176,18 +1176,18 @@ def _process_message(
                     flow_config=trigger,
                     flow_key=flow_key,
                 )
-                return  # Skip AI automation — flow handles the rest
+                return  # Skip AI automation  -  flow handles the rest
 
         # ── Direct "Pay" keyword trigger (LLM-independent, hardcoded) ──
         # Exact matches (content_lower must be exactly one of these)
         PAY_KEYWORDS = {
-            # English — core
+            # English  -  core
             'pay', 'payment', 'pay now', 'pay bill', 'bill pay', '/pay',
             'pay due', 'pay dues', 'pay invoice', 'invoice',
             'pending payment', 'pending due', 'pending dues',
             'send payment', 'make payment', 'make a payment',
             'amount pay', 'pay amount',
-            # English — conversational
+            # English  -  conversational
             'i want to pay', 'i want pay', 'want to pay', 'wanna pay',
             'let me pay', 'ready to pay', 'how to pay', 'how do i pay',
             'what is my due', 'what are my dues', 'whats my due',
@@ -1284,7 +1284,7 @@ def _process_message(
                     'requestId': request_id,
                 }))
                 _send_ai_auto_reply(contact_id, PAY_MSG['error'], aws_phone_number_id, request_id)
-            return  # Skip AI automation — payment flow handled
+            return  # Skip AI automation  -  payment flow handled
 
         # ── Direct "Hi" / greeting keyword trigger (LLM-independent) ──
         HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu', 'need help!', 'get started'}
@@ -1309,7 +1309,7 @@ def _process_message(
                 'contactId': contact_id,
                 'requestId': request_id,
             }))
-            return  # Skip AI automation — welcome flow handled
+            return  # Skip AI automation  -  welcome flow handled
 
         # ── Ice breaker: "Try Bharat Stack" / "/bharatstack" ──
         BHARAT_KEYWORDS = {'try bharat stack', 'bharat stack', '/bharatstack', 'bharat', 'aadhaar', 'upi', 'digilocker'}
@@ -1397,7 +1397,7 @@ def _process_message(
     if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document', 'request_welcome'):
         try:
             # Send ONLY the main menu (header/body already contains greeting)
-            # No separate welcome text — the menu IS the welcome
+            # No separate welcome text  -  the menu IS the welcome
             _send_interactive_list(
                 contact_id=contact_id,
                 phone_number_id=aws_phone_number_id,
@@ -1665,7 +1665,7 @@ def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str
 
 def _process_user_id_update(uid_update: Dict, contacts_map: Dict, request_id: str) -> None:
     """
-    Handle user_id_update webhook — a user's BSUID has changed.
+    Handle user_id_update webhook  -  a user's BSUID has changed.
     Per Meta docs (field: user_id_update), the payload contains:
       user_id: { previous: "<OLD_BSUID>", current: "<NEW_BSUID>" }
       parent_user_id: { previous: "<OLD>", current: "<NEW>" }  (optional)
@@ -1833,7 +1833,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
     Download media file from WhatsApp.
     Routes to Direct API for all phones.
     
-    Per AWS docs (S3File.key): The key is a PREFIX — AWS appends the WhatsApp
+    Per AWS docs (S3File.key): The key is a PREFIX  -  AWS appends the WhatsApp
     mediaId to create the final file path. For example:
       key = "audio/"             → final = "audio/{mediaId}.ogg"
     
@@ -1849,7 +1849,7 @@ def _download_media(whatsapp_media_id: str, message_id: str, media_type: str,
                                           phone_number_id, request_id, mime_type_hint)
     
     try:
-        # Use MEDIA_PREFIX directly — files land flat, no subfolders
+        # Use MEDIA_PREFIX directly  -  files land flat, no subfolders
         s3_key_prefix = MEDIA_PREFIX  # e.g. "stack/whatsapp-media/incoming/"
         
         logger.info(json.dumps({
@@ -2131,7 +2131,7 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
             items = response.get('Items', [])
             if items:
                 message_id = items[0].get('id') or items[0].get('messageId')
-                # Build update expression — include recipientBsuid and parentRecipientBsuid if available
+                # Build update expression  -  include recipientBsuid and parentRecipientBsuid if available
                 update_expr = 'SET #status = :status, statusUpdatedAt = :ts'
                 expr_values = {
                     ':status': status_value,
@@ -2172,7 +2172,7 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
             }))
     
     if not updated:
-        # Downgrade to debug — this is normal for auto-reaction/read-receipt messages
+        # Downgrade to debug  -  this is normal for auto-reaction/read-receipt messages
         # which are not stored in the outbound table
         logger.debug(json.dumps({
             'event': 'status_update_message_not_found',
@@ -2483,7 +2483,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                                     'requestId': request_id,
                                 }))
                     except Exception as lookup_err:
-                        # Don't block payment on lookup failure — log and proceed
+                        # Don't block payment on lookup failure  -  log and proceed
                         logger.warning(json.dumps({
                             'event': 'payment_lookup_failed',
                             'error': str(lookup_err)[:200],
@@ -2552,7 +2552,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             phone_number_id=originating_phone_id
         )
     elif payment_status == 'pending':
-        # Genuine pending (transaction still in progress) — log and wait
+        # Genuine pending (transaction still in progress)  -  log and wait
         logger.info(json.dumps({
             'event': 'payment_pending_waiting',
             'referenceId': reference_id,
@@ -2892,7 +2892,7 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
                 break
 
         if not remaining:
-            # All clear — send congratulations
+            # All clear  -  send congratulations
             contact = _get_contact_by_phone(recipient_id)
             contact_id = contact.get('id', '') if contact else ''
             contact_phone = contact.get('phone', f'+{clean_phone}') if contact else f'+{clean_phone}'
@@ -3507,8 +3507,8 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
                 "🤖 *AI Assistant*\n\n"
                 "I'm ready to help! You can:\n\n"
                 "• Type your question\n"
-                "• Send a *voice note* — I'll listen and reply with voice\n"
-                "• Send a *photo* — I can analyze images too\n\n"
+                "• Send a *voice note*  -  I'll listen and reply with voice\n"
+                "• Send a *photo*  -  I can analyze images too\n\n"
                 "Ask me anything about our products, services, or orders."
             ),
             'notify': False,
@@ -3807,11 +3807,11 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
 def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                        request_id: str, flow_config: Dict = None, flow_key: str = '') -> None:
     """
-    Generic flow sender — works for all flow types.
+    Generic flow sender  -  works for all flow types.
     
     Phone 1 (WABA 1): Sends WhatsApp Flow interactive message (flows exist on WABA 1).
     Phone 2 (WABA 2): Sends CTA URL button with short link → wa.me message link on Phone 1.
-    Flows are WABA-specific — they only exist on the WABA where they were created.
+    Flows are WABA-specific  -  they only exist on the WABA where they were created.
     """
     try:
         flow_id = (flow_config or {}).get('flowId', '')
@@ -3829,7 +3829,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         if phone_number_id == PHONE_NUMBER_ID_2:
             flow_id_2 = (flow_config or {}).get('flowId2', '')
             if flow_id_2:
-                # WABA 2 has its own flow — use it instead of WABA 1 flow
+                # WABA 2 has its own flow  -  use it instead of WABA 1 flow
                 flow_id = flow_id_2
                 logger.info(json.dumps({
                     'event': 'generic_flow_using_waba2_flow',
@@ -3837,7 +3837,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                 }))
                 # Fall through to flow sending logic below
             else:
-                # No WABA 2 flow — send CTA URL fallback
+                # No WABA 2 flow  -  send CTA URL fallback
                 SHORT_URLS = {
                     'submit_request': 'https://r.wecare.digital/sr',
                     'track_request': 'https://r.wecare.digital/tr',
@@ -4171,7 +4171,7 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
 
         response = lambda_client.invoke(
             FunctionName=WHATSAPP_VOICE_FUNCTION,
-            InvocationType='Event',  # Async — don't block
+            InvocationType='Event',  # Async  -  don't block
             Payload=json.dumps(tts_payload)
         )
 
@@ -4226,7 +4226,7 @@ def _auto_transcribe_voice_note(message_id: str, s3_key: str, request_id: str) -
 
         response = lambda_client.invoke(
             FunctionName=WHATSAPP_VOICE_FUNCTION,
-            InvocationType='Event',  # Async — don't block inbound processing
+            InvocationType='Event',  # Async  -  don't block inbound processing
             Payload=json.dumps(transcribe_payload)
         )
 
@@ -4463,7 +4463,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
 
 
 # ============================================================================
-# POS INVOICE IMAGE GENERATOR (pure Python PNG — zero external dependencies)
+# POS INVOICE IMAGE GENERATOR (pure Python PNG  -  zero external dependencies)
 # ============================================================================
 
 # Minimal 5x7 bitmap font for ASCII 32-126 (space to ~)
@@ -4749,7 +4749,7 @@ def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: 
         return f'{v:,.2f}'
 
     lines = []
-    # Header — logo will be composited above this
+    # Header  -  logo will be composited above this
     lines.append('')
     lines.append('')
     lines.append('')  # space for logo
@@ -5033,7 +5033,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 # BOT FLOW CONFIGS (loaded from SystemConfigTable, dashboard-manageable)
 # ============================================================================
 
-# Default flow triggers config — keyword-to-flow mapping
+# Default flow triggers config  -  keyword-to-flow mapping
 # Keywords MUST include: exact keyword, selfservice menu row title (without emoji),
 # natural variations, and the list_reply action keyword from MENU_TO_KEYWORD.
 DEFAULT_FLOW_TRIGGERS = {
@@ -5195,16 +5195,16 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
 
     # ── Main menu row IDs → actions ──
     MENU_TO_KEYWORD = {
-        # Main menu — Start Here
+        # Main menu  -  Start Here
         'menu_selfservice': '_selfservice_menu',
         'menu_self_service': '_selfservice_menu',  # legacy
         'menu_subscribe': 'subscribe',
         'menu_pay': 'pay',
-        # Main menu — Explore WECARE
+        # Main menu  -  Explore WECARE
         'menu_store': '_cta_store',
         'menu_gift_card': '_cta_gift_card',
         'menu_bharat_stack': '_cta_bharat_stack',
-        # Main menu — Help & Answers
+        # Main menu  -  Help & Answers
         'menu_faq': '_cta_faq',
         'menu_about': '_cta_about',
         # Legacy main menu IDs (old menu, may be cached)
@@ -5308,7 +5308,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         _send_followup_buttons(contact_id, phone_number_id, request_id)
         return
 
-    # About WECARE.DIGITAL — text only, no CTA + follow-up buttons
+    # About WECARE.DIGITAL  -  text only, no CTA + follow-up buttons
     if action == '_cta_about':
         about_text = (
             "*Building digital railroads for everyday Bharat*\n\n"
@@ -5385,7 +5385,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
             _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
         return
 
-    # Unhandled list ID — log it
+    # Unhandled list ID  -  log it
     if not action:
         logger.info(json.dumps({
             'event': 'list_reply_unhandled',
@@ -5403,7 +5403,7 @@ def _get_flow_triggers_config() -> Dict:
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
             config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            # Merge with defaults — config overrides per flow key
+            # Merge with defaults  -  config overrides per flow key
             merged = {}
             for key, default in DEFAULT_FLOW_TRIGGERS.items():
                 if key in config:
@@ -5592,7 +5592,7 @@ def _get_bharat_stack_menu() -> Dict:
 # ── Self-service sub-menu ──
 DEFAULT_SELFSERVICE_MENU = {
     'header': 'Selfservice',
-    'body': "Choose what you\u2019d like to do. You can submit or track a request, book a visit, upload documents, or get business support.",
+    'body': "Choose what you'd like to do. You can submit or track a request, book a visit, upload documents, or get business support.",
     'footer': 'Tap an option to continue.',
     'buttonText': 'Browse Services',
     'sections': [
@@ -5684,7 +5684,7 @@ def _get_language_picker_config() -> Dict:
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
             config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            # Region picker (Step 1) — override rows if provided
+            # Region picker (Step 1)  -  override rows if provided
             if 'regionPicker' in config:
                 region_rows = config['regionPicker']
                 return {
@@ -5781,7 +5781,7 @@ DEFAULT_AI_CONFIG = {
     'autoReplyEnabled': False,
     'respondToInteractive': True,
     'respondToText': True,
-    'respondToMedia': True,  # Now enabled — multimodal AI via Converse API
+    'respondToMedia': True,  # Now enabled  -  multimodal AI via Converse API
     'respondToLocation': True,
     'maxResponseLength': 500,
     'responseDelay': 0,
@@ -5877,7 +5877,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
     if not ai_enabled or not should_respond:
         return None
 
-    # Fix #6: Circuit breaker — skip AI if too many recent failures
+    # Fix #6: Circuit breaker  -  skip AI if too many recent failures
     global _ai_fail_count, _ai_fail_reset_time
     if _ai_fail_count >= AI_CIRCUIT_BREAKER_THRESHOLD:
         if time.time() < _ai_fail_reset_time:
@@ -5888,7 +5888,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 'requestId': request_id
             }))
             return None
-        # Cooldown expired — reset and retry
+        # Cooldown expired  -  reset and retry
         _ai_fail_count = 0
     
     try:
@@ -5899,7 +5899,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             request_id=request_id
         )
         
-        # Skip separate KB query — the ai-generate-response function now handles
+        # Skip separate KB query  -  the ai-generate-response function now handles
         # KB retrieval internally via the Converse API path
         
         # Invoke AI generate response with multimodal payload
@@ -6109,12 +6109,12 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                     pay_for=ai_response.get('paymentPayFor', 'self'),
                 )
         elif flow_action == 'sendPendingPayments':
-            # ── Payment flow (hardcoded, LLM-independent — edit PAY_MSG at top of file) ──
+            # ── Payment flow (hardcoded, LLM-independent  -  edit PAY_MSG at top of file) ──
             customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
 
             # Handle payments on whichever phone received the message
-            # (Phone 1 is disconnected, so no redirect — all phones handle payments directly)
-            if False:  # Redirect disabled — Phone 1 (+919330994400) is DISCONNECTED
+            # (Phone 1 is disconnected, so no redirect  -  all phones handle payments directly)
+            if False:  # Redirect disabled  -  Phone 1 (+919330994400) is DISCONNECTED
                 _send_ai_auto_reply(contact_id, PAY_MSG['redirect'], phone_number_id, request_id)
                 logger.info(json.dumps({
                     'event': 'payment_redirected_to_phone1',
@@ -6195,7 +6195,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 'requestId': request_id
             }))
         elif flow_action == 'end':
-            # Rating submitted — nothing more to do, message already sent
+            # Rating submitted  -  nothing more to do, message already sent
             pass
 
         # ── Safety net: if AI returned but nothing was sent to user, send fallback ──
@@ -6224,7 +6224,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             if suggestion_text and len(suggestion_text) > 10:
                 try:
                     # Load user preferences to check audioEnabled
-                    # Fix #2: Use same hash as AI handler — sha256(clean_phone)[:32]
+                    # Fix #2: Use same hash as AI handler  -  sha256(clean_phone)[:32]
                     from hashlib import sha256
                     clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '') if sender_phone else ''
                     ph = sha256(clean_phone.encode()).hexdigest()[:32] if clean_phone else ''
@@ -6410,7 +6410,7 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
     Send WhatsApp typing indicator so the customer sees engagement while AI processes.
     
     Meta Graph API does not expose a native typing indicator endpoint.
-    We send a read receipt (blue ticks) as the closest proxy — this signals
+    We send a read receipt (blue ticks) as the closest proxy  -  this signals
     to the customer that their message was seen and a response is coming.
     """
     if not sender_phone or not phone_number_id:
@@ -6433,7 +6433,7 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
         return
 
     try:
-        # Clean phone number — ensure + prefix for WhatsApp recipient
+        # Clean phone number  -  ensure + prefix for WhatsApp recipient
         clean_phone = sender_phone.lstrip('+')
         formatted_phone = f'+{clean_phone}'
 
@@ -6461,7 +6461,7 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
         }))
 
     except Exception as e:
-        # Non-critical — don't fail the AI flow for typing indicator
+        # Non-critical  -  don't fail the AI flow for typing indicator
         logger.warning(json.dumps({
             'event': 'typing_indicator_error',
             'error': str(e),
@@ -6800,7 +6800,7 @@ def _process_group_event(value: Dict, event_subtype: str, request_id: str) -> No
                     ExpressionAttributeValues=expr_vals,
                 )
             except Exception:
-                # Table may not exist yet — create item instead
+                # Table may not exist yet  -  create item instead
                 group_table.put_item(Item={
                     'id': group_id,
                     'groupId': group_id,
