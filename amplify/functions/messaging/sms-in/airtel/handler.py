@@ -267,22 +267,17 @@ def _handle_dlr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
 
 def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     """
-    Send SMS via Airtel IQ API (single or multiple recipients).
+    Send SMS via Airtel IQ API v5 (Content Moderation).
 
-    Airtel v4/v5/v6 natively support multiple destinationAddress in one call.
-    - v4 (default): POST /api/v4/send-sms
-    - v5: POST /api/v5/send-sms-cm — content moderation (auto DLT)
-    - v6: POST /api/v6/send-sms — enhanced response with echo-back
+    Endpoint: POST https://iqmessaging.airtel.in/api/v5/send-sms-cm
+    v5 handles DLT compliance automatically via content moderation.
 
     Body params:
     - phoneNumber (string): single destination (10-digit mobile)
-    - phoneNumbers (array): multiple destinations — same v4/v5/v6 endpoint
+    - phoneNumbers (array): multiple destinations
     - content (required): message text
     - messageType: PROMOTIONAL | TRANSACTIONAL | SERVICE_IMPLICIT | SERVICE_EXPLICIT
-    - dltTemplateId: DLT content template ID
-    - otp: true/false (for SERVICE_IMPLICIT, sets traffic type to OTP)
-    - metaData: optional key-value map (flows to IQ reporting and callbacks)
-    - apiVersion: "v4" | "v5" | "v6" (default: v4)
+    - metaData: optional key-value map
     """
     # Accept both single phoneNumber/phone and phoneNumbers array
     phone_numbers = body.get('phoneNumbers', [])
@@ -293,8 +288,6 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     
     content = body.get('content', '')
     message_type = body.get('messageType', 'SERVICE_EXPLICIT')
-    dlt_template_id = body.get('dltTemplateId')
-    api_version = body.get('apiVersion', 'v5')
     meta_data = body.get('metaData')
     
     if not phone_numbers:
@@ -322,46 +315,17 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     if not customer_id or not auth_token:
         return _response(500, {'error': 'Airtel SMS credentials not configured'})
     
-    dlt_template_id = dlt_template_id or default_template_id
-    
-    # Build payload based on API version
-    # destinationAddress is always an array (works for single and multiple)
-    if api_version == 'v5':
-        # v5 Content Moderation — no DLT fields needed
-        payload = {
-            "customerId": customer_id,
-            "destinationAddress": clean_phones,
-            "message": content,
-            "sourceAddress": sender_id,
-            "messageType": message_type
-        }
-        if meta_data and isinstance(meta_data, dict):
-            payload["metaData"] = meta_data
-        url = f"https://{AIRTEL_SMS_HOST}/api/v5/send-sms-cm"
-    else:
-        # v4 and v6 — full DLT payload
-        payload = {
-            "customerId": customer_id,
-            "destinationAddress": clean_phones,
-            "message": content,
-            "sourceAddress": sender_id,
-            "messageType": message_type,
-            "dltTemplateId": dlt_template_id,
-            "entityId": entity_id
-        }
-        
-        # OTP flag for SERVICE_IMPLICIT
-        if message_type == 'SERVICE_IMPLICIT' and body.get('otp'):
-            payload["otp"] = True
-        
-        # metaData (optional, flows end-to-end per Airtel spec)
-        if meta_data and isinstance(meta_data, dict):
-            payload["metaData"] = meta_data
-        
-        if api_version == 'v6':
-            url = f"https://{AIRTEL_SMS_HOST}/api/v6/send-sms"
-        else:
-            url = f"https://{AIRTEL_SMS_HOST}/api/v4/send-sms"
+    # v5 Content Moderation — DLT handled automatically
+    payload = {
+        "customerId": customer_id,
+        "destinationAddress": clean_phones,
+        "message": content,
+        "sourceAddress": sender_id,
+        "messageType": message_type
+    }
+    if meta_data and isinstance(meta_data, dict):
+        payload["metaData"] = meta_data
+    url = f"https://{AIRTEL_SMS_HOST}/api/v5/send-sms-cm"
     
     headers = {
         'Content-Type': 'application/json',
@@ -382,7 +346,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
             'providerMessageId': provider_msg_id,
             'recipientCount': len(clean_phones),
             'status': 'sent',
-            'apiVersion': api_version
+            'apiVersion': 'v5'
         }
         
         # v6 echoes back additional fields
