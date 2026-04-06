@@ -78,6 +78,28 @@
             "helper-text": "Enter company name"
           },
           {
+            "type": "TextInput",
+            "name": "designation",
+            "label": "Designation",
+            "required": true,
+            "input-type": "text",
+            "helper-text": "Your role in the company"
+          },
+          {
+            "type": "OptIn",
+            "name": "is_pep",
+            "label": "PEP or restricted link",
+            "required": true
+          },
+          {
+            "type": "TextInput",
+            "name": "pep_details",
+            "label": "PEP Details",
+            "required": false,
+            "input-type": "text",
+            "helper-text": "If PEP, provide details"
+          },
+          {
             "type": "Footer",
             "label": "Next",
             "on-click-action": {
@@ -91,7 +113,10 @@
                 "phone_number": "${form.phone_number}",
                 "email_address": "${form.email_address}",
                 "company_name": "${form.company_name}",
-                "wa_username": "${form.wa_username}"
+                "wa_username": "${form.wa_username}",
+                "designation": "${form.designation}",
+                "is_pep": "${form.is_pep}",
+                "pep_details": "${form.pep_details}"
               }
             }
           }
@@ -121,6 +146,18 @@
         "wa_username": {
           "type": "string",
           "__example__": "@manish"
+        },
+        "designation": {
+          "type": "string",
+          "__example__": "Director"
+        },
+        "is_pep": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "pep_details": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -256,7 +293,10 @@
                 "ship_state": "${form.ship_state}",
                 "ship_pin": "${form.ship_pin}",
                 "ship_country": "${form.ship_country}",
-                "wa_username": "${data.wa_username}"
+                "wa_username": "${data.wa_username}",
+                "designation": "${data.designation}",
+                "is_pep": "${data.is_pep}",
+                "pep_details": "${data.pep_details}"
               }
             }
           }
@@ -334,6 +374,18 @@
         "wa_username": {
           "type": "string",
           "__example__": "@manish"
+        },
+        "designation": {
+          "type": "string",
+          "__example__": "Director"
+        },
+        "is_pep": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "pep_details": {
+          "type": "string",
+          "__example__": ""
         }
       },
       "layout": {
@@ -520,6 +572,9 @@
                     "bill_pin": "${form.bill_pin}",
                     "bill_country": "${form.bill_country}",
                     "wa_username": "${data.wa_username}",
+                    "designation": "${data.designation}",
+                    "is_pep": "${data.is_pep}",
+                    "pep_details": "${data.pep_details}",
                     "gstin": "${form.gstin}",
                     "paid_by": "${form.paid_by}",
                     "gst_invoice": "${form.gst_invoice}",
@@ -649,6 +704,10 @@
           "type": "string",
           "__example__": "@manish"
         },
+        "designation": {
+          "type": "string",
+          "__example__": "Director"
+        },
         "gstin": {
           "type": "string",
           "__example__": "22AAAAA0000A1Z5"
@@ -719,6 +778,15 @@
           },
           {
             "type": "TextCaption",
+            "text": "Designation",
+            "font-weight": "bold"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.designation}"
+          },
+          {
+            "type": "TextCaption",
             "text": "Username",
             "font-weight": "bold"
           },
@@ -734,6 +802,15 @@
           {
             "type": "TextBody",
             "text": "${data.gstin}"
+          },
+          {
+            "type": "TextCaption",
+            "text": "Paid By",
+            "font-weight": "bold"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.paid_by}"
           },
           {
             "type": "TextCaption",
@@ -760,10 +837,6 @@
             "type": "TextCaption",
             "text": "Billing",
             "font-weight": "bold"
-          },
-          {
-            "type": "TextCaption",
-            "text": "Same as shipping address"
           },
           {
             "type": "TextBody",
@@ -826,6 +899,7 @@
                     "bill_country": "${data.bill_country}",
                     "confirmed": "${form.confirm_submit}",
                     "wa_username": "${data.wa_username}",
+                    "designation": "${data.designation}",
                     "gstin": "${data.gstin}",
                     "paid_by": "${data.paid_by}",
                     "gst_invoice": "${data.gst_invoice}",
@@ -864,7 +938,7 @@
           },
           {
             "type": "TextHeading",
-            "text": "Welcome! ✅"
+            "text": "Welcome!"
           },
           {
             "type": "TextBody",
