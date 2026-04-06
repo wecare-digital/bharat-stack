@@ -88,7 +88,7 @@
           {
             "type": "OptIn",
             "name": "is_pep",
-            "label": "PEP or restricted link",
+            "label": "PEP / restricted sector",
             "required": true
           },
           {
@@ -98,6 +98,16 @@
             "required": false,
             "input-type": "text",
             "helper-text": "If PEP, provide details"
+          },
+          {
+            "type": "Dropdown",
+            "name": "paid_by",
+            "label": "Who is paying?",
+            "required": true,
+            "data-source": [
+              {"id": "self", "title": "Self"},
+              {"id": "company", "title": "Company"}
+            ]
           },
           {
             "type": "Footer",
@@ -116,7 +126,8 @@
                 "wa_username": "${form.wa_username}",
                 "designation": "${form.designation}",
                 "is_pep": "${form.is_pep}",
-                "pep_details": "${form.pep_details}"
+                "pep_details": "${form.pep_details}",
+                "paid_by": "${form.paid_by}"
               }
             }
           }
@@ -158,6 +169,10 @@
         "pep_details": {
           "type": "string",
           "__example__": ""
+        },
+        "paid_by": {
+          "type": "string",
+          "__example__": "self"
         }
       },
       "layout": {
@@ -296,7 +311,8 @@
                 "wa_username": "${data.wa_username}",
                 "designation": "${data.designation}",
                 "is_pep": "${data.is_pep}",
-                "pep_details": "${data.pep_details}"
+                "pep_details": "${data.pep_details}",
+                "paid_by": "${data.paid_by}"
               }
             }
           }
@@ -386,6 +402,10 @@
         "pep_details": {
           "type": "string",
           "__example__": ""
+        },
+        "paid_by": {
+          "type": "string",
+          "__example__": "self"
         }
       },
       "layout": {
@@ -498,35 +518,10 @@
                 "helper-text": "22AAAAA0000A1Z5"
               },
               {
-                "type": "Dropdown",
-                "name": "paid_by",
-                "label": "Who is paying?",
-                "required": true,
-                "data-source": [
-                  {"id": "self", "title": "Self"},
-                  {"id": "company", "title": "Company"},
-                  {"id": "other", "title": "Other"}
-                ]
-              },
-              {
                 "type": "OptIn",
                 "name": "gst_invoice",
                 "label": "I need a GST invoice",
                 "required": false
-              },
-              {
-                "type": "OptIn",
-                "name": "is_pep",
-                "label": "PEP or restricted link",
-                "required": true
-              },
-              {
-                "type": "TextInput",
-                "name": "pep_details",
-                "label": "PEP Details",
-                "required": false,
-                "input-type": "text",
-                "helper-text": "If PEP, provide details"
               },
               {
                 "type": "OptIn",
@@ -575,11 +570,9 @@
                     "designation": "${data.designation}",
                     "is_pep": "${data.is_pep}",
                     "pep_details": "${data.pep_details}",
+                    "paid_by": "${data.paid_by}",
                     "gstin": "${form.gstin}",
-                    "paid_by": "${form.paid_by}",
-                    "gst_invoice": "${form.gst_invoice}",
-                    "is_pep": "${form.is_pep}",
-                    "pep_details": "${form.pep_details}"
+                    "gst_invoice": "${form.gst_invoice}"
                   }
                 }
               }
@@ -954,7 +947,7 @@
           },
           {
             "type": "TextBody",
-            "text": "Your saved details will help make checkout easier. You’ll receive order updates, offers, and notifications."
+            "text": "Your saved details will help make checkout easier. You will receive order updates, offers, and notifications."
           },
           {
             "type": "TextCaption",
