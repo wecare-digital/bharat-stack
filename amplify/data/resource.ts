@@ -56,6 +56,8 @@ const schema = a.schema({
       companyName: a.string(),
       designation: a.string(),
       preferredLanguage: a.string(),
+      isPep: a.boolean().default(false),
+      pepDetails: a.string(),
       lastFlowInteractionAt: a.datetime(),
       satisfactionScore: a.integer(), // NPS/CSAT from feedback flows
       // Welcome message tracking

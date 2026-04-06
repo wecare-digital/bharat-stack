@@ -854,6 +854,40 @@ def _delete_username(phone_id: str) -> Dict:
 
 
 # ============================================================================
+# INSTAGRAM LINKING
+# Check Instagram account linked to WABA for username reservation
+# ============================================================================
+
+def _get_instagram_accounts(business_id: str) -> Dict:
+    """Get Instagram accounts linked to a Meta Business Portfolio."""
+    if not business_id:
+        return _resp(400, {'error': 'businessId required'})
+    result = _graph_api(f'{business_id}/instagram_accounts',
+                        params={'fields': 'id,name,username,profile_picture_url,ig_id'})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'accounts': result.get('data', [])})
+
+
+def _get_waba_instagram_link(waba_id: str) -> Dict:
+    """Check if an Instagram account is linked to a WABA for username reservation."""
+    if not waba_id:
+        return _resp(400, {'error': 'wabaId required'})
+    result = _graph_api(f'{waba_id}',
+                        params={'fields': 'id,name,instagram_business_account'},
+                        waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    ig_account = result.get('instagram_business_account')
+    return _resp(200, {
+        'wabaId': waba_id,
+        'wabaName': result.get('name', ''),
+        'instagramLinked': ig_account is not None,
+        'instagramAccount': ig_account,
+    })
+
+
+# ============================================================================
 # BLOCK USERS API
 # Per Meta BSUID docs: block/unblock users by phone or user_id (BSUID)
 # ============================================================================
@@ -2033,6 +2067,9 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             company_name = data.get('company_name', '')
             wa_username = data.get('wa_username', '')
             gstin = data.get('gstin', '')
+            designation = data.get('designation', '')
+            is_pep = data.get('is_pep', False)
+            pep_details = data.get('pep_details', '')
 
             # Shipping address (primary — entered first)
             ship_name = data.get('ship_name', '')
@@ -2144,7 +2181,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#baj = :baj, #saj = :saj, #un = :un, #gst = :gst, '
                             '#al1 = :al1, #al2 = :al2, #ct = :ct, #st = :st, '
                             '#pc = :pc, #hn = :hn, #bn = :bn, #tn = :tn, #fn = :fn, '
-                            '#lm = :lm, #co = :co, #pin = :pin'
+                            '#lm = :lm, #co = :co, #pin = :pin, '
+                            '#dsg = :dsg, #pep = :pep, #pepd = :pepd'
                         ),
                         ExpressionAttributeNames={
                             '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
@@ -2158,6 +2196,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#hn': 'houseNumber', '#bn': 'buildingName',
                             '#tn': 'towerNumber', '#fn': 'floorNumber',
                             '#lm': 'landmark', '#co': 'country', '#pin': 'pincode',
+                            '#dsg': 'designation', '#pep': 'isPep', '#pepd': 'pepDetails',
                         },
                         ExpressionAttributeValues={
                             ':nm': full_name, ':em': email_address,
@@ -2172,6 +2211,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             ':hn': ship_house, ':bn': ship_building,
                             ':tn': ship_tower, ':fn': ship_floor,
                             ':lm': ship_landmark, ':co': ship_country, ':pin': ship_pin,
+                            ':dsg': designation, ':pep': is_pep, ':pepd': pep_details,
                         },
                     )
                 except Exception as e:
@@ -2244,6 +2284,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'houseNumber': ship_house, 'buildingName': ship_building,
                         'towerNumber': ship_tower, 'floorNumber': ship_floor,
                         'landmark': ship_landmark, 'country': ship_country,
+                        'designation': designation,
+                        'isPep': is_pep, 'pepDetails': pep_details,
                         'optInWhatsApp': True, 'optInSms': True, 'optInEmail': True,
                         'allowlistWhatsApp': True, 'allowlistSms': True, 'allowlistEmail': True,
                         'tags': ['subscriber'],
@@ -3750,6 +3792,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _claim_username(phone_id, body)
             elif method == 'DELETE':
                 return _delete_username(phone_id)
+
+        elif '/instagram' in path:
+            if '/instagram/accounts' in path:
+                business_id = params.get('businessId') or body.get('businessId') or ''
+                if not business_id:
+                    return _resp(400, {'error': 'businessId required'})
+                return _get_instagram_accounts(business_id)
+            else:
+                waba_id = params.get('wabaId') or body.get('wabaId') or ''
+                if not waba_id:
+                    return _resp(400, {'error': 'wabaId required'})
+                return _get_waba_instagram_link(waba_id)
 
         elif '/block-users' in path:
             waba_id = params.get('wabaId') or body.get('wabaId') or ''
