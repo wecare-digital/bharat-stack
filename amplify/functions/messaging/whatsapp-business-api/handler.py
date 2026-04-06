@@ -2067,7 +2067,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             company_name = data.get('company_name', '')
             wa_username = data.get('wa_username', '')
             gstin = data.get('gstin', '')
-            designation = data.get('designation', '')
+            paid_by = data.get('paid_by', 'self')
+            gst_invoice = data.get('gst_invoice', False)
             is_pep = data.get('is_pep', False)
             pep_details = data.get('pep_details', '')
 
@@ -2182,7 +2183,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#al1 = :al1, #al2 = :al2, #ct = :ct, #st = :st, '
                             '#pc = :pc, #hn = :hn, #bn = :bn, #tn = :tn, #fn = :fn, '
                             '#lm = :lm, #co = :co, #pin = :pin, '
-                            '#dsg = :dsg, #pep = :pep, #pepd = :pepd'
+                            '#pby = :pby, #ginv = :ginv, #pep = :pep, #pepd = :pepd'
                         ),
                         ExpressionAttributeNames={
                             '#nm': 'name', '#em': 'email', '#ba': 'billingAddress',
@@ -2196,7 +2197,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             '#hn': 'houseNumber', '#bn': 'buildingName',
                             '#tn': 'towerNumber', '#fn': 'floorNumber',
                             '#lm': 'landmark', '#co': 'country', '#pin': 'pincode',
-                            '#dsg': 'designation', '#pep': 'isPep', '#pepd': 'pepDetails',
+                            '#pby': 'paidBy', '#ginv': 'gstInvoice',
+                            '#pep': 'isPep', '#pepd': 'pepDetails',
                         },
                         ExpressionAttributeValues={
                             ':nm': full_name, ':em': email_address,
@@ -2211,7 +2213,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                             ':hn': ship_house, ':bn': ship_building,
                             ':tn': ship_tower, ':fn': ship_floor,
                             ':lm': ship_landmark, ':co': ship_country, ':pin': ship_pin,
-                            ':dsg': designation, ':pep': is_pep, ':pepd': pep_details,
+                            ':pby': paid_by, ':ginv': gst_invoice,
+                            ':pep': is_pep, ':pepd': pep_details,
                         },
                     )
                 except Exception as e:
@@ -2284,7 +2287,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                         'houseNumber': ship_house, 'buildingName': ship_building,
                         'towerNumber': ship_tower, 'floorNumber': ship_floor,
                         'landmark': ship_landmark, 'country': ship_country,
-                        'designation': designation,
+                        'paidBy': paid_by, 'gstInvoice': gst_invoice,
                         'isPep': is_pep, 'pepDetails': pep_details,
                         'optInWhatsApp': True, 'optInSms': True, 'optInEmail': True,
                         'allowlistWhatsApp': True, 'allowlistSms': True, 'allowlistEmail': True,

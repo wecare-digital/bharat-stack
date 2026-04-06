@@ -78,28 +78,6 @@
             "helper-text": "Enter company name"
           },
           {
-            "type": "TextInput",
-            "name": "designation",
-            "label": "Designation",
-            "required": false,
-            "input-type": "text",
-            "helper-text": "Your role or title"
-          },
-          {
-            "type": "OptIn",
-            "name": "is_pep",
-            "label": "Politically Exposed Person (PEP) or restricted-sector link",
-            "required": true
-          },
-          {
-            "type": "TextInput",
-            "name": "pep_details",
-            "label": "PEP Details (if applicable)",
-            "required": false,
-            "input-type": "text",
-            "helper-text": "Provide details if you selected PEP above"
-          },
-          {
             "type": "Footer",
             "label": "Next",
             "on-click-action": {
@@ -113,10 +91,7 @@
                 "phone_number": "${form.phone_number}",
                 "email_address": "${form.email_address}",
                 "company_name": "${form.company_name}",
-                "wa_username": "${form.wa_username}",
-                "designation": "${form.designation}",
-                "is_pep": "${form.is_pep}",
-                "pep_details": "${form.pep_details}"
+                "wa_username": "${form.wa_username}"
               }
             }
           }
@@ -146,18 +121,6 @@
         "wa_username": {
           "type": "string",
           "__example__": "@manish"
-        },
-        "designation": {
-          "type": "string",
-          "__example__": "Director"
-        },
-        "is_pep": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "pep_details": {
-          "type": "string",
-          "__example__": ""
         }
       },
       "layout": {
@@ -293,10 +256,7 @@
                 "ship_state": "${form.ship_state}",
                 "ship_pin": "${form.ship_pin}",
                 "ship_country": "${form.ship_country}",
-                "wa_username": "${data.wa_username}",
-                "designation": "${data.designation}",
-                "is_pep": "${data.is_pep}",
-                "pep_details": "${data.pep_details}"
+                "wa_username": "${data.wa_username}"
               }
             }
           }
@@ -374,18 +334,6 @@
         "wa_username": {
           "type": "string",
           "__example__": "@manish"
-        },
-        "designation": {
-          "type": "string",
-          "__example__": "Director"
-        },
-        "is_pep": {
-          "type": "boolean",
-          "__example__": false
-        },
-        "pep_details": {
-          "type": "string",
-          "__example__": ""
         }
       },
       "layout": {
@@ -498,6 +446,37 @@
                 "helper-text": "22AAAAA0000A1Z5"
               },
               {
+                "type": "Dropdown",
+                "name": "paid_by",
+                "label": "Who is paying?",
+                "required": true,
+                "data-source": [
+                  {"id": "self", "title": "Self"},
+                  {"id": "company", "title": "Company"},
+                  {"id": "other", "title": "Other"}
+                ]
+              },
+              {
+                "type": "OptIn",
+                "name": "gst_invoice",
+                "label": "I need a GST invoice",
+                "required": false
+              },
+              {
+                "type": "OptIn",
+                "name": "is_pep",
+                "label": "PEP or restricted link",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "pep_details",
+                "label": "PEP Details",
+                "required": false,
+                "input-type": "text",
+                "helper-text": "If PEP, provide details"
+              },
+              {
                 "type": "OptIn",
                 "name": "accept_terms",
                 "label": "Agree to updates",
@@ -541,10 +520,11 @@
                     "bill_pin": "${form.bill_pin}",
                     "bill_country": "${form.bill_country}",
                     "wa_username": "${data.wa_username}",
-                    "designation": "${data.designation}",
-                    "is_pep": "${data.is_pep}",
-                    "pep_details": "${data.pep_details}",
-                    "gstin": "${form.gstin}"
+                    "gstin": "${form.gstin}",
+                    "paid_by": "${form.paid_by}",
+                    "gst_invoice": "${form.gst_invoice}",
+                    "is_pep": "${form.is_pep}",
+                    "pep_details": "${form.pep_details}"
                   }
                 }
               }
@@ -673,9 +653,13 @@
           "type": "string",
           "__example__": "22AAAAA0000A1Z5"
         },
-        "designation": {
+        "paid_by": {
           "type": "string",
-          "__example__": "Director"
+          "__example__": "company"
+        },
+        "gst_invoice": {
+          "type": "boolean",
+          "__example__": true
         },
         "is_pep": {
           "type": "boolean",
@@ -843,7 +827,8 @@
                     "confirmed": "${form.confirm_submit}",
                     "wa_username": "${data.wa_username}",
                     "gstin": "${data.gstin}",
-                    "designation": "${data.designation}",
+                    "paid_by": "${data.paid_by}",
+                    "gst_invoice": "${data.gst_invoice}",
                     "is_pep": "${data.is_pep}",
                     "pep_details": "${data.pep_details}"
                   }

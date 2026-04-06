@@ -209,6 +209,8 @@ export interface Contact {
   preferredLanguage?: string;
   isPep?: boolean;
   pepDetails?: string;
+  paidBy?: string; // self, company, other
+  gstInvoice?: boolean;
   // Tracking fields (read-only, set by backend)
   lastFlowInteractionAt?: string;
   satisfactionScore?: number;
@@ -309,6 +311,8 @@ function normalizeContact(item: any): Contact {
     preferredLanguage: item.preferredLanguage || '',
     isPep: item.isPep || false,
     pepDetails: item.pepDetails || '',
+    paidBy: item.paidBy || '',
+    gstInvoice: item.gstInvoice || false,
     lastFlowInteractionAt: normalizeTimestamp(item.lastFlowInteractionAt),
     satisfactionScore: item.satisfactionScore || undefined,
     welcomeSent: item.welcomeSent || false,
