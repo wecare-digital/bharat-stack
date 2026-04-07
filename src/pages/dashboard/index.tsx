@@ -456,30 +456,16 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
     }
     
     try {
-      const [contactsData, messagesData, billingResult] = await Promise.allSettled([
+      const [contactsData, messagesData, billingResult] = await Promise.all([
         api.listContacts(),
         api.listMessages(),
         api.getAWSBilling()
       ]);
       
-      if (contactsData.status === 'fulfilled') {
-        setContacts(contactsData.value);
-      } else if (messagesData.status === 'fulfilled' && messagesData.value.length > 0) {
-        // Build contacts from messages as fallback
-        const phoneMap = new Map<string, api.Contact>();
-        messagesData.value.forEach((m: api.Message) => {
-          const phone = m.senderPhone || m.receivingPhone || '';
-          if (phone && m.contactId && !phoneMap.has(m.contactId)) {
-            phoneMap.set(m.contactId, { contactId: m.contactId, name: m.senderName || phone, phone, email: '', optInWhatsApp: true, optInSms: false, optInEmail: false, allowlistWhatsApp: true, allowlistSms: false, allowlistEmail: false, createdAt: m.timestamp, updatedAt: m.timestamp } as api.Contact);
-          }
-        });
-        setContacts(Array.from(phoneMap.values()));
-      }
-      if (messagesData.status === 'fulfilled') {
-        lastMessageCount.current = messagesData.value.length;
-        setMessages(messagesData.value);
-      }
-      if (billingResult.status === 'fulfilled') setBillingData(billingResult.value);
+      setContacts(contactsData);
+      lastMessageCount.current = messagesData.length;
+      setMessages(messagesData);
+      setBillingData(billingResult);
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Load error:', err);

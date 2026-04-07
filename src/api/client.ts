@@ -236,8 +236,7 @@ export async function listContacts(): Promise<Contact[]> {
     const contacts = Array.isArray(data) ? data : (data.contacts || []);
     return contacts.map(normalizeContact);
   }
-  // Throw so callers can distinguish "empty" from "failed"
-  throw new Error(lastConnectionError || 'Failed to load contacts');
+  return [];
 }
 
 export async function getContact(contactId: string): Promise<Contact | null> {

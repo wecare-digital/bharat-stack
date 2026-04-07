@@ -292,26 +292,16 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
     setLoading(true);
     setLoadError(false);
     try {
-      const [contactsData, messagesData] = await Promise.allSettled([
+      const [contactsData, messagesData] = await Promise.all([
         api.listContacts(),
         api.listMessages(undefined, 'WHATSAPP', 2000),
       ]);
 
-      const contacts_ = contactsData.status === 'fulfilled' ? contactsData.value : [];
-      const messages_ = messagesData.status === 'fulfilled' ? messagesData.value : [];
-
-      if (contactsData.status === 'rejected' && messagesData.status === 'rejected') {
-        setLoadError(true);
-        toast.error('API connection failed');
-        return;
-      }
-
-      // If contacts API failed but messages loaded, build contacts from message data
-      let effectiveContacts = contacts_;
-      if (contactsData.status === 'rejected' && messages_.length > 0) {
-        toast.warning('Contacts API returned error — showing contacts from message history');
+      // If contacts empty but messages exist, build contacts from messages
+      let effectiveContacts = contactsData;
+      if (contactsData.length === 0 && messagesData.length > 0) {
         const phoneMap = new Map<string, { phone: string; name: string; contactId: string }>();
-        messages_.forEach(m => {
+        messagesData.forEach(m => {
           const phone = m.senderPhone || m.receivingPhone || '';
           if (phone && !phoneMap.has(m.contactId)) {
             phoneMap.set(m.contactId, {
@@ -336,7 +326,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
       // Also track sender names from inbound messages
       const contactMsgMap = new Map<string, { lastMsg: any; lastWabaId: string; unread: number; senderName: string }>();
       
-      messages_.forEach(m => {
+      messagesData.forEach(m => {
         const existing = contactMsgMap.get(m.contactId);
         const msgTime = new Date(m.timestamp).getTime();
         
@@ -409,7 +399,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         });
 
       setContacts(displayContacts);
-      setMessages(messages_.map(m => ({
+      setMessages(messagesData.map(m => ({
         id: m.messageId,
         direction: m.direction.toLowerCase() as 'inbound' | 'outbound',
         content: m.content || '',
