@@ -329,30 +329,37 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def _list_wabas(request_id: str) -> Dict[str, Any]:
     """
     List all linked WhatsApp Business Accounts.
-    Meta Graph API: GET /{app_id}/whatsapp_business_accounts
+    Queries each known WABA directly via Meta Graph API.
     """
     try:
         fields = 'id,name,currency,timezone_id,message_template_namespace'
-        response = _meta_request(
-            f'{META_APP_ID}/whatsapp_business_accounts?fields={fields}'
-        )
-
         wabas = []
-        for account in response.get('data', []):
-            wabas.append({
-                'id': account.get('id', ''),
-                'wabaId': account.get('id', ''),
-                'wabaName': account.get('name', ''),
-                'currency': account.get('currency', ''),
-                'timezoneId': account.get('timezone_id', ''),
-                'messageTemplateNamespace': account.get('message_template_namespace', ''),
-                'arn': '',
-                'registrationStatus': 'COMPLETE',
-                'linkDate': '',
-                'enableSending': True,
-                'enableReceiving': True,
-                'eventDestinations': []
-            })
+
+        for aws_id, meta_id in AWS_TO_META_WABA.items():
+            try:
+                response = _meta_request(f'{meta_id}?fields={fields}')
+                wabas.append({
+                    'id': response.get('id', meta_id),
+                    'wabaId': aws_id,
+                    'metaWabaId': response.get('id', meta_id),
+                    'wabaName': response.get('name', ''),
+                    'currency': response.get('currency', ''),
+                    'timezoneId': response.get('timezone_id', ''),
+                    'messageTemplateNamespace': response.get('message_template_namespace', ''),
+                    'arn': '',
+                    'registrationStatus': 'COMPLETE',
+                    'linkDate': '',
+                    'enableSending': True,
+                    'enableReceiving': True,
+                    'eventDestinations': []
+                })
+            except Exception as e:
+                logger.warning(json.dumps({
+                    'event': 'waba_fetch_error',
+                    'metaWabaId': meta_id,
+                    'error': str(e),
+                    'requestId': request_id
+                }))
 
         logger.info(json.dumps({
             'event': 'wabas_listed',
