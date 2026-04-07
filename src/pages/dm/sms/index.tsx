@@ -40,6 +40,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [directionFilter, setDirectionFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
@@ -118,6 +119,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   const loadAwsData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [smsData, contactsData] = await Promise.all([api.listSmsAwsMessages(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
@@ -152,7 +154,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         if (m.status === 'failed') c.failed++;
       });
       setCampaigns(Array.from(campaignMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) { console.error('Load error:', err); toast.error('Failed to load data'); } finally { setLoading(false); }
+    } catch (err) { console.error('Load error:', err); setLoadError(true); toast.error('Failed to load data'); } finally { setLoading(false); }
   }, [toast]);
 
   const loadAirtelData = useCallback(async () => {
@@ -429,7 +431,7 @@ const SmsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                   <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="sms-search" />
                   <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
                 </div>
-                <div className="table-area">{loading ? <div className="loading-state">Loading...</div> : (
+                <div className="table-area">{loading ? <div className="loading-state">Loading...</div> : loadError ? <div style={{ padding: 32, textAlign: 'center' }}><p style={{ color: '#991b1b', fontSize: 13, marginBottom: 8 }}>Failed to load SMS data</p><button onClick={() => loadAwsData()} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Retry</button></div> : (
                   <table><thead><tr><th>Time</th><th>Dir</th><th>Contact</th><th className="hide-mobile">Phone</th><th>Message</th><th>Status</th></tr></thead><tbody>
                     {paginatedMessages.map(msg => (<tr key={msg.messageId}><td className="time-cell">{new Date(msg.timestamp).toLocaleString()}</td><td><span className={msg.direction === 'INBOUND' ? 'dir-in' : 'dir-out'}>{msg.direction === 'INBOUND' ? '?' : '?'}</span></td><td>{msg.contactName || '-'}</td><td className="phone-cell hide-mobile">{msg.phone}</td><td className="content-cell" title={msg.content}>{msg.content?.substring(0, 40)}{msg.content?.length > 40 ? '...' : ''}</td><td><span className={`st-badge ${msg.status?.toLowerCase()}`}>{msg.status}</span></td></tr>))}
                     {paginatedMessages.length === 0 && <tr><td colSpan={6} className="empty-row">No messages</td></tr>}

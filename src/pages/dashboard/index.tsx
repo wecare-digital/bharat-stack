@@ -98,19 +98,48 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     accountId: AWS_ACCOUNT_ID,
     details: [
       'stack-wecare-digital-ContactsTable',
+      'stack-wecare-digital-WhatsAppInboundTable',
       'stack-wecare-digital-WhatsAppOutboundTable',
+      'stack-wecare-digital-WhatsAppCallingTable',
+      'stack-wecare-digital-WhatsAppVoiceTable',
+      'stack-wecare-digital-WhatsAppGroupTable',
+      'stack-wecare-digital-MessagesTable (Legacy)',
       'stack-wecare-digital-MediaFilesTable',
-      'stack-wecare-digital-RateLimitTable',
-      'stack-wecare-digital-SmsAwsTable (Pinpoint SMS logs)',
-      'stack-wecare-digital-VoiceAwsTable (Pinpoint Voice logs)',
+      'stack-wecare-digital-BulkJobsTable',
+      'stack-wecare-digital-BulkRecipientsTable',
+      'stack-wecare-digital-DLQMessagesTable',
+      'stack-wecare-digital-SmsAwsTable (Pinpoint SMS)',
+      'stack-wecare-digital-AirtelSMSTable (Airtel SMS)',
+      'stack-wecare-digital-DLTTemplates (Airtel DLT)',
+      'stack-wecare-digital-VoiceAwsTable (Pinpoint Voice)',
       'stack-wecare-digital-AirtelC2CTable (Airtel C2C)',
-      'stack-wecare-digital-OBDCampaigns (Airtel OBD)',
       'stack-wecare-digital-VoiceCDRTable (Airtel CDR)',
-      'stack-wecare-digital-SmsInAirtelTable (Airtel SMS)',
+      'stack-wecare-digital-OBDCampaigns (Airtel OBD)',
       'stack-wecare-digital-ScheduledMessagesTable',
       'stack-wecare-digital-TemplateAnalyticsTable',
-      'stack-wecare-digital-WixProductsCache (Wix Store)',
-      'stack-wecare-digital-WixOrdersCache (Wix Store)'
+      'stack-wecare-digital-InvoicesTable',
+      'stack-wecare-digital-InvoiceItemsTable',
+      'stack-wecare-digital-InvoiceAssetsTable',
+      'stack-wecare-digital-InvoiceDeliveryLogTable',
+      'stack-wecare-digital-InvoiceSequenceTable',
+      'stack-wecare-digital-PaymentsTable',
+      'stack-wecare-digital-RazorpayWebhookLogTable',
+      'stack-wecare-digital-PayUWebhookLogTable',
+      'stack-wecare-digital-SubmitRequestsTable',
+      'stack-wecare-digital-ConversationHistoryTable',
+      'stack-wecare-digital-AIInteractionsTable',
+      'stack-wecare-digital-SystemConfigTable',
+      'stack-wecare-digital-FAQTable',
+      'stack-wecare-digital-ShortLinksTable',
+      'stack-wecare-digital-AdAttributionTable',
+      'stack-wecare-digital-CatalogCacheTable',
+      'stack-wecare-digital-EmailTable',
+      'stack-wecare-digital-AuditLog',
+      'stack-wecare-digital-RateLimitTracker',
+      'stack-wecare-digital-WixProductsCache',
+      'stack-wecare-digital-WixOrdersCache',
+      'stack-wecare-digital-WixOrderIds',
+      'stack-wecare-digital-UsersTable',
     ]
   },
   'Amazon RDS': { 
@@ -344,6 +373,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const toast = useToastContext();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [apiConnected, setApiConnected] = useState(false);
   const [apiLatency, setApiLatency] = useState<number | null>(null);
 
@@ -414,31 +444,34 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
   const [flowLogs, setFlowLogs] = useState<api.FlowLog[]>([]);
   const [flowLogsLoading, setFlowLogsLoading] = useState(false);
   const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (!silent) { setLoading(true); setLoadError(false); }
     
     const connectionTest = await api.testConnection();
     setApiConnected(connectionTest.success);
     setApiLatency(connectionTest.latency || null);
     
     if (!connectionTest.success) {
-      if (!silent) setLoading(false);
+      if (!silent) { setLoading(false); setLoadError(true); }
       return;
     }
     
     try {
-      const [contactsData, messagesData, billingResult] = await Promise.all([
+      const [contactsData, messagesData, billingResult] = await Promise.allSettled([
         api.listContacts(),
         api.listMessages(),
         api.getAWSBilling()
       ]);
       
-      lastMessageCount.current = messagesData.length;
-      setContacts(contactsData);
-      setMessages(messagesData);
-      setBillingData(billingResult);
+      if (contactsData.status === 'fulfilled') setContacts(contactsData.value);
+      if (messagesData.status === 'fulfilled') {
+        lastMessageCount.current = messagesData.value.length;
+        setMessages(messagesData.value);
+      }
+      if (billingResult.status === 'fulfilled') setBillingData(billingResult.value);
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Load error:', err);
+      if (!silent) setLoadError(true);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -1144,6 +1177,17 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
       
       
       <div className="dash">
+        {/* API Connection Error Banner */}
+        {loadError && !loading && (
+          <div style={{ padding: '16px 20px', marginBottom: 16, background: '#fef2f2', border: '2px solid #fecaca', borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#991b1b' }}>Unable to connect to API</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#b91c1c' }}>Check that the API Gateway is reachable at {API_BASE}</p>
+            </div>
+            <button onClick={() => loadData()} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+          </div>
+        )}
+
         {/* Header */}
         <header className="dash-header">
           <div className="dash-brand">

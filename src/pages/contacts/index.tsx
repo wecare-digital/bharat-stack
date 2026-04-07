@@ -359,22 +359,22 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setHiddenCols(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   };
 
-  const loadContacts = useCallback(async (retryCount = 0) => {
+  const loadContacts = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
     try {
       const data = await api.listContacts();
       setContacts(data);
-      setLoading(false);
-    } catch {
-      if (retryCount < 1) {
-        // Don't set loading=false yet — keep skeleton visible during retry
-        setTimeout(() => loadContacts(retryCount + 1), 2000);
-        return;
-      }
+    } catch (err: any) {
       setLoadError(true);
+      const msg = err?.message || 'Failed to load contacts';
+      if (msg.includes('Server error') || msg.includes('500')) {
+        toast.error('Contacts Lambda returned 500 — check CloudWatch logs for wecare-contacts');
+      } else {
+        toast.error(msg);
+      }
+    } finally {
       setLoading(false);
-      toast.error('Failed to load contacts');
     }
   }, [toast]);
 
@@ -1031,7 +1031,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #f3f4f6', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : loadError ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
-                <p style={{ fontSize: 15, color: '#6b7280', marginBottom: 8 }}>Failed to load contacts</p>
+                <p style={{ fontSize: 15, color: '#dc2626', marginBottom: 4 }}>Contacts Lambda returned 500</p>
+                <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>The wecare-contacts Lambda needs to be redeployed to AWS. Check CloudWatch logs.</p>
                 <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
               </div>
             ) : filteredSorted.length === 0 ? (
@@ -1046,6 +1047,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                     <p style={{ marginBottom: 8 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></p>
                     <p style={{ fontSize: 15, color: '#6b7280' }}>No contacts yet</p>
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Press <kbd style={{ padding: '2px 6px', background: '#f3f4f6', borderRadius: 4, fontSize: 11 }}>N</kbd> to add one</p>
+                    <p style={{ fontSize: 11, color: '#d97706', marginTop: 8 }}>API: {api.getConnectionStatus().status} · Table: stack-wecare-digital-ContactsTable</p>
+                    <p style={{ fontSize: 11, color: '#d97706', marginTop: 8 }}>API: {api.getConnectionStatus().status} · Table: stack-wecare-digital-ContactsTable</p>
                   </div>
                 )}
               </div>

@@ -1341,7 +1341,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
       </div>
 
       <style jsx>{`
-        .wa-page { height: calc(100vh - 60px); display: flex; flex-direction: column; }
+        .wa-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
         .wa-header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #000; color: #fff; }
         .back-btn, .refresh-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 12px; border-radius: 13px; cursor: pointer; }
         .wa-header-info { display: flex; align-items: center; gap: 12px; flex: 1; }
@@ -1349,7 +1349,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .wa-header h1 { font-size: 18px; font-weight: 500; margin: 0; }
         .wa-phone { font-size: 13px; opacity: 0.9; }
         .error-bar { background: #f5f5f5; color: #000; padding: 8px 16px; font-size: 13px; border: 1px solid #000; }
-        .wa-layout { display: grid; grid-template-columns: 300px 1fr; flex: 1; overflow: hidden; }
+        .wa-layout { display: grid; grid-template-columns: 300px 1fr; flex: 1; overflow: hidden; min-height: 0; }
         .wa-sidebar { background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
         .sidebar-search { padding: 12px; border-bottom: 1px solid #e5e5e5; }
         .sidebar-search input { width: 100%; padding: 10px 14px; border: 1px solid #000; border-radius: 13px; font-size: 14px; }
@@ -1365,7 +1365,7 @@ const WhatsAppConversation: React.FC<PageProps> = ({ signOut, user }) => {
         .contact-preview { font-size: 12px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .unread { background: #000; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
         .window-indicator { color: #000; font-size: 10px; }
-        .wa-chat { display: flex; flex-direction: column; background: #e5ddd5; }
+        .wa-chat { display: flex; flex-direction: column; background: #e5ddd5; overflow: hidden; min-height: 0; }
         .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #f0f0f0; border-bottom: 1px solid #e5e5e5; }
         .chat-contact { display: flex; align-items: center; gap: 12px; }
         .chat-name { font-weight: 500; }

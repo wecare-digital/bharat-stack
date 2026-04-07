@@ -49,6 +49,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [subject, setSubject] = useState('');
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,6 +65,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [contactsData, messagesData] = await Promise.all([api.listContacts(), api.listMessages(undefined, 'EMAIL')]);
 
@@ -112,7 +114,7 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         status: m.status?.toLowerCase() || 'sent',
         contactId: m.contactId,
       })));
-    } catch (err) { toast.error('Failed to load data'); } finally { setLoading(false); }
+    } catch (err) { setLoadError(true); toast.error('Failed to load data'); } finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { loadData(); const interval = setInterval(loadData, 60000); return () => clearInterval(interval); }, [loadData]);
@@ -180,7 +182,8 @@ const EmailInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
                 </div>
               </div>
             ))}
-            {!loading && filteredContacts.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280' }}>No email contacts found</div>}
+            {!loading && loadError && filteredContacts.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center' }}><p style={{ color: '#991b1b', fontSize: 13, marginBottom: 8 }}>Failed to connect to API</p><button onClick={() => loadData()} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Retry</button></div>}
+            {!loading && !loadError && filteredContacts.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280' }}>No email contacts found</div>}
           </div>
         </div>
 

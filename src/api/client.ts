@@ -36,7 +36,7 @@ async function getAuthToken(): Promise<string | null> {
 async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): Promise<T | null> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
     // Inject Cognito auth token
     const token = await getAuthToken();
@@ -145,7 +145,7 @@ export async function testConnection(): Promise<{ success: boolean; message: str
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE}/contacts`, { method: 'GET', headers });
+    const response = await fetch(`${API_BASE}/messages?limit=1`, { method: 'GET', headers });
     const latency = Date.now() - start;
     
     if (response.ok) {
@@ -236,7 +236,8 @@ export async function listContacts(): Promise<Contact[]> {
     const contacts = Array.isArray(data) ? data : (data.contacts || []);
     return contacts.map(normalizeContact);
   }
-  return [];
+  // Throw so callers can distinguish "empty" from "failed"
+  throw new Error(lastConnectionError || 'Failed to load contacts');
 }
 
 export async function getContact(contactId: string): Promise<Contact | null> {
@@ -393,7 +394,7 @@ export async function listMessages(contactId?: string, channel?: string, limit: 
     const messages = Array.isArray(data) ? data : (data.messages || []);
     return messages.map(normalizeMessage);
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load messages');
 }
 
 export async function getMessage(messageId: string): Promise<Message | null> {
@@ -663,7 +664,7 @@ export async function listBulkJobs(channel?: string): Promise<BulkJob[]> {
   if (data) {
     return Array.isArray(data) ? data : (data.jobs || []);
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load bulk jobs');
 }
 
 export async function createBulkJob(job: Partial<BulkJob>): Promise<BulkJob | null> {
@@ -872,7 +873,7 @@ export async function listVoiceCalls(contactId?: string, provider?: string): Pro
     const calls = Array.isArray(data) ? data : (data.calls || []);
     return calls.map(normalizeVoiceCall);
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load voice calls');
 }
 
 export async function getVoiceCall(callId: string): Promise<VoiceCall | null> {
@@ -945,7 +946,7 @@ export async function listSmsAwsMessages(contactId?: string, status?: string): P
   if (data) {
     return data.messages || [];
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load SMS messages');
 }
 
 export async function sendSmsAws(request: SendSmsAwsRequest): Promise<{ messageId: string; status: string; providerMessageId?: string } | null> {
@@ -996,7 +997,7 @@ export async function listVoiceAwsCalls(contactId?: string, status?: string): Pr
   if (data) {
     return data.calls || [];
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load voice calls');
 }
 
 export async function makeVoiceAwsCall(request: MakeVoiceAwsCallRequest): Promise<{ callId: string; status: string; providerCallId?: string } | null> {
@@ -1688,7 +1689,7 @@ export async function listWABAs(): Promise<WABAAccount[]> {
   if (data && data.wabas) {
     return data.wabas;
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load WABAs');
 }
 
 /**
@@ -1817,7 +1818,7 @@ export async function listTemplates(wabaId?: string, maxResults?: number): Promi
   if (data && data.templates) {
     return data.templates.map(normalizeTemplate);
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load templates');
 }
 
 /**
@@ -2491,7 +2492,7 @@ export async function listScheduledMessages(status?: string): Promise<ScheduledM
   if (data && data.scheduledMessages) {
     return data.scheduledMessages.map(normalizeScheduledMessage);
   }
-  return [];
+  throw new Error(lastConnectionError || 'Failed to load scheduled messages');
 }
 
 /**

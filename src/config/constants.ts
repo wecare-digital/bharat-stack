@@ -97,9 +97,9 @@ export const PAGINATION = {
 
 // Retry configuration for API calls
 export const RETRY_CONFIG = {
-  maxRetries: 3,
-  baseDelayMs: 1000,
-  maxDelayMs: 10000,
+  maxRetries: 1,
+  baseDelayMs: 500,
+  maxDelayMs: 3000,
 };
 
 // WhatsApp Calling Webhook

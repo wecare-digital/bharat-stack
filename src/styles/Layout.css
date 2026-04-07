@@ -954,7 +954,7 @@ input, textarea, select {
   margin: 4px 12px 12px;
   padding: 0;
   background: #ffffff;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -973,13 +973,17 @@ input, textarea, select {
 .main-content .tabbed-page,
 .main-content .campaign-page,
 .main-content .whatsapp-inbox,
+.main-content .wa-page,
+.main-content .inner-page-container,
 .inner-content-container .inner-page,
 .inner-content-container .page-shell,
 .inner-content-container .page,
 .inner-content-container .page-container,
 .inner-content-container .tabbed-page,
 .inner-content-container .campaign-page,
-.inner-content-container .whatsapp-inbox {
+.inner-content-container .whatsapp-inbox,
+.inner-content-container .wa-page,
+.inner-content-container .inner-page-container {
   flex: 1;
   display: flex;
   min-height: 0;
@@ -989,16 +993,26 @@ input, textarea, select {
 .main-content .whatsapp-inbox,
 .inner-content-container .whatsapp-inbox {
   flex-direction: row;
+  overflow: hidden;
+}
+
+/* WhatsApp conversation page needs column direction */
+.main-content .wa-page,
+.inner-content-container .wa-page {
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Other pages use column direction */
 .main-content .campaign-page,
+.main-content .inner-page-container,
 .inner-content-container .inner-page,
 .inner-content-container .page-shell,
 .inner-content-container .page,
 .inner-content-container .page-container,
 .inner-content-container .tabbed-page,
-.inner-content-container .campaign-page {
+.inner-content-container .campaign-page,
+.inner-content-container .inner-page-container {
   flex-direction: column;
 }
 

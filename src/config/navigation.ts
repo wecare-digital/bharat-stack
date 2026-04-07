@@ -73,6 +73,15 @@ export const navigationConfig: NavItem[] = [
     label: 'Link',
     icon: 'link',
   },
+  {
+    path: '/admin',
+    label: 'Admin',
+    icon: 'settings',
+    children: [
+      { path: '/admin/lambda-functions', label: 'Lambda Functions', icon: 'data' },
+      { path: '/admin/code-repo', label: 'Code Repo', icon: 'document' },
+    ],
+  },
   // Coming Soon section
   {
     path: '/forms',

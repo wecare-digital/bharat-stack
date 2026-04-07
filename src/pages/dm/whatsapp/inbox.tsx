@@ -195,6 +195,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [selectedWaba, setSelectedWaba] = useState<string>(WHATSAPP_PHONES.primary.id);
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,17 +290,53 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const [contactsData, messagesData] = await Promise.all([
+      const [contactsData, messagesData] = await Promise.allSettled([
         api.listContacts(),
         api.listMessages(undefined, 'WHATSAPP', 2000),
       ]);
+
+      const contacts_ = contactsData.status === 'fulfilled' ? contactsData.value : [];
+      const messages_ = messagesData.status === 'fulfilled' ? messagesData.value : [];
+
+      if (contactsData.status === 'rejected' && messagesData.status === 'rejected') {
+        setLoadError(true);
+        toast.error('API connection failed');
+        return;
+      }
+
+      // If contacts API failed but messages loaded, build contacts from message data
+      let effectiveContacts = contacts_;
+      if (contactsData.status === 'rejected' && messages_.length > 0) {
+        toast.warning('Contacts API returned error — showing contacts from message history');
+        const phoneMap = new Map<string, { phone: string; name: string; contactId: string }>();
+        messages_.forEach(m => {
+          const phone = m.senderPhone || m.receivingPhone || '';
+          if (phone && !phoneMap.has(m.contactId)) {
+            phoneMap.set(m.contactId, {
+              phone,
+              name: m.senderName || phone,
+              contactId: m.contactId,
+            });
+          }
+        });
+        effectiveContacts = Array.from(phoneMap.values()).map(p => ({
+          contactId: p.contactId,
+          name: p.name,
+          phone: p.phone,
+          email: '',
+          optInWhatsApp: true, optInSms: false, optInEmail: false,
+          allowlistWhatsApp: true, allowlistSms: false, allowlistEmail: false,
+          createdAt: '', updatedAt: '',
+        } as api.Contact));
+      }
 
       // Process messages to get last message info per contact
       // Also track sender names from inbound messages
       const contactMsgMap = new Map<string, { lastMsg: any; lastWabaId: string; unread: number; senderName: string }>();
       
-      messagesData.forEach(m => {
+      messages_.forEach(m => {
         const existing = contactMsgMap.get(m.contactId);
         const msgTime = new Date(m.timestamp).getTime();
         
@@ -319,7 +356,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         }
       });
 
-      const displayContacts: Contact[] = contactsData
+      const displayContacts: Contact[] = effectiveContacts
         .filter(c => c.phone || c.bsuid)
         .map(c => {
           const msgInfo = contactMsgMap.get(c.contactId);
@@ -372,7 +409,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         });
 
       setContacts(displayContacts);
-      setMessages(messagesData.map(m => ({
+      setMessages(messages_.map(m => ({
         id: m.messageId,
         direction: m.direction.toLowerCase() as 'inbound' | 'outbound',
         content: m.content || '',
@@ -391,6 +428,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
         detectedLanguage: m.detectedLanguage,
       })));
     } catch (err) {
+      setLoadError(true);
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -1128,7 +1166,13 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ({ signOut, user, embedded = f
               );
             })}
             
-            {!loading && filteredContacts.length === 0 && (
+            {!loading && loadError && filteredContacts.length === 0 && (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <p style={{ color: '#991b1b', fontSize: 13, marginBottom: 8 }}>Failed to connect to API</p>
+                <button onClick={() => loadData()} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+              </div>
+            )}
+            {!loading && !loadError && filteredContacts.length === 0 && (
               <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
                 {searchQuery ? 'No contacts found' : 'No WhatsApp conversations yet'}
               </div>

@@ -61,6 +61,14 @@ const CLEANUP_FALLBACK: api.CleanupResource[] = [
   { id: 'audit_logs', label: 'Audit Logs', category: 'Analytics & Logs', type: 'dynamodb', table: 'AuditLog', count: -1 },
   // System (optional)
   { id: 'rate_limit', label: 'Rate Limit Trackers', category: 'System', type: 'dynamodb', table: 'RateLimitTracker', count: -1 },
+  { id: 'system_config', label: 'System Config', category: 'System', type: 'dynamodb', table: 'SystemConfigTable', count: -1 },
+  { id: 'whatsapp_groups', label: 'WhatsApp Groups', category: 'Messages', type: 'dynamodb', table: 'WhatsAppGroupTable', count: -1 },
+  { id: 'catalog_cache', label: 'Catalog Cache', category: 'Ecommerce', type: 'dynamodb', table: 'CatalogCacheTable', count: -1 },
+  { id: 'short_links', label: 'Short Links', category: 'System', type: 'dynamodb', table: 'ShortLinksTable', count: -1 },
+  { id: 'faq', label: 'FAQ Entries', category: 'System', type: 'dynamodb', table: 'FAQTable', count: -1 },
+  { id: 'ad_attribution', label: 'Ad Click Attribution', category: 'Analytics & Logs', type: 'dynamodb', table: 'AdAttributionTable', count: -1 },
+  { id: 'email_table', label: 'Email Messages', category: 'Messages', type: 'dynamodb', table: 'EmailTable', count: -1 },
+  { id: 'users', label: 'Users', category: 'System', type: 'dynamodb', table: 'UsersTable', count: -1 },
   // S3 Storage
   { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'stack/invoices/', count: -1 },
   { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/', count: -1 },

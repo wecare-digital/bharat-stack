@@ -406,7 +406,7 @@
    Content lives inside .inner-content-container
    which has the bordered box from Layout.css
    ======================================== */
-.layout .inner-content-container > div:not(.inner-header):not(.breadcrumbs):not(.dash):not(.whatsapp-inbox):not([style*="flex"]):not([style*="overflow"]) {
+.layout .inner-content-container > div:not(.inner-header):not(.breadcrumbs):not(.dash):not(.whatsapp-inbox):not(.wa-page):not(.inner-page-container):not([style*="flex"]):not([style*="overflow"]) {
   width: 100%;
   max-width: 1400px;
   margin-left: auto;
@@ -417,7 +417,7 @@
 }
 
 /* Also keep the old selector for backward compat */
-.layout .main-content > div:not(.inner-header):not(.breadcrumbs):not(.inner-content-container):not(.dash):not(.whatsapp-inbox):not([style*="flex"]):not([style*="overflow"]) {
+.layout .main-content > div:not(.inner-header):not(.breadcrumbs):not(.inner-content-container):not(.dash):not(.whatsapp-inbox):not(.wa-page):not([style*="flex"]):not([style*="overflow"]) {
   width: 100%;
   max-width: 1400px;
   margin-left: auto;
@@ -429,8 +429,10 @@
 
 /* Don't constrain full-width layouts */
 .layout .main-content > div.whatsapp-inbox,
+.layout .main-content > div.wa-page,
 .layout .main-content > div[style*="overflow: hidden"],
 .layout .inner-content-container > div.whatsapp-inbox,
+.layout .inner-content-container > div.wa-page,
 .layout .inner-content-container > div[style*="overflow: hidden"] {
   max-width: none !important;
   padding-left: 0 !important;

@@ -35,6 +35,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
   const [calls, setCalls] = useState<VoiceCall[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [directionFilter, setDirectionFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
@@ -65,6 +66,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [callsData, contactsData] = await Promise.all([api.listVoiceAwsCalls(), api.listContacts()]);
       const contactMap = new Map<string, api.Contact>();
@@ -99,7 +101,7 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         if (c.status === 'failed') camp.failed++;
       });
       setCampaigns(Array.from(campaignMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) { console.error('Load error:', err); toast.error('Failed to load data'); } finally { setLoading(false); }
+    } catch (err) { console.error('Load error:', err); setLoadError(true); toast.error('Failed to load data'); } finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { loadData(); }, [loadData]);

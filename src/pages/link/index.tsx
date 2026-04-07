@@ -59,6 +59,7 @@ const PlusIcon = ({ size = 14 }: { size?: number }) => (
 const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
   const [links, setLinks] = useState<ShortLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -80,6 +81,7 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const loadLinks = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const resp = await fetch(`${API_BASE}/links`);
       const data = await resp.json();
@@ -90,6 +92,7 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
       })));
     } catch (err) {
       console.error('Load links error:', err);
+      setLoadError(true);
       toast.error('Failed to load links');
     } finally {
       setLoading(false);
@@ -197,6 +200,8 @@ const LinkPage: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="link-table-wrap">
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>Loading links...</div>
+          ) : loadError ? (
+            <div style={{ padding: 40, textAlign: 'center' }}><p style={{ color: '#991b1b', fontSize: 13, marginBottom: 8 }}>Failed to load links</p><button onClick={() => loadLinks()} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Retry</button></div>
           ) : links.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>No links yet. Create your first short link.</div>
           ) : (
