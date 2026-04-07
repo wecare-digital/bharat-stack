@@ -1235,29 +1235,11 @@ SMS_LAMBDA_PINPOINT = 'wecare-sms-aws'      # Pinpoint SMS v2 us-east-1
 
 
 def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Send default IVR SMS when a call comes in — with dedup cooldown.
-    
-    Dedup: Only sends one SMS per phone number per SMS_DEDUP_WINDOW_SECONDS (default 10 min).
-    Uses SystemConfig table to track last SMS timestamp per phone.
-    
-    Routing:
-      Indian +91 numbers  → Airtel IQ (primary) → Pinpoint ap-south-1 (fallback)
-      International numbers → AWS Pinpoint SMS v2 via wecare-sms-aws (us-east-1, toll-free pool)
-    """
+    """Send default IVR SMS when a call comes in — no dedup."""
     try:
         if not caller_phone:
             return
         clean_phone = caller_phone.lstrip('+')
-
-        # ── Dedup: skip if we already sent SMS to this number recently ──
-        if _sms_sent_recently(clean_phone):
-            logger.info(json.dumps({
-                'event': 'incoming_call_sms_skipped_dedup',
-                'callId': call_id,
-                'callerPhone': caller_phone[-4:],
-                'requestId': request_id,
-            }))
-            return
 
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
@@ -1386,33 +1368,11 @@ def _send_pinpoint_india_sms(caller_phone: str, call_id: str, request_id: str) -
 
 def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                          reason: str, request_id: str) -> None:
-    """Send Airtel IVR SMS on every call disconnect — both WABA phone 1 & phone 2.
-
-    Always uses Airtel IQ for Indian +91 numbers (DLT compliant, ivr-default template).
-    Falls back to Pinpoint ap-south-1 if Airtel fails.
-    Falls back to Pinpoint us-east-1 for international numbers.
-    Respects the same dedup window as _send_incoming_call_sms (10 min per phone).
-
-    This ensures the caller always receives the self-service SMS after a call ends,
-    regardless of whether the connect-time SMS was sent or skipped.
-    """
+    """Send Airtel IVR SMS on every call disconnect — no dedup."""
     try:
         if not caller_phone:
             return
         clean_phone = caller_phone.lstrip('+')
-
-        # Dedup: skip if we already sent SMS to this number recently
-        # (covers the case where connect-time SMS was already sent)
-        if _sms_sent_recently(clean_phone):
-            logger.info(json.dumps({
-                'event': 'disconnect_sms_skipped_dedup',
-                'callId': call_id,
-                'callerPhone': caller_phone[-4:],
-                'phoneNumberId': phone_number_id,
-                'reason': reason,
-                'requestId': request_id,
-            }))
-            return
 
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
