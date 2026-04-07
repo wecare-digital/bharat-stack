@@ -366,13 +366,33 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       const data = await api.listContacts();
       setContacts(data);
     } catch (err: any) {
+      // Contacts Lambda is down — try to build contacts from messages as fallback
+      try {
+        const messages = await api.listMessages(undefined, undefined, 2000);
+        if (messages.length > 0) {
+          const phoneMap = new Map<string, Partial<api.Contact>>();
+          messages.forEach(m => {
+            const phone = m.senderPhone || m.receivingPhone || '';
+            if (phone && m.contactId && !phoneMap.has(m.contactId)) {
+              phoneMap.set(m.contactId, {
+                contactId: m.contactId,
+                name: m.senderName || phone,
+                phone,
+                email: '',
+                optInWhatsApp: true, optInSms: false, optInEmail: false,
+                allowlistWhatsApp: true, allowlistSms: false, allowlistEmail: false,
+                createdAt: m.timestamp, updatedAt: m.timestamp,
+              });
+            }
+          });
+          setContacts(Array.from(phoneMap.values()) as api.Contact[]);
+          toast.warning(`Contacts Lambda is down — showing ${phoneMap.size} contacts from message history`);
+          return;
+        }
+      } catch { /* messages also failed */ }
       setLoadError(true);
       const msg = err?.message || 'Failed to load contacts';
-      if (msg.includes('Server error') || msg.includes('500')) {
-        toast.error('Contacts Lambda returned 500 — check CloudWatch logs for wecare-contacts');
-      } else {
-        toast.error(msg);
-      }
+      toast.error(msg.includes('500') ? 'Contacts Lambda returned 500 — needs redeployment in AWS' : msg);
     } finally {
       setLoading(false);
     }
