@@ -394,7 +394,7 @@ export async function listMessages(contactId?: string, channel?: string, limit: 
     const messages = Array.isArray(data) ? data : (data.messages || []);
     return messages.map(normalizeMessage);
   }
-  throw new Error(lastConnectionError || 'Failed to load messages');
+  return [];
 }
 
 export async function getMessage(messageId: string): Promise<Message | null> {
@@ -664,7 +664,7 @@ export async function listBulkJobs(channel?: string): Promise<BulkJob[]> {
   if (data) {
     return Array.isArray(data) ? data : (data.jobs || []);
   }
-  throw new Error(lastConnectionError || 'Failed to load bulk jobs');
+  return [];
 }
 
 export async function createBulkJob(job: Partial<BulkJob>): Promise<BulkJob | null> {
@@ -873,7 +873,7 @@ export async function listVoiceCalls(contactId?: string, provider?: string): Pro
     const calls = Array.isArray(data) ? data : (data.calls || []);
     return calls.map(normalizeVoiceCall);
   }
-  throw new Error(lastConnectionError || 'Failed to load voice calls');
+  return [];
 }
 
 export async function getVoiceCall(callId: string): Promise<VoiceCall | null> {
@@ -946,7 +946,7 @@ export async function listSmsAwsMessages(contactId?: string, status?: string): P
   if (data) {
     return data.messages || [];
   }
-  throw new Error(lastConnectionError || 'Failed to load SMS messages');
+  return [];
 }
 
 export async function sendSmsAws(request: SendSmsAwsRequest): Promise<{ messageId: string; status: string; providerMessageId?: string } | null> {
@@ -997,7 +997,7 @@ export async function listVoiceAwsCalls(contactId?: string, status?: string): Pr
   if (data) {
     return data.calls || [];
   }
-  throw new Error(lastConnectionError || 'Failed to load voice calls');
+  return [];
 }
 
 export async function makeVoiceAwsCall(request: MakeVoiceAwsCallRequest): Promise<{ callId: string; status: string; providerCallId?: string } | null> {
@@ -1689,7 +1689,7 @@ export async function listWABAs(): Promise<WABAAccount[]> {
   if (data && data.wabas) {
     return data.wabas;
   }
-  throw new Error(lastConnectionError || 'Failed to load WABAs');
+  return [];
 }
 
 /**
@@ -1818,7 +1818,7 @@ export async function listTemplates(wabaId?: string, maxResults?: number): Promi
   if (data && data.templates) {
     return data.templates.map(normalizeTemplate);
   }
-  throw new Error(lastConnectionError || 'Failed to load templates');
+  return [];
 }
 
 /**
@@ -2492,7 +2492,7 @@ export async function listScheduledMessages(status?: string): Promise<ScheduledM
   if (data && data.scheduledMessages) {
     return data.scheduledMessages.map(normalizeScheduledMessage);
   }
-  throw new Error(lastConnectionError || 'Failed to load scheduled messages');
+  return [];
 }
 
 /**
