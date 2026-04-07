@@ -82,6 +82,12 @@ AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
+# ── LOCKED CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
+# API: v5 Content Moderation only (no v4/v6)
+# Endpoint: POST https://iqmessaging.airtel.in/api/v5/send-sms-cm
+# Proxy: Lightsail 52.3.44.165:8899 (whitelisted IP for Airtel)
+# Auth: Basic token from wecare/airtel/sms secret
+# Sender: WDBEEP | Entity: 1201161991108627443
 AIRTEL_SMS_TABLE = os.environ.get('AIRTEL_SMS_TABLE', 'stack-wecare-digital-AirtelSMSTable')
 DLT_TEMPLATES_TABLE = os.environ.get('DLT_TEMPLATES_TABLE', 'stack-wecare-digital-DLTTemplates')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')

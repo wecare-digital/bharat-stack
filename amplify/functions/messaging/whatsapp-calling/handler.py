@@ -1184,6 +1184,9 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+# ── LOCKED CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
+# IVR audio: incoming_welcome.sln16 (works with WhatsApp Calling SIP mode)
+# If WhatsApp rejects the format, handler falls back to Polly TTS automatically
 DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
@@ -1213,6 +1216,11 @@ PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-i
 # Sender ID: WDBEEP
 # Category: Service Implicit
 # Registration: REGISTERED (airtel.com)
+# ── LOCKED SMS CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
+# DLT Template: Registered on Airtel IQ, TRAI compliant
+# Sender: WDBEEP | Entity: 1201161991108627443
+# API: v5 Content Moderation (auto DLT)
+# Line breaks: \n\n between sections (matches DLT template)
 IVR_SMS_DLT_TEMPLATE_ID = '1007277993798259629'
 IVR_SMS_SENDER_ID = 'WDBEEP'
 IVR_SMS_CONTENT = (
@@ -1226,6 +1234,9 @@ IVR_SMS_CONTENT = (
 # SMS Lambda routing:
 #   Indian +91 → wecare-outbound-sms (Airtel IQ, ap-south-1, DLT: WDBEEP)
 #   International → wecare-sms-aws (Pinpoint SMS v2, us-east-1, toll-free pool)
+# ── LOCKED SMS ROUTING — DO NOT CHANGE WITHOUT TESTING ──
+# Indian +91 → Airtel IQ v5 (primary) → Pinpoint ap-south-1 (fallback)
+# International → Pinpoint SMS v2 us-east-1
 SMS_LAMBDA_AIRTEL = 'wecare-sms-in-airtel'  # Airtel IQ via Lightsail proxy (whitelisted IP)
 SMS_LAMBDA_PINPOINT = 'wecare-sms-aws'      # Pinpoint SMS v2 us-east-1
 
