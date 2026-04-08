@@ -120,7 +120,8 @@ const LambdaFunctionsPage: React.FC<PageProps> = ({ signOut, user }) => {
   }), []);
 
   const handleUnlock = () => {
-    if (unlockPassword === (process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || 'admin')) {
+    if (unlockPassword === (process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || '')) {
+      if (!unlockPassword) { toast.error('Admin password not configured'); return; }
       setEditMode(true);
       setShowUnlock(false);
       setUnlockPassword('');

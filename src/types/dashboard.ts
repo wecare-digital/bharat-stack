@@ -23,7 +23,8 @@ export type TabType =
   | 'guide'
   | 'requests'
   | 'internalchat'
-  | 'appbuilder';
+  | 'appbuilder'
+  | 'infra';
 
 export interface DashboardData {
   contacts: api.Contact[];

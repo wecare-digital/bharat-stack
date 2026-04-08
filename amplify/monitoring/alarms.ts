@@ -14,7 +14,7 @@
  * and should be deployed as part of the Amplify backend.
  */
 
-const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 export const ALARM_CONFIG = {

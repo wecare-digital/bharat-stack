@@ -11,7 +11,7 @@ PayU sends webhooks for:
 - refund.success — Refund processed
 - refund.failed — Refund failed
 
-PayU MID: 8629516
+PayU MID: (from environment variable PAYU_MID)
 MCC: 4722 (Travel agencies and tour operators)
 Purpose Code: 03 (Travel)
 
@@ -37,11 +37,11 @@ logger = get_logger(__name__)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-PAYU_MERCHANT_KEY = os.environ.get('PAYU_MERCHANT_KEY', 'Ghgoh6')
-PAYU_MERCHANT_SALT = os.environ.get('PAYU_MERCHANT_SALT', 'LtQP3Bo4sXMqJgZFz4cK9DpB8fMt3vzl')
-PAYU_CLIENT_ID = os.environ.get('PAYU_CLIENT_ID', 'c066d621f07afd57e1797306a33acd5f51d19400adb0741449784dc36c634d75')
-PAYU_CLIENT_SECRET = os.environ.get('PAYU_CLIENT_SECRET', '9b5c14bd86f0d8deabad339837e43ebce4cb039a26897d142ba0b1f91c38287f')
-PAYU_MID = os.environ.get('PAYU_MID', '8629516')
+PAYU_MERCHANT_KEY = os.environ.get('PAYU_MERCHANT_KEY', '')
+PAYU_MERCHANT_SALT = os.environ.get('PAYU_MERCHANT_SALT', '')
+PAYU_CLIENT_ID = os.environ.get('PAYU_CLIENT_ID', '')
+PAYU_CLIENT_SECRET = os.environ.get('PAYU_CLIENT_SECRET', '')
+PAYU_MID = os.environ.get('PAYU_MID', '')
 
 # PayU API Endpoints
 PAYU_BASE_URL = os.environ.get('PAYU_BASE_URL', 'https://info.payu.in/merchant/postservice.php')  # Production

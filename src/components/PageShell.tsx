@@ -65,7 +65,7 @@ const PageShell: React.FC<PageShellProps> = ({
               className={`ps-tab ${activeTab === tab.id ? 'active' : ''}${tab.divider ? ' ps-tab-after-divider' : ''}`}
               onClick={() => handleTabClick(tab.id)}
             >
-              {tab.icon && <span className="ps-tab-icon" dangerouslySetInnerHTML={{__html: tab.icon}} title={tab.label} />}
+              {tab.icon && <span className="ps-tab-icon" aria-hidden="true" title={tab.label}>{tab.icon}</span>}
               {!tab.icon && tab.label}
             </button>
           ))}

@@ -4,7 +4,7 @@
  * Defines the permissions required for each Lambda function to access AWS services.
  */
 
-const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 export const IAM_POLICIES = {

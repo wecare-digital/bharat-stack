@@ -110,7 +110,12 @@ export function addLinkResources(stack: Stack) {
     apiName: 'stack-wecare-short-links',
     description: 'URL Shortener API for r.wecare.digital',
     corsPreflight: {
-      allowOrigins: ['*'],
+      allowOrigins: [
+        'https://stack.wecare.digital',
+        'https://wecare.digital',
+        'https://www.wecare.digital',
+        'http://localhost:3000',
+      ],
       allowMethods: [
         apigatewayv2.CorsHttpMethod.GET,
         apigatewayv2.CorsHttpMethod.POST,

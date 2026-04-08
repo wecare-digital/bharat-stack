@@ -52,7 +52,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { RemovalPolicy } from 'aws-cdk-lib';
 
-const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 export function addPushResources(stack: Stack) {

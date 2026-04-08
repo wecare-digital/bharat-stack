@@ -119,7 +119,7 @@ RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 # WhatsApp Payment Configurations
 # +919330994400 (WECARE.DIGITAL) WABA: 2094615664435155 — Active, Direct API
 # +919903300044 (Manish Agarwal) WABA: 2513394156072604 — active, Direct API
-# Both use same Razorpay MID: acc_HDfub6wOfQybuH | MCC: 4722 | Purpose: 03
+# Both use same Razorpay MID (from env RAZORPAY_MID) | MCC: 4722 | Purpose: 03
 # Config names MUST match exactly what's in Meta Business Manager
 VALID_PAYMENT_CONFIGS = {
     'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU',

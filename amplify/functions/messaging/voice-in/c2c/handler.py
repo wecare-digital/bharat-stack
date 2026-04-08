@@ -19,8 +19,8 @@ Secrets: wecare/airtel/c2c
 Recording Storage: s3://app.wecare.digital/stack/voice/
 
 Kong Credentials (from Secrets Manager):
-- app_id: WECAREDIG_fD4BKqUbC8k90jNrPR0n (HMAC username)
-- api_key: u^5KLtH@11 (HMAC signing key)
+- app_id: (loaded from wecare/airtel/c2c secret)
+- api_key: (loaded from wecare/airtel/c2c secret)
 - caller_id: 8047311032 (Fixed Line · Karnataka · Outbound/Inbound)
 
 HMAC-SHA256 Auth Headers:
@@ -166,8 +166,8 @@ def _get_secrets() -> Dict[str, str]:
     Fetch Airtel C2C credentials from Secrets Manager (cached).
 
     Expected secret keys:
-    - app_id: HMAC username (e.g. WECAREDIG_fD4BKqUbC8k90jNrPR0n)
-    - api_key: HMAC signing key (e.g. u^5KLtH@11)
+    - app_id: HMAC username (from Secrets Manager)
+    - api_key: HMAC signing key (from Secrets Manager)
     - caller_id: 8047311032 (Fixed Line · Karnataka · Outbound/Inbound)
     """
     global _secrets_cache

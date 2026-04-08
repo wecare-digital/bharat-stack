@@ -29,7 +29,7 @@ health_client = boto3.client('health', region_name='us-east-1')
 support_client = boto3.client('support', region_name='us-east-1')
 
 # Account info
-AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '775261844268')
+AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '')
 
 
 # Module-level origin for CORS (set per-invocation in handler)

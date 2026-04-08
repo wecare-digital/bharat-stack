@@ -931,11 +931,11 @@ def _get_blocked_users(waba_id: str) -> Dict:
 # Razorpay MID and UPI ID loaded from environment variables (not hardcoded).
 # MCC: 4722 | Purpose Code: 03
 # ============================================================================
-_RAZORPAY_MID = os.environ.get('RAZORPAY_MID', 'acc_HDfub6wOfQybuH')
-_RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', 'wecaredigital83.rzp@icici')
-_PAYU_MID = os.environ.get('PAYU_MID', '8629516')
-_PAYU_UPI_ID = os.environ.get('PAYU_UPI_ID', 'wecareqr.payu@indus')
-_PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '2094615664435155')
+_RAZORPAY_MID = os.environ.get('RAZORPAY_MID', '')
+_RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', '')
+_PAYU_MID = os.environ.get('PAYU_MID', '')
+_PAYU_UPI_ID = os.environ.get('PAYU_UPI_ID', '')
+_PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '')
 
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {

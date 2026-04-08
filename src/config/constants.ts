@@ -11,7 +11,9 @@
  */
 
 // AWS Account Configuration
-export const AWS_ACCOUNT_ID = process.env.NEXT_PUBLIC_AWS_ACCOUNT_ID || '775261844268';
+// AWS_ACCOUNT_ID is used for ARN display in admin dashboards only.
+// It should NOT be used for authentication or API calls.
+export const AWS_ACCOUNT_ID = process.env.NEXT_PUBLIC_AWS_ACCOUNT_ID || '';
 export const AWS_REGION = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 
 // API Configuration
@@ -24,8 +26,8 @@ export const PAYMENT_CONFIG = {
   phoneName: process.env.NEXT_PUBLIC_PAYMENT_PHONE_NAME || 'Manish Agarwal',
 };
 
-// Default GSTIN for invoices
-export const DEFAULT_GSTIN = process.env.NEXT_PUBLIC_DEFAULT_GSTIN || '19AADFW7431N1ZK';
+// Default GSTIN for invoices — loaded from env, no hardcoded fallback
+export const DEFAULT_GSTIN = process.env.NEXT_PUBLIC_DEFAULT_GSTIN || '';
 
 // WhatsApp Phone Numbers
 // Payment config names must match EXACTLY what's configured on the WABA in Meta Business Manager
@@ -57,6 +59,8 @@ export const WHATSAPP_PHONES = {
 };
 
 // Password required to send payments from protected phone numbers
+// WARNING: This is still client-side. For true security, validate via a server-side API route.
+// TODO: Create /api/auth/verify-admin endpoint that checks against Cognito group membership.
 export const PAYMENT_UNLOCK_PASSWORD = process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || '';
 
 // GST Rate Options

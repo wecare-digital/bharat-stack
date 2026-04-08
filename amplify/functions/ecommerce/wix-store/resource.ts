@@ -29,7 +29,7 @@ export const wixStore = defineFunction({
     // Wix REST API config
     WIX_API_KEY: process.env.WIX_API_KEY || '',
     WIX_SITE_ID: process.env.WIX_SITE_ID || '',
-    WIX_ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '6b2d7a93-ef14-45ab-a04e-d445f599e9f4',
+    WIX_ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '',
     WIX_API_BASE_URL: 'https://www.wixapis.com',
     // Velo HTTP Functions config — Velo source code is in store/src/
     WIX_VELO_BASE_URL: process.env.WIX_VELO_BASE_URL || 'https://www.wecare.digital',

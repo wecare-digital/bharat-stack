@@ -2070,11 +2070,11 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Live API Key</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>rzp_live_SM1ozNck4LJ3VN</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>rzp_live_•••••••••••••• (see Secrets Manager)</code>
                   </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Live Key Secret</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>xFoPD2DiVV••••••••••C3g</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>•••••••••••••••••••••• (see Secrets Manager)</code>
                   </div>
                 </div>
 
@@ -2112,10 +2112,10 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' }}>Authentication: Basic Auth</div>
                   <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>All Razorpay APIs use HTTP Basic Auth with key_id:key_secret (base64 encoded).</div>
                   <pre style={{ fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' }}>{`# Basic Auth header
-Authorization: Basic base64(rzp_live_SM1ozNck4LJ3VN:xFoPD2Di...C3g)
+Authorization: Basic base64(YOUR_KEY_ID:YOUR_KEY_SECRET)
 
 # curl example
-curl -u rzp_live_SM1ozNck4LJ3VN:YOUR_KEY_SECRET \\
+curl -u YOUR_KEY_ID:YOUR_KEY_SECRET \\
   https://api.razorpay.com/v1/payments/pay_XXXXX`}</pre>
                 </div>
 
@@ -2219,7 +2219,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#111827' }}>PayU Webhook</h3>
-                    <span className="badge" style={{ background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' }}>Active — MID: 8629516</span>
+                    <span className="badge" style={{ background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' }}>Active — MID: •••••• (see env)</span>
                   </div>
                 </div>
 
@@ -2242,19 +2242,19 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>API Key</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>Ghgoh6</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>•••••• (stored in Lambda env PAYU_MERCHANT_KEY)</code>
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Salt</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>LtQP3Bo4sX••••••••••••••••••vzl</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>•••••••••••••••••••••• (stored in Lambda env PAYU_MERCHANT_SALT)</code>
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Client ID (Payment Links / Split Payment APIs)</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827', wordBreak: 'break-all' }}>c066d621f07a••••••••••••c634d75</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827', wordBreak: 'break-all' }}>•••••••••••••••••••••• (stored in Lambda env PAYU_CLIENT_ID)</code>
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Client Secret</label>
-                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>9b5c14bd86••••••••••••c38287f</code>
+                    <code style={{ fontSize: '0.85rem', color: '#111827' }}>•••••••••••••••••••••• (stored in Lambda env PAYU_CLIENT_SECRET)</code>
                   </div>
                   <div>
                     <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Lambda Function</label>
@@ -2285,8 +2285,8 @@ POST https://accounts.payu.in/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=client_credentials
-&client_id=c066d621f07a...c634d75
-&client_secret=9b5c14bd86...c38287f
+&client_id=YOUR_PAYU_CLIENT_ID
+&client_secret=YOUR_PAYU_CLIENT_SECRET
 &scope=create_payment_links
 
 # Response: { "access_token": "...", "token_type": "Bearer", "expires_in": 7200 }
@@ -2294,7 +2294,7 @@ grant_type=client_credentials
 # Create Payment Link (Production)
 POST https://oneapi.payu.in/payment-links
 Authorization: Bearer {access_token}
-merchantId: 8629516
+merchantId: YOUR_PAYU_MID
 Content-Type: application/json`}</pre>
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '4px', flexWrap: 'wrap' }}>
                       <code style={{ fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>Token: accounts.payu.in/oauth/token</code>
@@ -2330,7 +2330,7 @@ Content-Type: application/json`}</pre>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9330994400</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>WECARE-PAYU</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>2094615664435155</code> (Active, Direct API)</div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>••••••</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
                       <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
@@ -2339,7 +2339,7 @@ Content-Type: application/json`}</pre>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' }}>+91 9903300044</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Config: <code style={{ color: '#1a3a2a' }}>Razorpay_ManishAgarwal</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>WABA: <code>2513394156072604</code></div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>8629516</code></div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MID: <code>••••••</code></div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>MCC: <code>4722</code> (Travel agencies)</div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Purpose: <code>03</code> (Travel)</div>
                       <span className="badge" style={{ background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' }}>Test Successful</span>
@@ -3115,7 +3115,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Wix Account ID</label>
-                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>6b2d7a93-ef14-45ab-a04e-d445f599e9f4</code>
+                      <code style={{ fontSize: '0.85rem', color: '#111827' }}>•••••••• (stored in Lambda env WIX_ACCOUNT_ID)</code>
                     </div>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>Wix Site URL</label>

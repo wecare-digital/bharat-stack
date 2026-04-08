@@ -7,7 +7,7 @@
 
 // AWS Region
 export const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-export const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '775261844268';
+export const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '';
 
 // DynamoDB Tables (actual deployed names)
 export const TABLES = {
@@ -35,7 +35,7 @@ export const WIX_CONFIG = {
   API_BASE_URL: 'https://www.wixapis.com',
   API_KEY: process.env.WIX_API_KEY || '',
   SITE_ID: process.env.WIX_SITE_ID || '',
-  ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '6b2d7a93-ef14-45ab-a04e-d445f599e9f4',
+  ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '',
 };
 
 // S3 Buckets
