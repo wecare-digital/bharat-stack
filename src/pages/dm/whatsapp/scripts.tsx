@@ -96,7 +96,7 @@ const ScriptsPage: React.FC<Props> = () => {
       drop_docs: { keywords: ['drop docs', 'upload documents'], message: { body: '🖇️ Send your supporting documents securely to help us process your request.', flowCta: 'Upload Documents' }, flowId: '1737801600902350' },
       enterprise_assist: { keywords: ['enterprise', 'b2b'], message: { body: '💼 Corporate, B2B, and bulk inquiries. Tell us what you need and our team will assist you.', flowCta: 'Enterprise Support' }, flowId: '2132515287534606' },
       leave_review: { keywords: ['review', 'feedback'], message: { body: '⭐ Share your experience with us and help us improve our service.', flowCta: 'Leave Feedback' }, flowId: '963443293213262' },
-      subscribe: { keywords: ['subscribe', 'register'], message: { body: '🔔 Get updates, offers, and service news. Fill in your details to stay connected.', flowCta: 'Subscribe for Updates' }, flowId: '923137577254264' },
+      subscribe: { keywords: ['subscribe', 'register'], message: { body: '🔔 Get updates, offers, and service news. Fill in your details to stay connected.', flowCta: 'Subscribe for Updates' }, flowId: '1557815099200456' },
     };
 
     // Load overrides from SystemConfig

@@ -15,7 +15,7 @@ type FlowSubmission = api.FlowLog;
 
 const FLOW_TYPES = [
   { key: 'submit_request', label: 'Submit Request', icon: '📋', flowId: '931522532810297' },
-  { key: 'subscribe', label: 'Subscribe', icon: '📝', flowId: '932104319588449' },
+  { key: 'subscribe', label: 'Subscribe', icon: '📝', flowId: '1557815099200456' },
   { key: 'amend_request', label: 'Amend Request', icon: '✏️', flowId: '1533536534833353' },
   { key: 'track_request', label: 'Track Request', icon: '🔍', flowId: '973888792200167' },
   { key: 'rx_slot', label: 'RX Slot', icon: '💊', flowId: '1892784521355352' },

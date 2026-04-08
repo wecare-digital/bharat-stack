@@ -5159,7 +5159,7 @@ DEFAULT_FLOW_TRIGGERS = {
             '\U0001f514 subscribe for updates',
         ],
         'flowId': '1557815099200456',
-        'flowId2': '1999000447352938',
+        'flowId2': '1462138465710485',
         'message': {
             'body': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
             'footer': 'WECARE.DIGITAL',
