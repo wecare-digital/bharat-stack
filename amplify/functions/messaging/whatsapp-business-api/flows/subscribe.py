@@ -60,7 +60,7 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     # Generate subscriber ID
     subscriber_uuid = str(uuid.uuid4())
     contact_id = find_contact_by_phone(phone)
-    existing_sub_id = _find_existing_subscriber_id(contact_id)
+    existing_sub_id = _find_existing_subscriber_id(phone)
     subscriber_id = existing_sub_id or f'WD-SUB-{subscriber_uuid[:8].upper()}'
     is_resubscribe = bool(existing_sub_id)
 
@@ -77,6 +77,12 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
             'message': welcome_msg,
         }
     }
+    logger.info(json.dumps({
+        'event': 'subscribe_success_payload',
+        'subscriber_id': subscriber_id,
+        'is_resubscribe': is_resubscribe,
+        'phone_suffix': phone[-4:] if phone else '',
+    }))
 
     # ── Now do saves (non-blocking) ──
     now_ts = int(time.time())
@@ -128,15 +134,16 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
 
 # ── Private helpers ──
 
-def _find_existing_subscriber_id(contact_id: str) -> str:
-    if not contact_id:
+def _find_existing_subscriber_id(phone: str) -> str:
+    """Find existing subscriber ID by phone number."""
+    if not phone:
         return ''
     try:
         fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
         resp = fs_table.query(
             IndexName='phone', KeyConditionExpression='phone = :ph',
             FilterExpression='flowCode = :fc',
-            ExpressionAttributeValues={':ph': contact_id, ':fc': FLOW_CODE},
+            ExpressionAttributeValues={':ph': phone, ':fc': FLOW_CODE},
             ScanIndexForward=False, Limit=1,
         )
         items = resp.get('Items', [])
