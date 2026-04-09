@@ -1157,6 +1157,66 @@ def _process_message(
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
         content_lower = content.strip().lower()
+
+        # ── "Get my ID" / "my id" / "sub id" — fetch subscriber details ──
+        MY_ID_KEYWORDS = {
+            'my id', 'my sub id', 'sub id', 'subscriber id', 'my subscriber id',
+            'get my id', 'get id', 'what is my id', 'whats my id',
+            '/myid', '/id', 'show my id', 'my subscription', 'my subscription id',
+        }
+        if content_lower in MY_ID_KEYWORDS:
+            try:
+                # Look up subscriber by phone
+                fs_table = dynamodb.Table(os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-digital-FlowSubmissionTable'))
+                # Query by phone using GSI
+                fs_resp = fs_table.scan(
+                    FilterExpression='phone = :ph AND flowCode = :fc',
+                    ExpressionAttributeValues={':ph': sender_phone, ':fc': 'WD_SUBSCRIBE'},
+                    Limit=5,
+                )
+                subs = fs_resp.get('Items', [])
+                if not subs:
+                    # Try with normalized phone
+                    norm = sender_phone.replace('+', '').replace(' ', '')
+                    fs_resp = fs_table.scan(
+                        FilterExpression='phone = :ph AND flowCode = :fc',
+                        ExpressionAttributeValues={':ph': norm, ':fc': 'WD_SUBSCRIBE'},
+                        Limit=5,
+                    )
+                    subs = fs_resp.get('Items', [])
+
+                if subs:
+                    # Get the latest subscription
+                    latest = sorted(subs, key=lambda x: x.get('createdAt', 0), reverse=True)[0]
+                    sub_id = latest.get('submissionId', 'N/A')
+                    form_data = json.loads(latest.get('formData', '{}')) if latest.get('formData') else {}
+                    name = form_data.get('full_name', '')
+                    email = form_data.get('email_address', '')
+                    org = form_data.get('company_name', '')
+                    status = latest.get('status', 'active')
+
+                    reply = (
+                        f'🆔 *Your Subscriber Details*\n\n'
+                        f'*Subscriber ID:* {sub_id}\n'
+                        f'*Name:* {name}\n'
+                        f'*Email:* {email}\n'
+                        f'*Organization:* {org}\n'
+                        f'*Status:* {status.title()}\n\n'
+                        f'_Type "subscribe" to update your details._'
+                    )
+                else:
+                    reply = (
+                        '🔍 No subscription found for your number.\n\n'
+                        'Type *subscribe* to register and get your subscriber ID.'
+                    )
+
+                _send_ai_auto_reply(contact_id, reply, aws_phone_number_id, request_id)
+                return
+            except Exception as e:
+                logger.warning(f'My ID lookup failed: {e}')
+                _send_ai_auto_reply(contact_id, '⚠️ Could not retrieve your details. Please try again.', aws_phone_number_id, request_id)
+                return
+
         # Load flow triggers from SystemConfigTable (dashboard-configurable)
         flow_triggers = _get_flow_triggers_config()
         for flow_key, trigger in flow_triggers.items():

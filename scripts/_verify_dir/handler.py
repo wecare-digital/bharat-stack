@@ -2118,40 +2118,12 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
             # Subscriber ID = WD-SUB + 8-char UUID, full UUID for internal contact ID
             subscriber_uuid = str(uuid.uuid4())
+            subscriber_id = f'WD-SUB-{subscriber_uuid[:8].upper()}'
 
             # Extract phone from flow_token
             phone = ''
             if '-ph-' in flow_token:
                 phone = flow_token.split('-ph-', 1)[1]
-
-            # Persistence: check if existing contact already has a subscriber ID
-            contact_id = _find_contact_by_phone(phone)
-            existing_subscriber_id = ''
-            if contact_id:
-                try:
-                    ct = dynamodb.Table(CONTACTS_TABLE)
-                    old_resp = ct.get_item(Key={'id': contact_id})
-                    old_contact = old_resp.get('Item', {})
-                    # Check FlowSubmissions for existing subscriber ID
-                    fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
-                    fs_resp = fs_table.query(
-                        IndexName='contactId-index',
-                        KeyConditionExpression='contactId = :cid',
-                        FilterExpression='flowCode = :fc',
-                        ExpressionAttributeValues={':cid': contact_id, ':fc': 'WD_SUBSCRIBE'},
-                        ScanIndexForward=False,
-                        Limit=1,
-                    )
-                    existing_subs = fs_resp.get('Items', [])
-                    if existing_subs:
-                        existing_subscriber_id = existing_subs[0].get('submissionId', '')
-                except Exception as e:
-                    logger.warning(f'Subscriber ID lookup failed: {e}')
-                    old_contact = {}
-
-            # Use existing subscriber ID if found, otherwise generate new one
-            subscriber_id = existing_subscriber_id or f'WD-SUB-{subscriber_uuid[:8].upper()}'
-            is_resubscribe = bool(existing_subscriber_id)
 
             # Build Meta shipping_info compatible address objects
             ship_addr_obj = {
@@ -2186,12 +2158,20 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 if a.get('country'): parts.append(a['country'])
                 return ', '.join(p for p in parts if p)
 
-            # Contact already looked up above for subscriber ID persistence
+            # Find existing contact or create new one with subscriber UUID as contact ID
+            contact_id = _find_contact_by_phone(phone)
             now_ts = int(time.time())
 
             if contact_id:
                 # Update existing contact with subscription data + default opt-in
-                # old_contact already loaded above for subscriber ID persistence
+                # Save change log: read old values first
+                old_contact = {}
+                try:
+                    ct = dynamodb.Table(CONTACTS_TABLE)
+                    old_resp = ct.get_item(Key={'id': contact_id})
+                    old_contact = old_resp.get('Item', {})
+                except Exception:
+                    pass
 
                 try:
                     ct = dynamodb.Table(CONTACTS_TABLE)
@@ -2354,54 +2334,14 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             except Exception as e:
                 logger.warning(f'Subscribe submission save failed: {e}')
 
-            welcome_msg = (
-                f'Welcome back to WECARE.DIGITAL! Your details have been updated.\nSubscriber ID: {subscriber_id}'
-                if is_resubscribe else
-                f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}.'
-            )
-
             response_payload = {
                 'screen': 'SUCCESS',
                 'data': {
                     'subscriber_id': subscriber_id,
                     'contact_id': contact_id,
-                    'message': welcome_msg,
+                    'message': f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}.',
                 }
             }
-
-            # Send subscribe confirmation message via WhatsApp (async)
-            try:
-                confirm_text = (
-                    f'✅ *Subscription {"Updated" if is_resubscribe else "Confirmed"}*\n\n'
-                    f'👤 *Name:* {full_name}\n'
-                    f'📱 *Phone:* {phone_number}\n'
-                    f'📧 *Email:* {email_address}\n'
-                    f'🏢 *Organization:* {company_name}\n'
-                    f'🆔 *Subscriber ID:* {subscriber_id}\n\n'
-                    f'Your details have been saved. You will receive order updates, offers, and service news.\n\n'
-                    f'Type *my id* anytime to retrieve your subscriber ID.\n'
-                    f'_WECARE.DIGITAL_'
-                )
-                # Send via outbound Lambda (async to not block flow response)
-                lambda_client.invoke(
-                    FunctionName=os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp'),
-                    InvocationType='Event',
-                    Payload=json.dumps({
-                        'body': json.dumps({
-                            'contactId': contact_id,
-                            'phone': phone,
-                            'message': confirm_text,
-                            'phoneNumberId': _get_phone_number_id_for_flow(flow_token),
-                        })
-                    }),
-                )
-                logger.info(json.dumps({
-                    'event': 'subscribe_confirmation_sent',
-                    'contactId': contact_id, 'subscriberId': subscriber_id,
-                    'isResubscribe': is_resubscribe, 'requestId': request_id,
-                }))
-            except Exception as e:
-                logger.warning(f'Subscribe confirmation send failed: {e}')
 
         elif screen == 'THANK_YOU' or screen == 'SUCCESS':
             # User tapped "Done" on the terminal screen → close flow
@@ -3258,12 +3198,6 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
             'error': str(e),
             'requestId': request_id,
         }))
-
-
-def _get_phone_number_id_for_flow(flow_token: str) -> str:
-    """Determine which phone number ID to use based on flow_token context."""
-    # Default to Phone 1
-    return os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 
 
 def _find_contact_by_phone(phone: str) -> str:
