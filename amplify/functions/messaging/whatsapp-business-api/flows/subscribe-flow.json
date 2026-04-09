@@ -935,7 +935,7 @@
             "type": "Footer",
             "label": "Done",
             "on-click-action": {
-              "name": "data_exchange",
+              "name": "complete",
               "payload": {
                 "confirmed": "true"
               }
