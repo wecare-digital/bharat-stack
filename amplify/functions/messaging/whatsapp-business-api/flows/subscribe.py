@@ -71,7 +71,7 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
         f'Welcome to WECARE.DIGITAL! Your subscriber ID is {subscriber_id}.'
     )
     response_payload = {
-        'screen': 'SUCCESS',
+        'screen': 'COMPLETE',
         'data': {
             'subscriber_id': subscriber_id,
             'message': welcome_msg,

@@ -70,7 +70,7 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
             return subscribe.handle_init(data, flow_token, request_id)
         if screen == 'REVIEW':
             return subscribe.handle_review(data, flow_token, request_id)
-        if screen in ('THANK_YOU', 'SUCCESS'):
+        if screen in ('THANK_YOU', 'SUCCESS', 'COMPLETE'):
             return _terminal_response(flow_token)
         # Pass-through for intermediate screens
         return {'data': data}
