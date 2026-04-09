@@ -3823,11 +3823,8 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
             'footer': msg.get('footer', 'WECARE.DIGITAL'),
             'flowId': flow_id,
             'flowCta': msg.get('flowCta', 'Subscribe Now'),
-            'flowAction': 'navigate',
+            'flowAction': 'data_exchange',
             'flowToken': flow_token,
-            'flowActionPayload': {
-                'screen': 'PERSONAL_INFO',
-            },
         }
         header_val = msg.get('header', '')
         if header_val:
