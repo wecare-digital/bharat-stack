@@ -1848,12 +1848,26 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
     if not response_payload:
         response_payload = {'data': {'error': f'No response for action={action} screen={screen}'}}
 
-    logger.info(json.dumps({
-        'event': 'flow_response', 'action': action,
-        'screen': response_payload.get('screen', ''),
-        'data_keys': list(response_payload.get('data', {}).keys()),
-        'requestId': request_id,
-    }))
+    # Log full response for debugging
+    try:
+        log_payload = json.loads(json.dumps(response_payload, default=str))
+        # Truncate any large values for logging
+        log_data = log_payload.get('data', {})
+        for k, v in log_data.items():
+            if isinstance(v, str) and len(v) > 200:
+                log_data[k] = v[:200] + '...(truncated)'
+        logger.info(json.dumps({
+            'event': 'flow_response_full', 'action': action,
+            'response': log_payload,
+            'requestId': request_id,
+        }))
+    except Exception:
+        logger.info(json.dumps({
+            'event': 'flow_response', 'action': action,
+            'screen': response_payload.get('screen', ''),
+            'data_keys': list(response_payload.get('data', {}).keys()),
+            'requestId': request_id,
+        }))
 
     # Step 3: Encrypt
     try:
