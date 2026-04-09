@@ -94,6 +94,7 @@ FLOW_REGISTRY_CACHE_TTL = 300  # 5 minutes
 
 # Phone number IDs (for outbound Lambda)
 PHONE1_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
+PHONE2_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
 
 
 def _get_meta_token(waba_id: str = None, phone_id: str = None) -> str:
@@ -1158,17 +1159,28 @@ def _encrypt_flow_response(response_data: dict, aes_key: bytes, iv: bytes) -> st
 # ============================================================================
 
 def _get_flow_registry(flow_id: str) -> Dict:
-    """Get flow config from registry, with in-memory caching."""
+    """Get flow config from registry, with in-memory caching.
+    Only returns PUBLISHED flows — DEPRECATED/DRAFT flows are ignored."""
     global _flow_registry_cache, _flow_registry_cache_ts
     now = time.time()
-    if flow_id in _flow_registry_cache and (now - _flow_registry_cache_ts) < FLOW_REGISTRY_CACHE_TTL:
-        return _flow_registry_cache[flow_id]
+    cache_key = f'id:{flow_id}'
+    if cache_key in _flow_registry_cache and (now - _flow_registry_cache_ts) < FLOW_REGISTRY_CACHE_TTL:
+        return _flow_registry_cache[cache_key]
     try:
         table = dynamodb.Table(FLOW_REGISTRY_TABLE)
         resp = table.get_item(Key={'flowId': flow_id})
         item = resp.get('Item', {})
         if item:
-            _flow_registry_cache[flow_id] = item
+            # Reject DEPRECATED flows — they must never be used for routing/payment
+            if item.get('status') == 'DEPRECATED':
+                logger.warning(json.dumps({
+                    'event': 'flow_registry_deprecated_rejected',
+                    'flowId': flow_id,
+                    'flowCode': item.get('flowCode', ''),
+                    'status': item.get('status'),
+                }))
+                return {}
+            _flow_registry_cache[cache_key] = item
             _flow_registry_cache_ts = now
             return item
     except Exception as e:
@@ -1177,17 +1189,36 @@ def _get_flow_registry(flow_id: str) -> Dict:
 
 
 def _get_flow_registry_by_code(flow_code: str) -> Dict:
-    """Look up flow config by flowCode (e.g. '01.WD_SR')."""
+    """Look up flow config by flowCode (e.g. '01.WD_SR').
+    Only returns PUBLISHED flows — DEPRECATED/DRAFT flows are ignored."""
+    # Check cache first
+    global _flow_registry_cache, _flow_registry_cache_ts
+    now = time.time()
+    cache_key = f'code:{flow_code}'
+    if cache_key in _flow_registry_cache and (now - _flow_registry_cache_ts) < FLOW_REGISTRY_CACHE_TTL:
+        return _flow_registry_cache[cache_key]
     try:
         table = dynamodb.Table(FLOW_REGISTRY_TABLE)
         resp = table.query(
             IndexName='flowCode',
             KeyConditionExpression='flowCode = :c',
             ExpressionAttributeValues={':c': flow_code},
-            Limit=1,
         )
         items = resp.get('Items', [])
-        return items[0] if items else {}
+        # Filter: only return PUBLISHED flows (never DEPRECATED or DRAFT)
+        published = [i for i in items if i.get('status') == 'PUBLISHED']
+        if published:
+            _flow_registry_cache[cache_key] = published[0]
+            _flow_registry_cache_ts = now
+            return published[0]
+        # If no PUBLISHED flow, log warning and return empty
+        if items:
+            logger.warning(json.dumps({
+                'event': 'flow_registry_no_published_flow',
+                'flowCode': flow_code,
+                'foundStatuses': [i.get('status') for i in items],
+            }))
+        return {}
     except Exception as e:
         logger.warning(f'Flow registry code lookup failed for {flow_code}: {e}')
         return {}
@@ -1401,6 +1432,12 @@ def _upsert_flow_registry(body: Dict) -> Dict:
         flow_id = body.get('flowId', '')
         if not flow_id:
             return _resp(400, {'error': 'flowId required'})
+        
+        status = body.get('status', 'DRAFT')
+        valid_statuses = ('DRAFT', 'PUBLISHED', 'DEPRECATED')
+        if status not in valid_statuses:
+            return _resp(400, {'error': f'Invalid status: {status}. Must be one of {valid_statuses}'})
+        
         now = int(time.time())
         table = dynamodb.Table(FLOW_REGISTRY_TABLE)
         item = {
@@ -1411,11 +1448,13 @@ def _upsert_flow_registry(body: Dict) -> Dict:
             'flowVersion': body.get('flowVersion', '7.3'),
             'dataApiVersion': body.get('dataApiVersion', '4.0'),
             'wabaId': body.get('wabaId', ''),
-            'status': body.get('status', 'DRAFT'),
+            'status': status,
             'category': body.get('category', ''),
             'requiresPayment': body.get('requiresPayment', False),
             'paymentAmount': int(body.get('paymentAmount', 0)),
             'paymentDescription': body.get('paymentDescription', ''),
+            'preferredGateway': body.get('preferredGateway', ''),
+            'paymentConfigName': body.get('paymentConfigName', ''),
             'screenConfig': body.get('screenConfig', '{}'),
             'contactMapping': body.get('contactMapping', '{}'),
             'dataFetchers': body.get('dataFetchers', '{}'),
@@ -1428,8 +1467,17 @@ def _upsert_flow_registry(body: Dict) -> Dict:
             item['publishedAt'] = Decimal(str(body['publishedAt']))
         table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
         # Invalidate cache
-        global _flow_registry_cache_ts
+        global _flow_registry_cache, _flow_registry_cache_ts
+        _flow_registry_cache = {}
         _flow_registry_cache_ts = 0
+        
+        logger.info(json.dumps({
+            'event': 'flow_registry_upserted',
+            'flowId': flow_id,
+            'flowCode': body.get('flowCode', ''),
+            'status': status,
+            'requiresPayment': body.get('requiresPayment', False),
+        }))
         return _resp(200, {'success': True, 'flowId': flow_id})
     except Exception as e:
         logger.error(f'Upsert flow registry error: {e}')
@@ -1772,9 +1820,14 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
     response_payload = None
 
     # Extract phone from flow_token for logging
+    # New format: {prefix}-{uuid}-waba-{1|2}-ph-{phone}
+    # Legacy format: {prefix}-{uuid}-ph-{phone}
     _flow_phone = ''
     if flow_token and '-ph-' in flow_token:
         _flow_phone = flow_token.split('-ph-', 1)[1]
+
+    # Resolve WABA phone from flow_token for all subsequent operations
+    _flow_waba_phone_id = _get_phone_number_id_for_flow(flow_token)
 
     # Log every flow interaction (non-ping) for audit trail
     if action != 'ping':
@@ -1793,8 +1846,12 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             _flow_config_for_log = {}
             if flow_token:
                 parts = flow_token.split('-')
-                if len(parts) >= 2 and parts[0] not in ('sr',):
-                    _flow_config_for_log = _get_flow_registry_by_code(parts[0])
+                prefix = parts[0] if parts else ''
+                # Map known token prefixes to flow codes
+                _TOKEN_PREFIX_MAP = {'sr': '01.WD_SR', 'submit_re': '01.WD_SR'}
+                _log_flow_code = _TOKEN_PREFIX_MAP.get(prefix, prefix)
+                if _log_flow_code and _log_flow_code not in ('subscribe',):
+                    _flow_config_for_log = _get_flow_registry_by_code(_log_flow_code)
             _log_flow_interaction(
                 flow_config=_flow_config_for_log or {'flowId': '', 'flowCode': ''},
                 flow_token=flow_token, phone=_flow_phone,
@@ -1903,16 +1960,70 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 }
             }
 
-        elif screen == 'REVIEW' and not (flow_token and flow_token.startswith('sub-')):
-            # User confirmed and tapped Submit Request ₹49 → save, pay, confirm, close flow
+        elif screen == 'REVIEW' and not (flow_token and flow_token.startswith('subscribe')):
+            # User confirmed on REVIEW screen → save, optionally pay, confirm, close flow
+            # Payment is ONLY sent if the flow registry says requiresPayment=True
             order_id = data.get('order_id', '')
             subject = data.get('subject', '')
             description = data.get('description', '')
             request_type = data.get('request_type', '')
 
-            # Generate dynamic request number + separate payment reference
-            request_number = f'WD-SR-{uuid.uuid4().hex[:8].upper()}'
-            payment_ref_id = f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
+            # Look up flow config from registry to determine payment behavior
+            # Token format: {flow_code}-{uuid}[-waba-{1|2}]-ph-{phone}
+            # OR legacy: sr-{uuid}-ph-{phone} (sr = Submit Request = 01.WD_SR)
+            flow_config = {}
+            flow_code_from_token = ''
+            if flow_token:
+                parts = flow_token.split('-')
+                prefix = parts[0] if parts else ''
+                # Map known token prefixes to flow codes
+                TOKEN_PREFIX_TO_FLOW_CODE = {
+                    'sr': '01.WD_SR',
+                    'submit_re': '01.WD_SR',
+                }
+                if prefix in TOKEN_PREFIX_TO_FLOW_CODE:
+                    flow_code_from_token = TOKEN_PREFIX_TO_FLOW_CODE[prefix]
+                elif prefix and prefix not in ('subscribe',):
+                    flow_code_from_token = prefix
+                
+                if flow_code_from_token:
+                    flow_config = _get_flow_registry_by_code(flow_code_from_token)
+
+            if not flow_config:
+                # No valid PUBLISHED flow found — do NOT fall back to hardcoded config
+                # Log the issue and use safe defaults (no payment)
+                logger.warning(json.dumps({
+                    'event': 'flow_config_not_found',
+                    'flow_token_prefix': flow_token[:25] if flow_token else '',
+                    'flow_code_attempted': flow_code_from_token,
+                    'reason': 'no PUBLISHED flow found in registry',
+                    'requestId': request_id,
+                }))
+                flow_config = {
+                    'flowId': '', 'flowCode': flow_code_from_token or 'UNKNOWN',
+                    'flowName': 'Request', 'flowType': 'form_submit',
+                    'requiresPayment': False, 'paymentAmount': 0,
+                    'submissionPrefix': 'WD-SR',
+                    'status': 'FALLBACK',
+                }
+
+            # Determine payment from flow registry — NOT hardcoded
+            requires_payment = bool(flow_config.get('requiresPayment', False))
+            payment_amount = int(flow_config.get('paymentAmount', 0)) if requires_payment else 0
+            flow_name = flow_config.get('flowName', 'Request')
+            submission_prefix = flow_config.get('submissionPrefix', 'WD-SR')
+
+            # Generate dynamic request number
+            request_number = f'{submission_prefix}-{uuid.uuid4().hex[:8].upper()}'
+            payment_ref_id = f'WD-PAY-{uuid.uuid4().hex[:8].upper()}' if requires_payment else ''
+
+            # Extract phone from flow_token
+            phone = ''
+            if flow_token and '-ph-' in flow_token:
+                phone = flow_token.split('-ph-', 1)[1]
+
+            # Resolve phone number ID from flow_token's waba segment (NOT from customer phone)
+            phone_number_id = _get_phone_number_id_for_flow(flow_token)
 
             logger.info(json.dumps({
                 'flow_submit': True, 'order_id': order_id,
@@ -1920,20 +2031,52 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'subject': subject, 'description': description,
                 'request_number': request_number,
                 'payment_ref_id': payment_ref_id,
+                'requiresPayment': requires_payment,
+                'paymentAmount': payment_amount,
+                'flowCode': flow_config.get('flowCode', ''),
+                'flowStatus': flow_config.get('status', ''),
+                'phoneNumberId': phone_number_id,
+                'phone_suffix': phone[-4:] if phone else '',
                 'requestId': request_id,
             }))
 
+            # ── SET response_payload FIRST so it's always returned even if saves fail ──
+            if requires_payment:
+                amount_display = f'₹{payment_amount / 100:.0f}' if payment_amount >= 100 else f'₹{payment_amount}'
+                success_msg = f'✅ Your {flow_name.lower()} {request_number} has been submitted successfully! A payment link for {amount_display} will be sent shortly.'
+                response_payload = {
+                    'screen': 'SUCCESS',
+                    'data': {
+                        'request_number': request_number,
+                        'payment_ref_id': payment_ref_id,
+                        'message': success_msg,
+                    }
+                }
+            else:
+                success_msg = f'✅ Your {flow_name.lower()} {request_number} has been submitted successfully! Our team will review it within 24 hours.'
+                response_payload = {
+                    'screen': 'SUCCESS',
+                    'data': {
+                        'request_number': request_number,
+                        'payment_ref_id': 'N/A',
+                        'message': success_msg,
+                    }
+                }
+
+            # ── Now do saves + payment (all non-blocking — response_payload is already set) ──
+
             # Save submission to DynamoDB (legacy table)
-            phone = ''
-            if flow_token and '-ph-' in flow_token:
-                phone = flow_token.split('-ph-', 1)[1]
+            # Pass flow-specific payment config — never hardcode payment values
             try:
                 _save_submit_request(
                     phone=phone, order_id=order_id,
                     subject=subject, description=description,
                     flow_token=flow_token, request_id=request_id,
                     request_number=request_number,
-                    payment_ref_id=payment_ref_id
+                    payment_ref_id=payment_ref_id,
+                    requires_payment=requires_payment,
+                    payment_amount=payment_amount,
+                    phone_number_id=phone_number_id,
                 )
             except Exception as save_err:
                 logger.error(json.dumps({
@@ -1944,25 +2087,6 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
             # Save to new FlowSubmissionsTable (generic flow engine)
             try:
-                # Try to look up flow config from registry (by flow_token prefix or fallback)
-                flow_config = {}
-                flow_code_from_token = ''
-                if flow_token:
-                    # Token format: {flowCode}-{uuid}-ph-{phone} or sr-{uuid}-ph-{phone}
-                    parts = flow_token.split('-')
-                    if len(parts) >= 2 and parts[0] not in ('sr',):
-                        flow_code_from_token = parts[0]
-                        flow_config = _get_flow_registry_by_code(flow_code_from_token)
-
-                if not flow_config:
-                    # Fallback: use default config for 01.WD_SR
-                    flow_config = _get_flow_registry_by_code('01.WD_SR') or {
-                        'flowId': '', 'flowCode': '01.WD_SR', 'flowName': 'Submit Request',
-                        'flowType': 'form_submit', 'flowVersion': '7.3',
-                        'requiresPayment': True, 'paymentAmount': 4900,
-                        'submissionPrefix': 'WD-SR',
-                    }
-
                 contact_id = _find_contact_by_phone(phone)
                 sender_name = ''
                 if contact_id:
@@ -1984,13 +2108,24 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 if submission and submission.get('submissionId'):
                     try:
                         fs_table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+                        update_expr = 'SET submissionNumber = :sn, paymentRequired = :preq, paymentAmount = :pa'
+                        expr_vals = {
+                            ':sn': request_number,
+                            ':preq': requires_payment,
+                            ':pa': payment_amount,
+                        }
+                        if requires_payment:
+                            update_expr += ', paymentRefId = :pr, paymentStatus = :ps'
+                            expr_vals[':pr'] = payment_ref_id
+                            expr_vals[':ps'] = 'pending'
+                        else:
+                            update_expr += ', paymentStatus = :ps'
+                            expr_vals[':ps'] = 'none'
+
                         fs_table.update_item(
                             Key={'submissionId': submission['submissionId']},
-                            UpdateExpression='SET submissionNumber = :sn, paymentRefId = :pr, paymentStatus = :ps, paymentRequired = :preq, paymentAmount = :pa',
-                            ExpressionAttributeValues={
-                                ':sn': request_number, ':pr': payment_ref_id,
-                                ':ps': 'pending', ':preq': True, ':pa': 4900,
-                            },
+                            UpdateExpression=update_expr,
+                            ExpressionAttributeValues=expr_vals,
                         )
                     except Exception:
                         pass
@@ -2007,10 +2142,9 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
             except Exception as new_save_err:
                 logger.warning(f'FlowSubmission save failed (non-blocking): {new_save_err}')
 
-            # Send payment + confirmation ASYNC via a separate Lambda invocation
+            # Send payment (ONLY if required) + confirmation ASYNC
             # to avoid blocking the flow response (Meta has a timeout on data_exchange)
             try:
-                # Read gateway config from flow registry
                 _gw = flow_config.get('preferredGateway', '') if flow_config else ''
                 _pg_config = flow_config.get('paymentConfigName', '') if flow_config else ''
                 lambda_client.invoke(
@@ -2019,11 +2153,16 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     Payload=json.dumps({
                         '_async_action': 'flow_post_submit',
                         'phone': phone,
+                        'phone_number_id': phone_number_id,
                         'order_id': order_id,
                         'subject': subject,
                         'request_id': request_id,
                         'request_number': request_number,
                         'payment_ref_id': payment_ref_id,
+                        'requires_payment': requires_payment,
+                        'payment_amount': payment_amount,
+                        'flow_name': flow_name,
+                        'flow_code': flow_config.get('flowCode', ''),
                         'preferred_gateway': _gw,
                         'payment_config_name': _pg_config,
                     })
@@ -2034,35 +2173,30 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     'error': str(async_err),
                     'requestId': request_id,
                 }))
-                # Fallback: try synchronously (old behavior) if async invoke fails
+                # Fallback: try synchronously if async invoke fails
                 try:
-                    _send_payment_after_flow(
-                        phone=phone, order_id=order_id,
-                        subject=subject, request_id=request_id,
-                        request_number=request_number,
-                        payment_ref_id=payment_ref_id
-                    )
+                    if requires_payment and payment_amount:
+                        _send_payment_after_flow(
+                            phone=phone, order_id=order_id,
+                            subject=subject, request_id=request_id,
+                            request_number=request_number,
+                            payment_ref_id=payment_ref_id,
+                            phone_number_id=phone_number_id,
+                            payment_amount_paise=payment_amount,
+                            flow_name=flow_name,
+                        )
                     _send_flow_confirmation(
                         phone=phone, order_id=order_id, subject=subject,
                         request_id=request_id, request_number=request_number,
-                        payment_ref_id=payment_ref_id
+                        payment_ref_id=payment_ref_id,
+                        phone_number_id=phone_number_id,
+                        flow_config=flow_config,
                     )
                 except Exception as e:
-                    logger.error(f'[{request_id}] Invoice/confirmation send failed for order {order_id}: {e}')
-
-            # Navigate to SUCCESS screen with generated IDs
-            # SUCCESS is terminal:true — it closes the flow when user taps "Done"
-            response_payload = {
-                'screen': 'SUCCESS',
-                'data': {
-                    'request_number': request_number,
-                    'payment_ref_id': payment_ref_id,
-                    'message': f'✅ Your request {request_number} has been submitted successfully! A payment link for ₹49 will be sent shortly.',
-                }
-            }
+                    logger.error(f'[{request_id}] Confirmation send failed for order {order_id}: {e}')
 
         # ── Subscribe Flow: REVIEW screen (data_exchange) ──
-        elif screen == 'REVIEW' and flow_token and flow_token.startswith('sub-'):
+        elif screen == 'REVIEW' and flow_token and flow_token.startswith('subscribe'):
             full_name = data.get('full_name', '')
             phone_number = data.get('phone_number', '')
             email_address = data.get('email_address', '')
@@ -2364,7 +2498,6 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'screen': 'SUCCESS',
                 'data': {
                     'subscriber_id': subscriber_id,
-                    'contact_id': contact_id,
                     'message': welcome_msg,
                 }
             }
@@ -2389,8 +2522,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                     Payload=json.dumps({
                         'body': json.dumps({
                             'contactId': contact_id,
-                            'phone': phone,
-                            'message': confirm_text,
+                            'recipientPhone': phone,
+                            'content': confirm_text,
                             'phoneNumberId': _get_phone_number_id_for_flow(flow_token),
                         })
                     }),
@@ -2572,12 +2705,20 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
 def _save_submit_request(phone: str, order_id: str, subject: str, description: str,
                          flow_token: str, request_id: str, request_number: str = '',
-                         payment_ref_id: str = '') -> str:
-    """Save flow submission to SubmitRequests DynamoDB table."""
+                         payment_ref_id: str = '',
+                         requires_payment: bool = False,
+                         payment_amount: int = 0,
+                         phone_number_id: str = '') -> str:
+    """Save flow submission to SubmitRequests DynamoDB table.
+    
+    CRITICAL: requires_payment and payment_amount MUST come from the flow registry.
+    Do NOT hardcode payment values — each flow defines its own payment config.
+    phone_number_id is resolved from flow_token by the caller.
+    """
     try:
         now = int(time.time())
         submission_id = str(uuid.uuid4())
-        ref_id = payment_ref_id or f'WD-PAY-{uuid.uuid4().hex[:8].upper()}'
+        ref_id = payment_ref_id if requires_payment else ''
 
         # Look up contact info
         contact_id = _find_contact_by_phone(phone)
@@ -2590,10 +2731,14 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
             except Exception as e:
                 logger.warning(f'Contact name lookup failed for {contact_id}: {e}')
 
+        # Payment fields are flow-specific — only set if flow requires payment
+        pay_status = 'pending' if requires_payment else 'none'
+        pay_amount = payment_amount if requires_payment else 0
+
         item = {
             'id': submission_id,
             'requestId': request_id,
-            'requestNumber': request_number or ref_id,
+            'requestNumber': request_number,
             'flowToken': flow_token,
             'phone': phone,
             'senderName': sender_name,
@@ -2601,9 +2746,10 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
             'orderId': order_id,
             'subject': subject,
             'description': description,
-            'paymentStatus': 'pending',
+            'paymentStatus': pay_status,
             'paymentReferenceId': ref_id,
-            'paymentAmount': 4900,
+            'paymentAmount': pay_amount,
+            'phoneNumberId': phone_number_id,
             'createdAt': Decimal(str(now)),
             'updatedAt': Decimal(str(now)),
         }
@@ -2617,6 +2763,9 @@ def _save_submit_request(phone: str, order_id: str, subject: str, description: s
             'orderId': order_id,
             'phone': phone[:6] + '***' if phone else '',
             'referenceId': ref_id,
+            'requiresPayment': requires_payment,
+            'paymentAmount': pay_amount,
+            'phoneNumberId': phone_number_id,
             'requestId': request_id,
         }))
         return submission_id
@@ -2988,17 +3137,32 @@ def _checkout_apply_shipping(order_details: dict, input_data: dict,
 
 def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id: str,
                              request_number: str = '', payment_ref_id: str = '',
-                             preferred_gateway: str = '', payment_config_name: str = '') -> str:
+                             preferred_gateway: str = '', payment_config_name: str = '',
+                             phone_number_id: str = '',
+                             payment_amount_paise: int = 0,
+                             flow_name: str = 'Service Request') -> str:
     """
     Create an invoice via invoice-engine, then send payment link through that invoice.
     This integrates Submit Request payments into the common invoice infrastructure
     so they appear in the Pay Flow / Invoices tab alongside all other invoices.
+    
+    CRITICAL: payment_amount_paise MUST be passed by the caller from flow registry.
+    Do NOT hardcode any amount — each flow defines its own payment config.
     
     preferred_gateway: 'razorpay' or 'payu' — passed to invoice-engine
     payment_config_name: specific Meta PG config name (e.g. 'WECARE-RAZOR-PAY')
     
     Returns the invoice number (or empty string on failure).
     """
+    if not payment_amount_paise:
+        logger.error(json.dumps({
+            'event': 'flow_payment_no_amount',
+            'phone': phone[:6] + '***' if phone else 'none',
+            'requestId': request_id,
+            'reason': 'payment_amount_paise is 0 — caller must pass flow-specific amount',
+        }))
+        return ''
+
     logger.info(json.dumps({
         'event': 'flow_payment_start',
         'phone': phone[:6] + '***' if phone else 'none',
@@ -3006,6 +3170,8 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
         'subject': subject,
         'requestNumber': request_number,
         'paymentRefId': payment_ref_id,
+        'paymentAmountPaise': payment_amount_paise,
+        'flowName': flow_name,
         'requestId': request_id,
     }))
 
@@ -3027,6 +3193,8 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
             logger.warning(f'Contact name lookup failed for {contact_id}: {e}')
 
     # Step 1: Create invoice via invoice-engine Lambda
+    # Amount comes from flow registry — convert paise to rupees for invoice
+    amount_rupees = payment_amount_paise / 100
     invoice_body = {
         'referenceId': ref_id,
         'customerPhone': phone,
@@ -3034,13 +3202,13 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
         'contactId': contact_id or '',
         'orderId': order_id,
         'entryPoint': 'submit_request_flow',
-        'purpose': f'Service Request: {subject}' if subject else 'Service Request',
+        'purpose': f'{flow_name}: {subject}' if subject else flow_name,
         'notes': f'Request #{request_number}' if request_number else '',
         'gstin': '19AADFW7431N1ZK',
         'gstRate': 18,
         'items': [{
-            'name': 'Service Request',
-            'amount': 49,
+            'name': flow_name,
+            'amount': amount_rupees,
             'quantity': 1,
             'gstRate': 18,
         }],
@@ -3084,7 +3252,9 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
                 'requestId': request_id,
             }))
             # Fallback: send payment directly via outbound (old behavior)
-            _send_payment_direct_fallback(phone, order_id, subject, ref_id, contact_id, request_id)
+            _send_payment_direct_fallback(phone, order_id, subject, ref_id, contact_id, request_id,
+                                          phone_number_id=phone_number_id,
+                                          payment_amount_paise=payment_amount_paise)
             return ''
 
         # Store invoiceId on the SubmitRequest record
@@ -3115,6 +3285,15 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
             }))
 
         # Step 2: Send payment link via invoice-engine (uses common infrastructure)
+        # phone_number_id is already resolved from flow_token by the caller
+        send_phone_id = phone_number_id or PHONE1_ID
+        if not phone_number_id:
+            logger.warning(json.dumps({
+                'event': 'flow_payment_no_phone_id',
+                'phone_suffix': phone[-4:] if phone else '',
+                'defaulting_to': PHONE1_ID,
+                'requestId': request_id,
+            }))
         send_resp = lambda_client.invoke(
             FunctionName=INVOICE_ENGINE_FUNCTION,
             InvocationType='RequestResponse',
@@ -3123,7 +3302,7 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
                 'rawPath': '/invoices/send-payment-link',
                 'body': json.dumps({
                     'invoiceId': invoice_id,
-                    'phoneNumberId': PHONE1_ID,
+                    'phoneNumberId': send_phone_id,
                 }),
             })
         )
@@ -3151,7 +3330,9 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
         }))
         # Fallback: send payment directly via outbound (old behavior)
         try:
-            _send_payment_direct_fallback(phone, order_id, subject, ref_id, contact_id, request_id)
+            _send_payment_direct_fallback(phone, order_id, subject, ref_id, contact_id, request_id,
+                                          phone_number_id=phone_number_id,
+                                          payment_amount_paise=payment_amount_paise)
         except Exception as fb_err:
             logger.error(json.dumps({
                 'event': 'flow_payment_fallback_error',
@@ -3162,9 +3343,30 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
 
 
 def _send_payment_direct_fallback(phone: str, order_id: str, subject: str,
-                                   ref_id: str, contact_id: str, request_id: str):
-    """Fallback: send payment directly via outbound-whatsapp if invoice-engine fails."""
-    amount_paise = 4900
+                                   ref_id: str, contact_id: str, request_id: str,
+                                   phone_number_id: str = '', payment_amount_paise: int = 0):
+    """Fallback: send payment directly via outbound-whatsapp if invoice-engine fails.
+    
+    CRITICAL: payment_amount_paise MUST be passed by the caller from flow registry.
+    Do NOT default to any hardcoded amount.
+    """
+    # Use the explicitly passed phone_number_id — do NOT guess from customer phone
+    send_phone_id = phone_number_id or PHONE1_ID
+    if not phone_number_id:
+        logger.warning(json.dumps({
+            'event': 'flow_payment_fallback_no_phone_id',
+            'phone_suffix': phone[-4:] if phone else '',
+            'defaulting_to': PHONE1_ID,
+        }))
+    if not payment_amount_paise:
+        logger.error(json.dumps({
+            'event': 'flow_payment_fallback_no_amount',
+            'phone_suffix': phone[-4:] if phone else '',
+            'requestId': request_id,
+            'reason': 'payment_amount_paise is 0 — caller must pass flow-specific amount',
+        }))
+        return
+    amount_paise = payment_amount_paise
     gst_rate = 18
     gst_paise = round(amount_paise * gst_rate / 100)
 
@@ -3172,7 +3374,7 @@ def _send_payment_direct_fallback(phone: str, order_id: str, subject: str,
         'body': json.dumps({
             'contactId': contact_id or '',
             'recipientPhone': phone if not contact_id else '',
-            'phoneNumberId': PHONE1_ID,
+            'phoneNumberId': send_phone_id,
             'isInteractivePayment': True,
             'orderDetails': {
                 'reference_id': ref_id,
@@ -3218,27 +3420,62 @@ def _send_payment_direct_fallback(phone: str, order_id: str, subject: str,
 
 def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id: str,
                             request_number: str = '', payment_ref_id: str = '',
-                            invoice_number: str = ''):
-    """Send a WhatsApp text confirmation after the Submit Request flow completes."""
+                            invoice_number: str = '', phone_number_id: str = '',
+                            flow_config: Dict = None):
+    """Send a WhatsApp text confirmation after a flow completes.
+    Uses flow_config to determine if payment is required and customize the message.
+    
+    CRITICAL: phone_number_id MUST be passed by the caller (resolved from flow_token).
+    Do NOT fall back to _get_phone_number_id_for_phone — that causes wrong routing.
+    """
     if not phone:
         return
     try:
-        inv_line = f'*Invoice:* {invoice_number}\n' if invoice_number else ''
-        msg = (
-            '\u2705 *Request Submitted Successfully*\n\n'
-            f'*Request No:* {request_number}\n'
-            f'{inv_line}'
-            f'*Payment Ref:* {payment_ref_id}\n'
-            f'*Order:* {order_id}\n'
-            f'*Subject:* {subject}\n\n'
-            'Please complete the payment using the payment card sent above \u2b06\ufe0f\n'
-            'Our team will review your request within 24 hours.\n\n'
-            '_Thank you for choosing WECARE.DIGITAL_'
-        )
+        # Use the explicitly passed phone_number_id — do NOT guess from customer phone
+        send_phone_id = phone_number_id or PHONE1_ID
+        if not phone_number_id:
+            logger.error(json.dumps({
+                'event': 'flow_confirmation_no_phone_id_CRITICAL',
+                'phone_suffix': phone[-4:] if phone else '',
+                'defaulting_to': PHONE1_ID,
+                'requestId': request_id,
+                'reason': 'phone_number_id was not passed — this causes wrong routing',
+            }))
+
+        # Build confirmation based on flow config
+        requires_payment = (flow_config or {}).get('requiresPayment', False)
+        payment_amount = (flow_config or {}).get('paymentAmount', 0)
+        flow_name = (flow_config or {}).get('flowName', 'Request')
+        flow_code = (flow_config or {}).get('flowCode', '')
+
+        if requires_payment and payment_amount:
+            amount_display = f'₹{payment_amount / 100:.0f}' if payment_amount >= 100 else f'₹{payment_amount}'
+            inv_line = f'*Invoice:* {invoice_number}\n' if invoice_number else ''
+            msg = (
+                '\u2705 *{flow_name} Submitted Successfully*\n\n'
+                f'*Request No:* {request_number}\n'
+                f'{inv_line}'
+                f'*Payment Ref:* {payment_ref_id}\n'
+                f'*Amount:* {amount_display}\n'
+                f'*Order:* {order_id}\n'
+                f'*Subject:* {subject}\n\n'
+                'Please complete the payment using the payment card sent above \u2b06\ufe0f\n'
+                'Our team will review your request within 24 hours.\n\n'
+                '_Thank you for choosing WECARE.DIGITAL_'
+            ).replace('{flow_name}', flow_name)
+        else:
+            msg = (
+                '\u2705 *{flow_name} Submitted Successfully*\n\n'
+                f'*Reference:* {request_number}\n'
+                f'*Subject:* {subject}\n\n'
+                'Our team will review your submission within 24 hours.\n\n'
+                '_Thank you for choosing WECARE.DIGITAL_'
+            ).replace('{flow_name}', flow_name)
+
         payload = {
             'body': json.dumps({
                 'recipientPhone': phone,
-                'phoneNumberId': PHONE1_ID,
+                'phoneNumberId': send_phone_id,
                 'content': msg,
             })
         }
@@ -3250,6 +3487,11 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
         logger.info(json.dumps({
             'event': 'flow_confirmation_sent',
             'phone': phone[:6] + '***',
+            'phoneNumberId': send_phone_id,
+            'flowName': flow_name,
+            'flowCode': flow_code,
+            'requiresPayment': requires_payment,
+            'paymentAmount': payment_amount,
             'requestId': request_id,
         }))
     except Exception as e:
@@ -3261,9 +3503,82 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
 
 
 def _get_phone_number_id_for_flow(flow_token: str) -> str:
-    """Determine which phone number ID to use based on flow_token context."""
-    # Default to Phone 1
-    return os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
+    """Determine which WABA phone number ID to use based on flow_token context.
+    
+    New token format: {prefix}-{uuid}-waba-{1|2}-ph-{customer_phone}
+    Legacy format:    {prefix}-{uuid}-ph-{customer_phone}
+    
+    The waba segment explicitly encodes which business phone sent the flow.
+    This eliminates the guessing that caused Phone 2 messages to go to Phone 1.
+    """
+    if not flow_token:
+        logger.warning(json.dumps({
+            'event': 'flow_phone_resolution_no_token',
+            'defaulting_to': PHONE1_ID,
+        }))
+        return PHONE1_ID
+
+    # New format: extract waba-{1|2} segment
+    if '-waba-' in flow_token:
+        try:
+            waba_part = flow_token.split('-waba-')[1].split('-')[0]
+            resolved = PHONE2_ID if waba_part == '2' else PHONE1_ID
+            logger.info(json.dumps({
+                'event': 'flow_phone_resolved_from_waba_segment',
+                'waba_segment': waba_part,
+                'resolved_phone_id': resolved,
+                'flow_token_prefix': flow_token[:25],
+            }))
+            return resolved
+        except (IndexError, ValueError):
+            pass
+
+    # Legacy format fallback: no waba segment, use PHONE1_ID (old tokens)
+    logger.warning(json.dumps({
+        'event': 'flow_phone_resolution_legacy_token',
+        'flow_token_prefix': flow_token[:25],
+        'defaulting_to': PHONE1_ID,
+        'reason': 'no -waba- segment found (legacy token)',
+    }))
+    return PHONE1_ID
+
+
+# ── Phone-to-WABA mapping ──
+# Maps customer phone prefixes to the WABA phone that serves them.
+# This is used to determine which business phone should send confirmations.
+PHONE_TO_WABA_MAP = {
+    '919903300044': PHONE2_ID,  # Phone 2's own number
+    '919330994400': PHONE1_ID,  # Phone 1's own number
+}
+
+
+def _get_phone_number_id_for_phone(phone: str) -> str:
+    """Determine which WABA phone number ID to use for sending messages to this phone.
+    
+    This resolves which business phone (Phone 1 or Phone 2) should be used
+    to send outbound messages. The logic:
+    1. Check if the phone is one of our own business phones (direct match)
+    2. Default to PHONE1_ID only as last resort with warning
+    
+    NOTE: The customer's phone number does NOT determine which WABA to use.
+    The WABA is determined by which phone RECEIVED the original inbound message.
+    Callers should use _get_phone_number_id_for_flow(flow_token) instead when possible.
+    """
+    if not phone:
+        logger.warning(json.dumps({
+            'event': 'phone_resolution_no_phone',
+            'defaulting_to': PHONE1_ID,
+        }))
+        return PHONE1_ID
+    
+    clean = phone.replace('+', '').replace(' ', '').replace('-', '')
+    
+    # Direct match: is this phone one of our business numbers?
+    if clean in PHONE_TO_WABA_MAP:
+        return PHONE_TO_WABA_MAP[clean]
+    
+    # Default — caller should prefer _get_phone_number_id_for_flow() instead
+    return PHONE1_ID
 
 
 def _find_contact_by_phone(phone: str) -> str:
@@ -3556,50 +3871,99 @@ def _list_flow_logs(params: Dict) -> Dict:
 
 def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
     """
-    Handle async post-submit actions: create invoice, send payment link, send confirmation.
-    Called via async Lambda invocation from the REVIEW screen handler to avoid blocking
-    the flow data_exchange response (Meta has a timeout).
+    Handle async post-submit actions: optionally create invoice + send payment link,
+    then send confirmation. Payment is ONLY sent if requires_payment is True.
+    Called via async Lambda invocation from the REVIEW screen handler.
+    
+    CRITICAL: phone_number_id is passed from the REVIEW handler which resolved it
+    from the flow_token's waba segment. This ensures confirmations go to the correct phone.
     """
     phone = event.get('phone', '')
+    phone_number_id = event.get('phone_number_id', '')
+    if not phone_number_id:
+        # Fallback: should not happen, but log warning
+        logger.warning(json.dumps({
+            'event': 'async_post_submit_no_phone_id',
+            'phone_suffix': phone[-4:] if phone else '',
+            'requestId': request_id,
+        }))
+        phone_number_id = PHONE1_ID
     order_id = event.get('order_id', '')
     subject = event.get('subject', '')
     request_number = event.get('request_number', '')
     payment_ref_id = event.get('payment_ref_id', '')
     preferred_gateway = event.get('preferred_gateway', '')
     payment_config_name = event.get('payment_config_name', '')
+    requires_payment = event.get('requires_payment', False)
+    payment_amount = event.get('payment_amount', 0)
+    flow_name = event.get('flow_name', 'Request')
+    flow_code = event.get('flow_code', '')
+
+    # Build a minimal flow_config dict for confirmation message
+    flow_config = {
+        'requiresPayment': requires_payment,
+        'paymentAmount': payment_amount,
+        'flowName': flow_name,
+        'flowCode': flow_code,
+    }
 
     logger.info(json.dumps({
         'event': 'async_post_submit_start',
         'phone': phone[:6] + '***' if phone else '',
+        'phoneNumberId': phone_number_id,
         'requestNumber': request_number,
+        'requiresPayment': requires_payment,
+        'paymentAmount': payment_amount,
+        'flowCode': flow_code,
         'requestId': request_id,
     }))
 
-    # Step 1: Create invoice + send payment link
+    # Step 1: Create invoice + send payment link ONLY if flow requires payment
     invoice_number = ''
-    try:
-        invoice_number = _send_payment_after_flow(
-            phone=phone, order_id=order_id,
-            subject=subject, request_id=request_id,
-            request_number=request_number,
-            payment_ref_id=payment_ref_id,
-            preferred_gateway=preferred_gateway,
-            payment_config_name=payment_config_name
-        ) or ''
-    except Exception as pay_err:
-        logger.error(json.dumps({
-            'event': 'async_payment_error',
-            'error': str(pay_err),
+    if requires_payment and payment_ref_id:
+        if not payment_amount:
+            logger.error(json.dumps({
+                'event': 'async_payment_no_amount',
+                'reason': 'requires_payment=True but payment_amount=0',
+                'flowCode': flow_code,
+                'requestId': request_id,
+            }))
+        else:
+            try:
+                invoice_number = _send_payment_after_flow(
+                    phone=phone, order_id=order_id,
+                    subject=subject, request_id=request_id,
+                    request_number=request_number,
+                    payment_ref_id=payment_ref_id,
+                    preferred_gateway=preferred_gateway,
+                    payment_config_name=payment_config_name,
+                    phone_number_id=phone_number_id,
+                    payment_amount_paise=payment_amount,
+                    flow_name=flow_name,
+                ) or ''
+            except Exception as pay_err:
+                logger.error(json.dumps({
+                    'event': 'async_payment_error',
+                    'error': str(pay_err),
+                    'requestId': request_id,
+                }))
+    else:
+        logger.info(json.dumps({
+            'event': 'async_post_submit_no_payment',
+            'reason': 'flow does not require payment',
+            'flowCode': flow_code,
             'requestId': request_id,
         }))
 
-    # Step 2: Send confirmation text
+    # Step 2: Send confirmation text (always, for all flows)
     try:
         _send_flow_confirmation(
             phone=phone, order_id=order_id, subject=subject,
             request_id=request_id, request_number=request_number,
             payment_ref_id=payment_ref_id,
-            invoice_number=invoice_number
+            invoice_number=invoice_number,
+            phone_number_id=phone_number_id,
+            flow_config=flow_config,
         )
     except Exception as conf_err:
         logger.error(json.dumps({

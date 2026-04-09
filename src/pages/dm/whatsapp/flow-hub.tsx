@@ -220,6 +220,25 @@ export default function FlowHubPage({ embedded }: FlowHubProps) {
                     placeholder="WD-SR" style={{ width: '100%', padding: '0.4rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' }} />
                 </div>
                 <div>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Status</label>
+                  <select value={regForm.status || 'DRAFT'} onChange={e => setRegForm({ ...regForm, status: e.target.value })}
+                    style={{ width: '100%', padding: '0.4rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' }}>
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="PUBLISHED">PUBLISHED</option>
+                    <option value="DEPRECATED">DEPRECATED</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Preferred Gateway</label>
+                  <input value={(regForm as any).preferredGateway || ''} onChange={e => setRegForm({ ...regForm, preferredGateway: e.target.value } as any)}
+                    placeholder="razorpay" style={{ width: '100%', padding: '0.4rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Payment Config Name</label>
+                  <input value={(regForm as any).paymentConfigName || ''} onChange={e => setRegForm({ ...regForm, paymentConfigName: e.target.value } as any)}
+                    placeholder="WECARE-RAZOR-PAY" style={{ width: '100%', padding: '0.4rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' }} />
+                </div>
+                <div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem' }}>
                     <input type="checkbox" checked={regForm.requiresPayment || false}
                       onChange={e => setRegForm({ ...regForm, requiresPayment: e.target.checked })} />
@@ -354,11 +373,17 @@ export default function FlowHubPage({ embedded }: FlowHubProps) {
                     <th style={{ padding: '6px 10px', textAlign: 'left' }}>Status</th>
                     <th style={{ padding: '6px 10px', textAlign: 'left' }}>Payment</th>
                     <th style={{ padding: '6px 10px', textAlign: 'left' }}>Amount</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left' }}>WABA</th>
                     <th style={{ padding: '6px 10px', textAlign: 'left' }}>Date</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {submissions.map(s => (
+                  {submissions.map(s => {
+                    // Determine WABA from flowToken
+                    const ft = (s as any).flowToken || '';
+                    const wabaLabel = ft.includes('-waba-2-') ? 'Phone 2' : ft.includes('-waba-1-') ? 'Phone 1' : '—';
+                    const wabaColor = ft.includes('-waba-2-') ? '#7c3aed' : ft.includes('-waba-1-') ? '#2563eb' : '#9ca3af';
+                    return (
                     <tr key={s.submissionId} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{s.phone}</td>
                       <td style={{ padding: '6px 10px' }}>
@@ -375,9 +400,13 @@ export default function FlowHubPage({ embedded }: FlowHubProps) {
                         <span style={{ color: payColor(s.paymentStatus), fontWeight: 600, fontSize: '0.75rem' }}>{s.paymentStatus}</span>
                       </td>
                       <td style={{ padding: '6px 10px' }}>{s.paymentAmount ? formatPaise(s.paymentAmount) : '—'}</td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <span style={{ color: wabaColor, fontWeight: 600, fontSize: '0.7rem' }}>{wabaLabel}</span>
+                      </td>
                       <td style={{ padding: '6px 10px', fontSize: '0.7rem', color: '#6b7280' }}>{formatDate(s.createdAt)}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

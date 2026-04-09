@@ -3747,7 +3747,10 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
 
         # Encode phone in flow_token so the flow-data endpoint can extract it
         # during INIT (data_exchange mode doesn't pass custom data in the message)
-        flow_token = f'sr-{uuid.uuid4()}-ph-{sender_phone}'
+        # Format: {prefix}-{uuid}-waba-{phone_number_id_suffix}-ph-{sender_phone}
+        # The waba segment tells the flow-data endpoint which WABA phone sent this flow
+        _waba_suffix = '1' if phone_number_id == PHONE_NUMBER_ID_1 else '2'
+        flow_token = f'sr-{uuid.uuid4()}-waba-{_waba_suffix}-ph-{sender_phone}'
         interactive_data = {
             'body': msg.get('body', '\U0001f447Please use the self-service option below. Once we receive it, we\u2019ll review it and follow up if needed.'),
             'footer': msg.get('footer', 'WECARE.DIGITAL'),
@@ -3813,7 +3816,8 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
             return
         msg = (flow_config or {}).get('message', {})
 
-        flow_token = f'sub-{uuid.uuid4()}-ph-{sender_phone}'
+        _waba_suffix = '1' if phone_number_id == PHONE_NUMBER_ID_1 else '2'
+        flow_token = f'subscribe-{uuid.uuid4()}-waba-{_waba_suffix}-ph-{sender_phone}'
         interactive_data = {
             'body': msg.get('body', '\U0001f4cb Subscribe to WECARE.DIGITAL \u2014 fill in your details to get started with orders, payments, and updates.'),
             'footer': msg.get('footer', 'WECARE.DIGITAL'),
@@ -3936,7 +3940,8 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                 return
 
         # ── Phone 1: send WhatsApp Flow interactive message ──
-        flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-ph-{sender_phone}'
+        _waba_suffix = '1' if phone_number_id == PHONE_NUMBER_ID_1 else '2'
+        flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-waba-{_waba_suffix}-ph-{sender_phone}'
 
         # All flows use data_exchange so backend receives form submissions
         flow_action = 'data_exchange'

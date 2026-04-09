@@ -1,6 +1,7 @@
 /**
  * WhatsApp Flow Responses
  * View submit requests and flow interaction logs from WhatsApp Flows
+ * Supports per-flow filtering via flowCode dropdown
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
@@ -12,15 +13,25 @@ interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
   const toast = useToastContext();
-  const [activeSection, setActiveSection] = useState<'requests' | 'logs'>('requests');
+  const [activeSection, setActiveSection] = useState<'requests' | 'submissions' | 'logs'>('submissions');
   const [requests, setRequests] = useState<api.SubmitRequest[]>([]);
+  const [submissions, setSubmissions] = useState<api.FlowSubmissionItem[]>([]);
   const [logs, setLogs] = useState<api.FlowLog[]>([]);
+  const [registry, setRegistry] = useState<api.FlowRegistryItem[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [subsLoading, setSubsLoading] = useState(false);
   const [logsLoading, setLogsLoading] = useState(false);
   const [phoneFilter, setPhoneFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [flowCodeFilter, setFlowCodeFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
   const [requestsError, setRequestsError] = useState<string | null>(null);
   const [logsError, setLogsError] = useState<string | null>(null);
+
+  // Load flow registry for dropdown
+  useEffect(() => {
+    api.listFlowRegistry().then(setRegistry).catch(() => {});
+  }, []);
 
   const loadRequests = useCallback(async () => {
     setRequestsLoading(true);
@@ -35,6 +46,20 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
     }
     setRequestsLoading(false);
   }, [statusFilter, toast]);
+
+  const loadSubmissions = useCallback(async () => {
+    setSubsLoading(true);
+    try {
+      setSubmissions(await api.listFlowSubmissions({
+        flowCode: flowCodeFilter || undefined,
+        status: statusFilter || undefined,
+        paymentStatus: paymentFilter || undefined,
+      }));
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to load submissions');
+    }
+    setSubsLoading(false);
+  }, [flowCodeFilter, statusFilter, paymentFilter, toast]);
 
   const loadLogs = useCallback(async () => {
     setLogsLoading(true);
@@ -52,8 +77,9 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
   useEffect(() => {
     if (activeSection === 'requests') loadRequests();
+    else if (activeSection === 'submissions') loadSubmissions();
     else loadLogs();
-  }, [activeSection, loadRequests, loadLogs]);
+  }, [activeSection, loadRequests, loadSubmissions, loadLogs]);
 
   const formatDate = (ts: number) => {
     if (!ts) return '-';
@@ -62,7 +88,9 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      pending: '#1a3a2a', paid: '#1a3a2a', completed: '#1a3a2a', failed: '#1a3a2a', expired: '#9ca3af',
+      pending: '#f59e0b', paid: '#10b981', captured: '#10b981', completed: '#10b981',
+      failed: '#ef4444', expired: '#9ca3af', none: '#6b7280', open: '#3b82f6',
+      in_progress: '#f59e0b', resolved: '#10b981', closed: '#6b7280', cancelled: '#ef4444',
     };
     return (
       <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: colors[status] || '#6b7280' }}>
@@ -70,6 +98,17 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
       </span>
     );
   };
+
+  const getWabaBadge = (flowToken: string) => {
+    if (!flowToken) return <span style={{ color: '#9ca3af', fontSize: 11 }}>—</span>;
+    const isPhone2 = flowToken.includes('-waba-2-');
+    const isPhone1 = flowToken.includes('-waba-1-');
+    if (isPhone2) return <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, color: '#fff', background: '#7c3aed' }}>Phone 2</span>;
+    if (isPhone1) return <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, color: '#fff', background: '#2563eb' }}>Phone 1</span>;
+    return <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, color: '#fff', background: '#9ca3af' }}>Legacy</span>;
+  };
+
+  const formatPaise = (p: number) => p ? `₹${(p / 100).toFixed(0)}` : '—';
 
   const content = (
     <>
@@ -79,17 +118,92 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
 
         {/* Section Tabs */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          <button onClick={() => setActiveSection('requests')}
-            style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === 'requests' ? '2px solid #1a3a2a' : '1px solid #ddd', background: activeSection === 'requests' ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === 'requests' ? 600 : 400 }}>
-            Submit Requests ({requests.length})
-          </button>
-          <button onClick={() => setActiveSection('logs')}
-            style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === 'logs' ? '2px solid #1a3a2a' : '1px solid #ddd', background: activeSection === 'logs' ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === 'logs' ? 600 : 400 }}>
-            Flow Interaction Logs ({logs.length})
-          </button>
+          {(['submissions', 'requests', 'logs'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveSection(tab)}
+              style={{ padding: '8px 16px', borderRadius: 6, border: activeSection === tab ? '2px solid #1a3a2a' : '1px solid #ddd', background: activeSection === tab ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: activeSection === tab ? 600 : 400 }}>
+              {tab === 'submissions' ? `Flow Submissions (${submissions.length})` : tab === 'requests' ? `Legacy Requests (${requests.length})` : `Interaction Logs (${logs.length})`}
+            </button>
+          ))}
         </div>
 
-        {/* SUBMIT REQUESTS */}
+        {/* FLOW SUBMISSIONS (new primary view) */}
+        {activeSection === 'submissions' && (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select value={flowCodeFilter} onChange={e => setFlowCodeFilter(e.target.value)}
+                style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+                <option value="">All Flows</option>
+                {registry.map(f => <option key={f.flowCode} value={f.flowCode}>{f.flowCode} — {f.flowName}</option>)}
+              </select>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+                <option value="">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+              <select value={paymentFilter} onChange={e => setPaymentFilter(e.target.value)}
+                style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+                <option value="">All Payment</option>
+                <option value="none">No Payment</option>
+                <option value="pending">Pending</option>
+                <option value="captured">Captured</option>
+                <option value="failed">Failed</option>
+              </select>
+              <button onClick={loadSubmissions} disabled={subsLoading}
+                style={{ padding: '6px 14px', border: '1px solid #ddd', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+                {subsLoading ? 'Loading...' : '↻ Refresh'}
+              </button>
+            </div>
+
+            {subsLoading && submissions.length === 0 ? (
+              <p style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading flow submissions...</p>
+            ) : submissions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
+                <p style={{ fontSize: 16 }}>No flow submissions found</p>
+                <p style={{ fontSize: 13 }}>Submissions appear here when users complete WhatsApp Flows</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 10px' }}>Phone</th>
+                      <th style={{ padding: '8px 10px' }}>Flow</th>
+                      <th style={{ padding: '8px 10px' }}>Ref #</th>
+                      <th style={{ padding: '8px 10px' }}>Subject</th>
+                      <th style={{ padding: '8px 10px' }}>Status</th>
+                      <th style={{ padding: '8px 10px' }}>Payment</th>
+                      <th style={{ padding: '8px 10px' }}>Amount</th>
+                      <th style={{ padding: '8px 10px' }}>WABA</th>
+                      <th style={{ padding: '8px 10px' }}>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map(s => (
+                      <tr key={s.submissionId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>{s.phone || '-'}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '1px 6px', borderRadius: 9999, fontSize: 11 }}>{s.flowCode}</span>
+                        </td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11 }}>{s.submissionNumber || '-'}</td>
+                        <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject || s.requestType || '-'}</td>
+                        <td style={{ padding: '8px 10px' }}>{getStatusBadge(s.status)}</td>
+                        <td style={{ padding: '8px 10px' }}>{getStatusBadge(s.paymentStatus)}</td>
+                        <td style={{ padding: '8px 10px' }}>{formatPaise(s.paymentAmount || 0)}</td>
+                        <td style={{ padding: '8px 10px' }}>{getWabaBadge((s as any).flowToken || '')}</td>
+                        <td style={{ padding: '8px 10px', fontSize: 12, color: '#666' }}>{formatDate(s.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* LEGACY SUBMIT REQUESTS */}
         {activeSection === 'requests' && (
           <div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
@@ -132,6 +246,8 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
                       <th style={{ padding: '8px 10px' }}>Order ID</th>
                       <th style={{ padding: '8px 10px' }}>Subject</th>
                       <th style={{ padding: '8px 10px' }}>Payment</th>
+                      <th style={{ padding: '8px 10px' }}>Amount</th>
+                      <th style={{ padding: '8px 10px' }}>WABA</th>
                       <th style={{ padding: '8px 10px' }}>Created</th>
                     </tr>
                   </thead>
@@ -145,6 +261,8 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
                         <td style={{ padding: '8px 10px' }}>{req.orderId || '-'}</td>
                         <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.subject || '-'}</td>
                         <td style={{ padding: '8px 10px' }}>{getStatusBadge(req.paymentStatus)}</td>
+                        <td style={{ padding: '8px 10px' }}>{formatPaise((req as any).paymentAmount || 0)}</td>
+                        <td style={{ padding: '8px 10px' }}>{getWabaBadge((req as any).flowToken || '')}</td>
                         <td style={{ padding: '8px 10px', fontSize: 12, color: '#666' }}>{formatDate(req.createdAt)}</td>
                       </tr>
                     ))}
