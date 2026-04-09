@@ -4,9 +4,30 @@
  * 16 tabs covering frontend, backend, infra, AWS, storage, dependencies, risks.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
+
+interface PageProps { signOut?: () => void; user?: any; }
+
+// ─── Auto-Refresh Hook ───
+function useAutoRefresh(intervalMs = 60000) {
+  const [lastRefresh, setLastRefresh] = useState(() => new Date());
+  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (isAutoRefresh) {
+      timerRef.current = setInterval(() => setLastRefresh(new Date()), intervalMs);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [isAutoRefresh, intervalMs]);
+
+  const refresh = useCallback(() => setLastRefresh(new Date()), []);
+  const toggleAutoRefresh = useCallback(() => setIsAutoRefresh(prev => !prev), []);
+
+  return { lastRefresh, isAutoRefresh, refresh, toggleAutoRefresh };
+}
 
 interface PageProps { signOut?: () => void; user?: any; }
 
@@ -92,22 +113,24 @@ const DB_TABLES: TableDef[] = [
   { name: 'TemplateAnalytics', purpose: 'WhatsApp template send/delivery tracking', keyFields: 'id', indexes: 'templateName', usedBy: 'template-analytics', category: 'WhatsApp' },
   { name: 'SubmitRequest', purpose: 'WhatsApp Flow submit request submissions', keyFields: 'id', indexes: 'phone, orderId, paymentStatus, paymentReferenceId', usedBy: 'inbound-whatsapp-handler', category: 'Payments' },
   { name: 'ConversationHistory', purpose: 'AI conversation context per phone hash', keyFields: 'phoneHash', indexes: '-', usedBy: 'ai-generate-response', category: 'AI' },
-  { name: 'FlowDefinition', purpose: 'WhatsApp Flow definitions', keyFields: 'flowId', indexes: '-', usedBy: 'inbound-whatsapp-handler', category: 'WhatsApp' },
-  { name: 'FlowSubmission', purpose: 'WhatsApp Flow submission records', keyFields: 'id', indexes: 'flowId, contactId', usedBy: 'inbound-whatsapp-handler', category: 'WhatsApp' },
-  { name: 'FlowLog', purpose: 'WhatsApp Flow interaction logs', keyFields: 'id', indexes: 'flowId', usedBy: 'inbound-whatsapp-handler', category: 'WhatsApp' },
+  { name: 'WixOrderId', purpose: 'Wix order ID to WD-ORD number mapping', keyFields: 'wixOrderId', indexes: 'wdOrderNumber', usedBy: 'wix-store', category: 'Ecommerce' },
+  { name: 'FlowRegistry', purpose: 'WhatsApp Flow config registry (type, payment, screens, A/B)', keyFields: 'flowId', indexes: 'flowCode, wabaId, category, status', usedBy: 'inbound-whatsapp-handler', category: 'Flows' },
+  { name: 'FlowSubmission', purpose: 'All flow submissions (generic, all flow types)', keyFields: 'submissionId', indexes: 'phone, flowCode, paymentStatus, paymentRefId, submissionNumber, status, orderId, flowId', usedBy: 'inbound-whatsapp-handler', category: 'Flows' },
+  { name: 'FlowLog', purpose: 'Audit trail for every flow screen interaction', keyFields: 'logId', ttl: '90d', indexes: 'phone, flowId, flowCode', usedBy: 'inbound-whatsapp-handler', category: 'Flows' },
   { name: 'Invoice', purpose: 'Invoice records', keyFields: 'invoiceId', indexes: 'contactId, status', usedBy: 'invoice-engine', category: 'Payments' },
   { name: 'InvoiceItem', purpose: 'Invoice line items', keyFields: 'invoiceId + itemId', indexes: '-', usedBy: 'invoice-engine', category: 'Payments' },
   { name: 'InvoiceAsset', purpose: 'Invoice generated assets (PNG/PDF)', keyFields: 'assetId', indexes: 'invoiceId', usedBy: 'invoice-engine', category: 'Payments' },
+  { name: 'InvoiceDeliveryLog', purpose: 'Invoice delivery tracking (WhatsApp/email)', keyFields: 'id', indexes: 'invoiceId', usedBy: 'invoice-engine', category: 'Payments' },
+  { name: 'InvoiceSequence', purpose: 'Auto-increment invoice number per FY', keyFields: 'fy', indexes: '-', usedBy: 'invoice-engine', category: 'Payments' },
   { name: 'InvoicePayment', purpose: 'Invoice payment tracking', keyFields: 'id', indexes: 'invoiceId', usedBy: 'invoice-engine, razorpay-webhook', category: 'Payments' },
-  { name: 'FiscalYear', purpose: 'Fiscal year configuration', keyFields: 'yearId', indexes: '-', usedBy: 'invoice-engine', category: 'Payments' },
-  { name: 'AdClickAttribution', purpose: 'Click-to-WhatsApp ad tracking', keyFields: 'id', indexes: 'adId', usedBy: 'ad-attribution', category: 'Analytics' },
-  { name: 'MetaAnalyticsLog', purpose: 'Meta conversation analytics logs', keyFields: 'id', indexes: '-', usedBy: 'meta-analytics', category: 'Analytics' },
-  { name: 'RazorpayWebhookLog', purpose: 'Razorpay webhook event log', keyFields: 'id', ttl: '180d', indexes: '-', usedBy: 'razorpay-webhook', category: 'Payments' },
-  { name: 'PayUWebhookLog', purpose: 'PayU webhook event log', keyFields: 'id', ttl: '180d', indexes: '-', usedBy: 'payu-webhook', category: 'Payments' },
-  { name: 'WebhookDedup', purpose: 'Webhook deduplication tracker', keyFields: 'id', ttl: 'short', indexes: '-', usedBy: 'inbound-whatsapp-handler', category: 'Core' },
-  { name: 'SystemEvent', purpose: 'System event log', keyFields: 'id', ttl: 'short', indexes: '-', usedBy: 'system-cleanup', category: 'Core' },
-  { name: 'CatalogCache', purpose: 'WhatsApp catalog cache', keyFields: 'id', ttl: 'short', indexes: '-', usedBy: 'catalog-management', category: 'Ecommerce' },
   { name: 'WixOrderMapping', purpose: 'Wix order to contact mapping', keyFields: 'id', indexes: '-', usedBy: 'wix-store', category: 'Ecommerce' },
+  { name: 'AdClickAttribution', purpose: 'Click-to-WhatsApp ad tracking', keyFields: 'id', ttl: '180d', indexes: 'adId, contactId', usedBy: 'ad-attribution', category: 'Analytics' },
+  { name: 'MetaAnalyticsLog', purpose: 'Meta conversation analytics logs', keyFields: 'id', indexes: '-', usedBy: 'meta-analytics', category: 'Analytics' },
+  { name: 'RazorpayWebhookLog', purpose: 'Razorpay webhook event log', keyFields: 'id', ttl: '180d', indexes: 'paymentId, eventType', usedBy: 'razorpay-webhook', category: 'Payments' },
+  { name: 'PayUWebhookLog', purpose: 'PayU webhook event log', keyFields: 'id', ttl: '180d', indexes: 'paymentId, txnId, eventType', usedBy: 'payu-webhook', category: 'Payments' },
+  { name: 'WebhookDedup', purpose: 'Webhook idempotency tracking', keyFields: 'eventId', ttl: '7d', indexes: '-', usedBy: 'inbound-whatsapp-handler', category: 'Core' },
+  { name: 'SystemEvent', purpose: 'Persistent system event log', keyFields: 'id', ttl: '180d', indexes: 'eventType, wabaId', usedBy: 'system-cleanup', category: 'Core' },
+  { name: 'CatalogCache', purpose: 'WhatsApp Commerce catalog cache', keyFields: 'id', ttl: '7d', indexes: 'catalogId, retailerId', usedBy: 'catalog-management', category: 'Ecommerce' },
 ];
 
 // ─── Data: Lambda Functions ───
@@ -382,8 +405,8 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/store', label: 'Store', backend: 'wix-store, catalog-management, product-image-gen', tables: 'WixProductsCache, WixOrdersCache, CatalogCache' },
   { path: '/access', label: 'Access Control', backend: 'auth-middleware', tables: 'User' },
   { path: '/link', label: 'URL Shortener', backend: 'url-shortener', tables: '-' },
-  { path: '/admin/lambda-functions', label: 'Lambda Admin', backend: '(static data)', tables: '-' },
-  { path: '/admin/system-architecture', label: 'System Architecture', backend: '(this page)', tables: '-' },
+  { path: '/dashboard/lambda-functions', label: 'Lambda Admin', backend: '(static data)', tables: '-' },
+  { path: '/dashboard/system-architecture', label: 'System Architecture', backend: '(this page)', tables: '-' },
   { path: '/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
 ];
 
@@ -472,10 +495,12 @@ function buildSearchIndex(): SearchEntry[] {
 }
 
 // ─── Last Scan Timestamp ───
-const LAST_SCAN = new Date().toISOString().slice(0, 16).replace('T', ' ');
+// Dynamic — updated by auto-refresh hook
 
 // ─── Main Component ───
 const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
+  const { lastRefresh, isAutoRefresh, refresh, toggleAutoRefresh } = useAutoRefresh(60000);
+  const LAST_SCAN = lastRefresh.toISOString().slice(0, 16).replace('T', ' ');
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [tableFilter, setTableFilter] = useState('All');
@@ -528,6 +553,18 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
     return searchIndex.filter(e => e.name.toLowerCase().includes(q) || e.detail.toLowerCase().includes(q) || e.category.toLowerCase().includes(q));
   }, [searchQuery, searchIndex]);
 
+  // Keyboard shortcut: Ctrl+K to jump to search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setActiveTab('search');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const tableCategories = useMemo(() => ['All', ...Array.from(new Set(DB_TABLES.map(t => t.category)))], []);
   const filteredTables = useMemo(() => tableFilter === 'All' ? DB_TABLES : DB_TABLES.filter(t => t.category === tableFilter), [tableFilter]);
 
@@ -541,7 +578,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {[
           { label: 'Lambda Functions', value: '42', color: C.greenBg, text: C.green },
-          { label: 'DynamoDB Tables', value: '41', color: C.blueBg, text: C.blue },
+          { label: 'DynamoDB Tables', value: `${DB_TABLES.length}`, color: C.blueBg, text: C.blue },
           { label: 'AWS Services', value: `${AWS_RESOURCES.length}`, color: C.amberBg, text: C.amber },
           { label: 'Frontend Routes', value: `${FRONTEND_ROUTES.length}`, color: '#f5f3ff', text: '#7c3aed' },
           { label: 'SQS Queues', value: '4', color: C.greenBg, text: C.green },
@@ -582,7 +619,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           </div>
           <div>
             <div style={label}>Database</div>
-            <div style={{ marginTop: 4 }}>DynamoDB (41 tables, PAY_PER_REQUEST)</div>
+            <div style={{ marginTop: 4 }}>DynamoDB ({DB_TABLES.length} tables, PAY_PER_REQUEST)</div>
           </div>
           <div>
             <div style={label}>Storage</div>
@@ -683,7 +720,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 │         ▼                           ▼                           ▼                   │
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐                       │
 │  │  DynamoDB     │    │  S3 Bucket        │    │  SQS Queues  │                       │
-│  │  (41 tables)  │    │  app.wecare.digital│    │  (4 queues)  │                       │
+│  │  (49 tables)  │    │  app.wecare.digital│    │  (4 queues)  │                       │
 │  └──────────────┘    └──────────────────┘    └──────────────┘                       │
 │                                                                                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
@@ -904,14 +941,16 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           { name: 'Operations (6): bulk-jobs, dlq, cleanup, billing' },
           { name: 'Ecommerce (3): wix-store, catalog, image-gen' },
         ]},
-        { name: '🗄️ Database — DynamoDB (41 tables)', children: [
-          { name: 'Core: Contact, Message, User, MediaFile, AuditLog, SystemConfig, ...' },
-          { name: 'WhatsApp: WhatsAppInbound, WhatsAppOutbound, WhatsAppVoice, WhatsAppCalling, ...' },
-          { name: 'SMS/Voice: SmsAws, AirtelSMS, VoiceCall, VoiceAws, AirtelC2C, VoiceCDR, ...' },
-          { name: 'Payments: Payment, Invoice, InvoiceItem, RazorpayWebhookLog, PayUWebhookLog, ...' },
-          { name: 'Ecommerce: WixProductsCache, WixOrdersCache, CatalogCache, ...' },
+        { name: '🗄️ Database — DynamoDB (' + DB_TABLES.length + ' tables)', children: [
+          { name: 'Core: Contact, Message, User, MediaFile, AuditLog, SystemConfig, WebhookDedup, ...' },
+          { name: 'WhatsApp: WhatsAppInbound, WhatsAppOutbound, WhatsAppVoice, WhatsAppCalling, WhatsAppGroup, ...' },
+          { name: 'SMS/Voice: SmsAws, AirtelSMS, VoiceCall, VoiceAws, AirtelC2C, VoiceCDR, OBDCampaign, DLTTemplates' },
+          { name: 'Payments: Payment, Invoice, InvoiceItem, InvoiceAsset, InvoiceDeliveryLog, InvoiceSequence, RazorpayWebhookLog, PayUWebhookLog' },
+          { name: 'Ecommerce: WixProductsCache, WixOrdersCache, WixOrderId, WixOrderMapping, CatalogCache' },
           { name: 'AI: AIInteraction, ConversationHistory' },
-          { name: 'Operations: BulkJob, BulkRecipient, DLQMessage, ScheduledMessage, ...' },
+          { name: 'Flows: FlowRegistry, FlowSubmission, FlowLog' },
+          { name: 'Operations: BulkJob, BulkRecipient, DLQMessage, ScheduledMessage, SystemEvent, ...' },
+          { name: 'Analytics: TemplateAnalytics, AdClickAttribution, MetaAnalyticsLog' },
         ]},
         { name: '📦 Storage — S3', children: [
           { name: 'app.wecare.digital', children: [
@@ -1057,7 +1096,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
         <input
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search tables, Lambda functions, AWS resources, routes, env vars, risks..."
+          placeholder="Search tables, Lambda functions, AWS resources, routes, env vars, risks... (Ctrl+K)"
           aria-label="Search system architecture"
           style={{ width: '100%', padding: '12px 16px 12px 40px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
           autoFocus
@@ -1469,11 +1508,17 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           <div>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.textDark }}>Project Control Center</h2>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textMuted }}>
-              Full system architecture — {LAMBDAS.length} Lambda functions · {DB_TABLES.length} tables · {AWS_RESOURCES.length} AWS resources
+              Full system architecture — {LAMBDAS.length} Lambda functions · {DB_TABLES.length} tables · {AWS_RESOURCES.length} AWS resources · {STORAGE_PATHS.length} storage paths
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={pill(C.greenBg, C.green)}>Last scan: {LAST_SCAN}</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={refresh} title="Refresh now" style={{ padding: '6px 12px', borderRadius: C.radius, border: `2px solid ${C.border}`, background: C.bg, color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              ↻ Refresh
+            </button>
+            <button onClick={toggleAutoRefresh} title={isAutoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'} style={{ padding: '6px 12px', borderRadius: C.radius, border: `2px solid ${isAutoRefresh ? C.borderActive : C.border}`, background: isAutoRefresh ? C.bgDark : C.bg, color: isAutoRefresh ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              {isAutoRefresh ? '⏱ Auto' : '⏸ Paused'}
+            </button>
+            <span style={pill(C.greenBg, C.green)}>Scan: {LAST_SCAN}</span>
           </div>
         </div>
 

@@ -26,6 +26,14 @@ export const navigationConfig: NavItem[] = [
     path: '/dashboard',
     label: 'Dashboard',
     icon: 'dashboard',
+    children: [
+      { path: '/dashboard', label: 'Overview', icon: 'dashboard' },
+      { path: '/dashboard/system-architecture', label: 'Control Center', icon: 'dashboard' },
+      { path: '/dashboard/admin', label: 'Admin', icon: 'settings' },
+      { path: '/dashboard/lambda-functions', label: 'Lambda Functions', icon: 'settings' },
+      { path: '/dashboard/code-repo', label: 'Code Repo', icon: 'settings' },
+      { path: '/dashboard/wa-auto-response', label: 'Auto Response', icon: 'settings' },
+    ],
   },
   {
     path: '/dm',
@@ -72,14 +80,6 @@ export const navigationConfig: NavItem[] = [
     path: '/link',
     label: 'Link',
     icon: 'link',
-  },
-  {
-    path: '/admin',
-    label: 'Admin',
-    icon: 'settings',
-    children: [
-      { path: '/admin/system-architecture', label: 'Control Center', icon: 'dashboard' },
-    ],
   },
   // Coming Soon section
   {
