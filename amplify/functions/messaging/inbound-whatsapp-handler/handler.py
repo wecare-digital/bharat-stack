@@ -5499,7 +5499,7 @@ DEFAULT_MAIN_MENU = {
             'rows': [
                 {'id': 'menu_selfservice', 'title': '\U0001f680 Selfservice', 'description': 'Requests, appointments, documents, and support'},
                 {'id': 'menu_subscribe', 'title': '\U0001f514 Subscribe for Updates', 'description': 'Get updates, offers, and service news'},
-                {'id': 'menu_find_id', 'title': '\U0001f194 Find Subscription / Profile ID', 'description': 'Locate your subscription or profile ID'},
+                {'id': 'menu_find_id', 'title': '\U0001f194 Find Profile ID', 'description': 'Locate your subscription or profile ID'},
                 {'id': 'menu_pay', 'title': '\U0001f4b3 Make a Payment', 'description': 'Pay an invoice or complete a pending payment'},
             ]
         },
