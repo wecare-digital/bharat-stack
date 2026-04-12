@@ -203,7 +203,7 @@
           {
             "type": "OptIn",
             "name": "same_for_billing",
-            "label": "Use this address as your billing address",
+            "label": "Use this address for billing",
             "required": true
           },
           {
