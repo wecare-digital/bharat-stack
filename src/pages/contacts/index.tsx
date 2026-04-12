@@ -273,6 +273,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const [formFloorNumber, setFormFloorNumber] = useState('');
   const [formCountry, setFormCountry] = useState('India');
   const [formGstin, setFormGstin] = useState('');
+  const [formCompanyName, setFormCompanyName] = useState('');
+  const [formDesignation, setFormDesignation] = useState('');
   const [formCountryCode, setFormCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
@@ -465,6 +467,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormTowerNumber(''); setFormFloorNumber('');
     setFormCountry('India');
     setFormGstin('');
+    setFormCompanyName(''); setFormDesignation('');
     setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
     setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
   };
@@ -513,6 +516,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         towerNumber: formTowerNumber || undefined, floorNumber: formFloorNumber || undefined,
         country: formCountry || undefined,
         gstin: formGstin || undefined,
+        companyName: formCompanyName || undefined,
+        designation: formDesignation || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
       } as any);
@@ -555,6 +560,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
     setFormTowerNumber(contact.towerNumber || ''); setFormFloorNumber(contact.floorNumber || '');
     setFormCountry(contact.country || 'India');
     setFormGstin((contact as any).gstin || '');
+    setFormCompanyName(contact.companyName || '');
+    setFormDesignation(contact.designation || '');
     setFormOptInWA(contact.optInWhatsApp || false); setFormOptInSms(contact.optInSms || false); setFormOptInEmail(contact.optInEmail || false);
     setFormAllowlistWA(contact.allowlistWhatsApp || false); setFormAllowlistSms(contact.allowlistSms || false); setFormAllowlistEmail(contact.allowlistEmail || false);
     setShowEditModal(true);
@@ -584,6 +591,8 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         towerNumber: formTowerNumber || undefined, floorNumber: formFloorNumber || undefined,
         country: formCountry || undefined,
         gstin: formGstin || undefined,
+        companyName: formCompanyName || undefined,
+        designation: formDesignation || undefined,
         optInWhatsApp: formOptInWA, optInSms: formOptInSms, optInEmail: formOptInEmail,
         allowlistWhatsApp: formAllowlistWA, allowlistSms: formAllowlistSms, allowlistEmail: formAllowlistEmail,
       } as any);
@@ -859,6 +868,16 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
       <div>
         <label htmlFor="contact-book-name" style={S.label}>Contact Book Name <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 11 }}>(auto from Meta)</span></label>
         <input id="contact-book-name" style={{ ...S.input, background: '#f9fafb', color: '#6b7280' }} value={formContactBookName} onChange={e => setFormContactBookName(e.target.value)} placeholder="Enter company name" onFocus={focusStyle} onBlur={blurStyle} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <label style={S.label}>Organization</label>
+          <input style={S.input} value={formCompanyName} onChange={e => setFormCompanyName(e.target.value)} placeholder="Enter organization name" onFocus={focusStyle} onBlur={blurStyle} />
+        </div>
+        <div>
+          <label style={S.label}>Designation</label>
+          <input style={S.input} value={formDesignation} onChange={e => setFormDesignation(e.target.value)} placeholder="Enter role or job title" onFocus={focusStyle} onBlur={blurStyle} />
+        </div>
       </div>
       {/* Shipping + Billing row */}
       <div style={S.row}>
@@ -1266,6 +1285,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                 </div>
                 {[
                   { label: 'Email', value: detailContact.email },
+                  { label: 'Organization', value: detailContact.companyName },
+                  { label: 'Designation', value: detailContact.designation },
+                  { label: 'GSTIN', value: (detailContact as any).gstin },
                   { label: 'BSUID', value: detailContact.bsuid },
                   { label: 'Parent BSUID', value: detailContact.parentBsuid },
                   { label: 'Username', value: detailContact.username },
