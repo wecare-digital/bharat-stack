@@ -164,7 +164,7 @@ def _extract_shipping(data: Dict) -> Dict:
 
 
 def _extract_billing(data: Dict, ship: Dict) -> Dict:
-    same = data.get('same_as_ship', False)
+    same = data.get('same_for_billing', False) or data.get('same_as_ship', False)
     bill = {
         'name': ship['name'], 'phone_number': ship['phone_number'],
         'address': data.get('bill_street', '') or (ship['address'] if same else ''),
