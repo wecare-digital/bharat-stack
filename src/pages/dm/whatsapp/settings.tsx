@@ -144,9 +144,9 @@ const WhatsAppSettingsPage: React.FC<PageProps> = ({ signOut, user }) => (
   <Layout user={user} onSignOut={signOut}>
     <PageShell
       title="WhatsApp"
-      subtitle="Business API — Messaging, Campaigns, Templates & More"
+      subtitle="Business API — Messaging, Campaigns, Templates, Bot Menu & More"
       tabs={TABS}
-      defaultTab="auto-response"
+      defaultTab="bot-menu"
     >
       {(activeTab) => (
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
