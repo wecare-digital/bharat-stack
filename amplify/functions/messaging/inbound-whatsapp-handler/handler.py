@@ -5221,8 +5221,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'enroll', 'enrol', 'subscribe for updates', 'updates', '/subscribe',
             '\U0001f514 subscribe for updates',
         ],
-        'flowId': '1112566051931271',
-        'flowId2': '1886481288717319',
+        'flowId': '1260659006190210',
+        'flowId2': '4429197177312296',
         'message': {
             'body': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
             'footer': 'WECARE.DIGITAL',
