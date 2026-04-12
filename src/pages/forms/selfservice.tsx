@@ -21,7 +21,7 @@ const FLOW_TYPES = [
   { key: 'rx_slot', label: 'RX Slot', icon: '💊', flowId: '1892784521355352', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Appointment confirmation' },
   { key: 'drop_docs', label: 'Drop Docs', icon: '📄', flowId: '1737801600902350', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Document receipt' },
   { key: 'enterprise_assist', label: 'Enterprise Assist', icon: '🏢', flowId: '2132515287534606', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Enquiry acknowledgement' },
-  { key: 'schedule_appointment', label: 'Schedule Appointment', icon: '📅', flowId: '1475722977488573', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Appointment confirmation' },
+  { key: 'schedule_appointment', label: 'Appointment', icon: '📅', flowId: '1475722977488573', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Appointment confirmation' },
   { key: 'leave_review', label: 'Leave Review', icon: '⭐', flowId: '963443293213262', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Thank you message' },
   { key: 'order_notes', label: 'Order Notes', icon: '📝', flowId: '727503180451487', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Notes saved confirmation' },
 ];
