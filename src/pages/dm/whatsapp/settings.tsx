@@ -30,8 +30,98 @@ interface PageProps {
   user?: any;
 }
 
+// ─── Bot Menu & Selfservice Menu Data ───
+const BOT_MENU = [
+  { row: 1, section: 'Start Here', icon: '🚀', title: 'Selfservice', description: 'Requests, appointments, documents, and support', action: 'Opens Self-service list' },
+  { row: 2, section: 'Start Here', icon: '🔔', title: 'Subscribe for Updates', description: 'Get updates, offers, and service news', action: 'Opens subscribe form' },
+  { row: 3, section: 'Start Here', icon: '🆔', title: 'Find Subscription / Profile ID', description: 'Locate your subscription or profile ID', action: 'Opens ID lookup' },
+  { row: 4, section: 'Start Here', icon: '💳', title: 'Make a Payment', description: 'Pay an invoice or complete a pending payment', action: 'Opens payment lookup' },
+  { row: 5, section: 'Explore WECARE', icon: '🛍️', title: 'Explore Store', description: 'Browse services, brands, and offers', action: 'CTA link → wecare.digital' },
+  { row: 6, section: 'Explore WECARE', icon: '🎁', title: 'Gift Cards', description: 'Send a digital gift card', action: 'CTA link → wecare.digital/gift-card' },
+  { row: 7, section: 'Explore WECARE', icon: '🇮🇳', title: 'Bharat Stack', description: 'Discover Bharat Stack and services', action: 'Info text + evolving services' },
+  { row: 8, section: 'Help & Answers', icon: '❓', title: 'FAQs', description: 'Find answers to common questions', action: 'CTA link → wecare.digital/faq' },
+  { row: 9, section: 'Help & Answers', icon: '💛', title: 'About WECARE.DIGITAL', description: 'Learn more about WECARE.DIGITAL', action: 'CTA link → wecare.digital' },
+];
+
+const SELFSERVICE_MENU = [
+  { row: 1, section: 'New Request', icon: '📋', title: 'Submit Request', description: 'Start a new support request', flowId: '931522532810297', keywords: 'submit request, sr, raise request' },
+  { row: 2, section: 'Request Status', icon: '🔍', title: 'Track Request', description: 'Check the status of your request', flowId: '973888792200167', keywords: 'track request, track, status' },
+  { row: 3, section: 'Existing Request', icon: '✏️', title: 'Amend Request', description: 'Edit or correct a submitted request', flowId: '1533536534833353', keywords: 'amend request, amend, change' },
+  { row: 4, section: 'Schedule', icon: '📅', title: 'Appointment', description: 'Schedule a consultation or service visit', flowId: '1475722977488573', keywords: 'appointment, schedule, meeting' },
+  { row: 5, section: 'Medical Tourism', icon: '💊', title: 'RX Slot', description: 'Schedule a medical tourism or prescription-related visit', flowId: '1892784521355352', keywords: 'rx slot, rx, prescription' },
+  { row: 6, section: 'Documents', icon: '📄', title: 'Drop Docs', description: 'Send supporting documents for your request', flowId: '1737801600902350', keywords: 'drop docs, documents, upload' },
+  { row: 7, section: 'Business Support', icon: '🏢', title: 'Enterprise Assist', description: 'Corporate, B2B, and bulk enquiries', flowId: '2132515287534606', keywords: 'enterprise, b2b, corporate' },
+  { row: 8, section: 'Feedback', icon: '⭐', title: 'Leave Review', description: 'Share your experience with our service', flowId: '963443293213262', keywords: 'review, feedback, rate' },
+  { row: 9, section: 'Help', icon: '❓', title: 'FAQ', description: 'View frequently asked questions', flowId: '-', keywords: 'faq, help, questions' },
+];
+
+const pill = (bg: string, color: string): React.CSSProperties => ({
+  display: 'inline-block', padding: '2px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: bg, color,
+});
+
+// ─── Bot Menu Tab Component ───
+const BotMenuTab: React.FC = () => (
+  <div style={{ padding: '0 4px' }}>
+    {/* Main Bot Menu */}
+    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1a3a2a', margin: '0 0 6px' }}>WhatsApp Bot Menu (Persistent Menu)</h3>
+    <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 14px' }}>9 menu items across 3 sections — shown when users open the WhatsApp chat.</p>
+    <div style={{ overflowX: 'auto', marginBottom: 28 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+            {['#', 'Section', 'Title', 'Description', 'Action'].map(h => (
+              <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {BOT_MENU.map(m => (
+            <tr key={m.row} style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <td style={{ padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>{m.row}</td>
+              <td style={{ padding: '8px 10px' }}>
+                <span style={pill(m.section === 'Start Here' ? '#f0fdf4' : m.section === 'Explore WECARE' ? '#eff6ff' : '#fffbeb', m.section === 'Start Here' ? '#059669' : m.section === 'Explore WECARE' ? '#2563eb' : '#d97706')}>{m.section}</span>
+              </td>
+              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#1a3a2a' }}>{m.icon} {m.title}</td>
+              <td style={{ padding: '8px 10px', color: '#374151' }}>{m.description}</td>
+              <td style={{ padding: '8px 10px', color: '#6b7280', fontSize: 12 }}>{m.action}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Selfservice Sub-Menu */}
+    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1a3a2a', margin: '0 0 6px' }}>🚀 Selfservice Menu (Interactive List)</h3>
+    <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 14px' }}>9 options shown when user taps "🚀 Selfservice". Each row triggers a WhatsApp Flow.</p>
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+            {['#', 'Section', 'Title', 'Description', 'Flow ID', 'Keywords'].map(h => (
+              <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {SELFSERVICE_MENU.map(m => (
+            <tr key={m.row} style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <td style={{ padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>{m.row}</td>
+              <td style={{ padding: '8px 10px' }}><span style={pill('#f9fafb', '#6b7280')}>{m.section}</span></td>
+              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#1a3a2a' }}>{m.icon} {m.title}</td>
+              <td style={{ padding: '8px 10px', color: '#374151' }}>{m.description}</td>
+              <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#6b7280' }}>{m.flowId}</td>
+              <td style={{ padding: '8px 10px', fontSize: 11, color: '#6b7280' }}>{m.keywords}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
 const TABS: ShellTab[] = [
   { id: 'auto-response', label: 'Auto-Response' },
+  { id: 'bot-menu', label: 'Bot Menu' },
   { id: 'scripts', label: 'Scripts' },
   { id: 'campaign', label: 'Campaign' },
   { id: 'templates', label: 'Templates' },
@@ -61,6 +151,7 @@ const WhatsAppSettingsPage: React.FC<PageProps> = ({ signOut, user }) => (
       {(activeTab) => (
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
           {activeTab === 'auto-response' && <AutoResponsePage signOut={signOut} user={user} embedded />}
+          {activeTab === 'bot-menu' && <BotMenuTab />}
           {activeTab === 'scripts' && <ScriptsPage signOut={signOut} user={user} embedded />}
           {activeTab === 'campaign' && <CampaignPage signOut={signOut} user={user} embedded />}
           {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}

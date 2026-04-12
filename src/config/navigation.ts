@@ -1,7 +1,7 @@
 /**
  * Navigation Configuration - WECARE.DIGITAL
  * Centralized sidebar navigation with nested items
- * Updated: 2026-02-15
+ * Updated: 2026-04-12
  */
 
 export interface NavSubItem {
@@ -27,12 +27,11 @@ export const navigationConfig: NavItem[] = [
     label: 'Dashboard',
     icon: 'dashboard',
     children: [
-      { path: '/dashboard', label: 'Overview', icon: 'dashboard' },
-      { path: '/dashboard/system-architecture', label: 'Control Center', icon: 'dashboard' },
-      { path: '/dashboard/admin', label: 'Admin', icon: 'settings' },
-      { path: '/dashboard/lambda-functions', label: 'Lambda Functions', icon: 'settings' },
-      { path: '/dashboard/code-repo', label: 'Code Repo', icon: 'settings' },
-      { path: '/dashboard/wa-auto-response', label: 'Auto Response', icon: 'settings' },
+      { path: '/dashboard', label: 'Overview' },
+      { path: '/dashboard/system-architecture', label: 'Control Center' },
+      { path: '/dashboard/lambda-functions', label: 'Lambda Functions' },
+      { path: '/dashboard/code-repo', label: 'Code Repo' },
+      { path: '/dashboard/wa-auto-response', label: 'Auto Response' },
     ],
   },
   {
@@ -42,40 +41,14 @@ export const navigationConfig: NavItem[] = [
     children: [
       { path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
         { path: '/dm/whatsapp', label: 'Inbox' },
-        { path: '/dm/whatsapp/templates', label: 'Templates' },
-        { path: '/dm/whatsapp/campaign', label: 'Campaign' },
-        { path: '/dm/whatsapp/flows', label: 'Flows' },
-        { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub' },
-        { path: '/dm/whatsapp/flow-responses', label: 'Flow Responses' },
-        { path: '/dm/whatsapp/calling', label: 'Calling' },
-        { path: '/dm/whatsapp/groups', label: 'Groups' },
-        { path: '/dm/whatsapp/interactive-lists', label: 'Interactive Lists' },
-        { path: '/dm/whatsapp/scripts', label: 'Scripts' },
-        { path: '/dm/whatsapp/welcome', label: 'Welcome' },
-        { path: '/dm/whatsapp/auto-response', label: 'Auto Response' },
-        { path: '/dm/whatsapp/ai-config', label: 'AI Config' },
-        { path: '/dm/whatsapp/waba-dashboard', label: 'WABA Dashboard' },
-        { path: '/dm/whatsapp/business-profile', label: 'Business Profile' },
-        { path: '/dm/whatsapp/webhooks', label: 'Webhooks' },
-        { path: '/dm/whatsapp/migration', label: 'Migration' },
-        { path: '/dm/whatsapp/logs', label: 'Logs' },
         { path: '/dm/whatsapp/settings', label: 'Settings' },
       ] },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },
       { path: '/dm/voice', label: 'Voice', icon: 'voice' },
       { path: '/dm/voice-in', label: 'Voice In', icon: 'voice' },
-      { path: '/dm/ses', label: 'Email', icon: 'email', children: [
-        { path: '/dm/ses', label: 'Inbox' },
-        { path: '/dm/ses/campaign', label: 'Campaign' },
-        { path: '/dm/ses/logs', label: 'Logs' },
-      ] },
-      { path: '/dm/rcs', label: 'RCS', icon: 'rcs', children: [
-        { path: '/dm/rcs', label: 'Inbox' },
-        { path: '/dm/rcs/campaign', label: 'Campaign' },
-        { path: '/dm/rcs/logs', label: 'Logs' },
-      ] },
+      { path: '/dm/ses', label: 'Email', icon: 'email' },
+      { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
       { path: '/dm/push', label: 'Push', icon: 'push' },
-      { path: '/dm/logs', label: 'Logs', icon: 'settings' },
     ],
   },
   {
@@ -104,31 +77,23 @@ export const navigationConfig: NavItem[] = [
     icon: 'access',
   },
   {
-    path: '/contact-test',
-    label: 'Design Reference',
-    icon: 'form',
-  },
-  {
     path: '/link',
     label: 'Link',
     icon: 'link',
-    children: [
-      { path: '/link', label: 'Links' },
-      { path: '/link/create', label: 'Create' },
-      { path: '/link/logs', label: 'Logs' },
-    ],
   },
-  // Coming Soon section
   {
     path: '/forms',
     label: 'Forms',
     icon: 'form',
-    badge: 'Soon',
-    sectionLabel: 'Coming Soon',
     children: [
-      { path: '/forms', label: 'Forms Builder', icon: 'form' },
-      { path: '/forms/selfservice', label: 'Self-Service', icon: 'checklist' },
+      { path: '/forms', label: 'Forms Builder' },
+      { path: '/forms/selfservice', label: 'Self-Service' },
     ],
+  },
+  {
+    path: '/faq',
+    label: 'FAQ',
+    icon: 'form',
   },
   {
     path: '/task',

@@ -443,8 +443,8 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/link', label: 'URL Shortener', backend: 'url-shortener', tables: '-' },
   { path: '/link/create', label: 'Create Link', backend: 'url-shortener', tables: '-' },
   { path: '/link/logs', label: 'Link Logs', backend: 'url-shortener', tables: '-' },
-  { path: '/forms', label: 'Forms', backend: '(coming soon)', tables: '-' },
-  { path: '/forms/selfservice', label: 'Self-Service', backend: '(coming soon)', tables: '-' },
+  { path: '/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
+  { path: '/forms/selfservice', label: 'Self-Service Hub', backend: 'whatsapp-business-api, inbound-whatsapp-handler', tables: 'FlowRegistry, FlowSubmission, FlowLog, SubmitRequest' },
   { path: '/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
   { path: '/crm', label: 'CRM', backend: '(planned)', tables: '-' },
   { path: '/studio', label: 'Studio', backend: '(planned)', tables: '-' },
@@ -538,6 +538,16 @@ const CODE_ASSETS: CodeAsset[] = [
   // WhatsApp Flows
   { id: 'flow-sr', category: 'WhatsApp Flows', name: 'WD_SR_PAY — Submit Request', description: 'Multi-screen flow for order service requests with ₹49 payment.', path: 'amplify/functions/messaging/whatsapp-business-api/flows/submit-request-flow.json', type: 'Flow JSON', status: 'Published' },
   { id: 'flow-sub', category: 'WhatsApp Flows', name: 'WD Subscribe', description: 'Subscription flow collecting name, phone, email, company, shipping + billing address.', path: 'amplify/functions/messaging/whatsapp-business-api/flows/subscribe-flow.json', type: 'Flow JSON', status: 'Published' },
+  // Selfservice Flows (9 WhatsApp Flows triggered from interactive list)
+  { id: 'ss-submit', category: 'Selfservice Flows', name: '📋 Submit Request', description: 'Start a new support request with optional ₹49 payment.', path: 'Flow ID: 931522532810297', type: 'WA Flow', status: 'Published' },
+  { id: 'ss-track', category: 'Selfservice Flows', name: '🔍 Track Request', description: 'Check the status of an existing request by order ID.', path: 'Flow ID: 973888792200167', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-amend', category: 'Selfservice Flows', name: '✏️ Amend Request', description: 'Edit or correct a previously submitted request.', path: 'Flow ID: 1533536534833353', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-appt', category: 'Selfservice Flows', name: '📅 Appointment', description: 'Schedule a consultation or service visit.', path: 'Flow ID: 1475722977488573', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-rx', category: 'Selfservice Flows', name: '💊 RX Slot', description: 'Schedule a medical tourism or prescription-related visit.', path: 'Flow ID: 1892784521355352', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-docs', category: 'Selfservice Flows', name: '📄 Drop Docs', description: 'Send supporting documents for a request.', path: 'Flow ID: 1737801600902350', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-enterprise', category: 'Selfservice Flows', name: '🏢 Enterprise Assist', description: 'Corporate, B2B, and bulk enquiries.', path: 'Flow ID: 2132515287534606', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-review', category: 'Selfservice Flows', name: '⭐ Leave Review', description: 'Share experience and feedback.', path: 'Flow ID: 963443293213262', type: 'WA Flow', status: 'Draft' },
+  { id: 'ss-faq', category: 'Selfservice Flows', name: '❓ FAQ', description: 'View frequently asked questions.', path: '/faq', type: 'Page Link', status: 'Active' },
   // Frontend Pages
   { id: 'p-dashboard', category: 'Frontend Pages', name: 'Dashboard Overview', description: 'Main analytics dashboard with billing, conversation metrics.', path: 'src/pages/dashboard/index.tsx', type: 'Page' },
   { id: 'p-control', category: 'Frontend Pages', name: 'Project Control Center', description: '18-tab system architecture dashboard — single source of truth.', path: 'src/pages/dashboard/system-architecture.tsx', type: 'Page' },
@@ -613,6 +623,20 @@ const BOT_MENU: BotMenuItem[] = [
   { row: 9, section: 'Help & Answers', icon: '💛', title: 'About WECARE.DIGITAL', description: 'Learn more about WECARE.DIGITAL', action: 'CTA link → wecare.digital' },
 ];
 
+// ─── Data: Selfservice Sub-Menu (WhatsApp Flow Interactive List) ───
+interface SelfserviceItem { row: number; section: string; icon: string; title: string; description: string; flowId: string; keywords: string; }
+const SELFSERVICE_MENU: SelfserviceItem[] = [
+  { row: 1, section: 'New Request', icon: '📋', title: 'Submit Request', description: 'Start a new support request', flowId: '931522532810297', keywords: 'submit request, sr, raise request' },
+  { row: 2, section: 'Request Status', icon: '🔍', title: 'Track Request', description: 'Check the status of your request', flowId: '973888792200167', keywords: 'track request, track, status' },
+  { row: 3, section: 'Existing Request', icon: '✏️', title: 'Amend Request', description: 'Edit or correct a submitted request', flowId: '1533536534833353', keywords: 'amend request, amend, change' },
+  { row: 4, section: 'Schedule', icon: '📅', title: 'Appointment', description: 'Schedule a consultation or service visit', flowId: '1475722977488573', keywords: 'appointment, schedule, meeting' },
+  { row: 5, section: 'Medical Tourism', icon: '💊', title: 'RX Slot', description: 'Schedule a medical tourism or prescription-related visit', flowId: '1892784521355352', keywords: 'rx slot, rx, prescription' },
+  { row: 6, section: 'Documents', icon: '📄', title: 'Drop Docs', description: 'Send supporting documents for your request', flowId: '1737801600902350', keywords: 'drop docs, documents, upload' },
+  { row: 7, section: 'Business Support', icon: '🏢', title: 'Enterprise Assist', description: 'Corporate, B2B, and bulk enquiries', flowId: '2132515287534606', keywords: 'enterprise, b2b, corporate' },
+  { row: 8, section: 'Feedback', icon: '⭐', title: 'Leave Review', description: 'Share your experience with our service', flowId: '963443293213262', keywords: 'review, feedback, rate' },
+  { row: 9, section: 'Help', icon: '❓', title: 'FAQ', description: 'View frequently asked questions', flowId: '-', keywords: 'faq, help, questions' },
+];
+
 // ─── Searchable Index ───
 interface SearchEntry { type: string; name: string; detail: string; category: string; }
 function buildSearchIndex(): SearchEntry[] {
@@ -627,6 +651,7 @@ function buildSearchIndex(): SearchEntry[] {
   RISKS.forEach(r => entries.push({ type: 'Risk', name: r.title, detail: r.description, category: r.category }));
   IMPROVEMENTS.forEach(i => entries.push({ type: 'Improvement', name: i.title, detail: i.description, category: i.category }));
   BOT_MENU.forEach(m => entries.push({ type: 'Bot Menu', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section }));
+  SELFSERVICE_MENU.forEach(m => entries.push({ type: 'Selfservice', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section }));
   return entries;
 }
 
@@ -721,6 +746,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           { label: 'S3 Paths', value: `${STORAGE_PATHS.length}`, color: C.blueBg, text: C.blue },
           { label: 'Dependencies', value: `${DEPENDENCIES.length}`, color: C.amberBg, text: C.amber },
           { label: 'Bot Menu Items', value: `${BOT_MENU.length}`, color: '#f5f3ff', text: '#7c3aed' },
+          { label: 'Selfservice Flows', value: `${SELFSERVICE_MENU.length}`, color: C.greenBg, text: C.green },
           { label: 'Risks Found', value: `${RISKS.length}`, color: C.redBg, text: C.red },
         ].map(s => (
           <div key={s.label} style={statCard(s.color, s.text)}>
@@ -827,6 +853,34 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
                   <td style={{ padding: '8px 10px', fontWeight: 600, color: C.textDark }}>{m.icon} {m.title}</td>
                   <td style={{ padding: '8px 10px', color: C.text }}>{m.description}</td>
                   <td style={{ padding: '8px 10px', color: C.textMuted, fontSize: 12 }}>{m.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* Selfservice Sub-Menu */}
+      <div style={card()}>
+        <h3 style={sectionTitle}>🚀 Selfservice Menu (WhatsApp Interactive List)</h3>
+        <p style={{ fontSize: 13, color: C.textMuted, margin: '0 0 12px' }}>9 self-service options — triggered when user taps "🚀 Selfservice" from the bot menu. Each row opens a WhatsApp Flow.</p>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                {['#', 'Section', 'Title', 'Description', 'Flow ID', 'Keywords'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {SELFSERVICE_MENU.map(m => (
+                <tr key={m.row} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: '8px 10px', color: C.textMuted, fontWeight: 600 }}>{m.row}</td>
+                  <td style={{ padding: '8px 10px' }}><span style={pill('#f9fafb', C.textMuted)}>{m.section}</span></td>
+                  <td style={{ padding: '8px 10px', fontWeight: 600, color: C.textDark }}>{m.icon} {m.title}</td>
+                  <td style={{ padding: '8px 10px', color: C.text }}>{m.description}</td>
+                  <td style={{ padding: '8px 10px', ...mono, fontSize: 11, color: C.textMuted }}>{m.flowId}</td>
+                  <td style={{ padding: '8px 10px', fontSize: 11, color: C.textMuted }}>{m.keywords}</td>
                 </tr>
               ))}
             </tbody>
