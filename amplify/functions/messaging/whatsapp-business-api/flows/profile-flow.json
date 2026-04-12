@@ -1,5 +1,5 @@
 {
-  "version": "7.4",
+  "version": "7.3",
   "data_api_version": "4.0",
   "routing_model": {
     "PERSONAL_INFO": [
@@ -204,13 +204,7 @@
             "type": "OptIn",
             "name": "same_for_billing",
             "label": "Use this address as your billing address",
-            "required": true,
-            "on-select-action": {
-              "name": "update_data",
-              "payload": {
-                "same_for_billing": true
-              }
-            }
+            "required": true
           },
           {
             "type": "Footer",
@@ -368,7 +362,31 @@
           },
           {
             "type": "TextBody",
-            "text": "${data.ship_house}, ${data.ship_building}, ${data.ship_street}, ${data.ship_city}, ${data.ship_state}, ${data.ship_pin}, ${data.ship_country}"
+            "text": "${data.ship_house}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_building}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_street}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_city}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_state}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_pin}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.ship_country}"
           },
           {
             "type": "TextCaption",
