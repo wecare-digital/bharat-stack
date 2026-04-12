@@ -171,7 +171,7 @@ const LAMBDAS: LambdaDef[] = [
   { name: 'razorpay-webhook', category: 'Payments', trigger: 'API GW Webhook', tables: 'RazorpayWebhookLog, Payment, InvoicePayment', description: 'Razorpay payment webhook', apiRoute: '/webhook/razorpay' },
   { name: 'payu-webhook', category: 'Payments', trigger: 'API GW Webhook', tables: 'PayUWebhookLog', description: 'PayU payment webhook', apiRoute: '/webhook/payu' },
   { name: 'payments-read', category: 'Payments', trigger: 'API Gateway', tables: 'Payment', description: 'Read payment records', apiRoute: '/payments' },
-  { name: 'invoice-engine', category: 'Payments', trigger: 'API Gateway', tables: 'Invoice, InvoiceItem, InvoiceAsset, InvoicePayment, FiscalYear', description: 'Invoice creation & PDF generation', apiRoute: '/invoices' },
+  { name: 'invoice-engine', category: 'Payments', trigger: 'API Gateway', tables: 'Invoice, InvoiceItem, InvoiceAsset, InvoicePayment, InvoiceDeliveryLog, InvoiceSequence', description: 'Invoice creation & PDF generation', apiRoute: '/invoices' },
   { name: 'bulk-job-create', category: 'Operations', trigger: 'API Gateway', tables: 'BulkJob, BulkRecipient', description: 'Create bulk messaging jobs', apiRoute: '/bulk/create' },
   { name: 'bulk-job-control', category: 'Operations', trigger: 'API Gateway', tables: 'BulkJob', description: 'Pause/resume/cancel bulk jobs', apiRoute: '/bulk/control' },
   { name: 'bulk-worker', category: 'Operations', trigger: 'SQS', tables: 'BulkRecipient', description: 'Process bulk message queue items', apiRoute: '-' },
@@ -190,7 +190,7 @@ const AWS_RESOURCES: AWSResource[] = [
   { name: 'us-east-1:471c2c38-...', type: 'Cognito Identity Pool', purpose: 'Federated identity for AWS access', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
   { name: 'api.wecare.digital', type: 'API Gateway (REST)', purpose: 'Main API endpoint for all Lambda functions', module: 'All', env: 'Production', status: 'Active', risk: '' },
   { name: 'app.wecare.digital', type: 'S3 Bucket', purpose: 'Media storage, invoices, voice, static assets', module: 'Storage', env: 'Production', status: 'Active', risk: '' },
-  { name: '41 DynamoDB Tables', type: 'DynamoDB', purpose: 'Primary database (PAY_PER_REQUEST)', module: 'Data', env: 'Production', status: 'Active', risk: '' },
+  { name: DB_TABLES.length + ' DynamoDB Tables', type: 'DynamoDB', purpose: 'Primary database (PAY_PER_REQUEST)', module: 'Data', env: 'Production', status: 'Active', risk: '' },
   { name: '42 Lambda Functions', type: 'Lambda', purpose: 'Backend compute (Python 3.12)', module: 'Backend', env: 'Production', status: 'Active', risk: '' },
   { name: 'stack-wecare-digital-bulk-queue', type: 'SQS Queue', purpose: 'Bulk message job processing', module: 'Operations', env: 'Production', status: 'Active', risk: '' },
   { name: 'stack-wecare-digital-inbound-dlq', type: 'SQS DLQ', purpose: 'Failed inbound message processing', module: 'Operations', env: 'Production', status: 'Active', risk: '' },
@@ -393,27 +393,73 @@ const ENV_VARS: EnvVar[] = [
 // ─── Data: Frontend Routes ───
 interface FrontendRoute { path: string; label: string; backend: string; tables: string; }
 const FRONTEND_ROUTES: FrontendRoute[] = [
-  { path: '/dashboard', label: 'Dashboard', backend: 'billing, meta-analytics', tables: 'MetaAnalyticsLog' },
+  // Dashboard
+  { path: '/dashboard', label: 'Dashboard Overview', backend: 'billing, meta-analytics', tables: 'MetaAnalyticsLog' },
+  { path: '/dashboard/system-architecture', label: 'Project Control Center', backend: '(this page)', tables: '-' },
+  { path: '/dashboard/admin', label: 'Admin', backend: '(redirect → Control Center)', tables: '-' },
+  { path: '/dashboard/lambda-functions', label: 'Lambda Functions', backend: '(static data)', tables: '-' },
+  { path: '/dashboard/code-repo', label: 'Code Repo', backend: '(static data)', tables: '-' },
+  { path: '/dashboard/wa-auto-response', label: 'WA Auto Response', backend: 'ai-config-management', tables: 'SystemConfig, ConversationHistory' },
+  // WhatsApp
   { path: '/dm/whatsapp', label: 'WhatsApp Inbox', backend: 'messages-read, inbound-whatsapp, outbound-whatsapp', tables: 'WhatsAppInbound, WhatsAppOutbound, Contact' },
-  { path: '/dm/sms', label: 'SMS', backend: 'outbound-sms, sms-aws, sms-in', tables: 'SmsAws, AirtelSMS' },
-  { path: '/dm/voice', label: 'Voice', backend: 'outbound-voice, voice-aws, voice-in, voice-cdr-read', tables: 'VoiceCall, VoiceAws, AirtelC2C, VoiceCDR' },
+  { path: '/dm/whatsapp/templates', label: 'WA Templates', backend: 'whatsapp-templates, whatsapp-template-management', tables: 'TemplateAnalytics' },
+  { path: '/dm/whatsapp/campaign', label: 'WA Campaign', backend: 'outbound-whatsapp, bulk-job-create', tables: 'BulkJob, BulkRecipient, WhatsAppOutbound' },
+  { path: '/dm/whatsapp/flows', label: 'WA Flows', backend: 'whatsapp-business-api', tables: 'FlowRegistry, FlowSubmission' },
+  { path: '/dm/whatsapp/flow-hub', label: 'WA Flow Hub', backend: 'whatsapp-business-api', tables: 'FlowRegistry, FlowSubmission, FlowLog' },
+  { path: '/dm/whatsapp/flow-responses', label: 'WA Flow Responses', backend: 'inbound-whatsapp-handler', tables: 'FlowSubmission, FlowLog, SubmitRequest' },
+  { path: '/dm/whatsapp/calling', label: 'WA Calling', backend: 'whatsapp-calling', tables: 'WhatsAppCalling' },
+  { path: '/dm/whatsapp/groups', label: 'WA Groups', backend: 'waba-management', tables: 'WhatsAppGroup' },
+  { path: '/dm/whatsapp/interactive-lists', label: 'WA Interactive Lists', backend: 'outbound-whatsapp', tables: '-' },
+  { path: '/dm/whatsapp/scripts', label: 'WA Scripts', backend: 'outbound-whatsapp', tables: '-' },
+  { path: '/dm/whatsapp/welcome', label: 'WA Welcome', backend: 'outbound-whatsapp', tables: 'Contact' },
+  { path: '/dm/whatsapp/auto-response', label: 'WA Auto Response', backend: 'ai-generate-response, ai-config-management', tables: 'ConversationHistory, SystemConfig' },
+  { path: '/dm/whatsapp/ai-config', label: 'WA AI Config', backend: 'ai-config-management', tables: 'SystemConfig' },
+  { path: '/dm/whatsapp/waba-dashboard', label: 'WABA Dashboard', backend: 'waba-management, meta-analytics', tables: 'MetaAnalyticsLog' },
+  { path: '/dm/whatsapp/business-profile', label: 'WA Business Profile', backend: 'whatsapp-business-api', tables: '-' },
+  { path: '/dm/whatsapp/webhooks', label: 'WA Webhooks', backend: 'inbound-whatsapp-handler', tables: 'WebhookDedup, SystemEvent' },
+  { path: '/dm/whatsapp/migration', label: 'WA Migration', backend: 'waba-management', tables: '-' },
+  { path: '/dm/whatsapp/logs', label: 'WA Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound' },
+  { path: '/dm/whatsapp/settings', label: 'WA Settings', backend: 'waba-management', tables: 'SystemConfig' },
+  // SMS
+  { path: '/dm/sms', label: 'SMS', backend: 'outbound-sms, sms-aws, sms-in', tables: 'SmsAws, AirtelSMS, DLTTemplates' },
+  // Voice
+  { path: '/dm/voice', label: 'Voice Out', backend: 'outbound-voice, voice-aws', tables: 'VoiceCall, VoiceAws' },
+  { path: '/dm/voice-in', label: 'Voice In', backend: 'voice-in, voice-cdr-read', tables: 'AirtelC2C, VoiceCDR, OBDCampaign' },
+  // Email / RCS / Push
   { path: '/dm/ses', label: 'Email', backend: 'outbound-email', tables: '-' },
+  { path: '/dm/ses/campaign', label: 'Email Campaign', backend: 'outbound-email, bulk-job-create', tables: 'BulkJob' },
   { path: '/dm/rcs', label: 'RCS', backend: '(planned)', tables: '-' },
+  { path: '/dm/rcs/campaign', label: 'RCS Campaign', backend: '(planned)', tables: '-' },
   { path: '/dm/push', label: 'Push', backend: 'push-notifications', tables: '-' },
-  { path: '/pay', label: 'Payments', backend: 'payments-read, razorpay-webhook, payu-webhook, invoice-engine', tables: 'Payment, Invoice, InvoiceItem, RazorpayWebhookLog' },
+  { path: '/dm/logs', label: 'Message Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound, SmsAws' },
+  // Pay
+  { path: '/pay', label: 'Payments', backend: 'payments-read, razorpay-webhook, payu-webhook, invoice-engine', tables: 'Payment, Invoice, InvoiceItem, RazorpayWebhookLog, PayUWebhookLog' },
+  { path: '/pay/flow', label: 'Pay Flow', backend: 'invoice-engine, razorpay-webhook', tables: 'Invoice, InvoiceItem, InvoicePayment, InvoiceDeliveryLog' },
+  { path: '/pay/link', label: 'Pay Link', backend: 'invoice-engine', tables: 'Invoice, InvoiceSequence' },
+  // Other
   { path: '/contacts', label: 'Contacts', backend: 'contacts', tables: 'Contact' },
-  { path: '/store', label: 'Store', backend: 'wix-store, catalog-management, product-image-gen', tables: 'WixProductsCache, WixOrdersCache, CatalogCache' },
+  { path: '/store', label: 'Store', backend: 'wix-store, catalog-management, product-image-gen', tables: 'WixProductsCache, WixOrdersCache, CatalogCache, WixOrderId' },
   { path: '/access', label: 'Access Control', backend: 'auth-middleware', tables: 'User' },
   { path: '/link', label: 'URL Shortener', backend: 'url-shortener', tables: '-' },
-  { path: '/dashboard/lambda-functions', label: 'Lambda Admin', backend: '(static data)', tables: '-' },
-  { path: '/dashboard/system-architecture', label: 'System Architecture', backend: '(this page)', tables: '-' },
+  { path: '/link/create', label: 'Create Link', backend: 'url-shortener', tables: '-' },
+  { path: '/link/logs', label: 'Link Logs', backend: 'url-shortener', tables: '-' },
+  { path: '/forms', label: 'Forms', backend: '(coming soon)', tables: '-' },
+  { path: '/forms/selfservice', label: 'Self-Service', backend: '(coming soon)', tables: '-' },
   { path: '/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
+  { path: '/crm', label: 'CRM', backend: '(planned)', tables: '-' },
+  { path: '/studio', label: 'Studio', backend: '(planned)', tables: '-' },
+  { path: '/task', label: 'Task', backend: '(coming soon)', tables: '-' },
 ];
 
 // ─── Data: Code Map ───
 interface CodeFolder { path: string; purpose: string; files: string; linkedTo: string; }
 const CODE_MAP: CodeFolder[] = [
-  { path: 'src/pages/', purpose: 'Next.js page routes (Pages Router)', files: '~25 pages', linkedTo: 'Frontend routing' },
+  { path: 'src/pages/', purpose: 'Next.js page routes (Pages Router)', files: '~50 pages', linkedTo: 'Frontend routing' },
+  { path: 'src/pages/dashboard/', purpose: 'Dashboard + Admin + Control Center', files: '6 pages', linkedTo: '/dashboard/*' },
+  { path: 'src/pages/dm/whatsapp/', purpose: 'WhatsApp messaging pages (21 sub-pages)', files: '21 pages', linkedTo: '/dm/whatsapp/*' },
+  { path: 'src/pages/dm/', purpose: 'Multi-channel messaging (SMS, Voice, Email, RCS, Push)', files: '~15 pages', linkedTo: '/dm/*' },
+  { path: 'src/pages/pay/', purpose: 'Payment pages (overview, flow, link)', files: '3 pages', linkedTo: '/pay/*' },
+  { path: 'src/pages/link/', purpose: 'URL shortener (list, create, logs)', files: '3 pages', linkedTo: '/link/*' },
   { path: 'src/components/', purpose: 'Reusable UI components', files: '~25 components', linkedTo: 'All pages' },
   { path: 'src/components/ui/', purpose: 'Base UI primitives (Button, Modal, Tabs, Table)', files: '~10 components', linkedTo: 'All pages' },
   { path: 'src/components/dashboard/', purpose: 'Dashboard-specific widgets', files: '~5 components', linkedTo: '/dashboard' },
@@ -424,7 +470,7 @@ const CODE_MAP: CodeFolder[] = [
   { path: 'src/hooks/', purpose: 'Custom hooks (keyboard, notifications, WebRTC)', files: '~3 files', linkedTo: 'Various pages' },
   { path: 'src/styles/', purpose: 'CSS modules and design tokens', files: '~8 files', linkedTo: 'All components' },
   { path: 'amplify/auth/', purpose: 'Cognito auth configuration', files: '1 file', linkedTo: 'Cognito User Pool' },
-  { path: 'amplify/data/', purpose: 'DynamoDB schema (41 tables)', files: '1 file', linkedTo: 'DynamoDB' },
+  { path: 'amplify/data/', purpose: 'DynamoDB schema (49 tables)', files: '1 file', linkedTo: 'DynamoDB' },
   { path: 'amplify/storage/', purpose: 'S3 storage + SQS queue config', files: '1 file', linkedTo: 'S3, SQS' },
   { path: 'amplify/functions/ai/', purpose: 'AI Lambda functions (4)', files: '4 dirs', linkedTo: 'Bedrock, DynamoDB' },
   { path: 'amplify/functions/core/', purpose: 'Core Lambda functions (6)', files: '6 dirs', linkedTo: 'DynamoDB, S3' },
@@ -457,26 +503,115 @@ const LAMBDA_DETAILED: LambdaDetailed[] = [
   { name: 'wecare-payu-webhook', displayName: 'PayU Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'PayU payment webhook handler', apiRoute: '/webhook/payu', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PayUWebhookLogTable' }, triggers: ['API Gateway (Webhook)'], status: 'active' },
   { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway'], status: 'active' },
   { name: 'wecare-wix-store', displayName: 'Wix Store', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Wix ecommerce integration', apiRoute: '/store/wix', envVars: { WIX_API_KEY: '(env var)', WIX_SITE_ID: '(env var)' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-catalog-management', displayName: 'Catalog Management', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WhatsApp Commerce catalog sync', apiRoute: '/catalog', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-product-image-gen', displayName: 'Product Image Gen', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'AI product image generation via Bedrock', apiRoute: '/store/image-gen', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-whatsapp-voice', displayName: 'WhatsApp Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'TTS voice notes via Polly, audio processing', apiRoute: '/whatsapp-voice', envVars: { VOICE_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-whatsapp-templates', displayName: 'WhatsApp Templates', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template CRUD via Meta Graph API', apiRoute: '/whatsapp/templates', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-whatsapp-template-mgmt', displayName: 'Template Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Advanced template operations', apiRoute: '/whatsapp/template-mgmt', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-whatsapp-business-api', displayName: 'WhatsApp Business API', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Meta Graph API wrapper — flows, payments, checkout', apiRoute: '/whatsapp/api', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-waba-management', displayName: 'WABA Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WABA config, phone management, groups', apiRoute: '/waba', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-sms-aws', displayName: 'SMS AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS Pinpoint SMS handler', apiRoute: '/sms-aws', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: ['API Gateway', 'SNS'], status: 'active' },
+  { name: 'wecare-sms-in', displayName: 'SMS In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel inbound SMS webhook', apiRoute: '/webhook/sms-in', envVars: {}, triggers: ['API Gateway (Webhook)'], status: 'active' },
+  { name: 'wecare-voice-aws', displayName: 'Voice AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS voice call handler', apiRoute: '/voice-aws', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceAwsTable' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-voice-in', displayName: 'Voice In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Airtel voice webhooks — C2C, OBD, CDR', apiRoute: '/webhook/voice-*', envVars: {}, triggers: ['API Gateway (Webhook)'], status: 'active' },
+  { name: 'wecare-voice-cdr-read', displayName: 'Voice CDR Read', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read voice CDR records', apiRoute: '/voice-cdr', envVars: { CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-template-analytics', displayName: 'Template Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template performance metrics', apiRoute: '/whatsapp/template-analytics', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-meta-analytics', displayName: 'Meta Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Meta conversation analytics', apiRoute: '/meta-analytics', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-media-cleanup', displayName: 'Media Cleanup', category: 'Messaging', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'Clean up expired media from S3', apiRoute: '-', envVars: { MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['EventBridge Daily'], status: 'active' },
+  { name: 'wecare-ad-attribution', displayName: 'Ad Attribution', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Click-to-WhatsApp ad tracking', apiRoute: '/ad-attribution', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-push-notifications', displayName: 'Push Notifications', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Web push notification delivery', apiRoute: '/push', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-ai-query-kb', displayName: 'AI Query KB', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Query Bedrock Knowledge Base', apiRoute: '/ai/query', envVars: { KB_ID: '(env var)' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-ai-config-management', displayName: 'AI Config Management', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Manage AI/bot configuration', apiRoute: '/ai/config', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-agent-action-group', displayName: 'Agent Action Group', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Bedrock Agent action group handler', apiRoute: '-', envVars: {}, triggers: ['Bedrock Agent'], status: 'active' },
+  { name: 'wecare-payments-read', displayName: 'Payments Read', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read payment records', apiRoute: '/payments', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PaymentTable' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-bulk-job-create', displayName: 'Bulk Job Create', category: 'Operations', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Create bulk messaging jobs', apiRoute: '/bulk/create', envVars: { BULK_TABLE: 'stack-wecare-digital-BulkJobTable' }, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-bulk-job-control', displayName: 'Bulk Job Control', category: 'Operations', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Pause/resume/cancel bulk jobs', apiRoute: '/bulk/control', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-dlq-replay', displayName: 'DLQ Replay', category: 'Operations', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Replay failed messages from DLQ', apiRoute: '/dlq/replay', envVars: {}, triggers: ['API Gateway'], status: 'active' },
+  { name: 'wecare-system-cleanup', displayName: 'System Cleanup', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'TTL cleanup and maintenance', apiRoute: '-', envVars: {}, triggers: ['EventBridge Daily'], status: 'active' },
+  { name: 'wecare-billing', displayName: 'Billing', category: 'Operations', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS billing and usage tracking', apiRoute: '/billing', envVars: {}, triggers: ['API Gateway', 'EventBridge'], status: 'active' },
 ];
 const LAMBDA_DETAIL_CATEGORIES = ['All', ...Array.from(new Set(LAMBDA_DETAILED.map(l => l.category)))];
 
 // ─── Data: Code Repository Assets ───
 interface CodeAsset { id: string; category: string; name: string; description: string; path: string; type: string; status?: string; }
 const CODE_ASSETS: CodeAsset[] = [
+  // WhatsApp Flows
   { id: 'flow-sr', category: 'WhatsApp Flows', name: 'WD_SR_PAY — Submit Request', description: 'Multi-screen flow for order service requests with ₹49 payment.', path: 'amplify/functions/messaging/whatsapp-business-api/flows/submit-request-flow.json', type: 'Flow JSON', status: 'Published' },
-  { id: 'flow-sub', category: 'WhatsApp Flows', name: 'WD Subscribe', description: 'Subscription flow collecting name, phone, email, company, shipping + billing address.', path: 'amplify/functions/messaging/whatsapp-business-api/flows/subscribe-flow.json', type: 'Flow JSON', status: 'Draft' },
+  { id: 'flow-sub', category: 'WhatsApp Flows', name: 'WD Subscribe', description: 'Subscription flow collecting name, phone, email, company, shipping + billing address.', path: 'amplify/functions/messaging/whatsapp-business-api/flows/subscribe-flow.json', type: 'Flow JSON', status: 'Published' },
+  // Frontend Pages
+  { id: 'p-dashboard', category: 'Frontend Pages', name: 'Dashboard Overview', description: 'Main analytics dashboard with billing, conversation metrics.', path: 'src/pages/dashboard/index.tsx', type: 'Page' },
+  { id: 'p-control', category: 'Frontend Pages', name: 'Project Control Center', description: '18-tab system architecture dashboard — single source of truth.', path: 'src/pages/dashboard/system-architecture.tsx', type: 'Page' },
+  { id: 'p-wa-inbox', category: 'Frontend Pages', name: 'WhatsApp Inbox', description: 'Real-time WhatsApp message inbox with contact sidebar.', path: 'src/pages/dm/whatsapp/index.tsx', type: 'Page' },
+  { id: 'p-wa-templates', category: 'Frontend Pages', name: 'WhatsApp Templates', description: 'Template management — create, edit, send, analytics.', path: 'src/pages/dm/whatsapp/templates.tsx', type: 'Page' },
+  { id: 'p-wa-flows', category: 'Frontend Pages', name: 'WhatsApp Flows', description: 'Flow builder and management for WhatsApp Business Flows.', path: 'src/pages/dm/whatsapp/flows.tsx', type: 'Page' },
+  { id: 'p-wa-flowhub', category: 'Frontend Pages', name: 'Flow Hub', description: 'Centralized flow registry, submissions, and analytics.', path: 'src/pages/dm/whatsapp/flow-hub.tsx', type: 'Page' },
+  { id: 'p-wa-calling', category: 'Frontend Pages', name: 'WhatsApp Calling', description: 'Voice/video call logs and WebRTC integration.', path: 'src/pages/dm/whatsapp/calling.tsx', type: 'Page' },
+  { id: 'p-wa-groups', category: 'Frontend Pages', name: 'WhatsApp Groups', description: 'Group management — create, participants, messaging.', path: 'src/pages/dm/whatsapp/groups.tsx', type: 'Page' },
+  { id: 'p-pay', category: 'Frontend Pages', name: 'Payments', description: 'Payment dashboard — Razorpay + PayU transactions.', path: 'src/pages/pay/index.tsx', type: 'Page' },
+  { id: 'p-pay-flow', category: 'Frontend Pages', name: 'Pay Flow', description: 'WhatsApp payment flow — invoice + collect via chat.', path: 'src/pages/pay/flow/index.tsx', type: 'Page' },
+  { id: 'p-contacts', category: 'Frontend Pages', name: 'Contacts', description: 'Contact management with opt-in, addresses, BSUID.', path: 'src/pages/contacts/index.tsx', type: 'Page' },
+  { id: 'p-store', category: 'Frontend Pages', name: 'Store', description: 'Wix store integration — products, orders, catalog.', path: 'src/pages/store/index.tsx', type: 'Page' },
+  // Core Lambdas
   { id: 'l-auth', category: 'Core Lambdas', name: 'Auth Middleware', description: 'Cognito JWT validation, API Gateway authorizer.', path: 'amplify/functions/core/auth-middleware/handler.py', type: 'Lambda' },
   { id: 'l-contacts', category: 'Core Lambdas', name: 'Contacts', description: 'CRUD for contacts with structured addresses.', path: 'amplify/functions/core/contacts/handler.py', type: 'Lambda' },
+  { id: 'l-msg-read', category: 'Core Lambdas', name: 'Messages Read', description: 'Read messages from all channels with media pre-signed URLs.', path: 'amplify/functions/core/messages-read/handler.py', type: 'Lambda' },
+  { id: 'l-msg-del', category: 'Core Lambdas', name: 'Messages Delete', description: 'Delete messages by ID from inbound/outbound tables.', path: 'amplify/functions/core/messages-delete/handler.py', type: 'Lambda' },
+  { id: 'l-faq', category: 'Core Lambdas', name: 'FAQ Handler', description: 'FAQ auto-response engine from SystemConfig.', path: 'amplify/functions/core/faq-handler/handler.py', type: 'Lambda' },
+  { id: 'l-url', category: 'Core Lambdas', name: 'URL Shortener', description: 'Short link creation and redirect (r.wecare.digital).', path: 'amplify/functions/core/url-shortener/handler.py', type: 'Lambda' },
+  // WhatsApp Lambdas
   { id: 'l-inbound', category: 'WhatsApp Lambdas', name: 'Inbound WhatsApp', description: 'Main webhook handler — messages, keyword triggers, flow routing, AI, media.', path: 'amplify/functions/messaging/inbound-whatsapp-handler/handler.py', type: 'Lambda' },
   { id: 'l-outbound', category: 'WhatsApp Lambdas', name: 'Outbound WhatsApp', description: 'Send WhatsApp messages — text, media, interactive, templates, flows.', path: 'amplify/functions/messaging/outbound-whatsapp/handler.py', type: 'Lambda' },
   { id: 'l-wa-biz', category: 'WhatsApp Lambdas', name: 'WhatsApp Business API', description: 'Meta Graph API wrapper — flows, payments, checkout, business profile.', path: 'amplify/functions/messaging/whatsapp-business-api/handler.py', type: 'Lambda' },
+  { id: 'l-wa-calling', category: 'WhatsApp Lambdas', name: 'WhatsApp Calling', description: 'Voice/video call webhook handler and SDP relay.', path: 'amplify/functions/messaging/whatsapp-calling/handler.py', type: 'Lambda' },
+  { id: 'l-wa-voice', category: 'WhatsApp Lambdas', name: 'WhatsApp Voice', description: 'TTS voice notes via Polly, audio message processing.', path: 'amplify/functions/messaging/whatsapp-voice/handler.py', type: 'Lambda' },
+  { id: 'l-wa-tmpl', category: 'WhatsApp Lambdas', name: 'WhatsApp Templates', description: 'Template CRUD via Meta Graph API.', path: 'amplify/functions/messaging/whatsapp-templates/handler.py', type: 'Lambda' },
+  { id: 'l-wa-tmpl-mgmt', category: 'WhatsApp Lambdas', name: 'Template Management', description: 'Advanced template operations — clone, analytics, bulk.', path: 'amplify/functions/messaging/whatsapp-template-management/handler.py', type: 'Lambda' },
+  { id: 'l-waba', category: 'WhatsApp Lambdas', name: 'WABA Management', description: 'WABA config, phone management, group operations.', path: 'amplify/functions/messaging/waba-management/handler.py', type: 'Lambda' },
+  // Messaging Lambdas
+  { id: 'l-sms-out', category: 'Messaging Lambdas', name: 'Outbound SMS', description: 'Send SMS via Pinpoint and Airtel.', path: 'amplify/functions/messaging/outbound-sms/handler.py', type: 'Lambda' },
+  { id: 'l-email', category: 'Messaging Lambdas', name: 'Outbound Email', description: 'Send email via Amazon SES.', path: 'amplify/functions/messaging/outbound-email/handler.py', type: 'Lambda' },
+  { id: 'l-voice-out', category: 'Messaging Lambdas', name: 'Outbound Voice', description: 'Initiate voice calls via AWS/Airtel.', path: 'amplify/functions/messaging/outbound-voice/handler.py', type: 'Lambda' },
+  { id: 'l-sms-in', category: 'Messaging Lambdas', name: 'SMS In (Airtel)', description: 'Airtel inbound SMS webhook handler.', path: 'amplify/functions/messaging/sms-in/handler.py', type: 'Lambda' },
+  { id: 'l-voice-in', category: 'Messaging Lambdas', name: 'Voice In (Airtel)', description: 'Airtel voice webhooks — C2C, OBD, CDR.', path: 'amplify/functions/messaging/voice-in/handler.py', type: 'Lambda' },
+  { id: 'l-scheduled', category: 'Messaging Lambdas', name: 'Scheduled Messages', description: 'Schedule and send messages at specific times.', path: 'amplify/functions/messaging/scheduled-messages/handler.py', type: 'Lambda' },
+  { id: 'l-push', category: 'Messaging Lambdas', name: 'Push Notifications', description: 'Web push notification delivery.', path: 'amplify/functions/messaging/push-notifications/handler.py', type: 'Lambda' },
+  // AI
   { id: 'l-ai-gen', category: 'AI', name: 'AI Generate Response', description: 'Generate AI responses using Bedrock Claude — context-aware, multi-turn.', path: 'amplify/functions/ai/ai-generate-response/handler.py', type: 'Lambda' },
+  { id: 'l-ai-kb', category: 'AI', name: 'AI Query KB', description: 'Query Bedrock Knowledge Base for FAQ answers.', path: 'amplify/functions/ai/ai-query-kb/handler.py', type: 'Lambda' },
+  { id: 'l-ai-config', category: 'AI', name: 'AI Config Management', description: 'Manage AI/bot configuration and auto-reply settings.', path: 'amplify/functions/ai/ai-config-management/handler.py', type: 'Lambda' },
+  { id: 'l-ai-agent', category: 'AI', name: 'Agent Action Group', description: 'Bedrock Agent action group handler for autonomous tasks.', path: 'amplify/functions/ai/agent-action-group/handler.py', type: 'Lambda' },
+  // Payments
   { id: 'l-razorpay', category: 'Payments', name: 'Razorpay Webhook', description: 'Razorpay payment webhook — capture, refund, dispute events.', path: 'amplify/functions/payments/razorpay-webhook/handler.py', type: 'Lambda' },
+  { id: 'l-payu', category: 'Payments', name: 'PayU Webhook', description: 'PayU payment webhook — UPI, card, netbanking events.', path: 'amplify/functions/payments/payu-webhook/handler.py', type: 'Lambda' },
+  { id: 'l-payments-read', category: 'Payments', name: 'Payments Read', description: 'Read payment records and transaction history.', path: 'amplify/functions/payments/payments-read/handler.py', type: 'Lambda' },
   { id: 'l-invoice', category: 'Payments', name: 'Invoice Engine', description: 'Invoice creation, PDF generation, WhatsApp delivery.', path: 'amplify/functions/payments/invoice-engine/handler.py', type: 'Lambda' },
+  // Operations
+  { id: 'l-bulk-create', category: 'Operations', name: 'Bulk Job Create', description: 'Create bulk messaging jobs with recipient lists.', path: 'amplify/functions/operations/bulk-job-create/handler.py', type: 'Lambda' },
+  { id: 'l-bulk-ctrl', category: 'Operations', name: 'Bulk Job Control', description: 'Pause, resume, cancel bulk jobs.', path: 'amplify/functions/operations/bulk-job-control/handler.py', type: 'Lambda' },
   { id: 'l-bulk', category: 'Operations', name: 'Bulk Worker', description: 'Process bulk job queue — send messages in batches with rate limiting.', path: 'amplify/functions/operations/bulk-worker/handler.py', type: 'Lambda' },
+  { id: 'l-dlq', category: 'Operations', name: 'DLQ Replay', description: 'Replay failed messages from dead letter queues.', path: 'amplify/functions/operations/dlq-replay/handler.py', type: 'Lambda' },
+  { id: 'l-cleanup', category: 'Operations', name: 'System Cleanup', description: 'TTL cleanup, maintenance, and health checks.', path: 'amplify/functions/operations/system-cleanup/handler.py', type: 'Lambda' },
+  { id: 'l-billing', category: 'Operations', name: 'Billing', description: 'AWS billing and usage tracking.', path: 'amplify/functions/operations/billing/handler.py', type: 'Lambda' },
+  // Ecommerce
   { id: 'l-wix', category: 'Ecommerce', name: 'Wix Store', description: 'Wix ecommerce integration — order sync, product catalog.', path: 'amplify/functions/ecommerce/wix-store/handler.py', type: 'Lambda' },
+  { id: 'l-catalog', category: 'Ecommerce', name: 'Catalog Management', description: 'WhatsApp Commerce catalog sync and product management.', path: 'amplify/functions/ecommerce/catalog-management/handler.py', type: 'Lambda' },
+  { id: 'l-img-gen', category: 'Ecommerce', name: 'Product Image Gen', description: 'AI product image generation via Bedrock.', path: 'amplify/functions/ecommerce/product-image-gen/handler.py', type: 'Lambda' },
 ];
 const CODE_ASSET_CATEGORIES = ['All', ...Array.from(new Set(CODE_ASSETS.map(a => a.category)))];
+
+// ─── Data: WhatsApp Bot Menu (Persistent Menu / Welcome Message) ───
+interface BotMenuItem { row: number; section: string; icon: string; title: string; description: string; action: string; }
+const BOT_MENU: BotMenuItem[] = [
+  { row: 1, section: 'Start Here', icon: '🚀', title: 'Selfservice', description: 'Requests, appointments, documents, and support', action: 'Opens Self-service list' },
+  { row: 2, section: 'Start Here', icon: '🔔', title: 'Subscribe for Updates', description: 'Get updates, offers, and service news', action: 'Opens subscribe form' },
+  { row: 3, section: 'Start Here', icon: '🆔', title: 'Find Subscription / Profile ID', description: 'Locate your subscription or profile ID', action: 'Opens ID lookup' },
+  { row: 4, section: 'Start Here', icon: '💳', title: 'Make a Payment', description: 'Pay an invoice or complete a pending payment', action: 'Opens payment lookup' },
+  { row: 5, section: 'Explore WECARE', icon: '🛍️', title: 'Explore Store', description: 'Browse services, brands, and offers', action: 'CTA link → wecare.digital' },
+  { row: 6, section: 'Explore WECARE', icon: '🎁', title: 'Gift Cards', description: 'Send a digital gift card', action: 'CTA link → wecare.digital/gift-card' },
+  { row: 7, section: 'Explore WECARE', icon: '🇮🇳', title: 'Bharat Stack', description: 'Discover Bharat Stack and services', action: 'Info text + evolving services' },
+  { row: 8, section: 'Help & Answers', icon: '❓', title: 'FAQs', description: 'Find answers to common questions', action: 'CTA link → wecare.digital/faq' },
+  { row: 9, section: 'Help & Answers', icon: '💛', title: 'About WECARE.DIGITAL', description: 'Learn more about WECARE.DIGITAL', action: 'CTA link → wecare.digital' },
+];
 
 // ─── Searchable Index ───
 interface SearchEntry { type: string; name: string; detail: string; category: string; }
@@ -491,6 +626,7 @@ function buildSearchIndex(): SearchEntry[] {
   ENV_VARS.forEach(e => entries.push({ type: 'Env', name: e.key, detail: e.value, category: e.category }));
   RISKS.forEach(r => entries.push({ type: 'Risk', name: r.title, detail: r.description, category: r.category }));
   IMPROVEMENTS.forEach(i => entries.push({ type: 'Improvement', name: i.title, detail: i.description, category: i.category }));
+  BOT_MENU.forEach(m => entries.push({ type: 'Bot Menu', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section }));
   return entries;
 }
 
@@ -584,6 +720,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           { label: 'SQS Queues', value: '4', color: C.greenBg, text: C.green },
           { label: 'S3 Paths', value: `${STORAGE_PATHS.length}`, color: C.blueBg, text: C.blue },
           { label: 'Dependencies', value: `${DEPENDENCIES.length}`, color: C.amberBg, text: C.amber },
+          { label: 'Bot Menu Items', value: `${BOT_MENU.length}`, color: '#f5f3ff', text: '#7c3aed' },
           { label: 'Risks Found', value: `${RISKS.length}`, color: C.redBg, text: C.red },
         ].map(s => (
           <div key={s.label} style={statCard(s.color, s.text)}>
@@ -667,6 +804,33 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+      {/* WhatsApp Bot Menu */}
+      <div style={card()}>
+        <h3 style={sectionTitle}>WhatsApp Bot Menu (Persistent Menu)</h3>
+        <p style={{ fontSize: 13, color: C.textMuted, margin: '0 0 12px' }}>9 menu items across 3 sections — shown to users when they open the WhatsApp chat.</p>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                {['#', 'Section', 'Title', 'Description', 'Action'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {BOT_MENU.map(m => (
+                <tr key={m.row} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: '8px 10px', color: C.textMuted, fontWeight: 600 }}>{m.row}</td>
+                  <td style={{ padding: '8px 10px' }}><span style={pill(m.section === 'Start Here' ? C.greenBg : m.section === 'Explore WECARE' ? C.blueBg : C.amberBg, m.section === 'Start Here' ? C.green : m.section === 'Explore WECARE' ? C.blue : C.amber)}>{m.section}</span></td>
+                  <td style={{ padding: '8px 10px', fontWeight: 600, color: C.textDark }}>{m.icon} {m.title}</td>
+                  <td style={{ padding: '8px 10px', color: C.text }}>{m.description}</td>
+                  <td style={{ padding: '8px 10px', color: C.textMuted, fontSize: 12 }}>{m.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
