@@ -48,7 +48,7 @@
             "label": "Phone Number",
             "required": true,
             "input-type": "phone",
-            "helper-text": "Include country code, for example +91 98XXX XXXXX"
+            "helper-text": "Include country code, for example: +1 555 123 4567"
           },
           {
             "type": "TextInput",
@@ -77,7 +77,7 @@
           {
             "type": "TextInput",
             "name": "designation",
-            "label": "Designation",
+            "label": "Job Title",
             "required": true,
             "input-type": "text",
             "helper-text": "Enter your role or job title"
@@ -147,10 +147,10 @@
           {
             "type": "TextInput",
             "name": "ship_house",
-            "label": "House / Flat No",
+            "label": "House / Unit Number",
             "required": true,
             "input-type": "text",
-            "helper-text": "Enter house or flat number"
+            "helper-text": "Enter your house or unit number"
           },
           {
             "type": "TextInput",
@@ -187,10 +187,10 @@
           {
             "type": "TextInput",
             "name": "ship_pin",
-            "label": "PIN Code",
+            "label": "Postal Code",
             "required": true,
             "input-type": "text",
-            "helper-text": "Enter your PIN code"
+            "helper-text": "Enter your postal code"
           },
           {
             "type": "TextInput",
@@ -350,7 +350,7 @@
           },
           {
             "type": "TextCaption",
-            "text": "Designation"
+            "text": "Job Title"
           },
           {
             "type": "TextBody",
@@ -390,11 +390,11 @@
           },
           {
             "type": "TextCaption",
-            "text": "Billing Address"
+            "text": "Use this address for billing"
           },
           {
             "type": "TextBody",
-            "text": "Same as delivery address"
+            "text": "Yes"
           },
           {
             "type": "Form",
