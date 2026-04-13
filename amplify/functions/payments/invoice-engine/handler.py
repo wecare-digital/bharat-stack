@@ -1071,48 +1071,165 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
             elif 'notification' in nm or 'alert' in nm:
                 notification_fee_amt = amt_val
 
-    # ═══ HEADER (logo left, company info right) ═══
-    lines.append(('__LOGO__', FLG, 'LOGO'))
+    # ═══════════════════════════════════════════════
+    # ═══ REDESIGNED RECEIPT — consistent design system
+    # ═══════════════════════════════════════════════
+    # Font tiers: Title=17px, Body=14px, Small=12px (no tiny 10px)
+    # Line heights: Title=24, Body=20, Small=17
+    # Section gap: 6px extra after separators
+
+    # ── Extract invoice data ──
+    created_at = invoice.get('createdAt', 0)
+    date_str = _ist_strftime('%d-%m-%Y', int(created_at)) if created_at else ''
+    time_str = _ist_strftime('%H:%M IST', int(created_at)) if created_at else ''
+    reference_id = invoice.get('referenceId', '')
+    purpose = invoice.get('purpose', '') or ''
+    if purpose.lower().startswith('menu_'):
+        purpose = ''
+    cust_name = invoice.get('customerName', 'Customer')
+    cust_phone = invoice.get('customerPhone', '')
+    cust_email = invoice.get('customerEmail', '')
+    ship_addr = invoice.get('shippingAddress', '')
+    subtotal = float(invoice.get('subtotal', 0))
+    discount_val = float(invoice.get('discount', 0))
+    shipping_amt = float(invoice.get('shipping', 0))
+    tax = float(invoice.get('tax', 0))
+    gst_rate = float(invoice.get('gstRate', 0))
+    conv_fee = float(invoice.get('convenienceFee', 0))
+    total = float(invoice.get('total', 0))
+    cgst = tax / 2
+    sgst = tax / 2
+    payment_status = invoice.get('paymentStatus', 'pending').upper()
+    paid_at = invoice.get('paidAt', 0)
+
+    green_packing_amt = 0.0
+    notification_fee_amt = 0.0
+    for it in items:
+        if it.get('isCharge'):
+            nm = (it.get('name', '') or '').lower()
+            amt_val = float(it.get('amount', 0)) * int(it.get('quantity', 1))
+            if 'green' in nm and 'pack' in nm:
+                green_packing_amt = amt_val
+            elif 'notification' in nm or 'alert' in nm:
+                notification_fee_amt = amt_val
+
+    # ── Calculate canvas width ──
+    tmp_draw = ImageDraw.Draw(Image.new('RGB', (1, 1)))
+    try:
+        bb = tmp_draw.textbbox((0, 0), 'M', font=F)
+        CW = bb[2] - bb[0]
+    except Exception:
+        CW = 9
+
+    W = CHARS * CW + PX * 2
+    est_h = 1200  # generous estimate, will crop
+    img = Image.new('RGB', (W, est_h), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    logo_bytes = _load_logo_bytes()
+
+    y = PY + 4
+    CLR_BLK = (0, 0, 0)
+    CLR_GRY = (80, 80, 80)
+
+    def _center(txt, font, color=CLR_BLK):
+        nonlocal y
+        tw = _tw(draw, txt, font)
+        draw.text(((W - tw) // 2, y), txt, fill=color, font=font)
+
+    def _left(txt, font, color=CLR_BLK):
+        nonlocal y
+        draw.text((PX, y), txt, fill=color, font=font)
+
+    def _lr(lt, rt, font, color=CLR_BLK):
+        nonlocal y
+        draw.text((PX, y), lt, fill=color, font=font)
+        rw = _tw(draw, rt, font)
+        draw.text((W - PX - rw, y), rt, fill=color, font=font)
+
+    def _sep():
+        nonlocal y
+        _center('-' * CHARS, F, CLR_GRY)
+        y += LINE_H
+
+    def _dsep():
+        nonlocal y
+        _center('=' * CHARS, F, CLR_GRY)
+        y += LINE_H
+
+    # ═══ HEADER — logo left, company info right ═══
+    LOGO_SZ = 50
+    if logo_bytes:
+        try:
+            logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
+            logo_img = logo_img.resize((LOGO_SZ, LOGO_SZ), Image.LANCZOS)
+            img.paste(logo_img, (PX, y), logo_img)
+        except Exception:
+            pass
+
+    tx = PX + LOGO_SZ + 10
+    # Company name
+    draw.text((tx, y), COMPANY['name'], fill=CLR_BLK, font=FLG)
+    y += 22
+    # GSTIN
+    draw.text((tx, y), f"GSTIN: {COMPANY['gstin']}", fill=CLR_GRY, font=FSM)
+    y += 16
+    # Address
+    for part in _wrap_text(COMPANY['address'], 36):
+        draw.text((tx, y), part, fill=CLR_GRY, font=FSM)
+        y += 15
+    # Contact
+    draw.text((tx, y), f"{COMPANY['phone']}", fill=CLR_GRY, font=FSM)
+    y += 15
+    draw.text((tx, y), f"{COMPANY['email']}", fill=CLR_GRY, font=FSM)
+    y += LINE_H + 2
+
+    # ═══ INVOICE TITLE ═══
+    _dsep()
+    _center("TAX INVOICE", FLG)
+    y += LINE_H + 4
+    _sep()
 
     # ═══ INVOICE META ═══
-    DSEP()
-    C("Invoice", FLG)
-    SEP()
-    LR(f"Date: {date_str}", time_str)
+    _lr(f"Date: {date_str}", time_str, F)
+    y += LINE_H
     if reference_id:
-        L(f"Ref: {reference_id}")
+        _left(f"Ref: {reference_id}", F)
+        y += LINE_H
     if purpose:
-        L(f"Brand: {purpose}")
-    # ═══ PAID STATUS (text-based, real-time IST) ═══
+        _left(f"Brand: {purpose}", F)
+        y += LINE_H
     if payment_status == 'CAPTURED':
         if paid_at and int(paid_at) > 0:
             paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at))
         else:
-            # Fallback: use current IST time
             paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(time.time()))
-        L(f"PAID: {paid_str}", FB)
+        _left(f"PAID: {paid_str}", FB)
+        y += LINE_H
     elif payment_status not in ('PENDING', ''):
-        L(f"Status: {payment_status}", FB)
-    SEP()
+        _left(f"Status: {payment_status}", FB)
+        y += LINE_H
+    _sep()
 
-    # ═══ BILL TO / SHIP TO ═══
-    L(f"Bill To: {cust_name}", FB)
+    # ═══ BILL TO ═══
+    _left(f"Bill To: {cust_name}", FB)
+    y += LINE_H
     contact_line = f"  {cust_phone}"
     if cust_email:
         contact_line += f" | {cust_email}"
-    L(contact_line[:CHARS + 2], FSM)
-    if bill_addr:
-        for addr_line in _wrap_text(bill_addr, CHARS - 2):
-            L(f"  {addr_line}", FSM)
+    _left(contact_line[:CHARS], FSM, CLR_GRY)
+    y += LINE_H - 2
     if ship_addr:
-        L("Ship To:", FB)
+        _left("Address:", FB)
+        y += LINE_H
         for addr_line in _wrap_text(ship_addr, CHARS - 2):
-            L(f"  {addr_line}", FSM)
-    SEP()
+            _left(f"  {addr_line}", FSM, CLR_GRY)
+            y += LINE_H - 3
+    _sep()
 
     # ═══ ITEMS TABLE ═══
-    L(f"{'Sl':<3}{'Description':<22}{'Qty':>4}{'Rate':>10}{'Amount':>9}", FB)
-    SEP()
+    _left(f"{'#':<3}{'Item':<22}{'Qty':>4}{'Rate':>10}{'Amt':>9}", FB)
+    y += LINE_H
+    _sep()
     total_qty = 0
     for idx, item in enumerate(items):
         name = item.get('name', 'Item')[:20]
@@ -1120,115 +1237,73 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         qty = int(item.get('quantity', 1))
         total_qty += qty
         line_total = amt * qty
-        L(f"{idx+1:<3}{name:<22}{qty:>4}{amt:>10,.2f}{line_total:>9,.2f}")
-    SEP()
+        _left(f"{idx+1:<3}{name:<22}{qty:>4}{amt:>10,.2f}{line_total:>9,.2f}", F)
+        y += LINE_H
+    _sep()
 
     # ═══ TOTALS ═══
-    LR("Subtotal", f"{subtotal:,.2f}")
+    _lr("Subtotal", f"{subtotal:,.2f}", F)
+    y += LINE_H
     if discount_val:
-        LR("Promo", f"-{discount_val:,.2f}")
+        _lr("Promo", f"-{discount_val:,.2f}", F)
+        y += LINE_H
     if shipping_amt:
-        LR("Express", f"{shipping_amt:,.2f}")
+        _lr("Express", f"{shipping_amt:,.2f}", F)
+        y += LINE_H
     if green_packing_amt:
-        LR("Green Packing", f"{green_packing_amt:,.2f}")
+        _lr("Green Packing", f"{green_packing_amt:,.2f}", F)
+        y += LINE_H
     if notification_fee_amt:
-        LR("Notification Fee", f"{notification_fee_amt:,.2f}")
+        _lr("Notification Fee", f"{notification_fee_amt:,.2f}", F)
+        y += LINE_H
     if gst_rate > 0:
-        LR(f"CGST @{gst_rate/2:.0f}%", f"{cgst:,.2f}")
-        LR(f"SGST @{gst_rate/2:.0f}%", f"{sgst:,.2f}")
+        _lr(f"CGST @{gst_rate/2:.0f}%", f"{cgst:,.2f}", F)
+        y += LINE_H
+        _lr(f"SGST @{gst_rate/2:.0f}%", f"{sgst:,.2f}", F)
+        y += LINE_H
     if conv_fee:
-        LR("Conv Fee", f"{conv_fee:,.2f}")
-    DSEP()
-    LR(f"Total  {total_qty} Items", f"\u20b9 {total:,.2f}", FB)
-    DSEP()
+        _lr("Conv Fee", f"{conv_fee:,.2f}", F)
+        y += LINE_H
+    _dsep()
+
+    # ═══ GRAND TOTAL ═══
+    # Highlight background
+    draw.rectangle([(PX - 4, y - 2), (W - PX + 4, y + LINE_H + 4)], fill=(240, 253, 244))
+    _lr(f"TOTAL ({total_qty} items)", f"\u20b9 {total:,.2f}", FLG)
+    y += LINE_H + 8
+    _dsep()
 
     # ═══ GST SUMMARY ═══
     if gst_rate > 0:
         taxable = subtotal - discount_val
-        LR(f"CGST @{gst_rate/2:.1f}% on {taxable:,.2f}", f"{cgst:,.2f}", FSM)
-        LR(f"SGST @{gst_rate/2:.1f}% on {taxable:,.2f}", f"{sgst:,.2f}", FSM)
-        LR("Total Tax", f"{tax:,.2f}", FB)
-        SEP()
-
-    SEP()
-    C("Thank You! Visit Again!", FB)
-    C("wecare.digital/selfservice", FSM)
-    DSEP()
-
-    # ══════════════════════════════════
-    # ── RENDER TO IMAGE ──
-    # ══════════════════════════════════
-
-    # Calculate char width
-    tmp_draw = ImageDraw.Draw(Image.new('RGB', (1, 1)))
-    try:
-        bb = tmp_draw.textbbox((0, 0), 'M', font=F)
-        CW = bb[2] - bb[0]
-    except Exception as _e:
-        logger.debug(f"Char width measurement fallback: {_e}")
-        CW = 9
-
-    W = CHARS * CW + PX * 2
-    est_h = len(lines) * LINE_H + PY * 2 + 200  # extra for logo + paid icon
-    img = Image.new('RGB', (W, est_h), (255, 255, 255))
-    draw = ImageDraw.Draw(img)
-
-    # Load assets from S3
-    logo_bytes = _load_logo_bytes()
-
-    y = PY
-
-    for content, font, align in lines:
-        if align == 'LOGO':
-            # Centered layout: logo on top, company info below
-            ls = 40
-            if logo_bytes:
-                try:
-                    logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
-                    logo_img = logo_img.resize((ls, ls), Image.LANCZOS)
-                    img.paste(logo_img, ((W - ls) // 2, y), logo_img)
-                except Exception as _e:
-                    logger.debug(f"Receipt logo paste failed: {_e}")
-            y += ls + 4
-
-            # Company name — centered, large
-            name_txt = COMPANY['name']
-            tw = _tw(draw, name_txt, FLG)
-            draw.text(((W - tw) // 2, y), name_txt, fill=(0, 0, 0), font=FLG)
-            y += LINE_H + 2
-
-            # GSTIN — centered, small
-            gstin_txt = f"GSTIN: {COMPANY['gstin']}"
-            tw = _tw(draw, gstin_txt, FSM)
-            draw.text(((W - tw) // 2, y), gstin_txt, fill=(80, 80, 80), font=FSM)
-            y += LINE_H - 4
-
-            # Address — centered, small, wrapped
-            for addr_part in _wrap_text(COMPANY['address'], CHARS - 4):
-                tw = _tw(draw, addr_part, FXS)
-                draw.text(((W - tw) // 2, y), addr_part, fill=(100, 100, 100), font=FXS)
-                y += LINE_H - 5
-
-            # Phone | Email — centered, small
-            contact_txt = f"{COMPANY['phone']} | {COMPANY['email']}"
-            tw = _tw(draw, contact_txt, FXS)
-            draw.text(((W - tw) // 2, y), contact_txt, fill=(100, 100, 100), font=FXS)
-            y += LINE_H - 2
-            continue
-
-        if align == 'LR':
-            lt, rt = content
-            draw.text((PX, y), lt, fill=(0, 0, 0), font=font)
-            rw = _tw(draw, rt, font)
-            draw.text((W - PX - rw, y), rt, fill=(0, 0, 0), font=font)
-        elif align == 'C':
-            tw = _tw(draw, content, font)
-            draw.text(((W - tw) // 2, y), content, fill=(0, 0, 0), font=font)
-        else:
-            draw.text((PX, y), content, fill=(0, 0, 0), font=font)
+        _center("GST Summary", FB)
         y += LINE_H
+        _lr("Taxable Amount", f"{taxable:,.2f}", F)
+        y += LINE_H
+        _lr(f"CGST @{gst_rate/2:.1f}%", f"{cgst:,.2f}", F)
+        y += LINE_H
+        _lr(f"SGST @{gst_rate/2:.1f}%", f"{sgst:,.2f}", F)
+        y += LINE_H
+        _lr("Total Tax", f"{tax:,.2f}", FB)
+        y += LINE_H
+        _sep()
 
-    # Crop to content
+    # ═══ PAID STAMP ═══
+    if payment_status == 'CAPTURED':
+        _center("* * *  PAID  * * *", FLG)
+        y += LINE_H + 4
+
+    # ═══ FOOTER ═══
+    _sep()
+    _center("Thank You!", FLG)
+    y += LINE_H + 2
+    _center("Visit Again!", F, CLR_GRY)
+    y += LINE_H
+    _center("wecare.digital/selfservice", FSM, CLR_GRY)
+    y += LINE_H
+    _dsep()
+
+    # ═══ CROP + ZIGZAG + SCALE ═══
     y += PY
     img = img.crop((0, 0, W, y))
 
