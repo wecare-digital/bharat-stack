@@ -1180,32 +1180,40 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
 
     for content, font, align in lines:
         if align == 'LOGO':
-            # Logo on left, company info to the right
-            ls = 38
+            # Centered layout: logo on top, company info below
+            ls = 40
             if logo_bytes:
                 try:
                     logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
                     logo_img = logo_img.resize((ls, ls), Image.LANCZOS)
-                    img.paste(logo_img, (PX, y), logo_img)
+                    img.paste(logo_img, ((W - ls) // 2, y), logo_img)
                 except Exception as _e:
                     logger.debug(f"Receipt logo paste failed: {_e}")
-            hdr_lines = [
-                (COMPANY['name'], FLG),
-                (f"GSTIN: {COMPANY['gstin']}", FXS),
-            ]
-            for addr_part in _wrap_text(COMPANY['address'], 40):
-                hdr_lines.append((addr_part, FXS))
-            hdr_lines.append((f"{COMPANY['phone']} | {COMPANY['email']}", FXS))
+            y += ls + 4
 
-            tx = PX + ls + 8
-            avail = W - tx - PX
-            hy = y
-            for txt, hf in hdr_lines:
-                tw = _tw(draw, txt, hf)
-                hx = tx + (avail - tw) // 2
-                draw.text((max(tx, hx), hy), txt, fill=(0, 0, 0), font=hf)
-                hy += LINE_H - 2 if hf == FLG else LINE_H - 5
-            y += max(ls + 2, hy - y + 2)
+            # Company name — centered, large
+            name_txt = COMPANY['name']
+            tw = _tw(draw, name_txt, FLG)
+            draw.text(((W - tw) // 2, y), name_txt, fill=(0, 0, 0), font=FLG)
+            y += LINE_H + 2
+
+            # GSTIN — centered, small
+            gstin_txt = f"GSTIN: {COMPANY['gstin']}"
+            tw = _tw(draw, gstin_txt, FSM)
+            draw.text(((W - tw) // 2, y), gstin_txt, fill=(80, 80, 80), font=FSM)
+            y += LINE_H - 4
+
+            # Address — centered, small, wrapped
+            for addr_part in _wrap_text(COMPANY['address'], CHARS - 4):
+                tw = _tw(draw, addr_part, FXS)
+                draw.text(((W - tw) // 2, y), addr_part, fill=(100, 100, 100), font=FXS)
+                y += LINE_H - 5
+
+            # Phone | Email — centered, small
+            contact_txt = f"{COMPANY['phone']} | {COMPANY['email']}"
+            tw = _tw(draw, contact_txt, FXS)
+            draw.text(((W - tw) // 2, y), contact_txt, fill=(100, 100, 100), font=FXS)
+            y += LINE_H - 2
             continue
 
         if align == 'LR':
