@@ -1178,16 +1178,16 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     # Company name — centered in header area, bold
     _hdr_center(COMPANY['name'], FLG)
     y += 22
-    # GSTIN — bold
-    _hdr_center(f"GSTIN: {COMPANY['gstin']}", FB)
+    # GSTIN — regular, grey
+    _hdr_center(f"GSTIN: {COMPANY['gstin']}", FSM, CLR_GRY)
     y += LINE_H
-    # Address — 2 fixed lines, bold
-    _hdr_center("The W.B.S.I.D.C. Building, Unit 1/20,", FB)
+    # Address — 2 fixed lines, regular, grey
+    _hdr_center("The W.B.S.I.D.C. Building, Unit 1/20,", FSM, CLR_GRY)
     y += LINE_H
-    _hdr_center("81/2/7, Phears Ln, Kolkata, WB 700012", FB)
+    _hdr_center("81/2/7, Phears Ln, Kolkata, WB 700012", FSM, CLR_GRY)
     y += LINE_H
-    # Contact — single line, bold
-    _hdr_center(f"one@wecare.digital | +91 93309 94400", FB)
+    # Contact — single line, regular, grey
+    _hdr_center(f"one@wecare.digital | +91 93309 94400", FSM, CLR_GRY)
     y += LINE_H + 2
 
     # ═══ INVOICE TITLE ═══
