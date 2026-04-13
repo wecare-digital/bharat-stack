@@ -1156,7 +1156,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         _center('=' * CHARS, F, CLR_GRY)
         y += LINE_H
 
-    # ═══ HEADER — logo left, company info right ═══
+    # ═══ HEADER — logo left, company info centered in remaining space ═══
     LOGO_SZ = 50
     if logo_bytes:
         try:
@@ -1166,21 +1166,30 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         except Exception:
             pass
 
-    tx = PX + LOGO_SZ + 10
-    # Company name
-    draw.text((tx, y), COMPANY['name'], fill=CLR_BLK, font=FLG)
+    tx = PX + LOGO_SZ + 10  # text area starts after logo
+    avail_w = W - tx - PX   # available width for text
+
+    def _hdr_center(txt, font, color=CLR_BLK):
+        """Center text within the header area (right of logo)."""
+        tw = _tw(draw, txt, font)
+        x = tx + (avail_w - tw) // 2
+        draw.text((max(tx, x), y), txt, fill=color, font=font)
+
+    # Company name — centered in header area
+    _hdr_center(COMPANY['name'], FLG)
     y += 22
     # GSTIN
-    draw.text((tx, y), f"GSTIN: {COMPANY['gstin']}", fill=CLR_GRY, font=FSM)
+    _hdr_center(f"GSTIN: {COMPANY['gstin']}", FSM, CLR_GRY)
     y += 16
-    # Address
+    # Address — centered, wrapped
     for part in _wrap_text(COMPANY['address'], 36):
-        draw.text((tx, y), part, fill=CLR_GRY, font=FSM)
+        _hdr_center(part, FSM, CLR_GRY)
         y += 15
-    # Contact
-    draw.text((tx, y), f"{COMPANY['phone']}", fill=CLR_GRY, font=FSM)
+    # Phone
+    _hdr_center(f"{COMPANY['phone']}", FSM, CLR_GRY)
     y += 15
-    draw.text((tx, y), f"{COMPANY['email']}", fill=CLR_GRY, font=FSM)
+    # Email
+    _hdr_center(f"{COMPANY['email']}", FSM, CLR_GRY)
     y += LINE_H + 2
 
     # ═══ INVOICE TITLE ═══
