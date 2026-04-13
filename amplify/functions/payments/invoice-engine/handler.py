@@ -856,7 +856,6 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="info-row"><span>Date: {date_str}</span><span>{time_str}</span></div>
 {ref_id_html}
 {f'<div class="info-row"><span>Brand: {purpose}</span></div>' if purpose else ''}
-<div class="info-row"><span>Order: {order_id or 'Offline'}</span></div>
 <div class="divider"></div>
 <div class="section-title">Bill To</div>
 <div style="font-size:11px;font-weight:bold">{cust_name}</div>
@@ -1084,7 +1083,6 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         L(f"Ref: {reference_id}")
     if purpose:
         L(f"Brand: {purpose}")
-    L(f"Order: {order_id or 'Offline'}")
     # ═══ PAID STATUS (text-based, real-time IST) ═══
     if payment_status == 'CAPTURED':
         if paid_at and int(paid_at) > 0:
@@ -1225,6 +1223,33 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     # Crop to content
     y += PY
     img = img.crop((0, 0, W, y))
+
+    # ── Add paper tear zigzag effect (top and bottom) ──
+    ZIGZAG_H = 8  # height of zigzag teeth
+    ZIGZAG_W = 12  # width of each tooth
+    tear_img = Image.new('RGB', (W, img.height + ZIGZAG_H * 2), (200, 200, 200))  # grey background
+    tear_draw = ImageDraw.Draw(tear_img)
+
+    # Top zigzag — white teeth on grey
+    for x in range(0, W, ZIGZAG_W):
+        tear_draw.polygon([
+            (x, ZIGZAG_H),
+            (x + ZIGZAG_W // 2, 0),
+            (x + ZIGZAG_W, ZIGZAG_H),
+        ], fill=(255, 255, 255))
+
+    # Bottom zigzag — white teeth on grey
+    bottom_y = img.height + ZIGZAG_H
+    for x in range(0, W, ZIGZAG_W):
+        tear_draw.polygon([
+            (x, bottom_y),
+            (x + ZIGZAG_W // 2, bottom_y + ZIGZAG_H),
+            (x + ZIGZAG_W, bottom_y),
+        ], fill=(255, 255, 255))
+
+    # Paste the receipt content between the zigzag edges
+    tear_img.paste(img, (0, ZIGZAG_H))
+    img = tear_img
 
     # Scale 2x for WhatsApp readability
     final_w = W * 2

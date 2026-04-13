@@ -14,7 +14,7 @@ interface IR { name:string; unitPrice:string; quantity:string; gstRate:string; }
 const EMPTY_FORM = { name:'',phone:'',email:'',shippingAddress:'',billingAddress:'',addressLine1:'',addressLine2:'',city:'',state:'',postalCode:'',landmark:'',gstin:'',houseNumber:'',buildingName:'' };
 const NEW_ITEM = ():IR => ({ name:'', unitPrice:'', quantity:'1', gstRate:'18' });
 const EMPTY_INV = { items:[NEW_ITEM()] as IR[], shipping:'49', discount:'15', purpose:'', orderId:'' };
-const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Gift Card','Service Fee','Consultation'] };
+const DEF_CFG:FC = { default_gst_rate:18, default_shipping:49, default_promo:15, gstin:'19AADFW7431N1ZK', default_item_name:'Services/Goods', purposes:['BNB Club','No Fault','Expo Week','Ritual Guru','Legal Champ','Bharat Stack','Gift Card','Service Fee','Consultation'] };
 const TABS:ShellTab[] = [
   { id:'customers', label:'Customers' },
   { id:'create', label:'Create' },
