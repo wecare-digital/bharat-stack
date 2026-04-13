@@ -1,7 +1,11 @@
 """
-Subscribe Flow — FREE, no payment.
-Collects: name, phone, email, company, addresses.
+Subscribe / Profile Flow — FREE, no payment.
+Collects: name, phone, email, organization, job title, delivery address.
+Billing = same as delivery (single address with checkbox).
 Creates/updates contact, saves subscription, sends welcome message.
+
+Flow: 02.WD_Profile
+Screens: PERSONAL_INFO → SHIPPING_ADDRESS → REVIEW → COMPLETE
 """
 import json
 import time
@@ -22,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ── Flow config ──
 FLOW_CODE = 'WD_SUBSCRIBE'
 FLOW_NAME = 'Subscribe'
-REQUIRES_PAYMENT = False  # Subscribe is ALWAYS free
+REQUIRES_PAYMENT = False
 PAYMENT_AMOUNT = 0
 
 
@@ -35,36 +39,40 @@ def handle_init(data: Dict, flow_token: str, request_id: str) -> Dict:
 
 
 def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
-    """REVIEW screen → save subscription, return SUCCESS.
-    response_payload is set FIRST, saves happen after.
-    """
+    """REVIEW screen → save contact + subscription, return COMPLETE."""
     phone = get_phone_from_token(flow_token)
     phone_number_id = get_phone_number_id_for_flow(flow_token)
 
-    # Extract form data
+    # ── Extract form data (matches 02.WD_Profile flow fields exactly) ──
     full_name = data.get('full_name', '')
     phone_number = data.get('phone_number', '')
     email_address = data.get('email_address', '')
     company_name = data.get('company_name', '')
     wa_username = data.get('wa_username', '')
-    gstin = data.get('gstin', '')
-    designation = data.get('designation', '')
-    paid_by = data.get('paid_by', 'self')
-    is_pep = data.get('is_pep', False)
-    pep_details = data.get('pep_details', '')
+    designation = data.get('designation', '')  # "Job Title" in flow UI
 
-    # Addresses
-    ship_addr = _extract_shipping(data)
-    bill_addr = _extract_billing(data, ship_addr)
+    # ── Extract delivery address (billing = same as delivery) ──
+    ship_house = data.get('ship_house', '')
+    ship_building = data.get('ship_building', '')
+    ship_street = data.get('ship_street', '')  # "Landmark" in flow UI
+    ship_city = data.get('ship_city', '')
+    ship_state = data.get('ship_state', '')
+    ship_pin = data.get('ship_pin', '')  # "Postal Code" in flow UI
+    ship_country = data.get('ship_country', '')
 
-    # Generate subscriber ID
+    # ── Generate or reuse subscriber ID ──
     subscriber_uuid = str(uuid.uuid4())
     contact_id = find_contact_by_phone(phone)
     existing_sub_id = _find_existing_subscriber_id(phone)
     subscriber_id = existing_sub_id or f'WD-SUB-{subscriber_uuid[:8].upper()}'
     is_resubscribe = bool(existing_sub_id)
 
-    # ── SET SUCCESS RESPONSE FIRST — before any saves ──
+    # ── Build address strings ──
+    addr_parts = [ship_house, ship_building, ship_street, ship_city,
+                  ship_state, ship_pin, ship_country]
+    address_str = ', '.join(p for p in addr_parts if p)
+
+    # ── SET COMPLETE RESPONSE FIRST — before any saves ──
     welcome_msg = (
         f'Welcome back to WECARE.DIGITAL! Your details have been updated.\nSubscriber ID: {subscriber_id}'
         if is_resubscribe else
@@ -84,23 +92,48 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
         'phone_suffix': phone[-4:] if phone else '',
     }))
 
-    # ── Now do saves (non-blocking) ──
+    # ── Save contact with structured address fields ──
     now_ts = int(time.time())
     try:
-        _save_contact(contact_id, subscriber_uuid, phone, full_name, email_address,
-                      company_name, wa_username, gstin, designation, paid_by,
-                      is_pep, pep_details, ship_addr, bill_addr, now_ts)
+        _save_contact(
+            contact_id=contact_id,
+            subscriber_uuid=subscriber_uuid,
+            subscriber_id=subscriber_id,
+            phone=phone,
+            full_name=full_name,
+            email=email_address,
+            company=company_name,
+            username=wa_username,
+            designation=designation,
+            ship_house=ship_house,
+            ship_building=ship_building,
+            ship_street=ship_street,
+            ship_city=ship_city,
+            ship_state=ship_state,
+            ship_pin=ship_pin,
+            ship_country=ship_country,
+            address_str=address_str,
+            now_ts=now_ts,
+        )
         if not contact_id:
             contact_id = subscriber_uuid
     except Exception as e:
         logger.warning(f'Subscribe contact save failed: {e}')
 
+    # ── Save flow submission with ALL collected fields ──
     try:
         save_flow_submission(
             flow_code=FLOW_CODE, flow_type='subscription', phone=phone,
             contact_id=contact_id, sender_name=full_name,
-            form_data={'full_name': full_name, 'phone_number': phone_number,
-                       'email_address': email_address, 'company_name': company_name},
+            form_data={
+                'full_name': full_name, 'phone_number': phone_number,
+                'email_address': email_address, 'company_name': company_name,
+                'wa_username': wa_username, 'designation': designation,
+                'ship_house': ship_house, 'ship_building': ship_building,
+                'ship_street': ship_street, 'ship_city': ship_city,
+                'ship_state': ship_state, 'ship_pin': ship_pin,
+                'ship_country': ship_country,
+            },
             flow_token=flow_token, request_id=request_id,
             submission_number=subscriber_id,
             requires_payment=False, payment_amount=0, status='completed',
@@ -108,12 +141,13 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Subscribe submission save failed: {e}')
 
-    # Send confirmation (async, non-blocking)
+    # ── Send confirmation message (async) ──
     try:
         confirm_text = (
             f'✅ *Subscription {"Updated" if is_resubscribe else "Confirmed"}*\n\n'
             f'👤 *Name:* {full_name}\n📱 *Phone:* {phone_number}\n'
             f'📧 *Email:* {email_address}\n🏢 *Organization:* {company_name}\n'
+            f'💼 *Job Title:* {designation}\n'
             f'🆔 *Subscriber ID:* {subscriber_id}\n\n'
             f'Your details have been saved. You will receive order updates, offers, and service news.\n\n'
             f'Type *my id* anytime to retrieve your subscriber ID.\n_WECARE.DIGITAL_'
@@ -135,7 +169,9 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
 # ── Private helpers ──
 
 def _find_existing_subscriber_id(phone: str) -> str:
-    """Find existing subscriber ID by phone number."""
+    """Find existing subscriber ID by phone number.
+    Queries FlowSubmissions table — if found, reuses the SAME ID (never regenerates).
+    """
     if not phone:
         return ''
     try:
@@ -147,68 +183,71 @@ def _find_existing_subscriber_id(phone: str) -> str:
             ScanIndexForward=False, Limit=1,
         )
         items = resp.get('Items', [])
-        return items[0].get('submissionId', '') if items else ''
-    except Exception:
+        if items:
+            sub_id = items[0].get('submissionNumber', '') or items[0].get('submissionId', '')
+            return sub_id
+        return ''
+    except Exception as e:
+        logger.warning(f'Subscriber ID lookup failed: {e}')
         return ''
 
 
-def _extract_shipping(data: Dict) -> Dict:
-    return {
-        'name': data.get('ship_name', ''), 'phone_number': data.get('ship_phone', ''),
-        'address': data.get('ship_street', ''), 'city': data.get('ship_city', ''),
-        'state': data.get('ship_state', ''), 'in_pin_code': data.get('ship_pin', ''),
-        'house_number': data.get('ship_house', ''), 'building_name': data.get('ship_building', ''),
-        'tower_number': data.get('ship_tower', ''), 'floor_number': data.get('ship_floor', ''),
-        'landmark_area': data.get('ship_landmark', ''), 'country': data.get('ship_country', 'India'),
-    }
-
-
-def _extract_billing(data: Dict, ship: Dict) -> Dict:
-    same = data.get('same_for_billing', False) or data.get('same_as_ship', False)
-    bill = {
-        'name': ship['name'], 'phone_number': ship['phone_number'],
-        'address': data.get('bill_street', '') or (ship['address'] if same else ''),
-        'city': data.get('bill_city', '') or (ship['city'] if same else ''),
-        'state': data.get('bill_state', '') or (ship['state'] if same else ''),
-        'in_pin_code': data.get('bill_pin', '') or (ship['in_pin_code'] if same else ''),
-        'house_number': data.get('bill_house', '') or (ship['house_number'] if same else ''),
-        'building_name': data.get('bill_building', '') or (ship['building_name'] if same else ''),
-        'tower_number': data.get('bill_tower', '') or (ship['tower_number'] if same else ''),
-        'floor_number': data.get('bill_floor', '') or (ship['floor_number'] if same else ''),
-        'landmark_area': data.get('bill_landmark', '') or (ship['landmark_area'] if same else ''),
-        'country': data.get('bill_country', 'India'),
-    }
-    return bill
-
-
-def _addr_str(a: Dict) -> str:
-    parts = [a.get(k, '') for k in ['name', 'house_number', 'building_name', 'address',
-                                     'landmark_area', 'city', 'state', 'in_pin_code', 'country']]
-    return ', '.join(p for p in parts if p)
-
-
-def _save_contact(contact_id, subscriber_uuid, phone, full_name, email,
-                  company, username, gstin, designation, paid_by,
-                  is_pep, pep_details, ship_addr, bill_addr, now_ts):
+def _save_contact(contact_id, subscriber_uuid, subscriber_id, phone,
+                  full_name, email, company, username, designation,
+                  ship_house, ship_building, ship_street, ship_city,
+                  ship_state, ship_pin, ship_country, address_str, now_ts):
+    """Save or update contact with structured address fields + subscriber ID tag."""
     ct = dynamodb.Table(CONTACTS_TABLE)
+
+    # Build tags list — include subscriber ID as tag for easy lookup
+    sub_tag = f'sub:{subscriber_id}'
+    tags = ['subscriber', sub_tag]
+
     if contact_id:
+        # Update existing contact — preserve existing tags, add subscriber tag
+        try:
+            existing = ct.get_item(Key={'id': contact_id}).get('Item', {})
+            existing_tags = existing.get('tags', []) or []
+            # Remove old sub: tags, add new one
+            tags = [t for t in existing_tags if not t.startswith('sub:')] + [sub_tag]
+            if 'subscriber' not in tags:
+                tags.append('subscriber')
+        except Exception:
+            pass
+
         ct.update_item(
             Key={'id': contact_id},
-            UpdateExpression='SET #nm=:nm, #em=:em, #sa=:sa, #ba=:ba, #ua=:ua, '
-                             '#cbn=:cbn, #ow=:ow, #os=:os, #oe=:oe, #cmn=:cmn',
+            UpdateExpression=(
+                'SET #nm=:nm, #em=:em, #sa=:sa, #ba=:ba, #ua=:ua, '
+                '#cbn=:cbn, #cmn=:cmn, #des=:des, #un=:un, '
+                '#hn=:hn, #bn=:bn, #al1=:al1, #ct=:ct, #st=:st, #pc=:pc, #co=:co, '
+                '#ow=:ow, #os=:os, #oe=:oe, #tg=:tg'
+            ),
             ExpressionAttributeNames={
-                '#nm': 'name', '#em': 'email', '#sa': 'shippingAddress',
-                '#ba': 'billingAddress', '#ua': 'updatedAt', '#cbn': 'contactBookName',
-                '#ow': 'optInWhatsApp', '#os': 'optInSms', '#oe': 'optInEmail', '#cmn': 'companyName',
+                '#nm': 'name', '#em': 'email',
+                '#sa': 'shippingAddress', '#ba': 'billingAddress',
+                '#ua': 'updatedAt', '#cbn': 'contactBookName', '#cmn': 'companyName',
+                '#des': 'designation', '#un': 'username',
+                '#hn': 'houseNumber', '#bn': 'buildingName',
+                '#al1': 'addressLine1', '#ct': 'city', '#st': 'state',
+                '#pc': 'postalCode', '#co': 'country',
+                '#ow': 'optInWhatsApp', '#os': 'optInSms', '#oe': 'optInEmail',
+                '#tg': 'tags',
             },
             ExpressionAttributeValues={
                 ':nm': full_name, ':em': email,
-                ':sa': _addr_str(ship_addr), ':ba': _addr_str(bill_addr),
-                ':ua': now_ts, ':cbn': company,
-                ':ow': True, ':os': True, ':oe': True, ':cmn': company,
+                ':sa': address_str, ':ba': address_str,  # billing = delivery
+                ':ua': now_ts, ':cbn': company, ':cmn': company,
+                ':des': designation, ':un': username,
+                ':hn': ship_house, ':bn': ship_building,
+                ':al1': ship_street, ':ct': ship_city, ':st': ship_state,
+                ':pc': ship_pin, ':co': ship_country or 'India',
+                ':ow': True, ':os': True, ':oe': True,
+                ':tg': tags,
             },
         )
     else:
+        # Create new contact
         norm_phone = phone.replace('+', '').replace(' ', '')
         if norm_phone and not norm_phone.startswith('+'):
             norm_phone = f'+{norm_phone}'
@@ -216,8 +255,13 @@ def _save_contact(contact_id, subscriber_uuid, phone, full_name, email,
             'id': subscriber_uuid, 'contactId': subscriber_uuid,
             'name': full_name, 'phone': norm_phone, 'email': email,
             'contactBookName': company, 'companyName': company,
-            'username': username, 'gstin': gstin,
-            'shippingAddress': _addr_str(ship_addr), 'billingAddress': _addr_str(bill_addr),
+            'username': username, 'designation': designation,
+            'houseNumber': ship_house, 'buildingName': ship_building,
+            'addressLine1': ship_street, 'city': ship_city,
+            'state': ship_state, 'postalCode': ship_pin,
+            'country': ship_country or 'India',
+            'shippingAddress': address_str, 'billingAddress': address_str,
             'optInWhatsApp': True, 'optInSms': True, 'optInEmail': True,
-            'tags': ['subscriber'], 'createdAt': now_ts, 'updatedAt': now_ts,
+            'tags': tags,
+            'createdAt': now_ts, 'updatedAt': now_ts,
         })

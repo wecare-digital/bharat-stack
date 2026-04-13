@@ -875,7 +875,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           <input style={S.input} value={formCompanyName} onChange={e => setFormCompanyName(e.target.value)} placeholder="Enter organization name" onFocus={focusStyle} onBlur={blurStyle} />
         </div>
         <div>
-          <label style={S.label}>Designation</label>
+          <label style={S.label}>Job Title</label>
           <input style={S.input} value={formDesignation} onChange={e => setFormDesignation(e.target.value)} placeholder="Enter role or job title" onFocus={focusStyle} onBlur={blurStyle} />
         </div>
       </div>
@@ -921,17 +921,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           Structured Address (WhatsApp Payments)
         </button>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div><label style={S.label}>House / Flat No</label><input style={S.input} value={formHouseNumber} onChange={e => setFormHouseNumber(e.target.value)} placeholder="e.g. 12" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>Building</label><input style={S.input} value={formBuildingName} onChange={e => setFormBuildingName(e.target.value)} placeholder="One BKC" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>Tower</label><input style={S.input} value={formTowerNumber} onChange={e => setFormTowerNumber(e.target.value)} placeholder="5" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>Floor</label><input style={S.input} value={formFloorNumber} onChange={e => setFormFloorNumber(e.target.value)} placeholder="3" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>Street / Locality</label><input style={S.input} value={formAddressLine1} onChange={e => setFormAddressLine1(e.target.value)} placeholder="e.g. Bandra Kurla Complex" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>Landmark</label><input style={S.input} value={formLandmark} onChange={e => setFormLandmark(e.target.value)} placeholder="e.g. Near BKC Circle" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>House / Unit Number</label><input style={S.input} value={formHouseNumber} onChange={e => setFormHouseNumber(e.target.value)} placeholder="e.g. 12" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Address</label><input style={S.input} value={formBuildingName} onChange={e => setFormBuildingName(e.target.value)} placeholder="Enter your complete address" onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Landmark</label><input style={S.input} value={formLandmark} onChange={e => setFormLandmark(e.target.value)} placeholder="Enter a nearby landmark" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>City</label><input style={S.input} value={formCity} onChange={e => setFormCity(e.target.value)} placeholder="e.g. Mumbai" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>State</label><input style={S.input} value={formState} onChange={e => setFormState(e.target.value)} placeholder="e.g. Maharashtra" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>PIN Code</label><input style={S.input} value={formPostalCode} onChange={e => setFormPostalCode(e.target.value)} placeholder="6-digit PIN" maxLength={6} onFocus={focusStyle} onBlur={blurStyle} /></div>
+          <div><label style={S.label}>Postal Code</label><input style={S.input} value={formPostalCode} onChange={e => setFormPostalCode(e.target.value)} placeholder="Enter postal code" onFocus={focusStyle} onBlur={blurStyle} /></div>
           <div><label style={S.label}>Country</label><input style={S.input} value={formCountry} onChange={e => setFormCountry(e.target.value)} placeholder="India" onFocus={focusStyle} onBlur={blurStyle} /></div>
-          <div><label style={S.label}>GSTIN</label><input style={S.input} value={formGstin} onChange={e => setFormGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" maxLength={15} onFocus={focusStyle} onBlur={blurStyle} /></div>
         </div>
       </div>
       {/* Opt-in toggle */}
@@ -1284,16 +1280,12 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>{detailContact.phone}</p>
                 </div>
                 {[
+                  { label: 'Subscriber ID', value: (detailContact.tags || []).find((t: string) => t.startsWith('sub:'))?.replace('sub:', '') || '—' },
                   { label: 'Email', value: detailContact.email },
                   { label: 'Organization', value: detailContact.companyName },
-                  { label: 'Designation', value: detailContact.designation },
-                  { label: 'GSTIN', value: (detailContact as any).gstin },
-                  { label: 'BSUID', value: detailContact.bsuid },
-                  { label: 'Parent BSUID', value: detailContact.parentBsuid },
+                  { label: 'Job Title', value: detailContact.designation },
                   { label: 'Username', value: detailContact.username },
-                  { label: 'Contact Book Name', value: detailContact.contactBookName },
-                  { label: 'Shipping', value: detailContact.shippingAddress },
-                  { label: 'Billing', value: detailContact.billingAddress },
+                  { label: 'Delivery Address', value: detailContact.shippingAddress },
                   { label: 'Created', value: detailContact.createdAt ? (() => { const ts = Number(detailContact.createdAt); const d = new Date(!isNaN(ts) && ts < 1e12 ? ts * 1000 : (!isNaN(ts) ? ts : detailContact.createdAt)); return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); })() : '—' },
                   { label: 'Updated', value: timeAgo(detailContact.updatedAt) },
                   { label: 'Last Message', value: timeAgo(detailContact.lastInboundMessageAt) },
