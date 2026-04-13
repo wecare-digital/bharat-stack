@@ -1162,7 +1162,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         try:
             logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
             logo_img = logo_img.resize((LOGO_SZ, LOGO_SZ), Image.LANCZOS)
-            img.paste(logo_img, (PX, y + 2), logo_img)
+            img.paste(logo_img, (PX, y - 2), logo_img)
         except Exception:
             pass
 
@@ -1304,10 +1304,22 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         y += LINE_H
         _sep()
 
-    # ═══ PAID STAMP ═══
+    # ═══ PAID STAMP + PAYMENT DETAILS ═══
     if payment_status == 'CAPTURED':
         _center("* * *  PAID  * * *", FLG)
-        y += LINE_H + 4
+        y += LINE_H + 2
+        if paid_at and int(paid_at) > 0:
+            paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at))
+        else:
+            paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(time.time()))
+        _center(f"Paid on: {paid_str}", F)
+        y += LINE_H
+    elif payment_status == 'PENDING':
+        _center("PAYMENT PENDING", FB)
+        y += LINE_H
+    elif payment_status:
+        _center(f"Status: {payment_status}", FB)
+        y += LINE_H
 
     # ═══ QR CODE — links to selfservice ═══
     try:
