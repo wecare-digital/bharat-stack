@@ -1129,7 +1129,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
 
     y = PY + 4
     CLR_BLK = (0, 0, 0)
-    CLR_GRY = (80, 80, 80)
+    CLR_GRY = (0, 0, 0)  # All text black — no grey
 
     def _center(txt, font, color=CLR_BLK):
         nonlocal y
@@ -1320,8 +1320,6 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         qr_x = (W - qr_w) // 2
         img.paste(qr_img, (qr_x, y))
         y += qr_h + 4
-        _center("Scan for Self-Service", FSM, CLR_GRY)
-        y += LINE_H
     except Exception as qr_err:
         logger.debug(f"QR code generation skipped: {qr_err}")
 
