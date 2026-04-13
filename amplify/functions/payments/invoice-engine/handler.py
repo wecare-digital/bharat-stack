@@ -1001,11 +1001,11 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
             return ImageFont.load_default()
 
     FONT_SZ = 14
-    F    = _mono(FONT_SZ, True)
-    FB   = _mono(FONT_SZ, True)
-    FLG  = _mono(FONT_SZ + 3, True)
-    FSM  = _mono(FONT_SZ - 2, True)
-    FXS  = _mono(FONT_SZ - 4, True)
+    F    = _mono(FONT_SZ)           # Body — regular
+    FB   = _mono(FONT_SZ, True)     # Labels/headings — bold
+    FLG  = _mono(FONT_SZ + 3, True) # Title — bold large
+    FSM  = _mono(FONT_SZ - 2)       # Secondary — regular small
+    FXS  = _mono(FONT_SZ - 4)       # Extra small — regular
 
     CHARS  = 48
     LINE_H = 18
