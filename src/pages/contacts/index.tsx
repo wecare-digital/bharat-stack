@@ -880,40 +880,9 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
       </div>
       {/* Shipping + Billing row */}
-      <div style={S.row}>
-        <div>
-          <label htmlFor="contact-shipping" style={S.label}>Shipping Address</label>
-          <textarea id="contact-shipping" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => setFormShippingAddress(e.target.value)} placeholder="Enter full shipping address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
-        </div>
-        <div>
-          <label htmlFor="contact-billing" style={S.label}>Billing Address</label>
-          <textarea id="contact-billing" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formBillingAddress} onChange={e => setFormBillingAddress(e.target.value)} placeholder="Enter full billing address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
-          <button 
-            type="button"
-            onClick={() => setFormBillingAddress(formShippingAddress)}
-            disabled={!formShippingAddress}
-            style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: 4, 
-              fontSize: 11, 
-              color: '#1a3a2a', 
-              fontWeight: 600, 
-              marginTop: 6, 
-              cursor: formShippingAddress ? 'pointer' : 'not-allowed',
-              opacity: formShippingAddress ? 1 : 0.5,
-              background: 'none',
-              border: 'none',
-              padding: 0
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            Copy from shipping
-          </button>
-        </div>
+      <div>
+        <label htmlFor="contact-address" style={S.label}>Delivery Address <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: 11 }}>(used for billing too)</span></label>
+        <textarea id="contact-address" style={{ ...S.input, minHeight: 60, resize: 'vertical' } as any} value={formShippingAddress} onChange={e => { setFormShippingAddress(e.target.value); setFormBillingAddress(e.target.value); }} placeholder="Enter full delivery address" onFocus={focusStyle as any} onBlur={blurStyle as any} />
       </div>
       {/* Structured Address Fields (for WhatsApp Payments) */}
       <div>
