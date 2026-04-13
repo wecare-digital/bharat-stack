@@ -1280,6 +1280,13 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     draw.rectangle([(PX - 4, y - 2), (W - PX + 4, y + LINE_H + 4)], fill=(240, 253, 244))
     _lr(f"TOTAL ({total_qty} items)", f"\u20b9 {total:,.2f}", FLG)
     y += LINE_H + 8
+
+    # Amount in words
+    words = _amount_in_words(total)
+    for wline in _wrap_text(words, CHARS - 2):
+        _left(f"  {wline}", FSM)
+        y += LINE_H - 2
+    y += 4
     _dsep()
 
     # ═══ GST SUMMARY ═══
@@ -1301,6 +1308,22 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     if payment_status == 'CAPTURED':
         _center("* * *  PAID  * * *", FLG)
         y += LINE_H + 4
+
+    # ═══ QR CODE — links to selfservice ═══
+    try:
+        import qrcode
+        qr = qrcode.QRCode(version=1, box_size=3, border=1)
+        qr.add_data('https://wecare.digital/selfservice')
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color='black', back_color='white').convert('RGB')
+        qr_w, qr_h = qr_img.size
+        qr_x = (W - qr_w) // 2
+        img.paste(qr_img, (qr_x, y))
+        y += qr_h + 4
+        _center("Scan for Self-Service", FSM, CLR_GRY)
+        y += LINE_H
+    except Exception as qr_err:
+        logger.debug(f"QR code generation skipped: {qr_err}")
 
     # ═══ FOOTER ═══
     _sep()
@@ -1351,6 +1374,53 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     buf = io.BytesIO()
     img.save(buf, format='PNG')
     return buf.getvalue()
+
+
+def _amount_in_words(amount: float) -> str:
+    """Convert amount to Indian English words. e.g. 628.94 → 'Rupees Six Hundred Twenty-Eight and Ninety-Four Paise Only'"""
+    ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen']
+    tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+    def _two_digits(n):
+        if n < 20:
+            return ones[n]
+        return (tens[n // 10] + '-' + ones[n % 10]).rstrip('-')
+
+    def _three_digits(n):
+        if n == 0:
+            return ''
+        if n < 100:
+            return _two_digits(n)
+        return ones[n // 100] + ' Hundred' + (' ' + _two_digits(n % 100) if n % 100 else '')
+
+    def _indian_number(n):
+        """Indian numbering: lakhs and crores."""
+        if n == 0:
+            return 'Zero'
+        parts = []
+        if n >= 10000000:
+            parts.append(_two_digits(n // 10000000) + ' Crore')
+            n %= 10000000
+        if n >= 100000:
+            parts.append(_two_digits(n // 100000) + ' Lakh')
+            n %= 100000
+        if n >= 1000:
+            parts.append(_two_digits(n // 1000) + ' Thousand')
+            n %= 1000
+        if n > 0:
+            parts.append(_three_digits(n))
+        return ' '.join(parts)
+
+    rupees = int(amount)
+    paise = round((amount - rupees) * 100)
+
+    result = 'Rupees ' + _indian_number(rupees)
+    if paise > 0:
+        result += ' and ' + _two_digits(paise) + ' Paise'
+    result += ' Only'
+    return result
 
 
 def _wrap_text(text, max_chars):
