@@ -1208,8 +1208,26 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     if reference_id:
         _left(f"Ref: {reference_id}", F)
         y += LINE_H
-    if purpose:
-        _left(f"Brand: {purpose}", F)
+    # Brand: all selfservice/flow invoices → "Selfservice"
+    # Pay flow / WhatsApp payment → "Pay"
+    # Manual / admin → no brand line
+    entry_point = invoice.get('entryPoint', '')
+    brand_label = ''
+    if entry_point in ('submit_request_flow', 'flow_payment'):
+        brand_label = 'Selfservice'
+    elif entry_point in ('pay_flow', 'whatsapp_payment'):
+        brand_label = 'Pay'
+    elif entry_point == 'manual':
+        brand_label = ''
+    if brand_label:
+        _left(f"Brand: {brand_label}", F)
+        y += LINE_H
+    # Note line: show request/submission reference (clean format, no #)
+    notes = invoice.get('notes', '')
+    if notes:
+        # Strip "Request #" prefix → just show the reference number
+        clean_note = notes.replace('Request #', '').replace('Request#', '').strip()
+        _left(f"Note: {clean_note[:40]}", FSM)
         y += LINE_H
     if payment_status == 'CAPTURED':
         if paid_at and int(paid_at) > 0:
@@ -1233,10 +1251,64 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         contact_line += f" | {cust_email}"
     _left(contact_line[:CHARS], F)
     y += LINE_H
-    if ship_addr:
+
+    # Address: try invoice fields first, then shippingAddress string, then contact lookup
+    display_addr = ''
+    addr_line1 = invoice.get('addressLine1', '')
+    addr_city = invoice.get('city', '')
+    addr_state = invoice.get('state', '')
+    addr_postal = invoice.get('postalCode', '')
+    if addr_line1 and addr_city:
+        addr_parts = [addr_line1]
+        if invoice.get('addressLine2'):
+            addr_parts.append(invoice['addressLine2'])
+        addr_parts.append(f"{addr_city}, {addr_state or ''} {addr_postal or ''}".strip().rstrip(','))
+        display_addr = ', '.join(p for p in addr_parts if p)
+    elif ship_addr:
+        # Try parsing JSON address
+        try:
+            import json as _json
+            addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
+            if addr_obj.get('city'):
+                parts = [addr_obj.get('address', ''), addr_obj.get('city', ''),
+                         addr_obj.get('state', ''), addr_obj.get('in_pin_code', '')]
+                display_addr = ', '.join(p for p in parts if p)
+        except Exception:
+            display_addr = ship_addr
+    elif bill_addr:
+        display_addr = bill_addr
+
+    # Fallback: look up address from contact record
+    if not display_addr and cust_phone:
+        try:
+            contacts_tbl = dynamodb.Table(CONTACTS_TABLE)
+            clean_ph = cust_phone.replace('+', '').replace(' ', '').replace('-', '')
+            for variant in [f'+{clean_ph}', clean_ph]:
+                try:
+                    cr = contacts_tbl.query(
+                        IndexName='phone-index',
+                        KeyConditionExpression='phone = :p',
+                        ExpressionAttributeValues={':p': variant},
+                        Limit=1,
+                    )
+                    c_items = cr.get('Items', [])
+                    if c_items:
+                        c = c_items[0]
+                        c_parts = [c.get('addressLine1', ''), c.get('addressLine2', ''),
+                                   c.get('city', ''), c.get('state', ''), c.get('pincode', '')]
+                        c_addr = ', '.join(p for p in c_parts if p)
+                        if c_addr and len(c_addr) > 5:
+                            display_addr = c_addr
+                        break
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    if display_addr:
         _left("Address:", FB)
         y += LINE_H
-        for addr_line in _wrap_text(ship_addr, CHARS - 2):
+        for addr_line in _wrap_text(display_addr, CHARS - 2):
             _left(f"  {addr_line}", F)
             y += LINE_H
     _sep()
@@ -1328,6 +1400,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         y += LINE_H
 
     # ═══ QR CODE — links to selfservice ═══
+    qr_rendered = False
     try:
         import qrcode
         qr = qrcode.QRCode(version=1, box_size=3, border=1)
@@ -1338,8 +1411,31 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         qr_x = (W - qr_w) // 2
         img.paste(qr_img, (qr_x, y))
         y += qr_h + 4
+        qr_rendered = True
+    except ImportError:
+        logger.warning("qrcode library not installed — trying S3 fallback QR image")
     except Exception as qr_err:
-        logger.debug(f"QR code generation skipped: {qr_err}")
+        logger.debug(f"QR code generation failed: {qr_err}")
+
+    # Fallback: load pre-rendered QR from S3
+    if not qr_rendered:
+        try:
+            qr_s3_img = _load_s3_image('stream/media/m/qr-selfservice.png')
+            if qr_s3_img:
+                qr_s3_img = qr_s3_img.resize((80, 80), Image.LANCZOS).convert('RGB')
+                qr_x = (W - 80) // 2
+                img.paste(qr_s3_img, (qr_x, y))
+                y += 84
+                qr_rendered = True
+        except Exception as qr_fb_err:
+            logger.debug(f"QR S3 fallback failed: {qr_fb_err}")
+
+    # If still no QR, show text URL instead
+    if not qr_rendered:
+        _center("Scan QR or visit:", FSM, CLR_GRY)
+        y += LINE_H
+        _center("wecare.digital/selfservice", F)
+        y += LINE_H
 
     # ═══ FOOTER ═══
     _sep()

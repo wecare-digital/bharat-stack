@@ -43,19 +43,25 @@ def handle_init(data: Dict, flow_token: str, request_id: str,
 
 
 def handle_order_select(data: Dict, flow_token: str, request_id: str) -> Dict:
-    """ORDER_SELECT → show REQUEST_FORM with request types."""
+    """ORDER_SELECT → show SUBMIT_REQUEST_FORM with order context."""
     return {
-        'screen': 'REQUEST_FORM',
+        'screen': 'SUBMIT_REQUEST_FORM',
         'data': {
             'order_id': data.get('order_id', ''),
-            'request_types': [
-                {'id': 'return', 'title': '🔄 Return'},
-                {'id': 'exchange', 'title': '🔁 Exchange'},
-                {'id': 'refund', 'title': '💰 Refund'},
-                {'id': 'complaint', 'title': '⚠️ Complaint'},
-                {'id': 'support', 'title': '🛟 Support'},
-                {'id': 'other', 'title': '📝 Other'},
-            ],
+        }
+    }
+
+
+def handle_request_form(data: Dict, flow_token: str, request_id: str) -> Dict:
+    """SUBMIT_REQUEST_FORM → show TERMS with collected form data.
+    Passes order_id, subject, description forward to TERMS screen.
+    """
+    return {
+        'screen': 'TERMS',
+        'data': {
+            'order_id': data.get('order_id', ''),
+            'subject': data.get('subject', ''),
+            'description': data.get('description', ''),
         }
     }
 
@@ -75,9 +81,21 @@ def handle_review(data: Dict, flow_token: str, request_id: str,
     request_type = data.get('request_type', '')
 
     # Payment config from FlowRegistry — NOT hardcoded
+    # Fallback: if FlowRegistry has no config, check client-side payload flags
     cfg = flow_config or {}
     requires_payment = bool(cfg.get('requiresPayment', DEFAULT_REQUIRES_PAYMENT))
     payment_amount = int(cfg.get('paymentAmount', DEFAULT_PAYMENT_AMOUNT)) if requires_payment else 0
+
+    # Client-side fallback: REVIEW screen sends payment_required + service_fee_amount
+    # This ensures payment works even if FlowRegistry is not yet seeded
+    if not requires_payment and data.get('payment_required') == 'true':
+        requires_payment = True
+        try:
+            client_fee = int(data.get('service_fee_amount', '0'))
+            payment_amount = client_fee * 100 if client_fee > 0 else 0  # convert rupees to paise
+        except (ValueError, TypeError):
+            payment_amount = 0
+
     flow_name = cfg.get('flowName', FLOW_NAME)
     prefix = cfg.get('submissionPrefix', SUBMISSION_PREFIX)
 
@@ -91,18 +109,13 @@ def handle_review(data: Dict, flow_token: str, request_id: str,
     }))
 
     # ── SET SUCCESS RESPONSE FIRST ──
-    if requires_payment and payment_amount:
-        amt_display = f'₹{payment_amount / 100:.0f}' if payment_amount >= 100 else f'₹{payment_amount}'
-        success_msg = f'✅ Your {flow_name.lower()} {request_number} has been submitted successfully! A payment link for {amt_display} will be sent shortly.'
-    else:
-        success_msg = f'✅ Your {flow_name.lower()} {request_number} has been submitted successfully! Our team will review it within 24 hours.'
-
+    # v3 flow: return THANK_YOU screen with order_id, request_number, payment_ref_id
     response_payload = {
-        'screen': 'SUCCESS',
+        'screen': 'THANK_YOU',
         'data': {
+            'order_id': order_id,
             'request_number': request_number,
             'payment_ref_id': payment_ref_id or 'N/A',
-            'message': success_msg,
         }
     }
 

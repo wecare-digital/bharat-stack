@@ -88,15 +88,7 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
         if screen == 'ORDER_SELECT':
             return submit_request.handle_order_select(data, flow_token, request_id)
         if screen in ('SUBMIT_REQUEST_FORM', 'REQUEST_FORM'):
-            return {
-                'screen': 'REVIEW',
-                'data': {
-                    'order_id': data.get('order_id', ''),
-                    'request_type': data.get('request_type', ''),
-                    'subject': data.get('subject', ''),
-                    'description': data.get('description', ''),
-                }
-            }
+            return submit_request.handle_request_form(data, flow_token, request_id)
         if screen == 'REVIEW':
             return submit_request.handle_review(data, flow_token, request_id,
                                                 flow_config=flow_config)

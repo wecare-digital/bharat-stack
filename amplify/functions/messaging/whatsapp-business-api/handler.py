@@ -2794,13 +2794,32 @@ def _find_contact_by_phone(phone: str) -> str:
 def _fetch_orders_for_flow(phone: str, email: str) -> list:
     """
     Fetch WD-ORD numbers for a user by phone or email.
-    Uses the wix-store Lambda (eCommerce Orders API) for rich order data.
+    Aggregates orders from ALL configured stores (Wix, Shopify, custom, etc.).
     Falls back to Wix Velo /_functions/orders if Lambda call fails.
     Returns list of {id, title} for WhatsApp Flow dropdown.
+
+    Store sources:
+      1. wecare-wix-store Lambda (Wix eCommerce Orders API) — primary
+      2. DynamoDB OrderIds table scan (catches manually created / other-store orders)
+      3. Wix Velo /_functions/orders (fallback if Lambda fails)
     """
     order_ids = []
+    seen_wd_ids = set()
 
-    # ── Method 1: Use wix-store Lambda (rich data) ──
+    def _add_order(wd_id: str, title: str):
+        """Deduplicate by WD-ORD number."""
+        if wd_id and wd_id not in seen_wd_ids:
+            seen_wd_ids.add(wd_id)
+            order_ids.append({'id': wd_id, 'title': title})
+
+    # Normalize phone once
+    clean_phone = ''
+    clean_phone_short = ''
+    if phone:
+        clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
+        clean_phone_short = clean_phone[2:] if len(clean_phone) > 10 and clean_phone.startswith('91') else clean_phone
+
+    # ── Source 1: Wix Store Lambda (rich data) ──
     try:
         search_params = {'limit': '20'}
         if email:
@@ -2820,13 +2839,6 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
         wix_body = json.loads(wix_result.get('body', '{}'))
         orders = wix_body.get('orders', [])
 
-        # Normalize phone for matching
-        clean_phone = ''
-        clean_phone_short = ''
-        if phone:
-            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
-            clean_phone_short = clean_phone[2:] if len(clean_phone) > 10 and clean_phone.startswith('91') else clean_phone
-
         for order in orders:
             summary = order.get('_summary', {})
             wd_id = order.get('customOrderNumber', '') or summary.get('customOrderNumber', '')
@@ -2836,13 +2848,11 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
             # Match by phone if no email filter
             if not email and clean_phone:
                 billing_phone = (summary.get('billingPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
-                buyer_email = summary.get('buyerEmail', '')
                 if clean_phone_short not in billing_phone and clean_phone not in billing_phone:
                     continue
 
-            # Build rich title: "WD-ORD-A1B2C3D4 — ₹499 — 2 items — 22 Mar"
+            # Build rich title: "WD-ORD-A1B2C3D4 — ₹499 — Item Name — 22 Mar"
             total = summary.get('totalAmount', '0')
-            item_count = summary.get('lineItemCount', 0)
             created = summary.get('createdDate', '')
             date_str = ''
             if created:
@@ -2853,7 +2863,6 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
                 except Exception:
                     date_str = created[:10]
 
-            # First item name for context
             items = summary.get('lineItems', [])
             first_item = items[0].get('name', '') if items else ''
             title_parts = [wd_id]
@@ -2864,22 +2873,48 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
             if date_str:
                 title_parts.append(date_str)
 
-            order_ids.append({
-                'id': wd_id,
-                'title': ' — '.join(title_parts),
-            })
+            _add_order(wd_id, ' — '.join(title_parts))
 
         if order_ids:
             logger.info(json.dumps({
                 'action': 'fetch_orders_for_flow', 'source': 'wix_store_lambda',
                 'count': len(order_ids), 'phone': (phone or '')[:6] + '***',
             }))
-            return order_ids
 
     except Exception as e:
         logger.warning(json.dumps({'action': 'fetch_orders_wix_lambda_failed', 'error': str(e)}))
 
-    # ── Method 2: Fallback to Wix Velo /_functions/orders ──
+    # ── Source 2: DynamoDB OrderIds table (other stores / manually created) ──
+    try:
+        oid_table_name = os.environ.get('ORDER_IDS_TABLE', 'stack-wecare-digital-WixOrderIds')
+        oid_table = dynamodb.Table(oid_table_name)
+        # Scan for orders matching this phone (via phone-index if available)
+        if clean_phone:
+            for phone_variant in [f'+{clean_phone}', clean_phone, f'+91{clean_phone_short}']:
+                try:
+                    resp = oid_table.query(
+                        IndexName='phone-index',
+                        KeyConditionExpression='phone = :p',
+                        ExpressionAttributeValues={':p': phone_variant},
+                        Limit=20,
+                    )
+                    for item in resp.get('Items', []):
+                        wd_num = item.get('wdOrderNumber', '')
+                        if wd_num.startswith('WD-ORD'):
+                            source = item.get('source', 'wix')
+                            native = item.get('nativeNumber', '')
+                            title = f'{wd_num} — {source}' + (f' #{native}' if native else '')
+                            _add_order(wd_num, title)
+                except Exception:
+                    pass  # phone-index may not exist yet
+    except Exception as e:
+        logger.debug(f'OrderIds table scan skipped: {e}')
+
+    # Return early if we have orders from sources 1+2
+    if order_ids:
+        return order_ids
+
+    # ── Source 3: Fallback to Wix Velo /_functions/orders ──
     try:
         wix_site_url = os.environ.get('WIX_SITE_URL', 'https://www.wecare.digital')
         api_key = os.environ.get('WIX_API_KEY', '')
@@ -2889,12 +2924,6 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
                 api_key = resp.get('SecretString', '').strip()
             except Exception:
                 pass
-
-        clean_phone = ''
-        clean_phone_short = ''
-        if phone:
-            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
-            clean_phone_short = clean_phone[2:] if len(clean_phone) > 10 and clean_phone.startswith('91') else clean_phone
 
         query_param = f'email={urllib.parse.quote(email)}' if email else ''
         url = f'{wix_site_url}/_functions/orders?limit=50&{query_param}'
@@ -2912,7 +2941,7 @@ def _fetch_orders_for_flow(phone: str, email: str) -> list:
                     order_phone = (order.get('buyerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
                     if clean_phone_short not in order_phone and clean_phone not in order_phone:
                         continue
-                order_ids.append({'id': wd_id, 'title': wd_id})
+                _add_order(wd_id, wd_id)
 
         logger.info(json.dumps({
             'action': 'fetch_orders_for_flow', 'source': 'wix_velo_fallback',

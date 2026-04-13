@@ -1917,7 +1917,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px dashed #1a3a2a' }}>
                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>—</div>
                     <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#0f2a1d' }}>No Flow JSON stored yet</div>
-                    <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v2.json</code> to enable screen-level control.</div>
+                    <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v3.json</code> to enable screen-level control.</div>
                   </div>
                 )}
 
@@ -2022,7 +2022,7 @@ const Dashboard: React.FC<PageProps> = ({ signOut, user }) => {
                         value={flowJsonEditValue}
                         onChange={(e) => setFlowJsonEditValue(e.target.value)}
                         rows={25}
-                        placeholder='Paste the full WhatsApp Flow JSON here (from submit-request-flow-v2.json)...'
+                        placeholder='Paste the full WhatsApp Flow JSON here (from submit-request-flow-v3.json)...'
                         style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', resize: 'vertical' }}
                       />
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>

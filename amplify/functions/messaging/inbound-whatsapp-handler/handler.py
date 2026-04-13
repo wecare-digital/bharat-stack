@@ -5106,7 +5106,9 @@ DEFAULT_FLOW_TRIGGERS = {
             'new request', 'start a new support request', 'support request',
             '\U0001f4cb submit request',
         ],
-        'flowId': '931522532810297',
+        # Flow ID: 1469093721293830 = v3 (PUBLISHED on WABA 1)
+        # Phone 2 (WABA 2) cannot send WABA 1 flows — it uses CTA URL fallback automatically
+        'flowId': '1469093721293830',
         'message': {
             'body': '\U0001f4cb Start a new support request. Share the details and our team will follow up with you.',
             'footer': 'WECARE.DIGITAL',
