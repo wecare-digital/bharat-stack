@@ -1218,18 +1218,20 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     _sep()
 
     # ═══ BILL TO ═══
-    _left(f"Bill To: {cust_name}", FB)
+    _left("Bill To:", FB)
+    y += LINE_H
+    _left(f"  {cust_name}", F)
     y += LINE_H
     contact_line = f"  {cust_phone}"
     if cust_email:
         contact_line += f" | {cust_email}"
-    _left(contact_line[:CHARS], FB)
+    _left(contact_line[:CHARS], F)
     y += LINE_H
     if ship_addr:
         _left("Address:", FB)
         y += LINE_H
         for addr_line in _wrap_text(ship_addr, CHARS - 2):
-            _left(f"  {addr_line}", FB)
+            _left(f"  {addr_line}", F)
             y += LINE_H
     _sep()
 
