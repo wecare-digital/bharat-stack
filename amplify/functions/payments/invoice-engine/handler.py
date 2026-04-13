@@ -726,13 +726,14 @@ def list_invoices(params: Dict, request_id: str) -> Dict:
 
 
 def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
-    """Build POS receipt style HTML with logo for invoice rendering."""
+    """Build POS receipt style HTML matching the PNG receipt design.
+    Single delivery address (billing = same), no Order ID shown,
+    QR code, amount in words, paper tear zigzag, GST summary."""
     inv_num = invoice.get('invoiceNumber', '')
     cust_name = invoice.get('customerName', 'Customer')
     cust_phone = invoice.get('customerPhone', '')
     cust_email = invoice.get('customerEmail', '')
     ship_addr = invoice.get('shippingAddress', '')
-    bill_addr = invoice.get('billingAddress', '')
     subtotal = float(invoice.get('subtotal', 0))
     discount = float(invoice.get('discount', 0))
     shipping_amt = float(invoice.get('shipping', 0))
@@ -741,12 +742,9 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     gst_rate = float(invoice.get('gstRate', 0))
     conv_fee = float(invoice.get('convenienceFee', 0))
     total = float(invoice.get('total', 0))
-    gstin = invoice.get('gstin', COMPANY['gstin'])
     purpose = invoice.get('purpose', '') or ''
     if purpose.lower().startswith('menu_'):
         purpose = ''
-    payment_id = invoice.get('paymentId', '')
-    order_id = invoice.get('orderId', '')
     paid_at = invoice.get('paidAt', 0)
     created_at = invoice.get('createdAt', 0)
     payment_status = invoice.get('paymentStatus', 'pending')
@@ -770,11 +768,11 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
         if logo_bytes:
             import base64
             b64 = base64.b64encode(logo_bytes).decode('ascii')
-            logo_html = f'<img src="data:image/png;base64,{b64}" style="width:60px;height:60px;object-fit:contain;margin-bottom:6px" alt="Logo">'
+            logo_html = f'<img src="data:image/png;base64,{b64}" style="width:50px;height:50px;object-fit:contain" alt="Logo">'
     except Exception as _e:
         logger.debug(f"HTML logo embed failed: {_e}")
 
-    # Extract Green Packing and Notification Fee from items (stored as charge line items)
+    # Extract Green Packing and Notification Fee from items
     green_packing_amt = 0.0
     notification_fee_amt = 0.0
     for it in items:
@@ -797,6 +795,9 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
         line_total = amt * qty
         items_html += f'<tr><td>{i+1}</td><td>{name}</td><td class="r">{qty}</td><td class="r">{amt:,.2f}</td><td class="r">{line_total:,.2f}</td></tr>'
 
+    # Amount in words
+    words = _amount_in_words(total)
+
     # GST breakdown
     gst_html = ''
     if gst_rate > 0:
@@ -810,11 +811,9 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
         <div class="total-row b"><span>Total Tax</span><span>{tax:,.2f}</span></div>'''
 
     reference_id = invoice.get('referenceId', '')
-
-    # Customer-facing fields only (no internal invoice number, no payment ID)
     ref_id_html = f'<div class="info-row"><span>Ref: {reference_id}</span></div>' if reference_id else ''
 
-    # Status badge color
+    # Status
     status_upper = payment_status.upper()
     badge_color = '#059669' if status_upper == 'CAPTURED' else '#d97706' if status_upper == 'PENDING' else '#dc2626'
     badge_bg = '#D1FAE5' if status_upper == 'CAPTURED' else '#FEF3C7' if status_upper == 'PENDING' else '#FEE2E2'
@@ -822,47 +821,53 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     return f'''<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:'Courier New',Courier,monospace;color:#1a1a1a;background:#fff;width:420px;padding:18px;font-size:12px;line-height:1.4}}
+body{{font-family:'Courier New',Courier,monospace;color:#000;background:#fff;width:420px;padding:18px;font-size:12px;line-height:1.4}}
 .center{{text-align:center}}
 .r{{text-align:right}}
 .b{{font-weight:bold}}
 h1{{font-size:17px;margin:2px 0;letter-spacing:1px}}
-.subtitle{{font-size:10px;color:#555;margin:1px 0}}
+.subtitle{{font-size:10px;color:#000;margin:1px 0}}
 .divider{{border-top:1px dashed #999;margin:8px 0}}
 .divider2{{border-top:2px solid #333;margin:8px 0}}
-.section-title{{font-size:11px;font-weight:bold;color:#333;margin:4px 0 2px;text-transform:uppercase;letter-spacing:0.5px}}
+.section-title{{font-size:11px;font-weight:bold;color:#000;margin:4px 0 2px;text-transform:uppercase;letter-spacing:0.5px}}
 table{{width:100%;border-collapse:collapse;font-size:11px;margin:4px 0}}
-th{{text-align:left;padding:3px 2px;border-bottom:1px solid #333;font-size:10px;text-transform:uppercase;color:#555}}
+th{{text-align:left;padding:3px 2px;border-bottom:1px solid #333;font-size:10px;text-transform:uppercase;color:#000;font-weight:bold}}
 th.r{{text-align:right}}
-td{{padding:3px 2px;vertical-align:top}}
-.info-row{{display:flex;justify-content:space-between;font-size:11px;margin:2px 0}}
-.addr{{font-size:10px;color:#444;margin:2px 0 4px;line-height:1.3}}
-.total-row{{display:flex;justify-content:space-between;font-size:12px;margin:2px 0}}
+td{{padding:3px 2px;vertical-align:top;color:#000}}
+.info-row{{display:flex;justify-content:space-between;font-size:11px;margin:2px 0;color:#000}}
+.addr{{font-size:10px;color:#000;margin:2px 0 4px;line-height:1.3}}
+.total-row{{display:flex;justify-content:space-between;font-size:12px;margin:2px 0;color:#000}}
 .grand{{font-size:15px;font-weight:bold;background:#f0fdf4;padding:6px 4px;margin:4px -4px;border-top:2px solid #333;border-bottom:2px solid #333}}
 .badge{{display:inline-block;padding:2px 10px;font-size:10px;font-weight:bold;border-radius:3px;color:{badge_color};background:{badge_bg};border:1px solid {badge_color}}}
-.footer{{margin-top:10px;text-align:center;font-size:10px;color:#777}}
+.footer{{margin-top:10px;text-align:center;font-size:10px;color:#000}}
 .paid-stamp{{font-size:18px;font-weight:bold;color:#059669;text-align:center;margin:6px 0;letter-spacing:2px}}
+.header-row{{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px}}
+.header-logo{{flex-shrink:0}}
+.header-text{{flex:1;text-align:center}}
+.words{{font-size:10px;color:#000;margin:4px 0;padding:0 4px}}
 </style></head><body>
-<div class="center">
-    {logo_html}
-    <h1>{COMPANY['name']}</h1>
-    <div class="subtitle">GSTIN: {COMPANY['gstin']}</div>
-    <div class="subtitle">{COMPANY['address']}</div>
-    <div class="subtitle">{COMPANY['phone']} | {COMPANY['email']}</div>
+<div class="header-row">
+    <div class="header-logo">{logo_html}</div>
+    <div class="header-text">
+        <h1>{COMPANY['name']}</h1>
+        <div class="subtitle">GSTIN: {COMPANY['gstin']}</div>
+        <div class="subtitle">The W.B.S.I.D.C. Building, Unit 1/20,</div>
+        <div class="subtitle">81/2/7, Phears Ln, Kolkata, WB 700012</div>
+        <div class="subtitle">one@wecare.digital | +91 93309 94400</div>
+    </div>
 </div>
 <div class="divider2"></div>
-<div class="center" style="margin:4px 0"><span style="font-size:13px;font-weight:bold;letter-spacing:1px">Invoice</span></div>
+<div class="center" style="margin:4px 0"><span style="font-size:13px;font-weight:bold;letter-spacing:1px">TAX INVOICE</span></div>
 <div class="divider"></div>
 <div class="info-row"><span>Date: {date_str}</span><span>{time_str}</span></div>
 {ref_id_html}
 {f'<div class="info-row"><span>Brand: {purpose}</span></div>' if purpose else ''}
+{f'<div class="info-row b"><span>PAID: {paid_str}</span></div>' if status_upper == 'CAPTURED' and paid_str else ''}
 <div class="divider"></div>
 <div class="section-title">Bill To</div>
-<div style="font-size:11px;font-weight:bold">{cust_name}</div>
+<div style="font-size:11px;font-weight:bold;color:#000">{cust_name}</div>
 <div class="addr">{cust_phone}{(' | ' + cust_email) if cust_email else ''}</div>
-<div class="addr">{bill_addr if bill_addr else '-'}</div>
-<div class="section-title">Ship To</div>
-<div class="addr">{ship_addr if ship_addr else '-'}</div>
+{f'<div class="section-title">Address</div><div class="addr">{ship_addr}</div>' if ship_addr else ''}
 <div class="divider"></div>
 <table>
     <thead><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
@@ -879,16 +884,17 @@ td{{padding:3px 2px;vertical-align:top}}
 <div class="total-row"><span>SGST @{gst_rate/2:.1f}%</span><span>{sgst:,.2f}</span></div>
 {'<div class="total-row"><span>Conv Fee</span><span>' + f'{conv_fee:,.2f}' + '</span></div>' if conv_fee else ''}
 <div class="total-row grand"><span>Total ({total_qty} items)</span><span>&#8377; {total:,.2f}</span></div>
+<div class="words">{words}</div>
 {gst_html}
 <div class="divider2"></div>
-{'<div class="paid-stamp">PAID</div>' if status_upper == 'CAPTURED' else ''}
-<div class="info-row"><span>Status: <span class="badge">{status_upper}</span></span></div>
-{f'<div class="info-row"><span>Paid: {paid_str}</span></div>' if paid_str else ''}
+{'<div class="paid-stamp">* * *  PAID  * * *</div>' if status_upper == 'CAPTURED' else ''}
+{'<div class="center" style="font-size:11px;margin:2px 0">Paid on: ' + paid_str + '</div>' if status_upper == 'CAPTURED' and paid_str else ''}
+{'<div class="center b" style="font-size:12px;margin:4px 0">PAYMENT PENDING</div>' if status_upper == 'PENDING' else ''}
 <div class="divider2"></div>
 <div class="footer">
     <div style="font-size:12px;font-weight:bold;margin:6px 0">Thank You!</div>
     <div>Visit Again!</div>
-    <div style="margin-top:2px">Support: wecare.digital/selfservice</div>
+    <div style="margin-top:2px">wecare.digital/selfservice</div>
 </div>
 </body></html>'''
 

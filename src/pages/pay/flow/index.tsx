@@ -354,9 +354,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
               </div>
               <div className="table-container">
                 <table className="inner-table">
-                  <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Email</th><th>Shipping</th><th>Billing</th><th>Updated</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Email</th><th>Delivery Address</th><th>Updated</th><th>Actions</th></tr></thead>
                   <tbody>
-                    {filteredCust.length===0 && <tr className="empty-row"><td colSpan={8}>No customers found</td></tr>}
+                    {filteredCust.length===0 && <tr className="empty-row"><td colSpan={7}>No customers found</td></tr>}
                     {filteredCust.map((c,i)=>(
                       <tr key={c.id}>
                         <td>{i+1}</td>
@@ -364,7 +364,6 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                         <td>{c.phone||'\u2014'}</td>
                         <td>{c.email||'\u2014'}</td>
                         <td className="pf-cell-truncate">{c.shippingAddress||'\u2014'}</td>
-                        <td className="pf-cell-truncate">{c.billingAddress||'\u2014'}</td>
                         <td>{fmtDate(new Date(c.updatedAt||c.createdAt||'').getTime())}</td>
                         <td><Button variant="ghost" size="sm" onClick={()=>openEditCust(c)}>Edit</Button></td>
                       </tr>
@@ -385,13 +384,13 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="form-group"><label>Delivery Address</label><textarea value={custForm.shippingAddress} onChange={e=>setCustForm({...custForm,shippingAddress:e.target.value,billingAddress:e.target.value})} placeholder="Full delivery address (used for billing too)" /></div>
                     <p style={{fontSize:12,fontWeight:600,color:'#1a3a2a',margin:'8px 0 4px'}}>Structured Address (for WhatsApp Payments)</p>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                      <div className="form-group"><label>House / Flat No</label><input value={custForm.houseNumber} onChange={e=>setCustForm({...custForm,houseNumber:e.target.value})} placeholder="e.g. 12" /></div>
+                      <div className="form-group"><label>House / Unit Number</label><input value={custForm.houseNumber} onChange={e=>setCustForm({...custForm,houseNumber:e.target.value})} placeholder="e.g. 12" /></div>
                       <div className="form-group"><label>Building</label><input value={custForm.buildingName} onChange={e=>setCustForm({...custForm,buildingName:e.target.value})} placeholder="e.g. One BKC" /></div>
                       <div className="form-group"><label>Street / Locality</label><input value={custForm.addressLine1} onChange={e=>setCustForm({...custForm,addressLine1:e.target.value})} placeholder="e.g. Bandra Kurla Complex" /></div>
                       <div className="form-group"><label>Landmark</label><input value={custForm.landmark} onChange={e=>setCustForm({...custForm,landmark:e.target.value})} placeholder="e.g. Near BKC Circle" /></div>
                       <div className="form-group"><label>City</label><input value={custForm.city} onChange={e=>setCustForm({...custForm,city:e.target.value})} placeholder="e.g. Mumbai" /></div>
                       <div className="form-group"><label>State</label><input value={custForm.state} onChange={e=>setCustForm({...custForm,state:e.target.value})} placeholder="e.g. Maharashtra" /></div>
-                      <div className="form-group"><label>PIN Code</label><input value={custForm.postalCode} onChange={e=>setCustForm({...custForm,postalCode:e.target.value})} placeholder="6-digit PIN" maxLength={6} /></div>
+                      <div className="form-group"><label>Postal Code</label><input value={custForm.postalCode} onChange={e=>setCustForm({...custForm,postalCode:e.target.value})} placeholder="6-digit code" maxLength={6} /></div>
                     </div>
                     <div className="pf-modal-actions">
                       <Button variant="secondary" size="sm" onClick={closeEditCust}>Cancel</Button>
@@ -443,10 +442,9 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <Button variant="ghost" size="sm" onClick={()=>setSelCustomer(null)}>Change</Button>
                   </div>
                   {/* Address display */}
-                  {(selCustomer.shippingAddress || selCustomer.billingAddress) && (
+                  {selCustomer.shippingAddress && (
                     <div className="inner-card" style={{marginBottom:16,maxWidth:600,padding:'10px 14px',fontSize:12,color:'#555',background:'#f8faf9',border:'1px solid #e0e8e3',borderRadius:8}}>
-                      {selCustomer.shippingAddress && <div style={{marginBottom:4}}><strong>Ship To:</strong> {selCustomer.shippingAddress}</div>}
-                      {selCustomer.billingAddress && <div><strong>Bill To:</strong> {selCustomer.billingAddress}</div>}
+                      <div><strong>Delivery Address:</strong> {selCustomer.shippingAddress}</div>
                     </div>
                   )}
                   <h3 style={{margin:'0 0 12px',fontSize:18}}>Step 2 {'\u2014'} Invoice Details</h3>
@@ -524,7 +522,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                   <div className="inner-card" style={{marginBottom:20,maxWidth:500}}>
                     <h4 style={{margin:'0 0 8px',fontSize:14}}>Preview</h4>
                     {goodsType === 'physical-goods' && selCustomer?.shippingAddress && (
-                      <div style={{fontSize:11,color:'#1e40af',background:'#dbeafe',padding:'4px 8px',borderRadius:6,marginBottom:8}}>📦 Physical Goods — Ship To: {selCustomer.shippingAddress}</div>
+                      <div style={{fontSize:11,color:'#1e40af',background:'#dbeafe',padding:'4px 8px',borderRadius:6,marginBottom:8}}>📦 Physical Goods — Delivery: {selCustomer.shippingAddress}</div>
                     )}
                     <div className="pf-preview-row"><span>Subtotal</span><span>{fmtMoney(calcSubtotal())}</span></div>
                     {invForm.items.map((it,i) => {
@@ -621,8 +619,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="pf-detail-row"><span className="label">Brand</span><span>{selInvoice.purpose||'\u2014'}</span></div>
                     <div className="pf-detail-row"><span className="label">Order</span><span>{selInvoice.orderId||'\u2014'}</span></div>
                     {selInvoice.goodsType && <div className="pf-detail-row"><span className="label">Type</span><span style={{padding:'2px 8px',borderRadius:12,fontSize:11,fontWeight:500,background:selInvoice.goodsType==='physical-goods'?'#dbeafe':'#f3e8ff',color:selInvoice.goodsType==='physical-goods'?'#1e40af':'#6b21a8'}}>{selInvoice.goodsType==='physical-goods'?'Physical':'Digital'}</span></div>}
-                    {selInvoice.shippingAddress && <div className="pf-detail-row" style={{alignItems:'flex-start'}}><span className="label">Ship To</span><span style={{fontSize:11,color:'#555',maxWidth:200,wordBreak:'break-word'}}>{selInvoice.shippingAddress}</span></div>}
-                    {selInvoice.billingAddress && <div className="pf-detail-row" style={{alignItems:'flex-start'}}><span className="label">Bill To</span><span style={{fontSize:11,color:'#555',maxWidth:200,wordBreak:'break-word'}}>{selInvoice.billingAddress}</span></div>}
+                    {selInvoice.shippingAddress && <div className="pf-detail-row" style={{alignItems:'flex-start'}}><span className="label">Delivery Address</span><span style={{fontSize:11,color:'#555',maxWidth:200,wordBreak:'break-word'}}>{selInvoice.shippingAddress}</span></div>}
                     <div className="pf-section-divider">
                       <div className="pf-detail-row"><span className="label">Subtotal</span><span>{fmtMoney(selInvoice.subtotal)}</span></div>
                       <div className="pf-detail-row"><span className="label">Tax</span><span>{fmtMoney(selInvoice.tax)}</span></div>
@@ -790,8 +787,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                   <div className="form-group"><label>Promo / Discount ({'₹'})</label><input type="number" value={editForm.discount} onChange={e=>setEditForm({...editForm,discount:e.target.value})} /></div>
                   <div className="form-group"><label>Order ID</label><input type="text" value={editForm.orderId} onChange={e=>setEditForm({...editForm,orderId:e.target.value})} /></div>
                   <div className="form-group"><label>Notes</label><textarea rows={2} value={editForm.notes} onChange={e=>setEditForm({...editForm,notes:e.target.value})} /></div>
-                  <div className="form-group"><label>Shipping Address</label><textarea rows={2} value={editForm.shippingAddress} onChange={e=>setEditForm({...editForm,shippingAddress:e.target.value})} placeholder="Shipping address for physical goods" /></div>
-                  <div className="form-group"><label>Billing Address</label><textarea rows={2} value={editForm.billingAddress} onChange={e=>setEditForm({...editForm,billingAddress:e.target.value})} placeholder="Billing address" /></div>
+                  <div className="form-group"><label>Delivery Address</label><textarea rows={2} value={editForm.shippingAddress} onChange={e=>setEditForm({...editForm,shippingAddress:e.target.value,billingAddress:e.target.value})} placeholder="Delivery address (used for billing too)" /></div>
                 </div>
                 <div className="pf-modal-actions">
                   <Button variant="secondary" size="sm" onClick={()=>setEditModal(null)}>Cancel</Button>

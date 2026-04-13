@@ -47,10 +47,9 @@ const COUNTRY_CODES = [
   { code: '+63', country: 'Philippines' }, { code: '+7', country: 'Russia' },
 ];
 
-type ColumnKey = 'shipping' | 'billing' | 'updated' | 'tags';
+type ColumnKey = 'shipping' | 'updated' | 'tags';
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
-  { key: 'shipping', label: 'Shipping' },
-  { key: 'billing', label: 'Billing' },
+  { key: 'shipping', label: 'Delivery Address' },
   { key: 'updated', label: 'Updated' },
   { key: 'tags', label: 'Tags' },
 ];
@@ -1072,8 +1071,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                       <SortHeader label="Name" sKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                       <SortHeader label="Phone" sKey="phone" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                       <SortHeader label="Email" sKey="email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                      {colVisible('shipping') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Shipping</th>}
-                      {colVisible('billing') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Billing</th>}
+                      {colVisible('shipping') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Delivery Address</th>}
                       {colVisible('updated') && <SortHeader label="Updated" sKey="updatedAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />}
                       {colVisible('tags') && <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#374151', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Tags</th>}
                       <th style={{ width: 100, padding: '12px 10px', background: '#f9fafb', borderBottom: '2px solid #f3f4f6', position: 'sticky', top: 0, zIndex: 2 }}>Actions</th>
@@ -1104,7 +1102,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                           ) : (c.email || '—')}
                         </td>
                         {colVisible('shipping') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.shippingAddress || '—'}</td>}
-                        {colVisible('billing') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{c.billingAddress || '—'}</td>}
                         {colVisible('updated') && <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', color: '#6b7280', fontSize: 13 }} title={c.updatedAt ? (() => { const n = Number(c.updatedAt); const d = new Date(!isNaN(n) && n < 1e12 ? n * 1000 : (!isNaN(n) ? n : c.updatedAt)); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })() : ''}>{timeAgo(c.updatedAt)}</td>}
                         {colVisible('tags') && (
                           <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6' }} onClick={e => e.stopPropagation()}>
