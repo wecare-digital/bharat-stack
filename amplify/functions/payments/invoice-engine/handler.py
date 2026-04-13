@@ -1001,11 +1001,11 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
             return ImageFont.load_default()
 
     FONT_SZ = 14
-    F    = _mono(FONT_SZ)
+    F    = _mono(FONT_SZ, True)
     FB   = _mono(FONT_SZ, True)
     FLG  = _mono(FONT_SZ + 3, True)
-    FSM  = _mono(FONT_SZ - 2)
-    FXS  = _mono(FONT_SZ - 4)
+    FSM  = _mono(FONT_SZ - 2, True)
+    FXS  = _mono(FONT_SZ - 4, True)
 
     CHARS  = 48
     LINE_H = 18
@@ -1156,24 +1156,24 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         _center('=' * CHARS, F, CLR_GRY)
         y += LINE_H
 
-    # ═══ HEADER — logo left, company info centered in remaining space ═══
+    # ═══ HEADER — logo left-aligned, company info centered in remaining space ═══
     LOGO_SZ = 50
     if logo_bytes:
         try:
             logo_img = Image.open(io.BytesIO(logo_bytes)).convert('RGBA')
             logo_img = logo_img.resize((LOGO_SZ, LOGO_SZ), Image.LANCZOS)
-            img.paste(logo_img, (PX, y), logo_img)
+            img.paste(logo_img, (PX, y + 2), logo_img)
         except Exception:
             pass
 
-    tx = PX + LOGO_SZ + 10  # text area starts after logo
-    avail_w = W - tx - PX   # available width for text
+    tx = PX + LOGO_SZ + 12  # text area starts after logo + gap
+    avail_w = W - tx - PX   # available width for centered text
 
     def _hdr_center(txt, font, color=CLR_BLK):
         """Center text within the header area (right of logo)."""
         tw = _tw(draw, txt, font)
-        x = tx + (avail_w - tw) // 2
-        draw.text((max(tx, x), y), txt, fill=color, font=font)
+        x = tx + max(0, (avail_w - tw) // 2)
+        draw.text((x, y), txt, fill=color, font=font)
 
     # Company name — centered in header area
     _hdr_center(COMPANY['name'], FLG)
