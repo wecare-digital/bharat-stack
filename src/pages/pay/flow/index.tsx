@@ -382,15 +382,7 @@ const PayFlowPage: React.FC<PP> = ({ signOut, user, embedded }) => {
                     <div className="form-group"><label>Name</label><input type="text" value={custForm.name} onChange={e=>setCustForm({...custForm,name:e.target.value})} placeholder="Enter full name" /></div>
                     <div className="form-group"><label>Phone</label><input type="tel" value={custForm.phone} onChange={e=>setCustForm({...custForm,phone:e.target.value})} placeholder="Include country code" /></div>
                     <div className="form-group"><label>Email</label><input type="email" value={custForm.email} onChange={e=>setCustForm({...custForm,email:e.target.value})} placeholder="Enter email address" /></div>
-                    <div className="form-group"><label>GSTIN</label><input type="text" value={custForm.gstin} onChange={e=>setCustForm({...custForm,gstin:e.target.value})} placeholder="e.g. 22AAAAA0000A1Z5" maxLength={15} /></div>
-                    <div className="form-group"><label>Shipping Address</label><textarea value={custForm.shippingAddress} onChange={e=>setCustForm({...custForm,shippingAddress:e.target.value})} placeholder="Full shipping address" /></div>
-                    <div className="form-group">
-                      <label>Billing Address</label>
-                      <textarea value={custForm.billingAddress} onChange={e=>setCustForm({...custForm,billingAddress:e.target.value})} placeholder="Full billing address" />
-                      <button type="button" onClick={() => setCustForm({...custForm, billingAddress: custForm.shippingAddress})} disabled={!custForm.shippingAddress} style={{fontSize:11,color:'#1a3a2a',background:'none',border:'none',cursor:custForm.shippingAddress?'pointer':'not-allowed',opacity:custForm.shippingAddress?1:0.5,marginTop:4,fontWeight:600}}>
-                        Copy from shipping
-                      </button>
-                    </div>
+                    <div className="form-group"><label>Delivery Address</label><textarea value={custForm.shippingAddress} onChange={e=>setCustForm({...custForm,shippingAddress:e.target.value,billingAddress:e.target.value})} placeholder="Full delivery address (used for billing too)" /></div>
                     <p style={{fontSize:12,fontWeight:600,color:'#1a3a2a',margin:'8px 0 4px'}}>Structured Address (for WhatsApp Payments)</p>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                       <div className="form-group"><label>House / Flat No</label><input value={custForm.houseNumber} onChange={e=>setCustForm({...custForm,houseNumber:e.target.value})} placeholder="e.g. 12" /></div>
