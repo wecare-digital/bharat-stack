@@ -1175,21 +1175,19 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         x = tx + max(0, (avail_w - tw) // 2)
         draw.text((x, y), txt, fill=color, font=font)
 
-    # Company name — centered in header area
+    # Company name — centered in header area, bold
     _hdr_center(COMPANY['name'], FLG)
     y += 22
-    # GSTIN
-    _hdr_center(f"GSTIN: {COMPANY['gstin']}", FSM, CLR_GRY)
-    y += 16
-    # Address — centered, wrapped
-    for part in _wrap_text(COMPANY['address'], 36):
-        _hdr_center(part, FSM, CLR_GRY)
-        y += 15
-    # Phone
-    _hdr_center(f"{COMPANY['phone']}", FSM, CLR_GRY)
-    y += 15
-    # Email
-    _hdr_center(f"{COMPANY['email']}", FSM, CLR_GRY)
+    # GSTIN — bold
+    _hdr_center(f"GSTIN: {COMPANY['gstin']}", FB)
+    y += LINE_H
+    # Address — 2 fixed lines, bold
+    _hdr_center("The W.B.S.I.D.C. Building, Unit 1/20,", FB)
+    y += LINE_H
+    _hdr_center("81/2/7, Phears Ln, Kolkata, WB 700012", FB)
+    y += LINE_H
+    # Contact — single line, bold
+    _hdr_center(f"one@wecare.digital | +91 93309 94400", FB)
     y += LINE_H + 2
 
     # ═══ INVOICE TITLE ═══
@@ -1225,14 +1223,14 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     contact_line = f"  {cust_phone}"
     if cust_email:
         contact_line += f" | {cust_email}"
-    _left(contact_line[:CHARS], FSM, CLR_GRY)
-    y += LINE_H - 2
+    _left(contact_line[:CHARS], FB)
+    y += LINE_H
     if ship_addr:
         _left("Address:", FB)
         y += LINE_H
         for addr_line in _wrap_text(ship_addr, CHARS - 2):
-            _left(f"  {addr_line}", FSM, CLR_GRY)
-            y += LINE_H - 3
+            _left(f"  {addr_line}", FB)
+            y += LINE_H
     _sep()
 
     # ═══ ITEMS TABLE ═══
