@@ -14,16 +14,16 @@ interface PageProps { signOut?: () => void; user?: any; }
 type FlowSubmission = api.FlowLog;
 
 const FLOW_TYPES = [
-  { key: 'submit_request', label: 'Submit Request', icon: '📋', flowId: '931522532810297', paid: true, price: '₹49', status: 'deprecated', confirmation: 'Payment link + text confirmation' },
-  { key: 'subscribe', label: 'Subscribe', icon: '📝', flowId: '1557815099200456', paid: false, price: 'Free', status: 'published', confirmation: 'WhatsApp text with subscriber ID' },
-  { key: 'amend_request', label: 'Amend Request', icon: '✏️', flowId: '1533536534833353', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Text confirmation' },
-  { key: 'track_request', label: 'Track Request', icon: '🔍', flowId: '973888792200167', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Status update text' },
-  { key: 'rx_slot', label: 'RX Slot', icon: '💊', flowId: '1892784521355352', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Appointment confirmation' },
-  { key: 'drop_docs', label: 'Drop Docs', icon: '📄', flowId: '1737801600902350', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Document receipt' },
-  { key: 'enterprise_assist', label: 'Enterprise Assist', icon: '🏢', flowId: '2132515287534606', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Enquiry acknowledgement' },
-  { key: 'schedule_appointment', label: 'Appointment', icon: '📅', flowId: '1475722977488573', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Appointment confirmation' },
-  { key: 'leave_review', label: 'Leave Review', icon: '⭐', flowId: '963443293213262', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Thank you message' },
-  { key: 'order_notes', label: 'Order Notes', icon: '📝', flowId: '727503180451487', paid: false, price: 'Free', status: 'deprecated', confirmation: 'Notes saved confirmation' },
+  { key: 'submit_request', label: 'Submit Request', icon: '📋', flowId: '1469093721293830', paid: true, price: '₹49', status: 'published', confirmation: 'Payment link + text confirmation' },
+  { key: 'subscribe', label: 'Subscribe', icon: '📝', flowId: '1262971692700761', paid: false, price: 'Free', status: 'published', confirmation: 'WhatsApp text with subscriber ID' },
+  { key: 'track_request', label: 'Track Request', icon: '🔍', flowId: '1486454129852338', paid: false, price: 'Free', status: 'draft', confirmation: 'Status display in flow' },
+  { key: 'amend_request', label: 'Amend Request', icon: '✏️', flowId: '3678132465672138', paid: false, price: 'Free', status: 'draft', confirmation: 'Amendment confirmation' },
+  { key: 'schedule_appointment', label: 'Appointment', icon: '📅', flowId: '26575380852083467', paid: false, price: 'Free', status: 'draft', confirmation: 'Booking confirmation' },
+  { key: 'rx_slot', label: 'RX Slot', icon: '💊', flowId: '895208030185211', paid: false, price: 'Free', status: 'draft', confirmation: 'Slot confirmation' },
+  { key: 'drop_docs', label: 'Drop Docs', icon: '📄', flowId: '1211063631104445', paid: false, price: 'Free', status: 'draft', confirmation: 'Document registered' },
+  { key: 'enterprise_assist', label: 'Enterprise Assist', icon: '🏢', flowId: '1707170524029465', paid: false, price: 'Free', status: 'draft', confirmation: 'Enquiry acknowledgement' },
+  { key: 'leave_review', label: 'Leave Review', icon: '⭐', flowId: '4423166114671543', paid: false, price: 'Free', status: 'draft', confirmation: 'Review submitted' },
+  { key: 'order_notes', label: 'Order Notes', icon: '📝', flowId: '1434731571172691', paid: false, price: 'Free', status: 'draft', confirmation: 'Notes saved' },
 ];
 
 const MESSAGE_LINKS: Record<string, string> = {

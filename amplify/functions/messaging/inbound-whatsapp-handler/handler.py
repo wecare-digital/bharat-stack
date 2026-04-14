@@ -5122,7 +5122,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'request status', 'track order', 'check the status',
             '\U0001f50d track request',
         ],
-        'flowId': '973888792200167',
+        # DRAFT on WABA 1 — publish before enabling
+        'flowId': '1486454129852338',
         'message': {
             'body': '\U0001f50d Check the status of your request anytime. Enter your reference ID below.',
             'footer': 'WECARE.DIGITAL',
@@ -5137,7 +5138,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'edit or correct', 'existing request',
             '\u270f\ufe0f amend request',
         ],
-        'flowId': '1533536534833353',
+        'flowId': '3678132465672138',
         'message': {
             'body': '\u270f\ufe0f Need to make a change? Edit or correct your submitted request.',
             'footer': 'WECARE.DIGITAL',
@@ -5152,7 +5153,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'schedule a consultation', 'service visit',
             '\U0001f4c5 appointment',
         ],
-        'flowId': '1475722977488573',
+        'flowId': '26575380852083467',
         'message': {
             'body': '\U0001f4c5 Schedule a consultation or service visit at a time that works best for you.',
             'footer': 'WECARE.DIGITAL',
@@ -5166,7 +5167,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'chemist', 'book medical visit', 'medical visit', 'medical tourism',
             '\U0001fa7a rx slot',
         ],
-        'flowId': '1892784521355352',
+        'flowId': '895208030185211',
         'message': {
             'body': '\U0001fa7a Schedule a medical tourism or prescription-related visit.',
             'footer': 'WECARE.DIGITAL',
@@ -5180,7 +5181,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'upload documents', 'share docs', 'supporting documents',
             '\U0001f4c4 drop docs',
         ],
-        'flowId': '1737801600902350',
+        'flowId': '1211063631104445',
         'message': {
             'body': '\U0001f4c4 Send supporting documents for your request.',
             'footer': 'WECARE.DIGITAL',
@@ -5195,7 +5196,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'bulk enquiries', 'bulk',
             '\U0001f3e2 enterprise assist',
         ],
-        'flowId': '2132515287534606',
+        'flowId': '1707170524029465',
         'message': {
             'body': '\U0001f3e2 Corporate, B2B, and bulk enquiries. Tell us what you need.',
             'footer': 'WECARE.DIGITAL',
@@ -5209,7 +5210,7 @@ DEFAULT_FLOW_TRIGGERS = {
             'leave feedback', 'share your experience',
             '\u2b50 leave review',
         ],
-        'flowId': '963443293213262',
+        'flowId': '4423166114671543',
         'message': {
             'body': '\u2b50 Share your experience with our service.',
             'footer': 'WECARE.DIGITAL',
@@ -5234,7 +5235,7 @@ DEFAULT_FLOW_TRIGGERS = {
     },
     'order_notes': {
         'keywords': ['order notes', 'order note', 'special instructions', 'delivery notes', 'order instructions'],
-        'flowId': '727503180451487',
+        'flowId': '1434731571172691',
         'message': {
             'body': '\U0001f4dd Add notes to your order \u2014 share any special instructions.',
             'footer': 'WECARE.DIGITAL',
