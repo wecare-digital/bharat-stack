@@ -29,14 +29,14 @@ DEFAULT_PAYMENT_AMOUNT = 0
 def handle_init(data: Dict, flow_token: str, request_id: str,
                 fetch_orders_fn=None) -> Dict:
     """INIT → fetch orders, navigate to ORDER_SELECT."""
+    from flows.orders import fetch_orders_for_flow
     phone = get_phone_from_token(flow_token)
     email = data.get('email', '')
     orders = []
-    if fetch_orders_fn:
-        try:
-            orders = fetch_orders_fn(phone, email)
-        except Exception as e:
-            logger.warning(f'Order fetch failed: {e}')
+    try:
+        orders = fetch_orders_for_flow(phone, email)
+    except Exception as e:
+        logger.warning(f'Order fetch failed: {e}')
     if not orders:
         orders = [{'id': 'none', 'title': 'No orders found'}]
     return {'screen': 'ORDER_SELECT', 'data': {'orders': orders}}

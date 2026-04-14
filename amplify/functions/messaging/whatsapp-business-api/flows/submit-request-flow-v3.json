@@ -23,8 +23,8 @@
             }
           },
           "__example__": [
-            { "id": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST", "title": "WD-ORD - A1B2C3D4" },
-            { "id": "WD-ORD - E5F6G7H8 - 21-02-2026 - 10:30:00 - IST", "title": "WD-ORD - E5F6G7H8" }
+            { "id": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST", "title": "A1B2C3D4 \u2014 22 Feb 2026, 6:00 PM" },
+            { "id": "WD-ORD - E5F6G7H8 - 21-02-2026 - 10:30:00 - IST", "title": "E5F6G7H8 \u2014 21 Feb 2026, 10:30 AM" }
           ]
         }
       },

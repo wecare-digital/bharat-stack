@@ -6,8 +6,9 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, generic
+from flows import subscribe, submit_request, track_request, generic
 from flows.common import get_phone_from_token, log_flow_event
+from flows.orders import fetch_orders_for_flow as _orders_fetch
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ TOKEN_PREFIX_TO_FLOW_CODE = {
 
 # Flow keys that use the generic handler
 GENERIC_FLOW_PREFIXES = {
-    'amend_requ', 'track_requ', 'rx_slot', 'drop_docs',
+    'amend_requ', 'rx_slot', 'drop_docs',
     'enterprise', 'schedule_a', 'leave_revi', 'order_note',
 }
 
@@ -93,6 +94,15 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
             return submit_request.handle_review(data, flow_token, request_id,
                                                 flow_config=flow_config)
         if screen in ('THANK_YOU', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── TRACK REQUEST FLOW ──
+    if flow_key in ('track_requ',) or flow_key.startswith('track'):
+        if action == 'INIT':
+            return track_request.handle_init(data, flow_token, request_id)
+        if screen == 'ORDER_SELECT':
+            return track_request.handle_order_select(data, flow_token, request_id)
+        if screen in ('STATUS', 'THANK_YOU', 'SUCCESS'):
             return _terminal_response(flow_token)
 
     # ── GENERIC FLOWS ──

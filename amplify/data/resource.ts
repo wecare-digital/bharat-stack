@@ -1145,6 +1145,83 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // ============================================================
+  // ORDER MANAGEMENT TABLES
+  // ============================================================
+
+  // Table: Order — Central order repository (all sources: Wix, manual, Shopify, future)
+  Order: a
+    .model({
+      orderId: a.string().required(), // "WD-ORD-A1B2C3D4" — canonical full ID
+      shortId: a.string().required(), // "A1B2C3D4" — 8-char hex for display
+      // Source
+      source: a.string().required(), // wix | manual | shopify | woocommerce | custom
+      sourceOrderId: a.string(), // native ID from source store (e.g. Wix UUID)
+      sourceOrderNumber: a.string(), // native display number (e.g. "10042") — internal only
+      sourceRawPayload: a.string(), // JSON of raw source data for audit
+      // Customer
+      customerPhone: a.string().required(),
+      customerName: a.string(),
+      customerEmail: a.string(),
+      contactId: a.string(), // link to ContactsTable
+      // Order details
+      orderDate: a.string(), // ISO date "2026-02-22"
+      orderTime: a.string(), // "18:00:00"
+      orderDateIST: a.string(), // "22 Feb 2026, 6:00 PM" — pre-formatted for dropdown
+      itemsSummary: a.string(), // "Black Tee × 1, White Cap × 2"
+      itemsJson: a.string(), // JSON array [{name, qty, price, sku, image}]
+      itemCount: a.integer(),
+      totalAmount: a.float(), // rupees (not paise)
+      subtotal: a.float(),
+      shippingAmount: a.float(),
+      taxAmount: a.float(),
+      discountAmount: a.float(),
+      currency: a.string().default('INR'),
+      // Status
+      orderStatus: a.string().default('active'), // active | fulfilled | cancelled | returned
+      paymentStatus: a.string().default('pending'), // paid | not_paid | pending | refunded
+      fulfillmentStatus: a.string(), // not_fulfilled | partially_fulfilled | fulfilled
+      // Address
+      shippingAddress: a.string(), // JSON or flat string
+      billingAddress: a.string(),
+      // Metadata
+      buyerNote: a.string(),
+      adminNotes: a.string(),
+      tags: a.string(), // JSON array of tags
+      // Timestamps
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      syncedAt: a.integer(), // last sync from source
+    })
+    .identifier(['orderId'])
+    .secondaryIndexes((index) => [
+      index('customerPhone'),
+      index('source'),
+      index('orderStatus'),
+      index('shortId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: RequestStatusHistory — Audit trail for request status changes
+  RequestStatusHistory: a
+    .model({
+      historyId: a.id().required(),
+      submissionId: a.string().required(), // link to FlowSubmission
+      orderId: a.string(), // link to Order
+      oldStatus: a.string(),
+      newStatus: a.string(),
+      changedBy: a.string(), // "admin:userId" | "system" | "webhook"
+      changedByName: a.string(),
+      notes: a.string(),
+      changedAt: a.integer(),
+    })
+    .identifier(['historyId'])
+    .secondaryIndexes((index) => [
+      index('submissionId'),
+      index('orderId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table: FlowSubmission — All flow submissions (generic, all flow types)
   FlowSubmission: a
     .model({
