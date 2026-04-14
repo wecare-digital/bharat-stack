@@ -1,0 +1,72 @@
+"""
+Enterprise Assist Flow — B2B/corporate support intake.
+Screens: INTAKE_FORM → CONFIRM (terminal)
+Saves to EnterpriseAssistTable + FlowSubmissionTable.
+"""
+import json, time, uuid, logging
+from decimal import Decimal
+from typing import Dict
+from flows.common import (
+    dynamodb, get_phone_from_token, find_contact_by_phone,
+    get_contact_name, save_flow_submission,
+)
+
+logger = logging.getLogger(__name__)
+ENT_TABLE = 'stack-wecare-digital-EnterpriseAssistTable'
+FLOW_CODE = 'WD_ENT'
+
+
+def handle_init(data: Dict, flow_token: str, request_id: str) -> Dict:
+    return {
+        'screen': 'INTAKE_FORM',
+        'data': {
+            'priorities': [
+                {'id': 'normal', 'title': 'Normal'},
+                {'id': 'high', 'title': 'High'},
+                {'id': 'urgent', 'title': 'Urgent'},
+            ],
+        }
+    }
+
+
+def handle_intake_form(data: Dict, flow_token: str, request_id: str) -> Dict:
+    phone = get_phone_from_token(flow_token)
+    contact_id = find_contact_by_phone(phone)
+    case_id = f'WD-ENT-{uuid.uuid4().hex[:8].upper()}'
+    now = int(time.time())
+
+    try:
+        table = dynamodb.Table(ENT_TABLE)
+        table.put_item(Item={k: v for k, v in {
+            'caseId': case_id,
+            'contactPhone': phone,
+            'contactName': data.get('contact_name', ''),
+            'contactEmail': data.get('contact_email', ''),
+            'accountName': data.get('account_name', ''),
+            'subject': data.get('subject', ''),
+            'description': data.get('description', ''),
+            'priority': data.get('priority', 'normal'),
+            'status': 'open',
+            'createdAt': Decimal(str(now)),
+            'updatedAt': Decimal(str(now)),
+        }.items() if v is not None and v != ''})
+    except Exception as e:
+        logger.warning(f'Enterprise case save failed: {e}')
+
+    try:
+        save_flow_submission(
+            flow_code=FLOW_CODE, flow_type='enterprise', phone=phone,
+            contact_id=contact_id, sender_name=data.get('contact_name', ''),
+            form_data=data, flow_token=flow_token, request_id=request_id,
+            submission_number=case_id, requires_payment=False, status='open',
+        )
+    except Exception as e:
+        logger.warning(f'Enterprise submission save failed: {e}')
+
+    return {
+        'screen': 'CONFIRM',
+        'data': {
+            'case_id': case_id,
+            'message': f'Your enterprise enquiry has been submitted. Our team will reach out to {data.get("account_name", "you")} shortly.',
+        }
+    }

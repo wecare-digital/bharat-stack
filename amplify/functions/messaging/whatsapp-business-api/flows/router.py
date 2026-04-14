@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, generic
+from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, enterprise_assist, leave_review, generic
 from flows.common import get_phone_from_token, log_flow_event
 from flows.orders import fetch_orders_for_flow as _orders_fetch
 
@@ -20,7 +20,7 @@ TOKEN_PREFIX_TO_FLOW_CODE = {
 
 # Flow keys that use the generic handler
 GENERIC_FLOW_PREFIXES = {
-    'enterprise', 'leave_revi', 'order_note',
+    'order_note',
 }
 
 
@@ -150,7 +150,25 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
         if screen in ('CONFIRM', 'SUCCESS'):
             return _terminal_response(flow_token)
 
-    # ── GENERIC FLOWS ──
+    # ── ENTERPRISE ASSIST FLOW ──
+    if flow_key in ('enterprise',) or flow_key.startswith('enterprise'):
+        if action == 'INIT':
+            return enterprise_assist.handle_init(data, flow_token, request_id)
+        if screen == 'INTAKE_FORM':
+            return enterprise_assist.handle_intake_form(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── LEAVE REVIEW FLOW ──
+    if flow_key in ('leave_revi',) or flow_key.startswith('leave'):
+        if action == 'INIT':
+            return leave_review.handle_init(data, flow_token, request_id)
+        if screen == 'REVIEW_FORM':
+            return leave_review.handle_review_form(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── GENERIC FLOWS (order_notes only) ──
     is_generic = any(flow_key.startswith(k) for k in GENERIC_FLOW_PREFIXES)
     if is_generic:
         if screen == 'WELCOME':

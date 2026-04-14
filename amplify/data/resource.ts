@@ -1297,6 +1297,70 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table: EnterpriseAssist — B2B/corporate support cases
+  EnterpriseAssist: a
+    .model({
+      caseId: a.id().required(),
+      contactPhone: a.string().required(),
+      contactName: a.string(),
+      contactEmail: a.string(),
+      accountName: a.string(), // company name
+      subject: a.string(),
+      description: a.string(),
+      priority: a.string().default('normal'), // low | normal | high | urgent
+      status: a.string().default('open'), // open | in_progress | resolved | closed
+      assignedTo: a.string(),
+      notes: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['caseId'])
+    .secondaryIndexes((index) => [
+      index('contactPhone'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: Review — Customer feedback and ratings
+  Review: a
+    .model({
+      reviewId: a.id().required(),
+      customerPhone: a.string().required(),
+      customerName: a.string(),
+      contactId: a.string(),
+      orderId: a.string(), // optional link
+      rating: a.integer(), // 1-5
+      reviewText: a.string(),
+      category: a.string(), // service | product | delivery | support | other
+      status: a.string().default('submitted'), // submitted | approved | hidden
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['reviewId'])
+    .secondaryIndexes((index) => [
+      index('customerPhone'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: Faq — Self-service FAQ content
+  Faq: a
+    .model({
+      faqId: a.id().required(),
+      category: a.string().required(),
+      question: a.string().required(),
+      answer: a.string().required(),
+      sortOrder: a.integer().default(0),
+      isActive: a.boolean().default(true),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['faqId'])
+    .secondaryIndexes((index) => [
+      index('category'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table: RequestStatusHistory — Audit trail for request status changes
   RequestStatusHistory: a
     .model({
