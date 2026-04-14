@@ -4317,7 +4317,7 @@ export interface OrderItem {
   imageUrl?: string;
 }
 
-const ORDERS_BASE = `${API_BASE}/orders`;
+const ORDERS_BASE = `${WA_BIZ_BASE}/orders`;
 
 export async function listOrders(params?: {
   status?: string;
@@ -4393,7 +4393,7 @@ export interface Document {
   updatedAt?: number;
 }
 
-const DOCUMENTS_BASE = `${API_BASE}/documents`;
+const DOCUMENTS_BASE = `${WA_BIZ_BASE}/documents`;
 
 export async function listDocuments(params?: {
   status?: string;
@@ -4453,7 +4453,7 @@ export interface FaqEntry {
   updatedAt?: number;
 }
 
-const FAQ_BASE = `${API_BASE}/faq`;
+const FAQ_BASE = `${WA_BIZ_BASE}/faq`;
 
 export async function listFaqs(params?: {
   category?: string;
@@ -4507,7 +4507,7 @@ export interface Appointment {
   updatedAt?: number;
 }
 
-const APPOINTMENTS_BASE = `${API_BASE}/appointments`;
+const APPOINTMENTS_BASE = `${WA_BIZ_BASE}/appointments`;
 
 export async function listAppointments(params?: {
   status?: string;
@@ -4553,7 +4553,7 @@ export interface RxSlot {
   updatedAt?: number;
 }
 
-const RX_SLOTS_BASE = `${API_BASE}/rx-slots`;
+const RX_SLOTS_BASE = `${WA_BIZ_BASE}/rx-slots`;
 
 export async function listRxSlots(params?: {
   status?: string;
@@ -4605,7 +4605,7 @@ export interface EnterpriseCase {
   updatedAt?: number;
 }
 
-const ENTERPRISE_BASE = `${API_BASE}/enterprise-assist`;
+const ENTERPRISE_BASE = `${WA_BIZ_BASE}/enterprise-assist`;
 
 export async function listEnterpriseCases(params?: {
   status?: string;
@@ -4650,7 +4650,7 @@ export interface Review {
   updatedAt?: number;
 }
 
-const REVIEWS_BASE = `${API_BASE}/reviews`;
+const REVIEWS_BASE = `${WA_BIZ_BASE}/reviews`;
 
 export async function listReviews(params?: {
   status?: string;
@@ -4723,7 +4723,7 @@ export interface DraftData {
   updatedAt: number;
 }
 
-const SERVICE_BASE = `${API_BASE}/service`;
+const SERVICE_BASE = `${WA_BIZ_BASE}/service`;
 
 export async function submitRequest(payload: SubmitRequestPayload): Promise<{ submissionId: string; submissionNumber: string } | null> {
   return apiCall<{ submissionId: string; submissionNumber: string }>(`${SERVICE_BASE}/submit`, {

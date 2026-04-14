@@ -58,7 +58,7 @@ const ReviewsPage: React.FC<PageProps> = ({ signOut, user }) => {
         source: sourceFilter || undefined,
         minRating: ratingFilter ? Number(ratingFilter) : undefined,
       });
-      setReviews(data.reviews);
+      setReviews(data.reviews || []);
     } catch { toast.error('Failed to load reviews'); }
     setLoading(false);
   }, [statusFilter, sourceFilter, ratingFilter, toast]);

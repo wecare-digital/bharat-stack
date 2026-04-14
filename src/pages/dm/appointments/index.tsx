@@ -55,7 +55,7 @@ const AppointmentsPage: React.FC<PageProps> = ({ signOut, user }) => {
     setLoading(true);
     try {
       const data = await api.listAppointments({ status: statusFilter || undefined, type: typeFilter || undefined });
-      setItems(data.appointments);
+      setItems(data.appointments || []);
     } catch { toast.error('Failed to load appointments'); }
     setLoading(false);
   }, [statusFilter, typeFilter, toast]);

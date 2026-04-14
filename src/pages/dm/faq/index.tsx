@@ -36,7 +36,7 @@ const FaqPage: React.FC<PageProps> = ({ signOut, user }) => {
         category: categoryFilter || undefined,
         active: activeFilter ? activeFilter === 'true' : undefined,
       });
-      setFaqs(data.faqs.sort((a, b) => a.sortOrder - b.sortOrder));
+      setFaqs((data.faqs || []).sort((a, b) => a.sortOrder - b.sortOrder));
     } catch {
       toast.error('Failed to load FAQs');
     }

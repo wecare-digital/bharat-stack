@@ -45,7 +45,7 @@ const RxSlotsPage: React.FC<PageProps> = ({ signOut, user }) => {
     setLoading(true);
     try {
       const data = await api.listRxSlots({ status: statusFilter || undefined, date: dateFilter || undefined });
-      setSlots(data.slots);
+      setSlots(data.slots || []);
     } catch { toast.error('Failed to load slots'); }
     setLoading(false);
   }, [statusFilter, dateFilter, toast]);

@@ -135,7 +135,7 @@ const OrdersPage: React.FC<PageProps> = ({ signOut, user }) => {
         source: sourceFilter || undefined,
         search: search || undefined,
       });
-      setOrders(data.orders);
+      setOrders(data.orders || []);
     } catch {
       toast.error('Failed to load orders');
     }

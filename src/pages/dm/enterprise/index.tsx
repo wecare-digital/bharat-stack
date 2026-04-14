@@ -65,7 +65,7 @@ const EnterprisePage: React.FC<PageProps> = ({ signOut, user }) => {
     setLoading(true);
     try {
       const data = await api.listEnterpriseCases({ status: statusFilter || undefined, priority: priorityFilter || undefined });
-      setCases(data.cases);
+      setCases(data.cases || []);
     } catch { toast.error('Failed to load cases'); }
     setLoading(false);
   }, [statusFilter, priorityFilter, toast]);
