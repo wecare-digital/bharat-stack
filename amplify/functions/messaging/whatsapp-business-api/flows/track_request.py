@@ -11,9 +11,11 @@ from flows.orders import (
     fetch_orders_for_flow, get_order, get_submissions_for_order,
     extract_short_id, format_order_dropdown,
 )
-from flows.common import get_phone_from_token
+from flows.common import get_phone_from_token, save_draft, restore_draft
 
 logger = logging.getLogger(__name__)
+
+FLOW_CODE = '02.WD_TR'
 
 
 def handle_init(data: Dict, flow_token: str, request_id: str) -> Dict:

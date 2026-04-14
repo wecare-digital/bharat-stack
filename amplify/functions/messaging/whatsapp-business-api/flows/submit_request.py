@@ -13,6 +13,7 @@ from flows.common import (
     get_phone_from_token, get_phone_number_id_for_flow,
     find_contact_by_phone, get_contact_name,
     save_flow_submission, send_payment, send_confirmation,
+    save_draft, restore_draft, clear_draft,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,10 +29,14 @@ DEFAULT_PAYMENT_AMOUNT = 0
 
 def handle_init(data: Dict, flow_token: str, request_id: str,
                 fetch_orders_fn=None) -> Dict:
-    """INIT → fetch orders, navigate to ORDER_SELECT."""
+    """INIT → check for draft, fetch orders, navigate to ORDER_SELECT or resume screen."""
     from flows.orders import fetch_orders_for_flow
     phone = get_phone_from_token(flow_token)
     email = data.get('email', '')
+
+    # Check for existing draft
+    draft = restore_draft(phone, FLOW_CODE)
+
     orders = []
     try:
         orders = fetch_orders_for_flow(phone, email)
@@ -39,29 +44,57 @@ def handle_init(data: Dict, flow_token: str, request_id: str,
         logger.warning(f'Order fetch failed: {e}')
     if not orders:
         orders = [{'id': 'none', 'title': 'No orders found'}]
+
+    # If draft exists and has a valid screen, resume from there
+    if draft and draft.get('screen') and draft['screen'] != 'ORDER_SELECT':
+        resume_screen = draft['screen']
+        resume_data = draft.get('formData', {})
+        # Always include orders for potential back-navigation
+        resume_data['orders'] = orders
+        logger.info(json.dumps({
+            'event': 'sr_draft_resume', 'screen': resume_screen,
+            'phone_suffix': phone[-4:] if phone else '',
+        }))
+        return {'screen': resume_screen, 'data': resume_data}
+
     return {'screen': 'ORDER_SELECT', 'data': {'orders': orders}}
 
 
 def handle_order_select(data: Dict, flow_token: str, request_id: str) -> Dict:
-    """ORDER_SELECT → show SUBMIT_REQUEST_FORM with order context."""
+    """ORDER_SELECT → show SUBMIT_REQUEST_FORM with order context. Save draft."""
+    from flows.orders import extract_short_id
+    phone = get_phone_from_token(flow_token)
+    order_id = data.get('order_id', '')
+    short_id = extract_short_id(order_id) if order_id else ''
+    # Save draft at this step
+    save_draft(phone, FLOW_CODE, 'SUBMIT_REQUEST_FORM', {
+        'order_id': order_id, 'order_short_id': short_id,
+    })
     return {
         'screen': 'SUBMIT_REQUEST_FORM',
         'data': {
-            'order_id': data.get('order_id', ''),
+            'order_id': order_id,
+            'order_short_id': short_id,
         }
     }
 
 
 def handle_request_form(data: Dict, flow_token: str, request_id: str) -> Dict:
-    """SUBMIT_REQUEST_FORM → show TERMS with collected form data.
-    Passes order_id, subject, description forward to TERMS screen.
-    """
+    """SUBMIT_REQUEST_FORM → show TERMS with collected form data. Save draft."""
+    phone = get_phone_from_token(flow_token)
+    order_id = data.get('order_id', '')
+    subject = data.get('subject', '')
+    description = data.get('description', '')
+    # Save draft with form data
+    save_draft(phone, FLOW_CODE, 'TERMS', {
+        'order_id': order_id, 'subject': subject, 'description': description,
+    })
     return {
         'screen': 'TERMS',
         'data': {
-            'order_id': data.get('order_id', ''),
-            'subject': data.get('subject', ''),
-            'description': data.get('description', ''),
+            'order_id': order_id,
+            'subject': subject,
+            'description': description,
         }
     }
 
@@ -109,11 +142,14 @@ def handle_review(data: Dict, flow_token: str, request_id: str,
     }))
 
     # ── SET SUCCESS RESPONSE FIRST ──
-    # v3 flow: return THANK_YOU screen with order_id, request_number, payment_ref_id
+    # v3 flow: return THANK_YOU screen with readable short order ID
+    from flows.orders import extract_short_id
+    short_order_id = extract_short_id(order_id)
     response_payload = {
         'screen': 'THANK_YOU',
         'data': {
             'order_id': order_id,
+            'order_short_id': short_order_id,
             'request_number': request_number,
             'payment_ref_id': payment_ref_id or 'N/A',
         }
@@ -136,6 +172,12 @@ def handle_review(data: Dict, flow_token: str, request_id: str,
         )
     except Exception as e:
         logger.error(f'SR submission save failed: {e}')
+
+    # Clear draft after successful submission
+    try:
+        clear_draft(phone, cfg.get('flowCode', FLOW_CODE))
+    except Exception:
+        pass
 
     # ── Payment + confirmation (async) ──
     try:

@@ -61,15 +61,16 @@
       "id": "SUBMIT_REQUEST_FORM",
       "title": "Request Details",
       "data": {
-        "order_id": { "type": "string", "__example__": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST" }
+        "order_id": { "type": "string", "__example__": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST" },
+        "order_short_id": { "type": "string", "__example__": "A1B2C3D4" }
       },
       "layout": {
         "type": "SingleColumnLayout",
         "children": [
           { "type": "TextHeading", "text": "Describe Your Issue" },
           { "type": "TextBody", "text": "Provide the details of your request below." },
-          { "type": "TextCaption", "text": "Order ID" },
-          { "type": "TextBody", "text": "${data.order_id}" },
+          { "type": "TextCaption", "text": "Order" },
+          { "type": "TextSubheading", "text": "${data.order_short_id}" },
           {
             "type": "TextInput",
             "name": "subject",
@@ -166,8 +167,8 @@
         "type": "SingleColumnLayout",
         "children": [
           { "type": "TextHeading", "text": "Review Your Request" },
-          { "type": "TextCaption", "text": "Order ID", "font-weight": "bold" },
-          { "type": "TextBody", "text": "${data.order_id}" },
+          { "type": "TextCaption", "text": "Order", "font-weight": "bold" },
+          { "type": "TextSubheading", "text": "${data.order_id}" },
           { "type": "TextCaption", "text": "Subject", "font-weight": "bold" },
           { "type": "TextBody", "text": "${data.subject}" },
           { "type": "TextCaption", "text": "Description", "font-weight": "bold" },
@@ -212,6 +213,7 @@
       "terminal": true,
       "data": {
         "order_id": { "type": "string", "__example__": "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST" },
+        "order_short_id": { "type": "string", "__example__": "A1B2C3D4" },
         "request_number": { "type": "string", "__example__": "WD-SR-A1B2C3D4" },
         "payment_ref_id": { "type": "string", "__example__": "WD-PAY-E5F6G7H8" }
       },
@@ -226,13 +228,13 @@
           },
           { "type": "TextHeading", "text": "Thank You!" },
           { "type": "TextBody", "text": "Your request has been submitted successfully." },
-          { "type": "TextCaption", "text": "Order ID" },
-          { "type": "TextSubheading", "text": "${data.order_id}" },
+          { "type": "TextCaption", "text": "Order" },
+          { "type": "TextSubheading", "text": "${data.order_short_id}" },
           { "type": "TextCaption", "text": "Request Number" },
           { "type": "TextSubheading", "text": "${data.request_number}" },
           { "type": "TextCaption", "text": "Payment Reference" },
           { "type": "TextSubheading", "text": "${data.payment_ref_id}" },
-          { "type": "TextBody", "text": "A payment request for \u20b949 will be sent shortly. Keep the request number and payment reference for tracking." },
+          { "type": "TextBody", "text": "A payment request for \u20b949 will be sent shortly. Use your Order ID to track progress." },
           { "type": "TextCaption", "text": "Thank you for choosing WECARE.DIGITAL" },
           {
             "type": "Footer",

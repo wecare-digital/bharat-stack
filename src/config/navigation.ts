@@ -1,7 +1,23 @@
 /**
  * Navigation Configuration - WECARE.DIGITAL
  * Centralized sidebar navigation with nested items
- * Updated: 2026-04-12
+ *
+ * Structure:
+ *   Dashboard — overview, control center, lambda, code repo, auto response
+ *   Messages  — WhatsApp, SMS, Voice, Email, RCS, Push
+ *   Pay       — overview, pay flow, pay link
+ *   Contacts
+ *   Store
+ *   Orders    — order management (order-centric hub)
+ *   Service   — submit request, track request, amend request (order-linked flows)
+ *   Booking   — appointments, RX slots
+ *   Docs      — drop docs / document management
+ *   Enterprise — enterprise assist cases
+ *   Reviews   — customer feedback / moderation
+ *   FAQ       — admin FAQ management
+ *   Access
+ *   Link
+ *   Forms     — forms builder, self-service hub
  */
 
 export interface NavSubItem {
@@ -71,6 +87,60 @@ export const navigationConfig: NavItem[] = [
     label: 'Store',
     icon: 'store',
   },
+  // ── Order-Centric Hub ──
+  {
+    path: '/dm/orders',
+    label: 'Orders',
+    icon: 'order',
+  },
+  // ── Service Requests (order-linked) ──
+  {
+    path: '/service',
+    label: 'Service',
+    icon: 'form',
+    children: [
+      { path: '/service/submit-request', label: 'Submit Request' },
+      { path: '/service/track-request', label: 'Track Request' },
+      { path: '/service/amend-request', label: 'Amend Request' },
+      { path: '/dm/whatsapp/flow-responses', label: 'All Submissions' },
+      { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub' },
+      { path: '/forms/selfservice', label: 'Self-Service' },
+    ],
+  },
+  // ── Booking ──
+  {
+    path: '/booking',
+    label: 'Booking',
+    icon: 'checklist',
+    children: [
+      { path: '/dm/appointments', label: 'Appointments' },
+      { path: '/dm/rx-slots', label: 'RX Slots' },
+    ],
+  },
+  // ── Document Management ──
+  {
+    path: '/dm/documents',
+    label: 'Drop Docs',
+    icon: 'document',
+  },
+  // ── Enterprise ──
+  {
+    path: '/dm/enterprise',
+    label: 'Enterprise',
+    icon: 'advisor',
+  },
+  // ── Reviews ──
+  {
+    path: '/dm/reviews',
+    label: 'Reviews',
+    icon: 'star',
+  },
+  // ── FAQ ──
+  {
+    path: '/dm/faq',
+    label: 'FAQ',
+    icon: 'health',
+  },
   {
     path: '/access',
     label: 'Access',
@@ -87,13 +157,7 @@ export const navigationConfig: NavItem[] = [
     icon: 'form',
     children: [
       { path: '/forms', label: 'Forms Builder' },
-      { path: '/forms/selfservice', label: 'Self-Service' },
     ],
-  },
-  {
-    path: '/faq',
-    label: 'FAQ',
-    icon: 'form',
   },
   {
     path: '/task',
@@ -106,7 +170,6 @@ export const navigationConfig: NavItem[] = [
 // Flatten all navigation items for search
 export function getAllNavItems(): { path: string; label: string; parent?: string }[] {
   const items: { path: string; label: string; parent?: string }[] = [];
-  
   const traverse = (navItems: (NavItem | NavSubItem)[], parentLabel?: string) => {
     for (const item of navItems) {
       items.push({ path: item.path, label: item.label, parent: parentLabel });
@@ -115,42 +178,26 @@ export function getAllNavItems(): { path: string; label: string; parent?: string
       }
     }
   };
-  
   traverse(navigationConfig);
   return items;
 }
 
-/**
- * Get the parent path for a given route
- */
 export function getParentPath(pathname: string): string | null {
   for (const item of navigationConfig) {
-    if (item.children?.some(child => child.path === pathname)) {
-      return item.path;
-    }
-    if (pathname.startsWith(item.path) && item.path !== '/') {
-      return item.path;
-    }
+    if (item.children?.some(child => child.path === pathname)) return item.path;
+    if (pathname.startsWith(item.path) && item.path !== '/') return item.path;
   }
   return null;
 }
 
-/**
- * Check if a nav item is active
- */
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
   if (item.path === '/') return pathname === '/';
   if (item.children) return pathname.startsWith(item.path);
   return pathname === item.path || pathname.startsWith(item.path + '/');
 }
 
-/**
- * Check if a sub-item is active (including nested children)
- */
 export function isSubItemActive(subItem: NavSubItem, pathname: string): boolean {
   if (pathname === subItem.path) return true;
-  if (subItem.children) {
-    return subItem.children.some(child => pathname === child.path);
-  }
+  if (subItem.children) return subItem.children.some(child => pathname === child.path);
   return pathname.startsWith(subItem.path + '/');
 }

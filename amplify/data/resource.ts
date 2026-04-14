@@ -1381,6 +1381,65 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table: DocumentHistory — Audit trail for document actions
+  DocumentHistory: a
+    .model({
+      historyId: a.id().required(),
+      documentId: a.string().required(),
+      action: a.string().required(), // uploaded | reviewed | approved | rejected | reupload_requested | deleted
+      actorType: a.string(), // admin | system | customer
+      actorId: a.string(),
+      remarks: a.string(),
+      createdAt: a.integer(),
+    })
+    .identifier(['historyId'])
+    .secondaryIndexes((index) => [
+      index('documentId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: AdminActionLog — Admin action audit trail
+  AdminActionLog: a
+    .model({
+      logId: a.id().required(),
+      adminUserId: a.string().required(),
+      actionType: a.string().required(), // status_update | create | delete | assign | amend
+      entityType: a.string().required(), // order | submission | document | appointment | rx_slot | enterprise_case | review | faq
+      entityId: a.string().required(),
+      beforeData: a.string(), // JSON snapshot before
+      afterData: a.string(), // JSON snapshot after
+      notes: a.string(),
+      createdAt: a.integer(),
+    })
+    .identifier(['logId'])
+    .secondaryIndexes((index) => [
+      index('entityType'),
+      index('adminUserId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: AmendmentHistory — Track amendments to submissions
+  AmendmentHistory: a
+    .model({
+      amendmentId: a.id().required(),
+      submissionId: a.string().required(),
+      orderId: a.string(),
+      amendmentType: a.string().required(), // add_info | correct_details | change_type | cancel | other
+      description: a.string().required(),
+      submittedBy: a.string(), // phone or userId
+      status: a.string().default('submitted'), // submitted | reviewed | applied | rejected
+      reviewedBy: a.string(),
+      reviewNotes: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['amendmentId'])
+    .secondaryIndexes((index) => [
+      index('submissionId'),
+      index('orderId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table: FlowSubmission — All flow submissions (generic, all flow types)
   FlowSubmission: a
     .model({
@@ -1430,6 +1489,23 @@ const schema = a.schema({
       index('status'),
       index('orderId'),
       index('flowId'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: FlowDraft — Draft persistence for interrupted flows (TTL: 7 days)
+  FlowDraft: a
+    .model({
+      draftKey: a.string().required(), // "{phone}#{flowCode}"
+      phone: a.string().required(),
+      flowCode: a.string().required(),
+      screen: a.string(), // Last screen the user was on
+      formData: a.string(), // JSON of accumulated form data
+      updatedAt: a.integer(),
+      ttl: a.integer(), // TTL: 7 days
+    })
+    .identifier(['draftKey'])
+    .secondaryIndexes((index) => [
+      index('phone'),
     ])
     .authorization((allow) => [allow.authenticated()]),
 

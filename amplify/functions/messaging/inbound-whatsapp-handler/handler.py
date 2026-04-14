@@ -850,6 +850,16 @@ def _process_message(
                 s3_key = _download_media(whatsapp_media_id, message_id, msg_type, aws_phone_number_id, request_id, mime_type_hint)
             if s3_key:
                 media_id = _store_media_record(message_id, s3_key, media_data, whatsapp_media_id)
+                # ── GAP 2 FIX: Auto-ingest WhatsApp documents into DocumentsTable ──
+                if msg_type in ('document', 'image'):
+                    _ingest_whatsapp_document(
+                        sender_phone, sender_name, contact_id, message_id,
+                        whatsapp_media_id, s3_key, msg_type,
+                        media_data.get('mime_type', ''),
+                        media_data.get('filename', ''),
+                        media_data.get('file_size', 0),
+                        request_id,
+                    )
     
     # Ephemeral messages may carry media nested inside  -  try to extract
     if msg_type == 'ephemeral' and not s3_key:
@@ -2116,6 +2126,71 @@ def _store_media_record(message_id: str, s3_key: str, media_data: Dict, whatsapp
             'note': 'MediaFile table write failed, but s3Key is stored in message record'
         }))
         return None
+
+
+def _ingest_whatsapp_document(
+    sender_phone: str, sender_name: str, contact_id: str, message_id: str,
+    whatsapp_media_id: str, s3_key: str, msg_type: str,
+    mime_type: str, filename: str, file_size: int, request_id: str,
+):
+    """
+    GAP 2 FIX: Auto-ingest WhatsApp-uploaded documents into the DocumentsTable.
+    This ensures documents sent via WhatsApp automatically appear in the
+    Drop Docs admin page for review/approval.
+    """
+    DOCUMENTS_TABLE_NAME = os.environ.get('DOCUMENTS_TABLE', 'stack-wecare-digital-DocumentTable')
+    try:
+        doc_table = dynamodb.Table(DOCUMENTS_TABLE_NAME)
+        doc_id = f'WD-DOC-{uuid.uuid4().hex[:8].upper()}'
+        now = int(time.time())
+
+        # Infer document type from mime type
+        doc_type = 'other'
+        if mime_type:
+            if 'pdf' in mime_type:
+                doc_type = 'prescription'  # PDFs often prescriptions
+            elif 'image' in mime_type:
+                doc_type = 'photo'
+            elif 'spreadsheet' in mime_type or 'excel' in mime_type:
+                doc_type = 'invoice'
+
+        item = {
+            'documentId': doc_id,
+            'customerPhone': sender_phone,
+            'customerName': sender_name or '',
+            'contactId': contact_id or '',
+            'sourceType': 'whatsapp',
+            'sourceReferenceId': whatsapp_media_id,
+            'documentType': doc_type,
+            'fileName': filename or f'{msg_type}_{message_id[:8]}',
+            'storageKey': s3_key,
+            'mimeType': mime_type,
+            'fileSize': file_size or 0,
+            'verificationStatus': 'uploaded',
+            'uploadedAt': now,
+            'createdAt': now,
+            'updatedAt': now,
+        }
+        item = {k: v for k, v in item.items() if v is not None and v != '' and v != 0}
+        # Ensure required fields are present even if empty
+        item.setdefault('verificationStatus', 'uploaded')
+        item.setdefault('sourceType', 'whatsapp')
+
+        doc_table.put_item(Item=item)
+        logger.info(json.dumps({
+            'event': 'whatsapp_document_ingested',
+            'documentId': doc_id,
+            'phone': sender_phone[-4:] if sender_phone else '',
+            'type': doc_type,
+            's3Key': s3_key,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(json.dumps({
+            'event': 'whatsapp_document_ingest_failed',
+            'error': str(e),
+            'requestId': request_id,
+        }))
 
 
 def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) -> None:

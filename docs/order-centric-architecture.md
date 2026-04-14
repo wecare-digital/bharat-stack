@@ -1,101 +1,109 @@
-# Order-Centric Architecture — Implementation Plan
+# Order-Centric Architecture — Implementation Status
 
-## Audit Summary
+## Core Design Decision
 
-| Module | Status | Flow ID | Handler | Needs Rebuild |
-|--------|--------|---------|---------|---------------|
-| Submit Request | ✅ Working | 1469093721293830 | submit_request.py | Fix dropdown + screen mapping |
-| Subscribe | ✅ Working | 1262971692700761 | subscribe.py | No |
-| Track Request | ❌ Broken | 973888792200167 (DEPRECATED) | generic.py | Full rebuild |
-| Amend Request | ❌ Broken | 1533536534833353 (DEPRECATED) | generic.py | Full rebuild |
-| Appointment | ❌ Broken | 1475722977488573 (DEPRECATED) | generic.py | Full rebuild |
-| RX Slot | ❌ Broken | 1892784521355352 (DEPRECATED) | generic.py | Full rebuild |
-| Drop Docs | ❌ Broken | 1737801600902350 (DEPRECATED) | generic.py | Full rebuild |
-| Enterprise Assist | ❌ Broken | 2132515287534606 (DEPRECATED) | generic.py | Full rebuild |
-| Leave Review | ❌ Broken | 963443293213262 (DEPRECATED) | generic.py | Full rebuild |
-| FAQ | ⚠️ Partial | N/A | faq-handler | Needs flow or page |
+**Order ID is the central key across the entire system.**
 
-## Root Causes of Broken Flows
+Everything ties to Order ID:
+- Submit Request → orderId
+- Track Request → orderId
+- Payments → orderId
+- Admin Order Management → orderId
+- Status history → orderId
+- External sync (Wix/manual/future) → orderId
 
-1. **All 7 deprecated flows** point to old Meta flow IDs that are DEPRECATED on WABA 1
-2. **No dedicated handlers** — all 7 use generic.py which just saves form data
-3. **No flow JSONs** — only Submit Request and Track Request have JSON files
-4. **No order-centric design** — everything is request-centric
-5. **Submit Request THANK_YOU screen** — returns screen:'THANK_YOU' but terminal response uses screen:'SUCCESS' (Meta special keyword, should work but needs testing)
+## Order ID Format
 
-## New Tables Needed
+- **Full canonical ID**: `WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST`
+- **Short ID (customer-facing)**: `A1B2C3D4`
+- **Dropdown format**: `A1B2C3D4 — 22 Feb 2026, 6:00 PM`
 
-### OrdersTable (new central table)
-```
-orderId (PK): "WD-ORD-A1B2C3D4"
-shortId: "A1B2C3D4"
-orderDate: "2026-02-22"
-orderTime: "18:00:00"
-source: "wix" | "manual" | "shopify"
-sourceOrderId: "wix-native-12345"
-customerPhone: "+919330994400"
-customerName: "Manish Agarwal"
-totalAmount: 499 (rupees)
-currency: "INR"
-itemsSummary: "Black Tee × 1, White Cap × 2"
-orderStatus: "active" | "fulfilled" | "cancelled"
-paymentStatus: "paid" | "not_paid" | "pending"
-createdAt, updatedAt
-GSIs: customerPhone, source, orderStatus
-```
+## Tables
 
-### RequestStatusHistoryTable (new)
-```
-historyId (PK)
-submissionId
-orderId
-oldStatus, newStatus
-changedBy: "admin" | "system" | "webhook"
-notes
-changedAt
-```
+### OrdersTable (PK: orderId)
+Central order store for all sources (Wix, manual, Shopify, future).
+GSIs: customerPhone, source, orderStatus.
 
-## Dropdown Format Change
+### FlowSubmissionTable (PK: submissionId)
+All flow submissions. **orderId is now a top-level indexed field** (GSI: orderId).
+Fields promoted from formData to top-level: orderId, subject, description, requestType.
 
-Old: `WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST`
-New: `A1B2C3D4 — 22 Feb 2026, 6:00 PM`
+### DraftsTable (PK: draftKey = `{phone}#{flowCode}`)
+Flow draft persistence. TTL: 7 days.
+Allows users to resume interrupted flows.
 
-The full canonical ID stays in the system as `orderId` field.
-The dropdown shows `shortId — formatted date` for readability.
+### RequestStatusHistoryTable (PK: historyId)
+Audit trail for all status changes on submissions.
+Fields: submissionId, orderId, oldStatus, newStatus, changedBy, notes, changedAt.
 
-## Implementation Phases
+## Flow Status
 
-### Phase 1: Core + Submit Request Fix + Track Request
-- [ ] Add OrdersTable to Amplify data model
-- [ ] Fix _fetch_orders_for_flow to return short format
-- [ ] Rebuild Submit Request flow JSON with short dropdown
-- [ ] Build Track Request flow JSON (ORDER_SELECT → STATUS)
-- [ ] Build track_request.py handler
-- [ ] Add admin status update to flow-responses.tsx
-- [ ] Create new flows on WABA 1 as DRAFT
-- [ ] Deploy and test
+| Flow | Status | Flow ID | Handler |
+|------|--------|---------|---------|
+| Submit Request | ✅ Working | 1469093721293830 | submit_request.py |
+| Subscribe | ✅ Working | 1262971692700761 | subscribe.py |
+| Track Request | ✅ Handler ready | Needs new flow ID | track_request.py |
+| Amend Request | ✅ Handler ready | Needs new flow ID | amend_request.py |
+| Appointment | ✅ Handler ready | Needs new flow ID | appointment.py |
+| RX Slot | ✅ Handler ready | Needs new flow ID | rx_slot.py |
+| Drop Docs | ✅ Handler ready | Needs new flow ID | drop_docs.py |
+| Enterprise Assist | ✅ Handler ready | Needs new flow ID | enterprise_assist.py |
+| Leave Review | ✅ Handler ready | Needs new flow ID | leave_review.py |
 
-### Phase 2: Amend Request + Order Management Dashboard
-- [ ] Build Amend Request flow JSON
-- [ ] Build amend_request.py handler
-- [ ] Build /dm/orders admin page
-- [ ] Add order detail panel with request list
-- [ ] Add status update controls
+## Fixes Applied
 
-### Phase 3: Appointment + RX Slot
-- [ ] Build Appointment flow JSON + handler
-- [ ] Build RX Slot flow JSON + handler
-- [ ] Add AppointmentsTable
-- [ ] Add admin appointment management
+### 1. save_flow_submission — orderId promoted to top-level
+**Root cause**: orderId was buried inside formData JSON string, making the orderId GSI useless.
+**Fix**: Extract orderId, subject, description, requestType from form_data and store as top-level DynamoDB attributes.
 
-### Phase 4: Drop Docs (Document Management)
-- [ ] Build Drop Docs flow JSON + handler
-- [ ] Add DocumentsTable
-- [ ] WhatsApp media ingestion pipeline
-- [ ] Admin document review UI
+### 2. Draft save/restore system
+**Root cause**: No draft persistence — users lost all data if they closed the flow mid-way.
+**Fix**: Added DraftsTable + save_draft/restore_draft/clear_draft functions in common.py.
+- Draft saved on each screen transition (ORDER_SELECT → FORM → TERMS)
+- Draft restored on INIT if exists
+- Draft cleared after successful submission
 
-### Phase 5: Enterprise Assist + Leave Review + FAQ
-- [ ] Build Enterprise Assist flow JSON + handler
-- [ ] Build Leave Review flow JSON + handler
-- [ ] Build FAQ as searchable WhatsApp Flow or page
-- [ ] Add ReviewsTable, EnterpriseAssistTable, FaqTable
+### 3. Submit Request flow — short ID display
+**Root cause**: Full canonical order ID (`WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST`) shown on all screens, causing text wrapping issues.
+**Fix**: Added `order_short_id` field to SUBMIT_REQUEST_FORM and THANK_YOU screen data. Flow JSON updated to display short ID.
+
+### 4. Track Request flow — order-centric status
+**Root cause**: Track Request was request-centric, showing individual request status.
+**Fix**: Rebuilt to show ALL activity for an order: order details, all linked submissions, payment info, items.
+
+### 5. Admin Orders page — full order-centric dashboard
+**Root cause**: Previous page was a basic scaffold without proper order-centric design.
+**Fix**: Complete rebuild with:
+- Copyable short IDs
+- Source/status/payment badges
+- Search by orderId/phone/customer
+- Filter by source, status, payment
+- Detail panel with full order info + all linked submissions
+- Status update controls for both orders and submissions
+- Manual order creation
+- Wix sync
+
+### 6. Status history audit trail
+**Root cause**: No audit trail for status changes.
+**Fix**: Added RequestStatusHistoryTable + append_status_history function.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /orders | List orders (filter: status, source, phone, search) |
+| GET | /orders/:id | Get single order |
+| GET | /orders/:id/submissions | Get all submissions for an order |
+| PATCH | /orders/:id/update-status | Update order status |
+| POST | /orders | Create manual order |
+| POST | /orders/sync | Sync orders from Wix |
+| POST | /requests/submit | Submit a new request (via flow) |
+| GET | /track/:orderId | Track order status (via flow) |
+
+## Next Steps
+
+1. **Run _create_phase3_flows.py** to create new flow IDs on WABA 1 for all deprecated flows
+2. **Update FlowRegistry** with new flow IDs
+3. **Deploy DraftsTable and RequestStatusHistoryTable** to DynamoDB
+4. **Test end-to-end**: Submit Request → Track Request → Admin status update
+5. **Add SLA engine**: Auto-assign submissions, escalate overdue

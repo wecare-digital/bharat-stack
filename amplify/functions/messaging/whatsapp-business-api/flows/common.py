@@ -23,6 +23,8 @@ FLOW_SUBMISSIONS_TABLE = os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-
 FLOW_LOGS_TABLE = os.environ.get('FLOW_LOGS_TABLE', 'stack-wecare-digital-FlowLogTable')
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
 INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invoice-engine')
+DRAFTS_TABLE = os.environ.get('DRAFTS_TABLE', 'stack-wecare-digital-DraftsTable')
+STATUS_HISTORY_TABLE = os.environ.get('STATUS_HISTORY_TABLE', 'stack-wecare-digital-RequestStatusHistoryTable')
 
 PHONE1_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 PHONE2_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-id-waba-t-direct-1055232054343117')
@@ -103,10 +105,19 @@ def save_flow_submission(flow_code: str, flow_type: str, phone: str,
                          payment_amount: int = 0,
                          payment_ref_id: str = '',
                          status: str = 'open') -> Dict:
-    """Save a submission to FlowSubmissionsTable. Returns the saved item."""
+    """Save a submission to FlowSubmissionsTable.
+    ORDER-CENTRIC: orderId, subject, description, requestType are promoted
+    to top-level fields so the orderId GSI works for order-based queries.
+    """
     try:
         now = int(time.time())
         sub_id = submission_number or f'WD-{flow_code[:6]}-{uuid.uuid4().hex[:8].upper()}'
+        # Extract order-centric fields from form_data for top-level indexing
+        fd = form_data if isinstance(form_data, dict) else {}
+        order_id = fd.get('order_id', '') or fd.get('orderId', '')
+        subject = fd.get('subject', '')
+        description = fd.get('description', '')
+        request_type = fd.get('request_type', '') or fd.get('requestType', '')
         item = {
             'submissionId': sub_id,
             'flowCode': flow_code,
@@ -117,6 +128,11 @@ def save_flow_submission(flow_code: str, flow_type: str, phone: str,
             'formData': json.dumps(form_data) if isinstance(form_data, dict) else str(form_data),
             'submissionNumber': sub_id,
             'flowToken': flow_token,
+            # ORDER-CENTRIC: top-level fields for GSI queries
+            'orderId': order_id,
+            'subject': subject,
+            'description': description,
+            'requestType': request_type,
             'status': status,
             'paymentRequired': requires_payment,
             'paymentAmount': payment_amount if requires_payment else 0,
@@ -130,7 +146,8 @@ def save_flow_submission(flow_code: str, flow_type: str, phone: str,
         table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
         logger.info(json.dumps({
             'event': 'flow_submission_saved', 'submissionId': sub_id,
-            'flowCode': flow_code, 'requiresPayment': requires_payment,
+            'flowCode': flow_code, 'orderId': order_id,
+            'requiresPayment': requires_payment,
             'paymentAmount': payment_amount, 'requestId': request_id,
         }))
         return item
@@ -325,3 +342,79 @@ def log_flow_event(flow_token: str, phone: str, action: str, screen: str,
         table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
     except Exception as e:
         logger.warning(f'Flow log write failed: {e}')
+
+
+# ── Draft save / restore ──
+
+def save_draft(phone: str, flow_code: str, screen: str, form_data: Dict) -> bool:
+    """Save flow draft so user can resume later. Key: {phone}#{flowCode}. TTL: 7 days."""
+    try:
+        now = int(time.time())
+        table = dynamodb.Table(DRAFTS_TABLE)
+        table.put_item(Item={
+            'draftKey': f'{phone}#{flow_code}',
+            'phone': phone,
+            'flowCode': flow_code,
+            'screen': screen,
+            'formData': json.dumps(form_data) if isinstance(form_data, dict) else str(form_data),
+            'updatedAt': Decimal(str(now)),
+            'ttl': now + (7 * 86400),
+        })
+        return True
+    except Exception as e:
+        logger.warning(f'Draft save failed: {e}')
+        return False
+
+
+def restore_draft(phone: str, flow_code: str) -> Optional[Dict]:
+    """Restore a saved draft. Returns {screen, formData} or None."""
+    try:
+        table = dynamodb.Table(DRAFTS_TABLE)
+        resp = table.get_item(Key={'draftKey': f'{phone}#{flow_code}'})
+        item = resp.get('Item')
+        if not item:
+            return None
+        form_data = item.get('formData', '{}')
+        try:
+            form_data = json.loads(form_data) if isinstance(form_data, str) else form_data
+        except Exception:
+            form_data = {}
+        return {'screen': item.get('screen', ''), 'formData': form_data}
+    except Exception as e:
+        logger.warning(f'Draft restore failed: {e}')
+        return None
+
+
+def clear_draft(phone: str, flow_code: str) -> bool:
+    """Delete a draft after successful submission."""
+    try:
+        table = dynamodb.Table(DRAFTS_TABLE)
+        table.delete_item(Key={'draftKey': f'{phone}#{flow_code}'})
+        return True
+    except Exception:
+        return False
+
+
+# ── Status history ──
+
+def append_status_history(submission_id: str, order_id: str,
+                          old_status: str, new_status: str,
+                          changed_by: str = 'system', notes: str = '') -> bool:
+    """Append a status change to RequestStatusHistoryTable for audit trail."""
+    try:
+        now = int(time.time())
+        table = dynamodb.Table(STATUS_HISTORY_TABLE)
+        table.put_item(Item={
+            'historyId': f'hist-{uuid.uuid4().hex[:12]}',
+            'submissionId': submission_id,
+            'orderId': order_id,
+            'oldStatus': old_status,
+            'newStatus': new_status,
+            'changedBy': changed_by,
+            'notes': notes,
+            'changedAt': Decimal(str(now)),
+        })
+        return True
+    except Exception as e:
+        logger.warning(f'Status history write failed: {e}')
+        return False

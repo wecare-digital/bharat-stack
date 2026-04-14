@@ -4270,3 +4270,522 @@ export async function getCatalogProducts(params?: { wabaId?: string; phoneNumber
   const data = await apiCall<any>(`${CATALOG_BASE}/products${query ? '?' + query : ''}`);
   return data || { products: [] };
 }
+
+// ============================================================================
+// ORDERS API
+// ============================================================================
+
+export interface Order {
+  orderId: string;
+  shortId?: string;
+  orderDate?: string;
+  orderTime?: string;
+  orderDateIST?: string;
+  source: string; // wix, manual, shopify, flow
+  sourceOrderId?: string;
+  sourceOrderNumber?: string;
+  customerPhone?: string;
+  customerName?: string;
+  customerEmail?: string;
+  totalAmount?: number;
+  currency?: string;
+  itemsSummary?: string;
+  itemsJson?: string;
+  items?: OrderItem[];
+  itemCount?: number;
+  orderStatus?: string; // active, fulfilled, cancelled
+  status: string; // alias for orderStatus
+  paymentStatus: string; // pending, captured, failed, refunded
+  paymentAmount?: number;
+  fulfillmentStatus?: string;
+  requestCount?: number;
+  notes?: string;
+  adminNotes?: string;
+  wixOrderId?: string;
+  invoiceId?: string;
+  createdAt: number;
+  updatedAt?: number;
+  syncedAt?: number;
+}
+
+export interface OrderItem {
+  productId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  sku?: string;
+  imageUrl?: string;
+}
+
+const ORDERS_BASE = `${API_BASE}/orders`;
+
+export async function listOrders(params?: {
+  status?: string;
+  source?: string;
+  phone?: string;
+  search?: string;
+  limit?: number;
+}): Promise<{ orders: Order[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.source) qs.set('source', params.source);
+  if (params?.phone) qs.set('phone', params.phone);
+  if (params?.search) qs.set('search', params.search);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  const data = await apiCall<any>(`${ORDERS_BASE}${query ? '?' + query : ''}`);
+  return data || { orders: [], count: 0 };
+}
+
+export async function getOrder(orderId: string): Promise<Order | null> {
+  return apiCall<Order>(`${ORDERS_BASE}/${orderId}`);
+}
+
+export async function createOrder(order: Partial<Order>): Promise<Order | null> {
+  return apiCall<Order>(ORDERS_BASE, {
+    method: 'POST',
+    body: JSON.stringify(order),
+  });
+}
+
+export async function updateOrder(orderId: string, updates: Partial<Order>): Promise<boolean> {
+  const data = await apiCall<any>(`${ORDERS_BASE}/${encodeURIComponent(orderId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+export async function syncOrders(): Promise<{ message: string; synced?: number }> {
+  const data = await apiCall<any>(`${ORDERS_BASE}/sync`, { method: 'POST' });
+  return data || { message: 'Sync failed' };
+}
+
+export async function getOrderSubmissions(orderId: string): Promise<FlowSubmissionItem[]> {
+  const data = await apiCall<any>(`${ORDERS_BASE}/${encodeURIComponent(orderId)}/submissions`);
+  return data?.submissions || [];
+}
+
+// ============================================================================
+// DOCUMENTS API (Drop Docs)
+// ============================================================================
+
+export interface Document {
+  documentId: string;
+  documentRef?: string; // WD-DOC-XXXXXXXX
+  customerPhone?: string;
+  customerName?: string;
+  contactId?: string;
+  orderId?: string;
+  source: string; // whatsapp, upload, manual
+  type: string; // prescription, id_proof, invoice, photo, other
+  status: string; // pending, uploaded, approved, rejected, reupload_requested
+  fileName?: string;
+  mimeType?: string;
+  fileUrl?: string;
+  storageKey?: string;
+  s3Bucket?: string;
+  fileSize?: number;
+  notes?: string;
+  reviewedBy?: string;
+  reviewedAt?: number;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+const DOCUMENTS_BASE = `${API_BASE}/documents`;
+
+export async function listDocuments(params?: {
+  status?: string;
+  source?: string;
+  type?: string;
+  phone?: string;
+  limit?: number;
+}): Promise<{ documents: Document[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.source) qs.set('source', params.source);
+  if (params?.type) qs.set('type', params.type);
+  if (params?.phone) qs.set('phone', params.phone);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  const data = await apiCall<any>(`${DOCUMENTS_BASE}${query ? '?' + query : ''}`);
+  return data || { documents: [], count: 0 };
+}
+
+export async function getDocument(documentId: string): Promise<Document | null> {
+  return apiCall<Document>(`${DOCUMENTS_BASE}/${documentId}`);
+}
+
+export async function updateDocument(documentId: string, updates: Partial<Document>): Promise<boolean> {
+  const data = await apiCall<any>(`${DOCUMENTS_BASE}/${documentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+export async function getDocumentDownloadUrl(documentId: string): Promise<string | null> {
+  const data = await apiCall<any>(`${DOCUMENTS_BASE}/${documentId}/download`);
+  return data?.url || null;
+}
+
+export async function createDocument(doc: Partial<Document>): Promise<Document | null> {
+  return apiCall<Document>(DOCUMENTS_BASE, {
+    method: 'POST',
+    body: JSON.stringify(doc),
+  });
+}
+
+// ============================================================================
+// FAQ API
+// ============================================================================
+
+export interface FaqEntry {
+  faqId: string;
+  question: string;
+  answer: string;
+  category: string;
+  sortOrder: number;
+  active: boolean;
+  tags?: string[];
+  createdAt: number;
+  updatedAt?: number;
+}
+
+const FAQ_BASE = `${API_BASE}/faq`;
+
+export async function listFaqs(params?: {
+  category?: string;
+  active?: boolean;
+}): Promise<{ faqs: FaqEntry[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.category) qs.set('category', params.category);
+  if (params?.active !== undefined) qs.set('active', String(params.active));
+  const query = qs.toString();
+  const data = await apiCall<any>(`${FAQ_BASE}${query ? '?' + query : ''}`);
+  return data || { faqs: [], count: 0 };
+}
+
+export async function createFaq(faq: Partial<FaqEntry>): Promise<FaqEntry | null> {
+  return apiCall<FaqEntry>(FAQ_BASE, {
+    method: 'POST',
+    body: JSON.stringify(faq),
+  });
+}
+
+export async function updateFaq(faqId: string, updates: Partial<FaqEntry>): Promise<boolean> {
+  const data = await apiCall<any>(`${FAQ_BASE}/${faqId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+export async function deleteFaq(faqId: string): Promise<boolean> {
+  const data = await apiCall<any>(`${FAQ_BASE}/${faqId}`, { method: 'DELETE' });
+  return !!data;
+}
+
+// ============================================================================
+// APPOINTMENTS API
+// ============================================================================
+
+export interface Appointment {
+  appointmentId: string;
+  contactId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  type: string;
+  scheduledAt: number;
+  duration?: number; // minutes
+  status: string; // scheduled, confirmed, in_progress, completed, cancelled, no_show
+  provider?: string;
+  location?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+const APPOINTMENTS_BASE = `${API_BASE}/appointments`;
+
+export async function listAppointments(params?: {
+  status?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+}): Promise<{ appointments: Appointment[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.type) qs.set('type', params.type);
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  const query = qs.toString();
+  const data = await apiCall<any>(`${APPOINTMENTS_BASE}${query ? '?' + query : ''}`);
+  return data || { appointments: [], count: 0 };
+}
+
+export async function updateAppointment(appointmentId: string, updates: Partial<Appointment>): Promise<boolean> {
+  const data = await apiCall<any>(`${APPOINTMENTS_BASE}/${appointmentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+// ============================================================================
+// RX SLOTS API
+// ============================================================================
+
+export interface RxSlot {
+  slotId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  duration?: number;
+  provider?: string;
+  status: string; // available, booked, blocked, completed
+  patientName?: string;
+  patientPhone?: string;
+  contactId?: string;
+  appointmentId?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+const RX_SLOTS_BASE = `${API_BASE}/rx-slots`;
+
+export async function listRxSlots(params?: {
+  status?: string;
+  date?: string;
+  provider?: string;
+}): Promise<{ slots: RxSlot[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.date) qs.set('date', params.date);
+  if (params?.provider) qs.set('provider', params.provider);
+  const query = qs.toString();
+  const data = await apiCall<any>(`${RX_SLOTS_BASE}${query ? '?' + query : ''}`);
+  return data || { slots: [], count: 0 };
+}
+
+export async function updateRxSlot(slotId: string, updates: Partial<RxSlot>): Promise<boolean> {
+  const data = await apiCall<any>(`${RX_SLOTS_BASE}/${slotId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+export async function createRxSlot(slot: Partial<RxSlot>): Promise<RxSlot | null> {
+  return apiCall<RxSlot>(RX_SLOTS_BASE, {
+    method: 'POST',
+    body: JSON.stringify(slot),
+  });
+}
+
+// ============================================================================
+// ENTERPRISE ASSIST API
+// ============================================================================
+
+export interface EnterpriseCase {
+  caseId: string;
+  contactId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  subject: string;
+  description?: string;
+  category?: string;
+  priority: string; // low, medium, high, critical
+  status: string; // open, in_progress, waiting, resolved, closed
+  assignedTo?: string;
+  resolution?: string;
+  resolvedAt?: number;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+const ENTERPRISE_BASE = `${API_BASE}/enterprise-assist`;
+
+export async function listEnterpriseCases(params?: {
+  status?: string;
+  priority?: string;
+  assignedTo?: string;
+}): Promise<{ cases: EnterpriseCase[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.priority) qs.set('priority', params.priority);
+  if (params?.assignedTo) qs.set('assignedTo', params.assignedTo);
+  const query = qs.toString();
+  const data = await apiCall<any>(`${ENTERPRISE_BASE}${query ? '?' + query : ''}`);
+  return data || { cases: [], count: 0 };
+}
+
+export async function updateEnterpriseCase(caseId: string, updates: Partial<EnterpriseCase>): Promise<boolean> {
+  const data = await apiCall<any>(`${ENTERPRISE_BASE}/${caseId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+// ============================================================================
+// REVIEWS API
+// ============================================================================
+
+export interface Review {
+  reviewId: string;
+  contactId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  rating: number; // 1-5
+  comment?: string;
+  source: string; // whatsapp, web, google, manual
+  status: string; // pending, approved, hidden, flagged
+  response?: string;
+  respondedAt?: number;
+  orderId?: string;
+  productId?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+const REVIEWS_BASE = `${API_BASE}/reviews`;
+
+export async function listReviews(params?: {
+  status?: string;
+  source?: string;
+  minRating?: number;
+}): Promise<{ reviews: Review[]; count: number }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.source) qs.set('source', params.source);
+  if (params?.minRating) qs.set('minRating', String(params.minRating));
+  const query = qs.toString();
+  const data = await apiCall<any>(`${REVIEWS_BASE}${query ? '?' + query : ''}`);
+  return data || { reviews: [], count: 0 };
+}
+
+export async function updateReview(reviewId: string, updates: Partial<Review>): Promise<boolean> {
+  const data = await apiCall<any>(`${REVIEWS_BASE}/${reviewId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return !!data;
+}
+
+
+// ============================================================================
+// SERVICE REQUEST API (Submit / Track / Amend — Order-Centric)
+// ============================================================================
+
+export interface SubmitRequestPayload {
+  orderId: string;
+  requestType: string;
+  subject: string;
+  description: string;
+  paymentRequired?: boolean;
+}
+
+export interface AmendRequestPayload {
+  submissionId: string;
+  orderId: string;
+  amendmentType: string;
+  description: string;
+  attachments?: string[];
+}
+
+export interface TrackingData {
+  order: Order;
+  submissions: FlowSubmissionItem[];
+  statusHistory: StatusHistoryEntry[];
+  documents: Document[];
+}
+
+export interface StatusHistoryEntry {
+  historyId: string;
+  submissionId: string;
+  orderId?: string;
+  oldStatus: string;
+  newStatus: string;
+  changedBy: string;
+  changedByName?: string;
+  notes?: string;
+  changedAt: number;
+}
+
+export interface DraftData {
+  draftKey: string;
+  phone: string;
+  flowCode: string;
+  screen: string;
+  formData: string;
+  updatedAt: number;
+}
+
+const SERVICE_BASE = `${API_BASE}/service`;
+
+export async function submitRequest(payload: SubmitRequestPayload): Promise<{ submissionId: string; submissionNumber: string } | null> {
+  return apiCall<{ submissionId: string; submissionNumber: string }>(`${SERVICE_BASE}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function amendRequest(payload: AmendRequestPayload): Promise<{ success: boolean; amendmentId?: string } | null> {
+  return apiCall<{ success: boolean; amendmentId?: string }>(`${SERVICE_BASE}/amend`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getTrackingData(orderId: string): Promise<TrackingData | null> {
+  return apiCall<TrackingData>(`${SERVICE_BASE}/track/${encodeURIComponent(orderId)}`);
+}
+
+export async function getStatusHistory(params: { orderId?: string; submissionId?: string }): Promise<StatusHistoryEntry[]> {
+  const qs = new URLSearchParams();
+  if (params.orderId) qs.set('orderId', params.orderId);
+  if (params.submissionId) qs.set('submissionId', params.submissionId);
+  const query = qs.toString();
+  const data = await apiCall<any>(`${SERVICE_BASE}/history${query ? '?' + query : ''}`);
+  return data?.history || [];
+}
+
+export async function saveDraft(draft: Partial<DraftData>): Promise<boolean> {
+  const data = await apiCall<any>(`${SERVICE_BASE}/drafts`, {
+    method: 'POST',
+    body: JSON.stringify(draft),
+  });
+  return !!data;
+}
+
+export async function getDraft(flowCode: string): Promise<DraftData | null> {
+  return apiCall<DraftData>(`${SERVICE_BASE}/drafts/${encodeURIComponent(flowCode)}`);
+}
+
+export async function deleteDraft(flowCode: string): Promise<boolean> {
+  const data = await apiCall<any>(`${SERVICE_BASE}/drafts/${encodeURIComponent(flowCode)}`, { method: 'DELETE' });
+  return !!data;
+}
+
+export async function createAppointment(appointment: Partial<Appointment>): Promise<Appointment | null> {
+  return apiCall<Appointment>(APPOINTMENTS_BASE, {
+    method: 'POST',
+    body: JSON.stringify(appointment),
+  });
+}
+
+export async function createEnterpriseCase(caseData: Partial<EnterpriseCase>): Promise<EnterpriseCase | null> {
+  return apiCall<EnterpriseCase>(ENTERPRISE_BASE, {
+    method: 'POST',
+    body: JSON.stringify(caseData),
+  });
+}
+
+export async function createReview(review: Partial<Review>): Promise<Review | null> {
+  return apiCall<Review>(REVIEWS_BASE, {
+    method: 'POST',
+    body: JSON.stringify(review),
+  });
+}

@@ -117,5 +117,55 @@ export const PAGE_SEO = {
     title: 'AI Configuration - Response Automation',
     description: 'Configure AI-powered response automation. Set up Amazon Bedrock agents, knowledge bases, and auto-reply settings.',
     keywords: 'AI automation, Amazon Bedrock, AI responses, chatbot configuration, auto-reply, knowledge base'
-  }
+  },
+  orders: {
+    title: 'Orders - Order Management',
+    description: 'Manage all orders from WhatsApp, Wix, and manual sources. Track status, payments, and linked submissions.',
+    keywords: 'order management, WhatsApp orders, Wix orders, order tracking, payment status'
+  },
+  documents: {
+    title: 'Drop Docs - Document Management',
+    description: 'Manage customer-uploaded documents. Review, approve, and organize prescriptions, IDs, and other files.',
+    keywords: 'document management, WhatsApp documents, file uploads, document review, drop docs'
+  },
+  faq: {
+    title: 'FAQ Management',
+    description: 'Manage frequently asked questions. Create, edit, and organize FAQ entries by category.',
+    keywords: 'FAQ management, knowledge base, customer support, help center'
+  },
+  appointments: {
+    title: 'Appointments - Schedule Management',
+    description: 'Manage customer appointments. Track scheduling, confirmations, and completions.',
+    keywords: 'appointment management, scheduling, calendar, booking'
+  },
+  rxSlots: {
+    title: 'RX Slots - Slot Management',
+    description: 'Manage prescription and consultation time slots. Book, block, and track availability.',
+    keywords: 'slot management, prescription slots, booking, availability'
+  },
+  enterprise: {
+    title: 'Enterprise Assist - Case Management',
+    description: 'Manage enterprise support cases. Track priorities, assignments, and resolutions.',
+    keywords: 'case management, enterprise support, ticket system, customer service'
+  },
+  reviews: {
+    title: 'Reviews - Moderation',
+    description: 'Moderate customer reviews. Approve, hide, or respond to feedback across channels.',
+    keywords: 'review moderation, customer feedback, ratings, review management'
+  },
+  submitRequest: {
+    title: 'Submit Request - Order-Centric Service',
+    description: 'Submit a service request linked to an order. Select order, describe issue, review and submit.',
+    keywords: 'submit request, service request, order support, customer service'
+  },
+  trackRequest: {
+    title: 'Track Request - Order Status',
+    description: 'Track all service activity for an order. View requests, status timeline, payments, and outcomes.',
+    keywords: 'track request, order tracking, service status, request history'
+  },
+  amendRequest: {
+    title: 'Amend Request - Modify Submission',
+    description: 'Amend or add information to an existing service request linked to an order.',
+    keywords: 'amend request, modify request, update submission, order amendment'
+  },
 };
