@@ -1202,6 +1202,62 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table: Appointment — Booking/scheduling for consultations and service visits
+  Appointment: a
+    .model({
+      appointmentId: a.id().required(),
+      customerPhone: a.string().required(),
+      customerName: a.string(),
+      contactId: a.string(),
+      orderId: a.string(), // optional link to order
+      appointmentType: a.string(), // consultation | service_visit | follow_up | other
+      slotDate: a.string(), // "2026-03-15"
+      slotTime: a.string(), // "10:00 AM"
+      duration: a.string(), // "30 min" | "1 hour"
+      location: a.string(), // office | virtual | home_visit
+      status: a.string().default('booked'), // booked | confirmed | rescheduled | cancelled | completed | no_show
+      notes: a.string(),
+      adminNotes: a.string(),
+      assignedTo: a.string(),
+      reminderSent: a.boolean().default(false),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['appointmentId'])
+    .secondaryIndexes((index) => [
+      index('customerPhone'),
+      index('slotDate'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
+  // Table: RxSlot — Prescription/medical tourism slot booking
+  RxSlot: a
+    .model({
+      rxSlotId: a.id().required(),
+      customerPhone: a.string().required(),
+      customerName: a.string(),
+      contactId: a.string(),
+      orderId: a.string(), // optional link to order
+      slotType: a.string(), // prescription | medical_tourism | lab_test | pharmacy
+      slotDate: a.string(), // "2026-03-15"
+      slotTime: a.string(), // "10:00 AM"
+      facilityName: a.string(),
+      doctorName: a.string(),
+      status: a.string().default('booked'), // booked | confirmed | cancelled | completed
+      prescriptionNotes: a.string(),
+      adminNotes: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['rxSlotId'])
+    .secondaryIndexes((index) => [
+      index('customerPhone'),
+      index('slotDate'),
+      index('status'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table: RequestStatusHistory — Audit trail for request status changes
   RequestStatusHistory: a
     .model({

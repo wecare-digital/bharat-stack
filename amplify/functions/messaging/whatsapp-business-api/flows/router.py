@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, track_request, amend_request, generic
+from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, generic
 from flows.common import get_phone_from_token, log_flow_event
 from flows.orders import fetch_orders_for_flow as _orders_fetch
 
@@ -20,8 +20,7 @@ TOKEN_PREFIX_TO_FLOW_CODE = {
 
 # Flow keys that use the generic handler
 GENERIC_FLOW_PREFIXES = {
-    'rx_slot', 'drop_docs',
-    'enterprise', 'schedule_a', 'leave_revi', 'order_note',
+    'drop_docs', 'enterprise', 'leave_revi', 'order_note',
 }
 
 
@@ -116,6 +115,28 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
         if screen == 'ORDER_SELECT':
             return track_request.handle_order_select(data, flow_token, request_id)
         if screen in ('STATUS', 'THANK_YOU', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── APPOINTMENT FLOW ──
+    if flow_key in ('schedule_a',) or flow_key.startswith('schedule') or flow_key.startswith('appoint'):
+        if action == 'INIT':
+            return appointment.handle_init(data, flow_token, request_id)
+        if screen == 'BOOKING_FORM':
+            return appointment.handle_booking_form(data, flow_token, request_id)
+        if screen == 'REVIEW':
+            return appointment.handle_review(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── RX SLOT FLOW ──
+    if flow_key in ('rx_slot',) or flow_key.startswith('rx'):
+        if action == 'INIT':
+            return rx_slot.handle_init(data, flow_token, request_id)
+        if screen == 'SLOT_FORM':
+            return rx_slot.handle_slot_form(data, flow_token, request_id)
+        if screen == 'REVIEW':
+            return rx_slot.handle_review(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
             return _terminal_response(flow_token)
 
     # ── GENERIC FLOWS ──
