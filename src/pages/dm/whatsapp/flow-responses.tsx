@@ -174,9 +174,9 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
                       <th style={{ padding: '8px 10px' }}>Ref #</th>
                       <th style={{ padding: '8px 10px' }}>Subject</th>
                       <th style={{ padding: '8px 10px' }}>Status</th>
+                      <th style={{ padding: '8px 10px' }}>Update</th>
                       <th style={{ padding: '8px 10px' }}>Payment</th>
                       <th style={{ padding: '8px 10px' }}>Amount</th>
-                      <th style={{ padding: '8px 10px' }}>WABA</th>
                       <th style={{ padding: '8px 10px' }}>Created</th>
                     </tr>
                   </thead>
@@ -190,9 +190,30 @@ const FlowResponsesPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
                         <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11 }}>{s.submissionNumber || '-'}</td>
                         <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject || s.requestType || '-'}</td>
                         <td style={{ padding: '8px 10px' }}>{getStatusBadge(s.status)}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <select
+                            defaultValue={s.status || 'open'}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              try {
+                                await api.updateSubmissionStatus(s.submissionId, newStatus);
+                                toast.success(`Status → ${newStatus.replace('_', ' ')}`);
+                                loadSubmissions();
+                              } catch (err: any) {
+                                toast.error(err?.message || 'Update failed');
+                              }
+                            }}
+                            style={{ padding: '3px 6px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}
+                          >
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
                         <td style={{ padding: '8px 10px' }}>{getStatusBadge(s.paymentStatus)}</td>
                         <td style={{ padding: '8px 10px' }}>{formatPaise(s.paymentAmount || 0)}</td>
-                        <td style={{ padding: '8px 10px' }}>{getWabaBadge((s as any).flowToken || '')}</td>
                         <td style={{ padding: '8px 10px', fontSize: 12, color: '#666' }}>{formatDate(s.createdAt)}</td>
                       </tr>
                     ))}

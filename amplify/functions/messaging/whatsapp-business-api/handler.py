@@ -1359,6 +1359,89 @@ def _log_flow_interaction(flow_config: Dict, flow_token: str, phone: str,
         logger.warning(f'Flow log write failed: {e}')
 
 
+def _update_submission_status(body: Dict) -> Dict:
+    """Update a flow submission's status. Logs history for audit trail."""
+    submission_id = body.get('submissionId', '')
+    new_status = body.get('status', '')
+    notes = body.get('notes', '')
+    changed_by = body.get('changedBy', 'admin')
+
+    if not submission_id or not new_status:
+        return _resp(400, {'error': 'submissionId and status required'})
+
+    valid_statuses = {'open', 'in_progress', 'resolved', 'closed', 'cancelled'}
+    if new_status not in valid_statuses:
+        return _resp(400, {'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'})
+
+    try:
+        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
+        # Get current submission
+        resp = table.get_item(Key={'submissionId': submission_id})
+        item = resp.get('Item')
+        if not item:
+            return _resp(404, {'error': 'Submission not found'})
+
+        old_status = item.get('status', 'open')
+        now = int(time.time())
+
+        # Update status
+        update_expr = 'SET #st = :st, updatedAt = :u'
+        expr_names = {'#st': 'status'}
+        expr_vals = {':st': new_status, ':u': Decimal(str(now))}
+
+        if notes:
+            old_notes = item.get('notes', '') or ''
+            ts = time.strftime('%d %b %Y %H:%M', time.gmtime(now + 19800))
+            new_notes = f'{old_notes}\n[{ts} by {changed_by}] Status: {old_status} → {new_status}. {notes}'.strip()
+            update_expr += ', notes = :n'
+            expr_vals[':n'] = new_notes[:2000]
+
+        if new_status == 'resolved':
+            update_expr += ', resolvedAt = :ra'
+            expr_vals[':ra'] = Decimal(str(now))
+
+        table.update_item(
+            Key={'submissionId': submission_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_vals,
+        )
+
+        # Log to RequestStatusHistoryTable
+        try:
+            hist_table = dynamodb.Table('stack-wecare-digital-RequestStatusHistoryTable')
+            hist_table.put_item(Item={
+                'historyId': str(uuid.uuid4()),
+                'submissionId': submission_id,
+                'orderId': item.get('orderId', ''),
+                'oldStatus': old_status,
+                'newStatus': new_status,
+                'changedBy': changed_by,
+                'notes': notes[:500] if notes else '',
+                'changedAt': Decimal(str(now)),
+            })
+        except Exception as he:
+            logger.warning(f'Status history log failed: {he}')
+
+        logger.info(json.dumps({
+            'event': 'submission_status_updated',
+            'submissionId': submission_id,
+            'oldStatus': old_status,
+            'newStatus': new_status,
+            'changedBy': changed_by,
+        }))
+
+        return _resp(200, {
+            'submissionId': submission_id,
+            'oldStatus': old_status,
+            'newStatus': new_status,
+            'updated': True,
+        })
+    except Exception as e:
+        logger.error(f'Status update failed: {e}')
+        return _resp(500, {'error': str(e)})
+
+
 def _list_flow_submissions(params: Dict) -> Dict:
     """List flow submissions with filtering."""
     try:
@@ -3495,6 +3578,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             elif method == 'POST' or method == 'PUT':
                 return _upsert_flow_registry(body)
             return _resp(405, {'error': 'GET/POST/PUT only'})
+
+        elif '/flow-submissions/update-status' in path:
+            if method == 'POST' or method == 'PATCH':
+                return _update_submission_status(body)
+            return _resp(405, {'error': 'POST/PATCH only'})
 
         elif '/flow-submissions/stats' in path:
             if method == 'GET':

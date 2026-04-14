@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, track_request, generic
+from flows import subscribe, submit_request, track_request, amend_request, generic
 from flows.common import get_phone_from_token, log_flow_event
 from flows.orders import fetch_orders_for_flow as _orders_fetch
 
@@ -20,7 +20,7 @@ TOKEN_PREFIX_TO_FLOW_CODE = {
 
 # Flow keys that use the generic handler
 GENERIC_FLOW_PREFIXES = {
-    'amend_requ', 'rx_slot', 'drop_docs',
+    'rx_slot', 'drop_docs',
     'enterprise', 'schedule_a', 'leave_revi', 'order_note',
 }
 
@@ -94,6 +94,19 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
             return submit_request.handle_review(data, flow_token, request_id,
                                                 flow_config=flow_config)
         if screen in ('THANK_YOU', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── AMEND REQUEST FLOW ──
+    if flow_key in ('amend_requ',) or flow_key.startswith('amend'):
+        if action == 'INIT':
+            return amend_request.handle_init(data, flow_token, request_id)
+        if screen == 'ORDER_SELECT':
+            return amend_request.handle_order_select(data, flow_token, request_id)
+        if screen == 'SELECT_REQUEST':
+            return amend_request.handle_select_request(data, flow_token, request_id)
+        if screen == 'AMEND_FORM':
+            return amend_request.handle_amend_form(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
             return _terminal_response(flow_token)
 
     # ── TRACK REQUEST FLOW ──

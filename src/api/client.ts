@@ -4205,6 +4205,14 @@ export async function getFlowSubmissionStats(flowCode?: string): Promise<FlowSub
   return data || null;
 }
 
+export async function updateSubmissionStatus(submissionId: string, status: string, notes?: string): Promise<{ updated: boolean; oldStatus: string; newStatus: string }> {
+  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions/update-status`, {
+    method: 'POST',
+    body: JSON.stringify({ submissionId, status, notes, changedBy: 'admin' }),
+  });
+  return data || { updated: false, oldStatus: '', newStatus: '' };
+}
+
 export interface CustomerJourney {
   phone: string;
   contactId: string;
