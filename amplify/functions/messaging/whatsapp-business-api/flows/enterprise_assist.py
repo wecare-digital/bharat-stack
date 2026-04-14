@@ -63,6 +63,13 @@ def handle_intake_form(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Enterprise submission save failed: {e}')
 
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'Enterprise Enquiry', case_id,
+            f'*Company:* {data.get("account_name", "")}\n*Subject:* {data.get("subject", "")}')
+    except Exception:
+        pass
+
     return {
         'screen': 'CONFIRM',
         'data': {

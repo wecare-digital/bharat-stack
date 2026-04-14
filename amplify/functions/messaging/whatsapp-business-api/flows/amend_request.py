@@ -138,6 +138,13 @@ def handle_amend_form(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Amendment save failed: {e}')
 
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'Amendment Submitted', req_id,
+            f'Our team will review your amendment shortly.')
+    except Exception:
+        pass
+
     return {
         'screen': 'CONFIRM',
         'data': {

@@ -89,6 +89,13 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'RX slot submission save failed: {e}')
 
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'RX Slot Booking', rx_id,
+            f'*Type:* {data.get("slot_type", "")}\n*Date:* {data.get("slot_date", "")} at {data.get("slot_time", "")}')
+    except Exception:
+        pass
+
     return {
         'screen': 'CONFIRM',
         'data': {

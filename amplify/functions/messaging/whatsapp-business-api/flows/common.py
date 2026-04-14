@@ -272,6 +272,32 @@ def send_confirmation(phone: str, phone_number_id: str, request_id: str,
         logger.error(f'Confirmation send failed: {e}')
 
 
+def send_simple_confirmation(phone: str, flow_token: str, flow_name: str,
+                             reference: str, details: str = ''):
+    """Send a simple WhatsApp text confirmation for free flows (no payment)."""
+    if not phone:
+        return
+    from flows.common import get_phone_number_id_for_flow
+    phone_id = get_phone_number_id_for_flow(flow_token) if flow_token else PHONE1_ID
+    detail_line = f'\n{details}' if details else ''
+    msg = (
+        f'✅ *{flow_name} — Confirmed*\n\n'
+        f'*Reference:* {reference}{detail_line}\n\n'
+        'Our team will follow up if needed.\n\n'
+        '_Thank you for choosing WECARE.DIGITAL_'
+    )
+    try:
+        lambda_client.invoke(
+            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+            InvocationType='Event',
+            Payload=json.dumps({'body': json.dumps({
+                'recipientPhone': phone, 'phoneNumberId': phone_id, 'content': msg,
+            })})
+        )
+    except Exception as e:
+        logger.warning(f'Simple confirmation failed: {e}')
+
+
 # ── Flow log ──
 
 def log_flow_event(flow_token: str, phone: str, action: str, screen: str,

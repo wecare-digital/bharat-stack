@@ -78,6 +78,13 @@ def handle_review_form(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Review submission save failed: {e}')
 
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'Review Submitted', review_id,
+            f'*Rating:* {"⭐" * rating}\n*Category:* {data.get("category", "")}')
+    except Exception:
+        pass
+
     stars = '⭐' * rating if rating else ''
     return {
         'screen': 'CONFIRM',

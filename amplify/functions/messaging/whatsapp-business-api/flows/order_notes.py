@@ -79,6 +79,12 @@ def handle_notes_form(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Order notes submission save failed: {e}')
 
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'Order Notes Saved', note_id)
+    except Exception:
+        pass
+
     return {
         'screen': 'CONFIRM',
         'data': {

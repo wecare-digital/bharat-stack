@@ -94,6 +94,14 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Appointment submission save failed: {e}')
 
+    # Send WhatsApp confirmation
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'Appointment Booking', apt_id,
+            f'*Type:* {data.get("appointment_type", "")}\n*Date:* {data.get("slot_date", "")} at {data.get("slot_time", "")}')
+    except Exception:
+        pass
+
     return {
         'screen': 'CONFIRM',
         'data': {

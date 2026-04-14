@@ -115,6 +115,13 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Document submission save failed: {e}')
 
+    try:
+        from flows.common import send_simple_confirmation
+        send_simple_confirmation(phone, flow_token, 'Document Registered', doc_id,
+            f'*Type:* {data.get("doc_type", "")}\nPlease send the document as a WhatsApp message now.')
+    except Exception:
+        pass
+
     return {
         'screen': 'CONFIRM',
         'data': {
