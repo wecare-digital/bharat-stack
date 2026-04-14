@@ -73,7 +73,7 @@ const FaqPage: React.FC<PageProps> = ({ signOut, user }) => {
   };
 
   const handleDelete = async (faq: api.FaqEntry) => {
-    const ok = await confirm({ title: 'Delete FAQ', message: `Delete "${faq.question.slice(0, 50)}..."?`, confirmLabel: 'Delete', variant: 'danger' });
+    const ok = await confirm({ title: 'Delete FAQ', message: `Delete "${faq.question.slice(0, 50)}..."?`, confirmText: 'Delete', danger: true });
     if (!ok) return;
     const deleted = await api.deleteFaq(faq.faqId);
     if (deleted) { toast.success('FAQ deleted'); loadFaqs(); }
