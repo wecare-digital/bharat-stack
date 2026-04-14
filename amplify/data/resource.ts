@@ -1258,6 +1258,45 @@ const schema = a.schema({
     ])
     .authorization((allow) => [allow.authenticated()]),
 
+  // Table: Document — Customer document management (WhatsApp uploads, manual, web)
+  Document: a
+    .model({
+      documentId: a.id().required(),
+      customerPhone: a.string().required(),
+      customerName: a.string(),
+      contactId: a.string(),
+      orderId: a.string(), // optional link to order
+      submissionId: a.string(), // optional link to FlowSubmission
+      // Source
+      sourceType: a.string().required(), // whatsapp | manual | web | flow
+      sourceReferenceId: a.string(), // WhatsApp media ID or upload ref
+      // Document details
+      documentType: a.string(), // id_proof | address_proof | prescription | invoice | photo | other
+      fileName: a.string(),
+      fileUrl: a.string(), // S3 URL or CDN URL
+      storageKey: a.string(), // S3 key
+      mimeType: a.string(),
+      fileSize: a.integer(), // bytes
+      // Verification
+      verificationStatus: a.string().default('uploaded'), // uploaded | under_review | approved | rejected | reupload_required
+      remarks: a.string(), // admin remarks or rejection reason
+      // Metadata
+      tags: a.string(), // JSON array
+      uploadedAt: a.integer(),
+      reviewedAt: a.integer(),
+      reviewedBy: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    })
+    .identifier(['documentId'])
+    .secondaryIndexes((index) => [
+      index('customerPhone'),
+      index('orderId'),
+      index('verificationStatus'),
+      index('sourceType'),
+    ])
+    .authorization((allow) => [allow.authenticated()]),
+
   // Table: RequestStatusHistory — Audit trail for request status changes
   RequestStatusHistory: a
     .model({

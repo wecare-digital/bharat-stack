@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, generic
+from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, generic
 from flows.common import get_phone_from_token, log_flow_event
 from flows.orders import fetch_orders_for_flow as _orders_fetch
 
@@ -20,7 +20,7 @@ TOKEN_PREFIX_TO_FLOW_CODE = {
 
 # Flow keys that use the generic handler
 GENERIC_FLOW_PREFIXES = {
-    'drop_docs', 'enterprise', 'leave_revi', 'order_note',
+    'enterprise', 'leave_revi', 'order_note',
 }
 
 
@@ -136,6 +136,17 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
             return rx_slot.handle_slot_form(data, flow_token, request_id)
         if screen == 'REVIEW':
             return rx_slot.handle_review(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── DROP DOCS FLOW ──
+    if flow_key in ('drop_docs',) or flow_key.startswith('drop'):
+        if action == 'INIT':
+            return drop_docs.handle_init(data, flow_token, request_id)
+        if screen == 'DOC_FORM':
+            return drop_docs.handle_doc_form(data, flow_token, request_id)
+        if screen == 'REVIEW':
+            return drop_docs.handle_review(data, flow_token, request_id)
         if screen in ('CONFIRM', 'SUCCESS'):
             return _terminal_response(flow_token)
 
