@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, enterprise_assist, leave_review, generic
+from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, enterprise_assist, leave_review, order_notes, generic
 from flows.common import get_phone_from_token, log_flow_event
 from flows.orders import fetch_orders_for_flow as _orders_fetch
 
@@ -19,9 +19,7 @@ TOKEN_PREFIX_TO_FLOW_CODE = {
 }
 
 # Flow keys that use the generic handler
-GENERIC_FLOW_PREFIXES = {
-    'order_note',
-}
+GENERIC_FLOW_PREFIXES = set()  # All modules now have dedicated handlers
 
 
 def _extract_flow_key(flow_token: str) -> str:
@@ -168,7 +166,18 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
         if screen in ('CONFIRM', 'SUCCESS'):
             return _terminal_response(flow_token)
 
-    # ── GENERIC FLOWS (order_notes only) ──
+    # ── ORDER NOTES FLOW ──
+    if flow_key in ('order_note',) or flow_key.startswith('order_n'):
+        if action == 'INIT':
+            return order_notes.handle_init(data, flow_token, request_id)
+        if screen == 'ORDER_SELECT':
+            return order_notes.handle_order_select(data, flow_token, request_id)
+        if screen == 'NOTES_FORM':
+            return order_notes.handle_notes_form(data, flow_token, request_id)
+        if screen in ('CONFIRM', 'SUCCESS'):
+            return _terminal_response(flow_token)
+
+    # ── GENERIC FLOWS (fallback only) ──
     is_generic = any(flow_key.startswith(k) for k in GENERIC_FLOW_PREFIXES)
     if is_generic:
         if screen == 'WELCOME':
