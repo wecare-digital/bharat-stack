@@ -8,6 +8,18 @@ New-Item -ItemType Directory -Path $pkgDir -Force | Out-Null
 New-Item -ItemType Directory -Path "$pkgDir\lambda_utils" -Force | Out-Null
 Copy-Item $HandlerPath "$pkgDir\handler.py"
 Copy-Item "amplify\functions\shared\lambda_utils\*.py" "$pkgDir\lambda_utils\"
+
+# Copy flows directory (required for WhatsApp Flow endpoint handling)
+$flowsDir = "amplify\functions\messaging\whatsapp-business-api\flows"
+if (Test-Path $flowsDir) {
+    Copy-Item -Recurse $flowsDir "$pkgDir\flows"
+    Get-ChildItem -Recurse "$pkgDir\flows" -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+}
+
+# Copy service_api.py (required for service module handlers)
+$svcApi = "amplify\functions\messaging\whatsapp-business-api\service_api.py"
+if (Test-Path $svcApi) { Copy-Item $svcApi "$pkgDir\" }
+
 $skb = "amplify\functions\shared\static_knowledge_base.py"
 if (Test-Path $skb) { Copy-Item $skb "$pkgDir\" }
 $zipPath = "scripts\$FuncName.zip"

@@ -16,7 +16,7 @@ function Remove-WithRetry {
 }
 
 function Deploy-Lambda {
-    param([string]$FuncName, [string]$HandlerPath, [string]$ModulesDir)
+    param([string]$FuncName, [string]$HandlerPath, [string]$ModulesDir, [string[]]$ExtraDirs, [string[]]$ExtraFiles)
     
     Write-Host "=== Deploying $FuncName ===" -ForegroundColor Cyan
     
@@ -32,6 +32,25 @@ function Deploy-Lambda {
     if ($ModulesDir -and (Test-Path $ModulesDir)) {
         New-Item -ItemType Directory -Path "$pkgDir\modules" -Force | Out-Null
         Copy-Item "$ModulesDir\*.py" "$pkgDir\modules\"
+    }
+    
+    # Copy extra directories (e.g. flows/) preserving structure
+    if ($ExtraDirs) {
+        foreach ($dir in $ExtraDirs) {
+            if (Test-Path $dir) {
+                $dirName = Split-Path $dir -Leaf
+                Copy-Item -Recurse $dir "$pkgDir\$dirName"
+                # Remove __pycache__ from copied dirs
+                Get-ChildItem -Recurse "$pkgDir\$dirName" -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+            }
+        }
+    }
+    
+    # Copy extra files (e.g. service_api.py)
+    if ($ExtraFiles) {
+        foreach ($file in $ExtraFiles) {
+            if (Test-Path $file) { Copy-Item $file "$pkgDir\" }
+        }
     }
     
     $skbPath = "amplify\functions\shared\static_knowledge_base.py"
@@ -72,6 +91,7 @@ $results += Deploy-Lambda "wecare-messages-read" "amplify\functions\core\message
 $results += Deploy-Lambda "wecare-messages-delete" "amplify\functions\core\messages-delete\handler.py" ""
 $results += Deploy-Lambda "wecare-faq-handler" "amplify\functions\core\faq-handler\handler.py" ""
 $results += Deploy-Lambda "wecare-url-shortener" "amplify\functions\core\url-shortener\handler.py" ""
+$results += Deploy-Lambda "wecare-service-api" "amplify\functions\core\service-api\handler.py" ""
 
 # === WhatsApp ===
 $results += Deploy-Lambda "wecare-inbound-whatsapp" "amplify\functions\messaging\inbound-whatsapp-handler\handler.py" "amplify\functions\messaging\inbound-whatsapp-handler\modules"
@@ -80,7 +100,7 @@ $results += Deploy-Lambda "wecare-whatsapp-voice" "amplify\functions\messaging\w
 $results += Deploy-Lambda "wecare-whatsapp-calling" "amplify\functions\messaging\whatsapp-calling\handler.py" ""
 $results += Deploy-Lambda "wecare-whatsapp-templates" "amplify\functions\messaging\whatsapp-templates\handler.py" ""
 $results += Deploy-Lambda "wecare-whatsapp-template-management" "amplify\functions\messaging\whatsapp-template-management\handler.py" ""
-$results += Deploy-Lambda "wecare-whatsapp-business-api" "amplify\functions\messaging\whatsapp-business-api\handler.py" ""
+$results += Deploy-Lambda "wecare-whatsapp-business-api" "amplify\functions\messaging\whatsapp-business-api\handler.py" "" -ExtraDirs @("amplify\functions\messaging\whatsapp-business-api\flows") -ExtraFiles @("amplify\functions\messaging\whatsapp-business-api\service_api.py")
 $results += Deploy-Lambda "wecare-waba-management" "amplify\functions\messaging\waba-management\handler.py" ""
 $results += Deploy-Lambda "wecare-media-cleanup" "amplify\functions\messaging\media-cleanup\handler.py" ""
 $results += Deploy-Lambda "wecare-template-analytics" "amplify\functions\messaging\template-analytics\handler.py" ""
@@ -116,6 +136,7 @@ $results += Deploy-Lambda "wecare-agent-action-group" "amplify\functions\ai\agen
 $results += Deploy-Lambda "wecare-dlq-replay" "amplify\functions\operations\dlq-replay\handler.py" ""
 $results += Deploy-Lambda "wecare-billing" "amplify\functions\operations\billing\handler.py" ""
 $results += Deploy-Lambda "wecare-system-cleanup" "amplify\functions\operations\system-cleanup\handler.py" ""
+$results += Deploy-Lambda "wecare-sla-engine" "amplify\functions\operations\sla-engine\handler.py" ""
 
 # === Payments ===
 $results += Deploy-Lambda "wecare-razorpay-webhook" "amplify\functions\payments\razorpay-webhook\handler.py" ""
@@ -144,13 +165,14 @@ if ($fail -gt 0) {
         @("wecare-messages-delete", "amplify\functions\core\messages-delete\handler.py", ""),
         @("wecare-faq-handler", "amplify\functions\core\faq-handler\handler.py", ""),
         @("wecare-url-shortener", "amplify\functions\core\url-shortener\handler.py", ""),
+        @("wecare-service-api", "amplify\functions\core\service-api\handler.py", ""),
         @("wecare-inbound-whatsapp", "amplify\functions\messaging\inbound-whatsapp-handler\handler.py", "amplify\functions\messaging\inbound-whatsapp-handler\modules"),
         @("wecare-outbound-whatsapp", "amplify\functions\messaging\outbound-whatsapp\handler.py", ""),
         @("wecare-whatsapp-voice", "amplify\functions\messaging\whatsapp-voice\handler.py", ""),
         @("wecare-whatsapp-calling", "amplify\functions\messaging\whatsapp-calling\handler.py", ""),
         @("wecare-whatsapp-templates", "amplify\functions\messaging\whatsapp-templates\handler.py", ""),
         @("wecare-whatsapp-template-management", "amplify\functions\messaging\whatsapp-template-management\handler.py", ""),
-        @("wecare-whatsapp-business-api", "amplify\functions\messaging\whatsapp-business-api\handler.py", ""),
+        @("wecare-whatsapp-business-api", "amplify\functions\messaging\whatsapp-business-api\handler.py", "", @("amplify\functions\messaging\whatsapp-business-api\flows"), @("amplify\functions\messaging\whatsapp-business-api\service_api.py")),
         @("wecare-waba-management", "amplify\functions\messaging\waba-management\handler.py", ""),
         @("wecare-media-cleanup", "amplify\functions\messaging\media-cleanup\handler.py", ""),
         @("wecare-template-analytics", "amplify\functions\messaging\template-analytics\handler.py", ""),
@@ -176,6 +198,7 @@ if ($fail -gt 0) {
         @("wecare-dlq-replay", "amplify\functions\operations\dlq-replay\handler.py", ""),
         @("wecare-billing", "amplify\functions\operations\billing\handler.py", ""),
         @("wecare-system-cleanup", "amplify\functions\operations\system-cleanup\handler.py", ""),
+        @("wecare-sla-engine", "amplify\functions\operations\sla-engine\handler.py", ""),
         @("wecare-razorpay-webhook", "amplify\functions\payments\razorpay-webhook\handler.py", ""),
         @("wecare-payu-webhook", "amplify\functions\payments\payu-webhook\handler.py", ""),
         @("wecare-payments-read", "amplify\functions\payments\payments-read\handler.py", ""),
@@ -188,7 +211,9 @@ if ($fail -gt 0) {
     for ($i = 0; $i -lt $results.Count; $i++) {
         if ($results[$i] -eq $false) {
             $fn = $allFunctions[$i]
-            $retryResults += Deploy-Lambda $fn[0] $fn[1] $fn[2]
+            $extraDirs = if ($fn.Count -gt 3 -and $fn[3]) { $fn[3] } else { @() }
+            $extraFiles = if ($fn.Count -gt 4 -and $fn[4]) { $fn[4] } else { @() }
+            $retryResults += Deploy-Lambda $fn[0] $fn[1] $fn[2] -ExtraDirs $extraDirs -ExtraFiles $extraFiles
         }
     }
 
