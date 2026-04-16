@@ -28,6 +28,31 @@ function extractShortId(orderId: string): string {
   return parts.length >= 2 ? parts[1] : orderId.slice(0, 8);
 }
 
+function extractFriendlyDateTime(orderId: string): string {
+  if (!orderId) return '';
+  const parts = orderId.split(' - ');
+  if (parts.length < 4) return '';
+  try {
+    const datePart = parts[2].trim(); // "22-02-2026"
+    const timePart = parts[3].trim(); // "17:43:01"
+    const [dd, mm, yyyy] = datePart.split('-');
+    const [hh, mi] = timePart.split(':');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthName = months[parseInt(mm, 10) - 1] || mm;
+    const h = parseInt(hh, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+    return `${parseInt(dd, 10)} ${monthName} ${yyyy}, ${h12}:${mi} ${ampm}`;
+  } catch { return ''; }
+}
+
+function buildWdOrdDisplay(orderId: string): string {
+  const short = extractShortId(orderId);
+  const dt = extractFriendlyDateTime(orderId);
+  if (!short) return orderId;
+  return dt ? `WD-ORD — ${short} — ${dt}` : `WD-ORD — ${short}`;
+}
+
 function formatDate(ts?: number): string {
   if (!ts) return '—';
   const d = new Date(ts < 1e12 ? ts * 1000 : ts);
