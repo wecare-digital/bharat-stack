@@ -137,17 +137,15 @@ def sync_wix_order_to_orders_table(order: dict, phone: str) -> str:
                 )
                 if not resp.get('Items'):
                     ct.put_item(Item={
-                        k: v for k, v in {
-                            'contactId': str(uuid.uuid4()),
-                            'name': buyer_name,
-                            'phone': clean_phone,
-                            'email': buyer_email,
-                            'country': 'IN',
-                            'optInWhatsApp': False,
-                            'allowlistWhatsApp': False,
-                            'createdAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-                            'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-                        }.items() if v is not None and v != '' and v is not False
+                        'contactId': str(uuid.uuid4()),
+                        'name': buyer_name or '',
+                        'phone': clean_phone,
+                        'email': buyer_email or '',
+                        'country': 'IN',
+                        'optInWhatsApp': False,
+                        'allowlistWhatsApp': False,
+                        'createdAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                        'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                     })
                     logger.info(f'Contact created for {clean_phone} from Wix order sync')
             except Exception as ce:

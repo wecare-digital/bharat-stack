@@ -21,6 +21,7 @@ import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 
 import boto3
 
@@ -1362,7 +1363,7 @@ def _sync_orders(request_id: str) -> Dict[str, Any]:
                     'itemsSummary': items_summary,
                     'itemsJson': json.dumps(items, default=str),
                     'itemCount': len(items),
-                    'totalAmount': str(total_amount) if total_amount else '0',
+                    'totalAmount': Decimal(str(total_amount)) if total_amount else Decimal('0'),
                     'currency': o.get('currency', 'INR'),
                     'orderStatus': (o.get('status', 'active') or 'active').lower(),
                     'paymentStatus': (o.get('paymentStatus', 'pending') or 'pending').lower(),
