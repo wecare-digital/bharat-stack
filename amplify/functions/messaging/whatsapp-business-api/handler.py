@@ -3134,6 +3134,28 @@ def _handle_async_post_submit(event: Dict, request_id: str) -> Dict:
         except Exception as fs_err:
             logger.warning(f'FlowSubmission invoice link failed: {fs_err}')
 
+    # Step 4: Update OrdersTable — increment requestCount, set has_open_request
+    if order_id and order_id.startswith('WD-ORD'):
+        try:
+            orders_table_name = os.environ.get('ORDERS_TABLE', 'stack-wecare-digital-OrderTable')
+            ot = dynamodb.Table(orders_table_name)
+            now = Decimal(str(int(time.time())))
+            ot.update_item(
+                Key={'orderId': order_id},
+                UpdateExpression='SET updatedAt = :u ADD requestCount :one',
+                ExpressionAttributeValues={
+                    ':u': now,
+                    ':one': 1,
+                },
+            )
+            logger.info(json.dumps({
+                'event': 'order_request_count_incremented',
+                'orderId': order_id,
+                'requestId': request_id,
+            }))
+        except Exception as ot_err:
+            logger.warning(f'OrdersTable requestCount update failed: {ot_err}')
+
     return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'status': 'ok'})}
 
 

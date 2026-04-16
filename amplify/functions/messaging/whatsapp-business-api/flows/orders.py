@@ -116,6 +116,43 @@ def sync_wix_order_to_orders_table(order: dict, phone: str) -> str:
                 'syncedAt': now,
             }.items() if v is not None and v != ''
         })
+
+        # Upsert buyer into Contacts table (so WhatsApp Flow can find them)
+        buyer_phone = phone or summary.get('billingPhone', '')
+        buyer_email = summary.get('buyerEmail', '')
+        buyer_name = summary.get('billingName', '')
+        if buyer_phone:
+            try:
+                contacts_table_name = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+                ct = dynamodb.Table(contacts_table_name)
+                clean_phone = buyer_phone.replace(' ', '').replace('-', '')
+                if not clean_phone.startswith('+'):
+                    clean_phone = f'+{clean_phone}' if clean_phone.startswith('91') else f'+91{clean_phone}'
+                # Check if contact exists
+                resp = ct.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :p',
+                    ExpressionAttributeValues={':p': clean_phone},
+                    Limit=1, ProjectionExpression='contactId',
+                )
+                if not resp.get('Items'):
+                    ct.put_item(Item={
+                        k: v for k, v in {
+                            'contactId': str(uuid.uuid4()),
+                            'name': buyer_name,
+                            'phone': clean_phone,
+                            'email': buyer_email,
+                            'country': 'IN',
+                            'optInWhatsApp': False,
+                            'allowlistWhatsApp': False,
+                            'createdAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                            'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                        }.items() if v is not None and v != '' and v is not False
+                    })
+                    logger.info(f'Contact created for {clean_phone} from Wix order sync')
+            except Exception as ce:
+                logger.debug(f'Contact upsert skipped: {ce}')
+
         return wd_id
     except Exception as e:
         logger.debug(f'Order sync to OrdersTable failed: {e}')

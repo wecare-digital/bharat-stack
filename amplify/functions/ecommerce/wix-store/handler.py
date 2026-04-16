@@ -1257,9 +1257,11 @@ def _sync_products(request_id: str) -> Dict[str, Any]:
 
 
 def _sync_orders(request_id: str) -> Dict[str, Any]:
-    """Sync Wix orders to local DynamoDB cache with full detail."""
-    table = dynamodb.Table(ORDERS_CACHE_TABLE)
+    """Sync Wix orders to DynamoDB — both WixOrdersCache AND central OrdersTable."""
+    cache_table = dynamodb.Table(ORDERS_CACHE_TABLE)
+    orders_table = dynamodb.Table(ORDER_IDS_TABLE.replace('WixOrderIds', 'OrderTable') if 'WixOrderIds' in ORDER_IDS_TABLE else os.environ.get('ORDERS_TABLE', 'stack-wecare-digital-OrderTable'))
     synced = 0
+    orders_synced = 0
     cursor = None
 
     while True:
@@ -1277,7 +1279,8 @@ def _sync_orders(request_id: str) -> Dict[str, Any]:
         if not orders:
             break
 
-        with table.batch_writer() as batch:
+        # 1) Write to WixOrdersCache (raw mirror)
+        with cache_table.batch_writer() as batch:
             for o in orders:
                 buyer = o.get('buyerInfo', {})
                 price = o.get('priceSummary', {})
@@ -1300,14 +1303,97 @@ def _sync_orders(request_id: str) -> Dict[str, Any]:
                 })
                 synced += 1
 
+        # 2) Write to central OrdersTable (normalized, order-centric)
+        for o in orders:
+            try:
+                enriched = _enrich_order(o)
+                summary = enriched.get('_summary', {})
+                wd_num = summary.get('customOrderNumber', '')
+                if not wd_num or not wd_num.startswith('WD-ORD'):
+                    # Generate WD number if missing
+                    wd_num = _get_or_create_wd_order_number(
+                        o.get('id', ''),
+                        o.get('createdDate', ''),
+                        str(o.get('number', '')),
+                    )
+                if not wd_num:
+                    continue
+
+                short = wd_num.split(' - ')[1] if len(wd_num.split(' - ')) >= 2 else wd_num[:8]
+                buyer = o.get('buyerInfo', {})
+                billing = o.get('billingInfo', {}).get('contactDetails', {})
+                price = o.get('priceSummary', {})
+                items = o.get('lineItems', [])
+                items_summary = ', '.join(
+                    f"{i.get('productName', {}).get('translated', '') or i.get('name', '')} × {i.get('quantity', 1)}"
+                    for i in items[:5]
+                )
+                total_amount = float(price.get('total', {}).get('amount', 0) or 0)
+                phone = billing.get('phone', '') or buyer.get('phone', '')
+
+                # IST date formatting
+                order_date_ist = ''
+                order_date = ''
+                order_time = ''
+                created = o.get('createdDate', '')
+                if created:
+                    try:
+                        dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                        ist = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                        order_date_ist = ist.strftime('%-d %b %Y, %-I:%M %p')
+                        order_date = ist.strftime('%Y-%m-%d')
+                        order_time = ist.strftime('%H:%M:%S')
+                    except Exception:
+                        pass
+
+                now = int(datetime.now(timezone.utc).timestamp())
+                item = {
+                    'orderId': wd_num,
+                    'shortId': short,
+                    'source': 'wix',
+                    'sourceOrderId': o.get('id', ''),
+                    'sourceOrderNumber': str(o.get('number', '')),
+                    'customerPhone': phone,
+                    'customerName': billing.get('firstName', '') + ' ' + billing.get('lastName', ''),
+                    'customerEmail': buyer.get('email', ''),
+                    'orderDate': order_date,
+                    'orderTime': order_time,
+                    'orderDateIST': order_date_ist,
+                    'itemsSummary': items_summary,
+                    'itemsJson': json.dumps(items, default=str),
+                    'itemCount': len(items),
+                    'totalAmount': str(total_amount) if total_amount else '0',
+                    'currency': o.get('currency', 'INR'),
+                    'orderStatus': (o.get('status', 'active') or 'active').lower(),
+                    'paymentStatus': (o.get('paymentStatus', 'pending') or 'pending').lower(),
+                    'fulfillmentStatus': o.get('fulfillmentStatus', ''),
+                    'createdAt': now,
+                    'updatedAt': now,
+                    'syncedAt': now,
+                }
+                orders_table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
+                orders_synced += 1
+            except Exception as e:
+                logger.warning(f'OrdersTable sync failed for order {o.get("id", "")}: {e}')
+
         paging = result.get('pagingMetadata', {})
         if paging.get('hasNext') and paging.get('cursors', {}).get('next'):
             cursor = paging['cursors']['next']
         else:
             break
 
-    logger.info(json.dumps({'action': 'sync_orders_complete', 'count': synced, 'requestId': request_id}))
-    return _response(200, {'message': f'Synced {synced} orders', 'requestId': request_id})
+    logger.info(json.dumps({
+        'action': 'sync_orders_complete',
+        'cache_synced': synced,
+        'orders_table_synced': orders_synced,
+        'requestId': request_id,
+    }))
+    return _response(200, {
+        'message': f'Synced {synced} to cache, {orders_synced} to OrdersTable',
+        'cacheSynced': synced,
+        'ordersTableSynced': orders_synced,
+        'requestId': request_id,
+    })
 
 
 # ===================================================================
