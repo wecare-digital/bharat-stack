@@ -368,7 +368,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY', value: '+91 93309 94400', sensitive: false, category: 'Payment' },
   { key: 'NEXT_PUBLIC_PAYMENT_PHONE_NAME', value: 'WECARE.DIGITAL', sensitive: false, category: 'Payment' },
   // Analytics (empty)
-  { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: '(empty — scripts still load)', sensitive: false, category: 'Analytics', risk: 'GA script loads but sends no data' },
+  { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: 'G-S3G6REP6Q7', sensitive: false, category: 'Analytics' },
   { key: 'NEXT_PUBLIC_FB_APP_ID', value: '(empty — SDK still loads)', sensitive: false, category: 'Analytics', risk: 'FB SDK loads but sends no data' },
   // ⚠️ SECRETS IN SOURCE CODE (not env vars — hardcoded)
   { key: 'PAYU_CLIENT_ID (hardcoded)', value: '(64-char hex in payu-webhook source)', realValue: 'c066d621f07afd57e1797306a33acd5f51d19400adb0741449784dc36c634d75', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client ID committed to git' },

@@ -20,10 +20,10 @@
         "analytics-mcp"
       ],
       "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "",
-        "GOOGLE_PROJECT_ID": ""
+        "GOOGLE_APPLICATION_CREDENTIALS": "C:\\Users\\base\\AppData\\Roaming\\gcloud\\application_default_credentials.json",
+        "GOOGLE_PROJECT_ID": "stack-wecare-digital"
       },
-      "disabled": true,
+      "disabled": false,
       "autoApprove": []
     }
   }
