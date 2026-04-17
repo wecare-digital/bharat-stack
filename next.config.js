@@ -21,7 +21,8 @@ const nextConfig = {
   ],
   env: {
     NEXT_PUBLIC_SEND_MODE: 'LIVE',
-    NEXT_PUBLIC_ENV: 'production'
+    NEXT_PUBLIC_ENV: 'production',
+    NEXT_PUBLIC_GA_MEASUREMENT_ID: 'G-S3G6REP6Q7',
   }
 }
 

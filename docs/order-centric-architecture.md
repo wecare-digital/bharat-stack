@@ -49,6 +49,7 @@ Fields: submissionId, orderId, oldStatus, newStatus, changedBy, notes, changedAt
 | Drop Docs | ✅ Handler ready | Needs new flow ID | drop_docs.py |
 | Enterprise Assist | ✅ Handler ready | Needs new flow ID | enterprise_assist.py |
 | Leave Review | ✅ Handler ready | Needs new flow ID | leave_review.py |
+| Order Notes | ✅ Handler ready | Needs new flow ID | order_notes.py |
 
 ## Fixes Applied
 

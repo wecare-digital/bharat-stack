@@ -454,14 +454,13 @@ export default function App({ Component, pageProps }: AppProps) {
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
         </Head>
-        {/* Google Analytics & Ads */}
+        {/* Google Analytics 4 (G-S3G6REP6Q7) */}
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
         <Script id="google-analytics-ads" strategy="afterInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}');
             gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
           `}
         </Script>
@@ -512,14 +511,13 @@ export default function App({ Component, pageProps }: AppProps) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(getBreadcrumbSchema(pageName, pageUrl)) }} />
       </Head>
-      {/* Google Analytics & Ads */}
+      {/* Google Analytics 4 (G-S3G6REP6Q7) */}
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
       <Script id="google-analytics-ads" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${GA_MEASUREMENT_ID}');
           gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
         `}
       </Script>

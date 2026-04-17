@@ -41,18 +41,26 @@ def format_order_dropdown(wd_id: str, created_date: str = '', total: str = '',
             from datetime import datetime, timezone, timedelta
             dt = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
             ist = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
-            return f'{short} — {ist.strftime("%d %b %Y, %I:%M %p")}'
+            return f'{short} — {ist.strftime("%-d %b %Y, %-I:%M %p")}'
         except Exception:
             pass
-    parts = [short]
-    if total and total != '0':
+    # Fallback: parse date/time from the WD-ORD string itself
+    parts = wd_id.split(' - ')
+    if len(parts) >= 4:
         try:
-            parts.append(f'₹{float(total):.0f}')
+            date_part = parts[2].strip()  # "22-02-2026"
+            time_part = parts[3].strip()  # "17:43:01"
+            dd, mm, yyyy = date_part.split('-')
+            hh_str, mi_str = time_part.split(':')[:2]
+            months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            month_name = months[int(mm) - 1]
+            h = int(hh_str)
+            ampm = 'PM' if h >= 12 else 'AM'
+            h12 = 12 if h == 0 else (h - 12 if h > 12 else h)
+            return f'{short} — {int(dd)} {month_name} {yyyy}, {h12}:{mi_str} {ampm}'
         except Exception:
             pass
-    if first_item:
-        parts.append(first_item[:20])
-    return ' — '.join(parts) if len(parts) > 1 else short
+    return short
 
 
 def sync_wix_order_to_orders_table(order: dict, phone: str) -> str:
@@ -108,6 +116,41 @@ def sync_wix_order_to_orders_table(order: dict, phone: str) -> str:
                 'syncedAt': now,
             }.items() if v is not None and v != ''
         })
+
+        # Upsert buyer into Contacts table (so WhatsApp Flow can find them)
+        buyer_phone = phone or summary.get('billingPhone', '')
+        buyer_email = summary.get('buyerEmail', '')
+        buyer_name = summary.get('billingName', '')
+        if buyer_phone:
+            try:
+                contacts_table_name = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
+                ct = dynamodb.Table(contacts_table_name)
+                clean_phone = buyer_phone.replace(' ', '').replace('-', '')
+                if not clean_phone.startswith('+'):
+                    clean_phone = f'+{clean_phone}' if clean_phone.startswith('91') else f'+91{clean_phone}'
+                # Check if contact exists
+                resp = ct.query(
+                    IndexName='phone-index',
+                    KeyConditionExpression='phone = :p',
+                    ExpressionAttributeValues={':p': clean_phone},
+                    Limit=1, ProjectionExpression='contactId',
+                )
+                if not resp.get('Items'):
+                    ct.put_item(Item={
+                        'contactId': str(uuid.uuid4()),
+                        'name': buyer_name or '',
+                        'phone': clean_phone,
+                        'email': buyer_email or '',
+                        'country': 'IN',
+                        'optInWhatsApp': False,
+                        'allowlistWhatsApp': False,
+                        'createdAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                        'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                    })
+                    logger.info(f'Contact created for {clean_phone} from Wix order sync')
+            except Exception as ce:
+                logger.debug(f'Contact upsert skipped: {ce}')
+
         return wd_id
     except Exception as e:
         logger.debug(f'Order sync to OrdersTable failed: {e}')
