@@ -165,6 +165,22 @@ export const navigationConfig: NavItem[] = [
     icon: 'checklist',
     badge: 'Soon',
   },
+  // ── SEO Platform ──
+  {
+    path: '/seo',
+    label: 'SEO',
+    icon: 'search',
+    children: [
+      { path: '/seo', label: 'Dashboard' },
+      { path: '/seo/pages', label: 'Pages' },
+      { path: '/seo/issues', label: 'Issues' },
+      { path: '/seo/analytics', label: 'Analytics' },
+      { path: '/seo/tracking', label: 'Tracking' },
+      { path: '/seo/schema', label: 'Schema' },
+      { path: '/seo/properties', label: 'Properties' },
+      { path: '/seo/sitemaps', label: 'Sitemaps' },
+    ],
+  },
 ];
 
 // Flatten all navigation items for search
