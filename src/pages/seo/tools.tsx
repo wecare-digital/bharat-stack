@@ -174,7 +174,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
       try {
         const r = await fetch(`${WIX_BASE}${ep.path}`);
         if (r.ok) {
-          const data = await r.json().catch(() => ({ raw: await r.text() }));
+          const data = r.headers.get('content-type')?.includes('json') ? await r.json() : { raw: await r.text() };
           if (ep.label === 'Health') {
             addLog(`✅ ${ep.label}: ${data.status} — ${data.productCount} products`);
           } else if (ep.label === 'SEO Head (homepage)') {
