@@ -35,7 +35,7 @@ const SEOIssues: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SEO Issues" />
+      <SEO title="SEO Issues" description="SEO issues and warnings for wecare.digital" />
       <div className="inner-page">
         <h1 className="inner-page-title">SEO Issues</h1>
         {summary && (

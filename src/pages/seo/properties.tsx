@@ -29,7 +29,7 @@ const SEOProperties: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SEO Properties" />
+      <SEO title="SEO Properties" description="SEO properties and metadata for wecare.digital pages" />
       <div className="inner-page">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h1 className="inner-page-title" style={{ margin: 0 }}>Search Console Properties</h1>

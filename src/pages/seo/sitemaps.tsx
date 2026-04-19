@@ -30,7 +30,7 @@ const SEOSitemaps: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SEO Sitemaps" />
+      <SEO title="SEO Sitemaps" description="Sitemap management for wecare.digital" />
       <div className="inner-page">
         <h1 className="inner-page-title">Sitemaps</h1>
         <div className="card" style={{ maxWidth: 500 }}>

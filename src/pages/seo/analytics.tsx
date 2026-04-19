@@ -22,7 +22,7 @@ const SEOAnalytics: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SEO Analytics" />
+      <SEO title="SEO Analytics" description="Search analytics and performance data for wecare.digital" />
       <div className="inner-page">
         <h1 className="inner-page-title">Search Analytics</h1>
         {data && (

@@ -18,7 +18,7 @@ const SEOTracking: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SEO Tracking" />
+      <SEO title="SEO Tracking" description="Tracking coverage and indexing status for wecare.digital" />
       <div className="inner-page">
         <h1 className="inner-page-title">Tracking Coverage</h1>
         {coverage && (

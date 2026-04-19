@@ -18,7 +18,7 @@ const SEOSchema: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title="SEO Schema" />
+      <SEO title="SEO Schema" description="Structured data and schema markup for wecare.digital" />
       <div className="inner-page">
         <h1 className="inner-page-title">Structured Data / Schema</h1>
         {coverage && (
