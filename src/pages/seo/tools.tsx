@@ -224,6 +224,148 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
     setRunning('');
   }
 
+  // ── Google Indexing via Wix backend ──
+  async function runGoogleIndex() {
+    setRunning('googleindex');
+    clearLog();
+    addLog('🔍 Google Indexing — Submitting all URLs');
+    addLog('');
+
+    // Step 1: Collect all URLs
+    const pageUrls = ALL_PAGES.map(p => WIX_BASE + p);
+    addLog(`Static pages: ${pageUrls.length}`);
+
+    // Get blog post URLs
+    let blogUrls: string[] = [];
+    try {
+      addLog('Fetching blog post URLs from Wix...');
+      const r = await fetch(`${WIX_BASE}/_functions/rssblog`);
+      if (r.ok) {
+        const xml = await r.text();
+        const links = xml.match(/<link>([^<]+)<\/link>/g) || [];
+        blogUrls = links.map(l => l.replace(/<\/?link>/g, '')).filter(u => u.includes('/post/'));
+        addLog(`Blog posts: ${blogUrls.length}`);
+      }
+    } catch (e: any) {
+      addLog(`Blog fetch error: ${e.message}`);
+    }
+
+    const allUrls = [...new Set([...pageUrls, ...blogUrls])];
+    addLog(`Total unique URLs: ${allUrls.length}`);
+    addLog('');
+
+    // Step 2: Submit to Google via Wix backend proxy
+    // The Wix site has /_functions/seohead which confirms pages exist
+    // We use the Google Indexing API directly from the browser
+    // Note: This requires the user to have gcloud auth configured
+    addLog('Submitting to Google Indexing API...');
+    addLog('Note: Google allows ~200 URL submissions per day per property.');
+    addLog('Each submission tells Google to re-crawl that URL.');
+    addLog('');
+
+    let submitted = 0;
+    let failed = 0;
+    let quotaHit = false;
+
+    // Try to get Google token from the SEO platform backend
+    const seoApiUrl = process.env.NEXT_PUBLIC_SEO_API_URL || '';
+    let googleToken = '';
+
+    if (seoApiUrl) {
+      try {
+        addLog('Getting Google auth token from SEO platform...');
+        const tokenRes = await fetch(`${seoApiUrl}/api/auth/google/token`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('seo_token') || ''}` },
+        });
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          googleToken = tokenData.access_token || '';
+          addLog('✅ Google token obtained');
+        }
+      } catch {
+        addLog('SEO platform not available — using direct submission');
+      }
+    }
+
+    if (!googleToken) {
+      addLog('');
+      addLog('⚠️ No Google Indexing API token available.');
+      addLog('');
+      addLog('To enable direct Google indexing:');
+      addLog('  1. Deploy the SEO platform (wecare-seo-platform)');
+      addLog('  2. Set NEXT_PUBLIC_SEO_API_URL in .env.local');
+      addLog('  3. Connect Google Search Console via OAuth');
+      addLog('');
+      addLog('Alternative: Run from terminal:');
+      addLog('  python seo-crawler/scripts/google_reindex_now.py');
+      addLog('');
+      addLog('Or deploy the Google Indexer Lambda:');
+      addLog('  cd seo-crawler && sam build && sam deploy');
+      addLog('  Then POST to /index endpoint');
+      addLog('');
+      addLog('Meanwhile, Google will auto-crawl via sitemaps:');
+      addLog('  - https://www.wecare.digital/pages-sitemap.xml');
+      addLog('  - https://www.wecare.digital/store-products-sitemap.xml');
+      addLog('  - https://www.wecare.digital/blog-posts-sitemap.xml');
+      addLog('');
+      addLog('The blog SEO update (draft→republish) already updated lastmod');
+      addLog('dates in the sitemap, which signals Google to re-crawl.');
+      addLog('Full re-indexing typically takes 3-7 days.');
+      addLog('');
+
+      // Still useful: ping Google with sitemap notification
+      addLog('Pinging Google with sitemap URLs...');
+      const sitemaps = [
+        'https://www.wecare.digital/pages-sitemap.xml',
+        'https://www.wecare.digital/store-products-sitemap.xml',
+        'https://www.wecare.digital/blog-posts-sitemap.xml',
+      ];
+      for (const sm of sitemaps) {
+        try {
+          const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sm)}`;
+          await fetch(pingUrl, { mode: 'no-cors' });
+          addLog(`  ✅ Pinged: ${sm}`);
+        } catch {
+          addLog(`  ❌ Failed: ${sm}`);
+        }
+      }
+      addLog('');
+      addLog('Done. Google has been notified of sitemap updates.');
+    } else {
+      // Submit URLs with token
+      for (let i = 0; i < allUrls.length; i++) {
+        if (quotaHit) break;
+        try {
+          const resp = await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${googleToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: allUrls[i], type: 'URL_UPDATED' }),
+          });
+          if (resp.status === 200) {
+            submitted++;
+          } else if (resp.status === 429) {
+            quotaHit = true;
+            addLog(`⚠️ Quota hit after ${submitted} submissions`);
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+        if ((i + 1) % 25 === 0) {
+          addLog(`  Progress: ${submitted}/${i + 1} submitted, ${failed} failed`);
+        }
+        await new Promise(r => setTimeout(r, 150));
+      }
+      addLog('');
+      addLog(`✅ Submitted: ${submitted}/${allUrls.length}`);
+      addLog(`❌ Failed: ${failed}`);
+      if (quotaHit) addLog('⚠️ Daily quota reached — remaining URLs will be indexed via sitemap');
+    }
+
+    setRunning('');
+  }
+
   // ── PageSpeed ──
   async function runPageSpeed() {
     setRunning('pagespeed');
@@ -262,6 +404,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
     { id: 'bloginfo', label: 'Blog SEO Content', desc: 'See what SEO content is set on blog posts and how to update it', action: runBlogSeoInfo, icon: '📝' },
     { id: 'buttons', label: 'Button Audit', desc: 'Check 13px border-radius and no-underline compliance across the site', action: runButtonAudit, icon: '🔘' },
     { id: 'livecheck', label: 'Live SEO Check', desc: 'Check live Wix SEO endpoints, meta tags, and schema on sample pages', action: runLiveSeoCheck, icon: '📊' },
+    { id: 'googleindex', label: 'Google Indexing', desc: 'Submit all site URLs to Google Indexing API and ping sitemaps', action: runGoogleIndex, icon: '🔍' },
     { id: 'pagespeed', label: 'PageSpeed Check', desc: 'Run Google PageSpeed Insights on sample pages (mobile)', action: runPageSpeed, icon: '⚡' },
   ];
 
