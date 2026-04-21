@@ -114,7 +114,6 @@ export function addLinkResources(stack: Stack) {
         'https://stack.wecare.digital',
         'https://wecare.digital',
         'https://www.wecare.digital',
-        'http://localhost:3000',
       ],
       allowMethods: [
         apigatewayv2.CorsHttpMethod.GET,

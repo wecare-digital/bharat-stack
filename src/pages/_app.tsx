@@ -39,11 +39,9 @@ Amplify.configure({
           scopes: ['openid', 'email', 'profile'],
           redirectSignIn: [
             process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
-            'http://localhost:3000/',
           ],
           redirectSignOut: [
             process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
-            'http://localhost:3000/',
           ],
           responseType: 'code' as const
         },

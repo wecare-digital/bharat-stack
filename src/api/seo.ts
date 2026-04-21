@@ -3,7 +3,7 @@
  * Connects to the wecare-seo-platform backend (FastAPI)
  */
 
-const SEO_API = process.env.NEXT_PUBLIC_SEO_API_URL || 'http://localhost:8000';
+const SEO_API = process.env.NEXT_PUBLIC_SEO_API_URL || '';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -11,6 +11,9 @@ function getToken(): string | null {
 }
 
 async function seoFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
+  if (!SEO_API) {
+    throw new Error('SEO API URL not configured. Set NEXT_PUBLIC_SEO_API_URL in .env.local');
+  }
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

@@ -13,13 +13,20 @@ Usage:
 import json
 from typing import Any, Dict, Optional
 
-# Allowed origins — lock down to actual domains
-ALLOWED_ORIGINS = [
+# Allowed origins — production only (use APP_ENV=development for localhost)
+import os as _os
+
+_PROD_ORIGINS = [
     'https://stack.wecare.digital',
     'https://wecare.digital',
     'https://app.wecare.digital',
-    'http://localhost:3000',
 ]
+
+ALLOWED_ORIGINS = (
+    _PROD_ORIGINS + ['http://localhost:3000']
+    if _os.environ.get('APP_ENV', 'production') != 'production'
+    else _PROD_ORIGINS
+)
 
 DEFAULT_METHODS = 'GET,POST,PUT,DELETE,OPTIONS'
 DEFAULT_HEADERS = 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Razorpay-Signature'
