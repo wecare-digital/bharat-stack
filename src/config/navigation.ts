@@ -180,6 +180,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/seo/properties', label: 'Properties' },
       { path: '/seo/sitemaps', label: 'Sitemaps' },
       { path: '/seo/tools', label: 'Tools' },
+      { path: '/seo/blog-manager', label: 'Blog SEO' },
     ],
   },
 ];
