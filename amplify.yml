@@ -7,7 +7,7 @@ frontend:
         - nvm use 24 || true
         - node -v
         - npm -v
-        - rm -f package-lock.json
+        - rm -rf node_modules/.cache
         - npm install --no-audit --no-fund --legacy-peer-deps
     build:
       commands:
