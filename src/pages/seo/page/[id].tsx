@@ -65,7 +65,7 @@ const SEOPageDetail: React.FC<PageProps> = ({ signOut, user }) => {
 
   return (
     <Layout user={user} onSignOut={signOut}>
-      <SEO title={`SEO: ${page.title || page.normalized_url}`} />
+      <SEO title={`SEO: ${page.title || page.normalized_url}`} description="SEO page details and audit" />
       <div className="inner-page">
         <div style={{ marginBottom: 16 }}>
           <button className="btn btn-secondary" onClick={() => router.push('/seo/pages')} style={{ marginBottom: 8 }}>← Back to Pages</button>
