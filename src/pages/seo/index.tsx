@@ -12,6 +12,7 @@ interface PageProps { signOut?: () => void; user?: any; }
 const WIX_BASE = 'https://www.wecare.digital';
 
 const seoPages = [
+  { path: '/seo/blog-manager', label: 'Blog SEO Manager', desc: 'Generate, edit, bulk-update SEO for all blog posts', icon: '📝' },
   { path: '/seo/tools', label: 'SEO Tools', desc: 'Blog SEO, button audit, live checks, PageSpeed', icon: '🔧' },
   { path: '/seo/pages', label: 'Pages Inventory', desc: 'All crawled pages with filters and details', icon: '📄' },
   { path: '/seo/issues', label: 'Issues', desc: 'SEO issues and warnings by priority', icon: '⚠️' },
