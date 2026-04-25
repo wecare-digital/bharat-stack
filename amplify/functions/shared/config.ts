@@ -92,8 +92,8 @@ export const COGNITO_CONFIG = {
 //
 // Foundation Models (confirmed working):
 //   - amazon.nova-pro-v1:0: SEO audit quality (confirmed working)
-//   - amazon.nova-lite-v1:0: WhatsApp/admin tasks (confirmed working)
-//   - us.anthropic.claude-opus-4-6-v1: SEO audit premium (agreement accepted, payment propagating)
+//   - amazon.nova-pro-v1:0: WhatsApp/admin + SEO fallback (confirmed working)
+//   - global.anthropic.claude-sonnet-4-6: PRIMARY SEO model (confirmed working)
 export const BEDROCK_CONFIG = {
   // Internal Agent (FloatingAgent - admin tasks)
   // Falls back to Converse API if agent is not prepared
@@ -107,10 +107,10 @@ export const BEDROCK_CONFIG = {
   EXTERNAL_KB_ID: process.env.EXTERNAL_KB_ID || 'static-faq',
   
   // Models
-  FOUNDATION_MODEL: 'amazon.nova-lite-v1:0',
+  FOUNDATION_MODEL: 'amazon.nova-pro-v1:0',
   FOUNDATION_MODEL_PRO: 'amazon.nova-pro-v1:0',
-  SEO_MODEL: process.env.BEDROCK_MODEL_ID || 'us.anthropic.claude-opus-4-6-v1',
-  MODEL_ARN: 'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0',
+  SEO_MODEL: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
+  MODEL_ARN: 'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0',
 };
 
 // TTL Configuration (in seconds)

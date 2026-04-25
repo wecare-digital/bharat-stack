@@ -5928,7 +5928,7 @@ DEFAULT_AI_CONFIG = {
     'agentId': '4UUQYFWX64',
     'agentAlias': 'TSTALIASID',
     'knowledgeBaseId': 'static-faq',
-    'modelId': 'amazon.nova-lite-v1:0',
+    'modelId': 'amazon.nova-pro-v1:0',
 }
 
 

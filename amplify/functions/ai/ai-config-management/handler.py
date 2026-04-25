@@ -56,7 +56,7 @@ DEFAULT_AI_CONFIG = {
     'agentId': '4UUQYFWX64',
     'agentAlias': 'TSTALIASID',
     'knowledgeBaseId': 'static-faq',
-    'modelId': 'amazon.nova-lite-v1:0',
+    'modelId': 'amazon.nova-pro-v1:0',
 }
 
 # Supported languages with display names
@@ -601,7 +601,7 @@ DEFAULT_INTERNAL_AI_CONFIG = {
     'agentId': '4UUQYFWX64',
     'agentAlias': 'TSTALIASID',
     'knowledgeBaseId': 'static-faq',
-    'modelId': 'amazon.nova-lite-v1:0',
+    'modelId': 'amazon.nova-pro-v1:0',
     'maxTokens': 1024,
     'temperature': 0.7,
     'systemPrompt': '''You are WECARE.DIGITAL's internal admin assistant.

@@ -41,7 +41,7 @@ const AVAILABLE_TOOLS = [
 
 const DEFAULT_CONFIG: AgentConfig = {
   enabled: true,
-  modelId: 'amazon.nova-lite-v1:0',
+  modelId: 'amazon.nova-pro-v1:0',
   temperature: 0.7,
   maxTokens: 2048,
   sessionTimeout: 15,
@@ -174,10 +174,10 @@ export default function InternalAgentSettings() {
                 onChange={(e) => setConfig(prev => ({ ...prev, modelId: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
-                <option value="amazon.nova-lite-v1:0">Amazon Nova Lite (Fast, Cost-effective)</option>
+                <option value="amazon.nova-pro-v1:0">Amazon Nova Pro (Fast, Cost-effective)</option>
                 <option value="amazon.nova-pro-v1:0">Amazon Nova Pro (Balanced)</option>
                 <option value="amazon.nova-premier-v1:0">Amazon Nova Premier (Advanced)</option>
-                <option value="anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet (Premium)</option>
+                <option value="anthropic.claude-sonnet-4-6">Claude Sonnet 4.6 (Premium)</option>
               </select>
             </div>
 

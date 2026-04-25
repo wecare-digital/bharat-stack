@@ -30,7 +30,7 @@ export const aiGenerateResponse = defineFunction({
     INTERNAL_KB_ID: 'static-faq',
     // External (WhatsApp — Converse API)
     EXTERNAL_KB_ID: 'static-faq',
-    MODEL_ID: 'amazon.nova-lite-v1:0',
+    MODEL_ID: 'amazon.nova-pro-v1:0',
     GUARDRAIL_ID: '', // Set to your Bedrock Guardrail ID when created
     GUARDRAIL_VERSION: 'DRAFT',
     // Media

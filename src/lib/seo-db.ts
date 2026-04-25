@@ -138,7 +138,7 @@ const DEFAULT_SETTINGS: AutomationSettings = {
   autoRunForFutureBlogs: true,
   requireManualApproval: true,
   aiProvider: 'aws-bedrock',
-  modelName: 'us.anthropic.claude-sonnet-4-6',
+  modelName: 'global.anthropic.claude-sonnet-4-6',
   maxTitleLength: 60,
   maxMetaDescriptionLength: 160,
   maxTags: 10,

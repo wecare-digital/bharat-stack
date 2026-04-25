@@ -161,7 +161,7 @@ export const IAM_POLICIES = {
         Resource: [
           `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:knowledge-base/*`,
           `arn:aws:bedrock:${AWS_REGION}:${AWS_ACCOUNT_ID}:agent/*`,
-          'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0',
+          'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0',
         ],
       },
       {

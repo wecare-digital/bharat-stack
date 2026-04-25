@@ -17,7 +17,7 @@ Architecture:
   - Tool use via Converse API toolConfig (KB search, contact lookup, brand info)
   - Message size validation (truncation at configurable limit)
 
-Model: Amazon Nova Lite (amazon.nova-lite-v1:0)
+Model: Amazon Nova Pro (amazon.nova-pro-v1:0)
   ~$0.06/1M input tokens, supports multimodal via Converse API
 
 References:
@@ -76,7 +76,7 @@ INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'static-faq')
 
 # External (WhatsApp auto-reply - Converse API)
 EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'static-faq')
-MODEL_ID = os.environ.get('MODEL_ID', 'amazon.nova-lite-v1:0')
+MODEL_ID = os.environ.get('MODEL_ID', 'amazon.nova-pro-v1:0')
 GUARDRAIL_ID = os.environ.get('GUARDRAIL_ID', '')
 GUARDRAIL_VERSION = os.environ.get('GUARDRAIL_VERSION', 'DRAFT')
 
