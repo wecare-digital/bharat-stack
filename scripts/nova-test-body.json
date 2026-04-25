@@ -1,1 +1,0 @@
-{"schemaVersion":"messages-v1","system":[{"text":"You are a helpful assistant."}],"messages":[{"role":"user","content":[{"text":"Say hello in one word"}]}],"inferenceConfig":{"max_new_tokens":50,"temperature":0.3}}

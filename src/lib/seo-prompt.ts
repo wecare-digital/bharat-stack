@@ -1,5 +1,5 @@
 /**
- * AI SEO Prompt Template — Claude Opus 4.6 via Bedrock
+ * AI SEO Prompt Template — Claude Opus 4.7 via Bedrock
  * Generates the system prompt and user message for SEO audit.
  *
  * Key capabilities:

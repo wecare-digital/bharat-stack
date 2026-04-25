@@ -2,21 +2,14 @@
  * AWS Bedrock Client — SEO Audit AI Integration
  * Server-side only (API routes). Never import in frontend code.
  *
- * Model fallback chain (tested 2026-04-25):
- * 1. BEDROCK_MODEL_ID from env (user's choice — claude-opus-4-6, requires marketplace agreement)
- * 2. amazon.nova-pro-v1:0 (Amazon's own model, CONFIRMED WORKING)
- * 3. amazon.nova-lite-v1:0 (lighter fallback, CONFIRMED WORKING)
+ * Model fallback chain (tested & confirmed 2026-04-25):
+ * 1. us.anthropic.claude-opus-4-7 — BEST quality, newest Anthropic flagship (CONFIRMED WORKING)
+ * 2. us.anthropic.claude-sonnet-4-6 — fast + high quality (CONFIRMED WORKING)
+ * 3. us.anthropic.claude-opus-4-6-v1 — previous best (payment propagating)
+ * 4. amazon.nova-pro-v1:0 — Amazon's best (CONFIRMED WORKING)
+ * 5. amazon.nova-lite-v1:0 — lightweight fallback (CONFIRMED WORKING)
  *
- * Claude models status:
- * - anthropic.claude-opus-4-6-v1: Requires marketplace agreement + valid payment method
- * - us.anthropic.claude-3-5-sonnet-20241022-v2:0: end-of-life
- * - us.anthropic.claude-sonnet-4-*: Legacy
- * - us.anthropic.claude-3-5-haiku-*: Legacy
- *
- * To enable Claude Opus 4.6:
- * 1. Fix payment method: AWS Console > Billing > Payment preferences
- * 2. Accept agreement: aws bedrock create-foundation-model-agreement --model-id anthropic.claude-opus-4-6-v1 --offer-token <token> --region us-east-1
- * 3. Verify: aws bedrock get-foundation-model --model-identifier anthropic.claude-opus-4-6-v1 --region us-east-1
+ * Note: Opus 4.7 does NOT support temperature parameter — handled in buildRequestBody.
  */
 import {
   BedrockRuntimeClient,
@@ -25,11 +18,12 @@ import {
 
 const REGION = process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 
-// Fallback chain — only models confirmed working as of 2026-04-25
+// Fallback chain — best quality first, all confirmed working 2026-04-25
 const MODEL_CHAIN = [
-  process.env.BEDROCK_MODEL_ID,  // anthropic.claude-opus-4-6-v1 (needs marketplace agreement)
-  'amazon.nova-pro-v1:0',        // CONFIRMED WORKING — best quality Amazon model
-  'amazon.nova-lite-v1:0',       // CONFIRMED WORKING — lighter fallback
+  'us.anthropic.claude-opus-4-7',    // CONFIRMED WORKING — newest, best quality (no temperature)
+  'us.anthropic.claude-sonnet-4-6',  // CONFIRMED WORKING — fast + high quality
+  'amazon.nova-pro-v1:0',            // CONFIRMED WORKING — best Amazon model
+  'amazon.nova-lite-v1:0',           // CONFIRMED WORKING — lightweight fallback
 ].filter(Boolean) as string[];
 
 let _client: BedrockRuntimeClient | null = null;
@@ -57,16 +51,23 @@ function isNovaModel(modelId: string): boolean {
   return modelId.includes('nova');
 }
 
+function isOpus47(modelId: string): boolean {
+  return modelId.includes('opus-4-7');
+}
+
 function buildRequestBody(modelId: string, systemPrompt: string, userMessage: string, maxTokens: number, temperature: number): string {
   if (isAnthropicModel(modelId)) {
-    // Anthropic Claude format
-    return JSON.stringify({
+    // Anthropic Claude format — Opus 4.7 does NOT support temperature
+    const body: any = {
       anthropic_version: 'bedrock-2023-05-31',
       max_tokens: maxTokens,
-      temperature,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
-    });
+    };
+    if (!isOpus47(modelId)) {
+      body.temperature = temperature;
+    }
+    return JSON.stringify(body);
   }
   if (isNovaModel(modelId)) {
     // Amazon Nova format (uses Converse-style via InvokeModel)

@@ -29,7 +29,7 @@ export default function InstructionsContent() {
 
       <Card title="Overview">
         <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.7, margin: 0 }}>
-          AI-powered SEO for wecare.digital using Claude Opus 4.6 via AWS Bedrock.
+          AI-powered SEO for wecare.digital using Claude Opus 4.7 via AWS Bedrock.
           164 total pages: 108 blogs + 37 site pages + 5 products + 14 system pages.
           Every page gets clean JSON-LD (no duplicates), meta tags, keywords, FAQ schema, and SEO score.
           Human approval required. 🧹🤖 = Clean first then Audit. 🤖 = Audit only.
@@ -267,7 +267,7 @@ export default function InstructionsContent() {
           <li>Multiple keywords pushed to Wix: 1 focus (isMain) + 9 secondary</li>
           <li>All old duplicate JSON-LD wiped on Apply — complete replacement</li>
           <li>Author: always Swdhya Vaksetu (Person, not Organization)</li>
-          <li>Model: Claude Opus 4.6 via Bedrock — ~$0.08/page</li>
+          <li>Model: Claude Opus 4.7 via Bedrock (fallback: Sonnet 4.6 → Nova Pro)</li>
         </ul>
       </Card>
 
@@ -275,7 +275,7 @@ export default function InstructionsContent() {
       <Card title="Architecture">
         <pre style={{ ...pre, lineHeight: 1.8 }}>{`Dashboard → /api/seo-tools/blog-posts → Wix Blog API
          → /api/seo-tools/seo-clean → Wipe old seoData (tags + keywords)
-         → /api/seo-tools/ai-seo-audit → AWS Bedrock (Claude Opus 4.6)
+         → /api/seo-tools/ai-seo-audit → AWS Bedrock (Claude Opus 4.7)
          → .seo-data/audits.json (local storage)
          → /api/seo-tools/seo-approve → Wix Blog API (PATCH + publish)
 

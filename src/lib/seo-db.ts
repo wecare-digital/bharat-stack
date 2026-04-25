@@ -138,7 +138,7 @@ const DEFAULT_SETTINGS: AutomationSettings = {
   autoRunForFutureBlogs: true,
   requireManualApproval: true,
   aiProvider: 'aws-bedrock',
-  modelName: 'anthropic.claude-opus-4-6-v1',
+  modelName: 'us.anthropic.claude-opus-4-7',
   maxTitleLength: 60,
   maxMetaDescriptionLength: 160,
   maxTags: 10,

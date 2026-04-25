@@ -16,8 +16,8 @@ const WIX_SITE_ID = process.env.WIX_SITE_ID || '';
 const BASE = 'https://www.wecare.digital';
 
 // Cost per 1M tokens for Claude Opus 4.7
-const INPUT_COST_PER_M = 5.0;
-const OUTPUT_COST_PER_M = 25.0;
+const INPUT_COST_PER_M = 10.0;
+const OUTPUT_COST_PER_M = 50.0;
 
 async function wixFetch(path: string) {
   const res = await fetch(`${WIX_API}${path}`, {

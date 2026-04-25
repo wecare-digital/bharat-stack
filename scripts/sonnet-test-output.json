@@ -1,0 +1,1 @@
+{"model":"claude-sonnet-4-6","id":"msg_bdrk_01XeopXcwJ8KYgfxmAnSMQ4W","type":"message","role":"assistant","content":[{"type":"text","text":"Hello!"}],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":12,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":5}}
