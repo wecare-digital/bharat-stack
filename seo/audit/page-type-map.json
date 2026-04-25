@@ -1,0 +1,96 @@
+{
+  "site": "wecare.digital",
+  "total_pages": 164,
+  "page_types": {
+    "homepage": {
+      "count": 1,
+      "urls": ["/"],
+      "schema": ["Organization", "WebSite", "WebPage", "BreadcrumbList"],
+      "update_method": "manual_dashboard",
+      "indexability": "index, follow"
+    },
+    "brand_hub": {
+      "count": 6,
+      "urls": ["/bnb", "/legal-champ", "/ritual", "/swdhya", "/no-fault", "/expoweek"],
+      "schema": ["WebPage", "BreadcrumbList", "FAQPage"],
+      "update_method": "manual_dashboard",
+      "indexability": "index, follow"
+    },
+    "brand_store": {
+      "count": 5,
+      "urls": ["/bnb-store", "/legalchamp-store", "/ritual-store", "/swdhya-store", "/nofault-store"],
+      "schema": ["WebPage", "BreadcrumbList", "ItemList"],
+      "update_method": "manual_dashboard",
+      "indexability": "index, follow"
+    },
+    "service": {
+      "count": 11,
+      "urls": ["/appointment", "/submit-request", "/track-request", "/amend-request", "/rx-slot", "/drop-docs", "/enterprise-assist", "/leave-review", "/selfservice", "/loyalty", "/referral"],
+      "schema": ["WebPage", "BreadcrumbList", "Service"],
+      "update_method": "manual_dashboard",
+      "indexability": "index, follow"
+    },
+    "informational": {
+      "count": 6,
+      "urls": ["/faq", "/contact", "/careers-plus-culture", "/partner-up", "/gift-card", "/one"],
+      "schema": ["WebPage", "BreadcrumbList", "FAQPage", "LocalBusiness (contact only)"],
+      "update_method": "manual_dashboard",
+      "indexability": "index, follow"
+    },
+    "legal": {
+      "count": 2,
+      "urls": ["/legal-stuff", "/privacy"],
+      "schema": ["WebPage", "BreadcrumbList"],
+      "update_method": "manual_dashboard",
+      "indexability": "noindex, follow"
+    },
+    "utility": {
+      "count": 4,
+      "urls": ["/sitemap", "/search", "/star", "/blog"],
+      "schema": ["WebPage", "BreadcrumbList"],
+      "update_method": "manual_dashboard",
+      "indexability": "index, follow (blog hub); noindex (search)"
+    },
+    "blog_post": {
+      "count": 108,
+      "urls": ["/post/{slug}"],
+      "schema": ["BlogPosting", "BreadcrumbList", "FAQPage"],
+      "update_method": "wix_blog_api",
+      "indexability": "index, follow"
+    },
+    "product": {
+      "count": 5,
+      "urls": ["/product-page/{slug}"],
+      "schema": ["Product", "Offer", "BreadcrumbList"],
+      "update_method": "wix_stores_api + manual_dashboard",
+      "indexability": "index, follow"
+    },
+    "system": {
+      "count": 14,
+      "urls": ["/cart-page", "/checkout", "/thank-you", "/login", "/signup", "/404", "/members-area", "/account/my-orders", "/account/my-subscriptions", "/account/my-rewards", "/account/settings", "/order-notes", "/bring-friends"],
+      "schema": [],
+      "update_method": "manual_dashboard",
+      "indexability": "noindex, nofollow"
+    }
+  },
+  "implementation_summary": {
+    "api_updatable": {
+      "blog_posts": 108,
+      "method": "Wix Blog API PATCH /blog/v3/draft-posts/{id} → seoData → publish"
+    },
+    "manual_dashboard": {
+      "static_pages": 37,
+      "products_json_ld": 5,
+      "system_pages": 14,
+      "method": "Wix Dashboard → Pages → SEO Panel per page"
+    },
+    "velo_frontend": {
+      "dynamic_pages": 0,
+      "method": "wix-seo-frontend API in page onReady()"
+    },
+    "http_functions": {
+      "endpoints": 20,
+      "method": "sitestore/src/backend/http-functions.js"
+    }
+  }
+}
