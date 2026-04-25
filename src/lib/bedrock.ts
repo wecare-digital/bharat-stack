@@ -19,10 +19,14 @@ import {
 const REGION = process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 
 // Fallback chain — best quality first, all confirmed working 2026-04-25
+// NOTE: All Anthropic models (Opus 4.7, Sonnet 4.6, Opus 4.6) require
+// marketplace payment verification. Until resolved, Nova Pro handles SEO.
+// Once payment propagates, Opus 4.7 will be primary (best SEO quality).
 const MODEL_CHAIN = [
-  'us.anthropic.claude-opus-4-7',    // CONFIRMED WORKING — newest, best quality (no temperature)
-  'us.anthropic.claude-sonnet-4-6',  // CONFIRMED WORKING — fast + high quality
-  'amazon.nova-pro-v1:0',            // CONFIRMED WORKING — best Amazon model
+  'us.anthropic.claude-opus-4-7',    // BEST quality — needs payment propagation
+  'us.anthropic.claude-sonnet-4-6',  // Fast + high quality — needs payment propagation
+  'us.anthropic.claude-opus-4-6-v1', // Previous best — needs payment propagation
+  'amazon.nova-pro-v1:0',            // CONFIRMED WORKING — best Amazon model (current primary)
   'amazon.nova-lite-v1:0',           // CONFIRMED WORKING — lightweight fallback
 ].filter(Boolean) as string[];
 
