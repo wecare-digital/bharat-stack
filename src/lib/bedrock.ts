@@ -2,14 +2,19 @@
  * AWS Bedrock Client — SEO Audit AI Integration
  * Server-side only (API routes). Never import in frontend code.
  *
- * Model fallback chain (tested & confirmed 2026-04-25):
- * 1. us.anthropic.claude-opus-4-7 — BEST quality, newest Anthropic flagship (CONFIRMED WORKING)
- * 2. us.anthropic.claude-sonnet-4-6 — fast + high quality (CONFIRMED WORKING)
- * 3. us.anthropic.claude-opus-4-6-v1 — previous best (payment propagating)
- * 4. amazon.nova-pro-v1:0 — Amazon's best (CONFIRMED WORKING)
- * 5. amazon.nova-lite-v1:0 — lightweight fallback (CONFIRMED WORKING)
+ * Model strategy (2026-04-25):
+ *   PRIMARY: Claude Sonnet 4.6 — best quality/cost for structured SEO output ($3/$15 per MTok)
+ *   FALLBACK: Nova Pro — reliable Amazon model, always available ($0.80/$3.20 per MTok)
+ *   PREMIUM: Claude Opus 4.7 — for blog content creation only ($5/$25 per MTok)
  *
- * Note: Opus 4.7 does NOT support temperature parameter — handled in buildRequestBody.
+ * Why Sonnet 4.6 over Opus for SEO:
+ *   - SEO audit = structured JSON generation, not complex reasoning
+ *   - 40% cheaper, 2x faster, Claude-level content understanding
+ *   - 164 pages × $0.05 = $8 total (vs $13 with Opus)
+ *
+ * All Anthropic models currently blocked by INVALID_PAYMENT_INSTRUMENT.
+ * Once resolved, Sonnet 4.6 auto-becomes primary via fallback chain.
+ * Note: Opus 4.7 does NOT support temperature parameter.
  */
 import {
   BedrockRuntimeClient,
@@ -18,16 +23,13 @@ import {
 
 const REGION = process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 
-// Fallback chain — best quality first, all confirmed working 2026-04-25
-// NOTE: All Anthropic models (Opus 4.7, Sonnet 4.6, Opus 4.6) require
-// marketplace payment verification. Until resolved, Nova Pro handles SEO.
-// Once payment propagates, Opus 4.7 will be primary (best SEO quality).
+// Fallback chain — Sonnet 4.6 primary for SEO (best quality/cost ratio)
+// All Anthropic models need payment propagation. Nova Pro handles SEO until then.
 const MODEL_CHAIN = [
-  'us.anthropic.claude-opus-4-7',    // BEST quality — needs payment propagation
-  'us.anthropic.claude-sonnet-4-6',  // Fast + high quality — needs payment propagation
-  'us.anthropic.claude-opus-4-6-v1', // Previous best — needs payment propagation
-  'amazon.nova-pro-v1:0',            // CONFIRMED WORKING — best Amazon model (current primary)
-  'amazon.nova-lite-v1:0',           // CONFIRMED WORKING — lightweight fallback
+  'us.anthropic.claude-sonnet-4-6',  // PRIMARY — best for structured SEO ($3/$15, ~15s)
+  'us.anthropic.claude-opus-4-6-v1', // Backup Claude — proven on this site
+  'amazon.nova-pro-v1:0',            // CONFIRMED WORKING — current primary until Claude unlocks
+  'amazon.nova-lite-v1:0',           // Lightweight fallback
 ].filter(Boolean) as string[];
 
 let _client: BedrockRuntimeClient | null = null;
