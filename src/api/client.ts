@@ -782,11 +782,11 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     ai: {
       status: 'active',
       internalKbId: 'static-faq',
-      internalAgentId: 'QIEEHEBTZO',
-      internalAgentAlias: 'ASCBD7YPUT',
+      internalAgentId: '4UUQYFWX64',
+      internalAgentAlias: 'TSTALIASID',
       externalKbId: 'static-faq',
-      externalAgentId: 'Z4YAK0ZLBO',
-      externalAgentAlias: 'WANPKHQGIB'
+      externalAgentId: '4UUQYFWX64',
+      externalAgentAlias: 'TSTALIASID'
     },
     dlq: { depth: 0 },
   };
@@ -1995,8 +1995,8 @@ export async function getBedrockAIConfig(): Promise<BedrockAIConfig> {
     responseDelay: 0,
     supportedLanguages: ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     defaultLanguage: 'en',
-    agentId: 'Z4YAK0ZLBO',
-    agentAlias: 'WANPKHQGIB',
+    agentId: '4UUQYFWX64',
+    agentAlias: 'TSTALIASID',
     knowledgeBaseId: 'static-faq',
     modelId: 'amazon.nova-lite-v1:0',
   };

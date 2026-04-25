@@ -80,19 +80,36 @@ export const COGNITO_CONFIG = {
 };
 
 // Bedrock AI Configuration
+// Architecture:
+//   - SEO Audit: InvokeModel (Claude Opus 4.6 → Nova Pro fallback) via bedrock.ts
+//   - WhatsApp Auto-Reply: Converse API (Nova Lite) — no agent needed
+//   - Internal Admin: Converse API (Nova Lite) — agent optional, Converse works standalone
+//   - WhatsApp Voice/Calling: Converse API (Nova Lite) — agent fallback if configured
+//
+// Agent Status (2026-04-25):
+//   - 4UUQYFWX64 (wecare-digital-agent): NOT_PREPARED — needs action groups + prepare
+//   - Old IDs (QIEEHEBTZO, Z4YAK0ZLBO): no longer exist
+//
+// Foundation Models (confirmed working):
+//   - amazon.nova-pro-v1:0: SEO audit quality (confirmed working)
+//   - amazon.nova-lite-v1:0: WhatsApp/admin tasks (confirmed working)
+//   - us.anthropic.claude-opus-4-6-v1: SEO audit premium (agreement accepted, payment propagating)
 export const BEDROCK_CONFIG = {
   // Internal Agent (FloatingAgent - admin tasks)
-  INTERNAL_AGENT_ID: process.env.INTERNAL_AGENT_ID || 'QIEEHEBTZO',
-  INTERNAL_AGENT_ALIAS: process.env.INTERNAL_AGENT_ALIAS || 'ASCBD7YPUT',
+  // Falls back to Converse API if agent is not prepared
+  INTERNAL_AGENT_ID: process.env.INTERNAL_AGENT_ID || '4UUQYFWX64',
+  INTERNAL_AGENT_ALIAS: process.env.INTERNAL_AGENT_ALIAS || 'TSTALIASID',
   INTERNAL_KB_ID: process.env.INTERNAL_KB_ID || 'static-faq',
   
-  // External Agent (WhatsApp auto-reply - customer facing)
-  EXTERNAL_AGENT_ID: process.env.EXTERNAL_AGENT_ID || 'Z4YAK0ZLBO',
-  EXTERNAL_AGENT_ALIAS: process.env.EXTERNAL_AGENT_ALIAS || 'WANPKHQGIB',
+  // External (WhatsApp auto-reply) — uses Converse API directly, no agent needed
+  EXTERNAL_AGENT_ID: process.env.EXTERNAL_AGENT_ID || '4UUQYFWX64',
+  EXTERNAL_AGENT_ALIAS: process.env.EXTERNAL_AGENT_ALIAS || 'TSTALIASID',
   EXTERNAL_KB_ID: process.env.EXTERNAL_KB_ID || 'static-faq',
   
-  // Model
+  // Models
   FOUNDATION_MODEL: 'amazon.nova-lite-v1:0',
+  FOUNDATION_MODEL_PRO: 'amazon.nova-pro-v1:0',
+  SEO_MODEL: process.env.BEDROCK_MODEL_ID || 'us.anthropic.claude-opus-4-6-v1',
   MODEL_ARN: 'arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0',
 };
 

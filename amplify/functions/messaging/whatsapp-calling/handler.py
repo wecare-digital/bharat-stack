@@ -2272,8 +2272,8 @@ def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, reques
 
 def _get_bedrock_response(user_text: str, session_id: str, request_id: str) -> str:
     """Send text to Bedrock Agent (external/customer-facing) and get response."""
-    agent_id = AI_AGENT_ID or 'Z4YAK0ZLBO'
-    agent_alias = AI_AGENT_ALIAS or 'WANPKHQGIB'
+    agent_id = AI_AGENT_ID or '4UUQYFWX64'
+    agent_alias = AI_AGENT_ALIAS or 'TSTALIASID'
 
     try:
         response = bedrock_runtime.invoke_agent(

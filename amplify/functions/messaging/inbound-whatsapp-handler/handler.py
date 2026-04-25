@@ -5925,8 +5925,8 @@ DEFAULT_AI_CONFIG = {
     'responseDelay': 0,
     'supportedLanguages': ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     'defaultLanguage': 'en',
-    'agentId': 'Z4YAK0ZLBO',
-    'agentAlias': 'WANPKHQGIB',
+    'agentId': '4UUQYFWX64',
+    'agentAlias': 'TSTALIASID',
     'knowledgeBaseId': 'static-faq',
     'modelId': 'amazon.nova-lite-v1:0',
 }

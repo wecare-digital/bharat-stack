@@ -53,8 +53,8 @@ DEFAULT_AI_CONFIG = {
     'responseDelay': 0,  # Seconds to wait before responding
     'supportedLanguages': ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     'defaultLanguage': 'en',
-    'agentId': 'Z4YAK0ZLBO',
-    'agentAlias': 'WANPKHQGIB',
+    'agentId': '4UUQYFWX64',
+    'agentAlias': 'TSTALIASID',
     'knowledgeBaseId': 'static-faq',
     'modelId': 'amazon.nova-lite-v1:0',
 }
@@ -598,8 +598,8 @@ def _error_response(status_code: int, message: str) -> Dict[str, Any]:
 # Default Internal AI configuration
 DEFAULT_INTERNAL_AI_CONFIG = {
     'enabled': True,
-    'agentId': 'QIEEHEBTZO',
-    'agentAlias': 'ASCBD7YPUT',
+    'agentId': '4UUQYFWX64',
+    'agentAlias': 'TSTALIASID',
     'knowledgeBaseId': 'static-faq',
     'modelId': 'amazon.nova-lite-v1:0',
     'maxTokens': 1024,

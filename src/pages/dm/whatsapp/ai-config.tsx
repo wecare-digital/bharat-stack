@@ -7,7 +7,7 @@
  * - Set language-specific prompts and fallbacks
  * - View AI interaction logs and statistics
  * 
- * External Agent: Z4YAK0ZLBO / Alias: WANPKHQGIB
+ * External Agent: 4UUQYFWX64 (wecare-digital-agent) — uses Converse API, agent optional
  * KB: Static FAQ (Free, no OpenSearch)
  * 
  * Note: For Internal AI (FloatingAgent admin tasks), go to Dashboard → AI
@@ -210,7 +210,7 @@ export default function AIConfigPage({ signOut, user, embedded = false }: PagePr
             </span>
           </div>
           <p style={{ color: '#6b6b6b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-            Agent: Z4YAK0ZLBO | KB: Static FAQ (Free) | For internal admin AI, go to Dashboard → AI
+            Agent: 4UUQYFWX64 | KB: Static FAQ (Free) | For internal admin AI, go to Dashboard → AI
           </p>
         </div>
 

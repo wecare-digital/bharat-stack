@@ -70,8 +70,8 @@ SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digita
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 
 # Internal Agent (FloatingAgent - admin tasks, unchanged)
-INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', 'QIEEHEBTZO')
-INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'ASCBD7YPUT')
+INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', '4UUQYFWX64')
+INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'TSTALIASID')
 INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'static-faq')
 
 # External (WhatsApp auto-reply - Converse API)
