@@ -2,19 +2,13 @@
  * AWS Bedrock Client — SEO Audit AI Integration
  * Server-side only (API routes). Never import in frontend code.
  *
- * Model strategy (2026-04-25):
- *   PRIMARY: Claude Sonnet 4.6 — best quality/cost for structured SEO output ($3/$15 per MTok)
- *   FALLBACK: Nova Pro — reliable Amazon model, always available ($0.80/$3.20 per MTok)
- *   PREMIUM: Claude Opus 4.7 — for blog content creation only ($5/$25 per MTok)
+ * Model order (confirmed working 2026-04-25):
+ *   1. global.anthropic.claude-sonnet-4-6 — PRIMARY ($3/$15 per MTok, ~15s, best quality/cost)
+ *   2. global.anthropic.claude-opus-4-6-v1 — Backup ($5/$25 per MTok, ~35s, proven on site)
+ *   3. amazon.nova-pro-v1:0 — Fallback ($0.80/$3.20 per MTok, always available)
  *
- * Why Sonnet 4.6 over Opus for SEO:
- *   - SEO audit = structured JSON generation, not complex reasoning
- *   - 40% cheaper, 2x faster, Claude-level content understanding
- *   - 164 pages × $0.05 = $8 total (vs $13 with Opus)
- *
- * All Anthropic models currently blocked by INVALID_PAYMENT_INSTRUMENT.
- * Once resolved, Sonnet 4.6 auto-becomes primary via fallback chain.
- * Note: Opus 4.7 does NOT support temperature parameter.
+ * Uses Global inference profile (routes across all regions for max throughput).
+ * Opus 4.7 does NOT support temperature parameter — handled in buildRequestBody.
  */
 import {
   BedrockRuntimeClient,
@@ -23,13 +17,11 @@ import {
 
 const REGION = process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 
-// Fallback chain — Sonnet 4.6 primary for SEO (best quality/cost ratio)
-// All Anthropic models need payment propagation. Nova Pro handles SEO until then.
+// Model fallback chain — Global Anthropic + Nova Pro
 const MODEL_CHAIN = [
-  'us.anthropic.claude-sonnet-4-6',  // PRIMARY — best for structured SEO ($3/$15, ~15s)
-  'us.anthropic.claude-opus-4-6-v1', // Backup Claude — proven on this site
-  'amazon.nova-pro-v1:0',            // CONFIRMED WORKING — current primary until Claude unlocks
-  'amazon.nova-lite-v1:0',           // Lightweight fallback
+  'global.anthropic.claude-sonnet-4-6',  // PRIMARY — best quality/cost for SEO
+  'global.anthropic.claude-opus-4-6-v1', // Backup — proven on this site
+  'amazon.nova-pro-v1:0',               // Fallback — always available
 ].filter(Boolean) as string[];
 
 let _client: BedrockRuntimeClient | null = null;
