@@ -181,6 +181,9 @@ export const navigationConfig: NavItem[] = [
       { path: '/seo/sitemaps', label: 'Sitemaps' },
       { path: '/seo/tools', label: 'Tools' },
       { path: '/seo/blog-manager', label: 'Blog SEO' },
+      { path: '/seo/site-pages', label: 'Site Pages SEO' },
+      { path: '/seo/product-pages', label: 'Product SEO' },
+      { path: '/seo/system-pages', label: 'System Pages' },
     ],
   },
 ];

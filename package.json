@@ -22,6 +22,8 @@
   "dependencies": {
     "@aws-amplify/backend": "^1.8.0",
     "@aws-amplify/ui-react": "^6.12.0",
+    "@aws-sdk/client-bedrock": "^3.1037.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1036.0",
     "@capacitor/android": "^8.2.0",
     "@capacitor/app": "^8.0.1",
     "@capacitor/browser": "^8.0.2",

@@ -94,5 +94,8 @@ flow-*.png
 sr-*.txt
 *-deploy.zip
 
+# SEO AI audit data (local storage for pilot)
+.seo-data/
+
 # Amplify generated outputs (regenerated on deploy)
 amplify_outputs.json

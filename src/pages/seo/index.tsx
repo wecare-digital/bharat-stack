@@ -12,7 +12,10 @@ interface PageProps { signOut?: () => void; user?: any; }
 const WIX_BASE = 'https://www.wecare.digital';
 
 const seoPages = [
-  { path: '/seo/blog-manager', label: 'Blog SEO Manager', desc: 'Generate, edit, bulk-update SEO for all blog posts', icon: '📝' },
+  { path: '/seo/blog-manager', label: 'Blog SEO Manager', desc: 'AI audit, clean, approve, apply SEO for all 108 blog posts', icon: '📝' },
+  { path: '/seo/pages-manager', label: 'Site Pages SEO', desc: 'SEO for 37 public pages — homepage, brand hubs, service pages', icon: '📄' },
+  { path: '/seo/product-pages', label: 'Product Pages SEO', desc: 'SEO for products — Product schema, Offer, AggregateRating', icon: '🛒' },
+  { path: '/seo/system-pages', label: 'System Pages SEO', desc: 'Cart, checkout, 404, login — noindex monitoring & audit', icon: '⚙️' },
   { path: '/seo/tools', label: 'SEO Tools', desc: 'Blog SEO, button audit, live checks, PageSpeed', icon: '🔧' },
   { path: '/seo/pages', label: 'Pages Inventory', desc: 'All crawled pages with filters and details', icon: '📄' },
   { path: '/seo/issues', label: 'Issues', desc: 'SEO issues and warnings by priority', icon: '⚠️' },
