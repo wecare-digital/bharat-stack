@@ -13,8 +13,8 @@ import { PAGE_SEO_SYSTEM_PROMPT, buildPageUserMessage, type PageData } from '../
 import { saveAudit, saveLog, type BlogSEOAudit, type AILog } from '../../../lib/seo-db';
 
 const BASE = 'https://www.wecare.digital';
-const INPUT_COST_PER_M = 5.0;
-const OUTPUT_COST_PER_M = 25.0;
+const INPUT_COST_PER_M = 3.0;
+const OUTPUT_COST_PER_M = 15.0;
 
 async function fetchPageSeo(pagePath: string): Promise<Partial<PageData>> {
   try {
@@ -152,7 +152,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       outputTokens: 0,
       costEstimate: 0,
       provider: 'aws-bedrock',
-      model: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+      model: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
       status: 'error',
       errorMessage: e.message,
       durationMs: Date.now() - startTime,

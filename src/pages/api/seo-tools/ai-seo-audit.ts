@@ -166,7 +166,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       outputTokens: 0,
       costEstimate: 0,
       provider: 'aws-bedrock',
-      model: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+      model: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
       status: 'error',
       errorMessage: e.message,
       durationMs: Date.now() - startTime,

@@ -78,8 +78,10 @@ STRICT FIELD RULES:
 - Meta description: 120-160 characters, action-oriented, keyword-front-loaded
 - Focus keyword: 1 primary keyword phrase (2-4 words)
 - Secondary keywords: exactly 9 (long-tail + semantic variations)
-- JSON-LD must be valid schema.org markup with @context and @type
+- JSON-LD must be valid schema.org markup with @context and @type on EVERY schema object
+- Every JSON-LD object MUST include "@context": "https://schema.org"
 - All URLs must use ${BASE} as base
+- All schemas MUST include "inLanguage": "en-IN"
 - Publisher: ${BRAND} (Organization type)
 - Publisher logo: ${LOGO}
 - Author: ${AUTHOR} (for content pages)

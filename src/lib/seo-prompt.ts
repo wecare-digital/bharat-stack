@@ -51,6 +51,8 @@ STRICT FIELD RULES:
 - Secondary keywords: exactly 9 (long-tail + semantic variations from the actual content)
 - NO keyword stuffing — natural language only
 - JSON-LD must be valid schema.org markup
+- Every JSON-LD object MUST include "@context": "https://schema.org" — never omit this
+- All schemas MUST include "inLanguage": "en-IN"
 - All URLs must use ${BASE} as base
 - Author is always: ${AUTHOR} (Person type, not Organization)
 - Author URL: ${AUTHOR_URL}
