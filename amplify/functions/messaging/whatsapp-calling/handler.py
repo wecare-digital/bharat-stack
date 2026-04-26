@@ -1821,53 +1821,60 @@ def _get_ivr_menu(phone_number_id: str) -> Dict:
 
 
 def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
-    """Send the IVR interactive button menu to the caller via WhatsApp."""
-    menu = _get_ivr_menu(phone_number_id)
-    aws_phone_id = _get_aws_phone_id(phone_number_id)
-
-    # Note: IVR audio is now sent by _auto_pickup_and_play before this function
-    # is called, so we don't duplicate the audio send here.
-
-    # Build interactive button message (max 3 buttons per Meta API)
-    buttons = []
-    for btn in menu.get('buttons', [])[:3]:
-        buttons.append({
-            'type': 'reply',
-            'reply': {'id': btn['id'], 'title': btn['title'][:20]},  # 20 char limit
+    """Send wd_menu WhatsApp template to the caller after IVR audio.
+    
+    Uses wd_menu template from WABA1 (+919330994400) instead of interactive
+    buttons. Templates work outside the 24h window and don't show as
+    'deleted message'.
+    
+    Template: wd_menu (Utility, English)
+    """
+    # Always send from WABA1 regardless of which phone received the call
+    waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
+    
+    template_payload = {
+        'body': json.dumps({
+            'phoneNumberId': waba1_phone_id,
+            'to': to_number,
+            'type': 'template',
+            'template': {
+                'name': 'wd_menu',
+                'language': {'code': 'en'},
+                'components': [],
+            },
         })
-
-    interactive_msg = {
-        'type': 'interactive',
-        'interactive': {
-            'type': 'button',
-            'body': {'text': menu.get('greeting', 'How can we help?')},
-            'action': {'buttons': buttons},
-        },
     }
 
-    footer = menu.get('footer')
-    if footer:
-        interactive_msg['interactive']['footer'] = {'text': footer[:60]}  # 60 char limit
-
-    result = _send_via_aws(aws_phone_id, to_number, interactive_msg)
-
-    if result.get('error'):
-        # Fallback: send as plain text if interactive fails (e.g. outside 24h window)
-        logger.warning(f"IVR interactive failed, trying text fallback: {result}")
-        fallback_text = menu.get('greeting', 'How can we help?')
-        for btn in menu.get('buttons', []):
-            fallback_text += f"\n\nReply *{btn['id'].replace('ivr_', '').upper()}* for {btn['title']}"
+    try:
+        result = lambda_client.invoke(
+            FunctionName='wecare-outbound-whatsapp',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(template_payload).encode(),
+        )
+        resp_data = json.loads(result['Payload'].read().decode())
+        if isinstance(resp_data.get('body'), str):
+            resp_data = json.loads(resp_data['body'])
+        msg_id = resp_data.get('messageId', '')
+        logger.info(f"IVR wd_menu template sent to {to_number}: messageId={msg_id}")
+    except Exception as e:
+        logger.warning(f"IVR wd_menu template failed: {e}")
+        # Fallback: send as plain text
+        aws_phone_id = _get_aws_phone_id(phone_number_id)
+        fallback_text = (
+            "Thanks for contacting *WECARE.DIGITAL*! "
+            "Submit your request here: https://wecare.digital/selfservice "
+            "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa. "
+            "We'll review it and follow up if needed."
+        )
         _send_via_aws(aws_phone_id, to_number, {
             'type': 'text',
             'text': {'body': fallback_text},
         })
-    else:
-        logger.info(f"IVR menu sent to {to_number}: messageId={result.get('messageId')}")
 
     # Store IVR session in call log for tracking
     _update_call_status(call_id, 'ivr_menu_sent', {
-        'ivrMenu': phone_number_id,
-        'buttonsOffered': [b['id'] for b in menu.get('buttons', [])],
+        'ivrTemplate': 'wd_menu',
+        'ivrPhone': waba1_phone_id,
     })
 
 
@@ -2460,68 +2467,81 @@ _WABA_PHONE_IDS = [
 
 
 def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Send WhatsApp message to both WABA numbers when an inbound call comes in."""
+    """Send wd_menu WhatsApp template to the CALLER from WABA1 (+919330994400).
+    
+    Uses wd_menu template instead of plain text to avoid 'deleted message' issue
+    (plain text fails outside 24h window, templates always work).
+    
+    Template: wd_menu (Utility, English)
+    Text: Thanks for contacting *WECARE.DIGITAL*! Submit your request here:
+    https://wecare.digital/selfservice or send us a message / voice note on
+    WhatsApp: https://r.wecare.digital/wa. We'll review it and follow up if needed.
+    
+    Sends from WABA1 (+919330994400) only — hardcoded.
+    Also logs to CallNotifications for CDR tracking.
+    """
     try:
-        # Find contact by caller phone
-        contact_id = ''
-        try:
-            contacts_table = dynamodb.Table(
-                os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
-            )
-            norm = caller_phone.replace('+', '').replace(' ', '')
-            if len(norm) >= 10:
-                from boto3.dynamodb.conditions import Attr
-                resp = contacts_table.scan(
-                    FilterExpression=Attr('phone').contains(norm[-10:]),
-                    Limit=1,
-                )
-                items = resp.get('Items', [])
-                if items:
-                    contact_id = items[0].get('id', items[0].get('contactId', ''))
-        except Exception:
-            pass
-
-        if not contact_id:
-            logger.info(json.dumps({
-                'event': 'call_wa_notify_skip_no_contact',
-                'caller': caller_phone[-4:],
-                'callId': call_id,
-                'requestId': request_id,
-            }))
-            return
-
         import time as _time
         call_time = _time.strftime('%d %b %Y %I:%M %p IST', _time.gmtime(int(_time.time()) + 19800))
-        msg = (
-            f"\U0001f4de Incoming WhatsApp Call\n"
-            f"\n"
-            f"From: {caller_phone}\n"
-            f"Time: {call_time}\n"
-            f"Call ID: {call_id[:16]}"
-        )
 
-        for phone_id in _WABA_PHONE_IDS:
-            try:
-                lambda_client.invoke(
-                    FunctionName='wecare-outbound-whatsapp',
-                    InvocationType='Event',
-                    Payload=json.dumps({
-                        'body': json.dumps({
-                            'contactId': contact_id,
-                            'content': msg,
-                            'phoneNumberId': phone_id,
-                        })
-                    }),
-                )
-                logger.info(json.dumps({
-                    'event': 'call_wa_notify_sent',
-                    'caller': caller_phone[-4:],
-                    'contactId': contact_id,
-                    'phoneId': phone_id,
-                    'requestId': request_id,
-                }))
-            except Exception as e:
-                logger.warning(f'Call WA notify failed for {phone_id}: {e}')
+        # ── Send wd_menu template to the CALLER from WABA1 ──
+        waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
+        template_payload = {
+            'body': json.dumps({
+                'phoneNumberId': waba1_phone_id,
+                'to': caller_phone,
+                'type': 'template',
+                'template': {
+                    'name': 'wd_menu',
+                    'language': {'code': 'en'},
+                    'components': [],
+                },
+            })
+        }
+
+        wa_result = {}
+        try:
+            resp = lambda_client.invoke(
+                FunctionName='wecare-outbound-whatsapp',
+                InvocationType='RequestResponse',
+                Payload=json.dumps(template_payload).encode(),
+            )
+            wa_result = json.loads(resp['Payload'].read().decode())
+            if isinstance(wa_result.get('body'), str):
+                wa_result = json.loads(wa_result['body'])
+            logger.info(json.dumps({
+                'event': 'call_wa_template_sent',
+                'template': 'wd_menu',
+                'caller': caller_phone[-4:],
+                'phoneId': waba1_phone_id,
+                'messageId': wa_result.get('messageId', ''),
+                'requestId': request_id,
+            }))
+        except Exception as e:
+            logger.warning(f'wd_menu template send failed: {e}')
+            wa_result = {'error': str(e)}
+
+        # ── Log to CallNotifications table for CDR tracking ──
+        try:
+            call_notif_table = dynamodb.Table(
+                os.environ.get('CALL_NOTIFICATIONS_TABLE', 'stack-wecare-digital-CallNotificationsTable')
+            )
+            call_notif_table.put_item(Item={
+                'callId': call_id,
+                'callerPhone': caller_phone,
+                'callTime': call_time,
+                'whatsappTemplate': 'wd_menu',
+                'whatsappPhoneId': waba1_phone_id,
+                'whatsappStatus': 'sent' if wa_result.get('messageId') else 'failed',
+                'whatsappMessageId': wa_result.get('messageId', ''),
+                'whatsappError': wa_result.get('error', ''),
+                'smsStatus': 'sent_separately',
+                'requestId': request_id,
+                'createdAt': int(_time.time()),
+                'ttl': int(_time.time()) + 90 * 86400,
+            })
+        except Exception as e:
+            logger.warning(f'CallNotifications log failed: {e}')
 
     except Exception as e:
         logger.warning(f'Call WA notification error (non-blocking): {e}')
