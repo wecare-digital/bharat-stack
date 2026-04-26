@@ -813,21 +813,51 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     if not caller_phone.startswith('+'):
         caller_phone = f'+{caller_phone}'
 
-    logger.info(f"POST-CALL SIP: sending thumbs up + message to {caller_phone} via {phone_number_id}")
+    logger.info(f"POST-CALL SIP: sending wd_menu template to {caller_phone} via WABA1")
 
-    aws_phone_id = _get_aws_phone_id(phone_number_id)
+    # ── Send wd_menu template from WABA1 (works outside 24h window) ──
+    waba1_meta_id = '1016149501586345'
+    VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
 
-    # Step 1: Send thumbs up reaction (👍)
-    # We need a message_id to react to. Since SIP calls don't have a WhatsApp message,
-    # we send the post-call text first, then react to it.
+    template_msg = {
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': caller_phone.lstrip('+'),
+        'type': 'template',
+        'template': {
+            'name': 'wd_menu',
+            'language': {'code': 'en'},
+            'components': [
+                {
+                    'type': 'header',
+                    'parameters': [
+                        {'type': 'video', 'video': {'link': VIDEO_URL}}
+                    ]
+                }
+            ]
+        },
+    }
 
-    # Step 2: Send post-call message
-    post_msg = IVR_SMS_CONTENT
+    result = _meta_api_call(f"{waba1_meta_id}/messages", 'POST',
+                            template_msg, phone_number_id=waba1_meta_id)
 
-    result = _send_via_aws(aws_phone_id, caller_phone, {
-        'type': 'text',
-        'text': {'body': post_msg},
-    })
+    msg_id = ''
+    if isinstance(result, dict):
+        msgs = result.get('messages', [])
+        if msgs:
+            msg_id = msgs[0].get('id', '')
+
+    if result.get('error') or not msg_id:
+        logger.warning(f"Post-call SIP wd_menu template failed: {result}")
+        # Fallback: send plain text via the receiving phone
+        aws_phone_id = _get_aws_phone_id(phone_number_id)
+        result = _send_via_aws(aws_phone_id, caller_phone, {
+            'type': 'text',
+            'text': {'body': IVR_SMS_CONTENT},
+        })
+        msg_id = result.get('messageId', '')
+    else:
+        logger.info(f"Post-call SIP wd_menu template sent to {caller_phone}: {msg_id}")
 
     if result.get('error'):
         logger.warning(f"Post-call SIP message failed: {result}")
@@ -868,7 +898,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
                 'messageId': store_id,
                 'contactId': contact_id,
                 'contactPhone': caller_phone,
-                'content': post_msg,
+                'content': '[wd_menu template] ' + IVR_SMS_CONTENT[:100],
                 'channel': 'whatsapp',
                 'direction': 'outbound',
                 'status': 'sent',
