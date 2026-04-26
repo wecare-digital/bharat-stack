@@ -1006,33 +1006,30 @@ IVR_NOTIFICATION_MSG = (
 
 
 def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
-    """On Airtel CDR inbound call: send WhatsApp wd_menu template to CALLER.
+    """On Airtel CDR inbound call: send WhatsApp + RCS to CALLER.
     
-    NO SMS — Airtel IVR already sends SMS directly. This only sends WhatsApp.
+    Channel priority: RCS (Sinch) → WhatsApp (WABA1) → nothing
+    NO SMS — Airtel IVR already sends SMS directly.
+    
+    RCS: Sinch Conversation API (provision ready, activate when Sinch whitelists IP)
+    WhatsApp: wd_menu template from WABA1 with VIDEO header
     """
     try:
         caller = cdr.get('callerNumber', '')
         if not caller:
             return
-        destination = cdr.get('destinationNumber', INBOUND_NUMBER)
-        status = cdr.get('overallCallStatus', 'Unknown')
-        duration = cdr.get('conversationDuration', 0)
-        if isinstance(duration, (int, float)) and duration > 1000:
-            duration = int(duration / 1000)
-        session_id = cdr.get('vmSessionId', cdr.get('id', ''))
 
-        # Clean caller phone
         clean_caller = caller.replace('+', '').replace(' ', '')
         if len(clean_caller) == 10:
             clean_caller = '91' + clean_caller
 
-        # ── NO SMS — Airtel IVR already sends SMS directly to caller ──
-        # Sending SMS here would be duplicate
+        # ── 1. RCS via Sinch (FUTURE — activate when ready) ──
+        rcs_sent = False
+        if _is_rcs_enabled():
+            rcs_sent = _send_rcs_notification(clean_caller, request_id)
 
-        # ── 3. Send wd_menu WhatsApp template to the CALLER from WABA1 ──
-        # No contact lookup needed — templates work with just a phone number
+        # ── 2. WhatsApp wd_menu template from WABA1 (always send) ──
         try:
-            # Load Meta API token
             meta_secret = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
             meta_data = json.loads(meta_secret['SecretString'])
             meta_token = meta_data.get('access_token', '').strip()
@@ -1068,15 +1065,107 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
                 result = json.loads(resp.read().decode())
                 wamid = result.get('messages', [{}])[0].get('id', '')
                 logger.info(json.dumps({
-                    'event': 'ivr_whatsapp_template_sent',
+                    'event': 'cdr_whatsapp_template_sent',
                     'template': 'wd_menu',
                     'caller': caller,
                     'wamid': wamid,
-                    'waba': 'WABA1',
+                    'rcs_sent': rcs_sent,
                     'requestId': request_id,
                 }))
         except Exception as e:
-            logger.warning(f'IVR WhatsApp wd_menu to caller failed: {e}')
+            logger.warning(f'CDR WhatsApp wd_menu failed: {e}')
 
     except Exception as e:
-        logger.warning(f'IVR notification error: {e}')
+        logger.warning(f'CDR notification error: {e}')
+
+
+# ── RCS via Sinch Conversation API (provision — activate later) ──
+# Config: set SINCH_RCS_ENABLED=true in env to activate
+# Requires: Sinch project_id, app_id, key_id, key_secret in Secrets Manager
+# Sinch IP whitelist: 52.3.44.165 must be whitelisted by Sinch first
+
+def _is_rcs_enabled() -> bool:
+    return os.environ.get('SINCH_RCS_ENABLED', 'false').lower() == 'true'
+
+
+def _send_rcs_notification(phone: str, request_id: str) -> bool:
+    """Send RCS rich card via Sinch Conversation API with SMS fallback disabled.
+    
+    Sinch Conversation API endpoint:
+    POST https://{region}.conversation.api.sinch.com/v1/projects/{project_id}/messages:send
+    
+    RCS card: video + "Get Started" button + selfservice link
+    SMS fallback: DISABLED (Airtel already sends SMS)
+    """
+    try:
+        # Load Sinch credentials from Secrets Manager
+        sinch_secret = secrets_client.get_secret_value(SecretId='wecare/sinch/rcs')
+        sinch = json.loads(sinch_secret['SecretString'])
+        project_id = sinch.get('project_id', '')
+        app_id = sinch.get('app_id', '')
+        oauth_token = sinch.get('oauth_token', '')
+        region = sinch.get('region', 'eu')
+
+        if not project_id or not app_id or not oauth_token:
+            logger.info('RCS: Sinch credentials not configured yet')
+            return False
+
+        e164_phone = '+' + phone if not phone.startswith('+') else phone
+
+        rcs_payload = json.dumps({
+            'app_id': app_id,
+            'recipient': {
+                'identified_by': {
+                    'channel_identities': [
+                        {'channel': 'RCS', 'identity': e164_phone}
+                    ]
+                }
+            },
+            'message': {
+                'card_message': {
+                    'title': 'WECARE.DIGITAL',
+                    'description': 'Thanks for contacting WECARE.DIGITAL! Submit your request or message us on WhatsApp.',
+                    'media_message': {
+                        'url': 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+                    },
+                    'choices': [
+                        {
+                            'url_message': {
+                                'title': 'Submit Request',
+                                'url': 'https://wecare.digital/selfservice'
+                            }
+                        },
+                        {
+                            'url_message': {
+                                'title': 'WhatsApp Us',
+                                'url': 'https://r.wecare.digital/wa'
+                            }
+                        }
+                    ]
+                }
+            },
+            'channel_priority_order': ['RCS'],
+            'message_content_type': 'CONTENT_NOTIFICATION',
+            'correlation_id': f'cdr_{request_id}',
+        }).encode()
+
+        url = f'https://{region}.conversation.api.sinch.com/v1/projects/{project_id}/messages:send'
+        req = urllib.request.Request(url, data=rcs_payload, headers={
+            'Authorization': f'Bearer {oauth_token}',
+            'Content-Type': 'application/json',
+        }, method='POST')
+
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+            msg_id = result.get('message_id', '')
+            logger.info(json.dumps({
+                'event': 'cdr_rcs_sent',
+                'caller': phone[-4:],
+                'messageId': msg_id,
+                'requestId': request_id,
+            }))
+            return True
+
+    except Exception as e:
+        logger.warning(f'RCS send failed (non-blocking): {e}')
+        return False
