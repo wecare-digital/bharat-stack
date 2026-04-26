@@ -16,6 +16,7 @@
 
 import wixStoresBackend from 'wix-stores-backend';
 import wixData from 'wix-data';
+import { getSecret } from 'wix-secrets-backend';
 import { createOrGetOrderId } from 'backend/orderId-helpers';
 
 const CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -112,6 +113,11 @@ export async function wixStores_onProductCreated(event) {
  * Triggered when a new order is approved (paid).
  * Generates WD-ORD number and stores in OrderIDs + OrderCustomIds.
  * Also sets the Wix order customField so it shows in Owner App.
+ * 
+ * NEW: Sends order confirmation via:
+ * 1. WhatsApp — wd_order template via WABA1 (+919330994400)
+ * 2. SMS — Airtel IQ (WDBEEP header, DLT template 1007723091207562020)
+ * 3. Logs delivery status to OrderNotifications collection
  */
 export async function wixEcom_onOrderApproved(event) {
   const order = event.entity || event;
@@ -121,8 +127,9 @@ export async function wixEcom_onOrderApproved(event) {
   const buyer = order.buyerInfo || {};
   const orderDate = order._createdDate || order._dateCreated || new Date();
 
+  let wdOrderId = '';
   try {
-    const wdOrderId = await createOrGetOrderId({
+    wdOrderId = await createOrGetOrderId({
       wixOrderId: orderId,
       memberId: buyer.memberId || buyer.visitorId || '',
       orderNumber: order.number ? String(order.number) : '',
@@ -151,5 +158,139 @@ export async function wixEcom_onOrderApproved(event) {
     }
   } catch (err) {
     console.error(`[events] Failed to assign WD order number to order ${orderId}:`, err?.message || err);
+  }
+
+  // ── Send order confirmation notifications ──
+  const buyerPhone = buyer.phone || '';
+  if (buyerPhone) {
+    sendOrderNotifications(orderId, wdOrderId, buyerPhone, buyer.email || '').catch(err => {
+      console.error(`[events] Notification error for order ${orderId}:`, err?.message || err);
+    });
+  } else {
+    console.log(`[events] No buyer phone for order ${orderId}, skipping notifications`);
+  }
+}
+
+/**
+ * Send WhatsApp + SMS order confirmation.
+ * Hardcoded to WABA1 +919330994400 for WhatsApp.
+ * Uses Airtel IQ for SMS (DLT template 1007723091207562020, header WDBEEP).
+ * Logs delivery status to OrderNotifications collection.
+ */
+async function sendOrderNotifications(orderId, wdOrderId, phone, email) {
+  const STACK_API = 'https://stack.wecare.digital/api';
+  let apiKey = '';
+  try { apiKey = await getSecret('WECARE_API_KEY'); } catch {}
+
+  const notifRecord = {
+    _id: orderId,
+    orderId: orderId,
+    wdOrderId: wdOrderId || '',
+    phone: phone,
+    email: email || '',
+    whatsappStatus: 'pending',
+    whatsappMessageId: '',
+    whatsappError: '',
+    smsStatus: 'pending',
+    smsMessageId: '',
+    smsError: '',
+    rcsStatus: 'not_available',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // ── 1. WhatsApp via WABA1 (+919330994400) ──
+  try {
+    const waPayload = {
+      phoneNumberId: 'phone-number-id-waba1-direct-1016149501586345',
+      to: phone,
+      type: 'template',
+      template: {
+        name: 'wd_order',
+        language: { code: 'en' },
+        components: [],
+      },
+    };
+
+    const waResp = await fetch(STACK_API + '/messaging/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(waPayload),
+    });
+    const waData = await waResp.json();
+
+    if (waData.messageId || waData.success) {
+      notifRecord.whatsappStatus = 'sent';
+      notifRecord.whatsappMessageId = waData.messageId || '';
+      console.log(`[events] WhatsApp sent for order ${orderId}: ${waData.messageId}`);
+    } else {
+      notifRecord.whatsappStatus = 'failed';
+      notifRecord.whatsappError = waData.error || JSON.stringify(waData).substring(0, 200);
+      console.error(`[events] WhatsApp failed for order ${orderId}:`, waData.error || waData);
+    }
+  } catch (waErr) {
+    notifRecord.whatsappStatus = 'failed';
+    notifRecord.whatsappError = waErr?.message || String(waErr);
+    console.error(`[events] WhatsApp error for order ${orderId}:`, waErr?.message);
+  }
+
+  // ── 2. SMS via Airtel IQ (WDBEEP, DLT 1007723091207562020) ──
+  try {
+    const smsContent = 'Thanks for placing your order with WECARE.DIGITAL!\n\n'
+      + 'Your order has been received. We\'ll review it and share updates shortly.\n\n'
+      + 'Need help? Submit a request here: https://wecare.digital/selfservice\n\n'
+      + 'or message / voice note us on WhatsApp: https://r.wecare.digital/wa.';
+
+    const smsPayload = {
+      phoneNumber: phone,
+      content: smsContent,
+      provider: 'airtel',
+      messageType: 'SERVICE_IMPLICIT',
+      dltTemplateId: '1007723091207562020',
+      entityId: '1201161991108627443',
+      sourceAddress: 'WDBEEP',
+      apiVersion: 'v5',
+      metaData: { orderId: orderId, wdOrderId: wdOrderId || '' },
+    };
+
+    const smsResp = await fetch(STACK_API + '/messaging/sms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(smsPayload),
+    });
+    const smsData = await smsResp.json();
+
+    if (smsData.messageId || smsData.success) {
+      notifRecord.smsStatus = 'sent';
+      notifRecord.smsMessageId = smsData.messageId || '';
+      console.log(`[events] SMS sent for order ${orderId}: ${smsData.messageId}`);
+    } else {
+      notifRecord.smsStatus = 'failed';
+      notifRecord.smsError = smsData.error || JSON.stringify(smsData).substring(0, 200);
+      console.error(`[events] SMS failed for order ${orderId}:`, smsData.error || smsData);
+    }
+  } catch (smsErr) {
+    notifRecord.smsStatus = 'failed';
+    notifRecord.smsError = smsErr?.message || String(smsErr);
+    console.error(`[events] SMS error for order ${orderId}:`, smsErr?.message);
+  }
+
+  // ── 3. Log to OrderNotifications collection ──
+  notifRecord.updatedAt = new Date();
+  try {
+    await wixData.insert('OrderNotifications', notifRecord, { suppressAuth: true });
+    console.log(`[events] Notification log saved for order ${orderId}`);
+  } catch (logErr) {
+    // Try update if insert fails (duplicate key)
+    try {
+      await wixData.update('OrderNotifications', notifRecord, { suppressAuth: true });
+    } catch {}
+    console.error(`[events] Failed to log notification for order ${orderId}:`, logErr?.message);
   }
 }
