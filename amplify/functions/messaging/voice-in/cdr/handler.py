@@ -78,6 +78,7 @@ AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 s3 = boto3.client('s3', region_name=AWS_REGION)
 lambda_client = boto3.client('lambda', region_name=AWS_REGION)
+secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 
 # Environment variables
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
