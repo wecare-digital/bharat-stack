@@ -344,7 +344,7 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
         message_id = str(uuid.uuid4())
         provider_msg_id = result.get('messageRequestId') or result.get('messageId')
         
-        _store_message(message_id, ','.join(clean_phones), content, 'SENT', message_type, sender_id, entity_id, dlt_template_id, provider_msg_id, len(clean_phones), api_version)
+        _store_message(message_id, ','.join(clean_phones), content, 'SENT', message_type, sender_id, entity_id, default_template_id, provider_msg_id, len(clean_phones), 'v5')
         
         resp = {
             'success': True,
@@ -354,10 +354,6 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
             'status': 'sent',
             'apiVersion': 'v5'
         }
-        
-        # v6 echoes back additional fields
-        if api_version == 'v6':
-            resp['incorrectNum'] = result.get('incorrectNum', [])
         
         return _response(200, resp)
         

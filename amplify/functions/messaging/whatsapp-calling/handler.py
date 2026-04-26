@@ -606,7 +606,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
 
         # ── Send default IVR SMS to caller immediately on connect ──
         if _is_sms_on_call_enabled():
-            _send_incoming_call_sms(from_number, call_id, request_id)
+            _send_incoming_call_sms(from_number, call_id, phone_number_id, request_id)
         else:
             logger.info(f"SMS-on-call disabled — skipping SMS for call {call_id}")
 
@@ -1292,8 +1292,13 @@ SMS_LAMBDA_PINPOINT = 'wecare-sms-aws'      # Pinpoint SMS v2 us-east-1
 #   International → wecare-sms-aws (Pinpoint SMS v2, us-east-1, toll-free pool)
 
 
-def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Send default IVR SMS when a call comes in — no dedup."""
+def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id: str, request_id: str) -> None:
+    """Send default IVR SMS + WhatsApp wd_menu when a call comes in.
+    
+    WhatsApp logic:
+    - Call on WABA1 → wd_menu from WABA1 only
+    - Call on WABA2 → wd_menu from BOTH WABA1 AND WABA2
+    """
     try:
         if not caller_phone:
             return
@@ -1302,7 +1307,6 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
 
         if is_indian:
-            # ── Indian: Try Airtel IQ first (sync), fall back to Pinpoint ap-south-1 ──
             airtel_ok = _try_airtel_sms(caller_phone, call_id, request_id)
             if not airtel_ok:
                 logger.warning(json.dumps({
@@ -1313,7 +1317,6 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
                 }))
                 _send_pinpoint_india_sms(caller_phone, call_id, request_id)
         else:
-            # ── International: Pinpoint SMS v2 (us-east-1, toll-free pool) ──
             sms_payload = {
                 'rawPath': '/sms-aws/send',
                 'requestContext': {'http': {'method': 'POST'}},
@@ -1337,11 +1340,10 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
                 'requestId': request_id,
             }))
 
-        # ── Mark SMS as sent for dedup ──
         _mark_sms_sent(clean_phone)
 
-        # ── Also send WhatsApp notification to both WABA admin numbers ──
-        _send_call_whatsapp_notification(caller_phone, call_id, request_id)
+        # ── WhatsApp wd_menu: depends on which WABA received the call ──
+        _send_call_whatsapp_notification(caller_phone, call_id, receiving_phone_id, request_id)
 
     except Exception as e:
         logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
@@ -2529,16 +2531,26 @@ _WABA_PHONE_IDS = [
 ]
 
 
-def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Send wd_menu WhatsApp template to the CALLER from BOTH WABA1 and WABA2.
+def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_phone_id: str, request_id: str) -> None:
+    """Send wd_menu WhatsApp template to the CALLER.
+
+    Logic:
+    - Call on WABA1 (+919330994400) → wd_menu from WABA1 only
+    - Call on WABA2 (+919903300044) → wd_menu from BOTH WABA1 AND WABA2
 
     Template: wd_menu (Utility, English, VIDEO header)
-    WABA1: +919330994400 | WABA2: +919903300044
     Video: selfservice.mp4 via CloudFront
     """
     try:
         import time as _time
         call_time = _time.strftime('%d %b %Y %I:%M %p IST', _time.gmtime(int(_time.time()) + 19800))
+
+        # Determine which WABAs to send from based on receiving phone
+        is_waba2 = WABA2_META_ID in str(receiving_phone_id)
+        if is_waba2:
+            send_from = [(WABA1_META_ID, 'WABA1'), (WABA2_META_ID, 'WABA2')]
+        else:
+            send_from = [(WABA1_META_ID, 'WABA1')]
 
         template_msg = {
             'messaging_product': 'whatsapp',
@@ -2559,7 +2571,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
             },
         }
 
-        for meta_id, label in [(WABA1_META_ID, 'WABA1'), (WABA2_META_ID, 'WABA2')]:
+        for meta_id, label in send_from:
             try:
                 api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
                                             template_msg, phone_number_id=meta_id)
@@ -2591,9 +2603,10 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
                 'callId': call_id,
                 'callerPhone': caller_phone,
                 'callTime': call_time,
+                'receivingPhone': receiving_phone_id,
                 'whatsappTemplate': 'wd_menu',
                 'whatsappWaba1': 'sent',
-                'whatsappWaba2': 'sent',
+                'whatsappWaba2': 'sent' if is_waba2 else 'not_sent',
                 'smsStatus': 'sent_separately',
                 'requestId': request_id,
                 'createdAt': int(_time.time()),
