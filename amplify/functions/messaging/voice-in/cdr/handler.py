@@ -1005,9 +1005,9 @@ IVR_NOTIFICATION_MSG = (
 
 
 def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
-    """Send IVR notification on inbound Airtel CDR:
-    1. SMS (ivr-default) to the CALLER via Airtel v5
-    2. WhatsApp wd_menu template from WABA1 to the CALLER (no contact lookup needed)
+    """On Airtel CDR inbound call: send WhatsApp wd_menu template to CALLER.
+    
+    NO SMS — Airtel IVR already sends SMS directly. This only sends WhatsApp.
     """
     try:
         caller = cdr.get('callerNumber', '')
@@ -1025,51 +1025,8 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         if len(clean_caller) == 10:
             clean_caller = '91' + clean_caller
 
-        # ── 1. Send IVR SMS to the CALLER (not admin) ──
-        ivr_sms_text = (
-            "Thanks for contacting WECARE.DIGITAL!\n\n"
-            "Submit your request here: https://wecare.digital/selfservice "
-            "or send us a message / voice note on WhatsApp: "
-            "https://r.wecare.digital/wa.\n\n"
-            "We'll review it and follow up if needed."
-        )
-        try:
-            lambda_client.invoke(
-                FunctionName='wecare-outbound-sms',
-                InvocationType='Event',
-                Payload=json.dumps({
-                    'body': json.dumps({
-                        'phoneNumber': '+' + clean_caller,
-                        'content': ivr_sms_text,
-                        'provider': 'airtel',
-                        'messageType': 'SERVICE_IMPLICIT',
-                        'dltTemplateId': '1007277993798259629',
-                        'entityId': '1201161991108627443',
-                        'sourceAddress': 'WDBEEP',
-                        'apiVersion': 'v5',
-                    })
-                }),
-            )
-            logger.info(json.dumps({
-                'event': 'ivr_sms_sent',
-                'caller': caller,
-                'target': '+' + clean_caller,
-                'provider': 'airtel',
-                'requestId': request_id,
-            }))
-        except Exception as e:
-            logger.warning(f'IVR SMS to caller failed: {e}')
-
-        # ── 2. Admin notification via CDR dashboard (no separate SMS needed) ──
-        # Admin sees all calls in real-time at /dm/voice/ dashboard
-        # Removed admin SMS — custom text is not DLT compliant and fails on Airtel
-        logger.info(json.dumps({
-            'event': 'ivr_notification_complete',
-            'caller': caller,
-            'sms': 'sent_to_caller',
-            'whatsapp': 'wd_menu_to_caller',
-            'requestId': request_id,
-        }))
+        # ── NO SMS — Airtel IVR already sends SMS directly to caller ──
+        # Sending SMS here would be duplicate
 
         # ── 3. Send wd_menu WhatsApp template to the CALLER from WABA1 ──
         # No contact lookup needed — templates work with just a phone number
