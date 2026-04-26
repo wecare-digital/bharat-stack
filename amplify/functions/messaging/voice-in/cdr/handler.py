@@ -1060,28 +1060,16 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         except Exception as e:
             logger.warning(f'IVR SMS to caller failed: {e}')
 
-        # ── 2. Also send SMS to admin phones ──
-        call_time = time.strftime('%d %b %Y %I:%M %p IST', time.gmtime(int(time.time()) + 19800))
-        admin_msg = IVR_NOTIFICATION_MSG.format(
-            caller=caller, destination=destination, status=status,
-            duration=duration, time=call_time,
-            session_id=session_id[:20] if session_id else '',
-        )
-        for phone in ADMIN_PHONES:
-            try:
-                lambda_client.invoke(
-                    FunctionName='wecare-outbound-sms',
-                    InvocationType='Event',
-                    Payload=json.dumps({
-                        'body': json.dumps({
-                            'phoneNumber': phone,
-                            'content': admin_msg,
-                            'provider': 'airtel',
-                        })
-                    }),
-                )
-            except Exception as e:
-                logger.warning(f'Admin SMS failed for {phone}: {e}')
+        # ── 2. Admin notification via CDR dashboard (no separate SMS needed) ──
+        # Admin sees all calls in real-time at /dm/voice/ dashboard
+        # Removed admin SMS — custom text is not DLT compliant and fails on Airtel
+        logger.info(json.dumps({
+            'event': 'ivr_notification_complete',
+            'caller': caller,
+            'sms': 'sent_to_caller',
+            'whatsapp': 'wd_menu_to_caller',
+            'requestId': request_id,
+        }))
 
         # ── 3. Send wd_menu WhatsApp template to the CALLER from WABA1 ──
         # No contact lookup needed — templates work with just a phone number
