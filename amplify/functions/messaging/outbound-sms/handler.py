@@ -21,6 +21,7 @@ import boto3
 import base64
 import urllib.request
 import urllib.error
+import urllib.parse
 from typing import Dict, Any
 from decimal import Decimal
 
@@ -114,13 +115,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Generate message ID
         message_id = str(uuid.uuid4())
         
-        # Send SMS based on provider (locked: Airtel for Indian +91, AWS for international)
+        # Send SMS based on provider
+        # Indian +91: Try Airtel first, fallback to Sinch, then Pinpoint
+        # International: AWS Pinpoint/SNS
         clean = phone.lstrip('+')
         is_indian = clean.startswith('91') and len(clean) == 12
         if is_indian:
-            provider = 'airtel'  # Force Airtel for Indian numbers (DLT required)
+            provider = 'airtel'
         else:
-            provider = 'aws'  # Force AWS Pinpoint/SNS for international
+            provider = 'aws'
 
         if provider == 'airtel':
             result = _send_airtel_iq_sms(
@@ -135,6 +138,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 api_version=api_version,
                 request_id=request_id
             )
+            # If Airtel fails (503/500), try Sinch as fallback
+            if not result.get('success'):
+                logger.warning(f"Airtel failed, trying Sinch fallback: {result.get('error', '')[:100]}")
+                sinch_result = _send_sinch_sms(phone, content, source_address, request_id)
+                if sinch_result.get('success'):
+                    result = sinch_result
+                    provider = 'sinch'
         else:
             result = _send_aws_sms(phone, content, request_id)
         
@@ -198,6 +208,69 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Get contact error: {str(e)}")
         return {}
+
+
+# ── Sinch (ACL) SMS Provider ──
+# Enterprise: WECARE DIGITAL ALERT (WECAREALT)
+# Push API: https://push3.aclgateway.com/servlet/...
+# Sender: WDBEEP | AppID: wecarealt
+SINCH_HOST = 'push3.aclgateway.com'
+SINCH_APP_ID = 'wecarealt'
+SINCH_USER_ID = 'wecarealt'
+SINCH_PASSWORD = 'care_12'
+
+
+def _send_sinch_sms(phone: str, content: str, source_address: str, request_id: str) -> Dict[str, Any]:
+    """Send SMS via Sinch ACL Push API. Used as fallback when Airtel is down."""
+    try:
+        clean = phone.replace('+', '').replace(' ', '')
+        if not clean.startswith('91'):
+            clean = '91' + clean[-10:]
+
+        params = urllib.parse.urlencode({
+            'appid': SINCH_APP_ID,
+            'userId': SINCH_USER_ID,
+            'pass': SINCH_PASSWORD,
+            'contenttype': '1',
+            'from': source_address or 'WDBEEP',
+            'to': clean,
+            'alert': '1',
+            'selfid': 'true',
+            'text': content,
+        })
+        path = f'/servlet/com.aclwireless.pushconnectivity.listeners.TextListener?{params}'
+
+        logger.info(json.dumps({
+            'event': 'sinch_sms_request',
+            'phone': clean[-4:],
+            'requestId': request_id,
+        }))
+
+        # Try HTTPS first, then HTTP
+        for proto, make_conn in [
+            ('https', lambda: urllib.request.urlopen(urllib.request.Request(f'https://{SINCH_HOST}{path}'), timeout=10)),
+            ('http', lambda: urllib.request.urlopen(urllib.request.Request(f'http://{SINCH_HOST}{path}'), timeout=10)),
+        ]:
+            try:
+                with make_conn() as resp:
+                    body = resp.read().decode()
+                    logger.info(json.dumps({
+                        'event': 'sinch_sms_response',
+                        'status': resp.status,
+                        'body': body[:200],
+                        'proto': proto,
+                        'requestId': request_id,
+                    }))
+                    return {'success': True, 'providerMessageId': body[:50], 'provider': 'sinch'}
+            except Exception as e:
+                logger.warning(f"Sinch {proto} failed: {e}")
+                continue
+
+        return {'success': False, 'error': 'Sinch unreachable (both HTTPS and HTTP)'}
+
+    except Exception as e:
+        logger.error(f"Sinch SMS error: {e}")
+        return {'success': False, 'error': str(e)}
 
 
 def _send_aws_sms(phone: str, content: str, request_id: str) -> Dict[str, Any]:
