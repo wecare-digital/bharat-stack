@@ -1023,10 +1023,15 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         if len(clean_caller) == 10:
             clean_caller = '91' + clean_caller
 
-        # ── 1. RCS via Sinch (FUTURE — activate when ready) ──
+        # ── 1. RCS via Sinch (activate when credentials are ready) ──
         rcs_sent = False
-        if _is_rcs_enabled():
-            rcs_sent = _send_rcs_notification(clean_caller, request_id)
+        try:
+            from lambda_utils.sinch_rcs import is_rcs_enabled, send_rcs_ivr_notification
+            if is_rcs_enabled():
+                rcs_result = send_rcs_ivr_notification(clean_caller, request_id)
+                rcs_sent = rcs_result.get('success', False)
+        except Exception as rcs_err:
+            logger.warning(f'CDR RCS notification failed (non-blocking): {rcs_err}')
 
         # ── 2. WhatsApp wd_menu template from WABA1 (always send) ──
         try:

@@ -689,6 +689,22 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         # Uses ivr-default DLT template via Airtel IQ with dedup
         if _is_sms_on_call_enabled() and from_number:
             _send_disconnect_sms(from_number, call_id, phone_number_id, reason, request_id)
+        
+        # ── Send RCS notification via Sinch (if enabled) ──
+        if from_number:
+            try:
+                from lambda_utils.sinch_rcs import is_rcs_enabled, send_rcs_ivr_notification
+                if is_rcs_enabled():
+                    rcs_result = send_rcs_ivr_notification(from_number, request_id)
+                    logger.info(json.dumps({
+                        'event': 'wa_call_rcs_notification',
+                        'callId': call_id,
+                        'rcs_sent': rcs_result.get('success', False),
+                        'rcs_message_id': rcs_result.get('message_id', ''),
+                        'requestId': request_id,
+                    }))
+            except Exception as rcs_err:
+                logger.warning(f'RCS notification failed (non-blocking): {rcs_err}')
 
     elif event_type in ('call_permission_response', 'call_permission_status'):
         # Meta sends call_permission_status with status: GRANTED/REJECTED/REVOKED
@@ -936,6 +952,15 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     # Step 5: Post-call SMS — send Airtel IVR SMS (ivr-default template) on disconnect
     if caller_phone and _is_sms_on_call_enabled():
         _send_disconnect_sms(caller_phone, f'sip_{caller_phone}', phone_number_id, 'sip_hangup', 'sip_post_call')
+    
+    # Step 6: Post-call RCS — send Sinch RCS notification on disconnect
+    if caller_phone:
+        try:
+            from lambda_utils.sinch_rcs import is_rcs_enabled, send_rcs_ivr_notification
+            if is_rcs_enabled():
+                send_rcs_ivr_notification(caller_phone, 'sip_post_call')
+        except Exception:
+            pass  # Non-blocking
 
     return {'statusCode': 200, 'body': 'post_call_sent'}
 

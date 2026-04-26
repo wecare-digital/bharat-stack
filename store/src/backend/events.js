@@ -281,7 +281,41 @@ async function sendOrderNotifications(orderId, wdOrderId, phone, email) {
     console.error(`[events] SMS error for order ${orderId}:`, smsErr?.message);
   }
 
-  // ── 3. Log to OrderNotifications collection ──
+  // ── 3. RCS via Sinch (if enabled — calls stack API) ──
+  try {
+    const rcsPayload = {
+      phoneNumber: phone,
+      channel: 'RCS',
+      notificationType: 'order_confirmation',
+      orderId: orderId,
+      wdOrderId: wdOrderId || '',
+    };
+
+    const rcsResp = await fetch(STACK_API + '/rcs/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(rcsPayload),
+    });
+    const rcsData = await rcsResp.json();
+
+    if (rcsData.success || rcsData.messageId) {
+      notifRecord.rcsStatus = 'sent';
+      notifRecord.rcsMessageId = rcsData.messageId || rcsData.message_id || '';
+      console.log(`[events] RCS sent for order ${orderId}: ${notifRecord.rcsMessageId}`);
+    } else {
+      notifRecord.rcsStatus = rcsData.error === 'RCS not enabled' ? 'not_available' : 'failed';
+      notifRecord.rcsError = rcsData.error || '';
+    }
+  } catch (rcsErr) {
+    notifRecord.rcsStatus = 'failed';
+    notifRecord.rcsError = rcsErr?.message || String(rcsErr);
+    console.error(`[events] RCS error for order ${orderId}:`, rcsErr?.message);
+  }
+
+  // ── 4. Log to OrderNotifications collection ──
   notifRecord.updatedAt = new Date();
   try {
     await wixData.insert('OrderNotifications', notifRecord, { suppressAuth: true });

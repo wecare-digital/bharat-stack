@@ -231,10 +231,11 @@ export default function OrderNotificationsPage({ signOut, user }: PageProps) {
               <div>Type: SERVICE_IMPLICIT</div>
             </div>
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>RCS (Coming Soon)</div>
-              <div>Provider: Airtel RCS</div>
-              <div>Status: Not yet available</div>
-              <div>Will use same DLT entity</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>RCS (Sinch)</div>
+              <div>Provider: Sinch Conversation API</div>
+              <div>Status: Wired — activate with SINCH_RCS_ENABLED=true</div>
+              <div>Secret: wecare/sinch/rcs</div>
+              <div>Channels: CDR calls, WA calls, Orders</div>
             </div>
           </div>
         </div>
