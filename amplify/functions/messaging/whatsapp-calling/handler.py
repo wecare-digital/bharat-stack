@@ -816,8 +816,8 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     logger.info(f"POST-CALL SIP: sending wd_menu template to {caller_phone} via WABA1")
 
     # ── Send wd_menu template from WABA1 (works outside 24h window) ──
-    waba1_meta_id = '1016149501586345'
-    VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+    waba1_meta_id = WABA1_META_ID
+    VIDEO_URL = WA_TEMPLATE_VIDEO_URL
 
     template_msg = {
         'messaging_product': 'whatsapp',
@@ -1253,6 +1253,7 @@ PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-i
 # Line breaks: \n\n between sections (matches DLT template)
 IVR_SMS_DLT_TEMPLATE_ID = '1007277993798259629'
 IVR_SMS_SENDER_ID = 'WDBEEP'
+IVR_SMS_ENTITY_ID = '1201161991108627443'
 IVR_SMS_CONTENT = (
     "Thanks for contacting WECARE.DIGITAL!\n\n"
     "Submit your request here: https://wecare.digital/selfservice "
@@ -1260,6 +1261,22 @@ IVR_SMS_CONTENT = (
     "https://r.wecare.digital/wa.\n\n"
     "We'll review it and follow up if needed."
 )
+
+# Order SMS (DLT template: wd_order)
+ORDER_SMS_DLT_TEMPLATE_ID = '1007723091207562020'
+ORDER_SMS_CONTENT = (
+    "Thanks for placing your order with WECARE.DIGITAL!\n\n"
+    "Your order has been received. We'll review it and share updates shortly.\n\n"
+    "Need help? Submit a request here: https://wecare.digital/selfservice\n\n"
+    "or message / voice note us on WhatsApp: https://r.wecare.digital/wa."
+)
+
+# WhatsApp template video URL (CloudFront — publicly accessible)
+WA_TEMPLATE_VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+
+# WABA phone IDs for sending templates
+WABA1_META_ID = '1016149501586345'   # +91 93309 94400
+WABA2_META_ID = '1055232054343117'   # +91 99033 00044
 
 # SMS Lambda routing:
 #   Indian +91 → wecare-outbound-sms (Airtel IQ, ap-south-1, DLT: WDBEEP)
@@ -1331,49 +1348,63 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, request_id: str) ->
 
 
 def _try_airtel_sms(caller_phone: str, call_id: str, request_id: str) -> bool:
-    """Try sending SMS via Airtel IQ (synchronous). Returns True if successful."""
-    try:
-        sms_payload = {
-            'rawPath': '/sms-in/airtel',
-            'requestContext': {'http': {'method': 'POST'}},
-            'body': json.dumps({
-                'phoneNumber': caller_phone,
-                'content': IVR_SMS_CONTENT,
-                'messageType': 'SERVICE_IMPLICIT',
-                'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
-                'sourceAddress': IVR_SMS_SENDER_ID,
-                'apiVersion': 'v5',
-            }),
-        }
-        response = lambda_client.invoke(
-            FunctionName=SMS_LAMBDA_AIRTEL,
-            InvocationType='RequestResponse',
-            Payload=json.dumps(sms_payload).encode(),
-        )
-        result = json.loads(response['Payload'].read())
-        status_code = result.get('statusCode', 500)
-        if status_code == 200:
-            body = json.loads(result.get('body', '{}'))
-            if body.get('success'):
-                logger.info(json.dumps({
-                    'event': 'incoming_call_sms_triggered',
-                    'callId': call_id,
-                    'callerPhone': caller_phone[-4:],
-                    'provider': 'airtel',
-                    'requestId': request_id,
-                }))
-                return True
-        logger.warning(json.dumps({
-            'event': 'airtel_sms_invoke_failed',
-            'callId': call_id,
-            'statusCode': status_code,
-            'result': str(result)[:200],
-            'requestId': request_id,
-        }))
-        return False
-    except Exception as e:
-        logger.warning(f"Airtel SMS invoke error: {e}")
-        return False
+    """Try sending SMS via Airtel IQ with retry on 503. Returns True if successful."""
+    max_retries = 2
+    for attempt in range(max_retries + 1):
+        try:
+            sms_payload = {
+                'rawPath': '/sms-in/airtel',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': caller_phone,
+                    'content': IVR_SMS_CONTENT,
+                    'messageType': 'SERVICE_IMPLICIT',
+                    'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
+                    'sourceAddress': IVR_SMS_SENDER_ID,
+                    'entityId': IVR_SMS_ENTITY_ID,
+                    'apiVersion': 'v5',
+                }),
+            }
+            response = lambda_client.invoke(
+                FunctionName=SMS_LAMBDA_AIRTEL,
+                InvocationType='RequestResponse',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+            result = json.loads(response['Payload'].read())
+            status_code = result.get('statusCode', 500)
+            if status_code == 200:
+                body = json.loads(result.get('body', '{}'))
+                if body.get('success'):
+                    logger.info(json.dumps({
+                        'event': 'incoming_call_sms_triggered',
+                        'callId': call_id,
+                        'callerPhone': caller_phone[-4:],
+                        'provider': 'airtel',
+                        'attempt': attempt + 1,
+                        'requestId': request_id,
+                    }))
+                    return True
+            # If 503, retry after 2s
+            if status_code in (500, 502, 503) and attempt < max_retries:
+                logger.info(f"Airtel SMS {status_code}, retrying in 2s (attempt {attempt + 1}/{max_retries + 1})")
+                time.sleep(2)
+                continue
+            logger.warning(json.dumps({
+                'event': 'airtel_sms_invoke_failed',
+                'callId': call_id,
+                'statusCode': status_code,
+                'attempt': attempt + 1,
+                'result': str(result)[:200],
+                'requestId': request_id,
+            }))
+            return False
+        except Exception as e:
+            if attempt < max_retries:
+                time.sleep(2)
+                continue
+            logger.warning(f"Airtel SMS invoke error (attempt {attempt + 1}): {e}")
+            return False
+    return False
 
 
 def _send_pinpoint_india_sms(caller_phone: str, call_id: str, request_id: str) -> None:
@@ -1859,8 +1890,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     Template: wd_menu (Utility, English, VIDEO header)
     """
     # wd_menu exists on WABA1 — send from WABA1 phone
-    waba1_meta_id = '1016149501586345'
-    VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+    VIDEO_URL = WA_TEMPLATE_VIDEO_URL
 
     try:
         template_msg = {
@@ -1881,8 +1911,8 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
                 ]
             },
         }
-        result = _meta_api_call(f"{waba1_meta_id}/messages", 'POST',
-                                template_msg, phone_number_id=waba1_meta_id)
+        result = _meta_api_call(f"{WABA1_META_ID}/messages", 'POST',
+                                template_msg, phone_number_id=WABA1_META_ID)
         msg_id = ''
         if isinstance(result, dict):
             msgs = result.get('messages', [])
@@ -1907,7 +1937,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     # Store IVR session in call log for tracking
     _update_call_status(call_id, 'ivr_menu_sent', {
         'ivrTemplate': 'wd_menu',
-        'ivrPhone': waba1_meta_id,
+        'ivrPhone': WABA1_META_ID,
     })
 
 
@@ -2500,85 +2530,59 @@ _WABA_PHONE_IDS = [
 
 
 def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Send wd_menu WhatsApp template to the CALLER from WABA1 (+919330994400).
-    
-    Uses wd_menu template instead of plain text to avoid 'deleted message' issue
-    (plain text fails outside 24h window, templates always work).
-    
-    Template: wd_menu (Utility, English)
-    Text: Thanks for contacting *WECARE.DIGITAL*! Submit your request here:
-    https://wecare.digital/selfservice or send us a message / voice note on
-    WhatsApp: https://r.wecare.digital/wa. We'll review it and follow up if needed.
-    
-    Sends from WABA1 (+919330994400) only — hardcoded.
-    Also logs to CallNotifications for CDR tracking.
+    """Send wd_menu WhatsApp template to the CALLER from BOTH WABA1 and WABA2.
+
+    Template: wd_menu (Utility, English, VIDEO header)
+    WABA1: +919330994400 | WABA2: +919903300044
+    Video: selfservice.mp4 via CloudFront
     """
     try:
         import time as _time
         call_time = _time.strftime('%d %b %Y %I:%M %p IST', _time.gmtime(int(_time.time()) + 19800))
 
-        # ── Send wd_menu template to the CALLER from WABA1 ──
-        # wd_menu template exists on WABA1 and requires VIDEO header
-        waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
-        waba1_meta_id = '1016149501586345'
-        VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
-        
-        template_payload = {
-            'body': json.dumps({
-                'phoneNumberId': waba2_phone_id,
-                'recipientPhone': caller_phone,
-                'isTemplate': True,
-                'templateName': 'wd_menu',
-                'templateParams': ['en'],
-                'content': 'wd_menu template (IVR)',
-            })
+        template_msg = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': caller_phone.lstrip('+'),
+            'type': 'template',
+            'template': {
+                'name': 'wd_menu',
+                'language': {'code': 'en'},
+                'components': [
+                    {
+                        'type': 'header',
+                        'parameters': [
+                            {'type': 'video', 'video': {'link': WA_TEMPLATE_VIDEO_URL}}
+                        ]
+                    }
+                ]
+            },
         }
 
-        wa_result = {}
-        try:
-            # Send directly via Meta Graph API (wd_menu needs VIDEO header)
-            template_msg = {
-                'messaging_product': 'whatsapp',
-                'recipient_type': 'individual',
-                'to': caller_phone.lstrip('+'),
-                'type': 'template',
-                'template': {
-                    'name': 'wd_menu',
-                    'language': {'code': 'en'},
-                    'components': [
-                        {
-                            'type': 'header',
-                            'parameters': [
-                                {'type': 'video', 'video': {'link': VIDEO_URL}}
-                            ]
-                        }
-                    ]
-                },
-            }
-            api_result = _meta_api_call(f"{waba1_meta_id}/messages", 'POST',
-                                        template_msg, phone_number_id=waba1_meta_id)
-            msg_id = ''
-            if isinstance(api_result, dict):
-                msgs = api_result.get('messages', [])
-                if msgs:
-                    msg_id = msgs[0].get('id', '')
-            if msg_id:
-                wa_result = {'messageId': msg_id}
-            else:
-                wa_result = {'error': json.dumps(api_result)[:200]}
-            logger.info(json.dumps({
-                'event': 'call_wa_template_sent',
-                'template': 'wd_menu',
-                'caller': caller_phone[-4:],
-                'phoneId': waba1_phone_id,
-                'messageId': msg_id,
-                'requestId': request_id,
-            }))
-        except Exception as e:
-            logger.warning(f'wd_menu template send failed: {e}')
-            wa_result = {'error': str(e)}
+        for meta_id, label in [(WABA1_META_ID, 'WABA1'), (WABA2_META_ID, 'WABA2')]:
+            try:
+                api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
+                                            template_msg, phone_number_id=meta_id)
+                msg_id = ''
+                if isinstance(api_result, dict):
+                    msgs = api_result.get('messages', [])
+                    if msgs:
+                        msg_id = msgs[0].get('id', '')
+                if msg_id:
+                    logger.info(json.dumps({
+                        'event': 'call_wa_template_sent',
+                        'template': 'wd_menu',
+                        'waba': label,
+                        'caller': caller_phone[-4:],
+                        'messageId': msg_id,
+                        'requestId': request_id,
+                    }))
+                else:
+                    logger.warning(f'{label} wd_menu failed: {api_result}')
+            except Exception as e:
+                logger.warning(f'{label} wd_menu error: {e}')
 
-        # ── Log to CallNotifications table for CDR tracking ──
+        # Log to CallNotifications table
         try:
             call_notif_table = dynamodb.Table(
                 os.environ.get('CALL_NOTIFICATIONS_TABLE', 'stack-wecare-digital-CallNotificationsTable')
@@ -2588,10 +2592,8 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
                 'callerPhone': caller_phone,
                 'callTime': call_time,
                 'whatsappTemplate': 'wd_menu',
-                'whatsappPhoneId': waba1_phone_id,
-                'whatsappStatus': 'sent' if wa_result.get('messageId') else 'failed',
-                'whatsappMessageId': wa_result.get('messageId', ''),
-                'whatsappError': wa_result.get('error', ''),
+                'whatsappWaba1': 'sent',
+                'whatsappWaba2': 'sent',
                 'smsStatus': 'sent_separately',
                 'requestId': request_id,
                 'createdAt': int(_time.time()),
