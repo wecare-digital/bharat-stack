@@ -392,7 +392,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
         
         # Determine API endpoint
         if api_version == 'v5':
-            # Content Moderation API - simpler, auto DLT
+            # Content Moderation API - include DLT fields for explicit matching
             url = f"https://{AIRTEL_IQ_HOST}/api/v5/send-sms-cm"
             payload = {
                 "customerId": AIRTEL_IQ_CUSTOMER_ID,
@@ -400,6 +400,13 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
                 "message": content,
                 "sourceAddress": source_address
             }
+            # Pass DLT fields when provided — v5 auto-matches but explicit is more reliable
+            if dlt_template_id:
+                payload["dltTemplateId"] = dlt_template_id
+            if entity_id:
+                payload["entityId"] = entity_id
+            if message_type:
+                payload["messageType"] = message_type
         elif api_version == 'v6':
             # Enhanced API with full response
             url = f"https://{AIRTEL_IQ_HOST}/api/v6/send-sms"
@@ -442,6 +449,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
         data = json.dumps(payload).encode('utf-8')
         
         # Route through Lightsail proxy (static IP whitelisted by Airtel)
+        # Retry up to 3 times on 502/503 proxy errors
         from urllib.parse import urlparse
         parsed = urlparse(url)
         proxy_payload = {
@@ -451,37 +459,57 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
         }
         proxy_url = f"{SMS_PROXY_URL}/"
         proxy_data = json.dumps(proxy_payload).encode('utf-8')
-        req = urllib.request.Request(
-            proxy_url,
-            data=proxy_data,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
         
         logger.info(json.dumps({
             'event': 'airtel_iq_sms_request',
             'url': url,
             'apiVersion': api_version,
             'messageType': message_type,
-            'phone': phone_clean[-4:],  # Log last 4 digits only
+            'phone': phone_clean[-4:],
             'requestId': request_id
         }))
         
-        with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            
-            logger.info(json.dumps({
-                'event': 'airtel_iq_sms_response',
-                'messageRequestId': result.get('messageRequestId'),
-                'requestId': request_id
-            }))
-            
-            return {
-                'success': True,
-                'providerMessageId': result.get('messageRequestId'),
-                'messageRequestId': result.get('messageRequestId'),
-                'response': result
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                req = urllib.request.Request(
+                    proxy_url,
+                    data=proxy_data,
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
+                
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    result = json.loads(response.read().decode('utf-8'))
+                    
+                    logger.info(json.dumps({
+                        'event': 'airtel_iq_sms_response',
+                        'messageRequestId': result.get('messageRequestId'),
+                        'attempt': attempt + 1,
+                        'requestId': request_id
+                    }))
+                    
+                    return {
+                        'success': True,
+                        'providerMessageId': result.get('messageRequestId'),
+                        'messageRequestId': result.get('messageRequestId'),
+                        'response': result
             }
+            except urllib.error.HTTPError as e:
+                error_body = e.read().decode('utf-8') if e.fp else ''
+                if e.code in (502, 503) and attempt < max_retries - 1:
+                    wait = (attempt + 1) * 2
+                    logger.warning(f"Proxy {e.code}, retry {attempt + 1}/{max_retries} in {wait}s")
+                    time.sleep(wait)
+                    continue
+                raise
+            except (urllib.error.URLError, ConnectionError, OSError) as e:
+                if attempt < max_retries - 1:
+                    wait = (attempt + 1) * 2
+                    logger.warning(f"Proxy connection error, retry {attempt + 1}/{max_retries} in {wait}s: {e}")
+                    time.sleep(wait)
+                    continue
+                raise
             
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''

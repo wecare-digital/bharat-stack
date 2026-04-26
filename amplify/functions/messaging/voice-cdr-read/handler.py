@@ -38,6 +38,10 @@ from typing import Dict, Any, List
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 from collections import defaultdict
+from datetime import datetime, timezone, timedelta
+
+# IST timezone offset (+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
@@ -278,19 +282,42 @@ def _format_record_for_ui(item: Dict) -> Dict:
     15. Pulse_Count
     16. Recording
     """
-    # Parse timestamp for date/time display
+    # Parse timestamp for date/time display — convert to IST
     ts = item.get('timestamp', '')
     display_date = ''
     display_time = ''
+    ist_timestamp = ''
     if ts:
         try:
+            # Parse raw timestamp (assumed UTC from Airtel: "2026-04-26 07:25:56")
             parts = ts.split(' ')
             if len(parts) >= 2:
-                date_parts = parts[0].split('-')
-                if len(date_parts) == 3:
-                    display_date = f"{date_parts[2]}/{date_parts[1]}/{date_parts[0][2:]}"
-                display_time = parts[1]
+                # Try to parse as datetime and convert to IST
+                try:
+                    dt_utc = datetime.strptime(ts.strip(), '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+                    dt_ist = dt_utc.astimezone(IST)
+                    display_date = dt_ist.strftime('%d/%m/%y')
+                    display_time = dt_ist.strftime('%H:%M:%S')
+                    ist_timestamp = dt_ist.strftime('%Y-%m-%d %H:%M:%S IST')
+                except (ValueError, TypeError):
+                    # Fallback: use raw timestamp parts
+                    date_parts = parts[0].split('-')
+                    if len(date_parts) == 3:
+                        display_date = f"{date_parts[2]}/{date_parts[1]}/{date_parts[0][2:]}"
+                    display_time = parts[1]
+                    ist_timestamp = ts
         except (IndexError, ValueError):
+            pass
+    
+    # Fallback: convert createdAt epoch to IST
+    if not display_date and item.get('createdAt'):
+        try:
+            epoch = float(item.get('createdAt', 0))
+            dt_ist = datetime.fromtimestamp(epoch, tz=IST)
+            display_date = dt_ist.strftime('%d/%m/%y')
+            display_time = dt_ist.strftime('%H:%M:%S')
+            ist_timestamp = dt_ist.strftime('%Y-%m-%d %H:%M:%S IST')
+        except (ValueError, TypeError, OSError):
             pass
     
     return {
@@ -388,7 +415,25 @@ def _format_record_for_ui(item: Dict) -> Dict:
         'source': item.get('source', 'airtel_cdr_webhook'),
         'participantsCount': int(float(item.get('participantsCount', 0))),
         'timestamp': ts,
+        'istTimestamp': ist_timestamp,
         'createdAt': int(float(item.get('createdAt', 0))),
+        
+        # WhatsApp message trigger (IVR SMS sent after call disconnect)
+        'whatsappMessageTriggered': item.get('whatsappMessageTriggered', False),
+        'whatsappMessageId': item.get('whatsappMessageId', ''),
+        'whatsappMessageContent': item.get('whatsappMessageContent', ''),
+        'whatsappMessageTimestamp': item.get('whatsappMessageTimestamp', ''),
+        'smsTriggered': item.get('smsTriggered', False),
+        'smsMessageId': item.get('smsMessageId', ''),
+        'smsDltTemplateId': item.get('smsDltTemplateId', ''),
+        'smsContent': item.get('smsContent', ''),
+        'smsTimestamp': item.get('smsTimestamp', ''),
+        
+        # RCS message trigger
+        'rcsMessageTriggered': item.get('rcsMessageTriggered', False),
+        'rcsMessageId': item.get('rcsMessageId', ''),
+        'rcsMessageContent': item.get('rcsMessageContent', ''),
+        'rcsMessageTimestamp': item.get('rcsMessageTimestamp', ''),
     }
 
 

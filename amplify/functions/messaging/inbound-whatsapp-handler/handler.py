@@ -1164,6 +1164,35 @@ def _process_message(
             pass
         return  # Skip AI automation  -  welcome flow handled
 
+    # ── Button type: "Get Started" quick reply or other button taps ──
+    # WhatsApp "Get Started" ice-breaker sends msg_type='button' with text payload.
+    # Treat button text as keyword input so it triggers the interactive menu.
+    if msg_type == 'button' and content:
+        button_text_lower = content.strip().lower()
+        logger.info(json.dumps({
+            'event': 'button_message_received',
+            'buttonText': button_text_lower,
+            'contactId': contact_id,
+            'senderPhone': sender_phone,
+            'requestId': request_id,
+        }))
+        # Map common button texts to menu trigger
+        BUTTON_MENU_TRIGGERS = {'get started', 'start', 'menu', 'hi', 'hello', 'hey', 'main menu', 'need help!'}
+        if button_text_lower in BUTTON_MENU_TRIGGERS or button_text_lower.startswith('get started'):
+            _send_interactive_list(
+                contact_id=contact_id,
+                phone_number_id=aws_phone_number_id,
+                list_config=_get_welcome_config(),
+                request_id=request_id
+            )
+            logger.info(json.dumps({
+                'event': 'button_triggered_menu_sent',
+                'buttonText': button_text_lower,
+                'contactId': contact_id,
+                'requestId': request_id,
+            }))
+            return  # Skip AI automation — menu sent via button trigger
+
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
         content_lower = content.strip().lower()

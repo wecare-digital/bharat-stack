@@ -1267,7 +1267,7 @@ ORDER_SMS_DLT_TEMPLATE_ID = '1007723091207562020'
 ORDER_SMS_CONTENT = (
     "Thanks for placing your order with WECARE.DIGITAL!\n\n"
     "Your order has been received. We'll review it and share updates shortly.\n\n"
-    "Need help? Submit a request here: https://wecare.digital/selfservice\n\n"
+    "Need help? Submit a request here: https://wecare.digital/selfservice "
     "or message / voice note us on WhatsApp: https://r.wecare.digital/wa."
 )
 

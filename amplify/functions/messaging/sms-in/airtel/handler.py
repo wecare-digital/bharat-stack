@@ -30,16 +30,17 @@ DLT Requirements:
   DLT Registration: ID 1405170900886606599 · Category: COMMUNICATION/BROADCAST/ENTERTAINMENT/IT
   Status: REGISTERED · Domain: bsnl.com · Validity: Permanent
 - Content Template ID (dltTemplateId): registered on DLT portal
-- Default Template (OLD): 1007974344269130859 (WDBEEP / Service Implicit — Self-Service IVR)
-  Text: "Thanks for reaching out, WECARE.DIGITAL! Please submit your request through our
-  online Self Service Portal at https://wecare.digital/selfservice. Once we receive it,
-  we'll review it and contact you if anything else is needed."
-- Default Template (NEW — ivr-default): 1007277993798259629 (WDBEEP / Service Implicit)
+- Template 1 (ivr-default): 1007277993798259629 (WDBEEP / Service Implicit)
   Text: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here:
   https://wecare.digital/selfservice or send us a message / voice note on WhatsApp:
   https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed."
   NOTE: Use \n\n (double newline) for line breaks — single \n is stripped by Airtel.
-- WA-Alert Template: 1007284579074821763 (WDBEEP / Service Implicit)
+- Template 2 (wd_order): 1007723091207562020 (WDBEEP / Service Implicit)
+  Text: "Thanks for placing your order with WECARE.DIGITAL!\n\nYour order has been
+  received. We'll review it and share updates shortly.\n\nNeed help? Submit a request
+  here: https://wecare.digital/selfservice or message / voice note us on WhatsApp:
+  https://r.wecare.digital/wa."
+- Template 3 (wa-alert): 1007284579074821763 (WDBEEP / Service Implicit)
   Text: "We've sent an essential notification about your order/request to your registered
   WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL"
   Status: REGISTERED · Domain: airtel.com
@@ -51,7 +52,7 @@ Expected secret keys:
 - auth_token: V0VDQVJFRElHX3Y2SjFTeUxMSTJhdXk3THc5SnJXOnNOJH58KElAMTEy
 - sender_id: WDBEEP (DLT registered header)
 - entity_id: 1201161991108627443 (PE ID from DLT)
-- dlt_template_id: 1007277993798259629 (default — ivr-default, was 1007974344269130859)
+- dlt_template_id: 1007277993798259629 (default — ivr-default)
 
 Notes (from Airtel spec):
 - v4 destinationAddress is an array — supports single AND multiple recipients in one call
@@ -118,8 +119,8 @@ def _call_airtel_via_proxy(airtel_url: str, headers: Dict[str, str], payload: An
     """
     Route Airtel API calls through the Lightsail SMS proxy (static IP 52.3.44.165).
     The proxy forwards the request to Airtel so they see our whitelisted IP.
+    Retries up to 3 times on 503/connection errors with exponential backoff.
     """
-    # Extract path from full URL
     from urllib.parse import urlparse
     parsed = urlparse(airtel_url)
     airtel_path = parsed.path
@@ -131,19 +132,41 @@ def _call_airtel_via_proxy(airtel_url: str, headers: Dict[str, str], payload: An
     }
     
     proxy_url = f"{SMS_PROXY_URL}/"
-    req = urllib.request.Request(
-        proxy_url,
-        data=json.dumps(proxy_payload).encode('utf-8'),
-        headers={'Content-Type': 'application/json'},
-        method='POST'
-    )
+    max_retries = 3
     
-    with urllib.request.urlopen(req, timeout=30) as response:
-        resp_body = response.read().decode('utf-8')
+    for attempt in range(max_retries):
         try:
-            return json.loads(resp_body)
-        except json.JSONDecodeError:
-            return {"raw": resp_body}
+            req = urllib.request.Request(
+                proxy_url,
+                data=json.dumps(proxy_payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            
+            with urllib.request.urlopen(req, timeout=30) as response:
+                resp_body = response.read().decode('utf-8')
+                try:
+                    return json.loads(resp_body)
+                except json.JSONDecodeError:
+                    return {"raw": resp_body}
+                    
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8') if e.fp else ''
+            # Retry on 502/503 (proxy upstream errors)
+            if e.code in (502, 503) and attempt < max_retries - 1:
+                wait = (attempt + 1) * 2  # 2s, 4s
+                logger.warning(f"Proxy {e.code}, retry {attempt + 1}/{max_retries} in {wait}s")
+                time.sleep(wait)
+                continue
+            raise
+        except (urllib.error.URLError, ConnectionError, OSError) as e:
+            # Retry on connection reset/timeout
+            if attempt < max_retries - 1:
+                wait = (attempt + 1) * 2
+                logger.warning(f"Proxy connection error, retry {attempt + 1}/{max_retries} in {wait}s: {e}")
+                time.sleep(wait)
+                continue
+            raise
 
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -322,6 +345,10 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': 'Airtel SMS credentials not configured'})
     
     # v5 Content Moderation — DLT handled automatically
+    # But include dltTemplateId + entityId when provided for explicit matching
+    dlt_template_id = body.get('dltTemplateId', '')
+    body_entity_id = body.get('entityId', entity_id)
+    
     payload = {
         "customerId": customer_id,
         "destinationAddress": clean_phones,
@@ -329,6 +356,11 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
         "sourceAddress": sender_id,
         "messageType": message_type
     }
+    # Pass DLT fields to Airtel for explicit template matching
+    if dlt_template_id:
+        payload["dltTemplateId"] = dlt_template_id
+    if body_entity_id:
+        payload["entityId"] = body_entity_id
     if meta_data and isinstance(meta_data, dict):
         payload["metaData"] = meta_data
     url = f"https://{AIRTEL_SMS_HOST}/api/v5/send-sms-cm"
@@ -615,9 +647,9 @@ def _normalize_template(item: Dict) -> Dict:
 # Default DLT templates — registered on Airtel DLT portal
 DEFAULT_DLT_TEMPLATES = [
     {
-        'templateId': '1007284579074821763',
-        'name': 'WA-Alert',
-        'content': "We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
+        'templateId': '1007277993798259629',
+        'name': 'ivr-default',
+        'content': "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
         'messageType': 'SERVICE_IMPLICIT',
         'senderId': 'WDBEEP',
         'entityId': '1201161991108627443',
@@ -625,9 +657,19 @@ DEFAULT_DLT_TEMPLATES = [
         'status': 'active',
     },
     {
-        'templateId': '1007277993798259629',
-        'name': 'ivr-default',
-        'content': "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
+        'templateId': '1007723091207562020',
+        'name': 'wd_order',
+        'content': "Thanks for placing your order with WECARE.DIGITAL!\n\nYour order has been received. We'll review it and share updates shortly.\n\nNeed help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://r.wecare.digital/wa.",
+        'messageType': 'SERVICE_IMPLICIT',
+        'senderId': 'WDBEEP',
+        'entityId': '1201161991108627443',
+        'variables': [],
+        'status': 'active',
+    },
+    {
+        'templateId': '1007284579074821763',
+        'name': 'wa-alert',
+        'content': "We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
         'messageType': 'SERVICE_IMPLICIT',
         'senderId': 'WDBEEP',
         'entityId': '1201161991108627443',

@@ -2768,15 +2768,22 @@ Content-Type: application/json`}</pre>
                       <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007277993798259629 · WDBEEP / Service Implicit</code>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>WA-Alert Template</label>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>wd_order Template</label>
+                      <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007723091207562020 · WDBEEP / Service Implicit</code>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>wa-alert Template</label>
                       <code style={{ fontSize: '0.7rem', color: '#111827' }}>ID: 1007284579074821763 · WDBEEP / Service Implicit</code>
                     </div>
                   </div>
                   <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4', whiteSpace: 'pre-line' }}>
                     ivr-default: Thanks for contacting WECARE.DIGITAL!{'\n\n'}Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.{'\n\n'}We&apos;ll review it and follow up if needed.
                   </div>
+                  <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4', whiteSpace: 'pre-line' }}>
+                    wd_order: Thanks for placing your order with WECARE.DIGITAL!{'\n\n'}Your order has been received. We&apos;ll review it and share updates shortly.{'\n\n'}Need help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://r.wecare.digital/wa.
+                  </div>
                   <div style={{ background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4' }}>
-                    WA-Alert: We&apos;ve sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL
+                    wa-alert: We&apos;ve sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#E65100', marginTop: '0.75rem', lineHeight: '1.5' }}>
                     Note: v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br/>
@@ -2803,6 +2810,15 @@ POST /sms-in/airtel
   "content": "We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
   "messageType": "SERVICE_IMPLICIT",
   "dltTemplateId": "1007284579074821763"
+}
+
+# wd_order Template (Order Confirmation)
+POST /sms-in/airtel
+{
+  "phoneNumber": "8130078559",
+  "content": "Thanks for placing your order with WECARE.DIGITAL!\\n\\nYour order has been received. We'll review it and share updates shortly.\\n\\nNeed help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://r.wecare.digital/wa.",
+  "messageType": "SERVICE_IMPLICIT",
+  "dltTemplateId": "1007723091207562020"
 }
 
 # Multiple Recipients (same v4 endpoint)

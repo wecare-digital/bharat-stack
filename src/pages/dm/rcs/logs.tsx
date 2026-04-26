@@ -67,19 +67,20 @@ export default function RcsLogsPage({ signOut, user, embedded }: PageProps) {
         <div className="pagination-row"><Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div>
         <div className="table-container">
           <table>
-            <thead><tr><th>Time</th><th>Direction</th><th>Contact</th><th>Phone</th><th>Content</th><th>Status</th></tr></thead>
+            <thead><tr><th>Time</th><th>Direction</th><th>Contact</th><th>Phone</th><th>Message ID</th><th>Content</th><th>Status</th></tr></thead>
             <tbody>
               {paginatedLogs.map(log => (
                 <tr key={log.id}>
-                  <td>{new Date(log.timestamp).toLocaleString()}</td>
+                  <td>{new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                   <td><span className={log.direction === 'INBOUND' ? 'badge-inbound' : 'badge-outbound'}>{log.direction === 'INBOUND' ? '↙ In' : '↗ Out'}</span></td>
                   <td>{log.contactName || '-'}</td>
                   <td>{log.phone || '-'}</td>
+                  <td className="id-cell">{log.id.substring(0, 12)}{log.id.length > 12 ? '...' : ''}</td>
                   <td className="content-cell">{log.content.substring(0, 50)}{log.content.length > 50 ? '...' : ''}</td>
                   <td>{log.status}</td>
                 </tr>
               ))}
-              {paginatedLogs.length === 0 && <tr><td colSpan={6} className="empty-state">{loading ? 'Loading...' : 'No logs found'}</td></tr>}
+              {paginatedLogs.length === 0 && <tr><td colSpan={7} className="empty-state">{loading ? 'Loading...' : 'No logs found'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -101,6 +102,7 @@ export default function RcsLogsPage({ signOut, user, embedded }: PageProps) {
         .badge-inbound { background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
         .badge-outbound { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
         .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .id-cell { font-family: monospace; font-size: 10px; color: #6b7280; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .empty-state { text-align: center; color: #6b7280; padding: 40px; }
       `}</style>
     </>

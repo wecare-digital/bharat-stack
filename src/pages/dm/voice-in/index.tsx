@@ -55,6 +55,16 @@ interface CDRRecord {
   // Setup & metadata
   callSetupTimeCaller: number; source: string; participantsCount: number;
   timestamp: string; createdAt: number;
+  // IST timestamp
+  istTimestamp: string;
+  // WhatsApp message trigger
+  whatsappMessageTriggered: boolean; whatsappMessageId: string;
+  whatsappMessageContent: string; whatsappMessageTimestamp: string;
+  smsTriggered: boolean; smsMessageId: string; smsDltTemplateId: string;
+  smsContent: string; smsTimestamp: string;
+  // RCS message trigger
+  rcsMessageTriggered: boolean; rcsMessageId: string;
+  rcsMessageContent: string; rcsMessageTimestamp: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
@@ -645,8 +655,34 @@ const VoiceInPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) =
                                   {cdr.callerAudioUrl && <div><span className="detail-label">Caller Audio:</span> <a href={cdr.callerAudioUrl} target="_blank" rel="noopener noreferrer">Play</a></div>}
                                   {cdr.destinationAudioUrl && <div><span className="detail-label">Dest Audio:</span> <a href={cdr.destinationAudioUrl} target="_blank" rel="noopener noreferrer">Play</a></div>}
                                   <div><span className="detail-label">Source:</span> {cdr.source}</div>
-                                  <div><span className="detail-label">Timestamp:</span> {cdr.timestamp}</div>
+                                  <div><span className="detail-label">Timestamp:</span> {cdr.istTimestamp || cdr.timestamp}</div>
                                 </div>
+                                {/* WhatsApp / SMS Message Trigger Section */}
+                                {(cdr.whatsappMessageTriggered || cdr.smsTriggered || cdr.whatsappMessageId || cdr.smsMessageId) && (
+                                  <div style={{ marginTop: '10px', padding: '8px 10px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                    <div style={{ fontWeight: 600, fontSize: '11px', color: '#166534', marginBottom: '6px' }}>📱 WhatsApp / SMS Trigger</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '4px 16px' }}>
+                                      {cdr.whatsappMessageId && <div><span className="detail-label">WA Message ID:</span> <code style={{ fontSize: '10px', background: '#fff', padding: '1px 4px', borderRadius: '3px' }}>{cdr.whatsappMessageId}</code></div>}
+                                      {cdr.whatsappMessageContent && <div><span className="detail-label">WA Content:</span> {cdr.whatsappMessageContent.substring(0, 80)}{cdr.whatsappMessageContent.length > 80 ? '...' : ''}</div>}
+                                      {cdr.whatsappMessageTimestamp && <div><span className="detail-label">WA Sent At:</span> {cdr.whatsappMessageTimestamp}</div>}
+                                      {cdr.smsMessageId && <div><span className="detail-label">SMS Message ID:</span> <code style={{ fontSize: '10px', background: '#fff', padding: '1px 4px', borderRadius: '3px' }}>{cdr.smsMessageId}</code></div>}
+                                      {cdr.smsDltTemplateId && <div><span className="detail-label">DLT Template:</span> {cdr.smsDltTemplateId}</div>}
+                                      {cdr.smsContent && <div><span className="detail-label">SMS Content:</span> {cdr.smsContent.substring(0, 80)}{cdr.smsContent.length > 80 ? '...' : ''}</div>}
+                                      {cdr.smsTimestamp && <div><span className="detail-label">SMS Sent At:</span> {cdr.smsTimestamp}</div>}
+                                    </div>
+                                  </div>
+                                )}
+                                {/* RCS Message Trigger Section */}
+                                {(cdr.rcsMessageTriggered || cdr.rcsMessageId) && (
+                                  <div style={{ marginTop: '8px', padding: '8px 10px', background: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                                    <div style={{ fontWeight: 600, fontSize: '11px', color: '#1e40af', marginBottom: '6px' }}>💬 RCS Message Trigger</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '4px 16px' }}>
+                                      {cdr.rcsMessageId && <div><span className="detail-label">RCS Message ID:</span> <code style={{ fontSize: '10px', background: '#fff', padding: '1px 4px', borderRadius: '3px' }}>{cdr.rcsMessageId}</code></div>}
+                                      {cdr.rcsMessageContent && <div><span className="detail-label">RCS Content:</span> {cdr.rcsMessageContent.substring(0, 80)}{cdr.rcsMessageContent.length > 80 ? '...' : ''}</div>}
+                                      {cdr.rcsMessageTimestamp && <div><span className="detail-label">RCS Sent At:</span> {cdr.rcsMessageTimestamp}</div>}
+                                    </div>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           )}
