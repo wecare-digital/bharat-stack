@@ -1005,106 +1005,132 @@ IVR_NOTIFICATION_MSG = (
 
 
 def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
-    """Send inbound WhatsApp call notification via SMS + WhatsApp to admin numbers."""
+    """Send IVR notification on inbound Airtel CDR:
+    1. SMS (ivr-default) to the CALLER via Airtel v5
+    2. WhatsApp wd_menu template from WABA1 to the CALLER (no contact lookup needed)
+    """
     try:
-        caller = cdr.get('callerNumber', 'Unknown')
+        caller = cdr.get('callerNumber', '')
+        if not caller:
+            return
         destination = cdr.get('destinationNumber', INBOUND_NUMBER)
         status = cdr.get('overallCallStatus', 'Unknown')
         duration = cdr.get('conversationDuration', 0)
         if isinstance(duration, (int, float)) and duration > 1000:
             duration = int(duration / 1000)
         session_id = cdr.get('vmSessionId', cdr.get('id', ''))
-        call_time = time.strftime('%d %b %Y %I:%M %p IST', time.gmtime(int(time.time()) + 19800))
 
-        msg = IVR_NOTIFICATION_MSG.format(
-            caller=caller,
-            destination=destination,
-            status=status,
-            duration=duration,
-            time=call_time,
+        # Clean caller phone
+        clean_caller = caller.replace('+', '').replace(' ', '')
+        if len(clean_caller) == 10:
+            clean_caller = '91' + clean_caller
+
+        # ── 1. Send IVR SMS to the CALLER (not admin) ──
+        ivr_sms_text = (
+            "Thanks for contacting WECARE.DIGITAL!\n\n"
+            "Submit your request here: https://wecare.digital/selfservice "
+            "or send us a message / voice note on WhatsApp: "
+            "https://r.wecare.digital/wa.\n\n"
+            "We'll review it and follow up if needed."
+        )
+        try:
+            lambda_client.invoke(
+                FunctionName='wecare-outbound-sms',
+                InvocationType='Event',
+                Payload=json.dumps({
+                    'body': json.dumps({
+                        'phoneNumber': '+' + clean_caller,
+                        'content': ivr_sms_text,
+                        'provider': 'airtel',
+                        'messageType': 'SERVICE_IMPLICIT',
+                        'dltTemplateId': '1007277993798259629',
+                        'entityId': '1201161991108627443',
+                        'sourceAddress': 'WDBEEP',
+                        'apiVersion': 'v5',
+                    })
+                }),
+            )
+            logger.info(json.dumps({
+                'event': 'ivr_sms_sent',
+                'caller': caller,
+                'target': '+' + clean_caller,
+                'provider': 'airtel',
+                'requestId': request_id,
+            }))
+        except Exception as e:
+            logger.warning(f'IVR SMS to caller failed: {e}')
+
+        # ── 2. Also send SMS to admin phones ──
+        call_time = time.strftime('%d %b %Y %I:%M %p IST', time.gmtime(int(time.time()) + 19800))
+        admin_msg = IVR_NOTIFICATION_MSG.format(
+            caller=caller, destination=destination, status=status,
+            duration=duration, time=call_time,
             session_id=session_id[:20] if session_id else '',
         )
-
-        # ── 1. Send SMS to admin phones ──
         for phone in ADMIN_PHONES:
             try:
-                # Indian numbers → Airtel IQ (DLT compliant)
-                # International numbers → AWS Pinpoint
-                is_indian = phone.startswith('+91') or phone.startswith('91')
-                provider = 'airtel' if is_indian else 'aws'
-
-                payload = {
-                    'body': json.dumps({
-                        'phoneNumber': phone,
-                        'content': msg,
-                        'provider': provider,
-                    })
-                }
                 lambda_client.invoke(
                     FunctionName='wecare-outbound-sms',
                     InvocationType='Event',
-                    Payload=json.dumps(payload),
+                    Payload=json.dumps({
+                        'body': json.dumps({
+                            'phoneNumber': phone,
+                            'content': admin_msg,
+                            'provider': 'airtel',
+                        })
+                    }),
                 )
+            except Exception as e:
+                logger.warning(f'Admin SMS failed for {phone}: {e}')
+
+        # ── 3. Send wd_menu WhatsApp template to the CALLER from WABA1 ──
+        # No contact lookup needed — templates work with just a phone number
+        try:
+            # Load Meta API token
+            meta_secret = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+            meta_data = json.loads(meta_secret['SecretString'])
+            meta_token = meta_data.get('access_token', '').strip()
+            app_secret = meta_data.get('app_secret', '').strip()
+
+            import hmac as _hmac, hashlib as _hashlib
+            proof = _hmac.new(app_secret.encode(), meta_token.encode(), _hashlib.sha256).hexdigest()
+
+            WABA1_PHONE = '1016149501586345'
+            VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+
+            template_msg = json.dumps({
+                'messaging_product': 'whatsapp',
+                'to': clean_caller,
+                'type': 'template',
+                'template': {
+                    'name': 'wd_menu',
+                    'language': {'code': 'en'},
+                    'components': [
+                        {'type': 'header', 'parameters': [
+                            {'type': 'video', 'video': {'link': VIDEO_URL}}
+                        ]}
+                    ]
+                },
+            }).encode()
+
+            url = f'https://graph.facebook.com/v25.0/{WABA1_PHONE}/messages?appsecret_proof={proof}'
+            req = urllib.request.Request(url, data=template_msg, headers={
+                'Authorization': f'Bearer {meta_token}',
+                'Content-Type': 'application/json',
+            }, method='POST')
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode())
+                wamid = result.get('messages', [{}])[0].get('id', '')
                 logger.info(json.dumps({
-                    'event': 'ivr_sms_sent',
+                    'event': 'ivr_whatsapp_template_sent',
+                    'template': 'wd_menu',
                     'caller': caller,
-                    'target': phone,
-                    'provider': provider,
+                    'wamid': wamid,
+                    'waba': 'WABA1',
                     'requestId': request_id,
                 }))
-            except Exception as e:
-                logger.warning(f'IVR SMS failed for {phone}: {e}')
-
-        # ── 2. Send WhatsApp message to both WABAs ──
-        # Find contact by caller phone
-        contact_id = ''
-        try:
-            contacts_table = dynamodb.Table(
-                os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
-            )
-            norm = caller.replace('+', '').replace(' ', '')
-            if len(norm) >= 10:
-                from boto3.dynamodb.conditions import Attr
-                resp = contacts_table.scan(
-                    FilterExpression=Attr('phone').contains(norm[-10:]),
-                    Limit=1,
-                )
-                items = resp.get('Items', [])
-                if items:
-                    contact_id = items[0].get('id', items[0].get('contactId', ''))
-        except Exception:
-            pass
-
-        if contact_id:
-            wa_msg = f"📞 {msg}"
-            for phone_id in WABA_PHONES:
-                try:
-                    lambda_client.invoke(
-                        FunctionName='wecare-outbound-whatsapp',
-                        InvocationType='Event',
-                        Payload=json.dumps({
-                            'body': json.dumps({
-                                'contactId': contact_id,
-                                'content': wa_msg,
-                                'phoneNumberId': phone_id,
-                            })
-                        }),
-                    )
-                    logger.info(json.dumps({
-                        'event': 'ivr_whatsapp_sent',
-                        'caller': caller,
-                        'contactId': contact_id,
-                        'phoneId': phone_id,
-                        'requestId': request_id,
-                    }))
-                except Exception as e:
-                    logger.warning(f'IVR WhatsApp failed for {phone_id}: {e}')
-        else:
-            logger.info(json.dumps({
-                'event': 'ivr_whatsapp_skip_no_contact',
-                'caller': caller,
-                'requestId': request_id,
-            }))
+        except Exception as e:
+            logger.warning(f'IVR WhatsApp wd_menu to caller failed: {e}')
 
     except Exception as e:
         logger.warning(f'IVR notification error: {e}')
