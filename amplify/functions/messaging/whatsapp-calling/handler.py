@@ -1823,42 +1823,45 @@ def _get_ivr_menu(phone_number_id: str) -> Dict:
 def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     """Send wd_menu WhatsApp template to the caller after IVR audio.
     
-    Uses wd_menu template from WABA1 (+919330994400) instead of interactive
-    buttons. Templates work outside the 24h window and don't show as
-    'deleted message'.
+    Uses wd_menu template from WABA2 (+919903300044) which has the template
+    registered with VIDEO header. Sends directly via Meta Graph API.
     
-    Template: wd_menu (Utility, English)
+    Template: wd_menu (Utility, English, VIDEO header)
     """
-    # Always send from WABA1 regardless of which phone received the call
-    waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
-    
-    template_payload = {
-        'body': json.dumps({
-            'phoneNumberId': waba1_phone_id,
-            'to': to_number,
+    # wd_menu exists on WABA2 only — send from WABA2 phone
+    waba2_meta_id = '1055232054343117'
+    VIDEO_URL = 'https://app.wecare.digital/stream/media/m/wecare-intro.mp4'
+
+    try:
+        template_msg = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_number.lstrip('+'),
             'type': 'template',
             'template': {
                 'name': 'wd_menu',
                 'language': {'code': 'en'},
-                'components': [],
+                'components': [
+                    {
+                        'type': 'header',
+                        'parameters': [
+                            {'type': 'video', 'video': {'link': VIDEO_URL}}
+                        ]
+                    }
+                ]
             },
-        })
-    }
-
-    try:
-        result = lambda_client.invoke(
-            FunctionName='wecare-outbound-whatsapp',
-            InvocationType='RequestResponse',
-            Payload=json.dumps(template_payload).encode(),
-        )
-        resp_data = json.loads(result['Payload'].read().decode())
-        if isinstance(resp_data.get('body'), str):
-            resp_data = json.loads(resp_data['body'])
-        msg_id = resp_data.get('messageId', '')
+        }
+        result = _meta_api_call(f"{waba2_meta_id}/messages", 'POST',
+                                template_msg, phone_number_id=waba2_meta_id)
+        msg_id = ''
+        if isinstance(result, dict):
+            msgs = result.get('messages', [])
+            if msgs:
+                msg_id = msgs[0].get('id', '')
         logger.info(f"IVR wd_menu template sent to {to_number}: messageId={msg_id}")
     except Exception as e:
         logger.warning(f"IVR wd_menu template failed: {e}")
-        # Fallback: send as plain text
+        # Fallback: send as plain text from the receiving phone
         aws_phone_id = _get_aws_phone_id(phone_number_id)
         fallback_text = (
             "Thanks for contacting *WECARE.DIGITAL*! "
@@ -1874,7 +1877,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     # Store IVR session in call log for tracking
     _update_call_status(call_id, 'ivr_menu_sent', {
         'ivrTemplate': 'wd_menu',
-        'ivrPhone': waba1_phone_id,
+        'ivrPhone': waba2_meta_id,
     })
 
 
@@ -2484,37 +2487,61 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
         import time as _time
         call_time = _time.strftime('%d %b %Y %I:%M %p IST', _time.gmtime(int(_time.time()) + 19800))
 
-        # ── Send wd_menu template to the CALLER from WABA1 ──
-        waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
+        # ── Send wd_menu template to the CALLER from WABA2 ──
+        # wd_menu template exists on WABA2 only and requires VIDEO header
+        waba2_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+        waba2_meta_id = '1055232054343117'
+        VIDEO_URL = 'https://app.wecare.digital/stream/media/m/wecare-intro.mp4'
+        
         template_payload = {
             'body': json.dumps({
-                'phoneNumberId': waba1_phone_id,
-                'to': caller_phone,
-                'type': 'template',
-                'template': {
-                    'name': 'wd_menu',
-                    'language': {'code': 'en'},
-                    'components': [],
-                },
+                'phoneNumberId': waba2_phone_id,
+                'recipientPhone': caller_phone,
+                'isTemplate': True,
+                'templateName': 'wd_menu',
+                'templateParams': ['en'],
+                'content': 'wd_menu template (IVR)',
             })
         }
 
         wa_result = {}
         try:
-            resp = lambda_client.invoke(
-                FunctionName='wecare-outbound-whatsapp',
-                InvocationType='RequestResponse',
-                Payload=json.dumps(template_payload).encode(),
-            )
-            wa_result = json.loads(resp['Payload'].read().decode())
-            if isinstance(wa_result.get('body'), str):
-                wa_result = json.loads(wa_result['body'])
+            # Send directly via Meta Graph API (wd_menu needs VIDEO header)
+            template_msg = {
+                'messaging_product': 'whatsapp',
+                'recipient_type': 'individual',
+                'to': caller_phone.lstrip('+'),
+                'type': 'template',
+                'template': {
+                    'name': 'wd_menu',
+                    'language': {'code': 'en'},
+                    'components': [
+                        {
+                            'type': 'header',
+                            'parameters': [
+                                {'type': 'video', 'video': {'link': VIDEO_URL}}
+                            ]
+                        }
+                    ]
+                },
+            }
+            api_result = _meta_api_call(f"{waba2_meta_id}/messages", 'POST',
+                                        template_msg, phone_number_id=waba2_meta_id)
+            msg_id = ''
+            if isinstance(api_result, dict):
+                msgs = api_result.get('messages', [])
+                if msgs:
+                    msg_id = msgs[0].get('id', '')
+            if msg_id:
+                wa_result = {'messageId': msg_id}
+            else:
+                wa_result = {'error': json.dumps(api_result)[:200]}
             logger.info(json.dumps({
                 'event': 'call_wa_template_sent',
                 'template': 'wd_menu',
                 'caller': caller_phone[-4:],
-                'phoneId': waba1_phone_id,
-                'messageId': wa_result.get('messageId', ''),
+                'phoneId': waba2_phone_id,
+                'messageId': msg_id,
                 'requestId': request_id,
             }))
         except Exception as e:
@@ -2531,7 +2558,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
                 'callerPhone': caller_phone,
                 'callTime': call_time,
                 'whatsappTemplate': 'wd_menu',
-                'whatsappPhoneId': waba1_phone_id,
+                'whatsappPhoneId': waba2_phone_id,
                 'whatsappStatus': 'sent' if wa_result.get('messageId') else 'failed',
                 'whatsappMessageId': wa_result.get('messageId', ''),
                 'whatsappError': wa_result.get('error', ''),
