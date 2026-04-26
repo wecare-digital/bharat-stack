@@ -1830,7 +1830,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     """
     # wd_menu exists on WABA1 — send from WABA1 phone
     waba1_meta_id = '1016149501586345'
-    VIDEO_URL = 'https://app.wecare.digital/stream/media/m/wecare-intro.mp4'
+    VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
 
     try:
         template_msg = {
@@ -2491,7 +2491,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
         # wd_menu template exists on WABA1 and requires VIDEO header
         waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
         waba1_meta_id = '1016149501586345'
-        VIDEO_URL = 'https://app.wecare.digital/stream/media/m/wecare-intro.mp4'
+        VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
         
         template_payload = {
             'body': json.dumps({
