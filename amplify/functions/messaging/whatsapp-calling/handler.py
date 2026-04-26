@@ -1823,13 +1823,13 @@ def _get_ivr_menu(phone_number_id: str) -> Dict:
 def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     """Send wd_menu WhatsApp template to the caller after IVR audio.
     
-    Uses wd_menu template from WABA2 (+919903300044) which has the template
+    Uses wd_menu template from WABA1 (+919330994400) which has the template
     registered with VIDEO header. Sends directly via Meta Graph API.
     
     Template: wd_menu (Utility, English, VIDEO header)
     """
-    # wd_menu exists on WABA2 only — send from WABA2 phone
-    waba2_meta_id = '1055232054343117'
+    # wd_menu exists on WABA1 — send from WABA1 phone
+    waba1_meta_id = '1016149501586345'
     VIDEO_URL = 'https://app.wecare.digital/stream/media/m/wecare-intro.mp4'
 
     try:
@@ -1851,8 +1851,8 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
                 ]
             },
         }
-        result = _meta_api_call(f"{waba2_meta_id}/messages", 'POST',
-                                template_msg, phone_number_id=waba2_meta_id)
+        result = _meta_api_call(f"{waba1_meta_id}/messages", 'POST',
+                                template_msg, phone_number_id=waba1_meta_id)
         msg_id = ''
         if isinstance(result, dict):
             msgs = result.get('messages', [])
@@ -1877,7 +1877,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
     # Store IVR session in call log for tracking
     _update_call_status(call_id, 'ivr_menu_sent', {
         'ivrTemplate': 'wd_menu',
-        'ivrPhone': waba2_meta_id,
+        'ivrPhone': waba1_meta_id,
     })
 
 
@@ -2487,10 +2487,10 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
         import time as _time
         call_time = _time.strftime('%d %b %Y %I:%M %p IST', _time.gmtime(int(_time.time()) + 19800))
 
-        # ── Send wd_menu template to the CALLER from WABA2 ──
-        # wd_menu template exists on WABA2 only and requires VIDEO header
-        waba2_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
-        waba2_meta_id = '1055232054343117'
+        # ── Send wd_menu template to the CALLER from WABA1 ──
+        # wd_menu template exists on WABA1 and requires VIDEO header
+        waba1_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
+        waba1_meta_id = '1016149501586345'
         VIDEO_URL = 'https://app.wecare.digital/stream/media/m/wecare-intro.mp4'
         
         template_payload = {
@@ -2525,8 +2525,8 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
                     ]
                 },
             }
-            api_result = _meta_api_call(f"{waba2_meta_id}/messages", 'POST',
-                                        template_msg, phone_number_id=waba2_meta_id)
+            api_result = _meta_api_call(f"{waba1_meta_id}/messages", 'POST',
+                                        template_msg, phone_number_id=waba1_meta_id)
             msg_id = ''
             if isinstance(api_result, dict):
                 msgs = api_result.get('messages', [])
@@ -2540,7 +2540,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
                 'event': 'call_wa_template_sent',
                 'template': 'wd_menu',
                 'caller': caller_phone[-4:],
-                'phoneId': waba2_phone_id,
+                'phoneId': waba1_phone_id,
                 'messageId': msg_id,
                 'requestId': request_id,
             }))
@@ -2558,7 +2558,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, request_id
                 'callerPhone': caller_phone,
                 'callTime': call_time,
                 'whatsappTemplate': 'wd_menu',
-                'whatsappPhoneId': waba2_phone_id,
+                'whatsappPhoneId': waba1_phone_id,
                 'whatsappStatus': 'sent' if wa_result.get('messageId') else 'failed',
                 'whatsappMessageId': wa_result.get('messageId', ''),
                 'whatsappError': wa_result.get('error', ''),
