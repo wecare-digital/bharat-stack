@@ -87,11 +87,6 @@ def _interactive(m: Dict) -> str:
         rj = interactive.get('nfm_reply', {}).get('response_json', '')
         return f'[Flow Response: {rj[:50]}...]' if len(rj) > 50 else f'[Flow Response: {rj}]'
 
-    if itype == 'call_permission_reply':
-        cpr = interactive.get('call_permission_reply', {})
-        perm = cpr.get('permission', cpr.get('status', '')) or interactive.get('permission', 'unknown')
-        return f'[Call Permission: {perm}]'
-
     return f'[Interactive: {itype}]'
 
 

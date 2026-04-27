@@ -955,19 +955,14 @@ def _process_message(
     messages_table = dynamodb.Table(MESSAGES_TABLE)
     messages_table.put_item(Item={k: v for k, v in message_record.items() if v is not None})
     
-    # Forward call_permission_reply to the WhatsApp Calling table
-    # so the frontend knows permission was granted/denied for outbound calls
+    # call_permission_reply interactive messages are no longer processed.
+    # Permission is auto-granted post-call in the whatsapp-calling handler.
     if msg_type == 'interactive':
         interactive = message.get('interactive', {})
         interactive_type = interactive.get('type', '')
         if interactive_type == 'call_permission_reply':
-            _forward_call_permission_to_calling_table(
-                sender_phone=sender_phone,
-                receiving_phone=receiving_phone,
-                aws_phone_number_id=aws_phone_number_id,
-                interactive=interactive,
-            )
-            return  # Stop processing  -  call permission handled
+            logger.info(f"Ignoring call_permission_reply from {sender_phone} — permission auto-granted post-call")
+            return  # Discard — no longer forwarded or stored
         # IVR button responses  -  route to appropriate department/action
         elif interactive_type == 'button_reply':
             button_id = interactive.get('button_reply', {}).get('id', '')
@@ -3598,38 +3593,10 @@ def _forward_call_permission_to_calling_table(sender_phone: str, receiving_phone
                                                aws_phone_number_id: str,
                                                interactive: Dict) -> None:
     """
-    Forward a call_permission_reply interactive message to the WhatsApp Calling table.
-    This lets the frontend/calling handler know that the user granted or denied
-    permission for outbound calls.
+    DEPRECATED: No longer called. Permission is auto-granted pre/post call.
+    Kept for reference only — will be removed in next cleanup.
     """
-    try:
-        cpr = interactive.get('call_permission_reply', {})
-        permission = cpr.get('permission', cpr.get('status', ''))
-        if not permission:
-            permission = interactive.get('permission', 'unknown')
-
-        now = int(time.time())
-        table = dynamodb.Table(CALLING_TABLE)
-        table.put_item(Item={
-            'id': f"perm_{sender_phone}_{now}",
-            'callId': f"perm_{sender_phone}_{now}",
-            'phoneNumberId': aws_phone_number_id,
-            'fromNumber': sender_phone,
-            'toNumber': receiving_phone,
-            'direction': 'USER_INITIATED',
-            'eventType': 'permission_response',
-            'status': f'permission_{permission}',
-            'permission': permission,
-            'createdAt': Decimal(str(now)),
-            'ttl': Decimal(str(now + 90 * 24 * 60 * 60)),
-        })
-        logger.info(json.dumps({
-            'event': 'call_permission_forwarded',
-            'senderPhone': sender_phone,
-            'permission': permission,
-        }))
-    except Exception as e:
-        logger.error(f"Failed to forward call permission: {e}")
+    pass
 
 
 def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,

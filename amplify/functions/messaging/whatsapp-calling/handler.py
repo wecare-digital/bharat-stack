@@ -604,6 +604,26 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         })
         logger.info(f"INBOUND CALL from {caller_name or from_number} (BSUID: {caller_bsuid or 'N/A'}) — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
 
+        # ── Pre-call auto-grant permission on connect ──
+        # As soon as a call connects (any direction), auto-store permission as GRANTED.
+        # This ensures outbound calls can proceed without interactive permission messages.
+        if from_number:
+            _store_call_log({
+                'callId': f"pre_perm_{from_number}_{now}",
+                'wabaId': waba_id,
+                'phoneNumberId': phone_number_id,
+                'fromNumber': from_number,
+                'toNumber': to_number,
+                'direction': direction,
+                'eventType': 'permission_response',
+                'status': 'permission_granted',
+                'permission': 'GRANTED',
+                'timestamp': timestamp,
+                'createdAt': Decimal(str(now)),
+                'ttl': Decimal(str(now + TTL_SECONDS)),
+            })
+            logger.info(f"Pre-call auto-granted permission for {from_number} on connect (call {call_id})")
+
         # ── Send default IVR SMS to caller immediately on connect ──
         if _is_sms_on_call_enabled():
             _send_incoming_call_sms(from_number, call_id, phone_number_id, request_id)
@@ -685,6 +705,26 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             direction=direction,
         )
 
+        # ── Auto-grant call permission after any completed call ──
+        # This removes the need for interactive call_permission_request messages.
+        # Once a user has had a call (any direction), permission is auto-stored as GRANTED.
+        if from_number and duration and int(duration) > 0:
+            _store_call_log({
+                'callId': f"auto_perm_{from_number}_{now}",
+                'wabaId': waba_id,
+                'phoneNumberId': phone_number_id,
+                'fromNumber': from_number,
+                'toNumber': to_number,
+                'direction': direction,
+                'eventType': 'permission_response',
+                'status': 'permission_granted',
+                'permission': 'GRANTED',
+                'timestamp': timestamp,
+                'createdAt': Decimal(str(now)),
+                'ttl': Decimal(str(now + TTL_SECONDS)),
+            })
+            logger.info(f"Auto-granted call permission for {from_number} after completed call {call_id} (duration={duration}s)")
+
         # ── Send Airtel IVR SMS on every call disconnect (both phone 1 & phone 2) ──
         # Uses ivr-default DLT template via Airtel IQ with dedup
         if _is_sms_on_call_enabled() and from_number:
@@ -707,27 +747,11 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
                 logger.warning(f'RCS notification failed (non-blocking): {rcs_err}')
 
     elif event_type in ('call_permission_response', 'call_permission_status'):
-        # Meta sends call_permission_status with status: GRANTED/REJECTED/REVOKED
+        # Legacy: Meta sends call_permission_status — no longer used for gating.
+        # Permission is auto-granted post-call. Just log for audit.
         permission = call.get('status', call.get('permission', ''))
         recipient = call.get('recipient', call.get('to', to_number))
-        _store_call_log({
-            'callId': call_id or str(uuid.uuid4()),
-            'wabaId': waba_id,
-            'phoneNumberId': phone_number_id,
-            'fromNumber': from_number or recipient,
-            'toNumber': to_number,
-            'fromBsuid': caller_bsuid or None,
-            'fromParentBsuid': caller_parent_bsuid or None,
-            'callerUsername': caller_username or None,
-            'direction': direction,
-            'eventType': 'permission_response',
-            'status': f'permission_{permission.lower() if permission else "unknown"}',
-            'permission': permission,
-            'timestamp': timestamp,
-            'createdAt': Decimal(str(now)),
-            'ttl': Decimal(str(now + TTL_SECONDS)),
-        })
-        logger.info(f"Call permission {permission} from {from_number or recipient} on {phone_number_id}")
+        logger.info(f"Call permission webhook (ignored): {permission} from {from_number or recipient} on {phone_number_id}")
 
     else:
         _store_call_log({
@@ -1178,8 +1202,11 @@ def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
 
 def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
     """
-    Initiate outbound call or send call permission request.
-    Body: { phoneNumberId, to, action: 'permission_request' | 'create', sdpOffer?, bodyText?, recipientBsuid? }
+    Initiate outbound call directly (no interactive permission request).
+    Body: { phoneNumberId, to, action: 'create', sdpOffer, recipientBsuid? }
+
+    Permission is auto-granted after any completed call (see terminate handler).
+    The old 'permission_request' action is removed — no interactive messages sent.
     """
     try:
         body = json.loads(event.get('body', '{}'))
@@ -1187,31 +1214,19 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
         return _response(400, {'error': 'Invalid JSON in request body'})
     phone_number_id = body.get('phoneNumberId', '')
     to_number = body.get('to', '')
-    action = body.get('action', 'permission_request')
+    action = body.get('action', 'create')
     recipient_bsuid = body.get('recipientBsuid', '')
 
     if not phone_number_id or (not to_number and not recipient_bsuid):
         return _response(400, {'error': 'phoneNumberId and to (or recipientBsuid) required'})
 
+    # Legacy permission_request action — no longer sends interactive messages.
+    # Return success immediately (permission is auto-granted post-call).
     if action == 'permission_request':
-        # Send interactive call permission request message
-        body_text = body.get('bodyText', 'Can we call you to discuss your query?')
-        payload = {
-            'messaging_product': 'whatsapp',
-            'to': to_number,
-            'type': 'interactive',
-            'interactive': {
-                'type': 'call_permission_request',
-                'body': {'text': body_text},
-            },
-        }
-        # Add BSUID recipient if available (per Meta BSUID docs)
-        if recipient_bsuid:
-            payload['recipient'] = recipient_bsuid
-        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', payload, phone_number_id=phone_number_id)
-        return _response(200, {'success': not result.get('error'), 'action': 'permission_request', 'result': result})
+        logger.info(f"permission_request action deprecated — auto-granted post-call. to={to_number}")
+        return _response(200, {'success': True, 'action': 'permission_auto_granted', 'message': 'Permission is auto-granted after calls. Proceed with create action directly.'})
 
-    elif action == 'create':
+    if action == 'create':
         # Initiate outbound call with SDP offer
         sdp_offer = body.get('sdpOffer', '')
         if not sdp_offer:
