@@ -219,6 +219,36 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
 # Enterprise: WECARE DIGITAL ALERT (WECAREALT)
 # Push API: https://push3.aclgateway.com/servlet/...
 # Sender: WDBEEP | AppID: wecarealt
+# Credentials loaded from Secrets Manager: wecare/sinch/sms
+_sinch_sms_cache = {}
+
+def _load_sinch_sms_creds() -> dict:
+    """Load Sinch SMS credentials from Secrets Manager (cached)."""
+    if _sinch_sms_cache.get('loaded'):
+        return _sinch_sms_cache
+    try:
+        sm = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        resp = sm.get_secret_value(SecretId='wecare/sinch/sms')
+        data = json.loads(resp['SecretString'])
+        _sinch_sms_cache.update({
+            'host': data.get('host', 'push3.aclgateway.com'),
+            'app_id': data.get('app_id', 'wecarealt'),
+            'user_id': data.get('user_id', 'wecarealt'),
+            'password': data.get('password', ''),
+            'loaded': True,
+        })
+        return _sinch_sms_cache
+    except Exception as e:
+        logger.warning(f'Sinch SMS secret not available, using defaults: {e}')
+        return {
+            'host': 'push3.aclgateway.com',
+            'app_id': 'wecarealt',
+            'user_id': 'wecarealt',
+            'password': 'care_12',
+            'loaded': False,
+        }
+
+# Fallback constants (used if Secrets Manager unavailable)
 SINCH_HOST = 'push3.aclgateway.com'
 SINCH_APP_ID = 'wecarealt'
 SINCH_USER_ID = 'wecarealt'
@@ -228,15 +258,22 @@ SINCH_PASSWORD = 'care_12'
 def _send_sinch_sms(phone: str, content: str, source_address: str, request_id: str) -> Dict[str, Any]:
     """Send SMS via Sinch ACL India Push API v1 JSON. Fallback provider when Airtel is down."""
     try:
+        # Load credentials from Secrets Manager (cached after first call)
+        creds = _load_sinch_sms_creds()
+        sinch_host = creds.get('host', SINCH_HOST)
+        sinch_app_id = creds.get('app_id', SINCH_APP_ID)
+        sinch_user_id = creds.get('user_id', SINCH_USER_ID)
+        sinch_password = creds.get('password', SINCH_PASSWORD)
+
         clean = phone.replace('+', '').replace(' ', '')
         if not clean.startswith('91'):
             clean = '91' + clean[-10:]
 
         # v1 JSON POST — correct Sinch India Push API endpoint
         v1_payload = json.dumps({
-            "appid": SINCH_APP_ID,
-            "userId": SINCH_USER_ID,
-            "pass": SINCH_PASSWORD,
+            "appid": sinch_app_id,
+            "userId": sinch_user_id,
+            "pass": sinch_password,
             "contenttype": "1",
             "from": source_address or 'WDBEEP',
             "to": clean,
@@ -256,7 +293,7 @@ def _send_sinch_sms(phone: str, content: str, source_address: str, request_id: s
         # Try v1 JSON POST (HTTPS then HTTP)
         for proto in ['https', 'http']:
             try:
-                url = f'{proto}://{SINCH_HOST}/v1/enterprises/messages.json'
+                url = f'{proto}://{sinch_host}/v1/enterprises/messages.json'
                 req = urllib.request.Request(url, data=v1_payload.encode(),
                     headers={'Content-Type': 'application/json'}, method='POST')
                 with urllib.request.urlopen(req, timeout=15) as resp:
@@ -280,13 +317,13 @@ def _send_sinch_sms(phone: str, content: str, source_address: str, request_id: s
 
         # Fallback: GET servlet
         params = urllib.parse.urlencode({
-            'appid': SINCH_APP_ID, 'userId': SINCH_USER_ID, 'pass': SINCH_PASSWORD,
+            'appid': sinch_app_id, 'userId': sinch_user_id, 'pass': sinch_password,
             'contenttype': '1', 'from': source_address or 'WDBEEP', 'to': clean,
             'alert': '1', 'selfid': 'true', 'text': content,
         })
         for proto in ['https', 'http']:
             try:
-                url = f'{proto}://{SINCH_HOST}/servlet/com.aclwireless.pushconnectivity.listeners.TextListener?{params}'
+                url = f'{proto}://{sinch_host}/servlet/com.aclwireless.pushconnectivity.listeners.TextListener?{params}'
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     body = resp.read().decode()
