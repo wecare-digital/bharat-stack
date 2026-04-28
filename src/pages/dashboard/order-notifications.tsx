@@ -116,7 +116,7 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
 
   return (
     <Layout onSignOut={ signOut } user={ user }>
-      <SEO title="Order Notifications" />
+      <SEO title="Order Notifications" description="View and manage order notification delivery status for WhatsApp, SMS, and RCS channels." />
       <div style={ { maxWidth: 1200, margin: '0 auto', padding: '24px 16px' } }>
         <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 } }>
           <div>
