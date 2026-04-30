@@ -1005,14 +1005,85 @@ IVR_NOTIFICATION_MSG = (
 )
 
 
+def _lookup_contact_id(phone: str) -> str:
+    """Look up contactId from ContactsTable by phone number.
+    The inbox matches messages by contactId (UUID), not raw phone.
+    Falls back to phone digits if no contact found.
+    """
+    clean = phone.replace('+', '').replace(' ', '')
+    contacts_table = dynamodb.Table('stack-wecare-digital-ContactsTable')
+    for variant in [phone, clean, '+' + clean]:
+        try:
+            resp = contacts_table.query(
+                IndexName='phone-index',
+                KeyConditionExpression='phone = :phone',
+                ExpressionAttributeValues={':phone': variant},
+                Limit=1
+            )
+            items = resp.get('Items', [])
+            if items:
+                return items[0].get('contactId') or items[0].get('id') or clean
+        except Exception:
+            pass
+    return clean
+
+
+def _store_to_inbox(message_id: str, contact_id: str, contact_phone: str,
+                    content: str, channel: str, status: str,
+                    message_type: str, phone_number_id: str = '',
+                    wamid: str = '', request_id: str = '') -> None:
+    """Store a sent notification in WhatsAppOutboundTable so it appears in the dashboard inbox."""
+    try:
+        from decimal import Decimal as _Dec
+        import time as _t
+        now = int(_t.time())
+        store_id = message_id or f"cdr_{contact_phone}_{now}"
+        outbound_table = dynamodb.Table('stack-wecare-digital-WhatsAppOutboundTable')
+        item = {
+            'id': store_id,
+            'messageId': store_id,
+            'contactId': contact_id,
+            'contactPhone': contact_phone,
+            'content': content,
+            'channel': channel,
+            'direction': 'outbound',
+            'status': status,
+            'messageType': message_type,
+            'timestamp': _Dec(str(now)),
+            'createdAt': _Dec(str(now)),
+            'expiresAt': _Dec(str(now + 30 * 24 * 60 * 60)),
+            'requestId': request_id,
+        }
+        # Only set GSI key fields if non-empty (DynamoDB rejects empty strings on GSI keys)
+        if wamid:
+            item['whatsappMessageId'] = wamid
+        else:
+            item['whatsappMessageId'] = store_id
+        if phone_number_id:
+            item['phoneNumberId'] = phone_number_id
+            item['awsPhoneNumberId'] = phone_number_id
+        outbound_table.put_item(Item=item)
+        logger.info(json.dumps({
+            'event': 'notification_stored_in_inbox',
+            'id': store_id,
+            'channel': channel,
+            'contactId': contact_id,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(f'Failed to store notification in inbox: {e}')
+
+
 def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
-    """On Airtel CDR inbound call: send WhatsApp + RCS to CALLER.
+    """On Airtel CDR inbound call: send WhatsApp + RCS to CALLER, log SMS to inbox.
     
     Channel priority: RCS (Sinch) → WhatsApp (WABA1) → nothing
-    NO SMS — Airtel IVR already sends SMS directly.
+    SMS: Airtel IVR sends SMS directly — we log it to inbox for visibility.
     
     RCS: Sinch Conversation API (provision ready, activate when Sinch whitelists IP)
     WhatsApp: wd_menu template from WABA1 with VIDEO header
+    
+    All sent notifications are stored in WhatsAppOutboundTable for inbox visibility.
     """
     try:
         caller = cdr.get('callerNumber', '')
@@ -1023,6 +1094,28 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         if len(clean_caller) == 10:
             clean_caller = '91' + clean_caller
 
+        # Look up contactId for inbox storage
+        contact_id = _lookup_contact_id(clean_caller)
+
+        # ── 0. Log Airtel IVR SMS to inbox (Airtel sends it directly, we just record it) ──
+        session_id = cdr.get('vmSessionId', '') or cdr.get('clientCorrelationId', '')
+        ivr_sms_content = (
+            "Thanks for contacting WECARE.DIGITAL!\n\n"
+            "Submit your request here: https://wecare.digital/selfservice "
+            "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n"
+            "We'll review it and follow up if needed."
+        )
+        _store_to_inbox(
+            message_id=f"airtel_ivr_sms_{session_id}_{int(time.time())}",
+            contact_id=contact_id,
+            contact_phone=clean_caller,
+            content=ivr_sms_content,
+            channel='sms',
+            status='sent',
+            message_type='cdr_inbound',
+            request_id=request_id,
+        )
+
         # ── 1. RCS via Sinch (activate when credentials are ready) ──
         rcs_sent = False
         try:
@@ -1030,6 +1123,17 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
             if is_rcs_enabled():
                 rcs_result = send_rcs_ivr_notification(clean_caller, request_id)
                 rcs_sent = rcs_result.get('success', False)
+                if rcs_sent:
+                    _store_to_inbox(
+                        message_id=rcs_result.get('message_id', ''),
+                        contact_id=contact_id,
+                        contact_phone=clean_caller,
+                        content='[RCS notification] WECARE.DIGITAL selfservice',
+                        channel='rcs',
+                        status='sent',
+                        message_type='cdr_inbound',
+                        request_id=request_id,
+                    )
         except Exception as rcs_err:
             logger.warning(f'CDR RCS notification failed (non-blocking): {rcs_err}')
 
@@ -1077,6 +1181,20 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
                     'rcs_sent': rcs_sent,
                     'requestId': request_id,
                 }))
+
+                # ── Store WhatsApp notification in inbox ──
+                _store_to_inbox(
+                    message_id=wamid,
+                    contact_id=contact_id,
+                    contact_phone=clean_caller,
+                    content='[wd_menu template] Thanks for contacting WECARE.DIGITAL!',
+                    channel='whatsapp',
+                    status='sent',
+                    message_type='cdr_inbound',
+                    phone_number_id=WABA1_PHONE,
+                    wamid=wamid,
+                    request_id=request_id,
+                )
         except Exception as e:
             logger.warning(f'CDR WhatsApp wd_menu failed: {e}')
 

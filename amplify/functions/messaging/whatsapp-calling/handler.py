@@ -1338,6 +1338,8 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
     WhatsApp logic:
     - Call on WABA1 → wd_menu from WABA1 only
     - Call on WABA2 → wd_menu from BOTH WABA1 AND WABA2
+    
+    All sent notifications are stored in WhatsAppOutboundTable for inbox visibility.
     """
     try:
         if not caller_phone:
@@ -1345,10 +1347,15 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
         clean_phone = caller_phone.lstrip('+')
 
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
+        sms_sent = False
+        sms_provider = ''
 
         if is_indian:
             airtel_ok = _try_airtel_sms(caller_phone, call_id, request_id)
-            if not airtel_ok:
+            if airtel_ok:
+                sms_sent = True
+                sms_provider = 'airtel'
+            else:
                 logger.warning(json.dumps({
                     'event': 'airtel_sms_failed_falling_back_to_pinpoint',
                     'callId': call_id,
@@ -1356,6 +1363,8 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
                     'requestId': request_id,
                 }))
                 _send_pinpoint_india_sms(caller_phone, call_id, request_id)
+                sms_sent = True
+                sms_provider = 'pinpoint-india'
         else:
             sms_payload = {
                 'rawPath': '/sms-aws/send',
@@ -1371,6 +1380,8 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
                 InvocationType='Event',
                 Payload=json.dumps(sms_payload).encode(),
             )
+            sms_sent = True
+            sms_provider = 'pinpoint'
             logger.info(json.dumps({
                 'event': 'incoming_call_sms_triggered',
                 'callId': call_id,
@@ -1379,6 +1390,20 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
                 'region': 'us-east-1',
                 'requestId': request_id,
             }))
+
+        # ── Store SMS in inbox ──
+        if sms_sent:
+            contact_id = _lookup_contact_id_for_inbox(caller_phone)
+            _store_notification_to_inbox(
+                message_id=f"sms_call_{call_id}_{int(time.time())}",
+                contact_id=contact_id,
+                contact_phone=caller_phone,
+                content=IVR_SMS_CONTENT,
+                channel='sms',
+                status='sent',
+                message_type='incoming_call',
+                request_id=request_id,
+            )
 
         _mark_sms_sent(clean_phone)
 
@@ -1482,13 +1507,16 @@ def _send_pinpoint_india_sms(caller_phone: str, call_id: str, request_id: str) -
 
 def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                          reason: str, request_id: str) -> None:
-    """Send Airtel IVR SMS on every call disconnect — no dedup."""
+    """Send Airtel IVR SMS on every call disconnect — no dedup.
+    Stores to WhatsAppOutboundTable for inbox visibility.
+    """
     try:
         if not caller_phone:
             return
         clean_phone = caller_phone.lstrip('+')
 
         is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
+        sms_sent = False
 
         if is_indian:
             # ── Indian: Try Airtel IQ first, fall back to Pinpoint ap-south-1 ──
@@ -1502,7 +1530,9 @@ def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                     'requestId': request_id,
                 }))
                 _send_pinpoint_india_sms(caller_phone, call_id, request_id)
+                sms_sent = True
             else:
+                sms_sent = True
                 logger.info(json.dumps({
                     'event': 'disconnect_sms_triggered',
                     'callId': call_id,
@@ -1528,6 +1558,7 @@ def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                 InvocationType='Event',
                 Payload=json.dumps(sms_payload).encode(),
             )
+            sms_sent = True
             logger.info(json.dumps({
                 'event': 'disconnect_sms_triggered',
                 'callId': call_id,
@@ -1537,6 +1568,20 @@ def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                 'reason': reason,
                 'requestId': request_id,
             }))
+
+        # ── Store disconnect SMS in inbox ──
+        if sms_sent:
+            contact_id = _lookup_contact_id_for_inbox(caller_phone)
+            _store_notification_to_inbox(
+                message_id=f"sms_disc_{call_id}_{int(time.time())}",
+                contact_id=contact_id,
+                contact_phone=caller_phone,
+                content=IVR_SMS_CONTENT,
+                channel='sms',
+                status='sent',
+                message_type='disconnect',
+                request_id=request_id,
+            )
 
         # Mark SMS as sent for dedup
         _mark_sms_sent(clean_phone)
@@ -2571,6 +2616,72 @@ _WABA_PHONE_IDS = [
 ]
 
 
+def _lookup_contact_id_for_inbox(phone: str) -> str:
+    """Look up contactId from ContactsTable by phone number for inbox storage.
+    Falls back to phone digits if no contact found.
+    """
+    clean = phone.replace('+', '').replace(' ', '').lstrip('+')
+    contacts_table = dynamodb.Table('stack-wecare-digital-ContactsTable')
+    for variant in [phone, clean, '+' + clean]:
+        try:
+            resp = contacts_table.query(
+                IndexName='phone-index',
+                KeyConditionExpression='phone = :phone',
+                ExpressionAttributeValues={':phone': variant},
+                Limit=1
+            )
+            items = resp.get('Items', [])
+            if items:
+                return items[0].get('contactId') or items[0].get('id') or clean
+        except Exception:
+            pass
+    return clean
+
+
+def _store_notification_to_inbox(message_id: str, contact_id: str, contact_phone: str,
+                                  content: str, channel: str, status: str,
+                                  message_type: str, phone_number_id: str = '',
+                                  wamid: str = '', request_id: str = '') -> None:
+    """Store a sent notification in WhatsAppOutboundTable so it appears in the dashboard inbox."""
+    try:
+        now = int(time.time())
+        store_id = message_id or f"notif_{contact_phone}_{now}"
+        outbound_table = dynamodb.Table('stack-wecare-digital-WhatsAppOutboundTable')
+        item = {
+            'id': store_id,
+            'messageId': store_id,
+            'contactId': contact_id,
+            'contactPhone': contact_phone,
+            'content': content,
+            'channel': channel,
+            'direction': 'outbound',
+            'status': status,
+            'messageType': message_type,
+            'timestamp': Decimal(str(now)),
+            'createdAt': Decimal(str(now)),
+            'expiresAt': Decimal(str(now + 30 * 24 * 60 * 60)),
+            'requestId': request_id,
+        }
+        # Only set GSI key fields if non-empty (DynamoDB rejects empty strings on GSI keys)
+        if wamid:
+            item['whatsappMessageId'] = wamid
+        else:
+            item['whatsappMessageId'] = store_id
+        if phone_number_id:
+            item['phoneNumberId'] = phone_number_id
+            item['awsPhoneNumberId'] = phone_number_id
+        outbound_table.put_item(Item=item)
+        logger.info(json.dumps({
+            'event': 'notification_stored_in_inbox',
+            'id': store_id,
+            'channel': channel,
+            'contactId': contact_id,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(f'Failed to store notification in inbox: {e}')
+
+
 def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_phone_id: str, request_id: str) -> None:
     """Send wd_menu WhatsApp template to the CALLER.
 
@@ -2629,6 +2740,20 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         'messageId': msg_id,
                         'requestId': request_id,
                     }))
+                    # ── Store WhatsApp notification in inbox ──
+                    contact_id = _lookup_contact_id_for_inbox(caller_phone)
+                    _store_notification_to_inbox(
+                        message_id=msg_id,
+                        contact_id=contact_id,
+                        contact_phone=caller_phone,
+                        content=f'[wd_menu template via {label}] Thanks for contacting WECARE.DIGITAL!',
+                        channel='whatsapp',
+                        status='sent',
+                        message_type='incoming_call',
+                        phone_number_id=meta_id,
+                        wamid=msg_id,
+                        request_id=request_id,
+                    )
                 else:
                     logger.warning(f'{label} wd_menu failed: {api_result}')
             except Exception as e:
