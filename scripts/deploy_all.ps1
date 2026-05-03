@@ -147,6 +147,14 @@ $results += Deploy-Lambda "wecare-invoice-engine" "amplify\functions\payments\in
 # === Ecommerce ===
 $results += Deploy-Lambda "wecare-wix-store" "amplify\functions\ecommerce\wix-store\handler.py" ""
 $results += Deploy-Lambda "wecare-product-image-gen" "amplify\functions\ecommerce\product-image-gen\handler.py" ""
+$results += Deploy-Lambda "wecare-catalog-management" "amplify\functions\ecommerce\catalog-management\handler.py" ""
+
+# === Analytics & Ads ===
+$results += Deploy-Lambda "wecare-meta-analytics" "amplify\functions\messaging\meta-analytics\handler.py" ""
+$results += Deploy-Lambda "wecare-ad-attribution" "amplify\functions\messaging\ad-attribution\handler.py" ""
+
+# === RCS ===
+$results += Deploy-Lambda "wecare-rcs-send" "amplify\functions\messaging\rcs-send\handler.py" ""
 
 $ok = ($results | Where-Object { $_ -eq $true }).Count
 $fail = ($results | Where-Object { $_ -eq $false }).Count
@@ -204,7 +212,11 @@ if ($fail -gt 0) {
         @("wecare-payments-read", "amplify\functions\payments\payments-read\handler.py", ""),
         @("wecare-invoice-engine", "amplify\functions\payments\invoice-engine\handler.py", ""),
         @("wecare-wix-store", "amplify\functions\ecommerce\wix-store\handler.py", ""),
-        @("wecare-product-image-gen", "amplify\functions\ecommerce\product-image-gen\handler.py", "")
+        @("wecare-product-image-gen", "amplify\functions\ecommerce\product-image-gen\handler.py", ""),
+        @("wecare-catalog-management", "amplify\functions\ecommerce\catalog-management\handler.py", ""),
+        @("wecare-meta-analytics", "amplify\functions\messaging\meta-analytics\handler.py", ""),
+        @("wecare-ad-attribution", "amplify\functions\messaging\ad-attribution\handler.py", ""),
+        @("wecare-rcs-send", "amplify\functions\messaging\rcs-send\handler.py", "")
     )
 
     $retryResults = @()

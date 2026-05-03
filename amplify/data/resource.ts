@@ -6,11 +6,11 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
  * 41 Tables with PAY_PER_REQUEST billing mode
  * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), AirtelSMS (90d), AirtelC2C (90d), OBDCampaign (90d), RazorpayWebhookLog (180d), PayUWebhookLog (180d)
  */
-const schema = a.schema({
+const schema = a.schema( {
   // Table 1: Contacts - Contact records with opt-in preferences
   // Requirement 3.2: Default Block Rule - allowlist fields required
   Contact: a
-    .model({
+    .model( {
       contactId: a.id().required(),
       name: a.string(),
       phone: a.string(),
@@ -25,13 +25,13 @@ const schema = a.schema({
       // Contact book name — auto-populated by Meta's contact book feature
       contactBookName: a.string(),
       // Opt-in fields (Requirement 3.2: defaults to false)
-      optInWhatsApp: a.boolean().default(false),
-      optInSms: a.boolean().default(false),
-      optInEmail: a.boolean().default(false),
+      optInWhatsApp: a.boolean().default( false ),
+      optInSms: a.boolean().default( false ),
+      optInEmail: a.boolean().default( false ),
       // Allowlist fields (Requirement 3.2: defaults to false)
-      allowlistWhatsApp: a.boolean().default(false),
-      allowlistSms: a.boolean().default(false),
-      allowlistEmail: a.boolean().default(false),
+      allowlistWhatsApp: a.boolean().default( false ),
+      allowlistSms: a.boolean().default( false ),
+      allowlistEmail: a.boolean().default( false ),
       lastInboundMessageAt: a.datetime(),
       // Address fields (enriched via flows)
       addressLine1: a.string(),
@@ -39,7 +39,7 @@ const schema = a.schema({
       city: a.string(),
       state: a.string(),
       pincode: a.string(),
-      country: a.string().default('IN'),
+      country: a.string().default( 'IN' ),
       // Structured address fields (WhatsApp Payments shipping_info)
       houseNumber: a.string(),
       buildingName: a.string(),
@@ -56,7 +56,7 @@ const schema = a.schema({
       companyName: a.string(),
       designation: a.string(),
       preferredLanguage: a.string(),
-      isPep: a.boolean().default(false),
+      isPep: a.boolean().default( false ),
       pepDetails: a.string(),
       paidBy: a.string(), // self, company
       lastFlowInteractionAt: a.datetime(),
@@ -68,25 +68,25 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
       deletedAt: a.datetime(),
-    })
-    .identifier(['contactId'])
-    .secondaryIndexes((index) => [
-      index('phone'),
-      index('email'),
-      index('bsuid'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'contactId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'phone' ),
+      index( 'email' ),
+      index( 'bsuid' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 2: Messages - All inbound/outbound messages (TTL: 30 days)
   Message: a
-    .model({
+    .model( {
       messageId: a.id().required(),
       contactId: a.string().required(),
-      channel: a.enum(['WHATSAPP', 'SMS', 'EMAIL', 'RCS']),
-      direction: a.enum(['INBOUND', 'OUTBOUND']),
+      channel: a.enum( [ 'WHATSAPP', 'SMS', 'EMAIL', 'RCS' ] ),
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
       content: a.string(),
       timestamp: a.datetime(),
-      status: a.enum(['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED']),
+      status: a.enum( [ 'PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED' ] ),
       errorDetails: a.string(),
       whatsappMessageId: a.string(),
       mediaId: a.string(),
@@ -102,60 +102,60 @@ const schema = a.schema({
       transcription: a.string(), // English transcription of voice notes (audio messages)
       detectedLanguage: a.string(), // Detected language of voice note (e.g. "hi-IN", "en-US")
       expiresAt: a.integer(), // TTL: Unix epoch seconds (30 days)
-    })
-    .identifier(['messageId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('whatsappMessageId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'messageId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'whatsappMessageId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 3: BulkJobs - Bulk messaging job tracking
   BulkJob: a
-    .model({
+    .model( {
       jobId: a.id().required(),
       createdBy: a.string().required(),
-      channel: a.enum(['WHATSAPP', 'SMS', 'EMAIL', 'RCS']),
+      channel: a.enum( [ 'WHATSAPP', 'SMS', 'EMAIL', 'RCS' ] ),
       totalRecipients: a.integer(),
-      sentCount: a.integer().default(0),
-      failedCount: a.integer().default(0),
-      status: a.enum(['PENDING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED', 'FAILED']),
+      sentCount: a.integer().default( 0 ),
+      failedCount: a.integer().default( 0 ),
+      status: a.enum( [ 'PENDING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED', 'FAILED' ] ),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
-    })
-    .identifier(['jobId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'jobId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 4: BulkRecipients - Individual recipient status per job
   BulkRecipient: a
-    .model({
+    .model( {
       jobId: a.string().required(),
       recipientId: a.string().required(),
       contactId: a.string().required(),
-      status: a.enum(['PENDING', 'SENT', 'FAILED']),
+      status: a.enum( [ 'PENDING', 'SENT', 'FAILED' ] ),
       sentAt: a.datetime(),
       errorDetails: a.string(),
-    })
-    .identifier(['jobId', 'recipientId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'jobId', 'recipientId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
 
   // Table 5: Users - Platform users with RBAC roles
   User: a
-    .model({
+    .model( {
       userId: a.id().required(),
       email: a.string().required(),
-      role: a.enum(['VIEWER', 'OPERATOR', 'ADMIN']),
+      role: a.enum( [ 'VIEWER', 'OPERATOR', 'ADMIN' ] ),
       createdAt: a.datetime(),
       lastLoginAt: a.datetime(),
-    })
-    .identifier(['userId'])
-    .secondaryIndexes((index) => [index('email')])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'userId' ] )
+    .secondaryIndexes( ( index ) => [ index( 'email' ) ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 6: MediaFiles - WhatsApp media metadata
   MediaFile: a
-    .model({
+    .model( {
       fileId: a.id().required(),
       messageId: a.string().required(),
       s3Key: a.string().required(),
@@ -163,28 +163,28 @@ const schema = a.schema({
       size: a.integer(),
       uploadedAt: a.datetime(),
       whatsappMediaId: a.string(),
-    })
-    .identifier(['fileId'])
-    .secondaryIndexes((index) => [index('messageId')])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'fileId' ] )
+    .secondaryIndexes( ( index ) => [ index( 'messageId' ) ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 7: DLQMessages - Failed message retry queue (TTL: 7 days)
   DLQMessage: a
-    .model({
+    .model( {
       dlqMessageId: a.id().required(),
       originalMessageId: a.string(),
       queueName: a.string().required(),
-      retryCount: a.integer().default(0),
+      retryCount: a.integer().default( 0 ),
       lastAttemptAt: a.datetime(),
       payload: a.string(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (7 days)
-    })
-    .identifier(['dlqMessageId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'dlqMessageId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 8: AuditLogs - System audit trail (TTL: 180 days)
   AuditLog: a
-    .model({
+    .model( {
       logId: a.id().required(),
       userId: a.string(),
       action: a.string().required(),
@@ -193,79 +193,79 @@ const schema = a.schema({
       timestamp: a.datetime(),
       details: a.string(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
-    })
-    .identifier(['logId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'logId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 9: AIInteractions - AI query/response logs
   AIInteraction: a
-    .model({
+    .model( {
       interactionId: a.id().required(),
       messageId: a.string(),
       query: a.string(),
       response: a.string(),
-      approved: a.boolean().default(false),
+      approved: a.boolean().default( false ),
       feedback: a.string(),
       timestamp: a.datetime(),
-    })
-    .identifier(['interactionId'])
-    .secondaryIndexes((index) => [index('messageId')])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'interactionId' ] )
+    .secondaryIndexes( ( index ) => [ index( 'messageId' ) ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 10: RateLimitTrackers - Rate limiting counters (TTL: 24 hours)
   RateLimitTracker: a
-    .model({
+    .model( {
       channel: a.string().required(),
       windowStart: a.string().required(),
-      messageCount: a.integer().default(0),
+      messageCount: a.integer().default( 0 ),
       lastUpdatedAt: a.integer(), // TTL: Unix epoch seconds (24 hours)
-    })
-    .identifier(['channel', 'windowStart'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'channel', 'windowStart' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 11: SystemConfig - System configuration key-value store
   SystemConfig: a
-    .model({
+    .model( {
       configKey: a.string().required(),
       configValue: a.string(),
       updatedBy: a.string(),
       updatedAt: a.datetime(),
-    })
-    .identifier(['configKey'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'configKey' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 12: VoiceCalls - Voice call records (TTL: 90 days)
   VoiceCall: a
-    .model({
+    .model( {
       callId: a.id().required(),
       contactId: a.string(),
       phoneNumber: a.string().required(),
-      provider: a.enum(['AWS', 'AIRTEL']),
-      callType: a.enum(['TTS', 'AUDIO', 'IVR', 'CLICK_TO_CALL']),
-      direction: a.enum(['INBOUND', 'OUTBOUND']),
-      status: a.enum(['INITIATED', 'RINGING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY']),
-      duration: a.integer().default(0),
+      provider: a.enum( [ 'AWS', 'AIRTEL' ] ),
+      callType: a.enum( [ 'TTS', 'AUDIO', 'IVR', 'CLICK_TO_CALL' ] ),
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
+      status: a.enum( [ 'INITIATED', 'RINGING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY' ] ),
+      duration: a.integer().default( 0 ),
       recordingUrl: a.string(),
       providerCallId: a.string(),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    })
-    .identifier(['callId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('phoneNumber'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'callId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'phoneNumber' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 16: SmsAws - AWS Pinpoint SMS Messages (dedicated, TTL: 90 days)
   SmsAws: a
-    .model({
+    .model( {
       messageId: a.id().required(),
       contactId: a.string(),
       phoneNumber: a.string().required(),
       content: a.string().required(),
-      direction: a.enum(['INBOUND', 'OUTBOUND']),
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
       status: a.string(), // SENT, DELIVERED, FAILED
       messageType: a.string(), // TRANSACTIONAL, PROMOTIONAL
       senderId: a.string(),
@@ -275,24 +275,24 @@ const schema = a.schema({
       errorDetails: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL
-    })
-    .identifier(['messageId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('phoneNumber'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'messageId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'phoneNumber' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 17: VoiceAws - AWS Pinpoint Voice Calls (dedicated, TTL: 90 days)
   VoiceAws: a
-    .model({
+    .model( {
       callId: a.id().required(),
       contactId: a.string(),
       phoneNumber: a.string().required(),
-      direction: a.enum(['INBOUND', 'OUTBOUND']),
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
       callType: a.string(), // tts, audio
       status: a.string(), // initiated, completed, failed
-      duration: a.integer().default(0),
+      duration: a.integer().default( 0 ),
       voiceId: a.string(),
       messageText: a.string(),
       providerCallId: a.string(),
@@ -303,72 +303,72 @@ const schema = a.schema({
       createdAt: a.integer(),
       updatedAt: a.integer(),
       expiresAt: a.integer(), // TTL
-    })
-    .identifier(['callId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('phoneNumber'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'callId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'phoneNumber' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Sender ID: WDBEEP | Entity ID: 1201161991108627443
   AirtelSMS: a
-    .model({
+    .model( {
       messageId: a.id().required(),
       contactId: a.string(),
       phoneNumber: a.string().required(),
       content: a.string().required(),
-      direction: a.enum(['INBOUND', 'OUTBOUND']),
-      status: a.enum(['PENDING', 'SENT', 'DELIVERED', 'FAILED']),
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
+      status: a.enum( [ 'PENDING', 'SENT', 'DELIVERED', 'FAILED' ] ),
       messageType: a.string(), // SERVICE_EXPLICIT, SERVICE_IMPLICIT, TRANSACTIONAL, PROMOTIONAL
-      senderId: a.string().default('WDBEEP'),
-      entityId: a.string().default('1201161991108627443'),
+      senderId: a.string().default( 'WDBEEP' ),
+      entityId: a.string().default( '1201161991108627443' ),
       dltTemplateId: a.string(),
       providerMessageId: a.string(),
-      recipientCount: a.integer().default(1),
+      recipientCount: a.integer().default( 1 ),
       apiVersion: a.string(), // v4, v5, v6
       errorDetails: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    })
-    .identifier(['messageId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('phoneNumber'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'messageId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'phoneNumber' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 15b: DLTTemplates - DLT Template Registry for Airtel SMS
   DLTTemplates: a
-    .model({
+    .model( {
       templateId: a.id().required(),
       name: a.string().required(),
       content: a.string().required(),
       messageType: a.string(), // SERVICE_EXPLICIT, SERVICE_IMPLICIT, TRANSACTIONAL, PROMOTIONAL
-      senderId: a.string().default('WDBEEP'),
-      entityId: a.string().default('1201161991108627443'),
+      senderId: a.string().default( 'WDBEEP' ),
+      entityId: a.string().default( '1201161991108627443' ),
       variables: a.string().array(), // extracted {#var#} placeholders
-      status: a.enum(['active', 'inactive']),
+      status: a.enum( [ 'active', 'inactive' ] ),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['templateId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'templateId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 15: AirtelC2C - Airtel Click-to-Call Records (TTL: 90 days)
   // Caller ID: 8047311032 (Fixed Line · Karnataka) | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
   AirtelC2C: a
-    .model({
+    .model( {
       callId: a.id().required(),
       contactId: a.string(),
       fromNumber: a.string().required(),
       toNumber: a.string().required(),
-      callerId: a.string().default('8047311032'),
+      callerId: a.string().default( '8047311032' ),
       callFlowId: a.string(), // Airtel call flow ID
-      status: a.enum(['INITIATED', 'RINGING', 'CONNECTED', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY']),
-      duration: a.integer().default(0),
-      recordingEnabled: a.boolean().default(true),
+      status: a.enum( [ 'INITIATED', 'RINGING', 'CONNECTED', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY' ] ),
+      duration: a.integer().default( 0 ),
+      recordingEnabled: a.boolean().default( true ),
       recordingUrl: a.string(),
       s3RecordingKey: a.string(),
       correlationId: a.string(), // Airtel correlationId (Xchange ID)
@@ -376,31 +376,31 @@ const schema = a.schema({
       createdAt: a.integer(),
       updatedAt: a.integer(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    })
-    .identifier(['callId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('fromNumber'),
-      index('toNumber'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'callId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'fromNumber' ),
+      index( 'toNumber' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 13: VoiceCDR - Airtel Voice CDR Records (TTL: 90 days)
   // Inbound Number: +91 9319767034 (Mobile · Delhi) | Email: voice@wecare.digital
   VoiceCDR: a
-    .model({
+    .model( {
       id: a.id().required(),
       vmSessionId: a.string().required(), // Airtel unique session ID
       clientCorrelationId: a.string(), // Xchange ID for searching
       customerId: a.string(), // Customer name in Airtel system
-      
+
       // Timestamps (epoch milliseconds from Airtel)
       startTime: a.integer(),
       endTime: a.integer(),
       callAnswerTime: a.integer(),
       timestamp: a.string(), // Airtel formatted timestamp
-      
+
       // Duration fields (milliseconds)
       durationMs: a.integer(),
       durationSec: a.float(),
@@ -410,50 +410,50 @@ const schema = a.schema({
       conversationDurationSec: a.float(),
       billableDurationMs: a.integer(),
       billableDurationSec: a.float(),
-      
+
       // Call details
-      callType: a.enum(['INBOUND', 'OUTBOUND']),
+      callType: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
       overallCallStatus: a.string(), // Answered, Missed, Disconnected, Busy
       hangupStatus: a.string(), // Party A, Party B, SYSTEM_INITIATED
       hangupCause: a.string(), // SYSTEM_INITIATED, USER_INITIATED
-      
+
       // Phone numbers
       callerId: a.string(), // CLI number
       callerNumber: a.string(), // From number
       destinationNumber: a.string(), // To number
       calledNumber: a.string(), // Airtel VN for inbound
       displayCliDestination: a.string(),
-      
+
       // Status details
       callerNumberStatus: a.string(), // Disconnected, NetworkError, NotReachable, Busy, Noanswer, Answer
       callerNumberStatusDetails: a.string(), // SIP code details
       destinationNumberStatus: a.string(),
       destinationNumberStatusDetails: a.string(),
-      
+
       // Circle and operator info
       circleNameCaller: a.string(), // State name
       circleNameDestination: a.string(),
       operatorNameCaller: a.string(), // Bharti Airtel, Jio, etc.
       operatorNameDestination: a.string(),
-      
+
       // Recording
       recordingURL: a.string(),
       s3RecordingKey: a.string(),
       s3RecordingUrl: a.string(),
-      
+
       // Retry info
       retryCountCaller: a.integer(),
       retryCountDestination: a.integer(),
-      
+
       // Caller/Destination names (from participants)
       callerName: a.string(),
       destinationName: a.string(),
-      
+
       // Caller duration & setup time
       callerDuration: a.integer(), // Total caller duration in ms
       callerDurationSec: a.float(),
       callSetupTimeCaller: a.integer(), // Call setup time in ms
-      
+
       // Per-participant timing (epoch ms from participants array)
       callerStartTime: a.integer(),
       callerEndTime: a.integer(),
@@ -461,62 +461,62 @@ const schema = a.schema({
       destStartTime: a.integer(),
       destEndTime: a.integer(),
       destAnswerTime: a.integer(),
-      
+
       // Audio/IVR URLs (from participants array)
       callerAudioUrl: a.string(),
       destinationAudioUrl: a.string(),
-      
+
       // OBD Campaign fields
       campaignId: a.string(),
       campaignName: a.string(),
       pulseCount: a.integer(), // Pulse count per Airtel spec
       dtmfCapture: a.string(), // DTMF capture
       missedDestinationNumber: a.string(), // Missed destination number
-      
+
       // Participants & Events (stored as JSON strings)
       participantsJson: a.string(), // Full participants array
       eventsJson: a.string(), // Full events array
-      
+
       // Derived overall call status (per Airtel spec matrix)
       derivedOverallStatus: a.string(), // Computed from caller + destination status
-      
+
       // Metadata
       participantsCount: a.integer(),
-      source: a.string().default('airtel_cdr_webhook'),
-      inboundNumber: a.string().default('+919319767034'),
-      
+      source: a.string().default( 'airtel_cdr_webhook' ),
+      inboundNumber: a.string().default( '+919319767034' ),
+
       createdAt: a.integer(), // Unix epoch seconds
       expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('vmSessionId'),
-      index('callerNumber'),
-      index('callType'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'vmSessionId' ),
+      index( 'callerNumber' ),
+      index( 'callType' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 16: OBDCampaigns - Airtel OBD Campaign Records (TTL: 90 days)
   OBDCampaign: a
-    .model({
+    .model( {
       id: a.id().required(),
       campaignId: a.string(),
       airtelCampaignId: a.string(), // Airtel-assigned campaign ID
       campaignName: a.string().required(),
-      status: a.string().default('created'), // created, running, completed, failed, DELETED
+      status: a.string().default( 'created' ), // created, running, completed, failed, DELETED
       audioUrl: a.string(),
       sheetFileNames: a.string(), // JSON array of uploaded CSV filenames
-      contactCount: a.integer().default(0),
+      contactCount: a.integer().default( 0 ),
       createdAt: a.integer(),
       updatedAt: a.integer(),
       ttl: a.integer(), // TTL: Unix epoch seconds (90 days)
-    })
-    .identifier(['id'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 18: ScheduledMessages - Scheduled WhatsApp messages
   ScheduledMessage: a
-    .model({
+    .model( {
       scheduledId: a.id().required(),
       contactId: a.string().required(),
       contactName: a.string(),
@@ -526,22 +526,22 @@ const schema = a.schema({
       templateParams: a.string().array(), // template variable values
       phoneNumberId: a.string(),
       scheduledAt: a.datetime().required(),
-      status: a.enum(['PENDING', 'SENT', 'FAILED', 'CANCELLED']),
+      status: a.enum( [ 'PENDING', 'SENT', 'FAILED', 'CANCELLED' ] ),
       sentAt: a.datetime(),
       errorDetails: a.string(),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
-    })
-    .identifier(['scheduledId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'scheduledId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 19: WhatsAppVoice - WhatsApp TTS/Audio voice message logs (TTL: 90 days)
   WhatsAppVoice: a
-    .model({
+    .model( {
       messageId: a.id().required(),
       contactId: a.string(),
       phoneNumber: a.string(),
@@ -554,21 +554,21 @@ const schema = a.schema({
       whatsappMediaId: a.string(),
       whatsappMessageId: a.string(),
       status: a.string(), // sent, failed
-      type: a.string().default('tts'), // tts, audio
+      type: a.string().default( 'tts' ), // tts, audio
       transcription: a.string(), // English transcription of voice note
       detectedLanguage: a.string(), // Detected source language
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL
-    })
-    .identifier(['messageId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'messageId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 20: Payments - Razorpay payment records
   Payment: a
-    .model({
+    .model( {
       id: a.id().required(),
       paymentId: a.string(), // Razorpay payment ID
       orderId: a.string(), // Razorpay order ID
@@ -576,24 +576,24 @@ const schema = a.schema({
       status: a.string(), // captured, failed, refunded
       amount: a.integer(), // Amount in paise
       amountInRupees: a.float(),
-      currency: a.string().default('INR'),
+      currency: a.string().default( 'INR' ),
       method: a.string(), // upi, card, netbanking, wallet
       contact: a.string(),
       email: a.string(),
       notes: a.string(), // JSON string
-      source: a.string().default('razorpay_webhook'),
+      source: a.string().default( 'razorpay_webhook' ),
       createdAt: a.integer(),
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('paymentId'),
-      index('orderId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'paymentId' ),
+      index( 'orderId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 21: WhatsAppCalling - WhatsApp voice/video call logs
   WhatsAppCalling: a
-    .model({
+    .model( {
       id: a.id().required(),
       callId: a.string(),
       wabaId: a.string(),
@@ -620,42 +620,47 @@ const schema = a.schema({
       createdAt: a.integer(),
       updatedAt: a.integer(),
       ttl: a.integer(), // TTL: Unix epoch seconds (90 days)
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('callId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'callId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table 22: WhatsAppGroup - WhatsApp Business group tracking
+  // Table 22: WhatsAppGroup - WhatsApp Business group tracking & state
+  // (Merged: original Table 22 + Table 37 fields into single model)
   WhatsAppGroup: a
-    .model({
+    .model( {
       id: a.id().required(),
       groupId: a.string().required(), // Meta group ID
       wabaId: a.string(),
       phoneNumberId: a.string(),
-      subject: a.string(),
+      subject: a.string(), // Group name/subject
       description: a.string(),
       inviteLink: a.string(),
       joinApprovalMode: a.string(), // auto_approve | approval_required
-      participantCount: a.integer().default(0),
-      maxParticipants: a.integer().default(512),
+      participantCount: a.integer().default( 0 ),
+      maxParticipants: a.integer().default( 512 ),
       owner: a.string(),
-      suspended: a.boolean().default(false),
+      creatorPhone: a.string(),
+      participantsJson: a.string(), // JSON array of participants
+      suspended: a.boolean().default( false ),
+      status: a.string().default( 'active' ), // active, archived, deleted
+      lastMessageAt: a.integer(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
       ttl: a.integer(),
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('groupId'),
-      index('wabaId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'groupId' ),
+      index( 'wabaId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 23: WhatsAppInbound - Inbound WhatsApp messages
   WhatsAppInbound: a
-    .model({
+    .model( {
       id: a.id().required(),
       contactId: a.string(),
       phone: a.string(),
@@ -677,17 +682,17 @@ const schema = a.schema({
       timestamp: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('whatsappMessageId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'whatsappMessageId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 23: WhatsAppOutbound - Outbound WhatsApp messages
   WhatsAppOutbound: a
-    .model({
+    .model( {
       id: a.id().required(),
       contactId: a.string(),
       phone: a.string(),
@@ -709,18 +714,18 @@ const schema = a.schema({
       timestamp: a.string(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('whatsappMessageId'),
-      index('templateName'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'whatsappMessageId' ),
+      index( 'templateName' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 25: WixProductsCache - Cached Wix Store products
   WixProductsCache: a
-    .model({
+    .model( {
       productId: a.id().required(),
       name: a.string(),
       slug: a.string(),
@@ -731,13 +736,13 @@ const schema = a.schema({
       mediaUrl: a.string(),
       rawData: a.string(), // Full Wix product JSON
       syncedAt: a.datetime(),
-    })
-    .identifier(['productId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'productId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 26: WixOrdersCache - Cached Wix Store orders
   WixOrdersCache: a
-    .model({
+    .model( {
       orderId: a.id().required(),
       orderNumber: a.string(),
       externalOrderId: a.string(), // Custom order number from external channel
@@ -752,18 +757,18 @@ const schema = a.schema({
       createdDate: a.string(),
       rawData: a.string(), // Full Wix order JSON
       syncedAt: a.datetime(),
-    })
-    .identifier(['orderId'])
-    .secondaryIndexes((index) => [
-      index('buyerEmail'),
-      index('paymentStatus'),
-      index('orderNumber'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'orderId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'buyerEmail' ),
+      index( 'paymentStatus' ),
+      index( 'orderNumber' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 24: TemplateAnalytics - WhatsApp template send/delivery tracking
   TemplateAnalytics: a
-    .model({
+    .model( {
       id: a.id().required(),
       templateName: a.string().required(),
       templateCategory: a.string(), // UTILITY, MARKETING, AUTHENTICATION
@@ -772,15 +777,15 @@ const schema = a.schema({
       whatsappMessageId: a.string(),
       timestamp: a.string(),
       createdAt: a.integer(),
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('templateName'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'templateName' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
   // Table 27: SubmitRequests - WhatsApp Flow submit request submissions
   SubmitRequest: a
-    .model({
+    .model( {
       id: a.id().required(),
       requestId: a.string().required(), // Lambda request ID
       flowToken: a.string(),
@@ -790,53 +795,53 @@ const schema = a.schema({
       orderId: a.string().required(),
       subject: a.string(),
       description: a.string(),
-      paymentStatus: a.string().default('pending'), // pending, captured, failed
+      paymentStatus: a.string().default( 'pending' ), // pending, captured, failed
       paymentReferenceId: a.string(), // SR-{orderId}-{requestId}
-      paymentAmount: a.integer().default(4900), // paise
+      paymentAmount: a.integer().default( 4900 ), // paise
       transactionId: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('phone'),
-      index('orderId'),
-      index('paymentStatus'),
-      index('paymentReferenceId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'phone' ),
+      index( 'orderId' ),
+      index( 'paymentStatus' ),
+      index( 'paymentReferenceId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 28: ConversationHistory - AI conversation context per phone hash
   ConversationHistory: a
-    .model({
+    .model( {
       phoneHash: a.string().required(),
       lastMessage: a.string(),
       lastResponse: a.string(),
       pendingPaymentRef: a.string(),
       customerProfile: a.string(), // JSON string
       languagePreference: a.string(),
-      autoReplyEnabled: a.boolean().default(true),
+      autoReplyEnabled: a.boolean().default( true ),
       updatedAt: a.integer(),
-    })
-    .identifier(['phoneHash'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'phoneHash' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 29: WixOrderIds - Mapping between Wix order IDs and WD-ORD numbers
   WixOrderId: a
-    .model({
+    .model( {
       wixOrderId: a.string().required(),
       wdOrderNumber: a.string().required(),
       createdAt: a.integer(),
-    })
-    .identifier(['wixOrderId'])
-    .secondaryIndexes((index) => [
-      index('wdOrderNumber'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'wixOrderId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'wdOrderNumber' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 30: Invoice - Invoice records
   Invoice: a
-    .model({
+    .model( {
       invoiceId: a.id().required(),
       invoiceNumber: a.string(),
       contactId: a.string(),
@@ -851,8 +856,8 @@ const schema = a.schema({
       shippingAddress: a.string(),
       billingAddress: a.string(),
       gstin: a.string(),
-      status: a.string().default('created'), // created, pending_payment, sent, paid, cancelled
-      paymentStatus: a.string().default('pending'), // pending, captured, failed, refunded
+      status: a.string().default( 'created' ), // created, pending_payment, sent, paid, cancelled
+      paymentStatus: a.string().default( 'pending' ), // pending, captured, failed, refunded
       entryPoint: a.string(), // manual, pay_flow, whatsapp_payment, webhook
       subtotal: a.integer(), // paise
       taxAmount: a.integer(),
@@ -864,7 +869,7 @@ const schema = a.schema({
       handling: a.float(),
       gstRate: a.float(),
       convenienceFee: a.float(),
-      currency: a.string().default('INR'),
+      currency: a.string().default( 'INR' ),
       referenceId: a.string(), // payment reference
       paymentId: a.string(), // Razorpay payment ID
       orderId: a.string(),
@@ -878,50 +883,50 @@ const schema = a.schema({
       paidAt: a.integer(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['invoiceId'])
-    .secondaryIndexes((index) => [
-      index('contactId'),
-      index('referenceId'),
-      index('status'),
-      index('invoiceNumber'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'invoiceId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ),
+      index( 'referenceId' ),
+      index( 'status' ),
+      index( 'invoiceNumber' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 31: InvoiceItem - Line items per invoice
   InvoiceItem: a
-    .model({
+    .model( {
       invoiceId: a.string().required(),
       itemId: a.string().required(),
       description: a.string(),
-      quantity: a.integer().default(1),
+      quantity: a.integer().default( 1 ),
       unitPrice: a.integer(), // paise
       amount: a.integer(), // paise
       hsnCode: a.string(),
       gstRate: a.float(),
-    })
-    .identifier(['invoiceId', 'itemId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'invoiceId', 'itemId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 32: InvoiceAsset - Generated invoice images/PDFs
   InvoiceAsset: a
-    .model({
+    .model( {
       assetId: a.id().required(),
       invoiceId: a.string().required(),
       assetType: a.string(), // image, pdf
       s3Key: a.string(),
       url: a.string(),
       createdAt: a.integer(),
-    })
-    .identifier(['assetId'])
-    .secondaryIndexes((index) => [
-      index('invoiceId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'assetId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'invoiceId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 33: InvoiceDeliveryLog - Invoice delivery tracking
   InvoiceDeliveryLog: a
-    .model({
+    .model( {
       id: a.id().required(),
       invoiceId: a.string().required(),
       channel: a.string(), // whatsapp, email
@@ -929,26 +934,26 @@ const schema = a.schema({
       recipient: a.string(),
       waMessageId: a.string(),
       createdAt: a.integer(),
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('invoiceId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'invoiceId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 34: InvoiceSequence - Auto-increment invoice number tracking per FY
   InvoiceSequence: a
-    .model({
+    .model( {
       fy: a.string().required(), // e.g. "2025-26"
-      lastSeq: a.integer().default(0),
+      lastSeq: a.integer().default( 0 ),
       updatedAt: a.integer(),
-    })
-    .identifier(['fy'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'fy' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 35: RazorpayWebhookLog - Raw Razorpay webhook event log
   RazorpayWebhookLog: a
-    .model({
+    .model( {
       id: a.id().required(),
       eventType: a.string(), // payment.captured, payment.failed, etc.
       paymentId: a.string(),
@@ -960,17 +965,17 @@ const schema = a.schema({
       processedAt: a.integer(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('paymentId'),
-      index('eventType'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'paymentId' ),
+      index( 'eventType' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 36: PayUWebhookLog - Raw PayU webhook event log
   PayUWebhookLog: a
-    .model({
+    .model( {
       id: a.id().required(),
       eventType: a.string(), // payment.success, payment.failed, etc.
       paymentId: a.string(), // mihpayid
@@ -985,74 +990,52 @@ const schema = a.schema({
       processedAt: a.integer(),
       createdAt: a.integer(),
       expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('paymentId'),
-      index('txnId'),
-      index('eventType'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'paymentId' ),
+      index( 'txnId' ),
+      index( 'eventType' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table 37: WhatsAppGroup - WhatsApp Groups state tracking
-  WhatsAppGroup: a
-    .model({
-      id: a.id().required(),
-      groupId: a.string().required(), // Meta group ID
-      wabaId: a.string(),
-      phoneNumberId: a.string(),
-      subject: a.string(), // Group name/subject
-      description: a.string(),
-      creatorPhone: a.string(),
-      participantCount: a.integer().default(0),
-      participantsJson: a.string(), // JSON array of participants
-      status: a.string().default('active'), // active, archived, deleted
-      lastMessageAt: a.integer(),
-      createdAt: a.integer(),
-      updatedAt: a.integer(),
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('groupId'),
-      index('wabaId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+  // (Table 37 WhatsAppGroup removed — merged into Table 22 above)
 
   // Table 38: WebhookDedup - Webhook idempotency tracking for inbound events
   WebhookDedup: a
-    .model({
+    .model( {
       eventId: a.string().required(), // Unique event identifier
       source: a.string().required(), // whatsapp, razorpay, payu
       processedAt: a.integer(),
       expiresAt: a.integer(), // TTL: 7 days
       ttl: a.integer(), // TTL attribute for backend.ts override
-    })
-    .identifier(['eventId'])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'eventId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 39: SystemEvent - Persistent system event log (template status, quality, account updates)
   SystemEvent: a
-    .model({
+    .model( {
       id: a.id().required(),
       eventType: a.string().required(), // template_status, phone_quality, account_update, user_id_update
       wabaId: a.string(),
       phoneNumberId: a.string(),
       eventData: a.string(), // JSON string
-      severity: a.string().default('info'), // info, warning, error, critical
-      acknowledged: a.boolean().default(false),
+      severity: a.string().default( 'info' ), // info, warning, error, critical
+      acknowledged: a.boolean().default( false ),
       createdAt: a.integer(),
       ttl: a.integer(), // TTL: 180 days
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('eventType'),
-      index('wabaId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'eventType' ),
+      index( 'wabaId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 40: CatalogCache - WhatsApp Commerce catalog product cache
   CatalogCache: a
-    .model({
+    .model( {
       id: a.id().required(),
       catalogId: a.string().required(),
       retailerId: a.string(), // Retailer/product ID
@@ -1065,17 +1048,17 @@ const schema = a.schema({
       rawData: a.string(), // Full product JSON
       syncedAt: a.integer(),
       ttl: a.integer(), // TTL: 7 days (cache refresh)
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('catalogId'),
-      index('retailerId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'catalogId' ),
+      index( 'retailerId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 41: AdClickAttribution - Ads that Click to WhatsApp tracking
   AdClickAttribution: a
-    .model({
+    .model( {
       id: a.id().required(),
       adId: a.string(),
       campaignId: a.string(),
@@ -1088,13 +1071,13 @@ const schema = a.schema({
       conversionType: a.string(), // message_sent, purchase, signup
       createdAt: a.integer(),
       ttl: a.integer(), // TTL: 180 days
-    })
-    .identifier(['id'])
-    .secondaryIndexes((index) => [
-      index('adId'),
-      index('contactId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'id' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'adId' ),
+      index( 'contactId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // ============================================================
   // FLOW MANAGEMENT TABLES
@@ -1102,7 +1085,7 @@ const schema = a.schema({
 
   // Table: FlowRegistry — Config for every WhatsApp Flow
   FlowRegistry: a
-    .model({
+    .model( {
       flowId: a.id().required(), // Meta flow ID
       flowCode: a.string().required(), // "01.WD_SR", "02.WD_ADDR", etc.
       flowName: a.string().required(), // Human readable
@@ -1110,10 +1093,10 @@ const schema = a.schema({
       flowVersion: a.string(), // "7.3"
       dataApiVersion: a.string(), // "4.0"
       wabaId: a.string(), // Which WABA
-      status: a.string().default('DRAFT'), // DRAFT, PUBLISHED, DEPRECATED
+      status: a.string().default( 'DRAFT' ), // DRAFT, PUBLISHED, DEPRECATED
       category: a.string(), // service_request, order, interactive, data_collection, payment, booking, feedback
       // Payment config
-      requiresPayment: a.boolean().default(false),
+      requiresPayment: a.boolean().default( false ),
       paymentAmount: a.integer(), // paise (4900 = ₹49)
       paymentDescription: a.string(),
       // Payment gateway preference: 'razorpay' or 'payu' (used when sending native payment)
@@ -1135,15 +1118,15 @@ const schema = a.schema({
       publishedAt: a.integer(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['flowId'])
-    .secondaryIndexes((index) => [
-      index('flowCode'),
-      index('wabaId'),
-      index('category'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'flowId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'flowCode' ),
+      index( 'wabaId' ),
+      index( 'category' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // ============================================================
   // ORDER MANAGEMENT TABLES
@@ -1151,7 +1134,7 @@ const schema = a.schema({
 
   // Table: Order — Central order repository (all sources: Wix, manual, Shopify, future)
   Order: a
-    .model({
+    .model( {
       orderId: a.string().required(), // "WD-ORD-A1B2C3D4" — canonical full ID
       shortId: a.string().required(), // "A1B2C3D4" — 8-char hex for display
       // Source
@@ -1176,10 +1159,10 @@ const schema = a.schema({
       shippingAmount: a.float(),
       taxAmount: a.float(),
       discountAmount: a.float(),
-      currency: a.string().default('INR'),
+      currency: a.string().default( 'INR' ),
       // Status
-      orderStatus: a.string().default('active'), // active | fulfilled | cancelled | returned
-      paymentStatus: a.string().default('pending'), // paid | not_paid | pending | refunded
+      orderStatus: a.string().default( 'active' ), // active | fulfilled | cancelled | returned
+      paymentStatus: a.string().default( 'pending' ), // paid | not_paid | pending | refunded
       fulfillmentStatus: a.string(), // not_fulfilled | partially_fulfilled | fulfilled
       // Address
       shippingAddress: a.string(), // JSON or flat string
@@ -1192,19 +1175,19 @@ const schema = a.schema({
       createdAt: a.integer(),
       updatedAt: a.integer(),
       syncedAt: a.integer(), // last sync from source
-    })
-    .identifier(['orderId'])
-    .secondaryIndexes((index) => [
-      index('customerPhone'),
-      index('source'),
-      index('orderStatus'),
-      index('shortId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'orderId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'customerPhone' ),
+      index( 'source' ),
+      index( 'orderStatus' ),
+      index( 'shortId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: Appointment — Booking/scheduling for consultations and service visits
   Appointment: a
-    .model({
+    .model( {
       appointmentId: a.id().required(),
       customerPhone: a.string().required(),
       customerName: a.string(),
@@ -1215,25 +1198,25 @@ const schema = a.schema({
       slotTime: a.string(), // "10:00 AM"
       duration: a.string(), // "30 min" | "1 hour"
       location: a.string(), // office | virtual | home_visit
-      status: a.string().default('booked'), // booked | confirmed | rescheduled | cancelled | completed | no_show
+      status: a.string().default( 'booked' ), // booked | confirmed | rescheduled | cancelled | completed | no_show
       notes: a.string(),
       adminNotes: a.string(),
       assignedTo: a.string(),
-      reminderSent: a.boolean().default(false),
+      reminderSent: a.boolean().default( false ),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['appointmentId'])
-    .secondaryIndexes((index) => [
-      index('customerPhone'),
-      index('slotDate'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'appointmentId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'customerPhone' ),
+      index( 'slotDate' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: RxSlot — Prescription/medical tourism slot booking
   RxSlot: a
-    .model({
+    .model( {
       rxSlotId: a.id().required(),
       customerPhone: a.string().required(),
       customerName: a.string(),
@@ -1244,23 +1227,23 @@ const schema = a.schema({
       slotTime: a.string(), // "10:00 AM"
       facilityName: a.string(),
       doctorName: a.string(),
-      status: a.string().default('booked'), // booked | confirmed | cancelled | completed
+      status: a.string().default( 'booked' ), // booked | confirmed | cancelled | completed
       prescriptionNotes: a.string(),
       adminNotes: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['rxSlotId'])
-    .secondaryIndexes((index) => [
-      index('customerPhone'),
-      index('slotDate'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'rxSlotId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'customerPhone' ),
+      index( 'slotDate' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: Document — Customer document management (WhatsApp uploads, manual, web)
   Document: a
-    .model({
+    .model( {
       documentId: a.id().required(),
       customerPhone: a.string().required(),
       customerName: a.string(),
@@ -1278,7 +1261,7 @@ const schema = a.schema({
       mimeType: a.string(),
       fileSize: a.integer(), // bytes
       // Verification
-      verificationStatus: a.string().default('uploaded'), // uploaded | under_review | approved | rejected | reupload_required
+      verificationStatus: a.string().default( 'uploaded' ), // uploaded | under_review | approved | rejected | reupload_required
       remarks: a.string(), // admin remarks or rejection reason
       // Metadata
       tags: a.string(), // JSON array
@@ -1287,19 +1270,19 @@ const schema = a.schema({
       reviewedBy: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['documentId'])
-    .secondaryIndexes((index) => [
-      index('customerPhone'),
-      index('orderId'),
-      index('verificationStatus'),
-      index('sourceType'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'documentId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'customerPhone' ),
+      index( 'orderId' ),
+      index( 'verificationStatus' ),
+      index( 'sourceType' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: EnterpriseAssist — B2B/corporate support cases
   EnterpriseAssist: a
-    .model({
+    .model( {
       caseId: a.id().required(),
       contactPhone: a.string().required(),
       contactName: a.string(),
@@ -1307,23 +1290,23 @@ const schema = a.schema({
       accountName: a.string(), // company name
       subject: a.string(),
       description: a.string(),
-      priority: a.string().default('normal'), // low | normal | high | urgent
-      status: a.string().default('open'), // open | in_progress | resolved | closed
+      priority: a.string().default( 'normal' ), // low | normal | high | urgent
+      status: a.string().default( 'open' ), // open | in_progress | resolved | closed
       assignedTo: a.string(),
       notes: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['caseId'])
-    .secondaryIndexes((index) => [
-      index('contactPhone'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'caseId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactPhone' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: Review — Customer feedback and ratings
   Review: a
-    .model({
+    .model( {
       reviewId: a.id().required(),
       customerPhone: a.string().required(),
       customerName: a.string(),
@@ -1332,38 +1315,38 @@ const schema = a.schema({
       rating: a.integer(), // 1-5
       reviewText: a.string(),
       category: a.string(), // service | product | delivery | support | other
-      status: a.string().default('submitted'), // submitted | approved | hidden
+      status: a.string().default( 'submitted' ), // submitted | approved | hidden
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['reviewId'])
-    .secondaryIndexes((index) => [
-      index('customerPhone'),
-      index('status'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'reviewId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'customerPhone' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: Faq — Self-service FAQ content
   Faq: a
-    .model({
+    .model( {
       faqId: a.id().required(),
       category: a.string().required(),
       question: a.string().required(),
       answer: a.string().required(),
-      sortOrder: a.integer().default(0),
-      isActive: a.boolean().default(true),
+      sortOrder: a.integer().default( 0 ),
+      isActive: a.boolean().default( true ),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['faqId'])
-    .secondaryIndexes((index) => [
-      index('category'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'faqId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'category' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: RequestStatusHistory — Audit trail for request status changes
   RequestStatusHistory: a
-    .model({
+    .model( {
       historyId: a.id().required(),
       submissionId: a.string().required(), // link to FlowSubmission
       orderId: a.string(), // link to Order
@@ -1373,17 +1356,17 @@ const schema = a.schema({
       changedByName: a.string(),
       notes: a.string(),
       changedAt: a.integer(),
-    })
-    .identifier(['historyId'])
-    .secondaryIndexes((index) => [
-      index('submissionId'),
-      index('orderId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'historyId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'submissionId' ),
+      index( 'orderId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: DocumentHistory — Audit trail for document actions
   DocumentHistory: a
-    .model({
+    .model( {
       historyId: a.id().required(),
       documentId: a.string().required(),
       action: a.string().required(), // uploaded | reviewed | approved | rejected | reupload_requested | deleted
@@ -1391,16 +1374,16 @@ const schema = a.schema({
       actorId: a.string(),
       remarks: a.string(),
       createdAt: a.integer(),
-    })
-    .identifier(['historyId'])
-    .secondaryIndexes((index) => [
-      index('documentId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'historyId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'documentId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: AdminActionLog — Admin action audit trail
   AdminActionLog: a
-    .model({
+    .model( {
       logId: a.id().required(),
       adminUserId: a.string().required(),
       actionType: a.string().required(), // status_update | create | delete | assign | amend
@@ -1410,39 +1393,39 @@ const schema = a.schema({
       afterData: a.string(), // JSON snapshot after
       notes: a.string(),
       createdAt: a.integer(),
-    })
-    .identifier(['logId'])
-    .secondaryIndexes((index) => [
-      index('entityType'),
-      index('adminUserId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'logId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'entityType' ),
+      index( 'adminUserId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: AmendmentHistory — Track amendments to submissions
   AmendmentHistory: a
-    .model({
+    .model( {
       amendmentId: a.id().required(),
       submissionId: a.string().required(),
       orderId: a.string(),
       amendmentType: a.string().required(), // add_info | correct_details | change_type | cancel | other
       description: a.string().required(),
       submittedBy: a.string(), // phone or userId
-      status: a.string().default('submitted'), // submitted | reviewed | applied | rejected
+      status: a.string().default( 'submitted' ), // submitted | reviewed | applied | rejected
       reviewedBy: a.string(),
       reviewNotes: a.string(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['amendmentId'])
-    .secondaryIndexes((index) => [
-      index('submissionId'),
-      index('orderId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'amendmentId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'submissionId' ),
+      index( 'orderId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: FlowSubmission — All flow submissions (generic, all flow types)
   FlowSubmission: a
-    .model({
+    .model( {
       submissionId: a.id().required(),
       flowId: a.string().required(), // Meta flow ID
       flowCode: a.string().required(), // "01.WD_SR"
@@ -1463,38 +1446,38 @@ const schema = a.schema({
       submissionNumber: a.string(), // "WD-SR-A1B2C3D4"
       flowToken: a.string(),
       // Payment tracking
-      paymentRequired: a.boolean().default(false),
+      paymentRequired: a.boolean().default( false ),
       paymentAmount: a.integer(), // paise
-      paymentStatus: a.string().default('none'), // none, pending, captured, failed, refunded
+      paymentStatus: a.string().default( 'none' ), // none, pending, captured, failed, refunded
       paymentRefId: a.string(), // "WD-PAY-XXXXXXXX"
       invoiceId: a.string(),
       transactionId: a.string(), // Payment gateway txn ID
       paidAt: a.integer(),
       // Lifecycle
-      status: a.string().default('open'), // open, in_progress, resolved, closed, cancelled
+      status: a.string().default( 'open' ), // open, in_progress, resolved, closed, cancelled
       assignedTo: a.string(),
       notes: a.string(),
       resolvedAt: a.integer(),
       // Timestamps
       createdAt: a.integer(),
       updatedAt: a.integer(),
-    })
-    .identifier(['submissionId'])
-    .secondaryIndexes((index) => [
-      index('phone'),
-      index('flowCode'),
-      index('paymentStatus'),
-      index('paymentRefId'),
-      index('submissionNumber'),
-      index('status'),
-      index('orderId'),
-      index('flowId'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'submissionId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'phone' ),
+      index( 'flowCode' ),
+      index( 'paymentStatus' ),
+      index( 'paymentRefId' ),
+      index( 'submissionNumber' ),
+      index( 'status' ),
+      index( 'orderId' ),
+      index( 'flowId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: FlowDraft — Draft persistence for interrupted flows (TTL: 7 days)
   FlowDraft: a
-    .model({
+    .model( {
       draftKey: a.string().required(), // "{phone}#{flowCode}"
       phone: a.string().required(),
       flowCode: a.string().required(),
@@ -1502,16 +1485,16 @@ const schema = a.schema({
       formData: a.string(), // JSON of accumulated form data
       updatedAt: a.integer(),
       ttl: a.integer(), // TTL: 7 days
-    })
-    .identifier(['draftKey'])
-    .secondaryIndexes((index) => [
-      index('phone'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'draftKey' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'phone' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table: FlowLog — Audit trail for every flow screen interaction
   FlowLog: a
-    .model({
+    .model( {
       logId: a.id().required(),
       flowId: a.string(),
       flowCode: a.string(),
@@ -1521,28 +1504,28 @@ const schema = a.schema({
       screen: a.string(),
       dataSnapshot: a.string(), // JSON of data exchanged
       requestId: a.string(), // Lambda request ID
-      isError: a.boolean().default(false),
+      isError: a.boolean().default( false ),
       errorType: a.string(),
       errorMessage: a.string(),
       createdAt: a.integer(),
       ttl: a.integer(), // TTL: 90 days
-    })
-    .identifier(['logId'])
-    .secondaryIndexes((index) => [
-      index('phone'),
-      index('flowId'),
-      index('flowCode'),
-    ])
-    .authorization((allow) => [allow.authenticated()]),
+    } )
+    .identifier( [ 'logId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'phone' ),
+      index( 'flowId' ),
+      index( 'flowCode' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-});
+} );
 
 export type Schema = ClientSchema<typeof schema>;
 
-export const data = defineData({
+export const data = defineData( {
   schema,
   authorizationModes: {
     defaultAuthorizationMode: 'userPool',
   },
   // DynamoDB billing mode: PAY_PER_REQUEST (on-demand)
-}) as any;
+} ) as any;
