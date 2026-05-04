@@ -8,13 +8,14 @@ import React, { useState, useEffect } from 'react';
 import * as api from '../api/client';
 
 interface TemplateSenderProps {
-  contactId: string;
+  contactId?: string;
   contactName: string;
   phoneNumberId: string;
   recipientBsuid?: string;
+  recipientPhone?: string;    // Send to phone directly — auto-creates contact if needed
   onClose: () => void;
   onSent: () => void;
-  onError: (msg: string) => void;
+  onError: ( msg: string ) => void;
 }
 
 interface TemplateVariable {
@@ -23,50 +24,55 @@ interface TemplateVariable {
   placeholder: string;
 }
 
-const TemplateSender: React.FC<TemplateSenderProps> = ({
+const TemplateSender: React.FC<TemplateSenderProps> = ( {
   contactId,
   contactName,
   phoneNumberId,
   recipientBsuid,
+  recipientPhone,
   onClose,
   onSent,
   onError,
-}) => {
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [templates, setTemplates] = useState<api.WhatsAppTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<api.WhatsAppTemplate | null>(null);
-  const [variables, setVariables] = useState<TemplateVariable[]>([]);
-  const [cardVariables, setCardVariables] = useState<TemplateVariable[][]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [scheduleMode, setScheduleMode] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
+} ) => {
+  const [ loading, setLoading ] = useState( true );
+  const [ sending, setSending ] = useState( false );
+  const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
+  const [ selectedTemplate, setSelectedTemplate ] = useState<api.WhatsAppTemplate | null>( null );
+  const [ variables, setVariables ] = useState<TemplateVariable[]>( [] );
+  const [ cardVariables, setCardVariables ] = useState<TemplateVariable[][]>( [] );
+  const [ searchQuery, setSearchQuery ] = useState( '' );
+  const [ filterCategory, setFilterCategory ] = useState<string>( 'all' );
+  const [ scheduleMode, setScheduleMode ] = useState( false );
+  const [ scheduledDate, setScheduledDate ] = useState( '' );
+  const [ scheduledTime, setScheduledTime ] = useState( '' );
 
   // Load templates on mount
-  useEffect(() => {
+  useEffect( () => {
     loadTemplates();
-  }, []);
+  }, [] );
 
   const loadTemplates = async () => {
-    setLoading(true);
-    try {
+    setLoading( true );
+    try
+    {
       const data = await api.listTemplates();
       // Only show approved templates
-      setTemplates(data.filter(t => t.status === 'APPROVED'));
-    } catch (err) {
-      console.error('Failed to load templates:', err);
-    } finally {
-      setLoading(false);
+      setTemplates( data.filter( t => t.status === 'APPROVED' ) );
+    } catch ( err )
+    {
+      console.error( 'Failed to load templates:', err );
+    } finally
+    {
+      setLoading( false );
     }
   };
 
   // Extract variables from template when selected
-  useEffect(() => {
-    if (!selectedTemplate) {
-      setVariables([]);
-      setCardVariables([]);
+  useEffect( () => {
+    if ( !selectedTemplate )
+    {
+      setVariables( [] );
+      setCardVariables( [] );
       return;
     }
 
@@ -74,209 +80,233 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
     const cardVars: TemplateVariable[][] = [];
 
     // Check if it's a carousel template
-    const carouselComponent = selectedTemplate.components?.find(c => c.type === 'CAROUSEL');
-    
-    if (carouselComponent) {
+    const carouselComponent = selectedTemplate.components?.find( c => c.type === 'CAROUSEL' );
+
+    if ( carouselComponent )
+    {
       // Extract body variables
-      const bodyComponent = selectedTemplate.components?.find(c => c.type === 'BODY');
-      if (bodyComponent?.text) {
-        const matches = bodyComponent.text.match(/\{\{(\d+)\}\}/g) || [];
-        matches.forEach((match, idx) => {
-          const num = parseInt(match.replace(/[{}]/g, ''));
-          vars.push({
+      const bodyComponent = selectedTemplate.components?.find( c => c.type === 'BODY' );
+      if ( bodyComponent?.text )
+      {
+        const matches = bodyComponent.text.match( /\{\{(\d+)\}\}/g ) || [];
+        matches.forEach( ( match, idx ) => {
+          const num = parseInt( match.replace( /[{}]/g, '' ) );
+          vars.push( {
             index: num,
             value: '',
             placeholder: `Variable ${num}`,
-          });
-        });
+          } );
+        } );
       }
 
       // Extract card variables (simplified - each card may have body variables)
-      const cards = (carouselComponent as any).cards || [];
-      cards.forEach((card: any, cardIdx: number) => {
+      const cards = ( carouselComponent as any ).cards || [];
+      cards.forEach( ( card: any, cardIdx: number ) => {
         const cardBodyVars: TemplateVariable[] = [];
-        const cardBody = card.components?.find((c: any) => c.type === 'BODY');
-        if (cardBody?.text) {
-          const matches = cardBody.text.match(/\{\{(\d+)\}\}/g) || [];
-          matches.forEach((match: string) => {
-            const num = parseInt(match.replace(/[{}]/g, ''));
-            cardBodyVars.push({
+        const cardBody = card.components?.find( ( c: any ) => c.type === 'BODY' );
+        if ( cardBody?.text )
+        {
+          const matches = cardBody.text.match( /\{\{(\d+)\}\}/g ) || [];
+          matches.forEach( ( match: string ) => {
+            const num = parseInt( match.replace( /[{}]/g, '' ) );
+            cardBodyVars.push( {
               index: num,
               value: '',
               placeholder: `Card ${cardIdx + 1} - Variable ${num}`,
-            });
-          });
+            } );
+          } );
         }
-        cardVars.push(cardBodyVars);
-      });
-    } else {
+        cardVars.push( cardBodyVars );
+      } );
+    } else
+    {
       // Standard template - extract all variables
-      selectedTemplate.components?.forEach(comp => {
-        if (comp.text) {
-          const matches = comp.text.match(/\{\{(\d+)\}\}/g) || [];
-          matches.forEach(match => {
-            const num = parseInt(match.replace(/[{}]/g, ''));
-            if (!vars.find(v => v.index === num)) {
-              vars.push({
+      selectedTemplate.components?.forEach( comp => {
+        if ( comp.text )
+        {
+          const matches = comp.text.match( /\{\{(\d+)\}\}/g ) || [];
+          matches.forEach( match => {
+            const num = parseInt( match.replace( /[{}]/g, '' ) );
+            if ( !vars.find( v => v.index === num ) )
+            {
+              vars.push( {
                 index: num,
                 value: '',
                 placeholder: `Variable ${num}`,
-              });
+              } );
             }
-          });
+          } );
         }
-      });
+      } );
     }
 
     // Sort by index
-    vars.sort((a, b) => a.index - b.index);
-    
+    vars.sort( ( a, b ) => a.index - b.index );
+
     // Pre-fill first variable with contact name if available
-    if (vars.length > 0 && contactName) {
-      vars[0].value = contactName;
+    if ( vars.length > 0 && contactName )
+    {
+      vars[ 0 ].value = contactName;
     }
 
-    setVariables(vars);
-    setCardVariables(cardVars);
-  }, [selectedTemplate, contactName]);
+    setVariables( vars );
+    setCardVariables( cardVars );
+  }, [ selectedTemplate, contactName ] );
 
-  const updateVariable = (index: number, value: string) => {
-    setVariables(vars => vars.map((v, i) => i === index ? { ...v, value } : v));
+  const updateVariable = ( index: number, value: string ) => {
+    setVariables( vars => vars.map( ( v, i ) => i === index ? { ...v, value } : v ) );
   };
 
-  const updateCardVariable = (cardIdx: number, varIdx: number, value: string) => {
-    setCardVariables(cards => cards.map((card, ci) => 
-      ci === cardIdx 
-        ? card.map((v, vi) => vi === varIdx ? { ...v, value } : v)
+  const updateCardVariable = ( cardIdx: number, varIdx: number, value: string ) => {
+    setCardVariables( cards => cards.map( ( card, ci ) =>
+      ci === cardIdx
+        ? card.map( ( v, vi ) => vi === varIdx ? { ...v, value } : v )
         : card
-    ));
+    ) );
   };
 
   const handleSend = async () => {
-    if (!selectedTemplate) {
-      onError('Please select a template');
+    if ( !selectedTemplate )
+    {
+      onError( 'Please select a template' );
       return;
     }
 
     // Validate required variables
-    const emptyVars = variables.filter(v => !v.value.trim());
-    if (emptyVars.length > 0) {
-      onError(`Please fill in all variables (${emptyVars.length} empty)`);
+    const emptyVars = variables.filter( v => !v.value.trim() );
+    if ( emptyVars.length > 0 )
+    {
+      onError( `Please fill in all variables (${emptyVars.length} empty)` );
       return;
     }
 
-    setSending(true);
-    try {
+    setSending( true );
+    try
+    {
       // Check if scheduling
-      if (scheduleMode && scheduledDate && scheduledTime) {
-        const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
-        const result = await api.scheduleTemplateMessage({
+      if ( scheduleMode && scheduledDate && scheduledTime )
+      {
+        const scheduledAt = new Date( `${scheduledDate}T${scheduledTime}` ).toISOString();
+        const result = await api.scheduleTemplateMessage( {
           contactId,
           templateName: selectedTemplate.name,
-          templateParams: variables.map(v => v.value),
+          templateParams: variables.map( v => v.value ),
           phoneNumberId,
           scheduledAt,
-        });
+        } );
 
-        if (result) {
+        if ( result )
+        {
           onSent();
           onClose();
-        } else {
-          onError('Failed to schedule message');
+        } else
+        {
+          onError( 'Failed to schedule message' );
         }
-      } else {
+      } else
+      {
         // Send immediately
-        const isCarousel = selectedTemplate.components?.some(c => c.type === 'CAROUSEL');
-        
+        const isCarousel = selectedTemplate.components?.some( c => c.type === 'CAROUSEL' );
+
         let result;
-        if (isCarousel) {
-          result = await api.sendCarouselTemplateMessage({
+        if ( isCarousel )
+        {
+          result = await api.sendCarouselTemplateMessage( {
             contactId,
             templateName: selectedTemplate.name,
             language: selectedTemplate.language,
             phoneNumberId,
             recipientBsuid,
-            bodyParams: variables.map(v => v.value),
-            cardParams: cardVariables.map(card => card.map(v => v.value)),
-          });
-        } else {
-          result = await api.sendWhatsAppTemplateMessage({
+            bodyParams: variables.map( v => v.value ),
+            cardParams: cardVariables.map( card => card.map( v => v.value ) ),
+          } );
+        } else
+        {
+          result = await api.sendWhatsAppTemplateMessage( {
             contactId,
+            recipientPhone,
             templateName: selectedTemplate.name,
             language: selectedTemplate.language,
-            templateParams: variables.map(v => v.value),
+            templateParams: variables.map( v => v.value ),
             phoneNumberId,
             recipientBsuid,
-          });
+          } );
         }
 
-        if (result) {
+        if ( result )
+        {
           onSent();
           onClose();
-        } else {
-          onError('Failed to send template message');
+        } else
+        {
+          onError( 'Failed to send template message' );
         }
       }
-    } catch (err: any) {
-      onError(err.message || 'Send failed');
-    } finally {
-      setSending(false);
+    } catch ( err: any )
+    {
+      onError( err.message || 'Send failed' );
+    } finally
+    {
+      setSending( false );
     }
   };
 
   // Filter templates
-  const filteredTemplates = templates.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredTemplates = templates.filter( t => {
+    const matchesSearch = t.name.toLowerCase().includes( searchQuery.toLowerCase() );
     const matchesCategory = filterCategory === 'all' || t.category === filterCategory;
     return matchesSearch && matchesCategory;
-  });
+  } );
 
   // Get preview text with variables filled in
   const getPreviewText = () => {
-    if (!selectedTemplate) return '';
-    
+    if ( !selectedTemplate ) return '';
+
     let preview = '';
-    selectedTemplate.components?.forEach(comp => {
-      if (comp.type === 'HEADER' && comp.text) {
+    selectedTemplate.components?.forEach( comp => {
+      if ( comp.type === 'HEADER' && comp.text )
+      {
         preview += `*${comp.text}*\n\n`;
-      } else if (comp.type === 'BODY' && comp.text) {
+      } else if ( comp.type === 'BODY' && comp.text )
+      {
         let bodyText = comp.text;
-        variables.forEach(v => {
-          bodyText = bodyText.replace(`{{${v.index}}}`, v.value || `[${v.placeholder}]`);
-        });
+        variables.forEach( v => {
+          bodyText = bodyText.replace( `{{${v.index}}}`, v.value || `[${v.placeholder}]` );
+        } );
         preview += bodyText + '\n';
-      } else if (comp.type === 'FOOTER' && comp.text) {
+      } else if ( comp.type === 'FOOTER' && comp.text )
+      {
         preview += `\n_${comp.text}_`;
       }
-    });
+    } );
     return preview;
   };
 
   // Check if template is carousel
-  const isCarouselTemplate = selectedTemplate?.components?.some(c => c.type === 'CAROUSEL');
+  const isCarouselTemplate = selectedTemplate?.components?.some( c => c.type === 'CAROUSEL' );
 
   return (
     <div className="template-sender">
       <div className="sender-header">
         <h3>Send Template Message</h3>
-        <button className="close-btn" onClick={onClose}>×</button>
+        <button className="close-btn" onClick={ onClose }>×</button>
       </div>
 
       <div className="sender-body">
-        {/* Template Selection */}
-        {!selectedTemplate ? (
+        {/* Template Selection */ }
+        { !selectedTemplate ? (
           <div className="template-selection">
             <div className="search-filters">
               <input
                 type="text"
                 placeholder="Search templates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={ searchQuery }
+                onChange={ ( e ) => setSearchQuery( e.target.value ) }
                 className="search-input"
               />
               <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
+                value={ filterCategory }
+                onChange={ ( e ) => setFilterCategory( e.target.value ) }
                 className="category-filter"
               >
                 <option value="all">All Categories</option>
@@ -286,152 +316,152 @@ const TemplateSender: React.FC<TemplateSenderProps> = ({
               </select>
             </div>
 
-            {loading ? (
+            { loading ? (
               <div className="loading">Loading templates...</div>
             ) : filteredTemplates.length === 0 ? (
               <div className="empty">No approved templates found</div>
             ) : (
               <div className="template-list">
-                {filteredTemplates.map(template => (
+                { filteredTemplates.map( template => (
                   <div
-                    key={template.id}
+                    key={ template.id }
                     className="template-item"
-                    onClick={() => setSelectedTemplate(template)}
+                    onClick={ () => setSelectedTemplate( template ) }
                   >
                     <div className="template-info">
-                      <span className="template-name">{template.name}</span>
-                      <span className={`category-badge ${template.category.toLowerCase()}`}>
-                        {template.category}
+                      <span className="template-name">{ template.name }</span>
+                      <span className={ `category-badge ${template.category.toLowerCase()}` }>
+                        { template.category }
                       </span>
-                      {template.components?.some(c => c.type === 'CAROUSEL') && (
+                      { template.components?.some( c => c.type === 'CAROUSEL' ) && (
                         <span className="carousel-badge">Carousel</span>
-                      )}
+                      ) }
                     </div>
                     <div className="template-preview">
-                      {template.components?.find(c => c.type === 'BODY')?.text?.substring(0, 80) || 'No preview'}...
+                      { template.components?.find( c => c.type === 'BODY' )?.text?.substring( 0, 80 ) || 'No preview' }...
                     </div>
-                    <div className="template-lang">{template.language}</div>
+                    <div className="template-lang">{ template.language }</div>
                   </div>
-                ))}
+                ) ) }
               </div>
-            )}
+            ) }
           </div>
         ) : (
           <div className="template-config">
-            <button className="back-btn" onClick={() => setSelectedTemplate(null)}>
+            <button className="back-btn" onClick={ () => setSelectedTemplate( null ) }>
               ← Back to templates
             </button>
 
             <div className="selected-template">
               <div className="template-header-info">
-                <span className="template-name">{selectedTemplate.name}</span>
-                <span className={`category-badge ${selectedTemplate.category.toLowerCase()}`}>
-                  {selectedTemplate.category}
+                <span className="template-name">{ selectedTemplate.name }</span>
+                <span className={ `category-badge ${selectedTemplate.category.toLowerCase()}` }>
+                  { selectedTemplate.category }
                 </span>
-                {isCarouselTemplate && <span className="carousel-badge">Carousel</span>}
+                { isCarouselTemplate && <span className="carousel-badge">Carousel</span> }
               </div>
             </div>
 
-            {/* Variables Input */}
-            {variables.length > 0 && (
+            {/* Variables Input */ }
+            { variables.length > 0 && (
               <div className="variables-section">
                 <label>Template Variables</label>
-                {variables.map((v, idx) => (
-                  <div key={idx} className="variable-row">
-                    <span className="var-label">{`{{${v.index}}}`}</span>
+                { variables.map( ( v, idx ) => (
+                  <div key={ idx } className="variable-row">
+                    <span className="var-label">{ `{{${v.index}}}` }</span>
                     <input
                       type="text"
-                      value={v.value}
-                      onChange={(e) => updateVariable(idx, e.target.value)}
-                      placeholder={v.placeholder}
+                      value={ v.value }
+                      onChange={ ( e ) => updateVariable( idx, e.target.value ) }
+                      placeholder={ v.placeholder }
                     />
                   </div>
-                ))}
+                ) ) }
               </div>
-            )}
+            ) }
 
-            {/* Card Variables for Carousel */}
-            {isCarouselTemplate && cardVariables.length > 0 && (
+            {/* Card Variables for Carousel */ }
+            { isCarouselTemplate && cardVariables.length > 0 && (
               <div className="card-variables-section">
                 <label>Card Variables</label>
-                {cardVariables.map((card, cardIdx) => (
+                { cardVariables.map( ( card, cardIdx ) => (
                   card.length > 0 && (
-                    <div key={cardIdx} className="card-vars">
-                      <span className="card-label">Card {cardIdx + 1}</span>
-                      {card.map((v, varIdx) => (
-                        <div key={varIdx} className="variable-row">
-                          <span className="var-label">{`{{${v.index}}}`}</span>
+                    <div key={ cardIdx } className="card-vars">
+                      <span className="card-label">Card { cardIdx + 1 }</span>
+                      { card.map( ( v, varIdx ) => (
+                        <div key={ varIdx } className="variable-row">
+                          <span className="var-label">{ `{{${v.index}}}` }</span>
                           <input
                             type="text"
-                            value={v.value}
-                            onChange={(e) => updateCardVariable(cardIdx, varIdx, e.target.value)}
-                            placeholder={v.placeholder}
+                            value={ v.value }
+                            onChange={ ( e ) => updateCardVariable( cardIdx, varIdx, e.target.value ) }
+                            placeholder={ v.placeholder }
                           />
                         </div>
-                      ))}
+                      ) ) }
                     </div>
                   )
-                ))}
+                ) ) }
               </div>
-            )}
+            ) }
 
-            {/* Preview */}
+            {/* Preview */ }
             <div className="preview-section">
               <label>Preview</label>
               <div className="preview-box">
-                <div className="preview-recipient">To: {contactName}</div>
-                <div className="preview-content">{getPreviewText()}</div>
-                {isCarouselTemplate && (
+                <div className="preview-recipient">To: { contactName }</div>
+                <div className="preview-content">{ getPreviewText() }</div>
+                { isCarouselTemplate && (
                   <div className="carousel-indicator">
-                    + {cardVariables.length} carousel cards
+                    + { cardVariables.length } carousel cards
                   </div>
-                )}
+                ) }
               </div>
             </div>
 
-            {/* Schedule Option */}
+            {/* Schedule Option */ }
             <div className="schedule-section">
               <label className="schedule-toggle">
                 <input
                   type="checkbox"
-                  checked={scheduleMode}
-                  onChange={(e) => setScheduleMode(e.target.checked)}
+                  checked={ scheduleMode }
+                  onChange={ ( e ) => setScheduleMode( e.target.checked ) }
                 />
                 <span>Schedule for later</span>
               </label>
-              
-              {scheduleMode && (
+
+              { scheduleMode && (
                 <div className="schedule-inputs">
                   <input
                     type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    value={ scheduledDate }
+                    onChange={ ( e ) => setScheduledDate( e.target.value ) }
+                    min={ new Date().toISOString().split( 'T' )[ 0 ] }
                   />
                   <input
                     type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
+                    value={ scheduledTime }
+                    onChange={ ( e ) => setScheduledTime( e.target.value ) }
                   />
                 </div>
-              )}
+              ) }
             </div>
           </div>
-        )}
+        ) }
       </div>
 
       <div className="sender-footer">
-        <button className="cancel-btn" onClick={onClose}>Cancel</button>
+        <button className="cancel-btn" onClick={ onClose }>Cancel</button>
         <button
           className="send-btn"
-          onClick={handleSend}
-          disabled={!selectedTemplate || sending}
+          onClick={ handleSend }
+          disabled={ !selectedTemplate || sending }
         >
-          {sending ? 'Sending...' : scheduleMode ? 'Schedule' : 'Send Now'}
+          { sending ? 'Sending...' : scheduleMode ? 'Schedule' : 'Send Now' }
         </button>
       </div>
 
-      <style jsx>{`
+      <style jsx>{ `
         .template-sender {
           position: fixed;
           bottom: 80px;

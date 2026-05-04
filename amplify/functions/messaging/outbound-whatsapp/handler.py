@@ -367,9 +367,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if not contact_id and not recipient_phone_direct:
             return _error_response(400, 'contactId or recipientPhone is required')
         
-        # If we have recipientPhone but no contactId, use phone directly
+        # If we have recipientPhone but no contactId, auto-create contact so message shows in inbox
         if not contact_id and recipient_phone_direct:
-            contact = {'phone': recipient_phone_direct, 'id': '', 'contactId': ''}
+            contact = _get_or_create_contact_by_phone(recipient_phone_direct)
+            contact_id = contact.get('contactId') or contact.get('id', '')
             recipient_phone = recipient_phone_direct
         else:
             # Retrieve contact
@@ -2561,6 +2562,73 @@ def _get_contact(contact_id: str) -> Optional[Dict[str, Any]]:
         logger.warning(f"Scan by contactId failed: {str(e)}")
     
     return None
+
+
+def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
+    """Look up contact by phone number, or auto-create if not found.
+    Ensures outbound messages always have a valid contactId for inbox display."""
+    contacts_table = dynamodb.Table(CONTACTS_TABLE)
+    clean = phone.lstrip('+')
+    with_plus = f'+{clean}'
+
+    # Try GSI phone-index lookup (both formats)
+    for variant in [with_plus, clean]:
+        try:
+            resp = contacts_table.query(
+                IndexName='phone-index',
+                KeyConditionExpression='phone = :p',
+                ExpressionAttributeValues={':p': variant},
+                Limit=5,
+            )
+            items = [i for i in resp.get('Items', []) if not i.get('deletedAt')]
+            if items:
+                contact = sorted(items, key=lambda x: x.get('createdAt', 0))[0]
+                logger.info(json.dumps({
+                    'event': 'contact_found_by_phone',
+                    'contactId': contact.get('contactId', contact.get('id', '')),
+                    'phone': phone,
+                }))
+                return contact
+        except Exception as e:
+            logger.warning(f"Phone GSI lookup failed for {variant}: {e}")
+
+    # Fallback scan
+    try:
+        resp = contacts_table.scan(
+            FilterExpression='(phone = :p1 OR phone = :p2) AND (attribute_not_exists(deletedAt) OR deletedAt = :null)',
+            ExpressionAttributeValues={':p1': clean, ':p2': with_plus, ':null': None},
+            Limit=10,
+        )
+        items = resp.get('Items', [])
+        if items:
+            return sorted(items, key=lambda x: x.get('createdAt', 0))[0]
+    except Exception:
+        pass
+
+    # Not found — create new contact
+    contact_id = str(uuid.uuid4())
+    now = int(time.time())
+    contact = {
+        'id': contact_id,
+        'contactId': contact_id,
+        'name': '',
+        'phone': with_plus,
+        'optInWhatsApp': True,
+        'optInSms': True,
+        'optInEmail': True,
+        'allowlistWhatsApp': True,
+        'allowlistSms': True,
+        'allowlistEmail': True,
+        'createdAt': Decimal(str(now)),
+        'updatedAt': Decimal(str(now)),
+    }
+    contacts_table.put_item(Item=contact)
+    logger.info(json.dumps({
+        'event': 'contact_auto_created_outbound',
+        'contactId': contact_id,
+        'phone': with_plus,
+    }))
+    return contact
 
 
 def _is_within_service_window(contact: Dict[str, Any]) -> bool:

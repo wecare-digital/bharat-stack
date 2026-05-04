@@ -13,36 +13,39 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 let lastConnectionError: string | null = null;
 let connectionStatus: 'connected' | 'disconnected' | 'unknown' = 'unknown';
 
-export function getConnectionStatus() {
+export function getConnectionStatus () {
   return { status: connectionStatus, lastError: lastConnectionError };
 }
 
 // Helper function to delay with exponential backoff
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function delay ( ms: number ): Promise<void> {
+  return new Promise( resolve => setTimeout( resolve, ms ) );
 }
 
 // Get the current Cognito access token for API calls
-async function getAuthToken(): Promise<string | null> {
-  try {
+async function getAuthToken (): Promise<string | null> {
+  try
+  {
     const session = await fetchAuthSession();
     return session.tokens?.accessToken?.toString() ?? null;
-  } catch {
+  } catch
+  {
     return null;
   }
 }
 
 // Helper function for API calls with retry logic and better error handling
-async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): Promise<T | null> {
-  try {
+async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 ): Promise<T | null> {
+  try
+  {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    const timeoutId = setTimeout( () => controller.abort(), 8000 ); // 8 second timeout
 
     // Inject Cognito auth token
     const token = await getAuthToken();
     const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    
-    const response = await fetch(url, {
+
+    const response = await fetch( url, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -50,114 +53,135 @@ async function apiCall<T>(url: string, options?: RequestInit, retryCount = 0): P
         ...authHeaders,
         ...options?.headers,
       },
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (response.ok) {
+    } );
+
+    clearTimeout( timeoutId );
+
+    if ( response.ok )
+    {
       connectionStatus = 'connected';
       lastConnectionError = null;
       return response.json();
     }
-    
+
     // Handle specific HTTP errors
-    if (response.status === 401) {
+    if ( response.status === 401 )
+    {
       // Token may have expired — try once with a fresh session
-      if (retryCount === 0) {
-        console.debug('Got 401, retrying with refreshed token...');
-        return apiCall<T>(url, options, retryCount + 1);
+      if ( retryCount === 0 )
+      {
+        console.debug( 'Got 401, retrying with refreshed token...' );
+        return apiCall<T>( url, options, retryCount + 1 );
       }
       lastConnectionError = 'Authentication failed - please sign in again';
-    } else if (response.status === 403) {
+    } else if ( response.status === 403 )
+    {
       lastConnectionError = 'Access denied - check API Gateway permissions';
-    } else if (response.status === 404) {
+    } else if ( response.status === 404 )
+    {
       lastConnectionError = 'API endpoint not found';
-    } else if (response.status === 500) {
+    } else if ( response.status === 500 )
+    {
       lastConnectionError = 'Server error - check Lambda logs';
-    } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+    } else if ( response.status === 502 || response.status === 503 || response.status === 504 )
+    {
       lastConnectionError = response.status === 504 ? 'Lambda timeout - function took too long' : 'API Gateway error - service unavailable';
       // Retry on 502/503 errors
-      if (retryCount < RETRY_CONFIG.maxRetries) {
+      if ( retryCount < RETRY_CONFIG.maxRetries )
+      {
         const delayMs = Math.min(
-          RETRY_CONFIG.baseDelayMs * Math.pow(2, retryCount),
+          RETRY_CONFIG.baseDelayMs * Math.pow( 2, retryCount ),
           RETRY_CONFIG.maxDelayMs
         );
-        console.debug(`Retrying API call (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...`);
-        await delay(delayMs);
-        return apiCall<T>(url, options, retryCount + 1);
+        console.debug( `Retrying API call (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...` );
+        await delay( delayMs );
+        return apiCall<T>( url, options, retryCount + 1 );
       }
-    } else if (response.status === 429) {
+    } else if ( response.status === 429 )
+    {
       // Rate limited - retry with backoff
-      if (retryCount < RETRY_CONFIG.maxRetries) {
+      if ( retryCount < RETRY_CONFIG.maxRetries )
+      {
         const delayMs = Math.min(
-          RETRY_CONFIG.baseDelayMs * Math.pow(2, retryCount + 1),
+          RETRY_CONFIG.baseDelayMs * Math.pow( 2, retryCount + 1 ),
           RETRY_CONFIG.maxDelayMs
         );
-        console.debug(`Rate limited, retrying after ${delayMs}ms...`);
-        await delay(delayMs);
-        return apiCall<T>(url, options, retryCount + 1);
+        console.debug( `Rate limited, retrying after ${delayMs}ms...` );
+        await delay( delayMs );
+        return apiCall<T>( url, options, retryCount + 1 );
       }
       lastConnectionError = 'Rate limited - too many requests';
-    } else {
+    } else
+    {
       // Try to extract error message from response body
-      try {
+      try
+      {
         const errBody = await response.json();
         const msg = errBody?.error?.message || errBody?.error || errBody?.message;
         lastConnectionError = msg ? `HTTP ${response.status}: ${msg}` : `HTTP ${response.status}: ${response.statusText}`;
-      } catch {
+      } catch
+      {
         lastConnectionError = `HTTP ${response.status}: ${response.statusText}`;
       }
     }
-    
+
     connectionStatus = 'disconnected';
-    console.error(`API error: ${lastConnectionError}`, url);
+    console.error( `API error: ${lastConnectionError}`, url );
     return null;
-  } catch (e: any) {
+  } catch ( e: any )
+  {
     // Retry on network errors
-    if (retryCount < RETRY_CONFIG.maxRetries && (e.name === 'AbortError' || e.name === 'TypeError')) {
+    if ( retryCount < RETRY_CONFIG.maxRetries && ( e.name === 'AbortError' || e.name === 'TypeError' ) )
+    {
       const delayMs = Math.min(
-        RETRY_CONFIG.baseDelayMs * Math.pow(2, retryCount),
+        RETRY_CONFIG.baseDelayMs * Math.pow( 2, retryCount ),
         RETRY_CONFIG.maxDelayMs
       );
-      console.debug(`Network error, retrying (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...`);
-      await delay(delayMs);
-      return apiCall<T>(url, options, retryCount + 1);
+      console.debug( `Network error, retrying (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...` );
+      await delay( delayMs );
+      return apiCall<T>( url, options, retryCount + 1 );
     }
-    
+
     connectionStatus = 'disconnected';
-    if (e.name === 'AbortError') {
+    if ( e.name === 'AbortError' )
+    {
       lastConnectionError = 'Request timeout - API took too long';
-    } else if (e.name === 'TypeError') {
+    } else if ( e.name === 'TypeError' )
+    {
       lastConnectionError = 'CORS error or network unavailable';
-    } else {
+    } else
+    {
       lastConnectionError = e.message || 'Connection failed';
     }
-    console.error('API call failed:', lastConnectionError, url, e);
+    console.error( 'API call failed:', lastConnectionError, url, e );
     return null;
   }
 }
 
 // Test API connection
-export async function testConnection(): Promise<{ success: boolean; message: string; latency?: number }> {
+export async function testConnection (): Promise<{ success: boolean; message: string; latency?: number }> {
   const start = Date.now();
-  try {
+  try
+  {
     const token = await getAuthToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if ( token ) headers[ 'Authorization' ] = `Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE}/messages?limit=1`, { method: 'GET', headers });
+    const response = await fetch( `${API_BASE}/messages?limit=1`, { method: 'GET', headers } );
     const latency = Date.now() - start;
-    
-    if (response.ok) {
+
+    if ( response.ok )
+    {
       connectionStatus = 'connected';
       lastConnectionError = null;
       return { success: true, message: `Connected (${latency}ms)`, latency };
     }
-    
+
     connectionStatus = 'disconnected';
     lastConnectionError = `HTTP ${response.status}`;
     return { success: false, message: `API returned ${response.status}: ${response.statusText}` };
-  } catch (e: any) {
+  } catch ( e: any )
+  {
     connectionStatus = 'disconnected';
     lastConnectionError = e.message;
     return { success: false, message: `Connection failed: ${e.message}` };
@@ -230,54 +254,58 @@ export interface Contact {
   deletedAt?: string;
 }
 
-export async function listContacts(): Promise<Contact[]> {
-  const data = await apiCall<any>(`${API_BASE}/contacts`);
-  if (data) {
-    const contacts = Array.isArray(data) ? data : (data.contacts || []);
-    return contacts.map(normalizeContact);
+export async function listContacts (): Promise<Contact[]> {
+  const data = await apiCall<any>( `${API_BASE}/contacts` );
+  if ( data )
+  {
+    const contacts = Array.isArray( data ) ? data : ( data.contacts || [] );
+    return contacts.map( normalizeContact );
   }
   return [];
 }
 
-export async function getContact(contactId: string): Promise<Contact | null> {
-  const data = await apiCall<any>(`${API_BASE}/contacts/${contactId}`);
-  if (data) {
-    return normalizeContact(data.contact || data);
+export async function getContact ( contactId: string ): Promise<Contact | null> {
+  const data = await apiCall<any>( `${API_BASE}/contacts/${contactId}` );
+  if ( data )
+  {
+    return normalizeContact( data.contact || data );
   }
   return null;
 }
 
-export async function createContact(contact: Partial<Contact>): Promise<Contact | null> {
-  const data = await apiCall<any>(`${API_BASE}/contacts`, {
+export async function createContact ( contact: Partial<Contact> ): Promise<Contact | null> {
+  const data = await apiCall<any>( `${API_BASE}/contacts`, {
     method: 'POST',
-    body: JSON.stringify(contact),
-  });
-  if (data) {
-    return normalizeContact(data.contact || data);
+    body: JSON.stringify( contact ),
+  } );
+  if ( data )
+  {
+    return normalizeContact( data.contact || data );
   }
   return null;
 }
 
-export async function updateContact(contactId: string, updates: Partial<Contact>): Promise<Contact | null> {
-  const data = await apiCall<any>(`${API_BASE}/contacts/${contactId}`, {
+export async function updateContact ( contactId: string, updates: Partial<Contact> ): Promise<Contact | null> {
+  const data = await apiCall<any>( `${API_BASE}/contacts/${contactId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
-  if (data) {
-    return normalizeContact(data.contact || data);
+    body: JSON.stringify( updates ),
+  } );
+  if ( data )
+  {
+    return normalizeContact( data.contact || data );
   }
   return null;
 }
 
-export async function deleteContact(contactId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/contacts/${contactId}`, {
+export async function deleteContact ( contactId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/contacts/${contactId}`, {
     method: 'DELETE',
-  });
+  } );
   // Check if response indicates success (not an error)
   return data !== null && !data.error;
 }
 
-function normalizeContact(item: any): Contact {
+function normalizeContact ( item: any ): Contact {
   return {
     id: item.id || item.contactId || '',
     contactId: item.contactId || item.id || '',
@@ -311,10 +339,10 @@ function normalizeContact(item: any): Contact {
     isPep: item.isPep || false,
     pepDetails: item.pepDetails || '',
     paidBy: item.paidBy || '',
-    lastFlowInteractionAt: normalizeTimestamp(item.lastFlowInteractionAt),
+    lastFlowInteractionAt: normalizeTimestamp( item.lastFlowInteractionAt ),
     satisfactionScore: item.satisfactionScore || undefined,
     welcomeSent: item.welcomeSent || false,
-    welcomeSentAt: normalizeTimestamp(item.welcomeSentAt),
+    welcomeSentAt: normalizeTimestamp( item.welcomeSentAt ),
     // Opt-in fields
     optInWhatsApp: item.optInWhatsApp || false,
     optInSms: item.optInSms || false,
@@ -323,10 +351,10 @@ function normalizeContact(item: any): Contact {
     allowlistWhatsApp: item.allowlistWhatsApp || false,
     allowlistSms: item.allowlistSms || false,
     allowlistEmail: item.allowlistEmail || false,
-    lastInboundMessageAt: normalizeTimestamp(item.lastInboundMessageAt),
-    tags: Array.isArray(item.tags) ? item.tags : [],
-    createdAt: normalizeTimestamp(item.createdAt) || new Date().toISOString(),
-    updatedAt: normalizeTimestamp(item.updatedAt) || new Date().toISOString(),
+    lastInboundMessageAt: normalizeTimestamp( item.lastInboundMessageAt ),
+    tags: Array.isArray( item.tags ) ? item.tags : [],
+    createdAt: normalizeTimestamp( item.createdAt ) || new Date().toISOString(),
+    updatedAt: normalizeTimestamp( item.updatedAt ) || new Date().toISOString(),
     deletedAt: item.deletedAt,
   };
 }
@@ -335,19 +363,20 @@ function normalizeContact(item: any): Contact {
  * Fix #8/#12: Safely convert epoch seconds OR ISO strings to ISO string.
  * Handles: epoch seconds (number), epoch string ("1709568000"), ISO string, undefined/null.
  */
-function normalizeTimestamp(value: any): string | undefined {
-  if (!value && value !== 0) return undefined;
+function normalizeTimestamp ( value: any ): string | undefined {
+  if ( !value && value !== 0 ) return undefined;
   // If it's a number or a string that looks like an epoch (all digits)
-  const num = Number(value);
-  if (!isNaN(num) && String(value).match(/^\d+$/)) {
+  const num = Number( value );
+  if ( !isNaN( num ) && String( value ).match( /^\d+$/ ) )
+  {
     // Epoch seconds are < 10 billion; epoch millis are > 10 billion
     const ms = num < 1e12 ? num * 1000 : num;
-    const d = new Date(ms);
-    if (!isNaN(d.getTime())) return d.toISOString();
+    const d = new Date( ms );
+    if ( !isNaN( d.getTime() ) ) return d.toISOString();
   }
   // Try parsing as ISO string
-  const d = new Date(String(value));
-  if (!isNaN(d.getTime())) return d.toISOString();
+  const d = new Date( String( value ) );
+  if ( !isNaN( d.getTime() ) ) return d.toISOString();
   return undefined;
 }
 
@@ -380,59 +409,61 @@ export interface Message {
   detectedLanguage?: string;    // Detected language of voice note (e.g. "hi-IN")
 }
 
-export async function listMessages(contactId?: string, channel?: string, limit: number = 1000): Promise<Message[]> {
+export async function listMessages ( contactId?: string, channel?: string, limit: number = 1000 ): Promise<Message[]> {
   let url = `${API_BASE}/messages`;
   const params = new URLSearchParams();
-  if (contactId) params.append('contactId', contactId);
-  if (channel) params.append('channel', channel);
-  params.append('limit', String(limit));
-  if (params.toString()) url += `?${params}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
-    const messages = Array.isArray(data) ? data : (data.messages || []);
-    return messages.map(normalizeMessage);
+  if ( contactId ) params.append( 'contactId', contactId );
+  if ( channel ) params.append( 'channel', channel );
+  params.append( 'limit', String( limit ) );
+  if ( params.toString() ) url += `?${params}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
+    const messages = Array.isArray( data ) ? data : ( data.messages || [] );
+    return messages.map( normalizeMessage );
   }
   return [];
 }
 
-export async function getMessage(messageId: string): Promise<Message | null> {
-  const data = await apiCall<any>(`${API_BASE}/messages/${messageId}`);
-  if (data) {
+export async function getMessage ( messageId: string ): Promise<Message | null> {
+  const data = await apiCall<any>( `${API_BASE}/messages/${messageId}` );
+  if ( data )
+  {
     const msg = data.message || data;
-    return msg && (msg.id || msg.messageId) ? normalizeMessage(msg) : null;
+    return msg && ( msg.id || msg.messageId ) ? normalizeMessage( msg ) : null;
   }
   return null;
 }
 
-export async function deleteMessage(messageId: string, direction: 'INBOUND' | 'OUTBOUND' = 'INBOUND'): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/messages/${messageId}?direction=${direction}`, {
+export async function deleteMessage ( messageId: string, direction: 'INBOUND' | 'OUTBOUND' = 'INBOUND' ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/messages/${messageId}?direction=${direction}`, {
     method: 'DELETE',
-  });
+  } );
   // Accept success if we got a response (even if success field is missing)
-  return data !== null && (data.success === true || data.messageId === messageId || !data.error);
+  return data !== null && ( data.success === true || data.messageId === messageId || !data.error );
 }
 
-export async function updateMessage(messageId: string, updates: Record<string, any>): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/messages/${messageId}`, {
+export async function updateMessage ( messageId: string, updates: Record<string, any> ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/messages/${messageId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return data !== null && data.success === true;
 }
 
 // createInvoice() removed — use createInvoiceEngine() instead
 
-function normalizeMessage(item: any): Message {
+function normalizeMessage ( item: any ): Message {
   const timestamp = item.timestamp || item.createdAt;
   return {
     id: item.id || item.messageId || '',
     messageId: item.messageId || item.id || '',
     contactId: item.contactId || '',
-    channel: (item.channel || 'WHATSAPP').toUpperCase() as 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS',
-    direction: (item.direction || 'INBOUND').toUpperCase() as 'INBOUND' | 'OUTBOUND',
+    channel: ( item.channel || 'WHATSAPP' ).toUpperCase() as 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS',
+    direction: ( item.direction || 'INBOUND' ).toUpperCase() as 'INBOUND' | 'OUTBOUND',
     content: item.content || item.text || '',
-    timestamp: normalizeTimestamp(timestamp) || new Date().toISOString(),
+    timestamp: normalizeTimestamp( timestamp ) || new Date().toISOString(),
     status: item.status || 'received',
     whatsappMessageId: item.whatsappMessageId,
     mediaId: item.mediaId,
@@ -476,7 +507,7 @@ export interface SendReactionRequest {
   recipientBsuid?: string;    // Send reaction to BSUID recipient
 }
 
-export async function sendWhatsAppMessage(request: SendMessageRequest): Promise<{ messageId: string; status: string } | null> {
+export async function sendWhatsAppMessage ( request: SendMessageRequest ): Promise<{ messageId: string; status: string } | null> {
   // Note: WhatsApp typing indicators require Meta Cloud API direct access
   // (POST /{PHONE_NUMBER_ID}/messages with status:"read" + typing_indicator object)
   // The read receipt approach is used as a proxy for typing indicators.
@@ -485,28 +516,28 @@ export async function sendWhatsAppMessage(request: SendMessageRequest): Promise<
   const payload = {
     ...request,
     // If mediaFile is provided, ensure it's base64 encoded
-    mediaFile: request.mediaFile ? (typeof request.mediaFile === 'string' ? request.mediaFile : request.mediaFile) : undefined,
+    mediaFile: request.mediaFile ? ( typeof request.mediaFile === 'string' ? request.mediaFile : request.mediaFile ) : undefined,
   };
-  
-  return apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
+
+  return apiCall<{ messageId: string; status: string }>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify(payload),
-  });
+    body: JSON.stringify( payload ),
+  } );
 }
 
 // Send a reaction to a WhatsApp message
-export async function sendWhatsAppReaction(request: SendReactionRequest): Promise<{ messageId: string; status: string; emoji: string } | null> {
-  return apiCall<{ messageId: string; status: string; emoji: string }>(`${API_BASE}/whatsapp/send`, {
+export async function sendWhatsAppReaction ( request: SendReactionRequest ): Promise<{ messageId: string; status: string; emoji: string } | null> {
+  return apiCall<{ messageId: string; status: string; emoji: string }>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: JSON.stringify( {
       contactId: request.contactId,
       isReaction: true,
       reactionMessageId: request.reactionMessageId,
       reactionEmoji: request.reactionEmoji || '\uD83D\uDC4D',  // Default: thumbs up
       phoneNumberId: request.phoneNumberId,
       recipientBsuid: request.recipientBsuid,
-    }),
-  });
+    } ),
+  } );
 }
 
 // Interactive message types
@@ -548,18 +579,18 @@ export interface SendInteractiveRequest {
 }
 
 // Send interactive WhatsApp message (list, buttons, location request, CTA URL, flow)
-export async function sendWhatsAppInteractive(request: SendInteractiveRequest): Promise<{ messageId: string; status: string; interactiveType: string } | null> {
-  return apiCall<{ messageId: string; status: string; interactiveType: string }>(`${API_BASE}/whatsapp/send`, {
+export async function sendWhatsAppInteractive ( request: SendInteractiveRequest ): Promise<{ messageId: string; status: string; interactiveType: string } | null> {
+  return apiCall<{ messageId: string; status: string; interactiveType: string }>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: JSON.stringify( {
       contactId: request.contactId,
       phoneNumberId: request.phoneNumberId,
       recipientBsuid: request.recipientBsuid,
       isInteractive: true,
       interactiveType: request.interactiveType,
       interactiveData: request.interactiveData,
-    }),
-  });
+    } ),
+  } );
 }
 
 // ============================================================================
@@ -590,53 +621,53 @@ export interface CreateCarouselTemplateRequest {
 }
 
 // Upload media for carousel card header
-export async function uploadCarouselCardMedia(
+export async function uploadCarouselCardMedia (
   mediaBase64: string,
   contentType: string = 'image/jpeg',
   cardIndex: number = 0,
   wabaId?: string
 ): Promise<{ headerHandle: string; s3Key: string; cardIndex: number } | null> {
   const params = new URLSearchParams();
-  if (wabaId) params.append('wabaId', wabaId);
-  
+  if ( wabaId ) params.append( 'wabaId', wabaId );
+
   return apiCall<{ headerHandle: string; s3Key: string; cardIndex: number }>(
     `${API_BASE}/whatsapp/templates/carousel-media${params.toString() ? '?' + params : ''}`,
     {
       method: 'POST',
-      body: JSON.stringify({ mediaBase64, contentType, cardIndex }),
+      body: JSON.stringify( { mediaBase64, contentType, cardIndex } ),
     }
   );
 }
 
 // Create carousel template
-export async function createCarouselTemplate(
+export async function createCarouselTemplate (
   request: CreateCarouselTemplateRequest
 ): Promise<{ metaTemplateId: string; templateStatus: string; templateType: string; cardCount: number } | null> {
   const params = new URLSearchParams();
-  if (request.wabaId) params.append('wabaId', request.wabaId);
-  
+  if ( request.wabaId ) params.append( 'wabaId', request.wabaId );
+
   return apiCall<{ metaTemplateId: string; templateStatus: string; templateType: string; cardCount: number }>(
     `${API_BASE}/whatsapp/templates/carousel${params.toString() ? '?' + params : ''}`,
     {
       method: 'POST',
-      body: JSON.stringify({
+      body: JSON.stringify( {
         name: request.name,
         language: request.language || 'en',
         category: request.category || 'MARKETING',
         bodyText: request.bodyText,
         cards: request.cards,
-      }),
+      } ),
     }
   );
 }
 
 // sendSmsMessage() removed — use sendSmsAws() instead
 
-export async function sendEmailMessage(contactId: string, subject: string, content: string, htmlContent?: string): Promise<{ messageId: string; status: string } | null> {
-  return apiCall<{ messageId: string; status: string }>(`${API_BASE}/email/send`, {
+export async function sendEmailMessage ( contactId: string, subject: string, content: string, htmlContent?: string ): Promise<{ messageId: string; status: string } | null> {
+  return apiCall<{ messageId: string; status: string }>( `${API_BASE}/email/send`, {
     method: 'POST',
-    body: JSON.stringify({ contactId, subject, content, htmlContent }),
-  });
+    body: JSON.stringify( { contactId, subject, content, htmlContent } ),
+  } );
 }
 
 // ============================================================================
@@ -656,35 +687,36 @@ export interface BulkJob {
   updatedAt: string;
 }
 
-export async function listBulkJobs(channel?: string): Promise<BulkJob[]> {
+export async function listBulkJobs ( channel?: string ): Promise<BulkJob[]> {
   let url = `${API_BASE}/bulk/jobs`;
-  if (channel) url += `?channel=${channel}`;
-  const data = await apiCall<any>(url);
-  if (data) {
-    return Array.isArray(data) ? data : (data.jobs || []);
+  if ( channel ) url += `?channel=${channel}`;
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
+    return Array.isArray( data ) ? data : ( data.jobs || [] );
   }
   return [];
 }
 
-export async function createBulkJob(job: Partial<BulkJob>): Promise<BulkJob | null> {
-  return apiCall<BulkJob>(`${API_BASE}/bulk/jobs`, {
+export async function createBulkJob ( job: Partial<BulkJob> ): Promise<BulkJob | null> {
+  return apiCall<BulkJob>( `${API_BASE}/bulk/jobs`, {
     method: 'POST',
-    body: JSON.stringify(job),
-  });
+    body: JSON.stringify( job ),
+  } );
 }
 
-export async function updateBulkJobStatus(jobId: string, status: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/bulk/jobs/${jobId}`, {
+export async function updateBulkJobStatus ( jobId: string, status: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/bulk/jobs/${jobId}`, {
     method: 'PUT',
-    body: JSON.stringify({ status }),
-  });
+    body: JSON.stringify( { status } ),
+  } );
   return data !== null;
 }
 
-export async function deleteBulkJob(jobId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/bulk/jobs/${jobId}`, {
+export async function deleteBulkJob ( jobId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/bulk/jobs/${jobId}`, {
     method: 'DELETE',
-  });
+  } );
   return data !== null;
 }
 
@@ -709,23 +741,25 @@ export interface DashboardStats {
   dlqDepth: number;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats (): Promise<DashboardStats> {
   // Use lightweight count-only endpoints to avoid fetching all records
-  try {
-    const [msgStats, contactStats, bulkJobs] = await Promise.all([
-      apiCall<any>(`${API_BASE}/messages?stats=count`),
-      apiCall<any>(`${API_BASE}/contacts?stats=count`),
+  try
+  {
+    const [ msgStats, contactStats, bulkJobs ] = await Promise.all( [
+      apiCall<any>( `${API_BASE}/messages?stats=count` ),
+      apiCall<any>( `${API_BASE}/contacts?stats=count` ),
       listBulkJobs(),
-    ]);
+    ] );
 
-    const activeBulkJobs = bulkJobs.filter(j =>
+    const activeBulkJobs = bulkJobs.filter( j =>
       j.status === 'PENDING' || j.status === 'IN_PROGRESS'
     ).length;
 
     // Try to get DLQ depth
     let dlqDepth = 0;
-    try {
-      const dlqData = await apiCall<any>(`${API_BASE}/dlq`);
+    try
+    {
+      const dlqData = await apiCall<any>( `${API_BASE}/dlq` );
       dlqDepth = dlqData?.count ?? dlqData?.messages?.length ?? 0;
     } catch { /* non-critical */ }
 
@@ -738,7 +772,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       aiResponses: 0,
       dlqDepth,
     };
-  } catch {
+  } catch
+  {
     // Fallback: return safe defaults on any error
     return {
       messagesToday: 0,
@@ -760,8 +795,8 @@ export interface SystemHealth {
   whatsapp: { status: 'active' | 'warning' | 'error'; phoneNumbers: number; qualityRating: string };
   sms: { status: 'active' | 'warning' | 'error'; poolId: string };
   email: { status: 'active' | 'warning' | 'error'; verified: boolean };
-  ai: { 
-    status: 'active' | 'warning' | 'error'; 
+  ai: {
+    status: 'active' | 'warning' | 'error';
     kbId?: string;
     internalKbId?: string;
     internalAgentId?: string;
@@ -773,7 +808,7 @@ export interface SystemHealth {
   dlq: { depth: number; oldestMessage?: string };
 }
 
-export async function getSystemHealth(): Promise<SystemHealth> {
+export async function getSystemHealth (): Promise<SystemHealth> {
   // Defaults (used as fallback if any call fails)
   const defaults: SystemHealth = {
     whatsapp: { status: 'active', phoneNumbers: 2, qualityRating: 'GREEN' },
@@ -791,39 +826,46 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     dlq: { depth: 0 },
   };
 
-  try {
+  try
+  {
     // Fetch real data from existing endpoints in parallel
-    const [billingData, dlqData, wabaData] = await Promise.all([
-      apiCall<any>(`${API_BASE}/billing?health=true&advisor=false`).catch(() => null),
-      apiCall<any>(`${API_BASE}/dlq`).catch(() => null),
-      apiCall<any>(`${API_BASE}/waba`).catch(() => null),
-    ]);
+    const [ billingData, dlqData, wabaData ] = await Promise.all( [
+      apiCall<any>( `${API_BASE}/billing?health=true&advisor=false` ).catch( () => null ),
+      apiCall<any>( `${API_BASE}/dlq` ).catch( () => null ),
+      apiCall<any>( `${API_BASE}/waba` ).catch( () => null ),
+    ] );
 
     // DLQ depth
-    if (dlqData) {
+    if ( dlqData )
+    {
       defaults.dlq.depth = dlqData.count ?? dlqData.messages?.length ?? 0;
-      if (dlqData.messages?.length > 0) {
-        defaults.dlq.oldestMessage = dlqData.messages[dlqData.messages.length - 1]?.lastAttemptAt
-          ? new Date(dlqData.messages[dlqData.messages.length - 1].lastAttemptAt * 1000).toISOString()
+      if ( dlqData.messages?.length > 0 )
+      {
+        defaults.dlq.oldestMessage = dlqData.messages[ dlqData.messages.length - 1 ]?.lastAttemptAt
+          ? new Date( dlqData.messages[ dlqData.messages.length - 1 ].lastAttemptAt * 1000 ).toISOString()
           : undefined;
       }
     }
 
     // AWS Health status from billing endpoint
-    if (billingData?.health) {
+    if ( billingData?.health )
+    {
       const h = billingData.health;
-      if (h.status === 'issues' || h.openIssues > 0) {
+      if ( h.status === 'issues' || h.openIssues > 0 )
+      {
         defaults.whatsapp.status = 'warning';
       }
     }
 
     // WABA phone quality from waba endpoint
-    if (wabaData && Array.isArray(wabaData.wabas)) {
+    if ( wabaData && Array.isArray( wabaData.wabas ) )
+    {
       defaults.whatsapp.phoneNumbers = wabaData.wabas.reduce(
-        (sum: number, w: any) => sum + (w.phoneNumbers?.length ?? 0), 0
+        ( sum: number, w: any ) => sum + ( w.phoneNumbers?.length ?? 0 ), 0
       ) || defaults.whatsapp.phoneNumbers;
     }
-  } catch {
+  } catch
+  {
     // Return defaults on any error
   }
 
@@ -860,37 +902,39 @@ export interface MakeVoiceCallRequest {
   audioUrl?: string;
 }
 
-export async function listVoiceCalls(contactId?: string, provider?: string): Promise<VoiceCall[]> {
+export async function listVoiceCalls ( contactId?: string, provider?: string ): Promise<VoiceCall[]> {
   let url = `${API_BASE}/voice/calls`;
   const params = new URLSearchParams();
-  if (contactId) params.append('contactId', contactId);
-  if (provider) params.append('provider', provider);
-  if (params.toString()) url += `?${params}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
-    const calls = Array.isArray(data) ? data : (data.calls || []);
-    return calls.map(normalizeVoiceCall);
+  if ( contactId ) params.append( 'contactId', contactId );
+  if ( provider ) params.append( 'provider', provider );
+  if ( params.toString() ) url += `?${params}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
+    const calls = Array.isArray( data ) ? data : ( data.calls || [] );
+    return calls.map( normalizeVoiceCall );
   }
   return [];
 }
 
-export async function getVoiceCall(callId: string): Promise<VoiceCall | null> {
-  const data = await apiCall<any>(`${API_BASE}/voice/calls/${callId}`);
-  if (data) {
-    return normalizeVoiceCall(data.call || data);
+export async function getVoiceCall ( callId: string ): Promise<VoiceCall | null> {
+  const data = await apiCall<any>( `${API_BASE}/voice/calls/${callId}` );
+  if ( data )
+  {
+    return normalizeVoiceCall( data.call || data );
   }
   return null;
 }
 
-export async function makeVoiceCall(request: MakeVoiceCallRequest): Promise<{ callId: string; status: string } | null> {
-  return apiCall<{ callId: string; status: string }>(`${API_BASE}/voice/call`, {
+export async function makeVoiceCall ( request: MakeVoiceCallRequest ): Promise<{ callId: string; status: string } | null> {
+  return apiCall<{ callId: string; status: string }>( `${API_BASE}/voice/call`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
-function normalizeVoiceCall(item: any): VoiceCall {
+function normalizeVoiceCall ( item: any ): VoiceCall {
   return {
     id: item.id || item.callId || '',
     callId: item.callId || item.id || '',
@@ -899,11 +943,11 @@ function normalizeVoiceCall(item: any): VoiceCall {
     provider: item.provider || 'aws',
     callType: item.callType || 'tts',
     status: item.status || 'unknown',
-    direction: (item.direction || 'OUTBOUND').toUpperCase() as 'INBOUND' | 'OUTBOUND',
+    direction: ( item.direction || 'OUTBOUND' ).toUpperCase() as 'INBOUND' | 'OUTBOUND',
     duration: item.duration || 0,
     recordingUrl: item.recordingUrl,
-    createdAt: normalizeTimestamp(item.createdAt) || new Date().toISOString(),
-    updatedAt: normalizeTimestamp(item.updatedAt) || new Date().toISOString(),
+    createdAt: normalizeTimestamp( item.createdAt ) || new Date().toISOString(),
+    updatedAt: normalizeTimestamp( item.updatedAt ) || new Date().toISOString(),
   };
 }
 
@@ -934,25 +978,26 @@ export interface SendSmsAwsRequest {
   senderId?: string;
 }
 
-export async function listSmsAwsMessages(contactId?: string, status?: string): Promise<SmsAwsMessage[]> {
+export async function listSmsAwsMessages ( contactId?: string, status?: string ): Promise<SmsAwsMessage[]> {
   let url = `${API_BASE}/sms-aws/messages`;
   const params = new URLSearchParams();
-  if (contactId) params.append('contactId', contactId);
-  if (status) params.append('status', status);
-  if (params.toString()) url += `?${params}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( contactId ) params.append( 'contactId', contactId );
+  if ( status ) params.append( 'status', status );
+  if ( params.toString() ) url += `?${params}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return data.messages || [];
   }
   return [];
 }
 
-export async function sendSmsAws(request: SendSmsAwsRequest): Promise<{ messageId: string; status: string; providerMessageId?: string } | null> {
-  return apiCall<{ messageId: string; status: string; providerMessageId?: string }>(`${API_BASE}/sms-aws/send`, {
+export async function sendSmsAws ( request: SendSmsAwsRequest ): Promise<{ messageId: string; status: string; providerMessageId?: string } | null> {
+  return apiCall<{ messageId: string; status: string; providerMessageId?: string }>( `${API_BASE}/sms-aws/send`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
 
@@ -985,25 +1030,26 @@ export interface MakeVoiceAwsCallRequest {
   audioUrl?: string;
 }
 
-export async function listVoiceAwsCalls(contactId?: string, status?: string): Promise<VoiceAwsCall[]> {
+export async function listVoiceAwsCalls ( contactId?: string, status?: string ): Promise<VoiceAwsCall[]> {
   let url = `${API_BASE}/voice-aws/calls`;
   const params = new URLSearchParams();
-  if (contactId) params.append('contactId', contactId);
-  if (status) params.append('status', status);
-  if (params.toString()) url += `?${params}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( contactId ) params.append( 'contactId', contactId );
+  if ( status ) params.append( 'status', status );
+  if ( params.toString() ) url += `?${params}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return data.calls || [];
   }
   return [];
 }
 
-export async function makeVoiceAwsCall(request: MakeVoiceAwsCallRequest): Promise<{ callId: string; status: string; providerCallId?: string } | null> {
-  return apiCall<{ callId: string; status: string; providerCallId?: string }>(`${API_BASE}/voice-aws/call`, {
+export async function makeVoiceAwsCall ( request: MakeVoiceAwsCallRequest ): Promise<{ callId: string; status: string; providerCallId?: string } | null> {
+  return apiCall<{ callId: string; status: string; providerCallId?: string }>( `${API_BASE}/voice-aws/call`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
 
@@ -1047,34 +1093,34 @@ export interface SendWhatsAppAudioRequest {
   recipientBsuid?: string;    // Send to BSUID recipient
 }
 
-export async function sendWhatsAppTTS(request: SendWhatsAppTTSRequest): Promise<{
+export async function sendWhatsAppTTS ( request: SendWhatsAppTTSRequest ): Promise<{
   messageId: string; whatsappMessageId?: string; s3Key: string; audioSize: number; status: string;
 } | null> {
-  return apiCall<any>(`${API_BASE}/whatsapp-voice/tts`, {
+  return apiCall<any>( `${API_BASE}/whatsapp-voice/tts`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
-export async function sendWhatsAppAudioMessage(request: SendWhatsAppAudioRequest): Promise<{
+export async function sendWhatsAppAudioMessage ( request: SendWhatsAppAudioRequest ): Promise<{
   messageId: string; whatsappMessageId?: string; s3Key: string; status: string;
 } | null> {
-  return apiCall<any>(`${API_BASE}/whatsapp-voice/send`, {
+  return apiCall<any>( `${API_BASE}/whatsapp-voice/send`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
-export async function listWhatsAppVoiceLogs(): Promise<WhatsAppVoiceLog[]> {
-  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/logs`);
+export async function listWhatsAppVoiceLogs (): Promise<WhatsAppVoiceLog[]> {
+  const data = await apiCall<any>( `${API_BASE}/whatsapp-voice/logs` );
   return data?.logs || [];
 }
 
-export async function getPollyVoices(): Promise<{
+export async function getPollyVoices (): Promise<{
   voices: Record<string, { id: string; gender: string; engine: string }[]>;
   transcribeLanguages?: Record<string, string>;
 }> {
-  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/voices`);
+  const data = await apiCall<any>( `${API_BASE}/whatsapp-voice/voices` );
   return {
     voices: data?.voices || {},
     transcribeLanguages: data?.transcribeLanguages || {},
@@ -1090,15 +1136,15 @@ export interface TranscribeResult {
   cached: boolean;
 }
 
-export async function transcribeVoiceNote(params: {
+export async function transcribeVoiceNote ( params: {
   messageId?: string;
   s3Key?: string;
   direction?: 'INBOUND' | 'OUTBOUND';
-}): Promise<TranscribeResult | null> {
-  return apiCall<TranscribeResult>(`${API_BASE}/whatsapp-voice/transcribe`, {
+} ): Promise<TranscribeResult | null> {
+  return apiCall<TranscribeResult>( `${API_BASE}/whatsapp-voice/transcribe`, {
     method: 'POST',
-    body: JSON.stringify(params),
-  });
+    body: JSON.stringify( params ),
+  } );
 }
 
 // Voice language configuration
@@ -1110,16 +1156,16 @@ export interface VoiceLanguageConfig {
   transcribeLanguages: string[];
 }
 
-export async function getVoiceLanguageConfig(): Promise<VoiceLanguageConfig | null> {
-  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/language-config`);
+export async function getVoiceLanguageConfig (): Promise<VoiceLanguageConfig | null> {
+  const data = await apiCall<any>( `${API_BASE}/whatsapp-voice/language-config` );
   return data?.config || null;
 }
 
-export async function updateVoiceLanguageConfig(config: Partial<VoiceLanguageConfig>): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/whatsapp-voice/language-config`, {
+export async function updateVoiceLanguageConfig ( config: Partial<VoiceLanguageConfig> ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/whatsapp-voice/language-config`, {
     method: 'PUT',
-    body: JSON.stringify({ config }),
-  });
+    body: JSON.stringify( { config } ),
+  } );
   return data?.success === true;
 }
 
@@ -1135,19 +1181,20 @@ export interface DLQMessage {
   error: string;
 }
 
-export async function listDLQMessages(): Promise<DLQMessage[]> {
-  const data = await apiCall<any>(`${API_BASE}/dlq`);
-  if (data) {
+export async function listDLQMessages (): Promise<DLQMessage[]> {
+  const data = await apiCall<any>( `${API_BASE}/dlq` );
+  if ( data )
+  {
     return data.messages || [];
   }
   return [];
 }
 
-export async function replayDLQMessages(queueName: string, batchSize?: number): Promise<{ processed: number; succeeded: number; failed: number } | null> {
-  return apiCall<{ processed: number; succeeded: number; failed: number }>(`${API_BASE}/dlq/replay`, {
+export async function replayDLQMessages ( queueName: string, batchSize?: number ): Promise<{ processed: number; succeeded: number; failed: number } | null> {
+  return apiCall<{ processed: number; succeeded: number; failed: number }>( `${API_BASE}/dlq/replay`, {
     method: 'POST',
-    body: JSON.stringify({ queueName, batchSize: batchSize || 10 }),
-  });
+    body: JSON.stringify( { queueName, batchSize: batchSize || 10 } ),
+  } );
 }
 
 
@@ -1238,18 +1285,19 @@ const FREE_TIER_LIMITS: Record<string, { limit: string; unit: string }> = {
   'Amazon Location Service': { limit: '10K requests/month', unit: 'requests' },
 };
 
-export async function getAWSBilling(monthOffset: number = 0): Promise<AWSBillingData> {
+export async function getAWSBilling ( monthOffset: number = 0 ): Promise<AWSBillingData> {
   // Try to fetch from our billing API endpoint with month parameter
-  const url = monthOffset === 0 
-    ? `${API_BASE}/billing` 
+  const url = monthOffset === 0
+    ? `${API_BASE}/billing`
     : `${API_BASE}/billing?month=${monthOffset}`;
-  
-  const data = await apiCall<any>(url);
-  
-  if (data && data.services) {
+
+  const data = await apiCall<any>( url );
+
+  if ( data && data.services )
+  {
     return {
       totalCost: data.totalCost || 0,
-      period: data.period || `${new Date().toISOString().slice(0, 7)}-01 to ${new Date().toISOString().slice(0, 10)}`,
+      period: data.period || `${new Date().toISOString().slice( 0, 7 )}-01 to ${new Date().toISOString().slice( 0, 10 )}`,
       services: data.services,
       lastUpdated: data.lastUpdated || new Date().toISOString(),
       accountId: data.accountId,
@@ -1261,16 +1309,16 @@ export async function getAWSBilling(monthOffset: number = 0): Promise<AWSBilling
       trustedAdvisor: data.trustedAdvisor,
     };
   }
-  
+
   // Fallback: Return cached/estimated data
   return getEstimatedBilling();
 }
 
 // Fallback function with estimated billing data
-function getEstimatedBilling(): AWSBillingData {
+function getEstimatedBilling (): AWSBillingData {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  
+  const startOfMonth = new Date( now.getFullYear(), now.getMonth(), 1 );
+
   const services: AWSServiceUsage[] = [
     { service: 'Amazon Bedrock', cost: 0, usage: 61, unit: 'requests', freeLimit: '3-month trial', status: 'free' },
     { service: 'AWS Lambda', cost: 0, usage: 6709, unit: 'requests', freeLimit: '1M/month', status: 'free' },
@@ -1290,10 +1338,10 @@ function getEstimatedBilling(): AWSBillingData {
     { service: 'Amazon Cognito', cost: 0, usage: 1, unit: 'users', freeLimit: '50K MAU', status: 'free' },
     { service: 'CloudWatch', cost: 0, usage: 370, unit: 'metrics', freeLimit: '10 metrics', status: 'free' },
   ];
-  
+
   return {
     totalCost: 2.40,
-    period: `${startOfMonth.toISOString().slice(0, 10)} to ${now.toISOString().slice(0, 10)}`,
+    period: `${startOfMonth.toISOString().slice( 0, 10 )} to ${now.toISOString().slice( 0, 10 )}`,
     services,
     lastUpdated: now.toISOString(),
   };
@@ -1310,22 +1358,25 @@ function getEstimatedBilling(): AWSBillingData {
  * 
  * Uses the backend ?hard=true parameter to trigger full deletion
  */
-export async function hardDeleteContact(contactId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/contacts/${contactId}?hard=true`, {
+export async function hardDeleteContact ( contactId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/contacts/${contactId}?hard=true`, {
     method: 'DELETE',
-  });
-  
-  if (data && data.success) {
+  } );
+
+  if ( data && data.success )
+  {
     return true;
   }
-  
+
   // Fallback: delete messages one by one, then soft delete contact
-  try {
-    const messagesDeleted = await deleteContactMessages(contactId);
-    const contactDeleted = await deleteContact(contactId);
+  try
+  {
+    const messagesDeleted = await deleteContactMessages( contactId );
+    const contactDeleted = await deleteContact( contactId );
     return contactDeleted;
-  } catch (error) {
-    console.error('Hard delete fallback error:', error);
+  } catch ( error )
+  {
+    console.error( 'Hard delete fallback error:', error );
     return false;
   }
 }
@@ -1334,30 +1385,36 @@ export async function hardDeleteContact(contactId: string): Promise<boolean> {
  * Delete all messages for a contact (keeps the contact)
  * Deletes messages one by one since there's no bulk endpoint
  */
-export async function deleteContactMessages(contactId: string): Promise<boolean> {
-  try {
+export async function deleteContactMessages ( contactId: string ): Promise<boolean> {
+  try
+  {
     // Fetch all messages for this contact
-    const messages = await listMessages(contactId);
-    
-    if (messages.length === 0) {
+    const messages = await listMessages( contactId );
+
+    if ( messages.length === 0 )
+    {
       return true; // No messages to delete
     }
-    
+
     let deleted = 0;
     let failed = 0;
-    
-    for (const msg of messages) {
-      const result = await deleteMessage(msg.id, msg.direction);
-      if (result) {
+
+    for ( const msg of messages )
+    {
+      const result = await deleteMessage( msg.id, msg.direction );
+      if ( result )
+      {
         deleted++;
-      } else {
+      } else
+      {
         failed++;
       }
     }
-    
+
     return deleted > 0 || messages.length === 0;
-  } catch (error) {
-    console.error('Delete contact messages error:', error);
+  } catch ( error )
+  {
+    console.error( 'Delete contact messages error:', error );
     return false;
   }
 }
@@ -1365,38 +1422,44 @@ export async function deleteContactMessages(contactId: string): Promise<boolean>
 /**
  * Bulk delete multiple messages
  */
-export async function bulkDeleteMessages(messageIds: string[], direction: 'INBOUND' | 'OUTBOUND' = 'INBOUND'): Promise<{ deleted: number; failed: number }> {
+export async function bulkDeleteMessages ( messageIds: string[], direction: 'INBOUND' | 'OUTBOUND' = 'INBOUND' ): Promise<{ deleted: number; failed: number }> {
   let deleted = 0;
   let failed = 0;
-  
-  for (const msgId of messageIds) {
-    const result = await deleteMessage(msgId, direction);
-    if (result) {
+
+  for ( const msgId of messageIds )
+  {
+    const result = await deleteMessage( msgId, direction );
+    if ( result )
+    {
       deleted++;
-    } else {
+    } else
+    {
       failed++;
     }
   }
-  
+
   return { deleted, failed };
 }
 
 /**
  * Bulk delete multiple contacts
  */
-export async function bulkDeleteContacts(contactIds: string[]): Promise<{ deleted: number; failed: number }> {
+export async function bulkDeleteContacts ( contactIds: string[] ): Promise<{ deleted: number; failed: number }> {
   let deleted = 0;
   let failed = 0;
-  
-  for (const contactId of contactIds) {
-    const result = await deleteContact(contactId);
-    if (result) {
+
+  for ( const contactId of contactIds )
+  {
+    const result = await deleteContact( contactId );
+    if ( result )
+    {
       deleted++;
-    } else {
+    } else
+    {
       failed++;
     }
   }
-  
+
   return { deleted, failed };
 }
 
@@ -1435,48 +1498,61 @@ const WABA_IDS = {
  * Send a template message via WhatsApp
  * Templates can be sent outside the 24h window
  */
-export async function sendWhatsAppTemplateMessage(request: {
-  contactId: string;
+export async function sendWhatsAppTemplateMessage ( request: {
+  contactId?: string;
+  recipientPhone?: string;    // Send by phone number — auto-creates contact if needed
   templateName: string;
   language?: string;
   components?: any[];
   phoneNumberId?: string;
   templateParams?: string[];  // Variable values like OTP code
   recipientBsuid?: string;    // Send to BSUID recipient
-}): Promise<{ messageId: string; status: string } | null> {
+} ): Promise<{ messageId: string; status: string } | null> {
   // Build template params array - include language as first param for Lambda
   const params: string[] = [];
-  
+
   // Add language code as first param (Lambda will extract it)
-  if (request.language) {
-    params.push(request.language);
+  if ( request.language )
+  {
+    params.push( request.language );
   }
-  
+
   // Add template variable values
-  if (request.templateParams && request.templateParams.length > 0) {
-    params.push(...request.templateParams);
+  if ( request.templateParams && request.templateParams.length > 0 )
+  {
+    params.push( ...request.templateParams );
   }
-  
-  return apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
+
+  const payload: Record<string, any> = {
+    isTemplate: true,
+    templateName: request.templateName,
+    templateParams: params,
+    phoneNumberId: request.phoneNumberId,
+    recipientBsuid: request.recipientBsuid,
+  };
+
+  // Support sending by contactId or recipientPhone (auto-creates contact)
+  if ( request.contactId )
+  {
+    payload.contactId = request.contactId;
+  } else if ( request.recipientPhone )
+  {
+    payload.recipientPhone = request.recipientPhone;
+  }
+
+  return apiCall<{ messageId: string; status: string }>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify({
-      contactId: request.contactId,
-      isTemplate: true,
-      templateName: request.templateName,
-      templateParams: params,
-      phoneNumberId: request.phoneNumberId,
-      recipientBsuid: request.recipientBsuid,
-    }),
-  });
+    body: JSON.stringify( payload ),
+  } );
 }
 
-function normalizeTemplate(item: any): WhatsAppTemplate {
+function normalizeTemplate ( item: any ): WhatsAppTemplate {
   return {
     id: item.id || item.templateId || item.name || '',
     name: item.name || item.templateName || '',
     language: item.language || item.languageCode || 'en_US',
-    category: (item.category || 'UTILITY').toUpperCase() as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION',
-    status: (item.status || 'APPROVED').toUpperCase() as 'APPROVED' | 'PENDING' | 'REJECTED',
+    category: ( item.category || 'UTILITY' ).toUpperCase() as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION',
+    status: ( item.status || 'APPROVED' ).toUpperCase() as 'APPROVED' | 'PENDING' | 'REJECTED',
     components: item.components || [],
   };
 }
@@ -1493,53 +1569,63 @@ function normalizeTemplate(item: any): WhatsAppTemplate {
  * API: POST /ai/generate
  * Lambda: wecare-ai-generate-response
  */
-export async function generateAIResponse(message: string, context?: {
+export async function generateAIResponse ( message: string, context?: {
   contactName?: string;
   channel?: string;
   conversationHistory?: string[];
-}): Promise<{ response: string; sources?: string[] }> {
-  try {
-    const data = await apiCall<any>(`${API_BASE}/ai/generate`, {
+} ): Promise<{ response: string; sources?: string[] }> {
+  try
+  {
+    const data = await apiCall<any>( `${API_BASE}/ai/generate`, {
       method: 'POST',
-      body: JSON.stringify({
+      body: JSON.stringify( {
         messageContent: message,
         context: context?.channel || 'external',  // Use external agent for inbox
-      }),
-    });
-    
+      } ),
+    } );
+
     // Handle Lambda response format (body is JSON string)
-    if (data) {
+    if ( data )
+    {
       // If response has body field (Lambda proxy response)
-      if (data.body) {
-        try {
-          const parsed = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
-          if (parsed.suggestion) {
+      if ( data.body )
+      {
+        try
+        {
+          const parsed = typeof data.body === 'string' ? JSON.parse( data.body ) : data.body;
+          if ( parsed.suggestion )
+          {
             return { response: parsed.suggestion, sources: parsed.sources || [] };
           }
-          if (parsed.suggestedResponse) {
+          if ( parsed.suggestedResponse )
+          {
             return { response: parsed.suggestedResponse, sources: parsed.sources || [] };
           }
-        } catch (e) {
-          console.error('Failed to parse AI response body:', e);
+        } catch ( e )
+        {
+          console.error( 'Failed to parse AI response body:', e );
         }
       }
-      
+
       // Direct response format
-      if (data.suggestion) {
+      if ( data.suggestion )
+      {
         return { response: data.suggestion, sources: data.sources || [] };
       }
-      if (data.suggestedResponse) {
+      if ( data.suggestedResponse )
+      {
         return { response: data.suggestedResponse, sources: data.sources || [] };
       }
     }
-    
+
     // Fallback response
     return {
       response: 'Thank you for your message. How can I assist you today?',
       sources: [],
     };
-  } catch (error) {
-    console.error('AI generate error:', error);
+  } catch ( error )
+  {
+    console.error( 'AI generate error:', error );
     return {
       response: 'Thank you for reaching out. How can I help you?',
       sources: [],
@@ -1593,8 +1679,8 @@ export interface SendPaymentMessageRequest {
  * 
  * NOTE: Convenience Fee is handled by Razorpay Fee Bearer model (not in WhatsApp message)
  */
-export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequest): Promise<{ messageId: string; status: string } | null> {
-  const subtotal = request.items.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
+export async function sendWhatsAppPaymentMessage ( request: SendPaymentMessageRequest ): Promise<{ messageId: string; status: string } | null> {
+  const subtotal = request.items.reduce( ( sum, item ) => sum + ( item.amount * item.quantity ), 0 );
   const discount = request.discount || 0;
   const delivery = request.delivery || 0;
   const tax = request.tax || 0;
@@ -1605,20 +1691,20 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
     type: 'physical-goods',
     payment_configuration: request.paymentConfiguration || 'WECARE-RAZOR-PAY',
     currency: request.currency || 'INR',
-    itemName: request.items[0]?.name || 'Service Fee',
-    quantity: request.items[0]?.quantity || 1,
+    itemName: request.items[ 0 ]?.name || 'Service Fee',
+    quantity: request.items[ 0 ]?.quantity || 1,
     gstin: request.gstin || DEFAULT_GSTIN,
     orderId: request.orderId || 'Offline',
     shipping_info: { country: 'IN', addresses: [] },
     order: {
       status: 'pending',
-      items: request.items.map((item, idx) => ({
+      items: request.items.map( ( item, idx ) => ( {
         retailer_id: item.productId || `ITEM_${idx + 1}`,
         name: item.name,
         amount: { value: item.amount, offset: 100 },
         quantity: item.quantity,
         gstRate: item.gstRate ?? 0,
-      })),
+      } ) ),
       subtotal: { value: subtotal, offset: 100 },
       discount: { value: discount, offset: 100, description: 'Promo' },
       shipping: { value: delivery, offset: 100, description: 'Express' },
@@ -1627,9 +1713,9 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
   };
 
   // Always use checkout button template (wecare_pay) — enables address + coupons
-  return apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
+  return apiCall<{ messageId: string; status: string }>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: JSON.stringify( {
       contactId: request.contactId,
       phoneNumberId: request.phoneNumberId,
       recipientBsuid: request.recipientBsuid,
@@ -1639,8 +1725,8 @@ export async function sendWhatsAppPaymentMessage(request: SendPaymentMessageRequ
       templateParams: [],
       checkoutOrderDetails: orderDetails,
       headerImageUrl: request.headerImageUrl || 'https://app.wecare.digital/stream/media/m/wecare-digital.png',
-    }),
-  });
+    } ),
+  } );
 }
 
 
@@ -1683,9 +1769,10 @@ export interface WABASystemEvents {
  * List all linked WhatsApp Business Accounts
  * API: ListLinkedWhatsAppBusinessAccounts
  */
-export async function listWABAs(): Promise<WABAAccount[]> {
-  const data = await apiCall<any>(`${API_BASE}/waba`);
-  if (data && data.wabas) {
+export async function listWABAs (): Promise<WABAAccount[]> {
+  const data = await apiCall<any>( `${API_BASE}/waba` );
+  if ( data && data.wabas )
+  {
     return data.wabas;
   }
   return [];
@@ -1695,9 +1782,10 @@ export async function listWABAs(): Promise<WABAAccount[]> {
  * Get WABA details including phone numbers with quality ratings
  * API: GetLinkedWhatsAppBusinessAccount
  */
-export async function getWABADetails(wabaId: string): Promise<WABAAccount | null> {
-  const data = await apiCall<any>(`${API_BASE}/waba/${wabaId}`);
-  if (data) {
+export async function getWABADetails ( wabaId: string ): Promise<WABAAccount | null> {
+  const data = await apiCall<any>( `${API_BASE}/waba/${wabaId}` );
+  if ( data )
+  {
     return data;
   }
   return null;
@@ -1707,9 +1795,10 @@ export async function getWABADetails(wabaId: string): Promise<WABAAccount | null
  * Get phone number details including quality rating
  * API: GetLinkedWhatsAppBusinessAccountPhoneNumber
  */
-export async function getPhoneNumberDetails(phoneNumberId: string): Promise<WABAPhoneNumber | null> {
-  const data = await apiCall<any>(`${API_BASE}/waba/phone/${phoneNumberId}`);
-  if (data) {
+export async function getPhoneNumberDetails ( phoneNumberId: string ): Promise<WABAPhoneNumber | null> {
+  const data = await apiCall<any>( `${API_BASE}/waba/phone/${phoneNumberId}` );
+  if ( data )
+  {
     return data;
   }
   return null;
@@ -1719,12 +1808,13 @@ export async function getPhoneNumberDetails(phoneNumberId: string): Promise<WABA
  * Get system events (template status, phone quality, account updates)
  * Stored by inbound webhook handler
  */
-export async function getWABASystemEvents(eventType?: string): Promise<WABASystemEvents> {
+export async function getWABASystemEvents ( eventType?: string ): Promise<WABASystemEvents> {
   let url = `${API_BASE}/waba/events`;
-  if (eventType) url += `?type=${eventType}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( eventType ) url += `?type=${eventType}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return {
       templateStatus: data.templateStatus || [],
       phoneQuality: data.phoneQuality || [],
@@ -1738,10 +1828,10 @@ export async function getWABASystemEvents(eventType?: string): Promise<WABASyste
  * Delete WhatsApp media from Meta servers
  * API: DeleteWhatsAppMessageMedia
  */
-export async function deleteWhatsAppMedia(mediaId: string, phoneNumberId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/media/${mediaId}?phoneNumberId=${phoneNumberId}`, {
+export async function deleteWhatsAppMedia ( mediaId: string, phoneNumberId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/media/${mediaId}?phoneNumberId=${phoneNumberId}`, {
     method: 'DELETE',
-  });
+  } );
   return data?.success === true;
 }
 
@@ -1806,16 +1896,17 @@ export interface UpdateTemplateRequest {
  * List templates for a WABA (enhanced version)
  * API: ListWhatsAppMessageTemplates
  */
-export async function listTemplates(wabaId?: string, maxResults?: number): Promise<WhatsAppTemplate[]> {
+export async function listTemplates ( wabaId?: string, maxResults?: number ): Promise<WhatsAppTemplate[]> {
   let url = `${API_BASE}/whatsapp/templates`;
   const params = new URLSearchParams();
-  if (wabaId) params.append('wabaId', wabaId);
-  if (maxResults) params.append('maxResults', maxResults.toString());
-  if (params.toString()) url += `?${params}`;
-  
-  const data = await apiCall<any>(url);
-  if (data && data.templates) {
-    return data.templates.map(normalizeTemplate);
+  if ( wabaId ) params.append( 'wabaId', wabaId );
+  if ( maxResults ) params.append( 'maxResults', maxResults.toString() );
+  if ( params.toString() ) url += `?${params}`;
+
+  const data = await apiCall<any>( url );
+  if ( data && data.templates )
+  {
+    return data.templates.map( normalizeTemplate );
   }
   return [];
 }
@@ -1824,12 +1915,13 @@ export async function listTemplates(wabaId?: string, maxResults?: number): Promi
  * Get template details
  * API: GetWhatsAppMessageTemplate
  */
-export async function getTemplateDetails(templateId: string, wabaId?: string): Promise<any | null> {
+export async function getTemplateDetails ( templateId: string, wabaId?: string ): Promise<any | null> {
   let url = `${API_BASE}/whatsapp/templates/${templateId}`;
-  if (wabaId) url += `?wabaId=${wabaId}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( wabaId ) url += `?wabaId=${wabaId}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return data.template || data;
   }
   return null;
@@ -1839,33 +1931,33 @@ export async function getTemplateDetails(templateId: string, wabaId?: string): P
  * Create a new template from custom definition
  * API: CreateWhatsAppMessageTemplate
  */
-export async function createTemplate(request: CreateTemplateRequest): Promise<{ metaTemplateId: string; category: string; templateStatus: string } | null> {
-  return apiCall<any>(`${API_BASE}/whatsapp/templates`, {
+export async function createTemplate ( request: CreateTemplateRequest ): Promise<{ metaTemplateId: string; category: string; templateStatus: string } | null> {
+  return apiCall<any>( `${API_BASE}/whatsapp/templates`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
 /**
  * Create template from Meta's library
  * API: CreateWhatsAppMessageTemplateFromLibrary
  */
-export async function createTemplateFromLibrary(request: CreateFromLibraryRequest): Promise<{ metaTemplateId: string; category: string; templateStatus: string } | null> {
-  return apiCall<any>(`${API_BASE}/whatsapp/template-from-library`, {
+export async function createTemplateFromLibrary ( request: CreateFromLibraryRequest ): Promise<{ metaTemplateId: string; category: string; templateStatus: string } | null> {
+  return apiCall<any>( `${API_BASE}/whatsapp/template-from-library`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
 /**
  * Update an existing template
  * API: UpdateWhatsAppMessageTemplate
  */
-export async function updateTemplate(templateId: string, request: UpdateTemplateRequest): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/whatsapp/templates/${templateId}`, {
+export async function updateTemplate ( templateId: string, request: UpdateTemplateRequest ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/whatsapp/templates/${templateId}`, {
     method: 'PUT',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
   return data?.success === true;
 }
 
@@ -1873,15 +1965,15 @@ export async function updateTemplate(templateId: string, request: UpdateTemplate
  * Delete a template
  * API: DeleteWhatsAppMessageTemplate
  */
-export async function deleteTemplate(templateName: string, wabaId?: string, deleteAllLanguages?: boolean): Promise<boolean> {
+export async function deleteTemplate ( templateName: string, wabaId?: string, deleteAllLanguages?: boolean ): Promise<boolean> {
   let url = `${API_BASE}/whatsapp/templates/${templateName}`;
   const params = new URLSearchParams();
-  params.append('templateName', templateName);
-  if (wabaId) params.append('wabaId', wabaId);
-  if (deleteAllLanguages) params.append('deleteAllLanguages', 'true');
+  params.append( 'templateName', templateName );
+  if ( wabaId ) params.append( 'wabaId', wabaId );
+  if ( deleteAllLanguages ) params.append( 'deleteAllLanguages', 'true' );
   url += `?${params}`;
-  
-  const data = await apiCall<any>(url, { method: 'DELETE' });
+
+  const data = await apiCall<any>( url, { method: 'DELETE' } );
   return data?.success === true;
 }
 
@@ -1889,7 +1981,7 @@ export async function deleteTemplate(templateName: string, wabaId?: string, dele
  * Browse Meta's template library
  * API: ListWhatsAppTemplateLibrary
  */
-export async function listTemplateLibrary(filters?: {
+export async function listTemplateLibrary ( filters?: {
   wabaId?: string;
   searchKey?: string;
   topic?: string;
@@ -1897,18 +1989,20 @@ export async function listTemplateLibrary(filters?: {
   industry?: string;
   language?: string;
   maxResults?: number;
-}): Promise<MetaLibraryTemplate[]> {
+} ): Promise<MetaLibraryTemplate[]> {
   let url = `${API_BASE}/whatsapp/template-library`;
-  if (filters) {
+  if ( filters )
+  {
     const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value.toString());
-    });
-    if (params.toString()) url += `?${params}`;
+    Object.entries( filters ).forEach( ( [ key, value ] ) => {
+      if ( value ) params.append( key, value.toString() );
+    } );
+    if ( params.toString() ) url += `?${params}`;
   }
-  
-  const data = await apiCall<any>(url);
-  if (data && data.templates) {
+
+  const data = await apiCall<any>( url );
+  if ( data && data.templates )
+  {
     return data.templates;
   }
   return [];
@@ -1918,17 +2012,17 @@ export async function listTemplateLibrary(filters?: {
  * Upload media for template headers
  * API: CreateWhatsAppMessageTemplateMedia
  */
-export async function uploadTemplateMedia(request: {
+export async function uploadTemplateMedia ( request: {
   wabaId?: string;
   mediaBase64?: string;
   s3Key?: string;
   mediaType?: string;
   filename?: string;
-}): Promise<{ metaHeaderHandle: string; s3Key: string } | null> {
-  return apiCall<any>(`${API_BASE}/whatsapp/templates/media`, {
+} ): Promise<{ metaHeaderHandle: string; s3Key: string } | null> {
+  return apiCall<any>( `${API_BASE}/whatsapp/templates/media`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
 
@@ -1971,16 +2065,17 @@ export interface AIStats {
 }
 
 export interface SupportedLanguages {
-  [code: string]: string;
+  [ code: string ]: string;
 }
 
 /**
  * Get Bedrock AI configuration
  * API: GET /ai/config
  */
-export async function getBedrockAIConfig(): Promise<BedrockAIConfig> {
-  const data = await apiCall<any>(`${API_BASE}/ai/config`);
-  if (data && data.config) {
+export async function getBedrockAIConfig (): Promise<BedrockAIConfig> {
+  const data = await apiCall<any>( `${API_BASE}/ai/config` );
+  if ( data && data.config )
+  {
     return data.config;
   }
   // Return defaults if API fails
@@ -1993,7 +2088,7 @@ export async function getBedrockAIConfig(): Promise<BedrockAIConfig> {
     respondToLocation: true,
     maxResponseLength: 500,
     responseDelay: 0,
-    supportedLanguages: ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
+    supportedLanguages: [ 'en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr' ],
     defaultLanguage: 'en',
     agentId: '4UUQYFWX64',
     agentAlias: 'TSTALIASID',
@@ -2006,12 +2101,13 @@ export async function getBedrockAIConfig(): Promise<BedrockAIConfig> {
  * Update Bedrock AI configuration
  * API: PUT /ai/config
  */
-export async function updateBedrockAIConfig(updates: Partial<BedrockAIConfig>): Promise<BedrockAIConfig | null> {
-  const data = await apiCall<any>(`${API_BASE}/ai/config`, {
+export async function updateBedrockAIConfig ( updates: Partial<BedrockAIConfig> ): Promise<BedrockAIConfig | null> {
+  const data = await apiCall<any>( `${API_BASE}/ai/config`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
-  if (data && data.config) {
+    body: JSON.stringify( updates ),
+  } );
+  if ( data && data.config )
+  {
     return data.config;
   }
   return null;
@@ -2021,11 +2117,12 @@ export async function updateBedrockAIConfig(updates: Partial<BedrockAIConfig>): 
  * Get language-specific prompts
  * API: GET /ai/prompts or GET /ai/prompts/{lang}
  */
-export async function getAIPrompts(lang?: string): Promise<Record<string, string> | string> {
+export async function getAIPrompts ( lang?: string ): Promise<Record<string, string> | string> {
   const url = lang ? `${API_BASE}/ai/prompts/${lang}` : `${API_BASE}/ai/prompts`;
-  const data = await apiCall<any>(url);
-  if (data) {
-    return lang ? (data.prompt || '') : (data.prompts || {});
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
+    return lang ? ( data.prompt || '' ) : ( data.prompts || {} );
   }
   return lang ? '' : {};
 }
@@ -2034,11 +2131,11 @@ export async function getAIPrompts(lang?: string): Promise<Record<string, string
  * Update language-specific prompt
  * API: PUT /ai/prompts/{lang}
  */
-export async function updateAIPrompt(lang: string, prompt: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/ai/prompts/${lang}`, {
+export async function updateAIPrompt ( lang: string, prompt: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/ai/prompts/${lang}`, {
     method: 'PUT',
-    body: JSON.stringify({ language: lang, prompt }),
-  });
+    body: JSON.stringify( { language: lang, prompt } ),
+  } );
   return data?.success === true;
 }
 
@@ -2046,11 +2143,12 @@ export async function updateAIPrompt(lang: string, prompt: string): Promise<bool
  * Get language-specific fallback messages
  * API: GET /ai/fallbacks or GET /ai/fallbacks/{lang}
  */
-export async function getAIFallbacks(lang?: string): Promise<Record<string, string> | string> {
+export async function getAIFallbacks ( lang?: string ): Promise<Record<string, string> | string> {
   const url = lang ? `${API_BASE}/ai/fallbacks/${lang}` : `${API_BASE}/ai/fallbacks`;
-  const data = await apiCall<any>(url);
-  if (data) {
-    return lang ? (data.fallback || '') : (data.fallbacks || {});
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
+    return lang ? ( data.fallback || '' ) : ( data.fallbacks || {} );
   }
   return lang ? '' : {};
 }
@@ -2059,11 +2157,11 @@ export async function getAIFallbacks(lang?: string): Promise<Record<string, stri
  * Update language-specific fallback message
  * API: PUT /ai/fallbacks/{lang}
  */
-export async function updateAIFallback(lang: string, fallback: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/ai/fallbacks/${lang}`, {
+export async function updateAIFallback ( lang: string, fallback: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/ai/fallbacks/${lang}`, {
     method: 'PUT',
-    body: JSON.stringify({ language: lang, fallback }),
-  });
+    body: JSON.stringify( { language: lang, fallback } ),
+  } );
   return data?.success === true;
 }
 
@@ -2071,12 +2169,13 @@ export async function updateAIFallback(lang: string, fallback: string): Promise<
  * Get AI interaction logs
  * API: GET /ai/interactions
  */
-export async function getAIInteractions(limit?: number): Promise<AIInteraction[]> {
+export async function getAIInteractions ( limit?: number ): Promise<AIInteraction[]> {
   let url = `${API_BASE}/ai/interactions`;
-  if (limit) url += `?limit=${limit}`;
-  
-  const data = await apiCall<any>(url);
-  if (data && data.interactions) {
+  if ( limit ) url += `?limit=${limit}`;
+
+  const data = await apiCall<any>( url );
+  if ( data && data.interactions )
+  {
     return data.interactions;
   }
   return [];
@@ -2086,9 +2185,10 @@ export async function getAIInteractions(limit?: number): Promise<AIInteraction[]
  * Get AI usage statistics
  * API: GET /ai/stats
  */
-export async function getAIStats(): Promise<AIStats> {
-  const data = await apiCall<any>(`${API_BASE}/ai/stats`);
-  if (data) {
+export async function getAIStats (): Promise<AIStats> {
+  const data = await apiCall<any>( `${API_BASE}/ai/stats` );
+  if ( data )
+  {
     return {
       totalInteractions: data.totalInteractions || 0,
       approvedResponses: data.approvedResponses || 0,
@@ -2103,9 +2203,10 @@ export async function getAIStats(): Promise<AIStats> {
  * Get supported languages
  * API: GET /ai/languages
  */
-export async function getSupportedLanguages(): Promise<SupportedLanguages> {
-  const data = await apiCall<any>(`${API_BASE}/ai/languages`);
-  if (data && data.languages) {
+export async function getSupportedLanguages (): Promise<SupportedLanguages> {
+  const data = await apiCall<any>( `${API_BASE}/ai/languages` );
+  if ( data && data.languages )
+  {
     return data.languages;
   }
   return {
@@ -2124,12 +2225,13 @@ export async function getSupportedLanguages(): Promise<SupportedLanguages> {
  * Test AI response generation
  * API: POST /ai/test
  */
-export async function testBedrockAIResponse(message: string): Promise<{ message: string; response: string; detectedLanguage: string }> {
-  const data = await apiCall<any>(`${API_BASE}/ai/test`, {
+export async function testBedrockAIResponse ( message: string ): Promise<{ message: string; response: string; detectedLanguage: string }> {
+  const data = await apiCall<any>( `${API_BASE}/ai/test`, {
     method: 'POST',
-    body: JSON.stringify({ message }),
-  });
-  if (data) {
+    body: JSON.stringify( { message } ),
+  } );
+  if ( data )
+  {
     return {
       message: data.message || message,
       response: data.response || 'AI test response would appear here',
@@ -2148,7 +2250,7 @@ export async function testBedrockAIResponse(message: string): Promise<{ message:
  * Download media from WhatsApp
  * API: GetWhatsAppMessageMedia
  */
-export async function getWhatsAppMedia(mediaId: string, phoneNumberId: string, metadataOnly?: boolean): Promise<{
+export async function getWhatsAppMedia ( mediaId: string, phoneNumberId: string, metadataOnly?: boolean ): Promise<{
   mediaId: string;
   mimeType: string;
   fileSize: number;
@@ -2156,10 +2258,11 @@ export async function getWhatsAppMedia(mediaId: string, phoneNumberId: string, m
   downloadUrl?: string;
 } | null> {
   let url = `${API_BASE}/waba/media/${mediaId}?phoneNumberId=${phoneNumberId}`;
-  if (metadataOnly) url += '&metadataOnly=true';
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( metadataOnly ) url += '&metadataOnly=true';
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return {
       mediaId: data.mediaId || mediaId,
       mimeType: data.mimeType || '',
@@ -2175,28 +2278,28 @@ export async function getWhatsAppMedia(mediaId: string, phoneNumberId: string, m
  * Upload media to WhatsApp for sending
  * API: PostWhatsAppMessageMedia
  */
-export async function postWhatsAppMedia(phoneNumberId: string, s3Key: string): Promise<{
+export async function postWhatsAppMedia ( phoneNumberId: string, s3Key: string ): Promise<{
   mediaId: string;
   s3Key: string;
 } | null> {
-  return apiCall<any>(`${API_BASE}/waba/media`, {
+  return apiCall<any>( `${API_BASE}/waba/media`, {
     method: 'POST',
-    body: JSON.stringify({ phoneNumberId, s3Key }),
-  });
+    body: JSON.stringify( { phoneNumberId, s3Key } ),
+  } );
 }
 
 /**
  * Configure event destinations for WABA
  * API: PutWhatsAppBusinessAccountEventDestinations
  */
-export async function putWABAEventDestinations(wabaId: string, eventDestinations: {
+export async function putWABAEventDestinations ( wabaId: string, eventDestinations: {
   eventDestinationArn: string;
   roleArn: string;
-}[]): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/${wabaId}/events`, {
+}[] ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/${wabaId}/events`, {
     method: 'PUT',
-    body: JSON.stringify({ wabaId, eventDestinations }),
-  });
+    body: JSON.stringify( { wabaId, eventDestinations } ),
+  } );
   return data?.success === true;
 }
 
@@ -2204,9 +2307,10 @@ export async function putWABAEventDestinations(wabaId: string, eventDestinations
  * List tags for a WABA or phone number resource
  * API: ListTagsForResource
  */
-export async function listWABATags(resourceArn: string): Promise<{ key: string; value: string }[]> {
-  const data = await apiCall<any>(`${API_BASE}/waba/tags?resourceArn=${encodeURIComponent(resourceArn)}`);
-  if (data && data.tags) {
+export async function listWABATags ( resourceArn: string ): Promise<{ key: string; value: string }[]> {
+  const data = await apiCall<any>( `${API_BASE}/waba/tags?resourceArn=${encodeURIComponent( resourceArn )}` );
+  if ( data && data.tags )
+  {
     return data.tags;
   }
   return [];
@@ -2216,11 +2320,11 @@ export async function listWABATags(resourceArn: string): Promise<{ key: string; 
  * Add tags to a WABA or phone number resource
  * API: TagResource
  */
-export async function tagWABAResource(resourceArn: string, tags: { key: string; value: string }[]): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/tags`, {
+export async function tagWABAResource ( resourceArn: string, tags: { key: string; value: string }[] ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/tags`, {
     method: 'POST',
-    body: JSON.stringify({ resourceArn, tags }),
-  });
+    body: JSON.stringify( { resourceArn, tags } ),
+  } );
   return data?.success === true;
 }
 
@@ -2228,11 +2332,11 @@ export async function tagWABAResource(resourceArn: string, tags: { key: string; 
  * Remove tags from a WABA or phone number resource
  * API: UntagResource
  */
-export async function untagWABAResource(resourceArn: string, tagKeys: string[]): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/tags`, {
+export async function untagWABAResource ( resourceArn: string, tagKeys: string[] ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/tags`, {
     method: 'DELETE',
-    body: JSON.stringify({ resourceArn, tagKeys }),
-  });
+    body: JSON.stringify( { resourceArn, tagKeys } ),
+  } );
   return data?.success === true;
 }
 
@@ -2260,33 +2364,33 @@ export interface WABASNSSubscriptionStatus {
  * Subscribe a WABA to SNS topic for receiving WhatsApp events
  * Sets up PutWhatsAppBusinessAccountEventDestinations
  */
-export async function subscribeWABAToSNS(wabaId: string, snsTopicArn?: string, roleArn?: string): Promise<boolean> {
+export async function subscribeWABAToSNS ( wabaId: string, snsTopicArn?: string, roleArn?: string ): Promise<boolean> {
   const body: Record<string, string> = {};
-  if (snsTopicArn) body.snsTopicArn = snsTopicArn;
-  if (roleArn) body.roleArn = roleArn;
-  const data = await apiCall<any>(`${API_BASE}/waba/${wabaId}/subscribe-sns`, {
+  if ( snsTopicArn ) body.snsTopicArn = snsTopicArn;
+  if ( roleArn ) body.roleArn = roleArn;
+  const data = await apiCall<any>( `${API_BASE}/waba/${wabaId}/subscribe-sns`, {
     method: 'POST',
-    body: JSON.stringify(body),
-  });
+    body: JSON.stringify( body ),
+  } );
   return data?.success === true;
 }
 
 /**
  * Unsubscribe a WABA from SNS (clears event destinations)
  */
-export async function unsubscribeWABAFromSNS(wabaId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/${wabaId}/subscribe-sns`, {
+export async function unsubscribeWABAFromSNS ( wabaId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/${wabaId}/subscribe-sns`, {
     method: 'DELETE',
-    body: JSON.stringify({}),
-  });
+    body: JSON.stringify( {} ),
+  } );
   return data?.success === true;
 }
 
 /**
  * Get current SNS subscription status for a WABA
  */
-export async function getWABASNSSubscriptionStatus(wabaId: string): Promise<WABASNSSubscriptionStatus | null> {
-  return apiCall<WABASNSSubscriptionStatus>(`${API_BASE}/waba/${wabaId}/subscribe-sns`);
+export async function getWABASNSSubscriptionStatus ( wabaId: string ): Promise<WABASNSSubscriptionStatus | null> {
+  return apiCall<WABASNSSubscriptionStatus>( `${API_BASE}/waba/${wabaId}/subscribe-sns` );
 }
 
 
@@ -2297,35 +2401,35 @@ export async function getWABASNSSubscriptionStatus(wabaId: string): Promise<WABA
 /**
  * Request OTP/PIN for phone number verification
  */
-export async function requestPhoneOTP(phoneNumberId: string, method: 'SMS' | 'VOICE' = 'SMS'): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/request-otp`, {
+export async function requestPhoneOTP ( phoneNumberId: string, method: 'SMS' | 'VOICE' = 'SMS' ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/request-otp`, {
     method: 'POST',
-    body: JSON.stringify({ phoneNumberId, method }),
-  });
+    body: JSON.stringify( { phoneNumberId, method } ),
+  } );
   return data?.success === true;
 }
 
 /**
  * Verify OTP/PIN code for phone number
  */
-export async function verifyPhoneOTP(phoneNumberId: string, code: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/verify-otp`, {
+export async function verifyPhoneOTP ( phoneNumberId: string, code: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/verify-otp`, {
     method: 'POST',
-    body: JSON.stringify({ phoneNumberId, code }),
-  });
+    body: JSON.stringify( { phoneNumberId, code } ),
+  } );
   return data?.success === true;
 }
 
 /**
  * Register a phone number with optional PIN
  */
-export async function registerPhone(phoneNumberId: string, pin?: string): Promise<boolean> {
+export async function registerPhone ( phoneNumberId: string, pin?: string ): Promise<boolean> {
   const body: Record<string, string> = { phoneNumberId };
-  if (pin) body.pin = pin;
-  const data = await apiCall<any>(`${API_BASE}/waba/register-phone`, {
+  if ( pin ) body.pin = pin;
+  const data = await apiCall<any>( `${API_BASE}/waba/register-phone`, {
     method: 'POST',
-    body: JSON.stringify(body),
-  });
+    body: JSON.stringify( body ),
+  } );
   return data?.success === true;
 }
 
@@ -2333,18 +2437,18 @@ export async function registerPhone(phoneNumberId: string, pin?: string): Promis
  * Migrate a phone number between WABAs
  * @param sendPin - If true, sends PIN via SMS/VOICE before migration
  */
-export async function migratePhone(params: {
+export async function migratePhone ( params: {
   phoneNumberId: string;
   sourceWabaId?: string;
   targetWabaId: string;
   pin?: string;
   sendPin?: boolean;
   pinMethod?: 'SMS' | 'VOICE';
-}): Promise<{ success: boolean; pinSent?: boolean; status?: string } | null> {
-  return apiCall<any>(`${API_BASE}/waba/migrate`, {
+} ): Promise<{ success: boolean; pinSent?: boolean; status?: string } | null> {
+  return apiCall<any>( `${API_BASE}/waba/migrate`, {
     method: 'POST',
-    body: JSON.stringify(params),
-  });
+    body: JSON.stringify( params ),
+  } );
 }
 
 
@@ -2352,17 +2456,17 @@ export async function migratePhone(params: {
 // AD ATTRIBUTION API
 // ============================================================================
 
-export async function getAdAttributionStats(): Promise<{ stats: any } | null> {
-  const data = await apiCall<any>(`${API_BASE}/ad-attribution/stats`);
+export async function getAdAttributionStats (): Promise<{ stats: any } | null> {
+  const data = await apiCall<any>( `${API_BASE}/ad-attribution/stats` );
   return data ? { stats: data } : null;
 }
 
-export async function getAdAttributionClicks(params?: { limit?: number; sourceId?: string }): Promise<{ attributions: any[]; count: number } | null> {
+export async function getAdAttributionClicks ( params?: { limit?: number; sourceId?: string } ): Promise<{ attributions: any[]; count: number } | null> {
   const qs = new URLSearchParams();
-  if (params?.limit) qs.append('limit', String(params.limit));
-  if (params?.sourceId) qs.append('sourceId', params.sourceId);
+  if ( params?.limit ) qs.append( 'limit', String( params.limit ) );
+  if ( params?.sourceId ) qs.append( 'sourceId', params.sourceId );
   const url = `${API_BASE}/ad-attribution${qs.toString() ? '?' + qs : ''}`;
-  return apiCall<{ attributions: any[]; count: number }>(url);
+  return apiCall<{ attributions: any[]; count: number }>( url );
 }
 
 
@@ -2395,12 +2499,13 @@ export interface TemplateAnalyticsSummary {
  * Get analytics for a specific template
  * API: GET /templates/analytics/{templateName}
  */
-export async function getTemplateAnalytics(templateName: string, wabaId?: string): Promise<TemplateAnalytics | null> {
+export async function getTemplateAnalytics ( templateName: string, wabaId?: string ): Promise<TemplateAnalytics | null> {
   let url = `${API_BASE}/templates/analytics/${templateName}`;
-  if (wabaId) url += `?wabaId=${wabaId}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( wabaId ) url += `?wabaId=${wabaId}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return {
       templateName: data.templateName || templateName,
       language: data.language || 'en_US',
@@ -2421,12 +2526,13 @@ export async function getTemplateAnalytics(templateName: string, wabaId?: string
  * Get analytics summary for all templates
  * API: GET /templates/analytics
  */
-export async function getTemplateAnalyticsSummary(wabaId?: string): Promise<TemplateAnalyticsSummary> {
+export async function getTemplateAnalyticsSummary ( wabaId?: string ): Promise<TemplateAnalyticsSummary> {
   let url = `${API_BASE}/templates/analytics`;
-  if (wabaId) url += `?wabaId=${wabaId}`;
-  
-  const data = await apiCall<any>(url);
-  if (data) {
+  if ( wabaId ) url += `?wabaId=${wabaId}`;
+
+  const data = await apiCall<any>( url );
+  if ( data )
+  {
     return {
       totalTemplatesSent: data.totalTemplatesSent || 0,
       avgDeliveryRate: data.avgDeliveryRate || 0,
@@ -2462,19 +2568,20 @@ export interface ScheduledMessage {
  * Schedule a template message for later delivery
  * API: POST /messages/scheduled
  */
-export async function scheduleTemplateMessage(request: {
+export async function scheduleTemplateMessage ( request: {
   contactId: string;
   templateName: string;
   templateParams?: string[];
   phoneNumberId?: string;
   scheduledAt: string;  // ISO timestamp
-}): Promise<ScheduledMessage | null> {
-  const data = await apiCall<any>(`${API_BASE}/messages/scheduled`, {
+} ): Promise<ScheduledMessage | null> {
+  const data = await apiCall<any>( `${API_BASE}/messages/scheduled`, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
-  if (data) {
-    return normalizeScheduledMessage(data);
+    body: JSON.stringify( request ),
+  } );
+  if ( data )
+  {
+    return normalizeScheduledMessage( data );
   }
   return null;
 }
@@ -2483,13 +2590,14 @@ export async function scheduleTemplateMessage(request: {
  * List scheduled messages
  * API: GET /messages/scheduled
  */
-export async function listScheduledMessages(status?: string): Promise<ScheduledMessage[]> {
+export async function listScheduledMessages ( status?: string ): Promise<ScheduledMessage[]> {
   let url = `${API_BASE}/messages/scheduled`;
-  if (status) url += `?status=${status}`;
-  
-  const data = await apiCall<any>(url);
-  if (data && data.scheduledMessages) {
-    return data.scheduledMessages.map(normalizeScheduledMessage);
+  if ( status ) url += `?status=${status}`;
+
+  const data = await apiCall<any>( url );
+  if ( data && data.scheduledMessages )
+  {
+    return data.scheduledMessages.map( normalizeScheduledMessage );
   }
   return [];
 }
@@ -2498,10 +2606,10 @@ export async function listScheduledMessages(status?: string): Promise<ScheduledM
  * Cancel a scheduled message
  * API: DELETE /messages/scheduled/{scheduledId}
  */
-export async function cancelScheduledMessage(scheduledId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/messages/scheduled/${scheduledId}`, {
+export async function cancelScheduledMessage ( scheduledId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/messages/scheduled/${scheduledId}`, {
     method: 'DELETE',
-  });
+  } );
   return data?.success === true || data !== null;
 }
 
@@ -2509,21 +2617,22 @@ export async function cancelScheduledMessage(scheduledId: string): Promise<boole
  * Update a scheduled message
  * API: PUT /messages/scheduled/{scheduledId}
  */
-export async function updateScheduledMessage(scheduledId: string, updates: {
+export async function updateScheduledMessage ( scheduledId: string, updates: {
   scheduledAt?: string;
   templateParams?: string[];
-}): Promise<ScheduledMessage | null> {
-  const data = await apiCall<any>(`${API_BASE}/messages/scheduled/${scheduledId}`, {
+} ): Promise<ScheduledMessage | null> {
+  const data = await apiCall<any>( `${API_BASE}/messages/scheduled/${scheduledId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
-  if (data) {
-    return normalizeScheduledMessage(data);
+    body: JSON.stringify( updates ),
+  } );
+  if ( data )
+  {
+    return normalizeScheduledMessage( data );
   }
   return null;
 }
 
-function normalizeScheduledMessage(item: any): ScheduledMessage {
+function normalizeScheduledMessage ( item: any ): ScheduledMessage {
   return {
     id: item.id || item.scheduledId || '',
     scheduledId: item.scheduledId || item.id || '',
@@ -2551,7 +2660,7 @@ function normalizeScheduledMessage(item: any): ScheduledMessage {
  * 
  * API: POST /whatsapp/send with isTemplate=true and carousel components
  */
-export async function sendCarouselTemplateMessage(request: {
+export async function sendCarouselTemplateMessage ( request: {
   contactId: string;
   templateName: string;
   language?: string;
@@ -2561,37 +2670,40 @@ export async function sendCarouselTemplateMessage(request: {
   bodyParams?: string[];
   // Card-specific variables (array of arrays, one per card)
   cardParams?: string[][];
-}): Promise<{ messageId: string; status: string } | null> {
+} ): Promise<{ messageId: string; status: string } | null> {
   // Build template components for carousel
   const components: any[] = [];
-  
+
   // Body component with variables
-  if (request.bodyParams && request.bodyParams.length > 0) {
-    components.push({
+  if ( request.bodyParams && request.bodyParams.length > 0 )
+  {
+    components.push( {
       type: 'body',
-      parameters: request.bodyParams.map(text => ({ type: 'text', text }))
-    });
+      parameters: request.bodyParams.map( text => ( { type: 'text', text } ) )
+    } );
   }
-  
+
   // Carousel card components
-  if (request.cardParams && request.cardParams.length > 0) {
-    request.cardParams.forEach((cardVars, cardIndex) => {
-      if (cardVars && cardVars.length > 0) {
-        components.push({
+  if ( request.cardParams && request.cardParams.length > 0 )
+  {
+    request.cardParams.forEach( ( cardVars, cardIndex ) => {
+      if ( cardVars && cardVars.length > 0 )
+      {
+        components.push( {
           type: 'carousel',
           card_index: cardIndex,
-          components: [{
+          components: [ {
             type: 'body',
-            parameters: cardVars.map(text => ({ type: 'text', text }))
-          }]
-        });
+            parameters: cardVars.map( text => ( { type: 'text', text } ) )
+          } ]
+        } );
       }
-    });
+    } );
   }
-  
-  return apiCall<{ messageId: string; status: string }>(`${API_BASE}/whatsapp/send`, {
+
+  return apiCall<{ messageId: string; status: string }>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: JSON.stringify( {
       contactId: request.contactId,
       isTemplate: true,
       templateName: request.templateName,
@@ -2599,8 +2711,8 @@ export async function sendCarouselTemplateMessage(request: {
       phoneNumberId: request.phoneNumberId,
       recipientBsuid: request.recipientBsuid,
       components: components.length > 0 ? components : undefined,
-    }),
-  });
+    } ),
+  } );
 }
 
 
@@ -2613,12 +2725,15 @@ export async function sendCarouselTemplateMessage(request: {
 /**
  * Get starred message IDs
  */
-export function getStarredMessages(): string[] {
-  const stored = localStorage.getItem('starredMessages');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
+export function getStarredMessages (): string[] {
+  const stored = localStorage.getItem( 'starredMessages' );
+  if ( stored )
+  {
+    try
+    {
+      return JSON.parse( stored );
+    } catch
+    {
       return [];
     }
   }
@@ -2628,23 +2743,25 @@ export function getStarredMessages(): string[] {
 /**
  * Toggle star on a message
  */
-export function toggleStarMessage(messageId: string): boolean {
+export function toggleStarMessage ( messageId: string ): boolean {
   const starred = getStarredMessages();
-  const index = starred.indexOf(messageId);
-  if (index > -1) {
-    starred.splice(index, 1);
-  } else {
-    starred.push(messageId);
+  const index = starred.indexOf( messageId );
+  if ( index > -1 )
+  {
+    starred.splice( index, 1 );
+  } else
+  {
+    starred.push( messageId );
   }
-  localStorage.setItem('starredMessages', JSON.stringify(starred));
+  localStorage.setItem( 'starredMessages', JSON.stringify( starred ) );
   return index === -1; // Returns true if now starred
 }
 
 /**
  * Check if message is starred
  */
-export function isMessageStarred(messageId: string): boolean {
-  return getStarredMessages().includes(messageId);
+export function isMessageStarred ( messageId: string ): boolean {
+  return getStarredMessages().includes( messageId );
 }
 
 // ============================================================================
@@ -2654,9 +2771,9 @@ export function isMessageStarred(messageId: string): boolean {
 /**
  * Export contacts to CSV
  */
-export function exportContactsToCSV(contacts: Contact[]): string {
-  const headers = ['Name', 'Phone', 'Email', 'BSUID', 'Username', 'Contact Book Name', 'Shipping Address', 'Billing Address', 'Tags', 'WhatsApp Opt-In', 'SMS Opt-In', 'Email Opt-In', 'Created At'];
-  const rows = contacts.map(c => [
+export function exportContactsToCSV ( contacts: Contact[] ): string {
+  const headers = [ 'Name', 'Phone', 'Email', 'BSUID', 'Username', 'Contact Book Name', 'Shipping Address', 'Billing Address', 'Tags', 'WhatsApp Opt-In', 'SMS Opt-In', 'Email Opt-In', 'Created At' ];
+  const rows = contacts.map( c => [
     c.name || '',
     c.phone || '',
     c.email || '',
@@ -2665,71 +2782,71 @@ export function exportContactsToCSV(contacts: Contact[]): string {
     c.contactBookName || '',
     c.shippingAddress || '',
     c.billingAddress || '',
-    (c.tags || []).join('; '),
+    ( c.tags || [] ).join( '; ' ),
     c.optInWhatsApp ? 'Yes' : 'No',
     c.optInSms ? 'Yes' : 'No',
     c.optInEmail ? 'Yes' : 'No',
     c.createdAt || '',
-  ]);
-  
+  ] );
+
   const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-  ].join('\n');
-  
+    headers.join( ',' ),
+    ...rows.map( row => row.map( cell => `"${String( cell ).replace( /"/g, '""' )}"` ).join( ',' ) )
+  ].join( '\n' );
+
   return csvContent;
 }
 
 /**
  * Export messages to CSV
  */
-export function exportMessagesToCSV(messages: Message[]): string {
-  const headers = ['Direction', 'Contact', 'Content', 'Status', 'Timestamp', 'Channel'];
-  const rows = messages.map(m => [
+export function exportMessagesToCSV ( messages: Message[] ): string {
+  const headers = [ 'Direction', 'Contact', 'Content', 'Status', 'Timestamp', 'Channel' ];
+  const rows = messages.map( m => [
     m.direction,
     m.contactId,
-    m.content?.substring(0, 200) || '',
+    m.content?.substring( 0, 200 ) || '',
     m.status,
     m.timestamp,
     m.channel,
-  ]);
-  
+  ] );
+
   const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-  ].join('\n');
-  
+    headers.join( ',' ),
+    ...rows.map( row => row.map( cell => `"${String( cell ).replace( /"/g, '""' )}"` ).join( ',' ) )
+  ].join( '\n' );
+
   return csvContent;
 }
 
 /**
  * Export chat to text format
  */
-export function exportChatToText(messages: Message[], contactName: string): string {
+export function exportChatToText ( messages: Message[], contactName: string ): string {
   const lines = [
     `Chat Export - ${contactName}`,
     `Exported: ${new Date().toLocaleString()}`,
     '---',
     '',
   ];
-  
-  messages.forEach(m => {
-    const time = new Date(m.timestamp).toLocaleString();
+
+  messages.forEach( m => {
+    const time = new Date( m.timestamp ).toLocaleString();
     const sender = m.direction === 'INBOUND' ? contactName : 'You';
-    lines.push(`[${time}] ${sender}: ${m.content || '[Media]'}`);
-  });
-  
-  return lines.join('\n');
+    lines.push( `[${time}] ${sender}: ${m.content || '[Media]'}` );
+  } );
+
+  return lines.join( '\n' );
 }
 
 /**
  * Export chat to PDF format (HTML-based, opens print dialog)
  */
-export function exportChatToPDF(messages: Message[], contactName: string, wabaName?: string): void {
-  const sortedMessages = [...messages].sort((a, b) => 
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+export function exportChatToPDF ( messages: Message[], contactName: string, wabaName?: string ): void {
+  const sortedMessages = [ ...messages ].sort( ( a, b ) =>
+    new Date( a.timestamp ).getTime() - new Date( b.timestamp ).getTime()
   );
-  
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -2761,18 +2878,18 @@ export function exportChatToPDF(messages: Message[], contactName: string, wabaNa
     <p>${sortedMessages.length} messages</p>
   </div>
   <div class="messages">
-    ${sortedMessages.map(m => {
-      const time = new Date(m.timestamp).toLocaleString();
-      const sender = m.direction === 'INBOUND' ? contactName : 'You';
-      const content = m.content || `<span class="media-tag">[${m.messageType || 'Media'}]</span>`;
-      return `
+    ${sortedMessages.map( m => {
+    const time = new Date( m.timestamp ).toLocaleString();
+    const sender = m.direction === 'INBOUND' ? contactName : 'You';
+    const content = m.content || `<span class="media-tag">[${m.messageType || 'Media'}]</span>`;
+    return `
         <div class="message ${m.direction.toLowerCase()}">
           <div class="sender">${sender}</div>
           <div class="content">${content}</div>
           <div class="time">${time}</div>
         </div>
       `;
-    }).join('')}
+  } ).join( '' )}
   </div>
   <div class="footer">
     <p>Generated by WECARE.DIGITAL</p>
@@ -2780,11 +2897,12 @@ export function exportChatToPDF(messages: Message[], contactName: string, wabaNa
 </body>
 </html>
   `;
-  
+
   // Open in new window and trigger print
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.write(html);
+  const printWindow = window.open( '', '_blank' );
+  if ( printWindow )
+  {
+    printWindow.document.write( html );
     printWindow.document.close();
     printWindow.onload = () => {
       printWindow.print();
@@ -2795,16 +2913,16 @@ export function exportChatToPDF(messages: Message[], contactName: string, wabaNa
 /**
  * Download file helper
  */
-export function downloadFile(content: string, filename: string, mimeType: string = 'text/csv') {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+export function downloadFile ( content: string, filename: string, mimeType: string = 'text/csv' ) {
+  const blob = new Blob( [ content ], { type: mimeType } );
+  const url = URL.createObjectURL( blob );
+  const a = document.createElement( 'a' );
   a.href = url;
   a.download = filename;
-  document.body.appendChild(a);
+  document.body.appendChild( a );
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  document.body.removeChild( a );
+  URL.revokeObjectURL( url );
 }
 
 // ============================================================================
@@ -2823,33 +2941,35 @@ export interface ImportResult {
  * Parse CSV content to contact objects
  * All contacts auto opt-in to WhatsApp by default
  */
-export function parseContactsCSV(csvContent: string): Partial<Contact>[] {
-  const lines = csvContent.split('\n').filter(line => line.trim());
-  if (lines.length < 2) return [];
-  
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+export function parseContactsCSV ( csvContent: string ): Partial<Contact>[] {
+  const lines = csvContent.split( '\n' ).filter( line => line.trim() );
+  if ( lines.length < 2 ) return [];
+
+  const headers = lines[ 0 ].split( ',' ).map( h => h.trim().toLowerCase().replace( /"/g, '' ) );
   const contacts: Partial<Contact>[] = [];
-  
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].match(/(".*?"|[^,]+)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || [];
+
+  for ( let i = 1; i < lines.length; i++ )
+  {
+    const values = lines[ i ].match( /(".*?"|[^,]+)/g )?.map( v => v.replace( /^"|"$/g, '' ).trim() ) || [];
     const contact: Partial<Contact> = {
       // Auto opt-in all contacts by default
       optInWhatsApp: true,
       allowlistWhatsApp: true,
     };
-    
-    headers.forEach((header, index) => {
-      const value = values[index] || '';
-      if (header === 'name') contact.name = value;
-      else if (header === 'phone') contact.phone = value.startsWith('+') ? value : `+${value}`;
-      else if (header === 'email') contact.email = value;
-    });
-    
-    if (contact.phone) {
-      contacts.push(contact);
+
+    headers.forEach( ( header, index ) => {
+      const value = values[ index ] || '';
+      if ( header === 'name' ) contact.name = value;
+      else if ( header === 'phone' ) contact.phone = value.startsWith( '+' ) ? value : `+${value}`;
+      else if ( header === 'email' ) contact.email = value;
+    } );
+
+    if ( contact.phone )
+    {
+      contacts.push( contact );
     }
   }
-  
+
   return contacts;
 }
 
@@ -2857,7 +2977,7 @@ export function parseContactsCSV(csvContent: string): Partial<Contact>[] {
  * Import contacts from parsed CSV data
  * All contacts auto opt-in to WhatsApp by default
  */
-export async function importContacts(contacts: Partial<Contact>[]): Promise<ImportResult> {
+export async function importContacts ( contacts: Partial<Contact>[] ): Promise<ImportResult> {
   const result: ImportResult = {
     total: contacts.length,
     created: 0,
@@ -2865,60 +2985,72 @@ export async function importContacts(contacts: Partial<Contact>[]): Promise<Impo
     failed: 0,
     errors: [],
   };
-  
+
   // Fix #1: Fetch existing contacts ONCE before the loop instead of per-contact
   let existing: Contact[] = [];
-  try {
+  try
+  {
     existing = await listContacts();
-  } catch {
+  } catch
+  {
     // If we can't fetch, proceed without dedup — backend will catch duplicates
   }
-  
+
   // Build a phone lookup map for O(1) dedup
   const phoneMap = new Map<string, Contact>();
-  for (const c of existing) {
-    if (c.phone) phoneMap.set(c.phone, c);
+  for ( const c of existing )
+  {
+    if ( c.phone ) phoneMap.set( c.phone, c );
   }
-  
+
   // Process in batches of 5 for some parallelism without overwhelming the API
   const BATCH_SIZE = 5;
-  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
-    const batch = contacts.slice(i, i + BATCH_SIZE);
-    const promises = batch.map(async (contact) => {
-      try {
+  for ( let i = 0; i < contacts.length; i += BATCH_SIZE )
+  {
+    const batch = contacts.slice( i, i + BATCH_SIZE );
+    const promises = batch.map( async ( contact ) => {
+      try
+      {
         const contactWithOptIn = {
           ...contact,
           optInWhatsApp: true,
           allowlistWhatsApp: true,
         };
-        
-        const found = contact.phone ? phoneMap.get(contact.phone) : undefined;
-        
-        if (found) {
-          const updated = await updateContact(found.contactId, contactWithOptIn);
-          if (updated) {
+
+        const found = contact.phone ? phoneMap.get( contact.phone ) : undefined;
+
+        if ( found )
+        {
+          const updated = await updateContact( found.contactId, contactWithOptIn );
+          if ( updated )
+          {
             result.updated++;
-          } else {
+          } else
+          {
             result.failed++;
-            result.errors.push(`Failed to update: ${contact.phone}`);
+            result.errors.push( `Failed to update: ${contact.phone}` );
           }
-        } else {
-          const created = await createContact(contactWithOptIn);
-          if (created) {
+        } else
+        {
+          const created = await createContact( contactWithOptIn );
+          if ( created )
+          {
             result.created++;
-          } else {
+          } else
+          {
             result.failed++;
-            result.errors.push(`Failed to create: ${contact.phone}`);
+            result.errors.push( `Failed to create: ${contact.phone}` );
           }
         }
-      } catch (err: any) {
+      } catch ( err: any )
+      {
         result.failed++;
-        result.errors.push(`Error with ${contact.phone}: ${err.message}`);
+        result.errors.push( `Error with ${contact.phone}: ${err.message}` );
       }
-    });
-    await Promise.all(promises);
+    } );
+    await Promise.all( promises );
   }
-  
+
   return result;
 }
 
@@ -2929,27 +3061,29 @@ export async function importContacts(contacts: Partial<Contact>[]): Promise<Impo
 /**
  * Get auto-reply setting for a contact
  */
-export function getContactAutoReply(contactId: string): boolean {
-  const stored = localStorage.getItem(`autoReply_${contactId}`);
+export function getContactAutoReply ( contactId: string ): boolean {
+  const stored = localStorage.getItem( `autoReply_${contactId}` );
   return stored === 'true';
 }
 
 /**
  * Set auto-reply setting for a contact
  */
-export function setContactAutoReply(contactId: string, enabled: boolean): void {
-  localStorage.setItem(`autoReply_${contactId}`, String(enabled));
+export function setContactAutoReply ( contactId: string, enabled: boolean ): void {
+  localStorage.setItem( `autoReply_${contactId}`, String( enabled ) );
 }
 
 /**
  * Get all contacts with auto-reply enabled
  */
-export function getAutoReplyContacts(): string[] {
+export function getAutoReplyContacts (): string[] {
   const contacts: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith('autoReply_') && localStorage.getItem(key) === 'true') {
-      contacts.push(key.replace('autoReply_', ''));
+  for ( let i = 0; i < localStorage.length; i++ )
+  {
+    const key = localStorage.key( i );
+    if ( key?.startsWith( 'autoReply_' ) && localStorage.getItem( key ) === 'true' )
+    {
+      contacts.push( key.replace( 'autoReply_', '' ) );
     }
   }
   return contacts;
@@ -2970,19 +3104,19 @@ export interface AIFeedback {
 /**
  * Submit feedback for an AI response
  */
-export function submitAIFeedback(feedback: Omit<AIFeedback, 'timestamp'>): void {
-  const stored = localStorage.getItem('aiFeedback');
-  const feedbacks: AIFeedback[] = stored ? JSON.parse(stored) : [];
-  feedbacks.push({ ...feedback, timestamp: Date.now() });
-  localStorage.setItem('aiFeedback', JSON.stringify(feedbacks));
+export function submitAIFeedback ( feedback: Omit<AIFeedback, 'timestamp'> ): void {
+  const stored = localStorage.getItem( 'aiFeedback' );
+  const feedbacks: AIFeedback[] = stored ? JSON.parse( stored ) : [];
+  feedbacks.push( { ...feedback, timestamp: Date.now() } );
+  localStorage.setItem( 'aiFeedback', JSON.stringify( feedbacks ) );
 }
 
 /**
  * Get AI feedback history
  */
-export function getAIFeedbackHistory(): AIFeedback[] {
-  const stored = localStorage.getItem('aiFeedback');
-  return stored ? JSON.parse(stored) : [];
+export function getAIFeedbackHistory (): AIFeedback[] {
+  const stored = localStorage.getItem( 'aiFeedback' );
+  return stored ? JSON.parse( stored ) : [];
 }
 
 // ============================================================================
@@ -2990,16 +3124,17 @@ export function getAIFeedbackHistory(): AIFeedback[] {
 // ============================================================================
 
 export interface SystemConfig {
-  [key: string]: any;
+  [ key: string ]: any;
 }
 
 /**
  * Get system configuration by key
  * Lambda: wecare-ai-config-management
  */
-export async function getSystemConfig(configKey: string): Promise<SystemConfig | null> {
-  const data = await apiCall<any>(`${API_BASE}/ai/config?key=${configKey}`);
-  if (data && data.config) {
+export async function getSystemConfig ( configKey: string ): Promise<SystemConfig | null> {
+  const data = await apiCall<any>( `${API_BASE}/ai/config?key=${configKey}` );
+  if ( data && data.config )
+  {
     return data.config;
   }
   return null;
@@ -3009,11 +3144,11 @@ export async function getSystemConfig(configKey: string): Promise<SystemConfig |
  * Update system configuration
  * Lambda: wecare-ai-config-management
  */
-export async function updateSystemConfig(configKey: string, config: any): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/ai/config`, {
+export async function updateSystemConfig ( configKey: string, config: any ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/ai/config`, {
     method: 'PUT',
-    body: JSON.stringify({ key: configKey, config }),
-  });
+    body: JSON.stringify( { key: configKey, config } ),
+  } );
   return data !== null;
 }
 
@@ -3021,11 +3156,11 @@ export async function updateSystemConfig(configKey: string, config: any): Promis
  * Push ice breakers + slash commands to Meta Conversational Automation API
  * via the WABA management Lambda.
  */
-export async function pushConversationalComponents(payload: { prompts: string[]; commands: { command_name: string; command_description: string }[] }): Promise<boolean> {
-  const data = await apiCall<any>(`${API_BASE}/waba/conversational-components`, {
+export async function pushConversationalComponents ( payload: { prompts: string[]; commands: { command_name: string; command_description: string }[] } ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/waba/conversational-components`, {
     method: 'POST',
-    body: JSON.stringify(payload),
-  });
+    body: JSON.stringify( payload ),
+  } );
   return data !== null && !data?.error;
 }
 
@@ -3037,29 +3172,35 @@ export async function pushConversationalComponents(payload: { prompts: string[];
 /**
  * Clear all WhatsApp messages (keeps contacts)
  */
-export async function clearAllWhatsAppMessages(): Promise<{ deleted: number; failed: number }> {
-  try {
-    const messages = await listMessages(undefined, 'WHATSAPP');
-    
+export async function clearAllWhatsAppMessages (): Promise<{ deleted: number; failed: number }> {
+  try
+  {
+    const messages = await listMessages( undefined, 'WHATSAPP' );
+
     let deleted = 0;
     let failed = 0;
-    
-    for (const msg of messages) {
-      const result = await deleteMessage(msg.id, msg.direction);
-      if (result) {
+
+    for ( const msg of messages )
+    {
+      const result = await deleteMessage( msg.id, msg.direction );
+      if ( result )
+      {
         deleted++;
-      } else {
+      } else
+      {
         failed++;
       }
       // Rate limit to avoid overwhelming the API
-      if (deleted % 50 === 0) {
-        await new Promise(r => setTimeout(r, 500));
+      if ( deleted % 50 === 0 )
+      {
+        await new Promise( r => setTimeout( r, 500 ) );
       }
     }
-    
+
     return { deleted, failed };
-  } catch (error) {
-    console.error('Clear all messages error:', error);
+  } catch ( error )
+  {
+    console.error( 'Clear all messages error:', error );
     return { deleted: 0, failed: 0 };
   }
 }
@@ -3067,25 +3208,30 @@ export async function clearAllWhatsAppMessages(): Promise<{ deleted: number; fai
 /**
  * Clear all contacts (soft delete)
  */
-export async function clearAllContacts(): Promise<{ deleted: number; failed: number }> {
-  try {
+export async function clearAllContacts (): Promise<{ deleted: number; failed: number }> {
+  try
+  {
     const contacts = await listContacts();
-    
+
     let deleted = 0;
     let failed = 0;
-    
-    for (const contact of contacts) {
-      const result = await deleteContact(contact.contactId);
-      if (result) {
+
+    for ( const contact of contacts )
+    {
+      const result = await deleteContact( contact.contactId );
+      if ( result )
+      {
         deleted++;
-      } else {
+      } else
+      {
         failed++;
       }
     }
-    
+
     return { deleted, failed };
-  } catch (error) {
-    console.error('Clear all contacts error:', error);
+  } catch ( error )
+  {
+    console.error( 'Clear all contacts error:', error );
     return { deleted: 0, failed: 0 };
   }
 }
@@ -3094,7 +3240,7 @@ export async function clearAllContacts(): Promise<{ deleted: number; failed: num
  * Clear everything - messages, contacts, and media
  * WARNING: This is destructive and irreversible!
  */
-export async function clearAllInboxData(): Promise<{
+export async function clearAllInboxData (): Promise<{
   messagesDeleted: number;
   messagesFailed: number;
   contactsDeleted: number;
@@ -3113,39 +3259,50 @@ export async function clearAllInboxData(): Promise<{
   totalMessagesFailed += whatsappResult.failed;
 
   // 2. Clear SMS messages (both inbound and outbound)
-  try {
-    const smsMessages = await listMessages(undefined, 'SMS');
-    for (const msg of smsMessages) {
-      const result = await deleteMessage(msg.id, msg.direction);
-      if (result) {
+  try
+  {
+    const smsMessages = await listMessages( undefined, 'SMS' );
+    for ( const msg of smsMessages )
+    {
+      const result = await deleteMessage( msg.id, msg.direction );
+      if ( result )
+      {
         smsDeleted++;
         totalMessagesDeleted++;
-      } else {
+      } else
+      {
         totalMessagesFailed++;
       }
     }
-  } catch (error) {
-    console.error('Error clearing SMS messages:', error);
+  } catch ( error )
+  {
+    console.error( 'Error clearing SMS messages:', error );
   }
 
   // 3. Clear Voice call records
-  try {
+  try
+  {
     const voiceCalls = await listVoiceCalls();
-    for (const call of voiceCalls) {
-      try {
+    for ( const call of voiceCalls )
+    {
+      try
+      {
         // Try to delete voice call record via API
-        const response = await apiCall<any>(`${API_BASE}/voice/calls/${call.id}`, {
+        const response = await apiCall<any>( `${API_BASE}/voice/calls/${call.id}`, {
           method: 'DELETE',
-        });
-        if (response) {
+        } );
+        if ( response )
+        {
           voiceDeleted++;
         }
-      } catch (e) {
-        console.warn(`Failed to delete voice call ${call.id}:`, e);
+      } catch ( e )
+      {
+        console.warn( `Failed to delete voice call ${call.id}:`, e );
       }
     }
-  } catch (error) {
-    console.error('Error clearing voice calls:', error);
+  } catch ( error )
+  {
+    console.error( 'Error clearing voice calls:', error );
   }
 
   // 4. Clear all contacts (this also triggers media cleanup on backend)
@@ -3168,16 +3325,16 @@ export async function clearAllInboxData(): Promise<{
 const WA_BIZ_BASE = `${API_BASE}/wa-business`;
 
 // Business Profile
-export async function getBusinessProfile(phoneId: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/profile?phoneId=${phoneId}`);
+export async function getBusinessProfile ( phoneId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/profile?phoneId=${phoneId}` );
   return data?.profile || null;
 }
 
-export async function updateBusinessProfile(phoneId: string, updates: Record<string, any>): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/profile`, {
+export async function updateBusinessProfile ( phoneId: string, updates: Record<string, any> ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/profile`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, ...updates }),
-  });
+    body: JSON.stringify( { phoneId, ...updates } ),
+  } );
   return data?.success === true;
 }
 
@@ -3201,209 +3358,209 @@ export interface GatewayCheckResult {
   activeConfigs: number;
 }
 
-export async function checkPaymentGateways(wabaId?: string): Promise<GatewayCheckResult[]> {
+export async function checkPaymentGateways ( wabaId?: string ): Promise<GatewayCheckResult[]> {
   const url = wabaId
     ? `${WA_BIZ_BASE}/payment-config/check?wabaId=${wabaId}`
     : `${WA_BIZ_BASE}/payment-config/check`;
-  const data = await apiCall<any>(url);
+  const data = await apiCall<any>( url );
   return data?.gatewayChecks || [];
 }
 
 // Flows
-export async function listFlows(wabaId: string): Promise<any[]> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?wabaId=${wabaId}`);
-  if (!data) return [];
-  if (data.error) throw new Error(data.error?.message || 'Failed to fetch flows');
+export async function listFlows ( wabaId: string ): Promise<any[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows?wabaId=${wabaId}` );
+  if ( !data ) return [];
+  if ( data.error ) throw new Error( data.error?.message || 'Failed to fetch flows' );
   return data?.flows || [];
 }
 
-export async function getFlow(flowId: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?flowId=${flowId}`);
+export async function getFlow ( flowId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows?flowId=${flowId}` );
   return data?.flow || null;
 }
 
-export async function createFlow(wabaId: string, name: string, categories?: string[]): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows`, {
+export async function createFlow ( wabaId: string, name: string, categories?: string[] ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows`, {
     method: 'POST',
-    body: JSON.stringify({ wabaId, name, categories }),
-  });
+    body: JSON.stringify( { wabaId, name, categories } ),
+  } );
   return data?.flow || null;
 }
 
-export async function updateFlow(flowId: string, updates: Record<string, any>): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows`, {
+export async function updateFlow ( flowId: string, updates: Record<string, any> ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows`, {
     method: 'PUT',
-    body: JSON.stringify({ flowId, ...updates }),
-  });
+    body: JSON.stringify( { flowId, ...updates } ),
+  } );
   return data?.success === true;
 }
 
-export async function deleteFlow(flowId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows?flowId=${flowId}`, { method: 'DELETE' });
+export async function deleteFlow ( flowId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows?flowId=${flowId}`, { method: 'DELETE' } );
   return data?.success === true;
 }
 
-export async function publishFlow(flowId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows/publish`, {
+export async function publishFlow ( flowId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/publish`, {
     method: 'POST',
-    body: JSON.stringify({ flowId }),
-  });
+    body: JSON.stringify( { flowId } ),
+  } );
   return data?.success === true;
 }
 
-export async function deprecateFlow(flowId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows/deprecate`, {
+export async function deprecateFlow ( flowId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/deprecate`, {
     method: 'POST',
-    body: JSON.stringify({ flowId }),
-  });
+    body: JSON.stringify( { flowId } ),
+  } );
   return data?.success === true;
 }
 
-export async function getFlowPreview(flowId: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flows/preview`, {
+export async function getFlowPreview ( flowId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/preview`, {
     method: 'POST',
-    body: JSON.stringify({ flowId }),
-  });
+    body: JSON.stringify( { flowId } ),
+  } );
   return data?.preview || null;
 }
 
 // Webhooks
-export async function getWebhookSubscriptions(wabaId: string): Promise<any[]> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/webhooks?wabaId=${wabaId}`);
+export async function getWebhookSubscriptions ( wabaId: string ): Promise<any[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/webhooks?wabaId=${wabaId}` );
   return data?.subscriptions || [];
 }
 
-export async function subscribeWebhook(wabaId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/webhooks`, {
+export async function subscribeWebhook ( wabaId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/webhooks`, {
     method: 'POST',
-    body: JSON.stringify({ wabaId }),
-  });
+    body: JSON.stringify( { wabaId } ),
+  } );
   return data?.success === true;
 }
 
-export async function unsubscribeWebhook(wabaId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/webhooks?wabaId=${wabaId}`, { method: 'DELETE' });
+export async function unsubscribeWebhook ( wabaId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/webhooks?wabaId=${wabaId}`, { method: 'DELETE' } );
   return data?.success === true;
 }
 
 // Groups
-export async function listGroups(wabaId: string, phoneId?: string): Promise<any[]> {
-  const params = new URLSearchParams({ wabaId });
-  if (phoneId) params.set('phoneId', phoneId);
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?${params.toString()}`);
+export async function listGroups ( wabaId: string, phoneId?: string ): Promise<any[]> {
+  const params = new URLSearchParams( { wabaId } );
+  if ( phoneId ) params.set( 'phoneId', phoneId );
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups?${params.toString()}` );
   return data?.groups || [];
 }
 
-export async function getGroup(groupId: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?groupId=${groupId}`);
+export async function getGroup ( groupId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups?groupId=${groupId}` );
   return data?.group || null;
 }
 
-export async function createGroup(phoneId: string, subject: string, description?: string, participants?: string[], join_approval_mode?: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
+export async function createGroup ( phoneId: string, subject: string, description?: string, participants?: string[], join_approval_mode?: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, subject, description, participants, join_approval_mode }),
-  });
+    body: JSON.stringify( { phoneId, subject, description, participants, join_approval_mode } ),
+  } );
   return data?.group || null;
 }
 
-export async function updateGroup(groupId: string, updates: Record<string, any>): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
+export async function updateGroup ( groupId: string, updates: Record<string, any> ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups`, {
     method: 'PUT',
-    body: JSON.stringify({ groupId, ...updates }),
-  });
+    body: JSON.stringify( { groupId, ...updates } ),
+  } );
   return data?.success === true;
 }
 
-export async function deleteGroup(groupId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups?groupId=${groupId}`, { method: 'DELETE' });
+export async function deleteGroup ( groupId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups?groupId=${groupId}`, { method: 'DELETE' } );
   return data?.success === true;
 }
 
-export async function manageGroupParticipants(groupId: string, participants: string[], action: 'add' | 'remove'): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/participants`, {
+export async function manageGroupParticipants ( groupId: string, participants: string[], action: 'add' | 'remove' ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups/participants`, {
     method: 'POST',
-    body: JSON.stringify({ groupId, participants, action }),
-  });
+    body: JSON.stringify( { groupId, participants, action } ),
+  } );
   return data?.success === true;
 }
 
-export async function sendGroupMessage(phoneId: string, groupId: string, content: string, options?: {
+export async function sendGroupMessage ( phoneId: string, groupId: string, content: string, options?: {
   type?: 'text' | 'image' | 'video' | 'document' | 'audio' | 'template';
   mediaUrl?: string; mediaId?: string; caption?: string; filename?: string;
   templateName?: string; templateLanguage?: string; templateComponents?: any[];
-}): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/send`, {
+} ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups/send`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, groupId, content, ...options }),
-  });
+    body: JSON.stringify( { phoneId, groupId, content, ...options } ),
+  } );
   return data;
 }
 
-export async function updateGroupSettings(groupId: string, settings: {
+export async function updateGroupSettings ( groupId: string, settings: {
   subject?: string; description?: string;
   messaging_permission?: 'all' | 'admins';
   member_visibility?: 'all' | 'admins';
   join_approval_mode?: 'auto_approve' | 'approval_required';
-}): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups`, {
+} ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups`, {
     method: 'PUT',
-    body: JSON.stringify({ groupId, ...settings }),
-  });
+    body: JSON.stringify( { groupId, ...settings } ),
+  } );
   return data?.success === true;
 }
 
-export async function setGroupImage(groupId: string, imageUrl: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/image`, {
+export async function setGroupImage ( groupId: string, imageUrl: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups/image`, {
     method: 'POST',
-    body: JSON.stringify({ groupId, imageUrl }),
-  });
+    body: JSON.stringify( { groupId, imageUrl } ),
+  } );
   return data?.success === true;
 }
 
-export async function getGroupInviteLink(groupId: string): Promise<string> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/invite-link?groupId=${groupId}`);
+export async function getGroupInviteLink ( groupId: string ): Promise<string> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups/invite-link?groupId=${groupId}` );
   return data?.invite_link || '';
 }
 
-export async function resetGroupInviteLink(groupId: string): Promise<string> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/invite-link`, {
+export async function resetGroupInviteLink ( groupId: string ): Promise<string> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups/invite-link`, {
     method: 'POST',
-    body: JSON.stringify({ groupId }),
-  });
+    body: JSON.stringify( { groupId } ),
+  } );
   return data?.invite_link || '';
 }
 
-export async function getGroupJoinRequests(groupId: string): Promise<any[]> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/groups/join-requests?groupId=${groupId}`);
+export async function getGroupJoinRequests ( groupId: string ): Promise<any[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/groups/join-requests?groupId=${groupId}` );
   return data?.join_requests || [];
 }
 
-export async function approveGroupJoinRequests(groupId: string, joinRequestIds: string[]): Promise<any> {
-  return apiCall<any>(`${WA_BIZ_BASE}/groups/join-requests`, {
+export async function approveGroupJoinRequests ( groupId: string, joinRequestIds: string[] ): Promise<any> {
+  return apiCall<any>( `${WA_BIZ_BASE}/groups/join-requests`, {
     method: 'POST',
-    body: JSON.stringify({ groupId, join_requests: joinRequestIds }),
-  });
+    body: JSON.stringify( { groupId, join_requests: joinRequestIds } ),
+  } );
 }
 
-export async function rejectGroupJoinRequests(groupId: string, joinRequestIds: string[]): Promise<any> {
-  return apiCall<any>(`${WA_BIZ_BASE}/groups/join-requests`, {
+export async function rejectGroupJoinRequests ( groupId: string, joinRequestIds: string[] ): Promise<any> {
+  return apiCall<any>( `${WA_BIZ_BASE}/groups/join-requests`, {
     method: 'DELETE',
-    body: JSON.stringify({ groupId, join_requests: joinRequestIds }),
-  });
+    body: JSON.stringify( { groupId, join_requests: joinRequestIds } ),
+  } );
 }
 
 // Phone Settings
-export async function getPhoneSettings(phoneId: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/phone-settings?phoneId=${phoneId}`);
+export async function getPhoneSettings ( phoneId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/phone-settings?phoneId=${phoneId}` );
   return data?.settings || null;
 }
 
-export async function updatePhoneSettings(phoneId: string, settings: Record<string, any>): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/phone-settings`, {
+export async function updatePhoneSettings ( phoneId: string, settings: Record<string, any> ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/phone-settings`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, ...settings }),
-  });
+    body: JSON.stringify( { phoneId, ...settings } ),
+  } );
   return data?.success === true;
 }
 
@@ -3413,29 +3570,29 @@ export interface UsernameInfo {
   status?: string; // 'approved' | 'reserved'
 }
 
-export async function getUsername(phoneId: string): Promise<UsernameInfo | null> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/username?phoneId=${phoneId}`);
-  if (data?.error) return null;
+export async function getUsername ( phoneId: string ): Promise<UsernameInfo | null> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username?phoneId=${phoneId}` );
+  if ( data?.error ) return null;
   return { username: data?.username, status: data?.status };
 }
 
-export async function getUsernameSuggestions(phoneId: string): Promise<string[]> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/username/suggestions?phoneId=${phoneId}`);
+export async function getUsernameSuggestions ( phoneId: string ): Promise<string[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username/suggestions?phoneId=${phoneId}` );
   return data?.suggestions || [];
 }
 
-export async function claimUsername(phoneId: string, username: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/username`, {
+export async function claimUsername ( phoneId: string, username: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, username }),
-  });
+    body: JSON.stringify( { phoneId, username } ),
+  } );
   return data?.success === true;
 }
 
-export async function deleteUsername(phoneId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/username?phoneId=${phoneId}`, {
+export async function deleteUsername ( phoneId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username?phoneId=${phoneId}`, {
     method: 'DELETE',
-  });
+  } );
   return data?.success === true;
 }
 
@@ -3445,40 +3602,40 @@ export interface BlockUser {
   user_id?: string; // BSUID
 }
 
-export async function blockUsers(wabaId: string, users: BlockUser[]): Promise<any> {
-  return apiCall<any>(`${WA_BIZ_BASE}/block-users`, {
+export async function blockUsers ( wabaId: string, users: BlockUser[] ): Promise<any> {
+  return apiCall<any>( `${WA_BIZ_BASE}/block-users`, {
     method: 'POST',
-    body: JSON.stringify({ wabaId, users }),
-  });
+    body: JSON.stringify( { wabaId, users } ),
+  } );
 }
 
-export async function unblockUsers(wabaId: string, users: BlockUser[]): Promise<any> {
-  return apiCall<any>(`${WA_BIZ_BASE}/unblock-users`, {
+export async function unblockUsers ( wabaId: string, users: BlockUser[] ): Promise<any> {
+  return apiCall<any>( `${WA_BIZ_BASE}/unblock-users`, {
     method: 'POST',
-    body: JSON.stringify({ wabaId, users }),
-  });
+    body: JSON.stringify( { wabaId, users } ),
+  } );
 }
 
-export async function getBlockedUsers(wabaId: string): Promise<any> {
-  return apiCall<any>(`${WA_BIZ_BASE}/block-users?wabaId=${wabaId}`);
+export async function getBlockedUsers ( wabaId: string ): Promise<any> {
+  return apiCall<any>( `${WA_BIZ_BASE}/block-users?wabaId=${wabaId}` );
 }
 
 // Interactive List Messages
-export async function sendInteractiveList(phoneId: string, to: string, bodyText: string, buttonText: string, sections: any[], headerText?: string, footerText?: string): Promise<{ messageId: string } | null> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/interactive-list`, {
+export async function sendInteractiveList ( phoneId: string, to: string, bodyText: string, buttonText: string, sections: any[], headerText?: string, footerText?: string ): Promise<{ messageId: string } | null> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/interactive-list`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, to, bodyText, buttonText, sections, headerText, footerText }),
-  });
+    body: JSON.stringify( { phoneId, to, bodyText, buttonText, sections, headerText, footerText } ),
+  } );
   return data?.success ? { messageId: data.messageId } : null;
 }
 
 // Calling Settings (Enable/Disable calling on phone number)
-export async function getCallingSettings(phoneId: string): Promise<any> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/calling-settings?phoneId=${phoneId}`);
+export async function getCallingSettings ( phoneId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/calling-settings?phoneId=${phoneId}` );
   return data?.settings || null;
 }
 
-export async function updateCallingSettings(phoneId: string, settings: {
+export async function updateCallingSettings ( phoneId: string, settings: {
   callIconVisibility?: 'default' | 'disable_all';
   restrictToCountries?: string[];
   callHours?: Record<string, any>;
@@ -3487,11 +3644,11 @@ export async function updateCallingSettings(phoneId: string, settings: {
   srtpKeyExchangeProtocol?: 'DTLS' | 'SDES';
   status?: 'ENABLED' | 'DISABLED';
   callbackPermissionStatus?: 'ENABLED' | 'DISABLED';
-}): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/calling-settings`, {
+} ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/calling-settings`, {
     method: 'POST',
-    body: JSON.stringify({ phoneId, ...settings }),
-  });
+    body: JSON.stringify( { phoneId, ...settings } ),
+  } );
   return data?.success === true;
 }
 
@@ -3557,31 +3714,31 @@ export interface WixCollection {
   slug: string;
 }
 
-export async function listWixSites(): Promise<any[]> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/sites`);
+export async function listWixSites (): Promise<any[]> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/sites` );
   return data?.sites || [];
 }
 
-export async function listWixProducts(params?: {
+export async function listWixProducts ( params?: {
   limit?: number;
   search?: string;
   collectionId?: string;
-}): Promise<{ products: WixProduct[]; totalCount: number }> {
+} ): Promise<{ products: WixProduct[]; totalCount: number }> {
   const query = new URLSearchParams();
-  if (params?.limit) query.set('limit', String(params.limit));
-  if (params?.search) query.set('search', params.search);
-  if (params?.collectionId) query.set('collectionId', params.collectionId);
+  if ( params?.limit ) query.set( 'limit', String( params.limit ) );
+  if ( params?.search ) query.set( 'search', params.search );
+  if ( params?.collectionId ) query.set( 'collectionId', params.collectionId );
   const qs = query.toString();
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/products${qs ? '?' + qs : ''}`);
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/products${qs ? '?' + qs : ''}` );
   return { products: data?.products || [], totalCount: data?.totalCount || data?.totalResults || 0 };
 }
 
-export async function getWixProduct(productId: string): Promise<WixProduct | null> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/products/${productId}`);
+export async function getWixProduct ( productId: string ): Promise<WixProduct | null> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/products/${productId}` );
   return data?.product || null;
 }
 
-export async function listWixOrders(params?: {
+export async function listWixOrders ( params?: {
   limit?: number;
   status?: string;
   paymentStatus?: string;
@@ -3591,83 +3748,83 @@ export async function listWixOrders(params?: {
   customOrderNumber?: string;
   dateFrom?: string;
   dateTo?: string;
-}): Promise<{ orders: WixOrder[]; totalCount: number }> {
+} ): Promise<{ orders: WixOrder[]; totalCount: number }> {
   const query = new URLSearchParams();
-  if (params?.limit) query.set('limit', String(params.limit));
-  if (params?.status) query.set('status', params.status);
-  if (params?.paymentStatus) query.set('paymentStatus', params.paymentStatus);
-  if (params?.fulfillmentStatus) query.set('fulfillmentStatus', params.fulfillmentStatus);
-  if (params?.email) query.set('email', params.email);
-  if (params?.orderNumber) query.set('orderNumber', params.orderNumber);
-  if (params?.customOrderNumber) query.set('customOrderNumber', params.customOrderNumber);
-  if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
-  if (params?.dateTo) query.set('dateTo', params.dateTo);
+  if ( params?.limit ) query.set( 'limit', String( params.limit ) );
+  if ( params?.status ) query.set( 'status', params.status );
+  if ( params?.paymentStatus ) query.set( 'paymentStatus', params.paymentStatus );
+  if ( params?.fulfillmentStatus ) query.set( 'fulfillmentStatus', params.fulfillmentStatus );
+  if ( params?.email ) query.set( 'email', params.email );
+  if ( params?.orderNumber ) query.set( 'orderNumber', params.orderNumber );
+  if ( params?.customOrderNumber ) query.set( 'customOrderNumber', params.customOrderNumber );
+  if ( params?.dateFrom ) query.set( 'dateFrom', params.dateFrom );
+  if ( params?.dateTo ) query.set( 'dateTo', params.dateTo );
   const qs = query.toString();
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/orders${qs ? '?' + qs : ''}`);
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/orders${qs ? '?' + qs : ''}` );
   return { orders: data?.orders || [], totalCount: data?.totalCount || data?.totalResults || 0 };
 }
 
-export async function getWixOrder(orderId: string): Promise<WixOrder | null> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/orders/${orderId}`);
+export async function getWixOrder ( orderId: string ): Promise<WixOrder | null> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/orders/${orderId}` );
   return data?.order || null;
 }
 
-export async function listWixCollections(limit?: number): Promise<{ collections: WixCollection[]; totalCount: number }> {
+export async function listWixCollections ( limit?: number ): Promise<{ collections: WixCollection[]; totalCount: number }> {
   const qs = limit ? `?limit=${limit}` : '';
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/collections${qs}`);
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/collections${qs}` );
   return { collections: data?.collections || [], totalCount: data?.totalCount || data?.totalResults || 0 };
 }
 
-export async function getWixInventory(productId: string): Promise<any> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/inventory/${productId}`);
+export async function getWixInventory ( productId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/inventory/${productId}` );
   return data?.inventoryItem || data?.inventoryItems || null;
 }
 
-export async function syncWixProducts(): Promise<{ message: string }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/sync/products`, { method: 'POST' });
+export async function syncWixProducts (): Promise<{ message: string }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/sync/products`, { method: 'POST' } );
   return data || { message: 'Sync failed' };
 }
 
-export async function syncWixOrders(): Promise<{ message: string }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/sync/orders`, { method: 'POST' });
+export async function syncWixOrders (): Promise<{ message: string }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/sync/orders`, { method: 'POST' } );
   return data || { message: 'Sync failed' };
 }
 
 // Product creation / management
-export async function createWixProduct(product: Record<string, any>): Promise<{ product: any; created: boolean }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/create-product`, {
+export async function createWixProduct ( product: Record<string, any> ): Promise<{ product: any; created: boolean }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/create-product`, {
     method: 'POST',
-    body: JSON.stringify({ product }),
-  });
+    body: JSON.stringify( { product } ),
+  } );
   return data || { product: null, created: false };
 }
 
-export async function bulkCreateWixProducts(products: Record<string, any>[]): Promise<{ total: number; succeeded: number; failed: number; results: any[] }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/bulk-create-products`, {
+export async function bulkCreateWixProducts ( products: Record<string, any>[] ): Promise<{ total: number; succeeded: number; failed: number; results: any[] }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/bulk-create-products`, {
     method: 'POST',
-    body: JSON.stringify({ products }),
-  });
+    body: JSON.stringify( { products } ),
+  } );
   return data || { total: 0, succeeded: 0, failed: 0, results: [] };
 }
 
-export async function updateWixProduct(productId: string, updates: Record<string, any>): Promise<{ product: any; updated: boolean }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/update-product`, {
+export async function updateWixProduct ( productId: string, updates: Record<string, any> ): Promise<{ product: any; updated: boolean }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/update-product`, {
     method: 'POST',
-    body: JSON.stringify({ productId, updates }),
-  });
+    body: JSON.stringify( { productId, updates } ),
+  } );
   return data || { product: null, updated: false };
 }
 
-export async function deleteWixProduct(productId: string): Promise<{ deleted: boolean }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/delete-product`, {
+export async function deleteWixProduct ( productId: string ): Promise<{ deleted: boolean }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/delete-product`, {
     method: 'POST',
-    body: JSON.stringify({ productId }),
-  });
+    body: JSON.stringify( { productId } ),
+  } );
   return data || { deleted: false };
 }
 
-export async function getWixSampleProducts(): Promise<{ category: string; products: any[] }> {
-  const data = await apiCall<any>(`${WIX_STORE_BASE}/sample-products`);
+export async function getWixSampleProducts (): Promise<{ category: string; products: any[] }> {
+  const data = await apiCall<any>( `${WIX_STORE_BASE}/sample-products` );
   return data || { category: '', products: [] };
 }
 
@@ -3778,86 +3935,86 @@ export interface CreateInvoiceEngineRequest {
 }
 
 // Create invoice directly
-export async function createInvoiceEngine(request: CreateInvoiceEngineRequest): Promise<{ invoiceId: string; invoiceNumber: string; total: number } | null> {
-  return apiCall<{ invoiceId: string; invoiceNumber: string; total: number }>(INVOICE_BASE, {
+export async function createInvoiceEngine ( request: CreateInvoiceEngineRequest ): Promise<{ invoiceId: string; invoiceNumber: string; total: number } | null> {
+  return apiCall<{ invoiceId: string; invoiceNumber: string; total: number }>( INVOICE_BASE, {
     method: 'POST',
-    body: JSON.stringify(request),
-  });
+    body: JSON.stringify( request ),
+  } );
 }
 
 // Create invoice from Razorpay payment ID
-export async function createInvoiceFromPayment(paymentId: string, extras?: Record<string, any>): Promise<{ invoiceId: string; invoiceNumber: string; total: number } | null> {
-  return apiCall<{ invoiceId: string; invoiceNumber: string; total: number }>(`${INVOICE_BASE}/from-payment`, {
+export async function createInvoiceFromPayment ( paymentId: string, extras?: Record<string, any> ): Promise<{ invoiceId: string; invoiceNumber: string; total: number } | null> {
+  return apiCall<{ invoiceId: string; invoiceNumber: string; total: number }>( `${INVOICE_BASE}/from-payment`, {
     method: 'POST',
-    body: JSON.stringify({ paymentId, ...extras }),
-  });
+    body: JSON.stringify( { paymentId, ...extras } ),
+  } );
 }
 
 // List invoices with optional filters
-export async function listInvoicesEngine(params?: { status?: string; contactId?: string; paymentId?: string; limit?: number }): Promise<{ invoices: Invoice[]; count: number }> {
+export async function listInvoicesEngine ( params?: { status?: string; contactId?: string; paymentId?: string; limit?: number } ): Promise<{ invoices: Invoice[]; count: number }> {
   const query = new URLSearchParams();
-  if (params?.status) query.set('status', params.status);
-  if (params?.contactId) query.set('contactId', params.contactId);
-  if (params?.paymentId) query.set('paymentId', params.paymentId);
-  if (params?.limit) query.set('limit', String(params.limit));
+  if ( params?.status ) query.set( 'status', params.status );
+  if ( params?.contactId ) query.set( 'contactId', params.contactId );
+  if ( params?.paymentId ) query.set( 'paymentId', params.paymentId );
+  if ( params?.limit ) query.set( 'limit', String( params.limit ) );
   const qs = query.toString();
-  const data = await apiCall<any>(`${INVOICE_BASE}${qs ? '?' + qs : ''}`);
+  const data = await apiCall<any>( `${INVOICE_BASE}${qs ? '?' + qs : ''}` );
   return { invoices: data?.invoices || [], count: data?.count || 0 };
 }
 
 // Get single invoice with items and assets
-export async function getInvoiceEngine(invoiceId: string): Promise<Invoice | null> {
-  const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}`);
+export async function getInvoiceEngine ( invoiceId: string ): Promise<Invoice | null> {
+  const data = await apiCall<any>( `${INVOICE_BASE}/${invoiceId}` );
   return data?.invoice || null;
 }
 
 // Update invoice (admin)
-export async function updateInvoiceEngine(invoiceId: string, updates: Partial<Invoice>): Promise<boolean> {
-  const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}`, {
+export async function updateInvoiceEngine ( invoiceId: string, updates: Partial<Invoice> ): Promise<boolean> {
+  const data = await apiCall<any>( `${INVOICE_BASE}/${invoiceId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return data?.updated === true;
 }
 
 // Generate invoice image (PNG)
-export async function generateInvoiceImage(invoiceId: string): Promise<{ invoiceId: string; imageUrl: string; s3Key: string } | null> {
-  return apiCall<{ invoiceId: string; imageUrl: string; s3Key: string }>(`${INVOICE_BASE}/${invoiceId}/generate-image`, {
+export async function generateInvoiceImage ( invoiceId: string ): Promise<{ invoiceId: string; imageUrl: string; s3Key: string } | null> {
+  return apiCall<{ invoiceId: string; imageUrl: string; s3Key: string }>( `${INVOICE_BASE}/${invoiceId}/generate-image`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId }),
-  });
+    body: JSON.stringify( { invoiceId } ),
+  } );
 }
 
 // Generate invoice PDF
-export async function generateInvoicePdf(invoiceId: string): Promise<{ invoiceId: string; pdfUrl: string; s3Key: string } | null> {
-  return apiCall<{ invoiceId: string; pdfUrl: string; s3Key: string }>(`${INVOICE_BASE}/${invoiceId}/generate-pdf`, {
+export async function generateInvoicePdf ( invoiceId: string ): Promise<{ invoiceId: string; pdfUrl: string; s3Key: string } | null> {
+  return apiCall<{ invoiceId: string; pdfUrl: string; s3Key: string }>( `${INVOICE_BASE}/${invoiceId}/generate-pdf`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId }),
-  });
+    body: JSON.stringify( { invoiceId } ),
+  } );
 }
 
 // Send invoice image on WhatsApp
-export async function sendInvoiceWhatsApp(invoiceId: string, toWhatsAppNumber: string, phoneNumberId?: string): Promise<{ invoiceId: string; waMessageId: string; status: string; imageUrl: string } | null> {
-  return apiCall<{ invoiceId: string; waMessageId: string; status: string; imageUrl: string }>(`${INVOICE_BASE}/${invoiceId}/send-whatsapp`, {
+export async function sendInvoiceWhatsApp ( invoiceId: string, toWhatsAppNumber: string, phoneNumberId?: string ): Promise<{ invoiceId: string; waMessageId: string; status: string; imageUrl: string } | null> {
+  return apiCall<{ invoiceId: string; waMessageId: string; status: string; imageUrl: string }>( `${INVOICE_BASE}/${invoiceId}/send-whatsapp`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId, toWhatsAppNumber, phoneNumberId }),
-  });
+    body: JSON.stringify( { invoiceId, toWhatsAppNumber, phoneNumberId } ),
+  } );
 }
 
 // Send WhatsApp interactive payment link for a pending invoice
-export async function sendPaymentLink(invoiceId: string, phoneNumberId?: string, paymentConfiguration?: string): Promise<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number } | null> {
-  return apiCall<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number }>(`${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
+export async function sendPaymentLink ( invoiceId: string, phoneNumberId?: string, paymentConfiguration?: string ): Promise<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number } | null> {
+  return apiCall<{ invoiceId: string; referenceId: string; status: string; toPhone: string; total: number }>( `${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId, phoneNumberId, paymentConfiguration }),
-  });
+    body: JSON.stringify( { invoiceId, phoneNumberId, paymentConfiguration } ),
+  } );
 }
 
 // Cancel/void an invoice
-export async function cancelInvoice(invoiceId: string, reason?: string): Promise<{ invoiceId: string; status: string } | null> {
-  return apiCall<{ invoiceId: string; status: string }>(`${INVOICE_BASE}/${invoiceId}/cancel`, {
+export async function cancelInvoice ( invoiceId: string, reason?: string ): Promise<{ invoiceId: string; status: string } | null> {
+  return apiCall<{ invoiceId: string; status: string }>( `${INVOICE_BASE}/${invoiceId}/cancel`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId, reason }),
-  });
+    body: JSON.stringify( { invoiceId, reason } ),
+  } );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3939,14 +4096,14 @@ export interface SendCheckoutTemplateRequest {
  * This sends a marketing template with an order_details "Buy now" button
  * that opens the native WhatsApp checkout flow with coupons + address.
  */
-export async function sendCheckoutTemplate(
+export async function sendCheckoutTemplate (
   request: SendCheckoutTemplateRequest
 ): Promise<{ messageId: string; whatsappMessageId: string; status: string; referenceId: string } | null> {
   return apiCall<{ messageId: string; whatsappMessageId: string; status: string; referenceId: string }>(
     `${API_BASE}/whatsapp/send`,
     {
       method: 'POST',
-      body: JSON.stringify({
+      body: JSON.stringify( {
         contactId: request.contactId,
         phoneNumberId: request.phoneNumberId,
         isTemplate: true,
@@ -3956,31 +4113,31 @@ export async function sendCheckoutTemplate(
         checkoutOrderDetails: request.checkoutOrderDetails,
         headerImageUrl: request.headerImageUrl,
         recipientBsuid: request.recipientBsuid,
-      }),
+      } ),
     }
   );
 }
 
 // Get delivery log for an invoice
-export async function getInvoiceDeliveryLog(invoiceId: string): Promise<{ deliveryLogs: InvoiceDeliveryLog[]; count: number }> {
-  const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}/delivery-log`);
+export async function getInvoiceDeliveryLog ( invoiceId: string ): Promise<{ deliveryLogs: InvoiceDeliveryLog[]; count: number }> {
+  const data = await apiCall<any>( `${INVOICE_BASE}/${invoiceId}/delivery-log` );
   return { deliveryLogs: data?.deliveryLogs || [], count: data?.count || 0 };
 }
 
 // Preview next invoice number (without incrementing)
-export async function previewNextInvoiceNumber(fy?: string): Promise<{ nextInvoiceNumber: string; fy: string; lastSeq: number } | null> {
-  return apiCall<{ nextInvoiceNumber: string; fy: string; lastSeq: number }>(`${INVOICE_BASE}/next-sequence`, {
+export async function previewNextInvoiceNumber ( fy?: string ): Promise<{ nextInvoiceNumber: string; fy: string; lastSeq: number } | null> {
+  return apiCall<{ nextInvoiceNumber: string; fy: string; lastSeq: number }>( `${INVOICE_BASE}/next-sequence`, {
     method: 'POST',
-    body: JSON.stringify({ fy }),
-  });
+    body: JSON.stringify( { fy } ),
+  } );
 }
 
 // Delete invoice (hard delete + optional sequence adjustment)
-export async function deleteInvoice(invoiceId: string, adjustSequence = false): Promise<{ invoiceId: string; deleted: boolean; invoiceNumber: string } | null> {
-  return apiCall<{ invoiceId: string; deleted: boolean; invoiceNumber: string }>(`${INVOICE_BASE}/${invoiceId}`, {
+export async function deleteInvoice ( invoiceId: string, adjustSequence = false ): Promise<{ invoiceId: string; deleted: boolean; invoiceNumber: string } | null> {
+  return apiCall<{ invoiceId: string; deleted: boolean; invoiceNumber: string }>( `${INVOICE_BASE}/${invoiceId}`, {
     method: 'DELETE',
-    body: JSON.stringify({ adjustSequence }),
-  });
+    body: JSON.stringify( { adjustSequence } ),
+  } );
 }
 
 // Add remark / refund / credit note to an invoice
@@ -3993,11 +4150,11 @@ export interface InvoiceRemark {
   createdAt: number;
 }
 
-export async function addInvoiceRemark(invoiceId: string, remarkType: 'remark' | 'refund' | 'credit_note', text: string, amount = 0, author = 'admin'): Promise<{ invoiceId: string; remark: InvoiceRemark; totalRemarks: number } | null> {
-  return apiCall<{ invoiceId: string; remark: InvoiceRemark; totalRemarks: number }>(`${INVOICE_BASE}/${invoiceId}/remark`, {
+export async function addInvoiceRemark ( invoiceId: string, remarkType: 'remark' | 'refund' | 'credit_note', text: string, amount = 0, author = 'admin' ): Promise<{ invoiceId: string; remark: InvoiceRemark; totalRemarks: number } | null> {
+  return apiCall<{ invoiceId: string; remark: InvoiceRemark; totalRemarks: number }>( `${INVOICE_BASE}/${invoiceId}/remark`, {
     method: 'POST',
-    body: JSON.stringify({ type: remarkType, text, amount, author }),
-  });
+    body: JSON.stringify( { type: remarkType, text, amount, author } ),
+  } );
 }
 
 // ============================================================================
@@ -4023,16 +4180,16 @@ export interface CleanupResult {
   error?: string;
 }
 
-export async function getCleanupPreview(): Promise<CleanupResource[]> {
-  const data = await apiCall<any>(`${API_BASE}/system-cleanup`);
+export async function getCleanupPreview (): Promise<CleanupResource[]> {
+  const data = await apiCall<any>( `${API_BASE}/system-cleanup` );
   return data?.resources || [];
 }
 
-export async function executeCleanup(selected: string[]): Promise<{ results: CleanupResult[]; totalDeleted: number }> {
-  const data = await apiCall<any>(`${API_BASE}/system-cleanup`, {
+export async function executeCleanup ( selected: string[] ): Promise<{ results: CleanupResult[]; totalDeleted: number }> {
+  const data = await apiCall<any>( `${API_BASE}/system-cleanup`, {
     method: 'POST',
-    body: JSON.stringify({ selected }),
-  });
+    body: JSON.stringify( { selected } ),
+  } );
   return { results: data?.results || [], totalDeleted: data?.totalDeleted || 0 };
 }
 
@@ -4063,10 +4220,10 @@ export interface SubmitRequest {
   updatedAt?: number;
 }
 
-export async function listSubmitRequests(paymentStatus?: string): Promise<SubmitRequest[]> {
+export async function listSubmitRequests ( paymentStatus?: string ): Promise<SubmitRequest[]> {
   let url = `${API_BASE}/wa-business/submit-requests`;
-  if (paymentStatus) url += `?paymentStatus=${paymentStatus}`;
-  const data = await apiCall<any>(url);
+  if ( paymentStatus ) url += `?paymentStatus=${paymentStatus}`;
+  const data = await apiCall<any>( url );
   return data?.requests || [];
 }
 
@@ -4088,19 +4245,20 @@ export interface FlowLog {
   flowData?: string; // JSON string of full submitted data
 }
 
-export async function listFlowLogs(phone?: string): Promise<FlowLog[]> {
+export async function listFlowLogs ( phone?: string ): Promise<FlowLog[]> {
   let url = `${API_BASE}/wa-business/flow-logs`;
-  if (phone) url += `?phone=${encodeURIComponent(phone)}`;
-  const data = await apiCall<any>(url);
+  if ( phone ) url += `?phone=${encodeURIComponent( phone )}`;
+  const data = await apiCall<any>( url );
   return data?.logs || [];
 }
 
-export async function resendSubmitRequestPayment(invoiceId: string): Promise<boolean> {
-  try {
-    const data = await apiCall<any>(`${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
+export async function resendSubmitRequestPayment ( invoiceId: string ): Promise<boolean> {
+  try
+  {
+    const data = await apiCall<any>( `${INVOICE_BASE}/${invoiceId}/send-payment-link`, {
       method: 'POST',
-      body: JSON.stringify({ invoiceId }),
-    });
+      body: JSON.stringify( { invoiceId } ),
+    } );
     return !!data;
   } catch { return false; }
 }
@@ -4172,44 +4330,44 @@ export interface FlowSubmissionStats {
   pendingAmount: number;
 }
 
-export async function listFlowRegistry(): Promise<FlowRegistryItem[]> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-registry`);
+export async function listFlowRegistry (): Promise<FlowRegistryItem[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-registry` );
   return data?.flows || [];
 }
 
-export async function upsertFlowRegistry(item: Partial<FlowRegistryItem>): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-registry`, {
+export async function upsertFlowRegistry ( item: Partial<FlowRegistryItem> ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-registry`, {
     method: 'POST',
-    body: JSON.stringify(item),
-  });
+    body: JSON.stringify( item ),
+  } );
   return !!data?.success;
 }
 
-export async function listFlowSubmissions(params?: {
+export async function listFlowSubmissions ( params?: {
   flowCode?: string; paymentStatus?: string; status?: string; phone?: string; limit?: number;
-}): Promise<FlowSubmissionItem[]> {
+} ): Promise<FlowSubmissionItem[]> {
   const qs = new URLSearchParams();
-  if (params?.flowCode) qs.set('flowCode', params.flowCode);
-  if (params?.paymentStatus) qs.set('paymentStatus', params.paymentStatus);
-  if (params?.status) qs.set('status', params.status);
-  if (params?.phone) qs.set('phone', params.phone);
-  if (params?.limit) qs.set('limit', String(params.limit));
+  if ( params?.flowCode ) qs.set( 'flowCode', params.flowCode );
+  if ( params?.paymentStatus ) qs.set( 'paymentStatus', params.paymentStatus );
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.phone ) qs.set( 'phone', params.phone );
+  if ( params?.limit ) qs.set( 'limit', String( params.limit ) );
   const query = qs.toString();
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-submissions${query ? '?' + query : ''}` );
   return data?.submissions || [];
 }
 
-export async function getFlowSubmissionStats(flowCode?: string): Promise<FlowSubmissionStats | null> {
+export async function getFlowSubmissionStats ( flowCode?: string ): Promise<FlowSubmissionStats | null> {
   const qs = flowCode ? `?flowCode=${flowCode}` : '';
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions/stats${qs}`);
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-submissions/stats${qs}` );
   return data || null;
 }
 
-export async function updateSubmissionStatus(submissionId: string, status: string, notes?: string): Promise<{ updated: boolean; oldStatus: string; newStatus: string }> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions/update-status`, {
+export async function updateSubmissionStatus ( submissionId: string, status: string, notes?: string ): Promise<{ updated: boolean; oldStatus: string; newStatus: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-submissions/update-status`, {
     method: 'POST',
-    body: JSON.stringify({ submissionId, status, notes, changedBy: 'admin' }),
-  });
+    body: JSON.stringify( { submissionId, status, notes, changedBy: 'admin' } ),
+  } );
   return data || { updated: false, oldStatus: '', newStatus: '' };
 }
 
@@ -4222,28 +4380,28 @@ export interface CustomerJourney {
   summary: { flowsCompleted: string[]; totalSubmissions: number; totalPaid: number; totalInteractions: number };
 }
 
-export async function getCustomerJourney(phone: string): Promise<CustomerJourney | null> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-customer-journey?phone=${encodeURIComponent(phone)}`);
+export async function getCustomerJourney ( phone: string ): Promise<CustomerJourney | null> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-customer-journey?phone=${encodeURIComponent( phone )}` );
   return data || null;
 }
 
-export async function runSlaCheck(params?: { slaDays?: number; reminderDays?: number; defaultAssignee?: string }): Promise<any> {
-  return apiCall<any>(`${WA_BIZ_BASE}/flow-sla-check`, { method: 'POST', body: JSON.stringify(params || {}) });
+export async function runSlaCheck ( params?: { slaDays?: number; reminderDays?: number; defaultAssignee?: string } ): Promise<any> {
+  return apiCall<any>( `${WA_BIZ_BASE}/flow-sla-check`, { method: 'POST', body: JSON.stringify( params || {} ) } );
 }
 
-export async function cloneFlowToWaba(sourceFlowCode: string, targetWabaId: string, targetFlowId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-clone`, {
-    method: 'POST', body: JSON.stringify({ sourceFlowCode, targetWabaId, targetFlowId }),
-  });
+export async function cloneFlowToWaba ( sourceFlowCode: string, targetWabaId: string, targetFlowId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-clone`, {
+    method: 'POST', body: JSON.stringify( { sourceFlowCode, targetWabaId, targetFlowId } ),
+  } );
   return !!data?.success;
 }
 
-export async function exportSubmissionsCsv(params?: { flowCode?: string; paymentStatus?: string }): Promise<string> {
+export async function exportSubmissionsCsv ( params?: { flowCode?: string; paymentStatus?: string } ): Promise<string> {
   const qs = new URLSearchParams();
-  if (params?.flowCode) qs.set('flowCode', params.flowCode);
-  if (params?.paymentStatus) qs.set('paymentStatus', params.paymentStatus);
+  if ( params?.flowCode ) qs.set( 'flowCode', params.flowCode );
+  if ( params?.paymentStatus ) qs.set( 'paymentStatus', params.paymentStatus );
   const query = qs.toString();
-  const data = await apiCall<any>(`${WA_BIZ_BASE}/flow-submissions/export${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flow-submissions/export${query ? '?' + query : ''}` );
   return data?.csv || '';
 }
 
@@ -4252,22 +4410,22 @@ export interface FlowVersionHealth {
   dataApiVersion: string; versionStatus: string; message: string;
 }
 
-export async function checkFlowVersionHealth(): Promise<{ flows: FlowVersionHealth[]; recommendedVersion: string } | null> {
-  return apiCall<any>(`${WA_BIZ_BASE}/flow-version-health`);
+export async function checkFlowVersionHealth (): Promise<{ flows: FlowVersionHealth[]; recommendedVersion: string } | null> {
+  return apiCall<any>( `${WA_BIZ_BASE}/flow-version-health` );
 }
 
 // ── WhatsApp Commerce Catalog ──
 
 const CATALOG_BASE = `${API_BASE}/catalog`;
 
-export async function getCatalogProducts(params?: { wabaId?: string; phoneNumberId?: string; catalogId?: string; limit?: number }): Promise<{ products: any[]; paging?: any } | null> {
+export async function getCatalogProducts ( params?: { wabaId?: string; phoneNumberId?: string; catalogId?: string; limit?: number } ): Promise<{ products: any[]; paging?: any } | null> {
   const qs = new URLSearchParams();
-  if (params?.wabaId) qs.set('wabaId', params.wabaId);
-  if (params?.phoneNumberId) qs.set('phoneNumberId', params.phoneNumberId);
-  if (params?.catalogId) qs.set('catalogId', params.catalogId);
-  if (params?.limit) qs.set('limit', String(params.limit));
+  if ( params?.wabaId ) qs.set( 'wabaId', params.wabaId );
+  if ( params?.phoneNumberId ) qs.set( 'phoneNumberId', params.phoneNumberId );
+  if ( params?.catalogId ) qs.set( 'catalogId', params.catalogId );
+  if ( params?.limit ) qs.set( 'limit', String( params.limit ) );
   const query = qs.toString();
-  const data = await apiCall<any>(`${CATALOG_BASE}/products${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${CATALOG_BASE}/products${query ? '?' + query : ''}` );
   return data || { products: [] };
 }
 
@@ -4319,50 +4477,50 @@ export interface OrderItem {
 
 const ORDERS_BASE = `${WA_BIZ_BASE}/orders`;
 
-export async function listOrders(params?: {
+export async function listOrders ( params?: {
   status?: string;
   source?: string;
   phone?: string;
   search?: string;
   limit?: number;
-}): Promise<{ orders: Order[]; count: number }> {
+} ): Promise<{ orders: Order[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.source) qs.set('source', params.source);
-  if (params?.phone) qs.set('phone', params.phone);
-  if (params?.search) qs.set('search', params.search);
-  if (params?.limit) qs.set('limit', String(params.limit));
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.source ) qs.set( 'source', params.source );
+  if ( params?.phone ) qs.set( 'phone', params.phone );
+  if ( params?.search ) qs.set( 'search', params.search );
+  if ( params?.limit ) qs.set( 'limit', String( params.limit ) );
   const query = qs.toString();
-  const data = await apiCall<any>(`${ORDERS_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${ORDERS_BASE}${query ? '?' + query : ''}` );
   return data || { orders: [], count: 0 };
 }
 
-export async function getOrder(orderId: string): Promise<Order | null> {
-  return apiCall<Order>(`${ORDERS_BASE}/${orderId}`);
+export async function getOrder ( orderId: string ): Promise<Order | null> {
+  return apiCall<Order>( `${ORDERS_BASE}/${orderId}` );
 }
 
-export async function createOrder(order: Partial<Order>): Promise<Order | null> {
-  return apiCall<Order>(ORDERS_BASE, {
+export async function createOrder ( order: Partial<Order> ): Promise<Order | null> {
+  return apiCall<Order>( ORDERS_BASE, {
     method: 'POST',
-    body: JSON.stringify(order),
-  });
+    body: JSON.stringify( order ),
+  } );
 }
 
-export async function updateOrder(orderId: string, updates: Partial<Order>): Promise<boolean> {
-  const data = await apiCall<any>(`${ORDERS_BASE}/${encodeURIComponent(orderId)}`, {
+export async function updateOrder ( orderId: string, updates: Partial<Order> ): Promise<boolean> {
+  const data = await apiCall<any>( `${ORDERS_BASE}/${encodeURIComponent( orderId )}`, {
     method: 'PATCH',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
-export async function syncOrders(): Promise<{ message: string; synced?: number }> {
-  const data = await apiCall<any>(`${ORDERS_BASE}/sync`, { method: 'POST' });
+export async function syncOrders (): Promise<{ message: string; synced?: number }> {
+  const data = await apiCall<any>( `${ORDERS_BASE}/sync`, { method: 'POST' } );
   return data || { message: 'Sync failed' };
 }
 
-export async function getOrderSubmissions(orderId: string): Promise<FlowSubmissionItem[]> {
-  const data = await apiCall<any>(`${ORDERS_BASE}/${encodeURIComponent(orderId)}/submissions`);
+export async function getOrderSubmissions ( orderId: string ): Promise<FlowSubmissionItem[]> {
+  const data = await apiCall<any>( `${ORDERS_BASE}/${encodeURIComponent( orderId )}/submissions` );
   return data?.submissions || [];
 }
 
@@ -4395,46 +4553,46 @@ export interface Document {
 
 const DOCUMENTS_BASE = `${WA_BIZ_BASE}/documents`;
 
-export async function listDocuments(params?: {
+export async function listDocuments ( params?: {
   status?: string;
   source?: string;
   type?: string;
   phone?: string;
   limit?: number;
-}): Promise<{ documents: Document[]; count: number }> {
+} ): Promise<{ documents: Document[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.source) qs.set('source', params.source);
-  if (params?.type) qs.set('type', params.type);
-  if (params?.phone) qs.set('phone', params.phone);
-  if (params?.limit) qs.set('limit', String(params.limit));
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.source ) qs.set( 'source', params.source );
+  if ( params?.type ) qs.set( 'type', params.type );
+  if ( params?.phone ) qs.set( 'phone', params.phone );
+  if ( params?.limit ) qs.set( 'limit', String( params.limit ) );
   const query = qs.toString();
-  const data = await apiCall<any>(`${DOCUMENTS_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${DOCUMENTS_BASE}${query ? '?' + query : ''}` );
   return data || { documents: [], count: 0 };
 }
 
-export async function getDocument(documentId: string): Promise<Document | null> {
-  return apiCall<Document>(`${DOCUMENTS_BASE}/${documentId}`);
+export async function getDocument ( documentId: string ): Promise<Document | null> {
+  return apiCall<Document>( `${DOCUMENTS_BASE}/${documentId}` );
 }
 
-export async function updateDocument(documentId: string, updates: Partial<Document>): Promise<boolean> {
-  const data = await apiCall<any>(`${DOCUMENTS_BASE}/${documentId}`, {
+export async function updateDocument ( documentId: string, updates: Partial<Document> ): Promise<boolean> {
+  const data = await apiCall<any>( `${DOCUMENTS_BASE}/${documentId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
-export async function getDocumentDownloadUrl(documentId: string): Promise<string | null> {
-  const data = await apiCall<any>(`${DOCUMENTS_BASE}/${documentId}/download`);
+export async function getDocumentDownloadUrl ( documentId: string ): Promise<string | null> {
+  const data = await apiCall<any>( `${DOCUMENTS_BASE}/${documentId}/download` );
   return data?.url || null;
 }
 
-export async function createDocument(doc: Partial<Document>): Promise<Document | null> {
-  return apiCall<Document>(DOCUMENTS_BASE, {
+export async function createDocument ( doc: Partial<Document> ): Promise<Document | null> {
+  return apiCall<Document>( DOCUMENTS_BASE, {
     method: 'POST',
-    body: JSON.stringify(doc),
-  });
+    body: JSON.stringify( doc ),
+  } );
 }
 
 // ============================================================================
@@ -4455,35 +4613,35 @@ export interface FaqEntry {
 
 const FAQ_BASE = `${WA_BIZ_BASE}/faq`;
 
-export async function listFaqs(params?: {
+export async function listFaqs ( params?: {
   category?: string;
   active?: boolean;
-}): Promise<{ faqs: FaqEntry[]; count: number }> {
+} ): Promise<{ faqs: FaqEntry[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.category) qs.set('category', params.category);
-  if (params?.active !== undefined) qs.set('active', String(params.active));
+  if ( params?.category ) qs.set( 'category', params.category );
+  if ( params?.active !== undefined ) qs.set( 'active', String( params.active ) );
   const query = qs.toString();
-  const data = await apiCall<any>(`${FAQ_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${FAQ_BASE}${query ? '?' + query : ''}` );
   return data || { faqs: [], count: 0 };
 }
 
-export async function createFaq(faq: Partial<FaqEntry>): Promise<FaqEntry | null> {
-  return apiCall<FaqEntry>(FAQ_BASE, {
+export async function createFaq ( faq: Partial<FaqEntry> ): Promise<FaqEntry | null> {
+  return apiCall<FaqEntry>( FAQ_BASE, {
     method: 'POST',
-    body: JSON.stringify(faq),
-  });
+    body: JSON.stringify( faq ),
+  } );
 }
 
-export async function updateFaq(faqId: string, updates: Partial<FaqEntry>): Promise<boolean> {
-  const data = await apiCall<any>(`${FAQ_BASE}/${faqId}`, {
+export async function updateFaq ( faqId: string, updates: Partial<FaqEntry> ): Promise<boolean> {
+  const data = await apiCall<any>( `${FAQ_BASE}/${faqId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
-export async function deleteFaq(faqId: string): Promise<boolean> {
-  const data = await apiCall<any>(`${FAQ_BASE}/${faqId}`, { method: 'DELETE' });
+export async function deleteFaq ( faqId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${FAQ_BASE}/${faqId}`, { method: 'DELETE' } );
   return !!data;
 }
 
@@ -4509,27 +4667,27 @@ export interface Appointment {
 
 const APPOINTMENTS_BASE = `${WA_BIZ_BASE}/appointments`;
 
-export async function listAppointments(params?: {
+export async function listAppointments ( params?: {
   status?: string;
   type?: string;
   from?: string;
   to?: string;
-}): Promise<{ appointments: Appointment[]; count: number }> {
+} ): Promise<{ appointments: Appointment[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.type) qs.set('type', params.type);
-  if (params?.from) qs.set('from', params.from);
-  if (params?.to) qs.set('to', params.to);
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.type ) qs.set( 'type', params.type );
+  if ( params?.from ) qs.set( 'from', params.from );
+  if ( params?.to ) qs.set( 'to', params.to );
   const query = qs.toString();
-  const data = await apiCall<any>(`${APPOINTMENTS_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${APPOINTMENTS_BASE}${query ? '?' + query : ''}` );
   return data || { appointments: [], count: 0 };
 }
 
-export async function updateAppointment(appointmentId: string, updates: Partial<Appointment>): Promise<boolean> {
-  const data = await apiCall<any>(`${APPOINTMENTS_BASE}/${appointmentId}`, {
+export async function updateAppointment ( appointmentId: string, updates: Partial<Appointment> ): Promise<boolean> {
+  const data = await apiCall<any>( `${APPOINTMENTS_BASE}/${appointmentId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
@@ -4555,33 +4713,33 @@ export interface RxSlot {
 
 const RX_SLOTS_BASE = `${WA_BIZ_BASE}/rx-slots`;
 
-export async function listRxSlots(params?: {
+export async function listRxSlots ( params?: {
   status?: string;
   date?: string;
   provider?: string;
-}): Promise<{ slots: RxSlot[]; count: number }> {
+} ): Promise<{ slots: RxSlot[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.date) qs.set('date', params.date);
-  if (params?.provider) qs.set('provider', params.provider);
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.date ) qs.set( 'date', params.date );
+  if ( params?.provider ) qs.set( 'provider', params.provider );
   const query = qs.toString();
-  const data = await apiCall<any>(`${RX_SLOTS_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${RX_SLOTS_BASE}${query ? '?' + query : ''}` );
   return data || { slots: [], count: 0 };
 }
 
-export async function updateRxSlot(slotId: string, updates: Partial<RxSlot>): Promise<boolean> {
-  const data = await apiCall<any>(`${RX_SLOTS_BASE}/${slotId}`, {
+export async function updateRxSlot ( slotId: string, updates: Partial<RxSlot> ): Promise<boolean> {
+  const data = await apiCall<any>( `${RX_SLOTS_BASE}/${slotId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
-export async function createRxSlot(slot: Partial<RxSlot>): Promise<RxSlot | null> {
-  return apiCall<RxSlot>(RX_SLOTS_BASE, {
+export async function createRxSlot ( slot: Partial<RxSlot> ): Promise<RxSlot | null> {
+  return apiCall<RxSlot>( RX_SLOTS_BASE, {
     method: 'POST',
-    body: JSON.stringify(slot),
-  });
+    body: JSON.stringify( slot ),
+  } );
 }
 
 // ============================================================================
@@ -4607,25 +4765,25 @@ export interface EnterpriseCase {
 
 const ENTERPRISE_BASE = `${WA_BIZ_BASE}/enterprise-assist`;
 
-export async function listEnterpriseCases(params?: {
+export async function listEnterpriseCases ( params?: {
   status?: string;
   priority?: string;
   assignedTo?: string;
-}): Promise<{ cases: EnterpriseCase[]; count: number }> {
+} ): Promise<{ cases: EnterpriseCase[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.priority) qs.set('priority', params.priority);
-  if (params?.assignedTo) qs.set('assignedTo', params.assignedTo);
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.priority ) qs.set( 'priority', params.priority );
+  if ( params?.assignedTo ) qs.set( 'assignedTo', params.assignedTo );
   const query = qs.toString();
-  const data = await apiCall<any>(`${ENTERPRISE_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${ENTERPRISE_BASE}${query ? '?' + query : ''}` );
   return data || { cases: [], count: 0 };
 }
 
-export async function updateEnterpriseCase(caseId: string, updates: Partial<EnterpriseCase>): Promise<boolean> {
-  const data = await apiCall<any>(`${ENTERPRISE_BASE}/${caseId}`, {
+export async function updateEnterpriseCase ( caseId: string, updates: Partial<EnterpriseCase> ): Promise<boolean> {
+  const data = await apiCall<any>( `${ENTERPRISE_BASE}/${caseId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
@@ -4652,25 +4810,25 @@ export interface Review {
 
 const REVIEWS_BASE = `${WA_BIZ_BASE}/reviews`;
 
-export async function listReviews(params?: {
+export async function listReviews ( params?: {
   status?: string;
   source?: string;
   minRating?: number;
-}): Promise<{ reviews: Review[]; count: number }> {
+} ): Promise<{ reviews: Review[]; count: number }> {
   const qs = new URLSearchParams();
-  if (params?.status) qs.set('status', params.status);
-  if (params?.source) qs.set('source', params.source);
-  if (params?.minRating) qs.set('minRating', String(params.minRating));
+  if ( params?.status ) qs.set( 'status', params.status );
+  if ( params?.source ) qs.set( 'source', params.source );
+  if ( params?.minRating ) qs.set( 'minRating', String( params.minRating ) );
   const query = qs.toString();
-  const data = await apiCall<any>(`${REVIEWS_BASE}${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${REVIEWS_BASE}${query ? '?' + query : ''}` );
   return data || { reviews: [], count: 0 };
 }
 
-export async function updateReview(reviewId: string, updates: Partial<Review>): Promise<boolean> {
-  const data = await apiCall<any>(`${REVIEWS_BASE}/${reviewId}`, {
+export async function updateReview ( reviewId: string, updates: Partial<Review> ): Promise<boolean> {
+  const data = await apiCall<any>( `${REVIEWS_BASE}/${reviewId}`, {
     method: 'PUT',
-    body: JSON.stringify(updates),
-  });
+    body: JSON.stringify( updates ),
+  } );
   return !!data;
 }
 
@@ -4725,67 +4883,67 @@ export interface DraftData {
 
 const SERVICE_BASE = `${WA_BIZ_BASE}/service`;
 
-export async function submitRequest(payload: SubmitRequestPayload): Promise<{ submissionId: string; submissionNumber: string } | null> {
-  return apiCall<{ submissionId: string; submissionNumber: string }>(`${SERVICE_BASE}/submit`, {
+export async function submitRequest ( payload: SubmitRequestPayload ): Promise<{ submissionId: string; submissionNumber: string } | null> {
+  return apiCall<{ submissionId: string; submissionNumber: string }>( `${SERVICE_BASE}/submit`, {
     method: 'POST',
-    body: JSON.stringify(payload),
-  });
+    body: JSON.stringify( payload ),
+  } );
 }
 
-export async function amendRequest(payload: AmendRequestPayload): Promise<{ success: boolean; amendmentId?: string } | null> {
-  return apiCall<{ success: boolean; amendmentId?: string }>(`${SERVICE_BASE}/amend`, {
+export async function amendRequest ( payload: AmendRequestPayload ): Promise<{ success: boolean; amendmentId?: string } | null> {
+  return apiCall<{ success: boolean; amendmentId?: string }>( `${SERVICE_BASE}/amend`, {
     method: 'POST',
-    body: JSON.stringify(payload),
-  });
+    body: JSON.stringify( payload ),
+  } );
 }
 
-export async function getTrackingData(orderId: string): Promise<TrackingData | null> {
-  return apiCall<TrackingData>(`${SERVICE_BASE}/track/${encodeURIComponent(orderId)}`);
+export async function getTrackingData ( orderId: string ): Promise<TrackingData | null> {
+  return apiCall<TrackingData>( `${SERVICE_BASE}/track/${encodeURIComponent( orderId )}` );
 }
 
-export async function getStatusHistory(params: { orderId?: string; submissionId?: string }): Promise<StatusHistoryEntry[]> {
+export async function getStatusHistory ( params: { orderId?: string; submissionId?: string } ): Promise<StatusHistoryEntry[]> {
   const qs = new URLSearchParams();
-  if (params.orderId) qs.set('orderId', params.orderId);
-  if (params.submissionId) qs.set('submissionId', params.submissionId);
+  if ( params.orderId ) qs.set( 'orderId', params.orderId );
+  if ( params.submissionId ) qs.set( 'submissionId', params.submissionId );
   const query = qs.toString();
-  const data = await apiCall<any>(`${SERVICE_BASE}/history${query ? '?' + query : ''}`);
+  const data = await apiCall<any>( `${SERVICE_BASE}/history${query ? '?' + query : ''}` );
   return data?.history || [];
 }
 
-export async function saveDraft(draft: Partial<DraftData>): Promise<boolean> {
-  const data = await apiCall<any>(`${SERVICE_BASE}/drafts`, {
+export async function saveDraft ( draft: Partial<DraftData> ): Promise<boolean> {
+  const data = await apiCall<any>( `${SERVICE_BASE}/drafts`, {
     method: 'POST',
-    body: JSON.stringify(draft),
-  });
+    body: JSON.stringify( draft ),
+  } );
   return !!data;
 }
 
-export async function getDraft(flowCode: string): Promise<DraftData | null> {
-  return apiCall<DraftData>(`${SERVICE_BASE}/drafts/${encodeURIComponent(flowCode)}`);
+export async function getDraft ( flowCode: string ): Promise<DraftData | null> {
+  return apiCall<DraftData>( `${SERVICE_BASE}/drafts/${encodeURIComponent( flowCode )}` );
 }
 
-export async function deleteDraft(flowCode: string): Promise<boolean> {
-  const data = await apiCall<any>(`${SERVICE_BASE}/drafts/${encodeURIComponent(flowCode)}`, { method: 'DELETE' });
+export async function deleteDraft ( flowCode: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${SERVICE_BASE}/drafts/${encodeURIComponent( flowCode )}`, { method: 'DELETE' } );
   return !!data;
 }
 
-export async function createAppointment(appointment: Partial<Appointment>): Promise<Appointment | null> {
-  return apiCall<Appointment>(APPOINTMENTS_BASE, {
+export async function createAppointment ( appointment: Partial<Appointment> ): Promise<Appointment | null> {
+  return apiCall<Appointment>( APPOINTMENTS_BASE, {
     method: 'POST',
-    body: JSON.stringify(appointment),
-  });
+    body: JSON.stringify( appointment ),
+  } );
 }
 
-export async function createEnterpriseCase(caseData: Partial<EnterpriseCase>): Promise<EnterpriseCase | null> {
-  return apiCall<EnterpriseCase>(ENTERPRISE_BASE, {
+export async function createEnterpriseCase ( caseData: Partial<EnterpriseCase> ): Promise<EnterpriseCase | null> {
+  return apiCall<EnterpriseCase>( ENTERPRISE_BASE, {
     method: 'POST',
-    body: JSON.stringify(caseData),
-  });
+    body: JSON.stringify( caseData ),
+  } );
 }
 
-export async function createReview(review: Partial<Review>): Promise<Review | null> {
-  return apiCall<Review>(REVIEWS_BASE, {
+export async function createReview ( review: Partial<Review> ): Promise<Review | null> {
+  return apiCall<Review>( REVIEWS_BASE, {
     method: 'POST',
-    body: JSON.stringify(review),
-  });
+    body: JSON.stringify( review ),
+  } );
 }
