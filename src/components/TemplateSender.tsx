@@ -212,7 +212,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         if ( isCarousel )
         {
           result = await api.sendCarouselTemplateMessage( {
-            contactId,
+            contactId: contactId || '',
             templateName: selectedTemplate.name,
             language: selectedTemplate.language,
             phoneNumberId,
