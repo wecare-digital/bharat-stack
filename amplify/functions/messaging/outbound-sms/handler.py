@@ -217,8 +217,11 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
 
 # ── Sinch (ACL) SMS Provider ──
 # Enterprise: WECARE DIGITAL ALERT (WECAREALT)
-# Push API: https://push3.aclgateway.com/servlet/...
+# ── Sinch SMS Configuration ──────────────────────────────────────────
+# OAuth API ONLY: https://jumbo.aclgateway.com/v12/enterprises/messages.json
+# Auth: OAuth token (lifetime validity, NO IP whitelist needed)
 # Sender: WDBEEP | AppID: wecarealt
+# DLR Webhook: POST https://api.wecare.digital/webhook/sinch-dlr
 # Credentials loaded from Secrets Manager: wecare/sinch/sms
 _sinch_sms_cache = {}
 
@@ -231,7 +234,8 @@ def _load_sinch_sms_creds() -> dict:
         resp = sm.get_secret_value(SecretId='wecare/sinch/sms')
         data = json.loads(resp['SecretString'])
         _sinch_sms_cache.update({
-            'host': data.get('host', 'push3.aclgateway.com'),
+            'oauth_host': data.get('oauth_host', 'jumbo.aclgateway.com'),
+            'oauth_token': data.get('oauth_token', ''),
             'app_id': data.get('app_id', 'wecarealt'),
             'user_id': data.get('user_id', 'wecarealt'),
             'password': data.get('password', ''),
@@ -239,107 +243,96 @@ def _load_sinch_sms_creds() -> dict:
         })
         return _sinch_sms_cache
     except Exception as e:
-        logger.warning(f'Sinch SMS secret not available, using defaults: {e}')
+        logger.warning(f'Sinch SMS secret not available: {e}')
         return {
-            'host': 'push3.aclgateway.com',
+            'oauth_host': 'jumbo.aclgateway.com',
+            'oauth_token': '',
             'app_id': 'wecarealt',
             'user_id': 'wecarealt',
-            'password': 'care_12',
+            'password': '',
             'loaded': False,
         }
 
-# Fallback constants (used if Secrets Manager unavailable)
-SINCH_HOST = 'push3.aclgateway.com'
-SINCH_APP_ID = 'wecarealt'
-SINCH_USER_ID = 'wecarealt'
-SINCH_PASSWORD = 'care_12'
-
 
 def _send_sinch_sms(phone: str, content: str, source_address: str, request_id: str) -> Dict[str, Any]:
-    """Send SMS via Sinch ACL India Push API v1 JSON. Fallback provider when Airtel is down."""
+    """
+    Send SMS via Sinch India OAuth endpoint.
+    
+    Endpoint: POST https://jumbo.aclgateway.com/v12/enterprises/messages.json
+    Auth: OAuth token in Authorization header (lifetime validity, no IP whitelist)
+    DLR: POST https://api.wecare.digital/webhook/sinch-dlr
+    """
     try:
-        # Load credentials from Secrets Manager (cached after first call)
         creds = _load_sinch_sms_creds()
-        sinch_host = creds.get('host', SINCH_HOST)
-        sinch_app_id = creds.get('app_id', SINCH_APP_ID)
-        sinch_user_id = creds.get('user_id', SINCH_USER_ID)
-        sinch_password = creds.get('password', SINCH_PASSWORD)
+        oauth_host = creds.get('oauth_host', 'jumbo.aclgateway.com')
+        oauth_token = creds.get('oauth_token', '')
+        app_id = creds.get('app_id', 'wecarealt')
+        user_id = creds.get('user_id', 'wecarealt')
+        password = creds.get('password', '')
 
-        clean = phone.replace('+', '').replace(' ', '')
+        if not oauth_token:
+            return {'success': False, 'error': 'Sinch OAuth token not configured in wecare/sinch/sms'}
+
+        # Clean phone number to 91XXXXXXXXXX format
+        clean = phone.replace('+', '').replace(' ', '').replace('-', '')
         if not clean.startswith('91'):
             clean = '91' + clean[-10:]
 
-        # v1 JSON POST — correct Sinch India Push API endpoint
-        v1_payload = json.dumps({
-            "appid": sinch_app_id,
-            "userId": sinch_user_id,
-            "pass": sinch_password,
+        # Build JSON payload per Sinch API spec
+        payload = json.dumps({
+            "appid": app_id,
+            "userId": user_id,
+            "pass": password,
             "contenttype": "1",
             "from": source_address or 'WDBEEP',
             "to": clean,
             "alert": "1",
             "selfid": "true",
-            "intflag": "false",
             "text": content,
         })
 
         logger.info(json.dumps({
             'event': 'sinch_sms_request',
             'phone': clean[-4:],
-            'endpoint': 'v1/enterprises/messages.json',
+            'endpoint': 'oauth',
             'requestId': request_id,
         }))
 
-        # Try v1 JSON POST (HTTPS then HTTP)
-        for proto in ['https', 'http']:
+        # POST to OAuth endpoint (no IP whitelist required)
+        # Authorization header format: "Bearer <token>"
+        url = f'https://{oauth_host}/v12/enterprises/messages.json'
+        auth_header = oauth_token if oauth_token.startswith('Bearer ') else f'Bearer {oauth_token}'
+        req = urllib.request.Request(url, data=payload.encode(), headers={
+            'Content-Type': 'application/json',
+            'Authorization': auth_header,
+        }, method='POST')
+
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = resp.read().decode()
+            logger.info(json.dumps({
+                'event': 'sinch_sms_response',
+                'status': resp.status,
+                'body': body[:200],
+                'requestId': request_id,
+            }))
             try:
-                url = f'{proto}://{sinch_host}/v1/enterprises/messages.json'
-                req = urllib.request.Request(url, data=v1_payload.encode(),
-                    headers={'Content-Type': 'application/json'}, method='POST')
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    body = resp.read().decode()
-                    logger.info(json.dumps({
-                        'event': 'sinch_sms_response',
-                        'status': resp.status,
-                        'body': body[:200],
-                        'proto': proto,
-                        'requestId': request_id,
-                    }))
-                    try:
-                        result = json.loads(body)
-                        msg_id = result.get('messageId', result.get('responseid', body[:50]))
-                    except Exception:
-                        msg_id = body[:50]
-                    return {'success': True, 'providerMessageId': str(msg_id), 'provider': 'sinch'}
-            except Exception as e:
-                logger.warning(f"Sinch v1 {proto} failed: {e}")
-                continue
+                result = json.loads(body)
+                accepted = result.get('accepted', '') in (True, 'true')
+                resp_id = result.get('respid', result.get('responseid', ''))
+                if accepted or resp_id:
+                    return {'success': True, 'providerMessageId': resp_id or body[:50], 'provider': 'sinch'}
+                else:
+                    error = result.get('error', '')
+                    logger.warning(f"Sinch rejected: error={error}, body={body[:200]}")
+                    return {'success': False, 'error': f'Sinch rejected: {error}', 'provider': 'sinch'}
+            except json.JSONDecodeError:
+                # Non-JSON response — treat as success if HTTP 200
+                return {'success': True, 'providerMessageId': body[:50], 'provider': 'sinch'}
 
-        # Fallback: GET servlet
-        params = urllib.parse.urlencode({
-            'appid': sinch_app_id, 'userId': sinch_user_id, 'pass': sinch_password,
-            'contenttype': '1', 'from': source_address or 'WDBEEP', 'to': clean,
-            'alert': '1', 'selfid': 'true', 'text': content,
-        })
-        for proto in ['https', 'http']:
-            try:
-                url = f'{proto}://{sinch_host}/servlet/com.aclwireless.pushconnectivity.listeners.TextListener?{params}'
-                req = urllib.request.Request(url)
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    body = resp.read().decode()
-                    logger.info(json.dumps({
-                        'event': 'sinch_sms_servlet_response',
-                        'status': resp.status,
-                        'body': body[:200],
-                        'requestId': request_id,
-                    }))
-                    return {'success': True, 'providerMessageId': body[:50], 'provider': 'sinch'}
-            except Exception as e:
-                logger.warning(f"Sinch servlet {proto} failed: {e}")
-                continue
-
-        return {'success': False, 'error': 'Sinch unreachable (all endpoints)'}
-
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')[:200] if e.fp else ''
+        logger.error(f"Sinch HTTP error: {e.code} - {error_body}")
+        return {'success': False, 'error': f'Sinch HTTP {e.code}: {error_body[:100]}'}
     except Exception as e:
         logger.error(f"Sinch SMS error: {e}")
         return {'success': False, 'error': str(e)}
