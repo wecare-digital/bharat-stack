@@ -278,17 +278,21 @@ def _send_sinch_sms(phone: str, content: str, source_address: str, request_id: s
         if not clean.startswith('91'):
             clean = '91' + clean[-10:]
 
-        # Build JSON payload per Sinch API spec
+        # Build JSON payload — v12 multi-message format
+        # (v12 uses "messages" array, not single "to"/"text" fields)
         payload = json.dumps({
             "appid": app_id,
-            "userId": user_id,
-            "pass": password,
             "contenttype": "1",
-            "from": source_address or 'WDBEEP',
-            "to": clean,
-            "alert": "1",
             "selfid": "true",
-            "text": content,
+            "alert": "1",
+            "messages": [
+                {
+                    "id": "1",
+                    "to": clean,
+                    "from": source_address or 'WDBEEP',
+                    "msg": content,
+                }
+            ]
         })
 
         logger.info(json.dumps({
