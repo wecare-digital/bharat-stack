@@ -8,6 +8,8 @@ import SEO from '../../../components/SEO';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
 import RcsInbox from './inbox';
+import RcsSendPage from './send';
+import RcsTemplatesPage from './templates';
 import RcsCampaignPage from './campaign';
 import RcsLogsPage from './logs';
 
@@ -15,29 +17,33 @@ interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const TABS: ShellTab[] = [
   { id: 'inbox', label: 'Inbox' },
+  { id: 'send', label: 'Send' },
+  { id: 'templates', label: 'Templates' },
   { id: 'campaign', label: 'Campaign' },
   { id: 'logs', label: 'Logs' },
 ];
 
-const RcsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
+const RcsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
   const shellContent = (
-    <PageShell title="RCS" subtitle="Rich Communication Services — Inbox, Campaigns & Logs" tabs={TABS} defaultTab="inbox">
-      {(activeTab) => (
+    <PageShell title="RCS" subtitle="Rich Communication Services — Inbox, Campaigns & Logs" tabs={ TABS } defaultTab="inbox">
+      { ( activeTab ) => (
         <>
-          {activeTab === 'inbox' && <RcsInbox signOut={signOut} user={user} embedded />}
-          {activeTab === 'campaign' && <RcsCampaignPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'logs' && <RcsLogsPage signOut={signOut} user={user} embedded />}
+          { activeTab === 'inbox' && <RcsInbox signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'send' && <RcsSendPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'templates' && <RcsTemplatesPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'campaign' && <RcsCampaignPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'logs' && <RcsLogsPage signOut={ signOut } user={ user } embedded /> }
         </>
-      )}
+      ) }
     </PageShell>
   );
 
-  if (embedded) return shellContent;
+  if ( embedded ) return shellContent;
 
   return (
-    <Layout user={user} onSignOut={signOut}>
+    <Layout user={ user } onSignOut={ signOut }>
       <SEO title="RCS" description="RCS Business Messaging" />
-      {shellContent}
+      { shellContent }
     </Layout>
   );
 };

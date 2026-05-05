@@ -19,239 +19,251 @@ interface Contact { id: string; name: string; phone: string; unread: number; las
 interface RcsMessage { id: string; direction: 'inbound' | 'outbound'; content: string; timestamp: string; status: string; contactId: string; }
 
 const CONTACTS_PER_PAGE = 20;
-const AVATAR_COLORS = ['#1a3a2a','#0f2a1d','#0f2a1d','#1a3a2a','#34d399','#1a3a2a','#0f2a1d','#0f2a1d','#1a3a2a','#34d399'];
+const AVATAR_COLORS = [ '#1a3a2a', '#0f2a1d', '#0f2a1d', '#1a3a2a', '#34d399', '#1a3a2a', '#0f2a1d', '#0f2a1d', '#1a3a2a', '#34d399' ];
 
-const getAvatarColor = (name: string): string => {
+const getAvatarColor = ( name: string ): string => {
   let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  for ( let i = 0; i < name.length; i++ ) hash = name.charCodeAt( i ) + ( ( hash << 5 ) - hash );
+  return AVATAR_COLORS[ Math.abs( hash ) % AVATAR_COLORS.length ];
 };
 
-const formatTime = (timestamp: string) => {
-  const date = new Date(timestamp);
+const formatTime = ( timestamp: string ) => {
+  const date = new Date( timestamp );
   const diff = Date.now() - date.getTime();
-  if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (diff < 604800000) return date.toLocaleDateString([], { weekday: 'short' });
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  if ( diff < 86400000 ) return date.toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+  if ( diff < 604800000 ) return date.toLocaleDateString( [], { weekday: 'short' } );
+  return date.toLocaleDateString( [], { month: 'short', day: 'numeric' } );
 };
 
 // Trash icon — lime + dark green themed
-const TrashIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
-    <path fill="none" stroke="#1a3a2a" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46"/>
+const TrashIcon: React.FC<{ size?: number }> = ( { size = 14 } ) => (
+  <svg width={ size } height={ size } viewBox="0 0 24 24" fill="none" style={ { display: 'block' } }>
+    <path fill="none" stroke="#1a3a2a" strokeMiterlimit="10" strokeWidth="1.5" d="M16.88 22.5H7.12a1.9 1.9 0 0 1-1.9-1.8L4.36 5.32h15.28l-.86 15.38a1.9 1.9 0 0 1-1.9 1.8ZM2.45 5.32h19.1M10.09 1.5h3.82a1.91 1.91 0 0 1 1.91 1.91v1.91H8.18V3.41a1.91 1.91 0 0 1 1.91-1.91ZM12 8.18v11.46m3.82-11.46v11.46M8.18 8.18v11.46" />
   </svg>
 );
 
-const RcsInbox: React.FC<PageProps> = ({ signOut, user, embedded }) => {
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [messages, setMessages] = useState<RcsMessage[]>([]);
-  const [messageText, setMessageText] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [showCompose, setShowCompose] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [contactsPage, setContactsPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleting, setDeleting] = useState(false);
-  const [mobileShowChat, setMobileShowChat] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
+  const [ selectedContact, setSelectedContact ] = useState<Contact | null>( null );
+  const [ contacts, setContacts ] = useState<Contact[]>( [] );
+  const [ messages, setMessages ] = useState<RcsMessage[]>( [] );
+  const [ messageText, setMessageText ] = useState( '' );
+  const [ loading, setLoading ] = useState( true );
+  const [ sending, setSending ] = useState( false );
+  const [ showCompose, setShowCompose ] = useState( false );
+  const [ searchQuery, setSearchQuery ] = useState( '' );
+  const [ contactsPage, setContactsPage ] = useState( 1 );
+  const [ selectedIds, setSelectedIds ] = useState<Set<string>>( new Set() );
+  const [ deleting, setDeleting ] = useState( false );
+  const [ mobileShowChat, setMobileShowChat ] = useState( false );
+  const messagesEndRef = useRef<HTMLDivElement>( null );
   const toast = useToastContext();
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(() => { scrollToBottom(); }, [messages, selectedContact]);
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView( { behavior: 'smooth' } );
+  useEffect( () => { scrollToBottom(); }, [ messages, selectedContact ] );
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [contactsData, messagesData] = await Promise.all([api.listContacts(), api.listMessages(undefined, 'RCS')]);
+  const loadData = useCallback( async () => {
+    setLoading( true );
+    try
+    {
+      const [ contactsData, messagesData ] = await Promise.all( [ api.listContacts(), api.listMessages( undefined, 'RCS' ) ] );
 
       // Client-side safety filter: only keep RCS messages
-      const rcsMessages = messagesData.filter(m => m.channel === 'RCS');
+      const rcsMessages = messagesData.filter( m => m.channel === 'RCS' );
 
       // Build map of contacts that have RCS messages
       const contactMsgMap = new Map<string, { lastMsg: any; unread: number }>();
-      rcsMessages.forEach(m => {
-        const existing = contactMsgMap.get(m.contactId);
-        const msgTime = new Date(m.timestamp).getTime();
-        if (!existing || msgTime > new Date(existing.lastMsg.timestamp).getTime()) {
-          contactMsgMap.set(m.contactId, {
+      rcsMessages.forEach( m => {
+        const existing = contactMsgMap.get( m.contactId );
+        const msgTime = new Date( m.timestamp ).getTime();
+        if ( !existing || msgTime > new Date( existing.lastMsg.timestamp ).getTime() )
+        {
+          contactMsgMap.set( m.contactId, {
             lastMsg: m,
-            unread: (existing?.unread || 0) + (m.direction === 'INBOUND' && m.status === 'received' ? 1 : 0),
-          });
+            unread: ( existing?.unread || 0 ) + ( m.direction === 'INBOUND' && m.status === 'received' ? 1 : 0 ),
+          } );
         }
-      });
+      } );
 
       // Only show contacts that have RCS messages
-      const rcsContactIds = new Set(rcsMessages.map(m => m.contactId));
+      const rcsContactIds = new Set( rcsMessages.map( m => m.contactId ) );
       const displayContacts: Contact[] = contactsData
-        .filter(c => c.phone && rcsContactIds.has(c.contactId))
-        .map(c => {
-          const msgInfo = contactMsgMap.get(c.contactId);
+        .filter( c => c.phone && rcsContactIds.has( c.contactId ) )
+        .map( c => {
+          const msgInfo = contactMsgMap.get( c.contactId );
           return {
             id: c.contactId,
             name: c.name || c.phone || 'Unknown',
             phone: c.phone || '',
             unread: msgInfo?.unread || 0,
-            lastMessage: msgInfo?.lastMsg?.content?.substring(0, 40) || '',
+            lastMessage: msgInfo?.lastMsg?.content?.substring( 0, 40 ) || '',
             lastMessageTime: msgInfo?.lastMsg?.timestamp,
           };
-        })
-        .sort((a, b) => {
-          if (!a.lastMessageTime) return 1;
-          if (!b.lastMessageTime) return -1;
-          return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
-        });
+        } )
+        .sort( ( a, b ) => {
+          if ( !a.lastMessageTime ) return 1;
+          if ( !b.lastMessageTime ) return -1;
+          return new Date( b.lastMessageTime ).getTime() - new Date( a.lastMessageTime ).getTime();
+        } );
 
-      setContacts(displayContacts);
-      setMessages(rcsMessages.map(m => ({
+      setContacts( displayContacts );
+      setMessages( rcsMessages.map( m => ( {
         id: m.messageId,
         direction: m.direction.toLowerCase() as 'inbound' | 'outbound',
         content: m.content || '',
         timestamp: m.timestamp,
         status: m.status?.toLowerCase() || 'sent',
         contactId: m.contactId,
-      })));
-    } catch (err) { toast.error('Failed to load data'); } finally { setLoading(false); }
-  }, [toast]);
+      } ) ) );
+    } catch ( err ) { toast.error( 'Failed to load data' ); } finally { setLoading( false ); }
+  }, [ toast ] );
 
-  useEffect(() => { loadData(); const interval = setInterval(loadData, 60000); return () => clearInterval(interval); }, [loadData]);
-  useEffect(() => { setContactsPage(1); }, [searchQuery]);
+  useEffect( () => { loadData(); const interval = setInterval( loadData, 60000 ); return () => clearInterval( interval ); }, [ loadData ] );
+  useEffect( () => { setContactsPage( 1 ); }, [ searchQuery ] );
 
-  const filteredContacts = contacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone.includes(searchQuery));
-  const totalContactPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE);
-  const paginatedContacts = filteredContacts.slice((contactsPage - 1) * CONTACTS_PER_PAGE, contactsPage * CONTACTS_PER_PAGE);
-  const filteredMessages = messages.filter(m => selectedContact && m.contactId === selectedContact.id).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const filteredContacts = contacts.filter( c => c.name.toLowerCase().includes( searchQuery.toLowerCase() ) || c.phone.includes( searchQuery ) );
+  const totalContactPages = Math.ceil( filteredContacts.length / CONTACTS_PER_PAGE );
+  const paginatedContacts = filteredContacts.slice( ( contactsPage - 1 ) * CONTACTS_PER_PAGE, contactsPage * CONTACTS_PER_PAGE );
+  const filteredMessages = messages.filter( m => selectedContact && m.contactId === selectedContact.id ).sort( ( a, b ) => new Date( a.timestamp ).getTime() - new Date( b.timestamp ).getTime() );
 
   const handleSend = async () => {
-    if (!selectedContact || !messageText.trim() || sending) return;
-    setSending(true);
-    try {
-      toast.warning('RCS sending not yet implemented');
-      setMessageText(''); setShowCompose(false);
-    } catch (err) { toast.error('Failed to send RCS message'); } finally { setSending(false); }
+    if ( !selectedContact || !messageText.trim() || sending ) return;
+    setSending( true );
+    try
+    {
+      const res = await fetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/rcs/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify( { phoneNumber: selectedContact.phone, text: messageText.trim() } ),
+      } );
+      const data = await res.json();
+      if ( data.success || data.messageId || data.message_id )
+      {
+        toast.success( `RCS sent! ID: ${data.messageId || data.message_id}` );
+        setMessageText( '' ); setShowCompose( false ); await loadData();
+      } else { toast.error( data.error || 'Failed to send' ); }
+    } catch ( err ) { toast.error( 'Failed to send RCS message' ); } finally { setSending( false ); }
   };
 
   const handleDeleteSelected = async () => {
-    if (selectedIds.size === 0) return;
-    setDeleting(true);
-    try {
-      for (const id of selectedIds) { await api.deleteContact(id); }
-      toast.success(`Deleted ${selectedIds.size} contact(s)`);
-      setSelectedIds(new Set()); setSelectedContact(null); await loadData();
-    } catch (err) { toast.error('Failed to delete contacts'); } finally { setDeleting(false); }
+    if ( selectedIds.size === 0 ) return;
+    setDeleting( true );
+    try
+    {
+      for ( const id of selectedIds ) { await api.deleteContact( id ); }
+      toast.success( `Deleted ${selectedIds.size} contact(s)` );
+      setSelectedIds( new Set() ); setSelectedContact( null ); await loadData();
+    } catch ( err ) { toast.error( 'Failed to delete contacts' ); } finally { setDeleting( false ); }
   };
 
-  const toggleSelect = (id: string) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
-    setSelectedIds(newSet);
+  const toggleSelect = ( id: string ) => {
+    const newSet = new Set( selectedIds );
+    if ( newSet.has( id ) ) newSet.delete( id ); else newSet.add( id );
+    setSelectedIds( newSet );
   };
 
   const content = (
     <>
-      <div className={`whatsapp-inbox ${mobileShowChat ? 'mobile-chat-active' : ''}`}>
+      <div className={ `whatsapp-inbox ${mobileShowChat ? 'mobile-chat-active' : ''}` }>
         <div className="contacts-sidebar">
           <div className="sidebar-header">
             <div className="sidebar-controls">
-              <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0 || deleting} title="Delete selected" aria-label="Delete selected contacts" className="delete-all-btn">
-                {deleting ? '...' : <TrashIcon size={20} />}
+              <button onClick={ handleDeleteSelected } disabled={ selectedIds.size === 0 || deleting } title="Delete selected" aria-label="Delete selected contacts" className="delete-all-btn">
+                { deleting ? '...' : <TrashIcon size={ 20 } /> }
               </button>
-              <input type="text" placeholder="Search contacts..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="contacts-search" />
+              <input type="text" placeholder="Search contacts..." value={ searchQuery } onChange={ e => setSearchQuery( e.target.value ) } className="contacts-search" />
             </div>
             <div className="contacts-pagination top">
-              <Pagination currentPage={contactsPage} totalPages={totalContactPages} onPageChange={setContactsPage} />
+              <Pagination currentPage={ contactsPage } totalPages={ totalContactPages } onPageChange={ setContactsPage } />
             </div>
           </div>
           <div className="contacts-list">
-            {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} style={{ padding: '12px 16px' }}><SkeletonContact /></div>) : paginatedContacts.map(contact => (
-              <div key={contact.id} className={`contact-item ${selectedContact?.id === contact.id ? 'selected' : ''}`} onClick={() => { setSelectedContact(contact); setMobileShowChat(true); }}>
-                <input type="checkbox" checked={selectedIds.has(contact.id)} onChange={() => toggleSelect(contact.id)} onClick={e => e.stopPropagation()} style={{ accentColor: '#1a3a2a', width: 16, height: 16, flexShrink: 0 }} />
-                <div className="contact-avatar" style={{ background: getAvatarColor(contact.name), color: '#fff' }}>{contact.name.charAt(0).toUpperCase()}</div>
+            { loading ? Array.from( { length: 5 } ).map( ( _, i ) => <div key={ i } style={ { padding: '12px 16px' } }><SkeletonContact /></div> ) : paginatedContacts.map( contact => (
+              <div key={ contact.id } className={ `contact-item ${selectedContact?.id === contact.id ? 'selected' : ''}` } onClick={ () => { setSelectedContact( contact ); setMobileShowChat( true ); } }>
+                <input type="checkbox" checked={ selectedIds.has( contact.id ) } onChange={ () => toggleSelect( contact.id ) } onClick={ e => e.stopPropagation() } style={ { accentColor: '#1a3a2a', width: 16, height: 16, flexShrink: 0 } } />
+                <div className="contact-avatar" style={ { background: getAvatarColor( contact.name ), color: '#fff' } }>{ contact.name.charAt( 0 ).toUpperCase() }</div>
                 <div className="contact-info">
-                  <div className="contact-name">{contact.name}</div>
-                  <div className="contact-last-msg">{contact.lastMessage || 'No messages'}</div>
+                  <div className="contact-name">{ contact.name }</div>
+                  <div className="contact-last-msg">{ contact.lastMessage || 'No messages' }</div>
                 </div>
                 <div className="contact-meta">
-                  {contact.lastMessageTime && <span className="contact-time">{formatTime(contact.lastMessageTime)}</span>}
-                  {contact.unread > 0 && <span className="unread-badge">{contact.unread}</span>}
+                  { contact.lastMessageTime && <span className="contact-time">{ formatTime( contact.lastMessageTime ) }</span> }
+                  { contact.unread > 0 && <span className="unread-badge">{ contact.unread }</span> }
                 </div>
               </div>
-            ))}
-            {!loading && filteredContacts.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280' }}>No RCS contacts found</div>}
+            ) ) }
+            { !loading && filteredContacts.length === 0 && <div style={ { padding: '40px 20px', textAlign: 'center', color: '#6b7280' } }>No RCS contacts found</div> }
           </div>
         </div>
 
         <div className="chat-area">
-          {selectedContact ? (
+          { selectedContact ? (
             <>
               <div className="chat-header">
                 <div className="chat-contact-info">
-                  <button className="mobile-back-btn" onClick={() => setMobileShowChat(false)} aria-label="Back to contacts">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                  <button className="mobile-back-btn" onClick={ () => setMobileShowChat( false ) } aria-label="Back to contacts">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
                   </button>
-                  <div className="contact-avatar" style={{ width: 40, height: 40, fontSize: 16, background: getAvatarColor(selectedContact.name), color: '#fff' }}>{selectedContact.name.charAt(0).toUpperCase()}</div>
+                  <div className="contact-avatar" style={ { width: 40, height: 40, fontSize: 16, background: getAvatarColor( selectedContact.name ), color: '#fff' } }>{ selectedContact.name.charAt( 0 ).toUpperCase() }</div>
                   <div>
-                    <div className="chat-contact-name">{selectedContact.name}</div>
-                    <div className="chat-contact-phone">{selectedContact.phone}</div>
+                    <div className="chat-contact-name">{ selectedContact.name }</div>
+                    <div className="chat-contact-phone">{ selectedContact.phone }</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Button variant="primary" size="sm" onClick={() => setShowCompose(true)}>Compose</Button>
-                  <Button variant="secondary" icon="refresh" size="sm" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
+                <div style={ { display: 'flex', gap: 8 } }>
+                  <Button variant="primary" size="sm" onClick={ () => setShowCompose( true ) }>Compose</Button>
+                  <Button variant="secondary" icon="refresh" size="sm" onClick={ loadData } disabled={ loading } loading={ loading }>Refresh</Button>
                 </div>
               </div>
               <div className="messages-area">
-                {filteredMessages.map((msg, idx) => {
-                  const showDate = idx === 0 || new Date(msg.timestamp).toDateString() !== new Date(filteredMessages[idx - 1].timestamp).toDateString();
+                { filteredMessages.map( ( msg, idx ) => {
+                  const showDate = idx === 0 || new Date( msg.timestamp ).toDateString() !== new Date( filteredMessages[ idx - 1 ].timestamp ).toDateString();
                   return (
-                    <React.Fragment key={msg.id}>
-                      {showDate && <div className="date-divider"><span>{new Date(msg.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span></div>}
-                      <div className={`message-bubble ${msg.direction}`}>
-                        <div className="message-content">{msg.content}</div>
+                    <React.Fragment key={ msg.id }>
+                      { showDate && <div className="date-divider"><span>{ new Date( msg.timestamp ).toLocaleDateString( [], { weekday: 'long', month: 'short', day: 'numeric' } ) }</span></div> }
+                      <div className={ `message-bubble ${msg.direction}` }>
+                        <div className="message-content">{ msg.content }</div>
                         <div className="message-footer">
-                          <span className="message-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          {msg.direction === 'outbound' && <span className={`message-status ${msg.status}`}>{msg.status === 'delivered' ? '\u2713\u2713' : '\u2713'}</span>}
+                          <span className="message-time">{ new Date( msg.timestamp ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) }</span>
+                          { msg.direction === 'outbound' && <span className={ `message-status ${msg.status}` }>{ msg.status === 'delivered' ? '\u2713\u2713' : '\u2713' }</span> }
                         </div>
                       </div>
                     </React.Fragment>
                   );
-                })}
-                {filteredMessages.length === 0 && (
+                } ) }
+                { filteredMessages.length === 0 && (
                   <div className="empty-chat">
                     <div className="empty-chat-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                     </div>
                     <h3>No RCS messages</h3>
                     <p>Messages with this contact will appear here</p>
                   </div>
-                )}
-                <div ref={messagesEndRef} />
+                ) }
+                <div ref={ messagesEndRef } />
               </div>
             </>
           ) : (
             <div className="empty-chat">
               <div className="empty-chat-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
               </div>
               <h3>RCS Inbox</h3>
               <p>Select a contact to view messages</p>
             </div>
-          )}
+          ) }
         </div>
       </div>
 
-      <Modal isOpen={showCompose && !!selectedContact} onClose={() => setShowCompose(false)} title="Send RCS Message" size="md" footer={<><Button variant="secondary" onClick={() => setShowCompose(false)}>Cancel</Button><Button variant="primary" onClick={handleSend} disabled={sending || !messageText.trim()} loading={sending}>{sending ? 'Sending...' : 'Send RCS'}</Button></>}>
-        {selectedContact && (<>
-          <div className="form-group"><label>To</label><input type="text" value={`${selectedContact.name} (${selectedContact.phone})`} disabled /></div>
-          <div className="form-group"><label>Message</label><RichTextEditor value={messageText} onChange={setMessageText} placeholder="Write your RCS message..." channel="sms" showAISuggestions={true} contactContext={selectedContact.name} /></div>
-        </>)}
+      <Modal isOpen={ showCompose && !!selectedContact } onClose={ () => setShowCompose( false ) } title="Send RCS Message" size="md" footer={ <><Button variant="secondary" onClick={ () => setShowCompose( false ) }>Cancel</Button><Button variant="primary" onClick={ handleSend } disabled={ sending || !messageText.trim() } loading={ sending }>{ sending ? 'Sending...' : 'Send RCS' }</Button></> }>
+        { selectedContact && ( <>
+          <div className="form-group"><label>To</label><input type="text" value={ `${selectedContact.name} (${selectedContact.phone})` } disabled /></div>
+          <div className="form-group"><label>Message</label><RichTextEditor value={ messageText } onChange={ setMessageText } placeholder="Write your RCS message..." channel="sms" showAISuggestions={ true } contactContext={ selectedContact.name } /></div>
+        </> ) }
       </Modal>
     </>
   );
 
-  if (embedded) return content;
-  return <Layout user={user} onSignOut={signOut}><SEO title="RCS Inbox" description="RCS Business Messaging inbox" />{content}</Layout>;
+  if ( embedded ) return content;
+  return <Layout user={ user } onSignOut={ signOut }><SEO title="RCS Inbox" description="RCS Business Messaging inbox" />{ content }</Layout>;
 };
 
 export default RcsInbox;

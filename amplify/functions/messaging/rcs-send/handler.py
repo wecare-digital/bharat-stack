@@ -348,7 +348,7 @@ def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
     payload = json.dumps({
         "name": name,
         "type": template_type,
-        "component": {"text": text}
+        "textMessageContent": text
     }).encode()
 
     try:
