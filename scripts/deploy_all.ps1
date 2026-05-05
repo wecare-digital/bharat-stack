@@ -155,6 +155,7 @@ $results += Deploy-Lambda "wecare-ad-attribution" "amplify\functions\messaging\a
 
 # === RCS ===
 $results += Deploy-Lambda "wecare-rcs-send" "amplify\functions\messaging\rcs-send\handler.py" ""
+$results += Deploy-Lambda "wecare-rcs-dlr" "amplify\functions\messaging\rcs-dlr\handler.py" ""
 
 $ok = ($results | Where-Object { $_ -eq $true }).Count
 $fail = ($results | Where-Object { $_ -eq $false }).Count
@@ -216,7 +217,8 @@ if ($fail -gt 0) {
         @("wecare-catalog-management", "amplify\functions\ecommerce\catalog-management\handler.py", ""),
         @("wecare-meta-analytics", "amplify\functions\messaging\meta-analytics\handler.py", ""),
         @("wecare-ad-attribution", "amplify\functions\messaging\ad-attribution\handler.py", ""),
-        @("wecare-rcs-send", "amplify\functions\messaging\rcs-send\handler.py", "")
+        @("wecare-rcs-send", "amplify\functions\messaging\rcs-send\handler.py", ""),
+        @("wecare-rcs-dlr", "amplify\functions\messaging\rcs-dlr\handler.py", "")
     )
 
     $retryResults = @()

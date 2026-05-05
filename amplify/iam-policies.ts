@@ -378,4 +378,8 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
 
   // === Ads ===
   'wecare-ad-attribution': ['common'],
+
+  // === RCS ===
+  'wecare-rcs-send': ['common', 'secrets'],
+  'wecare-rcs-dlr': ['common'],
 };
