@@ -188,7 +188,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       {
         const scheduledAt = new Date( `${scheduledDate}T${scheduledTime}` ).toISOString();
         const result = await api.scheduleTemplateMessage( {
-          contactId,
+          contactId: contactId || '',
           templateName: selectedTemplate.name,
           templateParams: variables.map( v => v.value ),
           phoneNumberId,
