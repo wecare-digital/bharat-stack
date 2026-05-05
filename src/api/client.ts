@@ -1002,6 +1002,62 @@ export async function sendSmsAws ( request: SendSmsAwsRequest ): Promise<{ messa
 
 
 // ============================================================================
+// SINCH SMS API (OAuth - jumbo.aclgateway.com/v12)
+// ============================================================================
+
+export interface SendSinchSmsRequest {
+  phoneNumber: string;
+  content: string;
+  provider?: 'sinch';
+  messageType?: 'SERVICE_IMPLICIT' | 'SERVICE_EXPLICIT' | 'TRANSACTIONAL' | 'PROMOTIONAL';
+  sourceAddress?: string;
+}
+
+export async function sendSinchSms ( request: SendSinchSmsRequest ): Promise<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string } | null> {
+  return apiCall<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string }>( `${API_BASE}/messaging/sms`, {
+    method: 'POST',
+    body: JSON.stringify( { ...request, provider: 'sinch', sourceAddress: request.sourceAddress || 'WDBEEP' } ),
+  } );
+}
+
+
+// ============================================================================
+// SINCH RCS API (Conversation API)
+// ============================================================================
+
+export interface SendRcsRequest {
+  phoneNumber: string;
+  templateId?: string;
+  text?: string;
+  parameters?: Record<string, string>;
+  language?: string;
+  metadata?: string;
+}
+
+export async function sendRcs ( request: SendRcsRequest ): Promise<{ success: boolean; messageId?: string; channel?: string; error?: string } | null> {
+  return apiCall<{ success: boolean; messageId?: string; channel?: string; error?: string }>( `${API_BASE}/rcs/send`, {
+    method: 'POST',
+    body: JSON.stringify( request ),
+  } );
+}
+
+export async function listRcsTemplates (): Promise<any[]> {
+  const data = await apiCall<any>( `${API_BASE}/rcs/send`, {
+    method: 'POST',
+    body: JSON.stringify( { action: 'templates' } ),
+  } );
+  return data?.templates || [];
+}
+
+export async function createRcsTemplate ( name: string, text: string ): Promise<any> {
+  return apiCall<any>( `${API_BASE}/rcs/send`, {
+    method: 'POST',
+    body: JSON.stringify( { action: 'create_template', name, text, type: 'text_message' } ),
+  } );
+}
+
+
+// ============================================================================
 // VOICE AWS API (Connect/Polly)
 // ============================================================================
 

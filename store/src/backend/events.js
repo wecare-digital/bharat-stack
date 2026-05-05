@@ -328,10 +328,10 @@ async function sendOrderNotifications ( orderId, wdOrderId, phone, email )
   {
     const rcsPayload = {
       phoneNumber: phone,
-      channel: 'RCS',
-      notificationType: 'order_confirmation',
-      orderId: orderId,
-      wdOrderId: wdOrderId || '',
+      templateId: 'testing',
+      language: 'en',
+      parameters: {},
+      metadata: JSON.stringify( { orderId: orderId, wdOrderId: wdOrderId || '', type: 'order_confirmation' } ),
     };
 
     const rcsResp = await fetch( STACK_API + '/rcs/send', {
