@@ -5,7 +5,7 @@ Endpoint: POST /webhook/sinch-rcs
 Receives delivery status callbacks from Sinch India Conversation API.
 
 DLR Events:
-- MESSAGE_DELIVERY: Message delivery status
+- MESSAGE_DELIVERY: Message delivery status (QUEUED, DELIVERED, FAILED, READ)
 - EVENT_DELIVERY: Event delivery status
 - MESSAGE_INBOUND: Inbound message from user
 - EVENT_INBOUND: Inbound event from user
@@ -19,9 +19,9 @@ DLR Events:
 import os
 import json
 import time
-import logging
 import boto3
 from typing import Dict, Any
+from decimal import Decimal
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
@@ -29,7 +29,17 @@ from lambda_utils.response import cors_headers, extract_origin
 logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
+
+# Sinch RCS status mapping
+RCS_STATUS_MAP = {
+    'QUEUED': 'sent',
+    'DELIVERED': 'delivered',
+    'FAILED': 'failed',
+    'READ': 'read',
+    'DELETED': 'deleted',
+}
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -38,7 +48,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     origin = extract_origin(event)
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
 
-    # Health check
     if http_method == 'GET':
         return {
             'statusCode': 200,
@@ -46,7 +55,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'body': json.dumps({'status': 'ok', 'service': 'sinch-rcs-webhook'}),
         }
 
-    # Parse body
     try:
         body = event.get('body', '{}')
         if isinstance(body, str):
@@ -61,24 +69,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'body': json.dumps({'success': False, 'error': 'parse_error'}),
         }
 
-    # Log the callback
     event_type = _get_event_type(data)
     logger.info(json.dumps({
         'event': 'rcs_dlr_received',
         'type': event_type,
         'requestId': request_id,
-        'data_keys': list(data.keys())[:10],
     }))
 
-    # Process based on event type
     if event_type == 'MESSAGE_DELIVERY':
         _process_delivery(data, request_id)
     elif event_type == 'MESSAGE_INBOUND':
         _process_inbound(data, request_id)
     elif event_type in ('OPT_IN', 'OPT_OUT'):
         _process_opt(data, event_type, request_id)
-    elif event_type == 'CAPABILITY':
-        _process_capability(data, request_id)
 
     return {
         'statusCode': 200,
@@ -88,8 +91,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 def _get_event_type(data: Dict) -> str:
-    """Extract event type from Sinch callback."""
-    # Sinch sends different top-level keys for different events
     if 'message_delivery_report' in data:
         return 'MESSAGE_DELIVERY'
     elif 'message' in data and data.get('direction') == 'TO_APP':
@@ -116,50 +117,128 @@ def _get_event_type(data: Dict) -> str:
 
 
 def _process_delivery(data: Dict, request_id: str):
-    """Process message delivery report."""
+    """Process delivery report and UPDATE message status in DynamoDB."""
     report = data.get('message_delivery_report', {})
     message_id = report.get('message_id', '')
-    status = report.get('status', '')
+    sinch_status = report.get('status', '')
     channel = report.get('channel_identity', {}).get('channel', 'RCS')
+    identity = report.get('channel_identity', {}).get('identity', '')
+    reason = report.get('reason', {})
+    metadata = data.get('message_metadata', '')
+
+    status = RCS_STATUS_MAP.get(sinch_status, sinch_status.lower() if sinch_status else 'unknown')
+    now = int(time.time())
 
     logger.info(json.dumps({
-        'event': 'rcs_delivery_report',
+        'event': 'rcs_delivery_update',
         'messageId': message_id,
         'status': status,
+        'sinchStatus': sinch_status,
         'channel': channel,
+        'identity': identity[-4:] if identity else '',
+        'reason': reason.get('description', ''),
         'requestId': request_id,
     }))
+
+    if not message_id:
+        return
+
+    # Update RCS messages table
+    try:
+        table = dynamodb.Table(RCS_TABLE)
+        table.update_item(
+            Key={'messageId': message_id},
+            UpdateExpression='SET #s = :status, dlrTime = :dlr, dlrRaw = :raw, updatedAt = :now',
+            ExpressionAttributeNames={'#s': 'status'},
+            ExpressionAttributeValues={
+                ':status': status,
+                ':dlr': data.get('event_time', ''),
+                ':raw': json.dumps({'sinchStatus': sinch_status, 'reason': reason})[:500],
+                ':now': now,
+            },
+        )
+    except Exception as e:
+        logger.warning(f'RCS table update failed (may not exist yet): {e}')
+
+    # Also try updating in generic messages table (by providerMessageId)
+    try:
+        table = dynamodb.Table(MESSAGES_TABLE)
+        # Scan for the message by provider ID (RCS messages stored with providerMessageId)
+        resp = table.query(
+            IndexName='providerMessageId-index',
+            KeyConditionExpression=boto3.dynamodb.conditions.Key('providerMessageId').eq(message_id),
+            Limit=1,
+        )
+        items = resp.get('Items', [])
+        if items:
+            item = items[0]
+            table.update_item(
+                Key={'messageId': item['messageId']},
+                UpdateExpression='SET #s = :status, dlrStatus = :dlr, updatedAt = :now',
+                ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={
+                    ':status': status,
+                    ':dlr': sinch_status,
+                    ':now': now,
+                },
+            )
+    except Exception as e:
+        # Index may not exist — that's OK, primary table update above is sufficient
+        logger.debug(f'Generic table update skipped: {e}')
 
 
 def _process_inbound(data: Dict, request_id: str):
-    """Process inbound message from user."""
+    """Process inbound RCS message and store in DB."""
     message = data.get('message', {})
     contact_id = data.get('contact_id', '')
     conversation_id = data.get('conversation_id', '')
+    channel_identity = data.get('channel_identity', {})
+    identity = channel_identity.get('identity', '')
+    accepted_time = data.get('accepted_time', '')
+
+    # Extract message content
+    text_msg = message.get('text_message', {})
+    content = text_msg.get('text', '')
+    if not content:
+        # Could be media, card, etc.
+        content = json.dumps(message)[:500]
+
+    now = int(time.time())
+    msg_id = data.get('message_id', f'rcs-in-{now}')
 
     logger.info(json.dumps({
-        'event': 'rcs_inbound_message',
-        'contactId': contact_id,
-        'conversationId': conversation_id,
+        'event': 'rcs_inbound_stored',
+        'messageId': msg_id,
+        'identity': identity[-4:] if identity else '',
+        'contentLen': len(content),
         'requestId': request_id,
     }))
+
+    # Store inbound message
+    try:
+        table = dynamodb.Table(RCS_TABLE)
+        table.put_item(Item={
+            'messageId': msg_id,
+            'direction': 'INBOUND',
+            'channel': 'RCS',
+            'phoneNumber': identity,
+            'content': content,
+            'status': 'received',
+            'contactId': contact_id,
+            'conversationId': conversation_id,
+            'createdAt': now,
+            'timestamp': accepted_time or str(now),
+        })
+    except Exception as e:
+        logger.warning(f'Failed to store inbound RCS: {e}')
 
 
 def _process_opt(data: Dict, event_type: str, request_id: str):
-    """Process opt-in/opt-out."""
+    """Process opt-in/opt-out and log."""
     notification = data.get(f'{event_type.lower()}_notification', {})
+    identity = notification.get('identity', '')
     logger.info(json.dumps({
         'event': f'rcs_{event_type.lower()}',
-        'notification': str(notification)[:200],
-        'requestId': request_id,
-    }))
-
-
-def _process_capability(data: Dict, request_id: str):
-    """Process capability check response."""
-    notification = data.get('capability_notification', {})
-    logger.info(json.dumps({
-        'event': 'rcs_capability',
-        'notification': str(notification)[:200],
+        'identity': identity[-4:] if identity else '',
         'requestId': request_id,
     }))

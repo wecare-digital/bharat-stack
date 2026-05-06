@@ -356,6 +356,35 @@ const schema = a.schema( {
     .identifier( [ 'templateId' ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
+  // Table 15c: RcsMessages - Sinch RCS Messages (TTL: 90 days)
+  // Project: c8114d03-eeb2-401d-a8f1-abb93594cb33 | App: 01KQSB792X3R148D8ZGHQYW3SP
+  RcsMessages: a
+    .model( {
+      messageId: a.id().required(),
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
+      channel: a.string().default( 'RCS' ),
+      phoneNumber: a.string().required(),
+      content: a.string(),
+      status: a.enum( [ 'sent', 'delivered', 'read', 'failed', 'received' ] ),
+      templateId: a.string(),
+      metadata: a.string(),
+      provider: a.string().default( 'sinch-rcs' ),
+      contactId: a.string(),
+      conversationId: a.string(),
+      dlrRaw: a.string(),
+      dlrTime: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
+    } )
+    .identifier( [ 'messageId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'phoneNumber' ),
+      index( 'status' ),
+      index( 'contactId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
   // Table 15: AirtelC2C - Airtel Click-to-Call Records (TTL: 90 days)
   // Caller ID: 8047311032 (Fixed Line · Karnataka) | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
   AirtelC2C: a

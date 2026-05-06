@@ -143,13 +143,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 api_version=api_version,
                 request_id=request_id
             )
-            # If Airtel fails (503/500), try Sinch as fallback
+            # If Airtel fails (any error: HTTP, timeout, auth, connection), try Sinch as fallback
             if not result.get('success'):
                 logger.warning(f"Airtel failed, trying Sinch fallback: {result.get('error', '')[:100]}")
                 sinch_result = _send_sinch_sms(phone, content, source_address, request_id)
                 if sinch_result.get('success'):
                     result = sinch_result
                     provider = 'sinch'
+                else:
+                    # Both failed — include both errors in response
+                    result['error'] = f"Airtel: {result.get('error', '?')[:80]} | Sinch: {sinch_result.get('error', '?')[:80]}"
         else:
             result = _send_aws_sms(phone, content, request_id)
         

@@ -45,6 +45,7 @@ const TTL_CONFIG: Record<string, string> = {
   SmsAws: 'expiresAt',
   VoiceAws: 'expiresAt',
   AirtelSMS: 'expiresAt',
+  RcsMessages: 'expiresAt',
   AirtelC2C: 'expiresAt',
   VoiceCDR: 'expiresAt',
   OBDCampaign: 'ttl',

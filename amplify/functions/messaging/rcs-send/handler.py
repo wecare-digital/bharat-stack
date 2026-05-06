@@ -188,6 +188,9 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
                 'requestId': request_id,
             }))
 
+            # Persist message to RCS table
+            _store_rcs_message(message_id, clean, text or f'[template:{template_id}]', 'sent', template_id, metadata)
+
             return cors_response(origin, 200, {
                 'success': True,
                 'messageId': message_id,
@@ -378,3 +381,32 @@ def _get_secrets() -> dict:
     except Exception as e:
         logger.error(f"Failed to load RCS secrets: {e}")
         return {}
+
+# ── RCS Table Configuration ──
+RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
+
+
+def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
+                       template_id: str = '', metadata: str = ''):
+    """Persist RCS message to DynamoDB for audit trail."""
+    now = int(time.time())
+    try:
+        table = dynamodb.Table(RCS_TABLE)
+        table.put_item(Item={
+            'messageId': message_id,
+            'direction': 'OUTBOUND',
+            'channel': 'RCS',
+            'phoneNumber': phone,
+            'content': content[:2000],
+            'status': status,
+            'templateId': template_id or '',
+            'metadata': metadata[:1024] if metadata else '',
+            'provider': 'sinch-rcs',
+            'createdAt': now,
+            'updatedAt': now,
+            'expiresAt': now + MESSAGE_TTL_SECONDS,
+        })
+    except Exception as e:
+        # Don't fail the send if storage fails
+        logger.warning(f"Failed to store RCS message: {e}")
