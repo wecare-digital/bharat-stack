@@ -55,6 +55,7 @@ RCS_API_BASE = "https://convapi.aclwhatsapp.com/v1/projects"
 RCS_PROJECT_ID = os.environ.get('RCS_PROJECT_ID', 'c8114d03-eeb2-401d-a8f1-abb93594cb33')
 RCS_APP_ID = os.environ.get('RCS_APP_ID', '01KQSB792X3R148D8ZGHQYW3SP')
 RCS_SECRET_NAME = os.environ.get('RCS_SECRET_NAME', 'wecare/sinch/rcs')
+RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 
 # Token cache (reuse within Lambda warm start)
@@ -83,6 +84,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     if action == 'send':
         return _send_rcs(body, request_id, origin)
+    elif action == 'list':
+        return _list_messages(body, request_id, origin)
     elif action == 'templates':
         return _list_templates(body, request_id, origin)
     elif action == 'create_template':
@@ -309,6 +312,46 @@ def _refresh_token() -> str:
     return ''
 
 
+def _list_messages(body: Dict, request_id: str, origin: str) -> Dict:
+    """List RCS messages from DynamoDB (for inbox)."""
+    phone_filter = body.get('phoneNumber', '')
+    limit = body.get('limit', 200)
+
+    try:
+        table = dynamodb.Table(RCS_TABLE)
+
+        if phone_filter:
+            # Query by phone number
+            clean = phone_filter.replace('+', '').replace(' ', '').replace('-', '')
+            resp = table.query(
+                IndexName='phoneNumber-index',
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('phoneNumber').eq(clean),
+                Limit=limit,
+                ScanIndexForward=False,
+            )
+        else:
+            # Scan all (limited)
+            resp = table.scan(Limit=limit)
+
+        items = resp.get('Items', [])
+        # Convert Decimal to int/float for JSON serialization
+        messages = []
+        for item in items:
+            msg = {}
+            for k, v in item.items():
+                from decimal import Decimal
+                msg[k] = int(v) if isinstance(v, Decimal) else v
+            messages.append(msg)
+
+        # Sort by createdAt descending
+        messages.sort(key=lambda m: m.get('createdAt', 0), reverse=True)
+
+        return cors_response(origin, 200, {'messages': messages, 'count': len(messages)})
+    except Exception as e:
+        logger.error(f"List RCS messages error: {e}")
+        return cors_response(origin, 200, {'messages': [], 'count': 0})
+
+
 def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
     """List RCS templates."""
     token = _get_token()
@@ -382,8 +425,7 @@ def _get_secrets() -> dict:
         logger.error(f"Failed to load RCS secrets: {e}")
         return {}
 
-# ── RCS Table Configuration ──
-RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+# ── RCS Message Persistence ──
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 

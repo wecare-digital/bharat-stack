@@ -65,54 +65,67 @@ const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setLoading( true );
     try
     {
-      const [ contactsData, messagesData ] = await Promise.all( [ api.listContacts(), api.listMessages( undefined, 'RCS' ) ] );
+      // Load contacts + RCS messages from dedicated RCS table
+      const [ contactsData, rcsResp ] = await Promise.all( [
+        api.listContacts(),
+        fetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/rcs/send`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify( { action: 'list', limit: 500 } ),
+        } ).then( r => r.json() ).catch( () => ( { messages: [] } ) ),
+      ] );
 
-      // Client-side safety filter: only keep RCS messages
-      const rcsMessages = messagesData.filter( m => m.channel === 'RCS' );
+      const rcsMessages = rcsResp.messages || [];
 
-      // Build map of contacts that have RCS messages
-      const contactMsgMap = new Map<string, { lastMsg: any; unread: number }>();
-      rcsMessages.forEach( m => {
-        const existing = contactMsgMap.get( m.contactId );
-        const msgTime = new Date( m.timestamp ).getTime();
-        if ( !existing || msgTime > new Date( existing.lastMsg.timestamp ).getTime() )
+      // Build map of phone numbers that have RCS messages
+      const phoneMsgMap = new Map<string, { lastMsg: any; unread: number; msgs: any[] }>();
+      rcsMessages.forEach( ( m: any ) => {
+        const phone = m.phoneNumber || '';
+        if ( !phone ) return;
+        const existing = phoneMsgMap.get( phone );
+        const msgTime = m.createdAt ? m.createdAt * 1000 : Date.now();
+        const msgs = existing?.msgs || [];
+        msgs.push( m );
+        if ( !existing || msgTime > ( existing.lastMsg.createdAt || 0 ) * 1000 )
         {
-          contactMsgMap.set( m.contactId, {
+          phoneMsgMap.set( phone, {
             lastMsg: m,
             unread: ( existing?.unread || 0 ) + ( m.direction === 'INBOUND' && m.status === 'received' ? 1 : 0 ),
+            msgs,
           } );
+        } else
+        {
+          phoneMsgMap.set( phone, { ...existing, msgs } );
         }
       } );
 
-      // Only show contacts that have RCS messages
-      const rcsContactIds = new Set( rcsMessages.map( m => m.contactId ) );
-      const displayContacts: Contact[] = contactsData
-        .filter( c => c.phone && rcsContactIds.has( c.contactId ) )
-        .map( c => {
-          const msgInfo = contactMsgMap.get( c.contactId );
-          return {
-            id: c.contactId,
-            name: c.name || c.phone || 'Unknown',
-            phone: c.phone || '',
-            unread: msgInfo?.unread || 0,
-            lastMessage: msgInfo?.lastMsg?.content?.substring( 0, 40 ) || '',
-            lastMessageTime: msgInfo?.lastMsg?.timestamp,
-          };
-        } )
-        .sort( ( a, b ) => {
-          if ( !a.lastMessageTime ) return 1;
-          if ( !b.lastMessageTime ) return -1;
-          return new Date( b.lastMessageTime ).getTime() - new Date( a.lastMessageTime ).getTime();
+      // Match phone numbers to contacts
+      const displayContacts: Contact[] = [];
+      phoneMsgMap.forEach( ( info, phone ) => {
+        const cleanPhone = phone.replace( /^\+?91/, '' );
+        const contact = contactsData.find( c => c.phone?.includes( cleanPhone ) );
+        displayContacts.push( {
+          id: contact?.contactId || phone,
+          name: contact?.name || `+${phone}`,
+          phone: phone.startsWith( '+' ) ? phone : `+${phone}`,
+          unread: info.unread,
+          lastMessage: info.lastMsg?.content?.substring( 0, 40 ) || '',
+          lastMessageTime: info.lastMsg?.createdAt ? new Date( info.lastMsg.createdAt * 1000 ).toISOString() : '',
         } );
+      } );
+      displayContacts.sort( ( a, b ) => {
+        if ( !a.lastMessageTime ) return 1;
+        if ( !b.lastMessageTime ) return -1;
+        return new Date( b.lastMessageTime ).getTime() - new Date( a.lastMessageTime ).getTime();
+      } );
 
       setContacts( displayContacts );
-      setMessages( rcsMessages.map( m => ( {
+      setMessages( rcsMessages.map( ( m: any ) => ( {
         id: m.messageId,
-        direction: m.direction.toLowerCase() as 'inbound' | 'outbound',
+        direction: ( m.direction || 'OUTBOUND' ).toLowerCase() as 'inbound' | 'outbound',
         content: m.content || '',
-        timestamp: m.timestamp,
+        timestamp: m.createdAt ? new Date( m.createdAt * 1000 ).toISOString() : new Date().toISOString(),
         status: m.status?.toLowerCase() || 'sent',
-        contactId: m.contactId,
+        contactId: m.phoneNumber || '',
       } ) ) );
     } catch ( err ) { toast.error( 'Failed to load data' ); } finally { setLoading( false ); }
   }, [ toast ] );
@@ -123,7 +136,7 @@ const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
   const filteredContacts = contacts.filter( c => c.name.toLowerCase().includes( searchQuery.toLowerCase() ) || c.phone.includes( searchQuery ) );
   const totalContactPages = Math.ceil( filteredContacts.length / CONTACTS_PER_PAGE );
   const paginatedContacts = filteredContacts.slice( ( contactsPage - 1 ) * CONTACTS_PER_PAGE, contactsPage * CONTACTS_PER_PAGE );
-  const filteredMessages = messages.filter( m => selectedContact && m.contactId === selectedContact.id ).sort( ( a, b ) => new Date( a.timestamp ).getTime() - new Date( b.timestamp ).getTime() );
+  const filteredMessages = messages.filter( m => selectedContact && ( m.contactId === selectedContact.id || m.contactId === selectedContact.phone.replace( /\+/g, '' ) ) ).sort( ( a, b ) => new Date( a.timestamp ).getTime() - new Date( b.timestamp ).getTime() );
 
   const handleSend = async () => {
     if ( !selectedContact || !messageText.trim() || sending ) return;
