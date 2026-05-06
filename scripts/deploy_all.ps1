@@ -110,6 +110,7 @@ $results += Deploy-Lambda "wecare-outbound-sms" "amplify\functions\messaging\out
 $results += Deploy-Lambda "wecare-outbound-email" "amplify\functions\messaging\outbound-email\handler.py" ""
 $results += Deploy-Lambda "wecare-sms-aws" "amplify\functions\messaging\sms-aws\handler.py" ""
 $results += Deploy-Lambda "wecare-sms-in-airtel" "amplify\functions\messaging\sms-in\airtel\handler.py" ""
+$results += Deploy-Lambda "wecare-sinch-dlr" "amplify\functions\messaging\sms-in\sinch\handler.py" ""
 
 # === Voice ===
 $results += Deploy-Lambda "wecare-voice-aws" "amplify\functions\messaging\voice-aws\handler.py" ""
@@ -189,6 +190,7 @@ if ($fail -gt 0) {
         @("wecare-outbound-email", "amplify\functions\messaging\outbound-email\handler.py", ""),
         @("wecare-sms-aws", "amplify\functions\messaging\sms-aws\handler.py", ""),
         @("wecare-sms-in-airtel", "amplify\functions\messaging\sms-in\airtel\handler.py", ""),
+        @("wecare-sinch-dlr", "amplify\functions\messaging\sms-in\sinch\handler.py", ""),
         @("wecare-voice-aws", "amplify\functions\messaging\voice-aws\handler.py", ""),
         @("wecare-voice-in-c2c", "amplify\functions\messaging\voice-in\c2c\handler.py", ""),
         @("wecare-voice-in-obd", "amplify\functions\messaging\voice-in\obd\handler.py", ""),

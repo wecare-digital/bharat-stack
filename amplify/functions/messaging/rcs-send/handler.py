@@ -371,7 +371,9 @@ def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
         })
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
-            return cors_response(origin, 200, {'templates': data})
+            # Normalize: ensure response is always a list
+            templates = data if isinstance(data, list) else data.get('templates', [data] if data else [])
+            return cors_response(origin, 200, {'templates': templates})
     except Exception as e:
         return cors_response(origin, 500, {'error': str(e)})
 

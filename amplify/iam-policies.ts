@@ -302,84 +302,85 @@ export const IAM_POLICIES = {
  */
 export const FUNCTION_POLICIES: Record<string, string[]> = {
   // === Core ===
-  'wecare-auth-middleware': ['common', 'cognito'],
-  'wecare-contacts': ['common'],  // Unified contacts handler
-  'wecare-messages-read': ['common'],
-  'wecare-messages-delete': ['common'],
+  'wecare-auth-middleware': [ 'common', 'cognito' ],
+  'wecare-contacts': [ 'common' ],  // Unified contacts handler
+  'wecare-messages-read': [ 'common' ],
+  'wecare-messages-delete': [ 'common' ],
 
   // === WhatsApp ===
-  'wecare-inbound-whatsapp': ['common', 'whatsapp', 'sqs', 'sns', 'lambdaInvoke'],
-  'wecare-outbound-whatsapp': ['common', 'whatsapp', 'sqs'],
-  'wecare-whatsapp-calling': ['common', 'whatsapp', 'secrets', 'lambdaInvoke'],
-  'wecare-whatsapp-voice': ['common', 'whatsapp', 'polly'],
-  'wecare-whatsapp-template-management': ['common', 'whatsapp', 'secrets'],
-  'wecare-whatsapp-templates': ['common', 'whatsapp', 'secrets'], // alias
-  'wecare-whatsapp-business-api': ['common', 'secrets'],
-  'wecare-waba-management': ['common', 'whatsapp', 'sns'],
-  'wecare-media-cleanup': ['common', 'whatsapp'],
-  'wecare-template-analytics': ['common'],
+  'wecare-inbound-whatsapp': [ 'common', 'whatsapp', 'sqs', 'sns', 'lambdaInvoke' ],
+  'wecare-outbound-whatsapp': [ 'common', 'whatsapp', 'sqs' ],
+  'wecare-whatsapp-calling': [ 'common', 'whatsapp', 'secrets', 'lambdaInvoke' ],
+  'wecare-whatsapp-voice': [ 'common', 'whatsapp', 'polly' ],
+  'wecare-whatsapp-template-management': [ 'common', 'whatsapp', 'secrets' ],
+  'wecare-whatsapp-templates': [ 'common', 'whatsapp', 'secrets' ], // alias
+  'wecare-whatsapp-business-api': [ 'common', 'secrets' ],
+  'wecare-waba-management': [ 'common', 'whatsapp', 'sns' ],
+  'wecare-media-cleanup': [ 'common', 'whatsapp' ],
+  'wecare-template-analytics': [ 'common' ],
 
   // === SMS ===
-  'wecare-outbound-sms': ['common', 'sms', 'sqs'],
-  'wecare-outbound-email': ['common', 'email', 'sqs'],
-  'wecare-sms-aws': ['common', 'sms'],
-  'wecare-sms-in-airtel': ['common', 'secrets'],
+  'wecare-outbound-sms': [ 'common', 'sms', 'sqs' ],
+  'wecare-outbound-email': [ 'common', 'email', 'sqs' ],
+  'wecare-sms-aws': [ 'common', 'sms' ],
+  'wecare-sms-in-airtel': [ 'common', 'secrets' ],
 
   // === Voice (AWS Pinpoint) ===
-  'wecare-voice-aws': ['common', 'sms'],
+  'wecare-voice-aws': [ 'common', 'sms' ],
 
   // === Voice (Airtel IQ — voice-in) ===
-  'wecare-voice-in-c2c': ['common', 'secrets', 's3'],
-  'wecare-voice-in-obd': ['common', 'secrets', 's3'],
-  'wecare-voice-in-cdr': ['common', 's3'],              // CDR webhook (alias route)
-  'wecare-voice-cdr-webhook': ['common', 's3'],          // CDR webhook (primary route)
-  'wecare-voice-cdr-read': ['common'],
-  'wecare-voice-calls-read': ['common'],                  // alias of voice-cdr-read
-  'wecare-outbound-voice': ['common', 'secrets'],
-  'wecare-voice-calls': ['common', 'secrets'],            // alias of outbound-voice
+  'wecare-voice-in-c2c': [ 'common', 'secrets', 's3' ],
+  'wecare-voice-in-obd': [ 'common', 'secrets', 's3' ],
+  'wecare-voice-in-cdr': [ 'common', 's3' ],              // CDR webhook (alias route)
+  'wecare-voice-cdr-webhook': [ 'common', 's3' ],          // CDR webhook (primary route)
+  'wecare-voice-cdr-read': [ 'common' ],
+  'wecare-voice-calls-read': [ 'common' ],                  // alias of voice-cdr-read
+  'wecare-outbound-voice': [ 'common', 'secrets' ],
+  'wecare-voice-calls': [ 'common', 'secrets' ],            // alias of outbound-voice
 
   // === Scheduled & Bulk ===
-  'wecare-scheduled-messages': ['common', 'lambdaInvoke'],
-  'wecare-bulk-job-create': ['common', 'sqs'],
-  'wecare-bulk-worker': ['common', 'sqs', 'whatsapp', 'sms', 'email'],
-  'wecare-bulk-job-control': ['common', 'sqs', 's3'],
+  'wecare-scheduled-messages': [ 'common', 'lambdaInvoke' ],
+  'wecare-bulk-job-create': [ 'common', 'sqs' ],
+  'wecare-bulk-worker': [ 'common', 'sqs', 'whatsapp', 'sms', 'email' ],
+  'wecare-bulk-job-control': [ 'common', 'sqs', 's3' ],
 
   // === AI ===
-  'wecare-ai-query-kb': ['common', 'bedrock'],
-  'wecare-ai-generate-response': ['common', 'bedrock'],
-  'wecare-ai-config-management': ['common'],
-  'wecare-agent-action-group': ['common', 'bedrock', 'lambdaInvoke'],
+  'wecare-ai-query-kb': [ 'common', 'bedrock' ],
+  'wecare-ai-generate-response': [ 'common', 'bedrock' ],
+  'wecare-ai-config-management': [ 'common' ],
+  'wecare-agent-action-group': [ 'common', 'bedrock', 'lambdaInvoke' ],
 
   // === Operations ===
-  'wecare-dlq-replay': ['common', 'sqs', 'sns'],
-  'wecare-billing': ['common', 'billing'],
+  'wecare-dlq-replay': [ 'common', 'sqs', 'sns' ],
+  'wecare-billing': [ 'common', 'billing' ],
 
   // === Payments ===
-  'wecare-razorpay-webhook': ['common', 'lambdaInvoke'],
-  'wecare-payu-webhook': ['common'],
-  'wecare-payments-read': ['common'],
-  'wecare-invoice-engine': ['common', 'whatsapp', 'lambdaInvoke'],
+  'wecare-razorpay-webhook': [ 'common', 'lambdaInvoke' ],
+  'wecare-payu-webhook': [ 'common' ],
+  'wecare-payments-read': [ 'common' ],
+  'wecare-invoice-engine': [ 'common', 'whatsapp', 'lambdaInvoke' ],
 
   // === Ecommerce ===
-  'wecare-wix-store': ['common'],
-  'wecare-product-image-gen': ['common', 's3'],
+  'wecare-wix-store': [ 'common' ],
+  'wecare-product-image-gen': [ 'common', 's3' ],
 
   // === Operations (additional) ===
-  'wecare-system-cleanup': ['common', 'sqs', 's3'],
+  'wecare-system-cleanup': [ 'common', 'sqs', 's3' ],
 
   // === Core (additional) ===
-  'wecare-faq-handler': ['common'],
+  'wecare-faq-handler': [ 'common' ],
 
   // === Analytics ===
-  'wecare-meta-analytics': ['common', 'secrets'],
+  'wecare-meta-analytics': [ 'common', 'secrets' ],
 
   // === Ecommerce (additional) ===
-  'wecare-catalog-management': ['common', 'secrets'],
+  'wecare-catalog-management': [ 'common', 'secrets' ],
 
   // === Ads ===
-  'wecare-ad-attribution': ['common'],
+  'wecare-ad-attribution': [ 'common' ],
 
   // === RCS ===
-  'wecare-rcs-send': ['common', 'secrets'],
-  'wecare-rcs-dlr': ['common'],
+  'wecare-rcs-send': [ 'common', 'secrets' ],
+  'wecare-rcs-dlr': [ 'common' ],
+  'wecare-sinch-dlr': [ 'common' ],
 };

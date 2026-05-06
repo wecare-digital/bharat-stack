@@ -20,6 +20,7 @@ import os
 import json
 import time
 import boto3
+import boto3.dynamodb.conditions
 from typing import Dict, Any
 from decimal import Decimal
 
@@ -226,7 +227,6 @@ def _lookup_contact_by_phone(phone: str) -> str:
     """Look up contactId from Contacts table by phone number."""
     if not phone:
         return ''
-    import boto3.dynamodb.conditions
     clean = phone.replace('+', '').replace(' ', '').replace('-', '')
     variants = [clean]
     if clean.startswith('91') and len(clean) == 12:
