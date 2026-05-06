@@ -30,6 +30,7 @@ logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 
 # Sinch RCS status mapping
 RCS_STATUS_MAP = {
@@ -173,16 +174,20 @@ def _process_inbound(data: Dict, request_id: str):
     text_msg = message.get('text_message', {})
     content = text_msg.get('text', '')
     if not content:
-        # Could be media, card, etc.
         content = json.dumps(message)[:500]
 
     now = int(time.time())
     msg_id = data.get('message_id', f'rcs-in-{now}')
 
+    # Look up contactId by phone number
+    if not contact_id and identity:
+        contact_id = _lookup_contact_by_phone(identity)
+
     logger.info(json.dumps({
         'event': 'rcs_inbound_stored',
         'messageId': msg_id,
         'identity': identity[-4:] if identity else '',
+        'contactId': contact_id,
         'contentLen': len(content),
         'requestId': request_id,
     }))
@@ -194,13 +199,13 @@ def _process_inbound(data: Dict, request_id: str):
             'messageId': msg_id,
             'direction': 'INBOUND',
             'channel': 'RCS',
-            'phoneNumber': identity,
+            'phoneNumber': identity.replace('+', ''),
+            'contactId': contact_id,
             'content': content,
             'status': 'received',
-            'contactId': contact_id,
             'conversationId': conversation_id,
             'createdAt': now,
-            'timestamp': accepted_time or str(now),
+            'updatedAt': now,
         })
     except Exception as e:
         logger.warning(f'Failed to store inbound RCS: {e}')
@@ -215,3 +220,33 @@ def _process_opt(data: Dict, event_type: str, request_id: str):
         'identity': identity[-4:] if identity else '',
         'requestId': request_id,
     }))
+
+
+def _lookup_contact_by_phone(phone: str) -> str:
+    """Look up contactId from Contacts table by phone number."""
+    if not phone:
+        return ''
+    import boto3.dynamodb.conditions
+    clean = phone.replace('+', '').replace(' ', '').replace('-', '')
+    variants = [clean]
+    if clean.startswith('91') and len(clean) == 12:
+        variants.append(clean[2:])
+        variants.append(f'+{clean}')
+    elif len(clean) == 10:
+        variants.append(f'91{clean}')
+        variants.append(f'+91{clean}')
+
+    try:
+        table = dynamodb.Table(CONTACTS_TABLE)
+        for variant in variants:
+            resp = table.query(
+                IndexName='phone-index',
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('phone').eq(variant),
+                Limit=1,
+            )
+            items = resp.get('Items', [])
+            if items:
+                return items[0].get('contactId', '')
+    except Exception as e:
+        logger.debug(f"Contact lookup by phone failed: {e}")
+    return ''

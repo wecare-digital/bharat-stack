@@ -35,6 +35,7 @@ import uuid
 import time
 import logging
 import boto3
+import boto3.dynamodb.conditions
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -56,6 +57,7 @@ RCS_PROJECT_ID = os.environ.get('RCS_PROJECT_ID', 'c8114d03-eeb2-401d-a8f1-abb93
 RCS_APP_ID = os.environ.get('RCS_APP_ID', '01KQSB792X3R148D8ZGHQYW3SP')
 RCS_SECRET_NAME = os.environ.get('RCS_SECRET_NAME', 'wecare/sinch/rcs')
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 
 # Token cache (reuse within Lambda warm start)
@@ -431,8 +433,10 @@ MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
                        template_id: str = '', metadata: str = ''):
-    """Persist RCS message to DynamoDB for audit trail."""
+    """Persist RCS message to DynamoDB for audit trail. Links to contactId via phone lookup."""
     now = int(time.time())
+    contact_id = _lookup_contact_by_phone(phone)
+
     try:
         table = dynamodb.Table(RCS_TABLE)
         table.put_item(Item={
@@ -440,6 +444,7 @@ def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
             'direction': 'OUTBOUND',
             'channel': 'RCS',
             'phoneNumber': phone,
+            'contactId': contact_id,
             'content': content[:2000],
             'status': status,
             'templateId': template_id or '',
@@ -452,3 +457,33 @@ def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
     except Exception as e:
         # Don't fail the send if storage fails
         logger.warning(f"Failed to store RCS message: {e}")
+
+
+def _lookup_contact_by_phone(phone: str) -> str:
+    """Look up contactId from Contacts table by phone number. Returns '' if not found."""
+    if not phone:
+        return ''
+    # Normalize: try with and without 91 prefix
+    clean = phone.replace('+', '').replace(' ', '').replace('-', '')
+    variants = [clean]
+    if clean.startswith('91') and len(clean) == 12:
+        variants.append(clean[2:])  # 10-digit
+        variants.append(f'+{clean}')  # +91...
+    elif len(clean) == 10:
+        variants.append(f'91{clean}')  # 91...
+        variants.append(f'+91{clean}')  # +91...
+
+    try:
+        table = dynamodb.Table(CONTACTS_TABLE)
+        for variant in variants:
+            resp = table.query(
+                IndexName='phone-index',
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('phone').eq(variant),
+                Limit=1,
+            )
+            items = resp.get('Items', [])
+            if items:
+                return items[0].get('contactId', '')
+    except Exception as e:
+        logger.debug(f"Contact lookup by phone failed: {e}")
+    return ''
