@@ -30,7 +30,6 @@ logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 
 # Sinch RCS status mapping
 RCS_STATUS_MAP = {
@@ -143,7 +142,7 @@ def _process_delivery(data: Dict, request_id: str):
     if not message_id:
         return
 
-    # Update RCS messages table
+    # Update RCS messages table (primary — always do this)
     try:
         table = dynamodb.Table(RCS_TABLE)
         table.update_item(
@@ -159,32 +158,6 @@ def _process_delivery(data: Dict, request_id: str):
         )
     except Exception as e:
         logger.warning(f'RCS table update failed (may not exist yet): {e}')
-
-    # Also try updating in generic messages table (by providerMessageId)
-    try:
-        table = dynamodb.Table(MESSAGES_TABLE)
-        # Scan for the message by provider ID (RCS messages stored with providerMessageId)
-        resp = table.query(
-            IndexName='providerMessageId-index',
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('providerMessageId').eq(message_id),
-            Limit=1,
-        )
-        items = resp.get('Items', [])
-        if items:
-            item = items[0]
-            table.update_item(
-                Key={'messageId': item['messageId']},
-                UpdateExpression='SET #s = :status, dlrStatus = :dlr, updatedAt = :now',
-                ExpressionAttributeNames={'#s': 'status'},
-                ExpressionAttributeValues={
-                    ':status': status,
-                    ':dlr': sinch_status,
-                    ':now': now,
-                },
-            )
-    except Exception as e:
-        # Index may not exist — that's OK, primary table update above is sufficient
-        logger.debug(f'Generic table update skipped: {e}')
 
 
 def _process_inbound(data: Dict, request_id: str):
