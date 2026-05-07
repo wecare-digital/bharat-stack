@@ -357,14 +357,16 @@ def _list_messages(body: Dict, request_id: str, origin: str) -> Dict:
 
 
 def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
-    """List RCS templates."""
+    """List RCS templates via v2 API (includes status)."""
     token = _get_token()
     if not token:
         return cors_response(500, {'error': 'Auth failed'}, origin)
 
     creds = _get_secrets()
-    bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
-    url = f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates"
+    username = creds.get('username', 'wecaretrans')
+
+    # v2 API uses username as appId
+    url = f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates"
 
     try:
         req = urllib.request.Request(url, headers={
@@ -381,7 +383,7 @@ def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
 
 
 def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
-    """Create a new RCS template."""
+    """Create a new RCS template via v2 API."""
     token = _get_token()
     if not token:
         return cors_response(500, {'error': 'Auth failed'}, origin)
@@ -394,14 +396,50 @@ def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
         return cors_response(400, {'error': 'name and text are required'}, origin)
 
     creds = _get_secrets()
-    bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
-    url = f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates"
+    username = creds.get('username', 'wecaretrans')
 
-    payload = json.dumps({
-        "name": name,
-        "type": template_type,
-        "textMessageContent": text
-    }).encode()
+    # v2 API uses username as appId
+    url = f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates"
+
+    # Build v2 payload format
+    if template_type == 'text_message':
+        payload_data = {
+            "name": name,
+            "type": "text_message",
+            "component": {
+                "text": text
+            }
+        }
+    elif template_type == 'rich_card':
+        # text field should be JSON with title, description, media
+        try:
+            card_data = json.loads(text) if text.startswith('{') else {"title": name, "description": text}
+        except:
+            card_data = {"title": name, "description": text}
+        payload_data = {
+            "name": name,
+            "type": "rich_card",
+            "component": card_data if 'richCard' in card_data else {
+                "richCard": {
+                    "standaloneCard": {
+                        "cardOrientation": "VERTICAL",
+                        "thumbnailImageAlignment": "LEFT",
+                        "cardContent": {
+                            "title": card_data.get('title', name),
+                            "description": card_data.get('description', text),
+                        }
+                    }
+                }
+            }
+        }
+    else:
+        payload_data = {
+            "name": name,
+            "type": template_type,
+            "component": {"text": text}
+        }
+
+    payload = json.dumps(payload_data).encode()
 
     try:
         req = urllib.request.Request(url, data=payload, headers={
