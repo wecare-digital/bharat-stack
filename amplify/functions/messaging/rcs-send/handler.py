@@ -364,27 +364,31 @@ def _refresh_token() -> str:
 
 
 def _list_messages(body: Dict, request_id: str, origin: str) -> Dict:
-    """List RCS messages from DynamoDB (for inbox)."""
+    """List RCS messages from DynamoDB (for inbox) with pagination."""
     phone_filter = body.get('phoneNumber', '')
-    limit = body.get('limit', 200)
+    limit = min(body.get('limit', 200), 1000)
+    last_key = body.get('lastKey', None)  # For pagination
 
     try:
         table = dynamodb.Table(RCS_TABLE)
+        kwargs = {'Limit': limit}
+        if last_key:
+            kwargs['ExclusiveStartKey'] = last_key
 
         if phone_filter:
             # Query by phone number
             clean = phone_filter.replace('+', '').replace(' ', '').replace('-', '')
-            resp = table.query(
-                IndexName='phoneNumber-index',
-                KeyConditionExpression=boto3.dynamodb.conditions.Key('phoneNumber').eq(clean),
-                Limit=limit,
-                ScanIndexForward=False,
-            )
+            kwargs['IndexName'] = 'phoneNumber-index'
+            kwargs['KeyConditionExpression'] = boto3.dynamodb.conditions.Key('phoneNumber').eq(clean)
+            kwargs['ScanIndexForward'] = False
+            resp = table.query(**kwargs)
         else:
             # Scan all (limited)
-            resp = table.scan(Limit=limit)
+            resp = table.scan(**kwargs)
 
         items = resp.get('Items', [])
+        next_key = resp.get('LastEvaluatedKey', None)
+
         # Convert Decimal to int/float for JSON serialization
         messages = []
         for item in items:
@@ -397,7 +401,13 @@ def _list_messages(body: Dict, request_id: str, origin: str) -> Dict:
         # Sort by createdAt descending
         messages.sort(key=lambda m: m.get('createdAt', 0), reverse=True)
 
-        return cors_response(200, {'messages': messages, 'count': len(messages)}, origin)
+        result = {'messages': messages, 'count': len(messages)}
+        if next_key:
+            # Convert Decimal in lastKey for JSON
+            result['lastKey'] = {k: (int(v) if isinstance(v, Decimal) else v) for k, v in next_key.items()}
+            result['hasMore'] = True
+
+        return cors_response(200, result, origin)
     except Exception as e:
         logger.error(f"List RCS messages error: {e}")
         return cors_response(200, {'messages': [], 'count': 0}, origin)

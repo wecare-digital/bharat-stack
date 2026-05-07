@@ -1049,10 +1049,27 @@ export async function listRcsTemplates (): Promise<any[]> {
   return data?.templates || [];
 }
 
-export async function createRcsTemplate ( name: string, text: string ): Promise<any> {
+export async function createRcsTemplate ( name: string, text: string, type?: string, suggestions?: any[] ): Promise<any> {
   return apiCall<any>( `${API_BASE}/rcs/send`, {
     method: 'POST',
-    body: JSON.stringify( { action: 'create_template', name, text, type: 'text_message' } ),
+    body: JSON.stringify( { action: 'create_template', name, text, type: type || 'text_message', suggestions } ),
+  } );
+}
+
+export async function listRcsMessages ( phoneNumber?: string, limit: number = 500 ): Promise<any[]> {
+  const payload: any = { action: 'list', limit };
+  if ( phoneNumber ) payload.phoneNumber = phoneNumber;
+  const data = await apiCall<any>( `${API_BASE}/rcs/send`, {
+    method: 'POST',
+    body: JSON.stringify( payload ),
+  } );
+  return data?.messages || [];
+}
+
+export async function deleteRcsTemplate ( name: string ): Promise<any> {
+  return apiCall<any>( `${API_BASE}/rcs/send`, {
+    method: 'POST',
+    body: JSON.stringify( { action: 'delete_template', name } ),
   } );
 }
 

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
-import { API_BASE } from '../../../config/constants';
+import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -20,11 +20,8 @@ const RcsSendPage: React.FC<PageProps> = ( { embedded } ) => {
     const toast = useToastContext();
 
     useEffect( () => {
-        // Load templates
-        fetch( `${API_BASE}/rcs/send`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( { action: 'templates' } ),
-        } ).then( r => r.json() ).then( d => setTemplates( d.templates || [] ) ).catch( () => { } );
+        // Load templates via authenticated API
+        api.listRcsTemplates().then( t => setTemplates( t ) ).catch( () => { } );
     }, [] );
 
     const handleSend = async () => {
@@ -46,18 +43,14 @@ const RcsSendPage: React.FC<PageProps> = ( { embedded } ) => {
                     try { payload.parameters = JSON.parse( parameters ); } catch { payload.parameters = {}; }
                 } else { payload.parameters = {}; }
             }
-            const res = await fetch( `${API_BASE}/rcs/send`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify( payload ),
-            } );
-            const data = await res.json();
+            const data = await api.sendRcs( payload );
             setResult( data );
-            if ( data.success || data.messageId || data.message_id )
+            if ( data?.success || data?.messageId )
             {
-                toast.success( `RCS sent! ID: ${data.messageId || data.message_id}` );
+                toast.success( `RCS sent! ID: ${data.messageId}` );
             } else
             {
-                toast.error( data.error || 'Failed to send' );
+                toast.error( data?.error || 'Failed to send' );
             }
         } catch ( err: any ) { toast.error( err.message || 'Send failed' ); } finally { setSending( false ); }
     };

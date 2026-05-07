@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
-import { API_BASE } from '../../../config/constants';
+import * as api from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface RcsTemplate { name: string; type: string; botId: string; textMessageContent?: string; createdViaApi?: boolean; }
@@ -36,12 +36,8 @@ const RcsTemplatesPage: React.FC<PageProps> = ( { embedded } ) => {
         setLoading( true );
         try
         {
-            const res = await fetch( `${API_BASE}/rcs/send`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify( { action: 'templates' } ),
-            } );
-            const data = await res.json();
-            setTemplates( data.templates || [] );
+            const templates = await api.listRcsTemplates();
+            setTemplates( templates );
         } catch ( err ) { toast.error( 'Failed to load templates' ); } finally { setLoading( false ); }
     }, [ toast ] );
 
@@ -53,33 +49,26 @@ const RcsTemplatesPage: React.FC<PageProps> = ( { embedded } ) => {
         setCreating( true );
         try
         {
-            const payload: any = {
-                action: 'create_template',
-                name: newName.trim().toLowerCase().replace( /\s+/g, '_' ),
-                type: newType,
-            };
+            const name = newName.trim().toLowerCase().replace( /\s+/g, '_' );
+            let text = '';
 
             if ( newType === 'text_message' )
             {
-                payload.text = newText;
+                text = newText;
             } else if ( newType === 'rich_card' )
             {
-                payload.text = JSON.stringify( {
+                text = JSON.stringify( {
                     title: newTitle,
                     description: newDescription,
                     media: { url: newMediaUrl, type: newMediaType },
                 } );
             } else
             {
-                payload.text = newText; // Carousel uses JSON array
+                text = newText; // Carousel uses JSON array
             }
 
-            const res = await fetch( `${API_BASE}/rcs/send`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify( payload ),
-            } );
-            const data = await res.json();
-            if ( data.success || data.template )
+            const data = await api.createRcsTemplate( name, text, newType );
+            if ( data?.success || data?.template )
             {
                 toast.success( `Template "${newName}" created!` );
                 setShowCreate( false );
@@ -87,7 +76,7 @@ const RcsTemplatesPage: React.FC<PageProps> = ( { embedded } ) => {
                 await loadTemplates();
             } else
             {
-                toast.error( data.error || 'Failed to create template' );
+                toast.error( data?.error || 'Failed to create template' );
             }
         } catch ( err: any ) { toast.error( err.message || 'Create failed' ); } finally { setCreating( false ); }
     };

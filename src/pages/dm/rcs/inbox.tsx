@@ -65,16 +65,11 @@ const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setLoading( true );
     try
     {
-      // Load contacts + RCS messages from dedicated RCS table
-      const [ contactsData, rcsResp ] = await Promise.all( [
+      // Load contacts + RCS messages using authenticated API calls
+      const [ contactsData, rcsMessages ] = await Promise.all( [
         api.listContacts(),
-        fetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/rcs/send`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify( { action: 'list', limit: 500 } ),
-        } ).then( r => r.json() ).catch( () => ( { messages: [] } ) ),
+        api.listRcsMessages( undefined, 500 ),
       ] );
-
-      const rcsMessages = rcsResp.messages || [];
 
       // Build map of phone numbers that have RCS messages
       const phoneMsgMap = new Map<string, { lastMsg: any; unread: number; msgs: any[] }>();
@@ -122,7 +117,7 @@ const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
       setMessages( rcsMessages.map( ( m: any ) => ( {
         id: m.messageId,
         direction: ( m.direction || 'OUTBOUND' ).toLowerCase() as 'inbound' | 'outbound',
-        content: m.content || '',
+        content: m.content?.startsWith( '[template:' ) ? `📋 Template: ${m.content.replace( /\[template:|\]/g, '' )}` : ( m.content || '' ),
         timestamp: m.createdAt ? new Date( m.createdAt * 1000 ).toISOString() : new Date().toISOString(),
         status: m.status?.toLowerCase() || 'sent',
         contactId: m.phoneNumber || '',
@@ -130,7 +125,7 @@ const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     } catch ( err ) { toast.error( 'Failed to load data' ); } finally { setLoading( false ); }
   }, [ toast ] );
 
-  useEffect( () => { loadData(); const interval = setInterval( loadData, 60000 ); return () => clearInterval( interval ); }, [ loadData ] );
+  useEffect( () => { loadData(); const interval = setInterval( loadData, 15000 ); return () => clearInterval( interval ); }, [ loadData ] );
   useEffect( () => { setContactsPage( 1 ); }, [ searchQuery ] );
 
   const filteredContacts = contacts.filter( c => c.name.toLowerCase().includes( searchQuery.toLowerCase() ) || c.phone.includes( searchQuery ) );
@@ -143,16 +138,12 @@ const RcsInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setSending( true );
     try
     {
-      const res = await fetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/rcs/send`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( { phoneNumber: selectedContact.phone, text: messageText.trim() } ),
-      } );
-      const data = await res.json();
-      if ( data.success || data.messageId || data.message_id )
+      const data = await api.sendRcs( { phoneNumber: selectedContact.phone, text: messageText.trim() } );
+      if ( data?.success || data?.messageId )
       {
-        toast.success( `RCS sent! ID: ${data.messageId || data.message_id}` );
+        toast.success( `RCS sent! ID: ${data.messageId}` );
         setMessageText( '' ); setShowCompose( false ); await loadData();
-      } else { toast.error( data.error || 'Failed to send' ); }
+      } else { toast.error( data?.error || 'Failed to send' ); }
     } catch ( err ) { toast.error( 'Failed to send RCS message' ); } finally { setSending( false ); }
   };
 
