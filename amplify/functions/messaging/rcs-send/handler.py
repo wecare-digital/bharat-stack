@@ -92,6 +92,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _list_templates(body, request_id, origin)
     elif action == 'create_template':
         return _create_template(body, request_id, origin)
+    elif action == 'delete_template':
+        return _delete_template(body, request_id, origin)
     else:
         return cors_response(400, {'error': f'Unknown action: {action}'}, origin)
 
@@ -416,7 +418,57 @@ def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
         return cors_response(500, {'error': str(e)}, origin)
 
 
-def _get_secrets() -> dict:
+def _delete_template(body: Dict, request_id: str, origin: str) -> Dict:
+    """Delete an RCS template."""
+    token = _get_token()
+    if not token:
+        return cors_response(500, {'error': 'Auth failed'}, origin)
+
+    name = body.get('name', '')
+    if not name:
+        return cors_response(400, {'error': 'Template name is required'}, origin)
+
+    creds = _get_secrets()
+    bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
+    username = creds.get('username', 'wecaretrans')
+
+    # Try multiple endpoint formats (v1 with botId, v2 with username)
+    urls = [
+        f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}",
+        f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}",
+        f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}",
+    ]
+
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json',
+            }, method='DELETE')
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp_body = resp.read().decode()
+                try:
+                    data = json.loads(resp_body)
+                except:
+                    data = {'raw': resp_body[:200]}
+                logger.info(f"Template deleted: {name} via {url}")
+                return cors_response(200, {'success': True, 'deleted': name, 'response': data}, origin)
+        except urllib.error.HTTPError as e:
+            err = e.read().decode()[:200] if e.fp else ''
+            if e.code == 404:
+                continue  # Try next URL format
+            logger.warning(f"Delete template error: HTTP {e.code} - {err} (url: {url})")
+            return cors_response(e.code, {'error': err, 'name': name}, origin)
+        except Exception as e:
+            logger.warning(f"Delete template error: {e} (url: {url})")
+            continue
+
+    # All URLs failed with 404
+    return cors_response(404, {
+        'error': 'Template deletion not supported by Sinch API or template not found',
+        'name': name,
+        'note': 'Sinch RCS API may not support template deletion. Contact Sinch support.',
+    }, origin)
     """Load RCS secrets from Secrets Manager (cached)."""
     global _secrets_cache
     if _secrets_cache:
@@ -495,3 +547,17 @@ def _lookup_contact_by_phone(phone: str) -> str:
     except Exception as e:
         logger.debug(f"Contact lookup by phone failed: {e}")
     return ''
+
+
+def _get_secrets() -> dict:
+    """Load RCS secrets from Secrets Manager (cached)."""
+    global _secrets_cache
+    if _secrets_cache:
+        return _secrets_cache
+    try:
+        resp = secrets_client.get_secret_value(SecretId=RCS_SECRET_NAME)
+        _secrets_cache = json.loads(resp['SecretString'])
+        return _secrets_cache
+    except Exception as e:
+        logger.error(f"Failed to load RCS secrets: {e}")
+        return {}

@@ -196,18 +196,22 @@ def _process_inbound(data: Dict, request_id: str):
     # Store inbound message
     try:
         table = dynamodb.Table(RCS_TABLE)
-        table.put_item(Item={
+        item = {
             'messageId': msg_id,
             'direction': 'INBOUND',
             'channel': 'RCS',
             'phoneNumber': identity.replace('+', ''),
-            'contactId': contact_id,
             'content': content,
             'status': 'received',
-            'conversationId': conversation_id,
+            'conversationId': conversation_id or 'none',
             'createdAt': now,
             'updatedAt': now,
-        })
+        }
+        # Only include GSI keys if non-empty (DynamoDB rejects empty string keys)
+        if contact_id:
+            item['contactId'] = contact_id
+        table.put_item(Item=item)
+        logger.info(f'Inbound RCS stored: {msg_id} from {identity[-4:] if identity else "?"}')
     except Exception as e:
         logger.warning(f'Failed to store inbound RCS: {e}')
 
