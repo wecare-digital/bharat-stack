@@ -75,12 +75,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return options_response(origin)
 
     if http_method == 'GET':
-        return cors_response(origin, 200, {'status': 'ok', 'service': 'sinch-rcs'})
+        return cors_response(200, {'status': 'ok', 'service': 'sinch-rcs'}, origin)
 
     try:
         body = json.loads(event.get('body', '{}'))
     except (json.JSONDecodeError, TypeError):
-        return cors_response(origin, 400, {'error': 'Invalid JSON body'})
+        return cors_response(400, {'error': 'Invalid JSON body'}, origin)
 
     action = body.get('action', 'send')
 
@@ -93,7 +93,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     elif action == 'create_template':
         return _create_template(body, request_id, origin)
     else:
-        return cors_response(origin, 400, {'error': f'Unknown action: {action}'})
+        return cors_response(400, {'error': f'Unknown action: {action}'}, origin)
 
 
 def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
@@ -106,18 +106,18 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
     metadata = body.get('metadata', '')
 
     if not phone:
-        return cors_response(origin, 400, {'error': 'phoneNumber is required'})
+        return cors_response(400, {'error': 'phoneNumber is required'}, origin)
 
-    # Clean phone number
+    # Clean phone number — identity must be WITHOUT + prefix per Sinch docs
     clean = phone.replace('+', '').replace(' ', '').replace('-', '')
     if not clean.startswith('91'):
         clean = '91' + clean[-10:]
-    identity = f"+{clean}"
+    identity = clean  # No + prefix — Sinch requires "919876543210" format
 
     # Get auth token
     token = _get_token()
     if not token:
-        return cors_response(origin, 500, {'error': 'Failed to authenticate with Sinch RCS'})
+        return cors_response(500, {'error': 'Failed to authenticate with Sinch RCS'}, origin)
 
     # Build message payload
     send_url = f"{RCS_API_BASE}/{RCS_PROJECT_ID}/messages:send"
@@ -196,24 +196,24 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
             # Persist message to RCS table
             _store_rcs_message(message_id, clean, text or f'[template:{template_id}]', 'sent', template_id, metadata)
 
-            return cors_response(origin, 200, {
+            return cors_response(200, {
                 'success': True,
                 'messageId': message_id,
                 'channel': 'RCS',
                 'provider': 'sinch-rcs',
                 'status': 'sent',
-            })
+            }, origin)
 
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()[:300] if e.fp else ''
         logger.error(f"RCS send error: HTTP {e.code} - {error_body}")
-        return cors_response(origin, e.code, {
+        return cors_response(e.code, {
             'error': f'RCS API error: {error_body[:200]}',
             'success': False,
-        })
+        }, origin)
     except Exception as e:
         logger.error(f"RCS send error: {e}")
-        return cors_response(origin, 500, {'error': str(e), 'success': False})
+        return cors_response(500, {'error': str(e), 'success': False}, origin)
 
 
 def _get_token() -> str:
@@ -348,17 +348,17 @@ def _list_messages(body: Dict, request_id: str, origin: str) -> Dict:
         # Sort by createdAt descending
         messages.sort(key=lambda m: m.get('createdAt', 0), reverse=True)
 
-        return cors_response(origin, 200, {'messages': messages, 'count': len(messages)})
+        return cors_response(200, {'messages': messages, 'count': len(messages)}, origin)
     except Exception as e:
         logger.error(f"List RCS messages error: {e}")
-        return cors_response(origin, 200, {'messages': [], 'count': 0})
+        return cors_response(200, {'messages': [], 'count': 0}, origin)
 
 
 def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
     """List RCS templates."""
     token = _get_token()
     if not token:
-        return cors_response(origin, 500, {'error': 'Auth failed'})
+        return cors_response(500, {'error': 'Auth failed'}, origin)
 
     creds = _get_secrets()
     bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
@@ -373,23 +373,23 @@ def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
             data = json.loads(resp.read().decode())
             # Normalize: ensure response is always a list
             templates = data if isinstance(data, list) else data.get('templates', [data] if data else [])
-            return cors_response(origin, 200, {'templates': templates})
+            return cors_response(200, {'templates': templates}, origin)
     except Exception as e:
-        return cors_response(origin, 500, {'error': str(e)})
+        return cors_response(500, {'error': str(e)}, origin)
 
 
 def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
     """Create a new RCS template."""
     token = _get_token()
     if not token:
-        return cors_response(origin, 500, {'error': 'Auth failed'})
+        return cors_response(500, {'error': 'Auth failed'}, origin)
 
     name = body.get('name', '')
     text = body.get('text', '')
     template_type = body.get('type', 'text_message')
 
     if not name or not text:
-        return cors_response(origin, 400, {'error': 'name and text are required'})
+        return cors_response(400, {'error': 'name and text are required'}, origin)
 
     creds = _get_secrets()
     bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
@@ -408,12 +408,12 @@ def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
         }, method='POST')
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
-            return cors_response(origin, 200, {'success': True, 'template': data})
+            return cors_response(200, {'success': True, 'template': data}, origin)
     except urllib.error.HTTPError as e:
         err = e.read().decode()[:200] if e.fp else ''
-        return cors_response(origin, e.code, {'error': err})
+        return cors_response(e.code, {'error': err}, origin)
     except Exception as e:
-        return cors_response(origin, 500, {'error': str(e)})
+        return cors_response(500, {'error': str(e)}, origin)
 
 
 def _get_secrets() -> dict:
@@ -441,24 +441,30 @@ def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
 
     try:
         table = dynamodb.Table(RCS_TABLE)
-        table.put_item(Item={
+        item = {
             'messageId': message_id,
             'direction': 'OUTBOUND',
             'channel': 'RCS',
             'phoneNumber': phone,
-            'contactId': contact_id,
             'content': content[:2000],
             'status': status,
-            'templateId': template_id or '',
-            'metadata': metadata[:1024] if metadata else '',
+            'templateId': template_id or 'none',
+            'metadata': metadata[:1024] if metadata else 'none',
             'provider': 'sinch-rcs',
             'createdAt': now,
             'updatedAt': now,
             'expiresAt': now + MESSAGE_TTL_SECONDS,
-        })
+        }
+        # Only include GSI keys if they have non-empty values
+        # DynamoDB doesn't allow empty strings for index key attributes
+        if contact_id:
+            item['contactId'] = contact_id
+        logger.info(f"Storing RCS message: {message_id} phone={phone[-4:]} table={RCS_TABLE}")
+        table.put_item(Item=item)
+        logger.info(f"RCS message stored successfully: {message_id}")
     except Exception as e:
         # Don't fail the send if storage fails
-        logger.warning(f"Failed to store RCS message: {e}")
+        logger.error(f"Failed to store RCS message {message_id}: {type(e).__name__}: {e}")
 
 
 def _lookup_contact_by_phone(phone: str) -> str:

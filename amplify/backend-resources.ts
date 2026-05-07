@@ -142,6 +142,7 @@ export function addBackendResources ( stack: Stack ) {
     'wecare-messages-delete', 'wecare-ai-config-management', 'wecare-waba-management',
     'wecare-push-notifications', 'wecare-media-cleanup', 'wecare-template-analytics',
     'wecare-whatsapp-templates', 'wecare-agent-action-group',
+    'wecare-rcs-send', 'wecare-rcs-dlr',
   ];
 
   for ( const fnName of LAMBDA_FUNCTIONS )
