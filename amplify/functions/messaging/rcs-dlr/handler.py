@@ -203,9 +203,11 @@ def _process_inbound(data: Dict, request_id: str):
             'phoneNumber': identity.replace('+', ''),
             'content': content,
             'status': 'received',
+            'provider': 'sinch-rcs',
             'conversationId': conversation_id or 'none',
             'createdAt': now,
             'updatedAt': now,
+            'expiresAt': now + 90 * 24 * 60 * 60,  # TTL: 90 days
         }
         # Only include GSI keys if non-empty (DynamoDB rejects empty string keys)
         if contact_id:

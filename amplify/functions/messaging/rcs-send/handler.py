@@ -141,6 +141,49 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
                 }
             }
         }
+
+        # If choices provided, use choice_message (text with buttons)
+        choices = body.get('choices', [])
+        if choices:
+            payload["message"] = {
+                "choice_message": {
+                    "text_message": {"text": text},
+                    "choices": choices
+                }
+            }
+
+    elif body.get('card'):
+        # Rich card message
+        payload = {
+            "app_id": RCS_APP_ID,
+            "recipient": {
+                "identified_by": {
+                    "channel_identities": [
+                        {"channel": "RCS", "identity": identity}
+                    ]
+                }
+            },
+            "message": {
+                "card_message": body.get('card')
+            }
+        }
+
+    elif body.get('carousel'):
+        # Carousel message
+        payload = {
+            "app_id": RCS_APP_ID,
+            "recipient": {
+                "identified_by": {
+                    "channel_identities": [
+                        {"channel": "RCS", "identity": identity}
+                    ]
+                }
+            },
+            "message": {
+                "carousel_message": body.get('carousel')
+            }
+        }
+
     else:
         # Template message
         payload = {
@@ -164,6 +207,10 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
                 }
             }
         }
+
+    # Optional: RCS → SMS fallback
+    if body.get('fallback'):
+        payload["channel_priority_order"] = ["RCS", "SMS"]
 
     if metadata:
         payload["message_metadata"] = metadata[:1024]
@@ -507,17 +554,7 @@ def _delete_template(body: Dict, request_id: str, origin: str) -> Dict:
         'name': name,
         'note': 'Sinch RCS API may not support template deletion. Contact Sinch support.',
     }, origin)
-    """Load RCS secrets from Secrets Manager (cached)."""
-    global _secrets_cache
-    if _secrets_cache:
-        return _secrets_cache
-    try:
-        resp = secrets_client.get_secret_value(SecretId=RCS_SECRET_NAME)
-        _secrets_cache = json.loads(resp['SecretString'])
-        return _secrets_cache
-    except Exception as e:
-        logger.error(f"Failed to load RCS secrets: {e}")
-        return {}
+
 
 # ── RCS Message Persistence ──
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
