@@ -22,7 +22,7 @@ DLR Webhook: POST https://api.wecare.digital/webhook/sinch-rcs
 DLR Events: MESSAGE_DELIVERY, EVENT_DELIVERY, MESSAGE_INBOUND, etc.
 
 Templates:
-- "testing" (Text type) — test template
+- "wecaremenu" (Rich Card, approved, Jio) — primary template for all notifications
 - Template creation: POST https://api.aclwhatsapp.com/access-api/v1/rcs/{botId}/templates
 
 Secrets: wecare/sinch/rcs
@@ -101,7 +101,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
     """Send RCS message via Sinch Conversation API."""
     phone = body.get('phoneNumber', body.get('to', ''))
-    template_id = body.get('templateId', body.get('template', 'testing'))
+    template_id = body.get('templateId', body.get('template', 'wecaremenu'))
     parameters = body.get('parameters', {})
     text = body.get('text', '')  # For direct text messages (no template)
     language = body.get('language', 'en')

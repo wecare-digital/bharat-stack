@@ -94,7 +94,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def _get_event_type(data: Dict) -> str:
     if 'message_delivery_report' in data:
         return 'MESSAGE_DELIVERY'
+    elif 'contact_message' in data:
+        # Sinch sends inbound messages with 'contact_message' at top level
+        return 'MESSAGE_INBOUND'
     elif 'message' in data and data.get('direction') == 'TO_APP':
+        return 'MESSAGE_INBOUND'
+    elif 'message' in data and 'contact_message' in data.get('message', {}):
+        # Alternate format: message.contact_message
         return 'MESSAGE_INBOUND'
     elif 'event_delivery_report' in data:
         return 'EVENT_DELIVERY'
@@ -163,22 +169,92 @@ def _process_delivery(data: Dict, request_id: str):
 
 
 def _process_inbound(data: Dict, request_id: str):
-    """Process inbound RCS message and store in DB."""
+    """Process inbound RCS message and store in DB.
+    
+    Sinch sends inbound in this format:
+    {
+        "app_id": "...",
+        "accepted_time": "...",
+        "event_time": "...",
+        "project_id": "...",
+        "contact_message": {
+            "text_message": {"text": "user reply"},
+            "channel_identity": {"channel": "RCS", "identity": "919903300044", "app_id": "..."},
+            "contact_id": "",
+            "conversation_id": ""
+        },
+        "message_metadata": ""
+    }
+    
+    OR alternate format:
+    {
+        "message": {
+            "id": "...",
+            "direction": "TO_APP",
+            "contact_message": {"text_message": {"text": "..."}},
+            "channel_identity": {"channel": "RCS", "identity": "..."}
+        }
+    }
+    """
+    # Handle both Sinch inbound formats
+    contact_msg = data.get('contact_message', {})
     message = data.get('message', {})
-    contact_id = data.get('contact_id', '')
-    conversation_id = data.get('conversation_id', '')
-    channel_identity = data.get('channel_identity', {})
-    identity = channel_identity.get('identity', '')
+    
+    if contact_msg:
+        # Primary format: contact_message at top level
+        channel_identity = contact_msg.get('channel_identity', {})
+        identity = channel_identity.get('identity', '')
+        contact_id = contact_msg.get('contact_id', '') or data.get('contact_id', '')
+        conversation_id = contact_msg.get('conversation_id', '') or data.get('conversation_id', '')
+        
+        # Extract text content
+        text_msg = contact_msg.get('text_message', {})
+        content = text_msg.get('text', '')
+        
+        # Check for postback (button click)
+        if not content and contact_msg.get('postback_data'):
+            content = f"[postback:{contact_msg.get('postback_data')}]"
+        
+        # Check for media message
+        if not content and contact_msg.get('media_message'):
+            media = contact_msg.get('media_message', {})
+            content = f"[media:{media.get('url', 'unknown')}]"
+        
+        # Check for location
+        if not content and contact_msg.get('location_message'):
+            loc = contact_msg.get('location_message', {})
+            coords = loc.get('coordinates', {})
+            content = f"[location:{coords.get('latitude', '?')},{coords.get('longitude', '?')}]"
+        
+        if not content:
+            content = json.dumps(contact_msg)[:500]
+        
+        msg_id = data.get('message_id', f'rcs-in-{int(time.time())}')
+        
+    elif message and message.get('contact_message'):
+        # Alternate format: message.contact_message
+        inner = message.get('contact_message', {})
+        channel_identity = message.get('channel_identity', data.get('channel_identity', {}))
+        identity = channel_identity.get('identity', '')
+        contact_id = data.get('contact_id', '')
+        conversation_id = data.get('conversation_id', '')
+        
+        text_msg = inner.get('text_message', {})
+        content = text_msg.get('text', '')
+        if not content:
+            content = json.dumps(inner)[:500]
+        
+        msg_id = message.get('id', data.get('message_id', f'rcs-in-{int(time.time())}'))
+    else:
+        # Fallback: try to extract whatever we can
+        identity = data.get('channel_identity', {}).get('identity', '')
+        contact_id = data.get('contact_id', '')
+        conversation_id = data.get('conversation_id', '')
+        content = json.dumps(data)[:500]
+        msg_id = data.get('message_id', f'rcs-in-{int(time.time())}')
+
     accepted_time = data.get('accepted_time', '')
-
-    # Extract message content
-    text_msg = message.get('text_message', {})
-    content = text_msg.get('text', '')
-    if not content:
-        content = json.dumps(message)[:500]
-
     now = int(time.time())
-    msg_id = data.get('message_id', f'rcs-in-{now}')
 
     # Look up contactId by phone number
     if not contact_id and identity:
@@ -189,6 +265,7 @@ def _process_inbound(data: Dict, request_id: str):
         'messageId': msg_id,
         'identity': identity[-4:] if identity else '',
         'contactId': contact_id,
+        'content': content[:50],
         'contentLen': len(content),
         'requestId': request_id,
     }))
@@ -201,7 +278,7 @@ def _process_inbound(data: Dict, request_id: str):
             'direction': 'INBOUND',
             'channel': 'RCS',
             'phoneNumber': identity.replace('+', ''),
-            'content': content,
+            'content': content[:2000],
             'status': 'received',
             'provider': 'sinch-rcs',
             'conversationId': conversation_id or 'none',

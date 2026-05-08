@@ -1084,6 +1084,7 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
     WhatsApp: wd_menu template from WABA1 with VIDEO header
     
     All sent notifications are stored in WhatsAppOutboundTable for inbox visibility.
+    After sending, updates the CDR record with trigger metadata for dashboard display.
     """
     try:
         caller = cdr.get('callerNumber', '')
@@ -1097,6 +1098,12 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         # Look up contactId for inbox storage
         contact_id = _lookup_contact_id(clean_caller)
 
+        # Track what was sent for CDR update
+        sms_message_id = ''
+        rcs_message_id = ''
+        wa_message_id = ''
+        now_ts = int(time.time())
+
         # ── 0. Log Airtel IVR SMS to inbox (Airtel sends it directly, we just record it) ──
         session_id = cdr.get('vmSessionId', '') or cdr.get('clientCorrelationId', '')
         ivr_sms_content = (
@@ -1105,8 +1112,9 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
             "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n"
             "We'll review it and follow up if needed."
         )
+        sms_message_id = f"airtel_ivr_sms_{session_id}_{now_ts}"
         _store_to_inbox(
-            message_id=f"airtel_ivr_sms_{session_id}_{int(time.time())}",
+            message_id=sms_message_id,
             contact_id=contact_id,
             contact_phone=clean_caller,
             content=ivr_sms_content,
@@ -1124,8 +1132,9 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
                 rcs_result = send_rcs_ivr_notification(clean_caller, request_id)
                 rcs_sent = rcs_result.get('success', False)
                 if rcs_sent:
+                    rcs_message_id = rcs_result.get('message_id', '')
                     _store_to_inbox(
-                        message_id=rcs_result.get('message_id', ''),
+                        message_id=rcs_message_id,
                         contact_id=contact_id,
                         contact_phone=clean_caller,
                         content='[RCS notification] WECARE.DIGITAL selfservice',
@@ -1172,19 +1181,19 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
             }, method='POST')
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode())
-                wamid = result.get('messages', [{}])[0].get('id', '')
+                wa_message_id = result.get('messages', [{}])[0].get('id', '')
                 logger.info(json.dumps({
                     'event': 'cdr_whatsapp_template_sent',
                     'template': 'wd_menu',
                     'caller': caller,
-                    'wamid': wamid,
+                    'wamid': wa_message_id,
                     'rcs_sent': rcs_sent,
                     'requestId': request_id,
                 }))
 
                 # ── Store WhatsApp notification in inbox ──
                 _store_to_inbox(
-                    message_id=wamid,
+                    message_id=wa_message_id,
                     contact_id=contact_id,
                     contact_phone=clean_caller,
                     content='[wd_menu template] Thanks for contacting WECARE.DIGITAL!',
@@ -1192,11 +1201,69 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
                     status='sent',
                     message_type='cdr_inbound',
                     phone_number_id=WABA1_PHONE,
-                    wamid=wamid,
+                    wamid=wa_message_id,
                     request_id=request_id,
                 )
         except Exception as e:
             logger.warning(f'CDR WhatsApp wd_menu failed: {e}')
+
+        # ── 3. Update CDR record with trigger metadata for dashboard display ──
+        cdr_id = cdr.get('id', '')
+        if cdr_id:
+            try:
+                table = dynamodb.Table(VOICE_CDR_TABLE)
+                update_expr_parts = []
+                expr_values = {}
+
+                # SMS trigger (Airtel IVR always sends SMS on disconnect)
+                update_expr_parts.append('smsTriggered = :smsT')
+                expr_values[':smsT'] = True
+                update_expr_parts.append('smsMessageId = :smsId')
+                expr_values[':smsId'] = sms_message_id
+                update_expr_parts.append('smsDltTemplateId = :smsDlt')
+                expr_values[':smsDlt'] = '1007277993798259629'
+                update_expr_parts.append('smsContent = :smsCont')
+                expr_values[':smsCont'] = ivr_sms_content[:200]
+                update_expr_parts.append('smsTimestamp = :smsTs')
+                expr_values[':smsTs'] = str(now_ts)
+
+                # WhatsApp trigger
+                if wa_message_id:
+                    update_expr_parts.append('whatsappMessageTriggered = :waT')
+                    expr_values[':waT'] = True
+                    update_expr_parts.append('whatsappMessageId = :waId')
+                    expr_values[':waId'] = wa_message_id
+                    update_expr_parts.append('whatsappMessageContent = :waCont')
+                    expr_values[':waCont'] = '[wd_menu template] Thanks for contacting WECARE.DIGITAL!'
+                    update_expr_parts.append('whatsappMessageTimestamp = :waTs')
+                    expr_values[':waTs'] = str(now_ts)
+
+                # RCS trigger
+                if rcs_sent and rcs_message_id:
+                    update_expr_parts.append('rcsMessageTriggered = :rcsT')
+                    expr_values[':rcsT'] = True
+                    update_expr_parts.append('rcsMessageId = :rcsId')
+                    expr_values[':rcsId'] = rcs_message_id
+                    update_expr_parts.append('rcsMessageContent = :rcsCont')
+                    expr_values[':rcsCont'] = '[RCS notification] WECARE.DIGITAL selfservice'
+                    update_expr_parts.append('rcsMessageTimestamp = :rcsTs')
+                    expr_values[':rcsTs'] = str(now_ts)
+
+                table.update_item(
+                    Key={'id': cdr_id},
+                    UpdateExpression='SET ' + ', '.join(update_expr_parts),
+                    ExpressionAttributeValues=expr_values,
+                )
+                logger.info(json.dumps({
+                    'event': 'cdr_trigger_metadata_updated',
+                    'cdrId': cdr_id,
+                    'sms': True,
+                    'whatsapp': bool(wa_message_id),
+                    'rcs': rcs_sent,
+                    'requestId': request_id,
+                }))
+            except Exception as e:
+                logger.warning(f'CDR trigger metadata update failed (non-blocking): {e}')
 
     except Exception as e:
         logger.warning(f'CDR notification error: {e}')

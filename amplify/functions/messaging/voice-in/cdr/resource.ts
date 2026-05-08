@@ -5,7 +5,7 @@
 
 import { defineFunction } from '@aws-amplify/backend';
 
-export const voiceCdr = defineFunction({
+export const voiceCdr = defineFunction( {
   name: 'wecare-voice-in-cdr',
   entry: './handler.py',
   runtime: 20,
@@ -15,5 +15,6 @@ export const voiceCdr = defineFunction({
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
     VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
+    SINCH_RCS_ENABLED: 'true',
   },
-});
+} );

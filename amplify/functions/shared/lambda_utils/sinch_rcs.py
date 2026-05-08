@@ -77,11 +77,16 @@ def _load_sinch_credentials() -> dict:
 
 
 def _normalize_phone(phone: str) -> str:
-    """Normalize phone to E.164 format (+91XXXXXXXXXX)."""
+    """Normalize phone for RCS — Sinch requires digits only WITHOUT + prefix.
+    
+    Sinch Conversation API identity format: "919903300044" (no + prefix).
+    If + is included, template messages FAIL silently.
+    """
     clean = phone.replace('+', '').replace(' ', '').replace('-', '')
     if len(clean) == 10:
         clean = '91' + clean
-    return '+' + clean if not clean.startswith('+') else clean
+    # NEVER return with + prefix — Sinch RCS rejects it for template messages
+    return clean
 
 
 def send_rcs_text(phone: str, text: str, correlation_id: str = '') -> dict:
@@ -170,58 +175,155 @@ def send_rcs_card(phone: str, title: str, description: str,
     return _send_sinch_message(creds, payload)
 
 
+def send_rcs_template(phone: str, template_id: str = 'wecaremenu',
+                     language: str = 'en', parameters: dict = None,
+                     correlation_id: str = '') -> dict:
+    """Send an RCS template message via Sinch Conversation API.
+
+    Uses the approved template registered on Sinch (e.g. 'wecaremenu').
+    Returns: {'success': True, 'message_id': '...'} or {'success': False, 'error': '...'}
+    """
+    if not is_rcs_enabled():
+        return {'success': False, 'error': 'RCS not enabled'}
+
+    creds = _load_sinch_credentials()
+    if not creds.get('project_id') or not creds.get('app_id') or not creds.get('oauth_token'):
+        return {'success': False, 'error': 'Sinch credentials not configured'}
+
+    e164 = _normalize_phone(phone)
+    payload = {
+        'app_id': creds['app_id'],
+        'recipient': {
+            'identified_by': {
+                'channel_identities': [
+                    {'channel': 'RCS', 'identity': e164}
+                ]
+            }
+        },
+        'message': {
+            'template_message': {
+                'channel_template': {
+                    'RCS': {
+                        'template_id': template_id,
+                        'language_code': language,
+                    }
+                }
+            }
+        },
+        'channel_priority_order': ['RCS'],
+    }
+    if parameters:
+        payload['message']['template_message']['channel_template']['RCS']['parameters'] = parameters
+    if correlation_id:
+        payload['correlation_id'] = correlation_id
+
+    return _send_sinch_message(creds, payload)
+
+
 def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
     """Send the standard IVR/call disconnect RCS notification.
 
-    Rich card with video + Submit Request + WhatsApp Us buttons.
-    Used by: CDR inbound calls, WhatsApp calling disconnect.
+    Uses the approved 'wecaremenu' template (rich_card, Jio vendor).
+    Template ID: wecaremenu | Status: approved | Enterprise: WECARE DIGITAL
+    Content: Video card + "Get Started" button → https://r.wecare.digital/getstarted
+
+    Fallback: If template send fails, sends as direct card_message.
+    Used by: CDR inbound calls, WhatsApp calling disconnect, WABA notifications.
     """
-    return send_rcs_card(
+    # Primary: Send via approved 'wecaremenu' template
+    result = send_rcs_template(
         phone=phone,
-        title='WECARE.DIGITAL',
-        description='Thanks for contacting WECARE.DIGITAL! Submit your request or message us on WhatsApp.',
-        media_url='https://app.wecare.digital/stream/media/m/selfservice.mp4',
-        choices=[
-            {'title': 'Submit Request', 'url': 'https://wecare.digital/selfservice'},
-            {'title': 'WhatsApp Us', 'url': 'https://r.wecare.digital/wa'},
-        ],
+        template_id='wecaremenu',
         correlation_id=f'ivr_{request_id}' if request_id else '',
     )
+
+    # Fallback: If template fails, send as direct rich card
+    if not result.get('success'):
+        logger.info(f'wecaremenu template failed, falling back to card_message: {result.get("error", "")}')
+        result = send_rcs_card(
+            phone=phone,
+            title='Thanks for contacting WECARE.DIGITAL!',
+            description=(
+                'Submit your request here: https://wecare.digital/selfservice '
+                'or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n'
+                "We'll review it and follow up if needed.\nWECARE.DIGITAL"
+            ),
+            media_url='https://app.wecare.digital/stream/media/m/selfservice.mp4',
+            choices=[
+                {'title': 'Get Started', 'url': 'https://r.wecare.digital/getstarted'},
+            ],
+            correlation_id=f'ivr_{request_id}' if request_id else '',
+        )
+
+    return result
 
 
 def send_rcs_order_notification(phone: str, order_id: str = '',
                                  wd_order_id: str = '') -> dict:
     """Send order confirmation RCS notification.
 
-    Rich card with order details + Track Order + WhatsApp Us buttons.
+    Uses the approved 'wdorder' template (rich_card, MEDIUM height, Jio vendor).
+    Template: wdorder | Status: approved | Enterprise: WECARE DIGITAL
+    Content: Video card + "Get Started" button → https://r.wecare.digital/getstarted
     Used by: Wix store order events, order notification Lambda.
     """
-    desc = "Thanks for placing your order with WECARE.DIGITAL! Your order has been received. We'll review it and share updates shortly."
-    if wd_order_id:
-        desc = f"Order {wd_order_id} confirmed! " + desc
-
-    return send_rcs_card(
+    # Primary: Send via approved 'wdorder' template
+    result = send_rcs_template(
         phone=phone,
-        title='Order Confirmed — WECARE.DIGITAL',
-        description=desc,
-        choices=[
-            {'title': 'Track Order', 'url': 'https://wecare.digital/selfservice'},
-            {'title': 'WhatsApp Us', 'url': 'https://r.wecare.digital/wa'},
-        ],
+        template_id='wdorder',
         correlation_id=f'order_{order_id}' if order_id else '',
     )
+
+    # Fallback: direct card with order-specific content
+    if not result.get('success'):
+        logger.info(f'wdorder template failed, falling back to card_message: {result.get("error", "")}')
+        desc = (
+            "Your order has been received. We'll review it and share updates shortly.\n\n"
+            "Need help? Submit a request here: https://wecare.digital/selfservice "
+            "or message / voice note us on WhatsApp: https://r.wecare.digital/wa.\n"
+            "WECARE.DIGITAL"
+        )
+        if wd_order_id:
+            desc = f"Order {wd_order_id} confirmed!\n\n" + desc
+
+        result = send_rcs_card(
+            phone=phone,
+            title='Thanks for placing your order with WECARE.DIGITAL!',
+            description=desc,
+            media_url='https://app.wecare.digital/stream/media/m/selfservice.mp4',
+            choices=[
+                {'title': 'Get Started', 'url': 'https://r.wecare.digital/getstarted'},
+            ],
+            correlation_id=f'order_{order_id}' if order_id else '',
+        )
+
+    return result
 
 
 def send_rcs_wa_alert(phone: str, request_id: str = '') -> dict:
     """Send WA-Alert style RCS notification.
 
-    Text message nudging user to check WhatsApp.
+    Uses the approved 'waalert' template (rich_card, MEDIUM height, Jio vendor).
+    Template: waalert | Status: approved | Enterprise: WECARE DIGITAL
+    Content: Video card nudging user to check WhatsApp + "Get Started" button.
     """
-    return send_rcs_text(
+    # Primary: Send via approved 'waalert' template
+    result = send_rcs_template(
         phone=phone,
-        text="We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
+        template_id='waalert',
         correlation_id=f'wa_alert_{request_id}' if request_id else '',
     )
+
+    # Fallback: direct text message
+    if not result.get('success'):
+        logger.info(f'waalert template failed, falling back to text: {result.get("error", "")}')
+        result = send_rcs_text(
+            phone=phone,
+            text="We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
+            correlation_id=f'wa_alert_{request_id}' if request_id else '',
+        )
+
+    return result
 
 
 def _send_sinch_message(creds: dict, payload: dict) -> dict:
