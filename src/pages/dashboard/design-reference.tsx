@@ -51,7 +51,7 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                         </p>
                         <div style={ { marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' } }>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.lime, color: C.primary, fontSize: 12, fontWeight: 600 } }>v3.0</span>
-                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>33 Sections</span>
+                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>35 Sections</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>WCAG 2.1 AA</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>Mobile-First</span>
                         </div>
@@ -1267,6 +1267,210 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                                 All CSS is centralized in <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>tokens.css</code> + <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>inner-ux.css</code> + <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>inner-pages.css</code>.
                                 Never add inline colors or custom border-radius — always use the design tokens.
                             </p>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              34. MICRO-COMPONENTS (Toggle, Pagination, Kbd, Accordion, JSON)
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>34. Micro-Components</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Small reusable patterns used across multiple pages.</p>
+
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 } }>
+                            {/* Toggle Switch */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Toggle Switch</h4>
+                                <div style={ { display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 } }>
+                                    <div style={ { width: 34, height: 18, borderRadius: 9, background: C.primary, position: 'relative', cursor: 'pointer' } }><div style={ { position: 'absolute', top: 2, left: 17, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' } } /></div>
+                                    <span style={ { fontSize: 13 } }>Enabled</span>
+                                </div>
+                                <div style={ { display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 } }>
+                                    <div style={ { width: 34, height: 18, borderRadius: 9, background: '#d1d5db', position: 'relative', cursor: 'pointer' } }><div style={ { position: 'absolute', top: 2, left: 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' } } /></div>
+                                    <span style={ { fontSize: 13 } }>Disabled</span>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>34×18px, radius 9px. ON: #1a3a2a. OFF: #d1d5db. Dot: 14px white circle.</div>
+                            </div>
+
+                            {/* Pagination */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Pagination</h4>
+                                <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 } }>
+                                    { [ '««', '‹', null, '›', '»»' ].map( ( btn, i ) => btn ? (
+                                        <button key={ i } style={ { width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', border: '1px solid #e5e5e5', borderRadius: 6, fontSize: 12, cursor: 'pointer' } }>{ btn }</button>
+                                    ) : (
+                                        <span key={ i } style={ { fontSize: 12, color: '#374151', padding: '0 8px', fontWeight: 500 } }>Page 1 of 12</span>
+                                    ) ) }
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>28×28px buttons, 6px radius. Disabled: opacity 0.4. Center: page info text.</div>
+                            </div>
+
+                            {/* Keyboard Shortcut Keys */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Keyboard Shortcuts</h4>
+                                <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 } }>
+                                    { [ [ 'Ctrl', 'K' ], [ 'Ctrl', 'S' ], [ 'Ctrl', '↵' ], [ '?' ], [ 'Esc' ] ].map( ( keys, i ) => (
+                                        <div key={ i } style={ { display: 'flex', gap: 2 } }>
+                                            { keys.map( ( k, j ) => (
+                                                <kbd key={ j } style={ { display: 'inline-block', padding: '3px 8px', background: '#f9fafb', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 11, fontFamily: 'monospace', fontWeight: 600, color: '#374151', boxShadow: '0 1px 0 #d1d5db' } }>{ k }</kbd>
+                                            ) ) }
+                                        </div>
+                                    ) ) }
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2 } }>kbd: #f9fafb bg, 1px border, 4px radius, bottom shadow. Trigger: ? key opens modal.</div>
+                            </div>
+
+                            {/* Collapsible / Accordion */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Collapsible / Accordion</h4>
+                                <div style={ { border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' } }>
+                                    <div style={ { padding: '10px 14px', background: C.bg2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontWeight: 500, fontSize: 13 } }>
+                                        <span>Keyword Triggers (3)</span><span>▼</span>
+                                    </div>
+                                    <div style={ { padding: '10px 14px', fontSize: 12, color: C.text2, borderTop: `1px solid ${C.border}` } }>
+                                        Expanded content goes here...
+                                    </div>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Header: #f9fafb bg. Arrow rotates 180° on open. Content: slide-down 150ms.</div>
+                            </div>
+
+                            {/* JSON Preview Block */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>JSON / Code Preview</h4>
+                                <div style={ { background: '#1a1a1a', borderRadius: 8, padding: 12, position: 'relative' } }>
+                                    <button style={ { position: 'absolute', top: 8, right: 8, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, padding: '4px 8px', color: '#9ca3af', fontSize: 11, cursor: 'pointer' } }>Copy</button>
+                                    <pre style={ { margin: 0, fontSize: 11, color: '#e5e7eb', fontFamily: 'monospace', whiteSpace: 'pre-wrap' } }>{ `{\n  "type": "list",\n  "header": "Menu",\n  "sections": [...]\n}` }</pre>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Dark bg #1a1a1a, 8px radius, monospace 11px. Copy button top-right.</div>
+                            </div>
+
+                            {/* Mode Toggle (Segmented Control) */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Segmented Control</h4>
+                                <div style={ { display: 'inline-flex', background: C.bg2, borderRadius: 10, padding: 3, border: `1px solid ${C.border}` } }>
+                                    <button style={ { padding: '8px 16px', borderRadius: 8, border: 'none', background: C.lime, color: C.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer' } }>Single</button>
+                                    <button style={ { padding: '8px 16px', borderRadius: 8, border: 'none', background: 'transparent', color: C.text2, fontSize: 13, fontWeight: 500, cursor: 'pointer' } }>Bulk</button>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Container: #f9fafb, 10px radius. Active: lime fill. Inactive: transparent.</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              35. ADVANCED PAGE PATTERNS (Timeline, Inline Edit, Bulk, Hub Grid)
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>35. Advanced Page Patterns</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Complex patterns used in Contacts, SEO Hub, WhatsApp Flows, and Store pages.</p>
+
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 } }>
+                            {/* Activity Timeline */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Activity Timeline</h4>
+                                <div style={ { paddingLeft: 20, borderLeft: `2px solid ${C.lime}` } }>
+                                    { [
+                                        { icon: '✏️', text: 'Name updated: Rahul → Rahul Sharma', time: '2 min ago' },
+                                        { icon: '📱', text: 'WhatsApp message sent', time: '15 min ago' },
+                                        { icon: '💳', text: 'Payment ₹499 received', time: '1 hour ago' },
+                                        { icon: '👤', text: 'Contact created', time: '2 days ago' },
+                                    ].map( ( item, i ) => (
+                                        <div key={ i } style={ { position: 'relative', marginBottom: 16, paddingLeft: 16 } }>
+                                            <div style={ { position: 'absolute', left: -29, top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: `2px solid ${C.lime}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 } }>{ item.icon }</div>
+                                            <div style={ { fontSize: 13, color: C.text } }>{ item.text }</div>
+                                            <div style={ { fontSize: 11, color: C.textMuted } }>{ item.time }</div>
+                                        </div>
+                                    ) ) }
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Left border: 2px lime. Dots: 20px circle on border. Used in contact detail panel.</div>
+                            </div>
+
+                            {/* Bulk Selection + Actions */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Bulk Selection + Action Bar</h4>
+                                <div style={ { background: C.lime, borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 } }>
+                                    <span style={ { fontSize: 13, fontWeight: 600, color: C.primary } }>3 selected</span>
+                                    <div style={ { display: 'flex', gap: 8 } }>
+                                        <button style={ { padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.primary}`, background: '#fff', fontSize: 12, cursor: 'pointer' } }>Tag</button>
+                                        <button style={ { padding: '6px 12px', borderRadius: 8, border: '1px solid #dc2626', background: '#fff', color: '#dc2626', fontSize: 12, cursor: 'pointer' } }>Delete</button>
+                                        <button style={ { padding: '6px 12px', borderRadius: 8, border: `1px solid ${C.primary}`, background: '#fff', fontSize: 12, cursor: 'pointer' } }>Export</button>
+                                    </div>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2 } }>Appears above table when checkboxes selected. Lime bg bar. Actions: Tag, Delete, Export. Dismiss: deselect all.</div>
+                            </div>
+
+                            {/* Hub Navigation Grid */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Hub Navigation Grid (SEO style)</h4>
+                                <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } }>
+                                    { [
+                                        { icon: '📝', label: 'Blog SEO', desc: 'AI audit for 108 posts' },
+                                        { icon: '📄', label: 'Site Pages', desc: '37 public pages' },
+                                        { icon: '🛒', label: 'Products', desc: 'Product schema' },
+                                        { icon: '⚙️', label: 'System', desc: 'noindex monitoring' },
+                                    ].map( ( item, i ) => (
+                                        <div key={ i } style={ { padding: '12px', border: `1.5px solid ${C.lime}`, borderRadius: 12, cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' } }>
+                                            <span style={ { fontSize: 20 } }>{ item.icon }</span>
+                                            <div><div style={ { fontSize: 13, fontWeight: 600 } }>{ item.label }</div><div style={ { fontSize: 11, color: C.text2 } }>{ item.desc }</div></div>
+                                        </div>
+                                    ) ) }
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Card grid with emoji icon + title + description. Lime border, 12px radius. Hover: border → dark green.</div>
+                            </div>
+
+                            {/* Inline Edit */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Inline Edit (Click-to-Edit)</h4>
+                                <div style={ { border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' } }>
+                                    <div style={ { display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: `1px solid ${C.border}` } }>
+                                        <span style={ { flex: 1, fontSize: 13 } }>Rahul Sharma</span>
+                                        <span style={ { fontSize: 11, color: C.textMuted } }>click to edit</span>
+                                    </div>
+                                    <div style={ { display: 'flex', alignItems: 'center', padding: '6px 10px', background: '#fffbeb', borderBottom: `1px solid ${C.border}` } }>
+                                        <input type="text" defaultValue="Priya Patel" style={ { flex: 1, height: 32, border: `1.5px solid ${C.lime}`, borderRadius: 8, padding: '0 8px', fontSize: 13 } } readOnly />
+                                        <span style={ { marginLeft: 8, fontSize: 11, color: C.textMuted } }>↵ save · Esc cancel</span>
+                                    </div>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Click cell → input appears. Yellow bg (#fffbeb) while editing. Enter saves, Escape cancels.</div>
+                            </div>
+
+                            {/* Tag System */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Tag System</h4>
+                                <div style={ { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 } }>
+                                    { [
+                                        { label: 'VIP', color: '#0f2a1d' },
+                                        { label: 'Customer', color: '#1a3a2a' },
+                                        { label: 'Lead', color: '#0f2a1d' },
+                                        { label: 'Partner', color: '#34d399' },
+                                    ].map( ( tag, i ) => (
+                                        <span key={ i } style={ { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: tag.color, color: '#fff' } }>
+                                            { tag.label } <span style={ { cursor: 'pointer', opacity: 0.7 } }>✕</span>
+                                        </span>
+                                    ) ) }
+                                    <button style={ { padding: '3px 10px', borderRadius: 10, fontSize: 11, border: `1px dashed ${C.borderDark}`, background: 'transparent', color: C.text2, cursor: 'pointer' } }>+ Add</button>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2 } }>Colored pills with remove ✕. Add button: dashed border. Popover menu for tag selection. Colors from TAG_COLORS map.</div>
+                            </div>
+
+                            {/* Detail Side Panel */ }
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Detail Side Panel</h4>
+                                <div style={ { display: 'flex', border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', height: 160 } }>
+                                    <div style={ { flex: 1, padding: 12, fontSize: 12, color: C.text2 } }>
+                                        <div style={ { marginBottom: 4 } }>← Table content</div>
+                                        <div style={ { height: 8, width: '80%', background: '#f5f5f5', borderRadius: 3, marginBottom: 6 } } />
+                                        <div style={ { height: 8, width: '60%', background: '#f5f5f5', borderRadius: 3, marginBottom: 6 } } />
+                                        <div style={ { height: 8, width: '70%', background: '#f5f5f5', borderRadius: 3 } } />
+                                    </div>
+                                    <div style={ { width: 180, borderLeft: `1px solid ${C.border}`, padding: 12, background: C.bg2 } }>
+                                        <div style={ { fontSize: 12, fontWeight: 600, marginBottom: 8 } }>Contact Detail</div>
+                                        <div style={ { fontSize: 11, color: C.text2, lineHeight: 2 } }>
+                                            Name: Rahul<br />Phone: +91...<br />Email: r@...<br />Tags: VIP
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Right panel slides in on row click. Width: 320-400px. Close: ✕ button or click outside. #f9fafb bg.</div>
+                            </div>
                         </div>
                     </section>
 
