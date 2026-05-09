@@ -51,7 +51,7 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                         </p>
                         <div style={ { marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' } }>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.lime, color: C.primary, fontSize: 12, fontWeight: 600 } }>v3.0</span>
-                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>28 Sections</span>
+                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>33 Sections</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>WCAG 2.1 AA</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>Mobile-First</span>
                         </div>
@@ -1028,6 +1028,245 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                                     <tr><td>Momentum Scrolling</td><td>-webkit-overflow-scrolling: touch</td><td>tokens.css</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              29. RICH TEXT EDITOR
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>29. Rich Text Editor (Message Composer)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>WhatsApp-style editor with templates, variables, AI suggestions, TTS, payment dialog. Used in all messaging pages.</p>
+
+                        <div className="inner-card" style={ { padding: 0, overflow: 'hidden' } }>
+                            {/* Toolbar */ }
+                            <div style={ { display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', borderBottom: `1.5px solid ${C.lime}`, background: C.bg2 } }>
+                                { [ '📋 Template', '① Variable', '🤖 AI', '🎤 TTS', '💳 Pay', '📎 Attach', '😀 Emoji', '📍 Location' ].map( ( btn, i ) => (
+                                    <button key={ i } style={ { background: 'none', border: '1px solid transparent', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: C.text2, fontWeight: 500, whiteSpace: 'nowrap' } }>{ btn }</button>
+                                ) ) }
+                            </div>
+                            {/* Editor Area */ }
+                            <div style={ { padding: '12px 16px', minHeight: 80, fontSize: 14, color: C.textMuted } }>
+                                Type a message... or select a template above
+                            </div>
+                            {/* Footer */ }
+                            <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderTop: `1px solid ${C.border}` } }>
+                                <span style={ { fontSize: 12, color: C.textMuted } }>0 / 4096 characters</span>
+                                <button style={ { width: 40, height: 40, borderRadius: '50%', background: C.lime, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 } }>➤</button>
+                            </div>
+                        </div>
+
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 } }>
+                            <div style={ { background: C.bg2, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '12px 16px', fontSize: 13 } }>
+                                <strong>Editor Specs:</strong>
+                                <ul style={ { margin: '8px 0 0', padding: '0 0 0 16px', lineHeight: 2 } }>
+                                    <li>Border: 1.5px solid #d1f470, radius 13px</li>
+                                    <li>Toolbar: #f9fafb bg, lime bottom border</li>
+                                    <li>Toolbar buttons: 6px 10px padding, 6px radius</li>
+                                    <li>Send button: 40px circle, lime bg</li>
+                                    <li>Max chars: 4096 (WhatsApp limit)</li>
+                                    <li>Template dropdown: overlay panel, status badges</li>
+                                </ul>
+                            </div>
+                            <div style={ { background: C.bg2, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '12px 16px', fontSize: 13 } }>
+                                <strong>Sub-Panels:</strong>
+                                <ul style={ { margin: '8px 0 0', padding: '0 0 0 16px', lineHeight: 2 } }>
+                                    <li>Template picker: search + list with status badges</li>
+                                    <li>Variable input: numbered fields (①②③④)</li>
+                                    <li>AI suggestions: auto-complete from Bedrock</li>
+                                    <li>TTS panel: language + voice dropdowns</li>
+                                    <li>Payment dialog: items, GST, phone, order ID</li>
+                                    <li>Emoji picker: grid overlay</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              30. WHATSAPP INBOX SPLIT-VIEW
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>30. WhatsApp Inbox (Split-View Layout)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Two-panel messaging layout. Contacts sidebar + chat area. Full-height, no scroll on outer container.</p>
+
+                        <div style={ { border: `2px solid ${C.lime}`, borderRadius: 16, overflow: 'hidden', height: 360, display: 'flex' } }>
+                            {/* Contacts Sidebar */ }
+                            <div style={ { width: 280, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 } }>
+                                <div style={ { padding: '12px', borderBottom: `1px solid ${C.border}` } }>
+                                    <input type="text" placeholder="🔍 Search contacts..." style={ { width: '100%', height: 36, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '0 12px', fontSize: 13 } } readOnly />
+                                </div>
+                                { [
+                                    { name: 'Rahul Sharma', msg: 'Thanks for the update!', time: '2m', active: true, color: '#4f46e5' },
+                                    { name: 'Priya Patel', msg: 'When will my order arrive?', time: '15m', active: false, color: '#059669' },
+                                    { name: 'Amit Kumar', msg: 'Payment confirmed ✓', time: '1h', active: false, color: '#dc2626' },
+                                    { name: 'Neha Singh', msg: 'Can I reschedule?', time: '3h', active: false, color: '#d97706' },
+                                ].map( ( c, i ) => (
+                                    <div key={ i } style={ { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: c.active ? '#f3f4f6' : 'transparent', borderLeft: c.active ? `3px solid ${C.primary}` : '3px solid transparent', cursor: 'pointer' } }>
+                                        <div style={ { width: 36, height: 36, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 600, flexShrink: 0 } }>{ c.name[ 0 ] }</div>
+                                        <div style={ { flex: 1, minWidth: 0 } }>
+                                            <div style={ { fontSize: 13, fontWeight: c.active ? 600 : 500, color: C.text } }>{ c.name }</div>
+                                            <div style={ { fontSize: 12, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }>{ c.msg }</div>
+                                        </div>
+                                        <span style={ { fontSize: 11, color: C.textMuted } }>{ c.time }</span>
+                                    </div>
+                                ) ) }
+                            </div>
+                            {/* Chat Area */ }
+                            <div style={ { flex: 1, display: 'flex', flexDirection: 'column' } }>
+                                <div style={ { padding: '10px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 } }>
+                                    <div style={ { width: 32, height: 32, borderRadius: '50%', background: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 600 } }>R</div>
+                                    <div><div style={ { fontSize: 14, fontWeight: 600 } }>Rahul Sharma</div><div style={ { fontSize: 11, color: C.textMuted } }>+91 98765 43210 • Online</div></div>
+                                </div>
+                                <div style={ { flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'flex-end', background: '#fafafa' } }>
+                                    <div style={ { alignSelf: 'flex-start', background: '#fff', border: `1px solid ${C.border}`, borderRadius: '12px 12px 12px 4px', padding: '8px 12px', fontSize: 13, maxWidth: '70%' } }>Hi, when will my order be delivered?</div>
+                                    <div style={ { alignSelf: 'flex-end', background: '#e5e7eb', borderRadius: '12px 12px 4px 12px', padding: '8px 12px', fontSize: 13, maxWidth: '70%' } }>Your order #WD-1234 is out for delivery. Expected by 4 PM today.</div>
+                                    <div style={ { alignSelf: 'flex-start', background: '#fff', border: `1px solid ${C.border}`, borderRadius: '12px 12px 12px 4px', padding: '8px 12px', fontSize: 13, maxWidth: '70%' } }>Thanks for the update! 👍</div>
+                                </div>
+                                <div style={ { padding: '8px 12px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 8, alignItems: 'center' } }>
+                                    <input type="text" placeholder="Type a message..." style={ { flex: 1, height: 36, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '0 12px', fontSize: 13 } } readOnly />
+                                    <button style={ { width: 36, height: 36, borderRadius: '50%', background: C.lime, border: 'none', cursor: 'pointer', fontSize: 14 } }>➤</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={ { marginTop: 16, background: C.bg2, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '12px 16px', fontSize: 13 } }>
+                            <strong>Layout Rules:</strong> Contacts sidebar: 280-320px fixed width. Chat area: flex: 1. Full height (calc 100vh - header). Mobile: stack vertically, contacts 35vh max. Active contact: #f3f4f6 bg + 3px left border. Avatar: color-coded initials (first letter). Message bubbles: inbound (white, left-aligned) / outbound (grey, right-aligned).
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              31. MESSAGING PAGE LAYOUTS (SMS / Voice / Email)
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>31. Messaging Page Layouts (SMS / Voice / Email / RCS)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>All messaging pages follow the same split-view pattern with channel-specific features.</p>
+
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 } }>
+                            { [
+                                { channel: '💬 SMS', features: [ 'Contact list + thread view', 'Character counter (160/SMS)', 'Sender ID selection', 'DLT template compliance', 'Delivery reports' ] },
+                                { channel: '📞 Voice', features: [ 'Dialer keypad (16px keys)', 'Call history list', 'Active call UI (timer, mute, hold)', 'Voice recording playback', 'TTS outbound calls' ] },
+                                { channel: '📧 Email (SES)', features: [ 'Rich HTML editor', 'Subject line input', 'Attachment support', 'Template selection', 'Bounce/complaint tracking' ] },
+                                { channel: '📱 RCS', features: [ 'Rich card composer', 'Carousel builder', 'Suggested actions/replies', 'Media upload (image/video)', 'Template management (Sinch)' ] },
+                            ].map( ( ch, i ) => (
+                                <div key={ i } className="inner-card">
+                                    <h4 style={ { margin: '0 0 12px', fontSize: 16, fontWeight: 600 } }>{ ch.channel }</h4>
+                                    <ul style={ { margin: 0, padding: '0 0 0 16px', fontSize: 13, color: C.text2, lineHeight: 2 } }>
+                                        { ch.features.map( ( f, j ) => <li key={ j }>{ f }</li> ) }
+                                    </ul>
+                                </div>
+                            ) ) }
+                        </div>
+
+                        <div style={ { marginTop: 20, background: C.bg2, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '12px 16px', fontSize: 13 } }>
+                            <strong>Consistency Rules (All Channels):</strong>
+                            <ul style={ { margin: '8px 0 0', padding: '0 0 0 16px', lineHeight: 2 } }>
+                                <li>Same split-view layout as WhatsApp (contacts left, content right)</li>
+                                <li>Same contact row design (avatar + name + last message + time)</li>
+                                <li>Same lime border on inputs, 13px radius on all elements</li>
+                                <li>Same tab pattern for sub-views (Inbox / Campaign / Board)</li>
+                                <li>Same toast notifications for send success/failure</li>
+                                <li>Same empty state when no contacts/messages</li>
+                                <li>Same skeleton loading during data fetch</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              32. PAY / PAYMENT PAGES
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>32. Payment Pages (Pay / Pay Flow / Pay Link)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Razorpay integration. Payment link generation, WhatsApp delivery, status tracking.</p>
+
+                        <div className="inner-card" style={ { padding: 0, overflow: 'hidden' } }>
+                            <div style={ { padding: '16px 20px', borderBottom: `1px solid ${C.border}` } }>
+                                <h4 style={ { margin: 0, fontSize: 16, fontWeight: 600 } }>Payment Link Generator</h4>
+                            </div>
+                            <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 } }>
+                                {/* Form Side */ }
+                                <div style={ { padding: 20, borderRight: `1px solid ${C.border}` } }>
+                                    <div style={ { marginBottom: 16 } }>
+                                        <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Amount (₹)</label>
+                                        <input type="text" value="₹ 499.00" style={ { width: '100%', height: 44, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '0 12px', fontSize: 14 } } readOnly />
+                                    </div>
+                                    <div style={ { marginBottom: 16 } }>
+                                        <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Description</label>
+                                        <input type="text" value="Service Request #SR-001" style={ { width: '100%', height: 44, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '0 12px', fontSize: 14 } } readOnly />
+                                    </div>
+                                    <div style={ { marginBottom: 16 } }>
+                                        <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Send to</label>
+                                        <input type="text" value="+91 98765 43210" style={ { width: '100%', height: 44, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '0 12px', fontSize: 14, fontFamily: 'monospace' } } readOnly />
+                                    </div>
+                                    <button className="btn btn-primary btn-md" style={ { width: '100%' } }>Generate & Send via WhatsApp</button>
+                                </div>
+                                {/* Preview Side */ }
+                                <div style={ { padding: 20, background: C.bg2 } }>
+                                    <div style={ { fontSize: 12, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', marginBottom: 12 } }>Preview</div>
+                                    <div style={ { background: '#fff', border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: 16 } }>
+                                        <div style={ { fontSize: 14, fontWeight: 600, marginBottom: 8 } }>Payment Request</div>
+                                        <div style={ { fontSize: 13, color: C.text2, marginBottom: 4 } }>Service Request #SR-001</div>
+                                        <div style={ { fontSize: 20, fontWeight: 700, color: C.primary, marginBottom: 12 } }>₹ 499.00</div>
+                                        <div style={ { background: C.primary, color: '#fff', textAlign: 'center', padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 600 } }>Pay Now →</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              33. PAGE CONSISTENCY CHECKLIST
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>33. Page Consistency Checklist</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Every inner page MUST follow these rules for visual consistency across the platform.</p>
+
+                        <div className="table-container">
+                            <table className="inner-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Rule</th>
+                                        <th>Implementation</th>
+                                        <th>Check</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>1</td><td>Layout wrapper</td><td>Every page uses { '<Layout>' } component</td><td>✅</td></tr>
+                                    <tr><td>2</td><td>SEO component</td><td>Every page includes { '<SEO title="" />' }</td><td>✅</td></tr>
+                                    <tr><td>3</td><td>Page title</td><td>h1, 28px, weight 700, color #1a3a2a</td><td>✅</td></tr>
+                                    <tr><td>4</td><td>Button radius</td><td>All buttons: border-radius 13px</td><td>✅</td></tr>
+                                    <tr><td>5</td><td>Button height</td><td>Min-height 44px (touch target)</td><td>✅</td></tr>
+                                    <tr><td>6</td><td>Input borders</td><td>1.5px solid #d1f470, focus: #1a3a2a</td><td>✅</td></tr>
+                                    <tr><td>7</td><td>Input radius</td><td>border-radius: 13px</td><td>✅</td></tr>
+                                    <tr><td>8</td><td>Card borders</td><td>1.5px solid #d1f470, radius 16px</td><td>✅</td></tr>
+                                    <tr><td>9</td><td>Table headers</td><td>Lime bg (#d1f470), uppercase, 12px</td><td>✅</td></tr>
+                                    <tr><td>10</td><td>Active tabs</td><td>Lime fill (#d1f470), dark text (#1a3a2a)</td><td>✅</td></tr>
+                                    <tr><td>11</td><td>Sidebar active</td><td>Lime left-border 3px + rgba bg</td><td>✅</td></tr>
+                                    <tr><td>12</td><td>Toast position</td><td>Top-right, max 3 visible</td><td>✅</td></tr>
+                                    <tr><td>13</td><td>Empty states</td><td>Icon 80px + title + desc + CTA button</td><td>✅</td></tr>
+                                    <tr><td>14</td><td>Loading</td><td>Skeleton for initial, spinner for refresh</td><td>✅</td></tr>
+                                    <tr><td>15</td><td>Error handling</td><td>ErrorState component with retry button</td><td>✅</td></tr>
+                                    <tr><td>16</td><td>Confirm dialogs</td><td>Modal for all destructive actions</td><td>✅</td></tr>
+                                    <tr><td>17</td><td>Font family</td><td>Inter (system fallback)</td><td>✅</td></tr>
+                                    <tr><td>18</td><td>Monospace data</td><td>Phone numbers, IDs, ARNs use monospace</td><td>✅</td></tr>
+                                    <tr><td>19</td><td>Mobile inputs</td><td>font-size: 16px (prevent iOS zoom)</td><td>✅</td></tr>
+                                    <tr><td>20</td><td>Focus rings</td><td>0 0 0 3px rgba(26,58,42,0.3)</td><td>✅</td></tr>
+                                    <tr><td>21</td><td>Hover states</td><td>border-color → #1a3a2a, bg → #f9fafb</td><td>✅</td></tr>
+                                    <tr><td>22</td><td>Danger actions</td><td>Red border/text, never lime for errors</td><td>✅</td></tr>
+                                    <tr><td>23</td><td>One primary CTA</td><td>Max 1 lime-filled button per section</td><td>✅</td></tr>
+                                    <tr><td>24</td><td>Responsive grid</td><td>auto-fill minmax, stack on mobile</td><td>✅</td></tr>
+                                    <tr><td>25</td><td>Max content width</td><td>1400px centered on wide screens</td><td>✅</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style={ { marginTop: 20, background: C.bg2, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '16px 20px', fontSize: 13 } }>
+                            <strong>🎯 How to use this checklist:</strong>
+                            <p style={ { margin: '8px 0 0', lineHeight: 1.8 } }>
+                                Before shipping any new page or component, verify all 25 rules above. If a page looks different from others, check this reference.
+                                All CSS is centralized in <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>tokens.css</code> + <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>inner-ux.css</code> + <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>inner-pages.css</code>.
+                                Never add inline colors or custom border-radius — always use the design tokens.
+                            </p>
                         </div>
                     </section>
 
