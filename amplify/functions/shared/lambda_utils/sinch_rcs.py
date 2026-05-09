@@ -175,12 +175,12 @@ def send_rcs_card(phone: str, title: str, description: str,
     return _send_sinch_message(creds, payload)
 
 
-def send_rcs_template(phone: str, template_id: str = 'wecaremenu',
+def send_rcs_template(phone: str, template_id: str = 'rcsmenu',
                      language: str = 'en', parameters: dict = None,
                      correlation_id: str = '') -> dict:
     """Send an RCS template message via Sinch Conversation API.
 
-    Uses the approved template registered on Sinch (e.g. 'wecaremenu').
+    Uses the approved template registered on Sinch (e.g. 'rcsmenu').
     Returns: {'success': True, 'message_id': '...'} or {'success': False, 'error': '...'}
     """
     if not is_rcs_enabled():
@@ -223,23 +223,23 @@ def send_rcs_template(phone: str, template_id: str = 'wecaremenu',
 def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
     """Send the standard IVR/call disconnect RCS notification.
 
-    Uses the approved 'wecaremenu' template (rich_card, Jio vendor).
-    Template ID: wecaremenu | Status: approved | Enterprise: WECARE DIGITAL
+    Uses the approved 'rcsmenu' template (rich_card, MEDIUM height, Jio vendor).
+    Template ID: rcsmenu | Status: approved | Enterprise: WECARE DIGITAL
     Content: Video card + "Get Started" button → https://r.wecare.digital/getstarted
 
     Fallback: If template send fails, sends as direct card_message.
     Used by: CDR inbound calls, WhatsApp calling disconnect, WABA notifications.
     """
-    # Primary: Send via approved 'wecaremenu' template
+    # Primary: Send via approved 'rcsmenu' template
     result = send_rcs_template(
         phone=phone,
-        template_id='wecaremenu',
+        template_id='rcsmenu',
         correlation_id=f'ivr_{request_id}' if request_id else '',
     )
 
     # Fallback: If template fails, send as direct rich card
     if not result.get('success'):
-        logger.info(f'wecaremenu template failed, falling back to card_message: {result.get("error", "")}')
+        logger.info(f'rcsmenu template failed, falling back to card_message: {result.get("error", "")}')
         result = send_rcs_card(
             phone=phone,
             title='Thanks for contacting WECARE.DIGITAL!',
@@ -262,21 +262,21 @@ def send_rcs_order_notification(phone: str, order_id: str = '',
                                  wd_order_id: str = '') -> dict:
     """Send order confirmation RCS notification.
 
-    Uses the approved 'wdorder' template (rich_card, MEDIUM height, Jio vendor).
-    Template: wdorder | Status: approved | Enterprise: WECARE DIGITAL
+    Uses the approved 'rcsorder' template (rich_card, MEDIUM height, Jio vendor).
+    Template: rcsorder | Status: approved | Enterprise: WECARE DIGITAL
     Content: Video card + "Get Started" button → https://r.wecare.digital/getstarted
     Used by: Wix store order events, order notification Lambda.
     """
-    # Primary: Send via approved 'wdorder' template
+    # Primary: Send via approved 'rcsorder' template
     result = send_rcs_template(
         phone=phone,
-        template_id='wdorder',
+        template_id='rcsorder',
         correlation_id=f'order_{order_id}' if order_id else '',
     )
 
     # Fallback: direct card with order-specific content
     if not result.get('success'):
-        logger.info(f'wdorder template failed, falling back to card_message: {result.get("error", "")}')
+        logger.info(f'rcsorder template failed, falling back to card_message: {result.get("error", "")}')
         desc = (
             "Your order has been received. We'll review it and share updates shortly.\n\n"
             "Need help? Submit a request here: https://wecare.digital/selfservice "
