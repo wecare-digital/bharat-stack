@@ -48,6 +48,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/dashboard/lambda-functions', label: 'Lambda Functions' },
       { path: '/dashboard/code-repo', label: 'Code Repo' },
       { path: '/dashboard/wa-auto-response', label: 'Auto Response' },
+      { path: '/dashboard/design-reference', label: 'Design Reference' },
     ],
   },
   {
@@ -55,10 +56,12 @@ export const navigationConfig: NavItem[] = [
     label: 'Messages',
     icon: 'message',
     children: [
-      { path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
-        { path: '/dm/whatsapp', label: 'Inbox' },
-        { path: '/dm/whatsapp/settings', label: 'Settings' },
-      ] },
+      {
+        path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
+          { path: '/dm/whatsapp', label: 'Inbox' },
+          { path: '/dm/whatsapp/settings', label: 'Settings' },
+        ]
+      },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },
       { path: '/dm/voice', label: 'Voice', icon: 'voice' },
       { path: '/dm/voice-in', label: 'Voice In', icon: 'voice' },
@@ -189,36 +192,39 @@ export const navigationConfig: NavItem[] = [
 ];
 
 // Flatten all navigation items for search
-export function getAllNavItems(): { path: string; label: string; parent?: string }[] {
+export function getAllNavItems (): { path: string; label: string; parent?: string }[] {
   const items: { path: string; label: string; parent?: string }[] = [];
-  const traverse = (navItems: (NavItem | NavSubItem)[], parentLabel?: string) => {
-    for (const item of navItems) {
-      items.push({ path: item.path, label: item.label, parent: parentLabel });
-      if ('children' in item && item.children) {
-        traverse(item.children, item.label);
+  const traverse = ( navItems: ( NavItem | NavSubItem )[], parentLabel?: string ) => {
+    for ( const item of navItems )
+    {
+      items.push( { path: item.path, label: item.label, parent: parentLabel } );
+      if ( 'children' in item && item.children )
+      {
+        traverse( item.children, item.label );
       }
     }
   };
-  traverse(navigationConfig);
+  traverse( navigationConfig );
   return items;
 }
 
-export function getParentPath(pathname: string): string | null {
-  for (const item of navigationConfig) {
-    if (item.children?.some(child => child.path === pathname)) return item.path;
-    if (pathname.startsWith(item.path) && item.path !== '/') return item.path;
+export function getParentPath ( pathname: string ): string | null {
+  for ( const item of navigationConfig )
+  {
+    if ( item.children?.some( child => child.path === pathname ) ) return item.path;
+    if ( pathname.startsWith( item.path ) && item.path !== '/' ) return item.path;
   }
   return null;
 }
 
-export function isNavItemActive(item: NavItem, pathname: string): boolean {
-  if (item.path === '/') return pathname === '/';
-  if (item.children) return pathname.startsWith(item.path);
-  return pathname === item.path || pathname.startsWith(item.path + '/');
+export function isNavItemActive ( item: NavItem, pathname: string ): boolean {
+  if ( item.path === '/' ) return pathname === '/';
+  if ( item.children ) return pathname.startsWith( item.path );
+  return pathname === item.path || pathname.startsWith( item.path + '/' );
 }
 
-export function isSubItemActive(subItem: NavSubItem, pathname: string): boolean {
-  if (pathname === subItem.path) return true;
-  if (subItem.children) return subItem.children.some(child => pathname === child.path);
-  return pathname.startsWith(subItem.path + '/');
+export function isSubItemActive ( subItem: NavSubItem, pathname: string ): boolean {
+  if ( pathname === subItem.path ) return true;
+  if ( subItem.children ) return subItem.children.some( child => pathname === child.path );
+  return pathname.startsWith( subItem.path + '/' );
 }
