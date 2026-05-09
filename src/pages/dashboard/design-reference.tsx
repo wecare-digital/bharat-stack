@@ -51,7 +51,7 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                         </p>
                         <div style={ { marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' } }>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.lime, color: C.primary, fontSize: 12, fontWeight: 600 } }>v3.0</span>
-                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>18 Sections</span>
+                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>28 Sections</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>WCAG 2.1 AA</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>Mobile-First</span>
                         </div>
@@ -758,6 +758,274 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                                     <tr><td><code>src/config/navigation.ts</code></td><td>Sidebar navigation tree</td><td>Config</td></tr>
                                     <tr><td><code>src/components/Layout.tsx</code></td><td>Main layout wrapper</td><td>Core</td></tr>
                                     <tr><td><code>src/components/SEO.tsx</code></td><td>SEO meta tags component</td><td>Core</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              21. LOGIN / AUTH PAGE
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>21. Login / Auth Page (Cognito Authenticator)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>AWS Amplify Authenticator with custom lime + dark green theme. Shown at /access and any protected route when unauthenticated.</p>
+
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 } }>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Login Form Design</h4>
+                                <div style={ { background: '#f5f5f5', borderRadius: 16, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
+                                    <div style={ { background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 320, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' } }>
+                                        <h3 style={ { margin: '0 0 20px', fontSize: 18, fontWeight: 600, textAlign: 'center' } }>Sign in</h3>
+                                        <div style={ { marginBottom: 16 } }>
+                                            <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Username</label>
+                                            <input type="text" placeholder="Enter username" style={ { width: '100%', height: 44, padding: '10px 12px', border: `1.5px solid ${C.lime}`, borderRadius: 13, fontSize: 14 } } readOnly />
+                                        </div>
+                                        <div style={ { marginBottom: 20 } }>
+                                            <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Password</label>
+                                            <input type="password" placeholder="Enter password" style={ { width: '100%', height: 44, padding: '10px 12px', border: `1.5px solid ${C.lime}`, borderRadius: 13, fontSize: 14 } } readOnly />
+                                        </div>
+                                        <button style={ { width: '100%', height: 44, background: C.lime, color: C.primary, border: `1.5px solid ${C.primary}`, borderRadius: 13, fontSize: 14, fontWeight: 600, cursor: 'pointer' } }>Sign in</button>
+                                        <div style={ { textAlign: 'center', marginTop: 12 } }>
+                                            <a href="#" style={ { fontSize: 13, color: C.primary, textDecoration: 'none' } }>Forgot your password?</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Auth Theme Tokens</h4>
+                                <div style={ { border: `2px solid ${C.lime}`, borderRadius: 12, overflow: 'hidden' } }>
+                                    <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 12 } }>
+                                        <thead><tr style={ { background: C.lime } }><th style={ { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: C.primary } }>Token</th><th style={ { padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: C.primary } }>Value</th></tr></thead>
+                                        <tbody>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>brand.primary.40</td><td style={ { padding: '8px 12px' } }>#d1f470 (lime)</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>brand.primary.80</td><td style={ { padding: '8px 12px' } }>#1a3a2a (dark green)</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>button.primary.bg</td><td style={ { padding: '8px 12px' } }>#d1f470</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>button.primary.color</td><td style={ { padding: '8px 12px' } }>#1a3a2a</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>fieldcontrol.borderRadius</td><td style={ { padding: '8px 12px' } }>13px</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>fieldcontrol.borderColor</td><td style={ { padding: '8px 12px' } }>#d1f470</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>fieldcontrol._focus.border</td><td style={ { padding: '8px 12px' } }>#1a3a2a</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>fieldcontrol._focus.shadow</td><td style={ { padding: '8px 12px' } }>0 0 0 3px rgba(209,244,112,0.3)</td></tr>
+                                            <tr style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { padding: '8px 12px' } }>router.borderWidth</td><td style={ { padding: '8px 12px' } }>0 (no border)</td></tr>
+                                            <tr><td style={ { padding: '8px 12px' } }>router.boxShadow</td><td style={ { padding: '8px 12px' } }>0 4px 24px rgba(0,0,0,0.08)</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style={ { marginTop: 12, fontSize: 13, color: C.text2 } }>
+                                    <strong>Layout:</strong> Header + centered Authenticator + Footer. After login → redirect to /dashboard.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              22. FLOATING AGENT (AI CHAT)
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>22. Floating Agent (AI Chat)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Bottom-right FAB → slide-out chat panel. Bedrock Nova Lite. Ctrl+. shortcut.</p>
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 } }>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>FAB Button</h4>
+                                <div style={ { display: 'flex', alignItems: 'center', gap: 16 } }>
+                                    <div style={ { width: 56, height: 56, borderRadius: '50%', background: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', cursor: 'pointer' } }>
+                                        <span style={ { fontSize: 24 } }>🤖</span>
+                                    </div>
+                                    <div style={ { fontSize: 13, color: C.text2 } }>56px circle, dark green bg, bottom-right fixed, z-index 9999. Hover: scale(1.05).</div>
+                                </div>
+                            </div>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Chat Panel</h4>
+                                <div style={ { fontSize: 13, color: C.text2, lineHeight: 2 } }>
+                                    <div>Width: 380px, Height: 520px</div>
+                                    <div>Position: fixed bottom-right</div>
+                                    <div>Border: 2px solid #d1f470</div>
+                                    <div>Radius: 16px</div>
+                                    <div>Header: dark green bg, white text</div>
+                                    <div>Messages: user (lime bg) / assistant (white bg)</div>
+                                    <div>Input: lime border, send button</div>
+                                    <div>Voice: microphone icon, Web Speech API</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              23. SEARCH MODAL
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>23. Search Modal (Ctrl+K)</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Command palette style. Search contacts, messages, pages. Keyboard navigation.</p>
+                        <div style={ { background: 'rgba(0,0,0,0.25)', borderRadius: 16, padding: 32, display: 'flex', justifyContent: 'center' } }>
+                            <div style={ { background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', overflow: 'hidden' } }>
+                                <div style={ { padding: '16px 20px', borderBottom: '1px solid #e5e7eb' } }>
+                                    <input type="text" placeholder="Search contacts, pages, actions..." style={ { width: '100%', height: 44, border: 'none', fontSize: 16, outline: 'none' } } readOnly />
+                                </div>
+                                <div style={ { padding: '8px 0', maxHeight: 240 } }>
+                                    { [ '⊞ Dashboard — Overview & stats', '◇ WhatsApp Inbox — Messages', '⊕ Contacts — Manage contacts', '⎙ Templates — WhatsApp templates', '◈ Payments — WhatsApp Pay' ].map( ( item, i ) => (
+                                        <div key={ i } style={ { padding: '10px 20px', background: i === 0 ? C.bg2 : 'transparent', cursor: 'pointer', fontSize: 14, color: i === 0 ? C.text : C.text2 } }>{ item }</div>
+                                    ) ) }
+                                </div>
+                                <div style={ { padding: '10px 20px', borderTop: '1px solid #e5e7eb', fontSize: 12, color: C.textMuted, display: 'flex', gap: 16 } }>
+                                    <span>↑↓ Navigate</span><span>↵ Open</span><span>ESC Close</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              24. CHARTS & DATA VIZ
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>24. Charts & Data Visualization</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>CSS-based charts. No external library. Components: BarChart, DonutChart, Sparkline, ProgressBar, DateRangePicker.</p>
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 } }>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Bar Chart</h4>
+                                <div style={ { display: 'flex', alignItems: 'flex-end', gap: 8, height: 100 } }>
+                                    { [ 60, 80, 45, 90, 70, 55, 85 ].map( ( h, i ) => (
+                                        <div key={ i } style={ { flex: 1, height: `${h}%`, background: C.primary, borderRadius: '4px 4px 0 0', transition: 'height 0.3s' } } />
+                                    ) ) }
+                                </div>
+                                <div style={ { display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: C.textMuted } }>
+                                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                                </div>
+                            </div>
+                            <div className="inner-card" style={ { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } }>
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Donut Chart</h4>
+                                <div style={ { width: 100, height: 100, borderRadius: '50%', background: `conic-gradient(${C.primary} 0% 72%, ${C.lime} 72% 88%, #e5e7eb 88% 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
+                                    <div style={ { width: 60, height: 60, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 } }>72%</div>
+                                </div>
+                            </div>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 14, fontWeight: 600 } }>Progress Bar</h4>
+                                { [ { label: 'WhatsApp', pct: 85 }, { label: 'SMS', pct: 45 }, { label: 'Email', pct: 62 } ].map( ( p, i ) => (
+                                    <div key={ i } style={ { marginBottom: 12 } }>
+                                        <div style={ { display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 } }><span>{ p.label }</span><span style={ { fontWeight: 600 } }>{ p.pct }%</span></div>
+                                        <div style={ { height: 8, background: '#f3f4f6', borderRadius: 4 } }><div style={ { height: '100%', width: `${p.pct}%`, background: C.primary, borderRadius: 4 } } /></div>
+                                    </div>
+                                ) ) }
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              25. HEADER & FOOTER (PUBLIC PAGES)
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>25. Header & Footer (Public Pages)</h2>
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 } }>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Header</h4>
+                                <div style={ { background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)', padding: '12px 20px', borderRadius: 12, border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 } }>
+                                    <div style={ { width: 40, height: 40, borderRadius: 10, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600 } }>LOGO</div>
+                                    <span style={ { fontSize: 14, color: '#1a1a1a' } }>▼</span>
+                                </div>
+                                <div style={ { marginTop: 12, fontSize: 12, color: C.text2, lineHeight: 2 } }>
+                                    Fixed top, z-index 1001. Blur backdrop. Logo 64px + dropdown nav. Dropdown: lime border, 12px radius. Nav items: 21px font, hover lime bg.
+                                </div>
+                            </div>
+                            <div className="inner-card">
+                                <h4 style={ { margin: '0 0 12px', fontSize: 15, fontWeight: 600 } }>Footer</h4>
+                                <div style={ { padding: '16px 20px', background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb' } }>
+                                    <a href="#" style={ { fontSize: 18, color: '#1a1a1a', textDecoration: 'none', fontWeight: 500 } }>Contact us</a>
+                                </div>
+                                <div style={ { marginTop: 12, fontSize: 12, color: C.text2, lineHeight: 2 } }>
+                                    Simple footer. Safe-area-inset-bottom for mobile. Font: 21px desktop → 24px tablet → 22px mobile. Single "Contact us" link.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              26. SKELETON LOADING VARIANTS
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>26. Skeleton Loading Variants</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>7 skeleton types for different content areas. Pulse animation 1.5s.</p>
+                        <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 } }>
+                            { [
+                                { name: 'SkeletonText', desc: 'Multi-line text (3 lines, last 60%)' },
+                                { name: 'SkeletonAvatar', desc: 'Circle 40px (configurable)' },
+                                { name: 'SkeletonCard', desc: 'Avatar + title + text lines' },
+                                { name: 'SkeletonTable', desc: 'Header row + 5 data rows' },
+                                { name: 'SkeletonMessage', desc: 'Chat bubble (inbound/outbound)' },
+                                { name: 'SkeletonContact', desc: 'Avatar 44px + name + phone' },
+                                { name: 'SkeletonStat', desc: 'Value 36px + label 12px' },
+                            ].map( ( s, i ) => (
+                                <div key={ i } className="inner-card" style={ { padding: 16 } }>
+                                    <div style={ { height: 12, width: '70%', background: '#f5f5f5', borderRadius: 4, marginBottom: 8 } } className="skeleton" />
+                                    <div style={ { height: 8, width: '50%', background: '#f5f5f5', borderRadius: 4, marginBottom: 12 } } className="skeleton" />
+                                    <div style={ { fontSize: 13, fontWeight: 600, color: C.text } }>{ s.name }</div>
+                                    <div style={ { fontSize: 11, color: C.text2 } }>{ s.desc }</div>
+                                </div>
+                            ) ) }
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              27. ERROR STATES & COMING SOON
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>27. Error States & Coming Soon</h2>
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 } }>
+                            <div className="inner-card" style={ { textAlign: 'center', padding: 32 } }>
+                                <div style={ { fontSize: 36, marginBottom: 12 } }>⚠️</div>
+                                <h4 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Something went wrong</h4>
+                                <p style={ { fontSize: 13, color: C.text2, margin: '0 0 4px' } }>An unexpected error occurred.</p>
+                                <p style={ { fontSize: 11, color: C.textMuted, fontFamily: 'monospace', margin: '0 0 16px' } }>ERR-ABC123</p>
+                                <div style={ { display: 'flex', gap: 8, justifyContent: 'center' } }>
+                                    <button className="btn btn-primary btn-sm">Refresh</button>
+                                    <button className="btn btn-secondary btn-sm">Dashboard</button>
+                                </div>
+                                <div style={ { marginTop: 12, fontSize: 11, color: C.textMuted } }>ErrorBoundary</div>
+                            </div>
+                            <div className="inner-card" style={ { textAlign: 'center', padding: 32 } }>
+                                <div style={ { fontSize: 36, marginBottom: 12 } }>⚠️</div>
+                                <h4 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Failed to load</h4>
+                                <p style={ { fontSize: 13, color: C.text2, margin: '0 0 16px' } }>Could not fetch contacts data.</p>
+                                <button className="btn btn-primary btn-sm">Retry</button>
+                                <div style={ { marginTop: 12, fontSize: 11, color: C.textMuted } }>ErrorState</div>
+                            </div>
+                            <div className="inner-card" style={ { textAlign: 'center', padding: 32 } }>
+                                <div style={ { fontSize: 36, marginBottom: 12 } }>🚧</div>
+                                <h4 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Coming Soon</h4>
+                                <p style={ { fontSize: 13, color: C.text2, margin: '0 0 12px' } }>This feature is under development.</p>
+                                <ul style={ { textAlign: 'left', fontSize: 12, color: C.text2, margin: '0 0 16px', paddingLeft: 20 } }>
+                                    <li>Planned feature 1</li>
+                                    <li>Planned feature 2</li>
+                                </ul>
+                                <a href="#" style={ { fontSize: 13, color: C.primary, fontWeight: 500 } }>View Docs →</a>
+                                <div style={ { marginTop: 12, fontSize: 11, color: C.textMuted } }>ComingSoon</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              28. PWA & MOBILE APP PATTERNS
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>28. PWA & Mobile App Patterns</h2>
+                        <div className="table-container">
+                            <table className="inner-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pattern</th>
+                                        <th>Implementation</th>
+                                        <th>File</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Service Worker</td><td>Offline support, push notifications, notification click → /dashboard</td><td>public/sw.js</td></tr>
+                                    <tr><td>Web App Manifest</td><td>Standalone display, theme #1a3a2a, shortcuts (Dashboard, Messages, Contacts)</td><td>public/manifest.json</td></tr>
+                                    <tr><td>Capacitor Native</td><td>iOS/Android WebView, push, haptics, splash screen, status bar</td><td>capacitor.config.ts</td></tr>
+                                    <tr><td>Safe Area Insets</td><td>padding-top/bottom: env(safe-area-inset-*) for notch devices</td><td>tokens.css</td></tr>
+                                    <tr><td>Overscroll Prevention</td><td>overscroll-behavior: none (native app feel)</td><td>tokens.css</td></tr>
+                                    <tr><td>Touch Targets</td><td>min-height: 44px on all interactive elements</td><td>tokens.css</td></tr>
+                                    <tr><td>iOS Zoom Prevention</td><td>font-size: 16px on inputs (mobile)</td><td>tokens.css</td></tr>
+                                    <tr><td>Pull-to-Refresh Block</td><td>overscroll-behavior-y: contain on body</td><td>tokens.css</td></tr>
+                                    <tr><td>Double-Tap Zoom Block</td><td>touch-action: manipulation on *</td><td>tokens.css</td></tr>
+                                    <tr><td>Text Selection</td><td>user-select: none on UI, text on content</td><td>tokens.css</td></tr>
+                                    <tr><td>Momentum Scrolling</td><td>-webkit-overflow-scrolling: touch</td><td>tokens.css</td></tr>
                                 </tbody>
                             </table>
                         </div>
