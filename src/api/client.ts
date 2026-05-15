@@ -2098,6 +2098,50 @@ export async function uploadTemplateMedia ( request: {
   } );
 }
 
+/**
+ * Upload media for SENDING a template message (public URL for WhatsApp to fetch).
+ * Returns a CDN URL: https://app.wecare.digital/public/wa-tpl/{folder}/...
+ *
+ * Supports all WhatsApp Cloud API media types:
+ *   - Documents: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (max 100MB) → docs/
+ *   - Images:    JPEG, PNG (max 5MB)                                   → img/
+ *   - Videos:    MP4, 3GP (max 16MB)                                   → vid/
+ *   - Audio:     AAC, AMR, MP3, M4A, OGG (max 16MB)                    → aud/
+ *   - Stickers:  WebP (max 500KB)                                      → stk/
+ */
+export async function uploadSendMedia ( request: {
+  fileData: string;       // base64-encoded file content
+  contentType: string;    // MIME type (e.g. "application/pdf")
+  filename: string;       // original filename
+} ): Promise<{
+  mediaUrl: string;
+  s3Key: string;
+  folder: 'docs' | 'img' | 'vid' | 'aud' | 'stk';
+  category: 'document' | 'image' | 'video' | 'audio' | 'sticker';
+  filename: string;
+  sizeBytes: number;
+} | null> {
+  return apiCall<any>( `${API_BASE}/whatsapp/templates/send-media`, {
+    method: 'POST',
+    body: JSON.stringify( request ),
+  } );
+}
+
+/** Helper: convert a File/Blob to base64 string (without data: prefix) */
+export function fileToBase64 ( file: File | Blob ): Promise<string> {
+  return new Promise( ( resolve, reject ) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip "data:mime/type;base64," prefix
+      const base64 = result.split( ',' )[ 1 ] || result;
+      resolve( base64 );
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL( file );
+  } );
+}
+
 
 // ============================================================================
 // AI CONFIG MANAGEMENT API (Bedrock Control)

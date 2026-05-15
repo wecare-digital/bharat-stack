@@ -21,12 +21,50 @@ secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_
 
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 TEMPLATE_MEDIA_PREFIX = os.environ.get('TEMPLATE_MEDIA_PREFIX', 'stack/whatsapp-media/template-headers/')
+PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX', 'public/wa-tpl/')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
 DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 
 META_API_VERSION = 'v25.0'
 META_GRAPH_URL = f'https://graph.facebook.com/{META_API_VERSION}'
 META_APP_ID = '2238810740192680'
 DEFAULT_PHONE_ID = '1016149501586345'
+
+# WhatsApp media type → public folder mapping (short names for clean URLs)
+WA_MEDIA_FOLDERS = {
+    # Documents
+    'application/pdf': 'docs',
+    'application/msword': 'docs',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docs',
+    'application/vnd.ms-excel': 'docs',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'docs',
+    'application/vnd.ms-powerpoint': 'docs',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'docs',
+    'text/plain': 'docs',
+    # Images
+    'image/jpeg': 'img',
+    'image/png': 'img',
+    # Videos
+    'video/mp4': 'vid',
+    'video/3gpp': 'vid',
+    # Audio
+    'audio/aac': 'aud',
+    'audio/amr': 'aud',
+    'audio/mpeg': 'aud',
+    'audio/mp4': 'aud',
+    'audio/ogg': 'aud',
+    # Stickers
+    'image/webp': 'stk',
+}
+
+# Max sizes per WhatsApp Cloud API
+WA_MEDIA_MAX_SIZES = {
+    'docs': 100 * 1024 * 1024,
+    'img': 5 * 1024 * 1024,
+    'vid': 16 * 1024 * 1024,
+    'aud': 16 * 1024 * 1024,
+    'stk': 500 * 1024,
+}
 
 AWS_TO_META_WABA = {
     'waba-e47d916f3c7a47e1a34a19653893dd4b': '2094615664435155',   # WABA1
@@ -140,6 +178,8 @@ def handler(event, context):
                 return _upload_carousel_media(waba_id, body, query_params)
             if '/templates/carousel' in path:
                 return _create_carousel_template(waba_id, body)
+            if '/templates/send-media' in path:
+                return _upload_send_media(body)
             if '/templates/media' in path:
                 return _upload_template_media(waba_id, body)
             return _create_template(waba_id, body)
@@ -357,6 +397,109 @@ def _upload_template_media(waba_id, body):
             })
         }
     except Exception as e:
+        return _error_response(500, str(e))
+
+
+# ── SEND-TIME MEDIA UPLOAD (Public URL for WhatsApp to fetch) ──
+
+def _upload_send_media(body):
+    """Upload media that will be sent in a template message.
+    
+    WhatsApp fetches the URL to deliver media to the recipient.
+    Files go to the public/wa-tpl/ prefix on app.wecare.digital so they're
+    publicly accessible via CloudFront.
+    
+    Request body:
+        fileData: base64-encoded file content (required)
+        contentType: MIME type (required, e.g. application/pdf)
+        filename: original filename (required)
+    
+    Returns:
+        mediaUrl: https://app.wecare.digital/public/wa-tpl/{folder}/wecare-digital-{id}_{file}
+        s3Key: full S3 key
+        folder: short folder name (docs/img/vid/aud/stk)
+        category: WhatsApp media category
+    """
+    try:
+        file_data_b64 = body.get('fileData')
+        content_type = body.get('contentType', '')
+        filename = body.get('filename', '')
+
+        if not file_data_b64:
+            return _error_response(400, 'fileData (base64) required')
+        if not content_type:
+            return _error_response(400, 'contentType required')
+        if not filename:
+            return _error_response(400, 'filename required')
+
+        # Validate MIME type is supported by WhatsApp
+        folder = WA_MEDIA_FOLDERS.get(content_type)
+        if not folder:
+            return _error_response(
+                400,
+                f'Unsupported media type: {content_type}. '
+                f'Supported: {", ".join(sorted(set(WA_MEDIA_FOLDERS.keys())))}'
+            )
+
+        file_bytes = base64.b64decode(file_data_b64)
+
+        # Validate size against WhatsApp limits
+        max_size = WA_MEDIA_MAX_SIZES.get(folder, 100 * 1024 * 1024)
+        if len(file_bytes) > max_size:
+            max_mb = max_size / (1024 * 1024)
+            return _error_response(
+                400,
+                f'File too large ({len(file_bytes)} bytes). Max for {folder}: {max_mb:.0f}MB'
+            )
+
+        # Sanitize filename and build key
+        safe_filename = ''.join(
+            c if c.isalnum() or c in '._-' else '_'
+            for c in filename
+        )
+        short_id = uuid.uuid4().hex[:8]
+        s3_key = f'{PUBLIC_MEDIA_PREFIX}{folder}/wecare-digital-{short_id}_{safe_filename}'
+
+        # Upload to S3 with public-read ACL via Amplify storage policy
+        s3.put_object(
+            Bucket=MEDIA_BUCKET,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=content_type,
+            CacheControl='public, max-age=31536000',
+            Metadata={
+                'original-filename': filename,
+                'media-category': folder,
+            }
+        )
+
+        # Public CDN URL (CloudFront serves app.wecare.digital → S3)
+        media_url = f'https://{CDN_DOMAIN}/{s3_key}'
+
+        category_map = {'docs': 'document', 'img': 'image', 'vid': 'video', 'aud': 'audio', 'stk': 'sticker'}
+
+        logger.info(json.dumps({
+            'event': 'send_media_uploaded',
+            's3Key': s3_key,
+            'mediaUrl': media_url,
+            'folder': folder,
+            'sizeBytes': len(file_bytes),
+        }))
+
+        return {
+            'statusCode': 201,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'mediaUrl': media_url,
+                's3Key': s3_key,
+                'folder': folder,
+                'category': category_map.get(folder, 'document'),
+                'filename': safe_filename,
+                'sizeBytes': len(file_bytes),
+            })
+        }
+    except Exception as e:
+        logger.error(json.dumps({'event': 'send_media_upload_error', 'error': str(e)}))
         return _error_response(500, str(e))
 
 
