@@ -1,13 +1,17 @@
 /**
- * WhatsApp Template Management Lambda Function Resource
+ * WhatsApp Template Management Lambda Function
  * 
  * Full template lifecycle management via Meta Graph API:
  * - CreateWhatsAppMessageTemplate - Create custom template
- * - CreateWhatsAppMessageTemplateFromLibrary - Create from Meta library
- * - CreateWhatsAppMessageTemplateMedia - Upload header images
+ * - CreateWhatsAppMessageTemplateMedia - Upload header images/videos
  * - UpdateWhatsAppMessageTemplate - Edit existing template
  * - DeleteWhatsAppMessageTemplate - Delete template
- * - ListWhatsAppTemplateLibrary - Browse Meta's pre-built templates
+ * - CreateCarouselTemplate - Multi-card carousel templates
+ * 
+ * API Route: /whatsapp/template-mgmt
+ * 
+ * Template-creation media (header images/videos/docs) is stored in:
+ *   s3://app.wecare.digital/stack/whatsapp-media/template-headers/
  */
 
 import { defineFunction } from '@aws-amplify/backend';
@@ -22,6 +26,5 @@ export const whatsappTemplateManagement = defineFunction( {
     LOG_LEVEL: 'INFO',
     MEDIA_BUCKET: 'app.wecare.digital',
     TEMPLATE_MEDIA_PREFIX: 'stack/whatsapp-media/template-headers/',
-    PUBLIC_MEDIA_PREFIX: 'public/wa-tpl/',
   },
 } );
