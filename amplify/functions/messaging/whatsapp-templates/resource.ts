@@ -7,7 +7,7 @@ import { defineFunction } from '@aws-amplify/backend';
  * Supports listing, creating,
  * deleting templates and browsing the Meta template library.
  */
-export const whatsappTemplates = defineFunction({
+export const whatsappTemplates = defineFunction( {
   name: 'wecare-whatsapp-templates',
   entry: './handler.py',
   runtime: 20, // Python 3.12
@@ -18,5 +18,6 @@ export const whatsappTemplates = defineFunction({
     LOG_LEVEL: 'INFO',
     MEDIA_BUCKET: 'app.wecare.digital',
     TEMPLATE_MEDIA_PREFIX: 'stack/whatsapp-media/template-headers/',
+    PUBLIC_MEDIA_PREFIX: 'public/wa-tpl/',
   },
-});
+} );

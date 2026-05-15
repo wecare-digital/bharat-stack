@@ -12,7 +12,7 @@
 
 import { defineFunction } from '@aws-amplify/backend';
 
-export const whatsappTemplateManagement = defineFunction({
+export const whatsappTemplateManagement = defineFunction( {
   name: 'wecare-whatsapp-template-management',
   entry: './handler.py',
   runtime: 20,  // Python 3.12
@@ -22,5 +22,6 @@ export const whatsappTemplateManagement = defineFunction({
     LOG_LEVEL: 'INFO',
     MEDIA_BUCKET: 'app.wecare.digital',
     TEMPLATE_MEDIA_PREFIX: 'stack/whatsapp-media/template-headers/',
+    PUBLIC_MEDIA_PREFIX: 'public/wa-tpl/',
   },
-});
+} );
