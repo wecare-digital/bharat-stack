@@ -12,25 +12,37 @@ import { defineStorage } from '@aws-amplify/backend';
  *   - voice/           : Voice recordings (Airtel OBD)
  *   - reports/         : Bulk job reports and exports
  *   - store/products/  : Product images
+ * - public/            : Publicly accessible media (WhatsApp needs to fetch these URLs)
+ *   - wa-tpl/          : Template message media (short name for template messaging)
+ *     - docs/          : PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (max 100MB)
+ *     - img/           : JPEG, PNG (max 5MB)
+ *     - vid/           : MP4, 3GP (max 16MB)
+ *     - aud/           : AAC, AMR, MP3, M4A, OGG (max 16MB)
+ *     - stk/           : WebP stickers (max 500KB)
  * - stream/            : Static internal assets (NEVER wiped)
  *   - media/m/         : Logos, branding images
  *   - media/fonts/     : Invoice PDF fonts
  *   - media/ivr/       : IVR audio files
  */
-export const storage = defineStorage({
+export const storage = defineStorage( {
   name: 'wecare-media',
   // Reference consolidated bucket: app.wecare.digital
-  access: (allow) => ({
+  access: ( allow ) => ( {
     // User/transactional data — all under stack/
     'stack/*': [
-      allow.authenticated.to(['read', 'write']),
+      allow.authenticated.to( [ 'read', 'write' ] ),
+    ],
+    // Public media — WhatsApp needs to fetch these via URL (no auth)
+    'public/*': [
+      allow.guest.to( [ 'read' ] ),
+      allow.authenticated.to( [ 'read', 'write' ] ),
     ],
     // Static internal assets — read-only for authenticated users
     'stream/*': [
-      allow.authenticated.to(['read']),
+      allow.authenticated.to( [ 'read' ] ),
     ],
-  }),
-});
+  } ),
+} );
 
 /**
  * SQS Queue Configuration
