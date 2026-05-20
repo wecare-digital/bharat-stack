@@ -2730,41 +2730,14 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         request_id=request_id,
                     )
                 else:
-                    logger.warning(f'{label} wd_menu template failed: {api_result}')
-                    # Fallback: send plain text if template not available on this WABA
-                    if label == 'WABA2':
-                        fallback_result = _meta_api_call(f"{meta_id}/messages", 'POST', {
-                            'messaging_product': 'whatsapp',
-                            'recipient_type': 'individual',
-                            'to': caller_phone.lstrip('+'),
-                            'type': 'text',
-                            'text': {'body': (
-                                'Thanks for contacting *WECARE.DIGITAL*! '
-                                'Submit your request here: https://wecare.digital/selfservice '
-                                'or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa. '
-                                "We'll review it and follow up if needed."
-                            )},
-                        }, phone_number_id=meta_id)
-                        fb_msg_id = ''
-                        if isinstance(fallback_result, dict):
-                            fb_msgs = fallback_result.get('messages', [])
-                            if fb_msgs:
-                                fb_msg_id = fb_msgs[0].get('id', '')
-                        if fb_msg_id:
-                            logger.info(f'{label} wd_menu fallback text sent: {fb_msg_id}')
-                            contact_id = _lookup_contact_id_for_inbox(caller_phone)
-                            _store_notification_to_inbox(
-                                message_id=fb_msg_id,
-                                contact_id=contact_id,
-                                contact_phone=caller_phone,
-                                content=f'[Call notification via {label}] Thanks for contacting WECARE.DIGITAL!',
-                                channel='whatsapp',
-                                status='sent',
-                                message_type='incoming_call',
-                                phone_number_id=meta_id,
-                                wamid=fb_msg_id,
-                                request_id=request_id,
-                            )
+                    logger.warning(json.dumps({
+                        'event': 'call_wa_template_failed',
+                        'template': 'wd_menu',
+                        'waba': label,
+                        'caller': caller_phone[-4:],
+                        'error': str(api_result)[:200],
+                        'requestId': request_id,
+                    }))
             except Exception as e:
                 logger.warning(f'{label} wd_menu error: {e}')
 
