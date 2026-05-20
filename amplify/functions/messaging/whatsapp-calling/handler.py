@@ -1255,9 +1255,9 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 # ── LOCKED CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
-# IVR audio: incoming_welcome.sln16 (works with WhatsApp Calling SIP mode)
-# If WhatsApp rejects the format, handler falls back to Polly TTS automatically
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16')
+# IVR audio: incoming_welcome.ogg (OGG/OPUS — WhatsApp supported format)
+# .sln16 is Asterisk-only format, WhatsApp rejects it (wrong MIME type)
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.ogg')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 # AI Bot config
@@ -1608,7 +1608,7 @@ def _is_auto_pickup_enabled() -> bool:
 
 def _get_auto_pickup_audio_url() -> Optional[str]:
     """Get the IVR audio URL for auto-pickup greeting.
-    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16
+    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/incoming_welcome.ogg
     """
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
@@ -2077,21 +2077,11 @@ def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, 
     """
     Send IVR greeting audio as a WhatsApp audio message via Direct API.
     
-    WhatsApp audio message supported formats:
-      - audio/aac, audio/mp4, audio/mpeg (MP3), audio/amr, audio/ogg (OPUS codec only)
-    
-    Strategy:
-      1. Try sending the configured IVR URL (MP3/OGG from S3/CloudFront)
-      2. If that fails, generate TTS via Amazon Polly (OGG/OPUS), upload to S3, send that
-      3. If all audio fails, send a text greeting instead
-    
-    Note: This sends audio as a WhatsApp CHAT message (appears in conversation).
-    For true in-call audio playback, SIP mode with Asterisk is required.
+    Sends the configured IVR audio URL only. No fallbacks.
     """
     try:
         aws_phone_id = _get_aws_phone_id(phone_number_id)
 
-        # First try: send the configured audio URL directly
         result = _send_via_aws(aws_phone_id, to_number, {
             'type': 'audio',
             'audio': {'link': audio_url},
@@ -2099,24 +2089,6 @@ def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, 
 
         if result.get('error'):
             logger.warning(f"IVR audio URL failed ({audio_url}): {json.dumps(result)}")
-            # Second try: generate TTS via Polly and upload to S3
-            tts_url = _generate_ivr_tts_audio(phone_number_id, call_id)
-            if tts_url:
-                result = _send_via_aws(aws_phone_id, to_number, {
-                    'type': 'audio',
-                    'audio': {'link': tts_url},
-                })
-                if result.get('error'):
-                    logger.error(f"IVR Polly TTS audio also failed: {json.dumps(result)}")
-                else:
-                    logger.info(f"IVR Polly TTS audio sent to {to_number}: {json.dumps(result)}")
-                    return
-            # Final fallback: text greeting
-            logger.warning(f"All IVR audio methods failed, sending text greeting")
-            _send_via_aws(aws_phone_id, to_number, {
-                'type': 'text',
-                'text': {'body': '📞 Thanks for calling WECARE.DIGITAL! Please hold while we connect you, or check the menu below.'},
-            })
         else:
             logger.info(f"IVR audio sent to {to_number}: {json.dumps(result)}")
     except Exception as e:
@@ -2618,21 +2590,24 @@ _WABA_PHONE_IDS = [
 
 def _lookup_contact_id_for_inbox(phone: str) -> str:
     """Look up contactId from ContactsTable by phone number for inbox storage.
+    Returns the OLDEST contact (same logic as inbound handler) to avoid mismatch.
     Falls back to phone digits if no contact found.
     """
     clean = phone.replace('+', '').replace(' ', '').lstrip('+')
     contacts_table = dynamodb.Table('stack-wecare-digital-ContactsTable')
-    for variant in [phone, clean, '+' + clean]:
+    for variant in ['+' + clean, clean, phone]:
         try:
             resp = contacts_table.query(
                 IndexName='phone-index',
                 KeyConditionExpression='phone = :phone',
                 ExpressionAttributeValues={':phone': variant},
-                Limit=1
+                Limit=10
             )
-            items = resp.get('Items', [])
+            items = [i for i in resp.get('Items', []) if not i.get('deletedAt')]
             if items:
-                return items[0].get('contactId') or items[0].get('id') or clean
+                # Pick oldest contact (same as inbound handler) to avoid mismatch
+                contact = sorted(items, key=lambda x: x.get('createdAt', 0))[0]
+                return contact.get('contactId') or contact.get('id') or clean
         except Exception:
             pass
     return clean
@@ -2755,7 +2730,41 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         request_id=request_id,
                     )
                 else:
-                    logger.warning(f'{label} wd_menu failed: {api_result}')
+                    logger.warning(f'{label} wd_menu template failed: {api_result}')
+                    # Fallback: send plain text if template not available on this WABA
+                    if label == 'WABA2':
+                        fallback_result = _meta_api_call(f"{meta_id}/messages", 'POST', {
+                            'messaging_product': 'whatsapp',
+                            'recipient_type': 'individual',
+                            'to': caller_phone.lstrip('+'),
+                            'type': 'text',
+                            'text': {'body': (
+                                'Thanks for contacting *WECARE.DIGITAL*! '
+                                'Submit your request here: https://wecare.digital/selfservice '
+                                'or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa. '
+                                "We'll review it and follow up if needed."
+                            )},
+                        }, phone_number_id=meta_id)
+                        fb_msg_id = ''
+                        if isinstance(fallback_result, dict):
+                            fb_msgs = fallback_result.get('messages', [])
+                            if fb_msgs:
+                                fb_msg_id = fb_msgs[0].get('id', '')
+                        if fb_msg_id:
+                            logger.info(f'{label} wd_menu fallback text sent: {fb_msg_id}')
+                            contact_id = _lookup_contact_id_for_inbox(caller_phone)
+                            _store_notification_to_inbox(
+                                message_id=fb_msg_id,
+                                contact_id=contact_id,
+                                contact_phone=caller_phone,
+                                content=f'[Call notification via {label}] Thanks for contacting WECARE.DIGITAL!',
+                                channel='whatsapp',
+                                status='sent',
+                                message_type='incoming_call',
+                                phone_number_id=meta_id,
+                                wamid=fb_msg_id,
+                                request_id=request_id,
+                            )
             except Exception as e:
                 logger.warning(f'{label} wd_menu error: {e}')
 

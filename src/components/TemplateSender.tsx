@@ -223,7 +223,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         } else
         {
           result = await api.sendWhatsAppTemplateMessage( {
-            contactId,
+            contactId: contactId || '',
             recipientPhone,
             templateName: selectedTemplate.name,
             language: selectedTemplate.language,

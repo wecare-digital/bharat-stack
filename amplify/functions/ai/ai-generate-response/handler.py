@@ -737,20 +737,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if agent_context == 'internal-admin':
             return _handle_internal(body, headers, request_id)
 
-        # -- EXTERNAL (WhatsApp) path - DISABLED --
-        # WhatsApp AI auto-reply has been removed. Only the FloatingAgent
-        # (internal-admin) uses this Lambda. Return empty response.
-        logger.info(json.dumps({
-            'event': 'external_path_disabled',
-            'requestId': request_id
-        }))
+        # -- EXTERNAL (WhatsApp) path - REMOVED --
+        # WhatsApp AI auto-reply permanently removed.
+        # Inbound handler handles all customer messages directly.
         return {
             'statusCode': 200,
             'headers': headers,
             'body': json.dumps({
                 'suggestedResponse': '',
                 'disabled': True,
-                'reason': 'WhatsApp AI auto-reply is disabled'
             })
         }
 

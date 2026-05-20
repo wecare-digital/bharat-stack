@@ -5955,30 +5955,17 @@ def _get_ai_config() -> Dict[str, Any]:
 def _is_ai_enabled() -> bool:
     """
     Check if AI automation is enabled in SystemConfig.
-    Returns False silently if table doesn't exist (AI not configured).
+    Returns False — AI auto-reply permanently removed.
     """
-    config = _get_ai_config()
-    return config.get('enabled', False) and config.get('autoReplyEnabled', False)
+    return False
 
 
 def _process_ai_automation(message_id: str, contact_id: str, content: str, message_type: str, phone_number_id: str, sender_phone: str, s3_key: str, mime_type: str, request_id: str, sender_bsuid: str = '') -> Optional[Dict]:
     """
-    Process AI automation for inbound message and send auto-reply.
-    
-    Supports all message types including multimodal:
-    - text: Regular text messages
-    - interactive: Button/list replies
-    - button: Quick reply buttons
-    - location: Location sharing
-    - image: Photos with optional caption
-    - audio: Voice notes
-    - video: Video messages
-    - document: PDF, DOC, etc.
-    
-    Uses AI config from SystemConfigTable to determine behavior.
-    Sends typing indicator before AI processing.
-    Handles processing lock (locked response from AI function).
+    WhatsApp AI auto-reply — PERMANENTLY REMOVED.
+    This function is kept as a no-op stub so callers don't break.
     """
+    return None
     # Get AI config from SystemConfig table
     ai_config = _get_ai_config()
     ai_enabled = ai_config.get('enabled', False) and ai_config.get('autoReplyEnabled', False)

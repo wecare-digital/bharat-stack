@@ -199,7 +199,7 @@ def _count_messages(request_id: str, origin: str = '') -> Dict[str, Any]:
 
 
 def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int, direction: str = '') -> List[Dict]:
-    """Scan both Inbound and Outbound tables and return combined results."""
+    """Query messages from Inbound and Outbound tables. Uses contactId GSI when available."""
     all_messages = []
     
     # Determine which tables to scan based on direction filter
@@ -209,56 +209,56 @@ def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int,
     if not direction or direction == 'OUTBOUND':
         tables_to_scan.append(('outbound', OUTBOUND_TABLE))
     
+    # Check if we can use contactId GSI (much faster than scan)
+    contact_id = expression_values.get(':cid', '')
+    
     for dir_type, table_name in tables_to_scan:
         try:
             table = dynamodb.Table(table_name)
-            
-            # Build filter expression (exclude direction since we're scanning specific tables)
-            table_filter_parts = [p for p in filter_parts if 'direction' not in p]
-            # Also exclude channel filter — these are already WhatsApp-specific tables
-            table_filter_parts = [p for p in table_filter_parts if 'channel' not in p]
-            table_expression_values = {k: v for k, v in expression_values.items() if k not in (':dir', ':ch')}
-            
-            scan_kwargs = {}
-            if table_filter_parts:
-                scan_kwargs['FilterExpression'] = ' AND '.join(table_filter_parts)
-                scan_kwargs['ExpressionAttributeValues'] = table_expression_values
-            
-            # Paginate through ALL items — DynamoDB Limit is items evaluated, not returned
             table_items = []
-            last_key = None
-            pages = 0
-            max_pages = 100  # safety cap — increased to load more messages
             
-            while pages < max_pages:
-                if last_key:
-                    scan_kwargs['ExclusiveStartKey'] = last_key
-                elif 'ExclusiveStartKey' in scan_kwargs:
-                    del scan_kwargs['ExclusiveStartKey']
-                
-                response = table.scan(**scan_kwargs)
-                items = response.get('Items', [])
-                
-                for item in items:
-                    if 'direction' not in item:
-                        item['direction'] = dir_type
-                
-                table_items.extend(items)
-                pages += 1
-                
-                last_key = response.get('LastEvaluatedKey')
-                if not last_key or len(table_items) >= limit * 2:
-                    break
+            if contact_id:
+                # USE GSI — orders of magnitude faster than scan
+                try:
+                    query_kwargs = {
+                        'IndexName': 'contactId-index',
+                        'KeyConditionExpression': 'contactId = :cid',
+                        'ExpressionAttributeValues': {':cid': contact_id},
+                        'ScanIndexForward': False,  # newest first
+                        'Limit': limit,
+                    }
+                    response = table.query(**query_kwargs)
+                    items = response.get('Items', [])
+                    for item in items:
+                        if 'direction' not in item:
+                            item['direction'] = dir_type
+                    table_items.extend(items)
+                    
+                    # Paginate if needed (up to limit)
+                    while 'LastEvaluatedKey' in response and len(table_items) < limit:
+                        query_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+                        response = table.query(**query_kwargs)
+                        items = response.get('Items', [])
+                        for item in items:
+                            if 'direction' not in item:
+                                item['direction'] = dir_type
+                        table_items.extend(items)
+                    
+                    logger.info(json.dumps({
+                        'event': 'messages_queried_gsi',
+                        'count': len(table_items),
+                        'table': table_name,
+                        'contactId': contact_id,
+                    }))
+                except Exception as gsi_err:
+                    # GSI not available — fall back to scan
+                    logger.warning(f'contactId GSI query failed, falling back to scan: {gsi_err}')
+                    table_items = _scan_table_fallback(table, filter_parts, expression_values, dir_type, limit)
+            else:
+                # No contactId filter — must scan (but limit pages for performance)
+                table_items = _scan_table_fallback(table, filter_parts, expression_values, dir_type, limit)
             
             all_messages.extend(table_items)
-            
-            logger.info(json.dumps({
-                'event': 'messages_scanned',
-                'count': len(table_items),
-                'table': table_name,
-                'direction': dir_type,
-                'pages': pages,
-            }))
             
         except Exception as e:
             logger.error(json.dumps({
@@ -268,6 +268,50 @@ def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int,
             }))
     
     return all_messages
+
+
+def _scan_table_fallback(table, filter_parts: List[str], expression_values: Dict, dir_type: str, limit: int) -> List[Dict]:
+    """Fallback: scan table with pagination (capped at 10 pages for performance)."""
+    table_filter_parts = [p for p in filter_parts if 'direction' not in p and 'channel' not in p]
+    table_expression_values = {k: v for k, v in expression_values.items() if k not in (':dir', ':ch')}
+    
+    scan_kwargs = {}
+    if table_filter_parts:
+        scan_kwargs['FilterExpression'] = ' AND '.join(table_filter_parts)
+        scan_kwargs['ExpressionAttributeValues'] = table_expression_values
+    
+    table_items = []
+    last_key = None
+    pages = 0
+    max_pages = 10  # Reduced from 100 — prevents timeout on large tables
+    
+    while pages < max_pages:
+        if last_key:
+            scan_kwargs['ExclusiveStartKey'] = last_key
+        elif 'ExclusiveStartKey' in scan_kwargs:
+            del scan_kwargs['ExclusiveStartKey']
+        
+        response = table.scan(**scan_kwargs)
+        items = response.get('Items', [])
+        
+        for item in items:
+            if 'direction' not in item:
+                item['direction'] = dir_type
+        
+        table_items.extend(items)
+        pages += 1
+        
+        last_key = response.get('LastEvaluatedKey')
+        if not last_key or len(table_items) >= limit * 2:
+            break
+    
+    logger.info(json.dumps({
+        'event': 'messages_scanned_fallback',
+        'count': len(table_items),
+        'pages': pages,
+    }))
+    
+    return table_items
 
 
 def _convert_from_dynamodb(item: Dict[str, Any]) -> Dict[str, Any]:
