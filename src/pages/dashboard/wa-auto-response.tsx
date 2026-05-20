@@ -620,242 +620,239 @@ const CodeRepo: React.FC<PageProps> = ( { signOut, user } ) => {
                 </div>
               </div>
             </div>
-            AI here only smooths your pre-configured responses — it never acts as a standalone assistant.
-          </div>
-            </div>
 
-      {/* Welcome Message */ }
-      <div style={ S.card }>
-        <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 } }>
-          <label style={ { fontSize: 14, fontWeight: 600, color: '#1a3a2a' } }>Welcome Message</label>
-          <button
-            style={ S.toggle( welcomeEnabled ) }
-            onClick={ () => setWelcomeEnabled( !welcomeEnabled ) }
-            aria-label="Toggle welcome message"
-          >
-            <span style={ {
-              position: 'absolute', top: 2, left: welcomeEnabled ? 18 : 2,
-              width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
-            } } />
-          </button>
-        </div>
-        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 8px' } }>
-          Sent when a user messages &quot;hi&quot;, &quot;hello&quot;, &quot;hey&quot;, &quot;menu&quot;, or &quot;start&quot;.
-        </p>
-        <textarea
-          style={ S.textarea }
-          value={ welcomeMsg }
-          onChange={ e => setWelcomeMsg( e.target.value ) }
-          placeholder="Enter welcome message..."
-        />
-      </div>
-
-      {/* Fallback Message */ }
-      <div style={ S.card }>
-        <label style={ { fontSize: 14, fontWeight: 600, color: '#1a3a2a' } }>Fallback Message</label>
-        <p style={ { fontSize: 12, color: '#6b7280', margin: '4px 0 8px' } }>
-          Sent when a user sends a message that doesn&apos;t match any keyword or command.
-        </p>
-        <textarea
-          style={ S.textarea }
-          value={ fallbackMsg }
-          onChange={ e => setFallbackMsg( e.target.value ) }
-          placeholder="Thanks for your message! Type 'menu' to see available options."
-        />
-      </div>
-    </div>
-  )
-}
-
-{/* ── Keyword Responses Tab ── */ }
-{
-  activeTab === 'keywords' && (
-    <div>
-      <div style={ { display: 'flex', justifyContent: 'space-between', marginBottom: 12 } }>
-        <p style={ { fontSize: 12, color: '#6b7280', margin: 0 } }>
-          When a user sends a matching keyword, the configured response is sent. No AI involved.
-        </p>
-        <button style={ S.btn } onClick={ addKw }>+ Add Rule</button>
-      </div>
-
-      { keywords.map( kw => (
-        <div key={ kw.id } style={ { ...S.card, opacity: kw.enabled ? 1 : 0.6 } }>
-          <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } }>
-            <div style={ { flex: 1 } }>
-              <div style={ { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 } }>
-                { kw.keywords.map( ( k, i ) => (
-                  <span key={ i } style={ { padding: '2px 8px', background: '#d1f470', borderRadius: 4, fontSize: 11, fontWeight: 500 } }>{ k }</span>
-                ) ) }
+            {/* Welcome Message */ }
+            <div style={ S.card }>
+              <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 } }>
+                <label style={ { fontSize: 14, fontWeight: 600, color: '#1a3a2a' } }>Welcome Message</label>
+                <button
+                  style={ S.toggle( welcomeEnabled ) }
+                  onClick={ () => setWelcomeEnabled( !welcomeEnabled ) }
+                  aria-label="Toggle welcome message"
+                >
+                  <span style={ {
+                    position: 'absolute', top: 2, left: welcomeEnabled ? 18 : 2,
+                    width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+                  } } />
+                </button>
               </div>
-              <p style={ { margin: 0, fontSize: 13, color: '#374151' } }>{ kw.response }</p>
-              { kw.responseType === 'flow' && kw.flowId && (
-                <p style={ { margin: '4px 0 0', fontSize: 11, color: '#6b7280' } }>Flow: { kw.flowId }</p>
-              ) }
-            </div>
-            <div style={ { display: 'flex', gap: 6, alignItems: 'center' } }>
-              <button style={ S.toggle( kw.enabled ) } onClick={ () => toggleKw( kw.id ) } aria-label="Toggle rule">
-                <span style={ { position: 'absolute', top: 2, left: kw.enabled ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' } } />
-              </button>
-              <button style={ { ...S.btn, fontSize: 11, padding: '4px 8px' } } onClick={ () => setEditingKw( kw ) }>Edit</button>
-              <button style={ { ...S.btn, fontSize: 11, padding: '4px 8px', color: '#dc2626', borderColor: '#fecaca' } } onClick={ () => deleteKw( kw.id ) }>Del</button>
-            </div>
-          </div>
-        </div>
-      ) ) }
-
-      {/* Edit modal */ }
-      { editingKw && (
-        <div style={ { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 } }>
-          <div style={ { background: '#fff', borderRadius: 12, padding: 20, width: 480, maxHeight: '80vh', overflow: 'auto' } }>
-            <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a3a2a' } }>Edit Keyword Rule</h3>
-            <div style={ { marginBottom: 10 } }>
-              <label style={ { fontSize: 12, fontWeight: 600 } }>Keywords (comma-separated)</label>
-              <input
-                style={ S.input }
-                value={ editingKw.keywords.join( ', ' ) }
-                onChange={ e => setEditingKw( { ...editingKw, keywords: e.target.value.split( ',' ).map( s => s.trim().toLowerCase() ).filter( Boolean ) } ) }
-              />
-            </div>
-            <div style={ { marginBottom: 10 } }>
-              <label style={ { fontSize: 12, fontWeight: 600 } }>Response</label>
+              <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 8px' } }>
+                Sent when a user messages &quot;hi&quot;, &quot;hello&quot;, &quot;hey&quot;, &quot;menu&quot;, or &quot;start&quot;.
+              </p>
               <textarea
                 style={ S.textarea }
-                value={ editingKw.response }
-                onChange={ e => setEditingKw( { ...editingKw, response: e.target.value } ) }
+                value={ welcomeMsg }
+                onChange={ e => setWelcomeMsg( e.target.value ) }
+                placeholder="Enter welcome message..."
               />
             </div>
-            <div style={ { marginBottom: 10 } }>
-              <label style={ { fontSize: 12, fontWeight: 600 } }>Type</label>
-              <select
-                style={ S.input }
-                value={ editingKw.responseType }
-                onChange={ e => setEditingKw( { ...editingKw, responseType: e.target.value as any } ) }
-              >
-                <option value="text">Text</option>
-                <option value="flow">Flow</option>
-              </select>
+
+            {/* Fallback Message */ }
+            <div style={ S.card }>
+              <label style={ { fontSize: 14, fontWeight: 600, color: '#1a3a2a' } }>Fallback Message</label>
+              <p style={ { fontSize: 12, color: '#6b7280', margin: '4px 0 8px' } }>
+                Sent when a user sends a message that doesn&apos;t match any keyword or command.
+              </p>
+              <textarea
+                style={ S.textarea }
+                value={ fallbackMsg }
+                onChange={ e => setFallbackMsg( e.target.value ) }
+                placeholder="Thanks for your message! Type 'menu' to see available options."
+              />
             </div>
-            { editingKw.responseType === 'flow' && (
-              <>
-                <div style={ { marginBottom: 10 } }>
-                  <label style={ { fontSize: 12, fontWeight: 600 } }>Flow ID</label>
-                  <input style={ S.input } value={ editingKw.flowId || '' } onChange={ e => setEditingKw( { ...editingKw, flowId: e.target.value } ) } />
+          </div>
+        )
+        }
+
+        {/* ── Keyword Responses Tab ── */ }
+        {
+          activeTab === 'keywords' && (
+            <div>
+              <div style={ { display: 'flex', justifyContent: 'space-between', marginBottom: 12 } }>
+                <p style={ { fontSize: 12, color: '#6b7280', margin: 0 } }>
+                  When a user sends a matching keyword, the configured response is sent. No AI involved.
+                </p>
+                <button style={ S.btn } onClick={ addKw }>+ Add Rule</button>
+              </div>
+
+              { keywords.map( kw => (
+                <div key={ kw.id } style={ { ...S.card, opacity: kw.enabled ? 1 : 0.6 } }>
+                  <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } }>
+                    <div style={ { flex: 1 } }>
+                      <div style={ { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 } }>
+                        { kw.keywords.map( ( k, i ) => (
+                          <span key={ i } style={ { padding: '2px 8px', background: '#d1f470', borderRadius: 4, fontSize: 11, fontWeight: 500 } }>{ k }</span>
+                        ) ) }
+                      </div>
+                      <p style={ { margin: 0, fontSize: 13, color: '#374151' } }>{ kw.response }</p>
+                      { kw.responseType === 'flow' && kw.flowId && (
+                        <p style={ { margin: '4px 0 0', fontSize: 11, color: '#6b7280' } }>Flow: { kw.flowId }</p>
+                      ) }
+                    </div>
+                    <div style={ { display: 'flex', gap: 6, alignItems: 'center' } }>
+                      <button style={ S.toggle( kw.enabled ) } onClick={ () => toggleKw( kw.id ) } aria-label="Toggle rule">
+                        <span style={ { position: 'absolute', top: 2, left: kw.enabled ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' } } />
+                      </button>
+                      <button style={ { ...S.btn, fontSize: 11, padding: '4px 8px' } } onClick={ () => setEditingKw( kw ) }>Edit</button>
+                      <button style={ { ...S.btn, fontSize: 11, padding: '4px 8px', color: '#dc2626', borderColor: '#fecaca' } } onClick={ () => deleteKw( kw.id ) }>Del</button>
+                    </div>
+                  </div>
+                </div>
+              ) ) }
+
+              {/* Edit modal */ }
+              { editingKw && (
+                <div style={ { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 } }>
+                  <div style={ { background: '#fff', borderRadius: 12, padding: 20, width: 480, maxHeight: '80vh', overflow: 'auto' } }>
+                    <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a3a2a' } }>Edit Keyword Rule</h3>
+                    <div style={ { marginBottom: 10 } }>
+                      <label style={ { fontSize: 12, fontWeight: 600 } }>Keywords (comma-separated)</label>
+                      <input
+                        style={ S.input }
+                        value={ editingKw.keywords.join( ', ' ) }
+                        onChange={ e => setEditingKw( { ...editingKw, keywords: e.target.value.split( ',' ).map( s => s.trim().toLowerCase() ).filter( Boolean ) } ) }
+                      />
+                    </div>
+                    <div style={ { marginBottom: 10 } }>
+                      <label style={ { fontSize: 12, fontWeight: 600 } }>Response</label>
+                      <textarea
+                        style={ S.textarea }
+                        value={ editingKw.response }
+                        onChange={ e => setEditingKw( { ...editingKw, response: e.target.value } ) }
+                      />
+                    </div>
+                    <div style={ { marginBottom: 10 } }>
+                      <label style={ { fontSize: 12, fontWeight: 600 } }>Type</label>
+                      <select
+                        style={ S.input }
+                        value={ editingKw.responseType }
+                        onChange={ e => setEditingKw( { ...editingKw, responseType: e.target.value as any } ) }
+                      >
+                        <option value="text">Text</option>
+                        <option value="flow">Flow</option>
+                      </select>
+                    </div>
+                    { editingKw.responseType === 'flow' && (
+                      <>
+                        <div style={ { marginBottom: 10 } }>
+                          <label style={ { fontSize: 12, fontWeight: 600 } }>Flow ID</label>
+                          <input style={ S.input } value={ editingKw.flowId || '' } onChange={ e => setEditingKw( { ...editingKw, flowId: e.target.value } ) } />
+                        </div>
+                        <div style={ { marginBottom: 10 } }>
+                          <label style={ { fontSize: 12, fontWeight: 600 } }>Flow CTA Button Text</label>
+                          <input style={ S.input } value={ editingKw.flowCta || '' } onChange={ e => setEditingKw( { ...editingKw, flowCta: e.target.value } ) } />
+                        </div>
+                      </>
+                    ) }
+                    <div style={ { display: 'flex', gap: 8, justifyContent: 'flex-end' } }>
+                      <button style={ S.btn } onClick={ () => setEditingKw( null ) }>Cancel</button>
+                      <button style={ S.btnPrimary } onClick={ () => saveKw( editingKw ) }>Save</button>
+                    </div>
+                  </div>
+                </div>
+              ) }
+            </div>
+          )
+        }
+
+        {/* ── Menu Config Tab ── */ }
+        {
+          activeTab === 'menu' && (
+            <div>
+              <div style={ S.card }>
+                <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 } }>
+                  <div>
+                    <label style={ { fontSize: 12, fontWeight: 600 } }>Header</label>
+                    <input style={ S.input } value={ menu.header } onChange={ e => setMenu( { ...menu, header: e.target.value } ) } />
+                  </div>
+                  <div>
+                    <label style={ { fontSize: 12, fontWeight: 600 } }>Button Text</label>
+                    <input style={ S.input } value={ menu.buttonText } onChange={ e => setMenu( { ...menu, buttonText: e.target.value } ) } />
+                  </div>
                 </div>
                 <div style={ { marginBottom: 10 } }>
-                  <label style={ { fontSize: 12, fontWeight: 600 } }>Flow CTA Button Text</label>
-                  <input style={ S.input } value={ editingKw.flowCta || '' } onChange={ e => setEditingKw( { ...editingKw, flowCta: e.target.value } ) } />
+                  <label style={ { fontSize: 12, fontWeight: 600 } }>Body</label>
+                  <input style={ S.input } value={ menu.body } onChange={ e => setMenu( { ...menu, body: e.target.value } ) } />
                 </div>
-              </>
-            ) }
-            <div style={ { display: 'flex', gap: 8, justifyContent: 'flex-end' } }>
-              <button style={ S.btn } onClick={ () => setEditingKw( null ) }>Cancel</button>
-              <button style={ S.btnPrimary } onClick={ () => saveKw( editingKw ) }>Save</button>
+                <div style={ { marginBottom: 10 } }>
+                  <label style={ { fontSize: 12, fontWeight: 600 } }>Footer</label>
+                  <input style={ S.input } value={ menu.footer } onChange={ e => setMenu( { ...menu, footer: e.target.value } ) } />
+                </div>
+              </div>
+
+              {/* Sections */ }
+              { menu.sections.map( ( section, si ) => (
+                <div key={ si } style={ { ...S.card, borderLeft: '3px solid #d1f470' } }>
+                  <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } }>
+                    <input
+                      style={ { ...S.input, fontWeight: 600, fontSize: 14, border: 'none', padding: '4px 0' } }
+                      value={ section.title }
+                      onChange={ e => {
+                        const sections = [ ...menu.sections ];
+                        sections[ si ] = { ...sections[ si ], title: e.target.value };
+                        setMenu( { ...menu, sections } );
+                      } }
+                      placeholder="Section title"
+                    />
+                    <button style={ { ...S.btn, fontSize: 11 } } onClick={ () => addMenuRow( si ) }>+ Row</button>
+                  </div>
+
+                  { section.rows.map( ( row, ri ) => (
+                    <div key={ ri } style={ { display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 6, marginBottom: 6 } }>
+                      <input
+                        style={ { ...S.input, fontSize: 12 } }
+                        value={ row.title }
+                        onChange={ e => {
+                          const sections = [ ...menu.sections ];
+                          const rows = [ ...sections[ si ].rows ];
+                          rows[ ri ] = { ...rows[ ri ], title: e.target.value };
+                          sections[ si ] = { ...sections[ si ], rows };
+                          setMenu( { ...menu, sections } );
+                        } }
+                        placeholder="Title"
+                      />
+                      <input
+                        style={ { ...S.input, fontSize: 12 } }
+                        value={ row.description }
+                        onChange={ e => {
+                          const sections = [ ...menu.sections ];
+                          const rows = [ ...sections[ si ].rows ];
+                          rows[ ri ] = { ...rows[ ri ], description: e.target.value };
+                          sections[ si ] = { ...sections[ si ], rows };
+                          setMenu( { ...menu, sections } );
+                        } }
+                        placeholder="Description"
+                      />
+                      <button
+                        style={ { background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14 } }
+                        onClick={ () => removeMenuRow( si, ri ) }
+                        aria-label="Remove row"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) ) }
+                </div>
+              ) ) }
+
+              <button style={ S.btn } onClick={ addSection }>+ Add Section</button>
             </div>
-          </div>
-        </div>
-      ) }
-    </div>
-  )
-}
+          )
+        }
 
-{/* ── Menu Config Tab ── */ }
-{
-  activeTab === 'menu' && (
-    <div>
-      <div style={ S.card }>
-        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 } }>
-          <div>
-            <label style={ { fontSize: 12, fontWeight: 600 } }>Header</label>
-            <input style={ S.input } value={ menu.header } onChange={ e => setMenu( { ...menu, header: e.target.value } ) } />
-          </div>
-          <div>
-            <label style={ { fontSize: 12, fontWeight: 600 } }>Button Text</label>
-            <input style={ S.input } value={ menu.buttonText } onChange={ e => setMenu( { ...menu, buttonText: e.target.value } ) } />
-          </div>
-        </div>
-        <div style={ { marginBottom: 10 } }>
-          <label style={ { fontSize: 12, fontWeight: 600 } }>Body</label>
-          <input style={ S.input } value={ menu.body } onChange={ e => setMenu( { ...menu, body: e.target.value } ) } />
-        </div>
-        <div style={ { marginBottom: 10 } }>
-          <label style={ { fontSize: 12, fontWeight: 600 } }>Footer</label>
-          <input style={ S.input } value={ menu.footer } onChange={ e => setMenu( { ...menu, footer: e.target.value } ) } />
-        </div>
-      </div>
+        {/* ── Flow Triggers Tab ── */ }
+        {
+          activeTab === 'flows' && (
+            <FlowTriggersTab S={ S } />
+          )
+        }
 
-      {/* Sections */ }
-      { menu.sections.map( ( section, si ) => (
-        <div key={ si } style={ { ...S.card, borderLeft: '3px solid #d1f470' } }>
-          <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } }>
-            <input
-              style={ { ...S.input, fontWeight: 600, fontSize: 14, border: 'none', padding: '4px 0' } }
-              value={ section.title }
-              onChange={ e => {
-                const sections = [ ...menu.sections ];
-                sections[ si ] = { ...sections[ si ], title: e.target.value };
-                setMenu( { ...menu, sections } );
-              } }
-              placeholder="Section title"
-            />
-            <button style={ { ...S.btn, fontSize: 11 } } onClick={ () => addMenuRow( si ) }>+ Row</button>
-          </div>
-
-          { section.rows.map( ( row, ri ) => (
-            <div key={ ri } style={ { display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 6, marginBottom: 6 } }>
-              <input
-                style={ { ...S.input, fontSize: 12 } }
-                value={ row.title }
-                onChange={ e => {
-                  const sections = [ ...menu.sections ];
-                  const rows = [ ...sections[ si ].rows ];
-                  rows[ ri ] = { ...rows[ ri ], title: e.target.value };
-                  sections[ si ] = { ...sections[ si ], rows };
-                  setMenu( { ...menu, sections } );
-                } }
-                placeholder="Title"
-              />
-              <input
-                style={ { ...S.input, fontSize: 12 } }
-                value={ row.description }
-                onChange={ e => {
-                  const sections = [ ...menu.sections ];
-                  const rows = [ ...sections[ si ].rows ];
-                  rows[ ri ] = { ...rows[ ri ], description: e.target.value };
-                  sections[ si ] = { ...sections[ si ], rows };
-                  setMenu( { ...menu, sections } );
-                } }
-                placeholder="Description"
-              />
-              <button
-                style={ { background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14 } }
-                onClick={ () => removeMenuRow( si, ri ) }
-                aria-label="Remove row"
-              >
-                ×
-              </button>
-            </div>
-          ) ) }
-        </div>
-      ) ) }
-
-      <button style={ S.btn } onClick={ addSection }>+ Add Section</button>
-    </div>
-  )
-}
-
-{/* ── Flow Triggers Tab ── */ }
-{
-  activeTab === 'flows' && (
-    <FlowTriggersTab S={ S } />
-  )
-}
-
-{/* ── Ice Breakers Tab ── */ }
-{
-  activeTab === 'icebreakers' && (
-    <IceBreakersTab S={ S } />
-  )
-}
+        {/* ── Ice Breakers Tab ── */ }
+        {
+          activeTab === 'icebreakers' && (
+            <IceBreakersTab S={ S } />
+          )
+        }
       </div >
     </Layout >
   );
