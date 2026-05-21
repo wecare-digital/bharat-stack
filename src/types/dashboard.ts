@@ -24,6 +24,7 @@ export type TabType =
   | 'requests'
   | 'internalchat'
   | 'appbuilder'
+  | 'system'
   | 'infra';
 
 export interface DashboardData {
