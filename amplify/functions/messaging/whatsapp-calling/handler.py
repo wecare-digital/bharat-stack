@@ -1,21 +1,19 @@
 """
-WhatsApp Unified Webhook + Call Control Handler
+WhatsApp Unified Webhook + Call Control Handler (IVR Auto-Pickup Only)
 
-Purpose: Handle WhatsApp Business Calling API webhooks + call signaling + message forwarding
-UNIFIED ENDPOINT: https://api.wecare.digital/whatsapp (replaces old /whatsapp-calling)
+Purpose: Handle WhatsApp Business Calling API webhooks + IVR auto-pickup + message forwarding
+UNIFIED ENDPOINT: https://api.wecare.digital/whatsapp
 
 Routes (all under /whatsapp):
 - GET  /whatsapp                   → Webhook verification (hub.challenge)
 - POST /whatsapp                   → Webhook events (calls + messages from Meta)
 - GET  /whatsapp/logs              → List call event logs
 - GET  /whatsapp/active            → Get active/pending calls (for frontend polling)
-- POST /whatsapp/accept            → Pre-accept + accept a call (send SDP answer to Meta)
 - POST /whatsapp/reject            → Reject/terminate a call
 - POST /whatsapp/hangup            → Hang up an active call
-- POST /whatsapp/outbound          → Request call permission or initiate outbound call
+- POST /whatsapp/outbound          → Initiate outbound call
 - GET  /whatsapp/config            → Get auto-pickup config
 - POST /whatsapp/config            → Update auto-pickup config
-- POST /whatsapp/ai-respond        → AI Bot: audio/text → Transcribe → Bedrock → Polly TTS
 - DELETE /whatsapp                 → Clear call logs
 
 Meta Webhook Fields: messages, calls, account_update, account_settings_update, ...
@@ -25,6 +23,9 @@ IVR Audio Playback:
   Graph API mode: pre_accept with SDP → accept → send audio message → terminate
   SIP mode (Asterisk): True in-call IVR audio via RTP/SRTP
   For true in-call audio, enable SIP on the phone number.
+
+Mode: IVR auto-pickup ONLY (manual/browser WebRTC mode removed).
+AI Respond endpoint removed — AI is handled by inbound WhatsApp handler via voice notes.
 """
 
 import os
@@ -235,7 +236,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # POST routes
         if http_method == 'POST':
             # Default POST with no sub-path = webhook event from Meta (no auth)
-            if not any(x in path for x in ['/config', '/accept', '/reject', '/hangup', '/outbound', '/ai-respond']):
+            if not any(x in path for x in ['/config', '/reject', '/hangup', '/outbound']):
                 # P0 Security: Verify X-Hub-Signature-256 before processing
                 if not _verify_webhook_signature(event, request_id):
                     logger.warning(json.dumps({'event': 'webhook_signature_rejected', 'requestId': request_id}))
@@ -252,14 +253,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             if '/config' in path:
                 return _update_config(event, request_id)
-            if '/accept' in path:
-                return _accept_call(event, request_id)
             if '/reject' in path or '/hangup' in path:
                 return _terminate_call(event, request_id)
             if '/outbound' in path:
                 return _outbound_call(event, request_id)
-            if '/ai-respond' in path:
-                return _ai_respond(event, request_id)
 
         # DELETE
         if http_method == 'DELETE':
@@ -624,46 +621,16 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             })
             logger.info(f"Pre-call auto-granted permission for {from_number} on connect (call {call_id})")
 
-        # ── Send default IVR SMS to caller immediately on connect ──
-        if _is_sms_on_call_enabled():
-            _send_incoming_call_sms(from_number, call_id, phone_number_id, request_id)
-        else:
-            logger.info(f"SMS-on-call disabled — skipping SMS for call {call_id}")
+        # ── SMS moved to disconnect only — no SMS on connect to avoid duplicates ──
+        # SMS is sent in the terminate handler (_send_disconnect_sms) instead
+        # This prevents the user from receiving 2 identical SMS per call
+        # But WhatsApp wd_menu template IS still sent on connect (not a duplicate)
+        _send_call_whatsapp_notification(from_number, call_id, phone_number_id, request_id)
 
-        # Auto-pickup: behaviour depends on mode (manual / ivr)
-        # - manual: pre_accept only, wait for frontend browser to answer via WebRTC
-        # - ivr: pre_accept, send IVR audio message, terminate after delay
+        # Auto-pickup: IVR mode only — pre_accept → send IVR menu → terminate
         if _is_auto_pickup_enabled() and phone_number_id:
-            pickup_mode = _get_auto_pickup_mode()
-            logger.info(f"AUTO-PICKUP mode={pickup_mode} — call {call_id} from {caller_name or from_number}")
-
-            if pickup_mode == 'ivr':
-                # IVR mode: pre_accept → send IVR menu → terminate
-                _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
-            elif pickup_mode == 'manual':
-                # manual: pre_accept only, wait for frontend browser to answer via WebRTC
-                # All phones now support pre_accept via Direct API
-                try:
-                    pre_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-                        'messaging_product': 'whatsapp',
-                        'call_id': call_id,
-                        'action': 'pre_accept',
-                    }, phone_number_id=phone_number_id)
-                    logger.info(f"AUTO-PICKUP pre_accept result: {json.dumps(pre_result)}")
-                    if pre_result.get('error'):
-                        logger.error(f"AUTO-PICKUP pre_accept failed: {json.dumps(pre_result)}")
-                        if pre_result.get('status') == 403:
-                            logger.error(
-                                f"403 on pre_accept for phone_number_id={phone_number_id}. "
-                                f"Check: 1) System User token has whatsapp_business_messaging permission, "
-                                f"2) Calling is enabled on this phone number, "
-                                f"3) Token belongs to the correct WABA for this phone number."
-                            )
-                        _update_call_status(call_id, 'pre_accept_failed', pre_result)
-                    else:
-                        _update_call_status(call_id, 'pre_accepted')
-                except Exception as e:
-                    logger.error(f"Auto pre_accept failed: {e}", exc_info=True)
+            logger.info(f"AUTO-PICKUP IVR — call {call_id} from {caller_name or from_number}")
+            _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
 
     elif event_type == 'terminate':
         reason = call.get('reason', 'unknown')
@@ -741,10 +708,13 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
                         'callId': call_id,
                         'rcs_sent': rcs_result.get('success', False),
                         'rcs_message_id': rcs_result.get('message_id', ''),
+                        'rcs_error': rcs_result.get('error', '') if not rcs_result.get('success') else '',
                         'requestId': request_id,
                     }))
+                else:
+                    logger.info(f'RCS disabled — skipping for call {call_id}')
             except Exception as rcs_err:
-                logger.warning(f'RCS notification failed (non-blocking): {rcs_err}')
+                logger.error(f'RCS notification EXCEPTION (non-blocking): {rcs_err}', exc_info=True)
 
     elif event_type in ('call_permission_response', 'call_permission_status'):
         # Legacy: Meta sends call_permission_status — no longer used for gating.
@@ -766,74 +736,6 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
-
-
-def _redirect_call_to_voice_notes(call_id: str, phone_number_id: str,
-                                   from_number: str, caller_name: str) -> None:
-    """
-    AI mode: Instead of establishing a real-time voice call (which requires
-    WebRTC infrastructure), gracefully redirect the caller to send a voice note.
-
-    The inbound WhatsApp handler already processes audio messages through the
-    full multimodal AI pipeline (Bedrock Converse API → Nova Lite) and can
-    reply with text + optional Polly TTS audio message. This gives the caller
-    an AI voice conversation experience at zero additional infrastructure cost.
-
-    Flow:
-    1. Terminate the call immediately (no pre_accept needed)
-    2. Send a friendly WhatsApp message explaining to send a voice note
-    3. Caller sends voice note → inbound handler → AI pipeline → auto-reply
-    """
-    logger.info(json.dumps({
-        'event': 'ai_redirect_to_voice_notes',
-        'call_id': call_id,
-        'from': from_number,
-        'caller_name': caller_name,
-        'phone_number_id': phone_number_id,
-    }))
-
-    # Step 1: Try to terminate the call
-    try:
-        term_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-            'messaging_product': 'whatsapp',
-            'call_id': call_id,
-            'action': 'terminate',
-        }, phone_number_id=phone_number_id)
-        if term_result.get('error'):
-            logger.info(f"AI-REDIRECT terminate skipped: status={term_result.get('status')}")
-        else:
-            logger.info(f"AI-REDIRECT terminate success: {json.dumps(term_result)}")
-    except Exception as e:
-        logger.info(f"AI-REDIRECT terminate skipped: {e}")
-
-    _update_call_status(call_id, 'ai_redirected')
-
-    # Step 2: Send a friendly redirect message via WhatsApp
-    aws_phone_id = _get_aws_phone_id(phone_number_id)
-    greeting = caller_name or 'there'
-
-    redirect_text = (
-        f"📞 Hey {greeting}! I noticed you tried to call.\n\n"
-        f"🎙️ I'm an AI assistant — send me a *voice note* and I'll respond "
-        f"instantly with a voice reply!\n\n"
-        f"You can also just type your question. I'm here to help 😊"
-    )
-
-    result = _send_via_aws(aws_phone_id, from_number, {
-        'type': 'text',
-        'text': {'body': redirect_text},
-    })
-
-    if result.get('error'):
-        error_detail = result.get('detail', '')
-        if any(kw in error_detail.lower() for kw in ('outside', 'window', '131047')):
-            # No 24h messaging window — try sending a template instead
-            logger.warning(f"AI-REDIRECT: No 24h window for {from_number}, "
-                           f"redirect message not sent. Caller will see missed call.")
-        else:
-            logger.error(f"AI-REDIRECT message failed: {json.dumps(result)}")
-    else:
-        logger.info(f"AI-REDIRECT message sent to {from_number}: messageId={result.get('messageId')}")
 
 
 def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
@@ -1070,106 +972,7 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
         logger.error(f"Failed to send post-call reaction: {e}", exc_info=True)
 
 
-# ─── Call Control (Accept / Reject / Hangup) ────────────────────────
-
-def _accept_call(event: Dict, request_id: str) -> Dict[str, Any]:
-    """
-    Accept an incoming call: pre_accept → accept with SDP answer.
-    Frontend sends: { callId, phoneNumberId, sdpAnswer }
-    Skips pre_accept if the call was already pre_accepted by auto-pickup.
-    """
-    try:
-        body = json.loads(event.get('body', '{}'))
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return _response(400, {'error': 'Invalid JSON in request body'})
-    call_id = body.get('callId', '')
-    phone_number_id = body.get('phoneNumberId', '')
-    sdp_answer = body.get('sdpAnswer', '')
-
-    if not call_id or not phone_number_id:
-        return _response(400, {'error': 'callId and phoneNumberId required'})
-
-    # All phones now use Direct API for call control
-    logger.info(f"Accepting call {call_id} on {phone_number_id}, has_sdp_answer: {bool(sdp_answer)}")
-
-    # Check if call was already pre_accepted by auto-pickup webhook handler
-    already_pre_accepted = False
-    try:
-        table = dynamodb.Table(CALL_LOG_TABLE)
-        from boto3.dynamodb.conditions import Attr as DDBAttr2
-        result = table.scan(
-            FilterExpression=DDBAttr2('callId').eq(call_id) & DDBAttr2('eventType').eq('connect'),
-            Limit=10,
-        )
-        items = result.get('Items', [])
-        if items and items[0].get('status') == 'pre_accepted':
-            already_pre_accepted = True
-            logger.info(f"Call {call_id} already pre_accepted by auto-pickup, skipping pre_accept")
-    except Exception as e:
-        logger.warning(f"Could not check pre_accept status: {e}")
-
-    pre_accept_result = None
-    if not already_pre_accepted:
-        # Step 1: Pre-accept — tells Meta we're preparing to answer
-        pre_accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
-            'messaging_product': 'whatsapp',
-            'call_id': call_id,
-            'action': 'pre_accept',
-        }, phone_number_id=phone_number_id)
-        logger.info(f"Pre-accept result: {json.dumps(pre_accept_result)}")
-
-        if pre_accept_result.get('error'):
-            _update_call_status(call_id, 'pre_accept_failed', pre_accept_result)
-            error_code = pre_accept_result.get('errorCode')
-            hint = ''
-            if error_code and error_code in META_CALLING_ERRORS:
-                hint = f"Error {error_code}: {META_CALLING_ERRORS[error_code]['msg']} — {META_CALLING_ERRORS[error_code]['action']}"
-            elif pre_accept_result.get('status') == 403:
-                hint = ('Token lacks calling permission. Ensure the System User token '
-                        'has whatsapp_business_messaging permission AND calling is '
-                        'enabled on this phone number via POST /{phone_number_id}/settings '
-                        'with the calling object. Also verify the token belongs to the '
-                        'correct WABA for this phone number.')
-            return _response(200, {
-                'success': False, 'step': 'pre_accept',
-                'error': pre_accept_result,
-                'errorCode': error_code,
-                'hint': hint,
-                'phone_number_id_used': phone_number_id,
-            })
-    else:
-        pre_accept_result = {'skipped': True, 'reason': 'already_pre_accepted'}
-
-    # Step 2: Accept with SDP answer — establishes WebRTC media
-    accept_payload = {
-        'messaging_product': 'whatsapp',
-        'call_id': call_id,
-        'action': 'accept',
-    }
-    if sdp_answer:
-        accept_payload['sdp_answer'] = sdp_answer
-
-    accept_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', accept_payload, phone_number_id=phone_number_id)
-    logger.info(f"Accept result: {json.dumps(accept_result)}")
-
-    if accept_result.get('error'):
-        _update_call_status(call_id, 'accept_failed', accept_result)
-        return _response(200, {
-            'success': False, 'step': 'accept',
-            'pre_accept': pre_accept_result,
-            'error': accept_result,
-        })
-
-    _update_call_status(call_id, 'connected')
-
-    return _response(200, {
-        'success': True,
-        'callId': call_id,
-        'pre_accept': pre_accept_result,
-        'accept': accept_result,
-    })
-
-
+# ─── Call Control (Reject / Hangup) ──────────────────────────────────
 
 def _terminate_call(event: Dict, request_id: str) -> Dict[str, Any]:
     """Reject or hang up a call."""
@@ -1260,18 +1063,11 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.ogg')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
-# AI Bot config
-AI_AGENT_ID = os.environ.get('AI_AGENT_ID', '')
-AI_AGENT_ALIAS = os.environ.get('AI_AGENT_ALIAS', '')
-AI_KB_ID = os.environ.get('AI_KB_ID', '')
-AI_VOICE_ID = os.environ.get('AI_VOICE_ID', 'Kajal')
-AI_LANGUAGE = os.environ.get('AI_LANGUAGE', 'en-IN')
-TRANSCRIBE_LANGUAGE = os.environ.get('TRANSCRIBE_LANGUAGE', 'en-IN')
-
 s3 = boto3.client('s3', region_name=REGION)
 polly_client = boto3.client('polly', region_name=REGION)
-transcribe_client = boto3.client('transcribe', region_name=REGION)
-bedrock_runtime = boto3.client('bedrock-agent-runtime', region_name=REGION)
+
+# IVR TTS voice config (used by _generate_ivr_tts_audio for Polly)
+AI_VOICE_ID = os.environ.get('AI_VOICE_ID', 'Kajal')
 
 # Phone number ID mapping for outbound audio via Direct API
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
@@ -1765,8 +1561,9 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         logger.info(f"IVR audio sent to {from_number}: {audio_url}")
 
     # ── Step 4: Keep call connected briefly, then terminate ──
-    # Give caller time to hear the connection + see the IVR menu
-    time.sleep(5)
+    # 3s is enough for caller to hear connection tone + see IVR menu in chat
+    # Reduced from 5s to minimize Lambda execution time
+    time.sleep(3)
     try:
         term_result = _meta_api_call(f"{phone_number_id}/calls", 'POST', {
             'messaging_product': 'whatsapp',
@@ -2187,44 +1984,27 @@ def _get_active_calls(params: Dict, request_id: str) -> Dict[str, Any]:
 # POST /whatsapp/config  → Update auto-pickup config
 
 def _get_config(request_id: str) -> Dict[str, Any]:
-    """Get auto-pickup configuration including mode and SMS-on-call toggle."""
+    """Get auto-pickup configuration."""
     enabled = _is_auto_pickup_enabled()
     audio_url = _get_auto_pickup_audio_url()
-    mode = _get_auto_pickup_mode()
     sms_on_call = _is_sms_on_call_enabled()
     return _response(200, {
         'autoPickup': enabled,
         'ivrUrl': audio_url,
         'defaultIvrUrl': DEFAULT_IVR_URL,
-        'autoPickupMode': mode,
+        'autoPickupMode': 'ivr',
         'smsOnCall': sms_on_call,
     })
 
 
-def _get_auto_pickup_mode() -> str:
-    """Get auto-pickup mode from SystemConfig: 'manual' | 'ivr'.
-    AI mode removed — IVR-only approach.
-    """
-    try:
-        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        result = table.get_item(Key={'id': 'whatsapp_calling_auto_pickup_mode'})
-        item = result.get('Item')
-        if item and item.get('configValue') in ('manual', 'ivr'):
-            return str(item['configValue'])
-    except Exception as e:
-        logger.warning(f"Failed to read auto-pickup mode: {e}")
-    return 'ivr'  # default — IVR mode
-
-
 def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
-    """Update auto-pickup configuration (toggle + IVR URL + mode)."""
+    """Update auto-pickup configuration (toggle + IVR URL)."""
     try:
         body = json.loads(event.get('body', '{}'))
     except (json.JSONDecodeError, TypeError, ValueError):
         return _response(400, {'error': 'Invalid JSON in request body'})
     enabled = body.get('autoPickup')
     ivr_url = body.get('ivrUrl')
-    mode = body.get('autoPickupMode')  # 'manual' | 'ivr'
 
     table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
 
@@ -2252,18 +2032,6 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update IVR URL config: {e}")
             return _response(500, {'error': str(e)})
 
-    if mode is not None and mode in ('manual', 'ivr'):
-        try:
-            table.put_item(Item={
-                'id': 'whatsapp_calling_auto_pickup_mode',
-                'configValue': mode,
-                'updatedAt': Decimal(str(int(time.time()))),
-            })
-            logger.info(f"Auto-pickup mode set to: {mode}")
-        except Exception as e:
-            logger.error(f"Failed to update auto-pickup mode: {e}")
-            return _response(500, {'error': str(e)})
-
     sms_on_call = body.get('smsOnCall')
     if sms_on_call is not None:
         try:
@@ -2277,214 +2045,7 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update sms_on_call config: {e}")
             return _response(500, {'error': str(e)})
 
-    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': mode, 'smsOnCall': sms_on_call})
-
-
-# ─── AI Bot Endpoint ─────────────────────────────────────────────────
-
-def _ai_respond(event: Dict, request_id: str) -> Dict[str, Any]:
-    """
-    AI Bot endpoint: caller audio → transcribe → Bedrock → Polly TTS → audio URL.
-
-    Frontend sends: { audioBase64, callerPhone, mimeType, text?, sessionId? }
-    - audioBase64: base64-encoded webm/opus from browser MediaRecorder
-    - text: direct text input (skip transcription if browser did speech-to-text)
-    - callerPhone: caller's phone number
-    - mimeType: 'audio/webm' (default)
-
-    Returns: { audioUrl, transcribedText, aiResponse, sessionId }
-    """
-    import base64 as b64
-
-    try:
-        body = json.loads(event.get('body', '{}'))
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return _response(400, {'error': 'Invalid JSON in request body'})
-    audio_base64 = body.get('audioBase64', '')
-    caller_phone = body.get('callerPhone', 'unknown')
-    mime_type = body.get('mimeType', 'audio/webm')
-    text_input = body.get('text', '')
-    session_id = body.get('sessionId', str(uuid.uuid4()))
-
-    logger.info(json.dumps({
-        'event': 'ai_respond_start', 'callerPhone': caller_phone,
-        'hasAudio': bool(audio_base64), 'hasText': bool(text_input),
-        'sessionId': session_id, 'requestId': request_id,
-    }))
-
-    try:
-        transcribed_text = text_input
-
-        # Step 1-2: Transcribe audio if no direct text
-        if not transcribed_text and audio_base64:
-            transcribed_text = _transcribe_audio(audio_base64, mime_type, session_id, request_id)
-
-        if not transcribed_text:
-            return _response(200, {'error': 'No speech detected', 'audioUrl': None, 'noSpeech': True})
-
-        logger.info(f"[AI-RESPOND] Transcribed: {transcribed_text[:200]}")
-
-        # Step 3: Bedrock Agent response
-        ai_response = _get_bedrock_response(transcribed_text, session_id, request_id)
-        if not ai_response:
-            ai_response = "Sorry, I couldn't process your request. Please call us at +91 9330994400 for assistance."
-
-        logger.info(f"[AI-RESPOND] Bedrock: {ai_response[:200]}")
-
-        # Step 4-5: Polly TTS → S3 presigned URL
-        audio_url = _generate_tts_url(ai_response, session_id, request_id)
-
-        return _response(200, {
-            'audioUrl': audio_url,
-            'transcribedText': transcribed_text,
-            'aiResponse': ai_response,
-            'sessionId': session_id,
-        })
-
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'ai_respond_error',
-            'error': str(e),
-            'requestId': request_id,
-        }), exc_info=True)
-        return _response(500, {'error': 'AI response generation failed', 'audioUrl': None})
-
-
-def _transcribe_audio(audio_base64: str, mime_type: str, session_id: str, request_id: str) -> str:
-    """Decode base64 audio, upload to S3, run Transcribe batch job, return text."""
-    import base64 as b64
-
-    ext = 'webm' if 'webm' in mime_type else 'ogg' if 'ogg' in mime_type else 'mp3'
-    media_format = 'webm' if ext == 'webm' else 'ogg' if ext == 'ogg' else 'mp3'
-
-    audio_bytes = b64.b64decode(audio_base64)
-    s3_key = f"stack/whatsapp-media/calling-ai/wecare-digital-{session_id[:8]}_{int(time.time())}.{ext}"
-
-    s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_bytes, ContentType=mime_type)
-    logger.info(f"[TRANSCRIBE] Uploaded {len(audio_bytes)} bytes to s3://{MEDIA_BUCKET}/{s3_key}")
-
-    job_name = f"wa-call-{session_id[:8]}-{int(time.time())}"
-    transcribe_client.start_transcription_job(
-        TranscriptionJobName=job_name,
-        Media={'MediaFileUri': f"s3://{MEDIA_BUCKET}/{s3_key}"},
-        MediaFormat=media_format,
-        LanguageCode=TRANSCRIBE_LANGUAGE,
-        OutputBucketName=MEDIA_BUCKET,
-        OutputKey=f"stack/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json",
-    )
-
-    # Poll for completion (max 30s)
-    for _ in range(30):
-        time.sleep(1)
-        status = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
-        job_status = status['TranscriptionJob']['TranscriptionJobStatus']
-        if job_status == 'COMPLETED':
-            transcript_key = f"stack/whatsapp-media/calling-ai/wecare-digital-transcript-{job_name}.json"
-            obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
-            transcript_data = json.loads(obj['Body'].read().decode('utf-8'))
-            text = transcript_data.get('results', {}).get('transcripts', [{}])[0].get('transcript', '')
-            logger.info(f"[TRANSCRIBE] Done: {text[:200]}")
-            try:
-                s3.delete_object(Bucket=MEDIA_BUCKET, Key=s3_key)
-                s3.delete_object(Bucket=MEDIA_BUCKET, Key=transcript_key)
-            except Exception as e:
-                logger.debug(f'Transcription S3 cleanup failed: {e}')
-            return text.strip()
-        elif job_status == 'FAILED':
-            reason = status['TranscriptionJob'].get('FailureReason', 'unknown')
-            logger.error(f"[TRANSCRIBE] Failed: {reason}")
-            return ''
-
-    logger.warning(f"[TRANSCRIBE] Timed out after 30s")
-    return ''
-
-
-def _get_bedrock_response(user_text: str, session_id: str, request_id: str) -> str:
-    """Send text to Bedrock Agent (external/customer-facing) and get response."""
-    agent_id = AI_AGENT_ID or '4UUQYFWX64'
-    agent_alias = AI_AGENT_ALIAS or 'TSTALIASID'
-
-    try:
-        response = bedrock_runtime.invoke_agent(
-            agentId=agent_id,
-            agentAliasId=agent_alias,
-            sessionId=session_id,
-            inputText=user_text,
-            enableTrace=False,
-        )
-
-        completion = ""
-        for evt in response.get('completion', []):
-            if 'chunk' in evt:
-                chunk_data = evt['chunk']
-                if 'bytes' in chunk_data:
-                    completion += chunk_data['bytes'].decode('utf-8')
-
-        if completion:
-            return completion.strip()
-
-        # Fallback to KB
-        kb_id = AI_KB_ID or 'static-faq'
-        if kb_id:
-            return _query_kb_direct(user_text, kb_id, request_id)
-        return ''
-
-    except Exception as e:
-        logger.error(f"[BEDROCK] Error: {e}", exc_info=True)
-        kb_id = AI_KB_ID or 'static-faq'
-        if kb_id:
-            return _query_kb_direct(user_text, kb_id, request_id)
-        return ''
-
-
-def _query_kb_direct(user_text: str, kb_id: str, request_id: str) -> str:
-    """Query static knowledge base as fallback (FREE — no OpenSearch/Bedrock KB)."""
-    try:
-        from static_knowledge_base import search_knowledge_base as static_kb_search
-        result = static_kb_search(user_text, max_results=2)
-        if result:
-            logger.info(f"[KB] Static FAQ match ({len(result)} chars)")
-            return result
-        return ''
-    except ImportError:
-        logger.warning("[KB] static_knowledge_base not available")
-        return ''
-    except Exception as e:
-        logger.error(f"[KB] Error: {e}")
-        return ''
-
-
-def _generate_tts_url(text: str, session_id: str, request_id: str) -> Optional[str]:
-    """Generate Polly TTS audio, upload to S3, return presigned URL."""
-    try:
-        ssml_text = f'<speak><prosody rate="medium">{text[:2900]}</prosody></speak>'
-        polly_response = polly_client.synthesize_speech(
-            Text=ssml_text, TextType='ssml', OutputFormat='mp3',
-            VoiceId=AI_VOICE_ID or 'Kajal', Engine='neural',
-            LanguageCode=AI_LANGUAGE or 'en-IN',
-        )
-        audio_stream = polly_response['AudioStream'].read()
-        s3_key = f"stack/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
-        s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
-        url = s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
-        logger.info(f"[TTS] Generated {len(audio_stream)} bytes → {s3_key}")
-        return url
-    except Exception as e:
-        logger.error(f"[TTS] SSML failed, retrying plain: {e}")
-        try:
-            polly_response = polly_client.synthesize_speech(
-                Text=text[:2900], TextType='text', OutputFormat='mp3',
-                VoiceId=AI_VOICE_ID or 'Kajal', Engine='neural',
-                LanguageCode=AI_LANGUAGE or 'en-IN',
-            )
-            audio_stream = polly_response['AudioStream'].read()
-            s3_key = f"stack/whatsapp-media/calling-ai/wecare-digital-tts-{session_id[:8]}_{int(time.time())}.mp3"
-            s3.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=audio_stream, ContentType='audio/mpeg')
-            return s3.generate_presigned_url('get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
-        except Exception as e2:
-            logger.error(f"[TTS] Plain text also failed: {e2}")
-            return None
-
+    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': 'ivr', 'smsOnCall': sms_on_call})
 
 # ─── Storage Helpers ─────────────────────────────────────────────────
 
@@ -2664,8 +2225,15 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
     - Call on WABA1 (+919330994400) → wd_menu from WABA1 only
     - Call on WABA2 (+919903300044) → wd_menu from BOTH WABA1 AND WABA2
 
-    Template: wd_menu (Utility, English, VIDEO header)
+    Template: wd_menu (Utility, English, VIDEO header) — APPROVED on both WABAs.
     Video: selfservice.mp4 via CloudFront
+    Both WABAs use same token (WECARE.DIGITAL app / token1).
+
+    DELIVERY TROUBLESHOOTING:
+    - Template IS approved on both WABAs (confirmed via _check_wd_menu.py)
+    - Both WABAs use token1 (WABA2 migrated to WECARE.DIGITAL app)
+    - If delivery fails: check Meta message status webhooks for error codes
+    - Common issues: video URL not accessible, recipient blocked business, rate limit
     """
     try:
         import time as _time
@@ -2699,18 +2267,35 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
 
         for meta_id, label in send_from:
             try:
+                # Try sending with 1 retry on failure (2s delay)
                 api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
                                             template_msg, phone_number_id=meta_id)
                 msg_id = ''
+                error_code = None
                 if isinstance(api_result, dict):
                     msgs = api_result.get('messages', [])
                     if msgs:
                         msg_id = msgs[0].get('id', '')
+                    error_code = api_result.get('errorCode')
+
+                # Retry once on failure (Meta API can have transient errors)
+                if not msg_id and api_result.get('error'):
+                    time.sleep(2)
+                    logger.info(f'{label} wd_menu retry after 2s...')
+                    api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
+                                                template_msg, phone_number_id=meta_id)
+                    if isinstance(api_result, dict):
+                        msgs = api_result.get('messages', [])
+                        if msgs:
+                            msg_id = msgs[0].get('id', '')
+                        error_code = api_result.get('errorCode')
+
                 if msg_id:
                     logger.info(json.dumps({
                         'event': 'call_wa_template_sent',
                         'template': 'wd_menu',
                         'waba': label,
+                        'meta_phone_id': meta_id,
                         'caller': caller_phone[-4:],
                         'messageId': msg_id,
                         'requestId': request_id,
@@ -2730,16 +2315,31 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         request_id=request_id,
                     )
                 else:
-                    logger.warning(json.dumps({
-                        'event': 'call_wa_template_failed',
+                    # Detailed error logging for template delivery failures
+                    error_detail = str(api_result)[:400]
+                    error_message = api_result.get('errorMessage', '')
+                    http_status = api_result.get('status', '')
+                    logger.error(json.dumps({
+                        'event': 'call_wa_template_FAILED',
                         'template': 'wd_menu',
                         'waba': label,
+                        'meta_phone_id': meta_id,
                         'caller': caller_phone[-4:],
-                        'error': str(api_result)[:200],
+                        'errorCode': error_code,
+                        'errorMessage': error_message,
+                        'httpStatus': http_status,
+                        'fullError': error_detail,
                         'requestId': request_id,
+                        'troubleshoot': (
+                            f'wd_menu IS approved on {label}. '
+                            'Check: 1) Video URL accessible (CloudFront), '
+                            '2) Recipient not blocked this business, '
+                            '3) Rate limit not hit (1000 templates/sec), '
+                            '4) Check Meta status webhook for delivery status'
+                        ),
                     }))
             except Exception as e:
-                logger.warning(f'{label} wd_menu error: {e}')
+                logger.error(f'{label} wd_menu EXCEPTION: {e}', exc_info=True)
 
         # Log to CallNotifications table
         try:
@@ -2753,7 +2353,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                 'receivingPhone': receiving_phone_id,
                 'whatsappTemplate': 'wd_menu',
                 'whatsappWaba1': 'sent',
-                'whatsappWaba2': 'sent' if is_waba2 else 'not_sent',
+                'whatsappWaba2': 'sent' if is_waba2 else 'not_applicable',
                 'smsStatus': 'sent_separately',
                 'requestId': request_id,
                 'createdAt': int(_time.time()),

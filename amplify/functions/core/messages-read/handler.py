@@ -283,7 +283,7 @@ def _scan_table_fallback(table, filter_parts: List[str], expression_values: Dict
     table_items = []
     last_key = None
     pages = 0
-    max_pages = 10  # Reduced from 100 — prevents timeout on large tables
+    max_pages = 50  # Increased from 10 — ensures inbox loads all recent messages
     
     while pages < max_pages:
         if last_key:
