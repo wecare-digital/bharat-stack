@@ -742,7 +742,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Handle post-call actions from Asterisk AGI (SIP mode).
     Called via Lambda invoke after a WhatsApp call ends on Asterisk.
-    Sends: 1) thumbs up reaction (👍), 2) post-call text message.
+    Sends wd_menu template from the WABA that received the call + WABA1 if different.
     """
     caller_phone = event.get('callerPhone', '')
     phone_number_id = event.get('phoneNumberId', '1055232054343117')
@@ -755,12 +755,16 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     if not caller_phone.startswith('+'):
         caller_phone = f'+{caller_phone}'
 
-    logger.info(f"POST-CALL SIP: sending wd_menu template to {caller_phone} via WABA1")
+    # Determine which WABAs to send from based on receiving phone
+    is_waba2_call = str(phone_number_id) == PHONE2_META_ID
+    if is_waba2_call:
+        send_from = [(WABA1_META_ID, 'WABA1'), (WABA2_META_ID, 'WABA2')]
+    else:
+        send_from = [(WABA1_META_ID, 'WABA1')]
 
-    # ── Send wd_menu template from WABA1 (works outside 24h window) ──
-    waba1_meta_id = WABA1_META_ID
+    logger.info(f"POST-CALL SIP: sending wd_menu template to {caller_phone} via {', '.join(l for _, l in send_from)}")
+
     VIDEO_URL = WA_TEMPLATE_VIDEO_URL
-
     template_msg = {
         'messaging_product': 'whatsapp',
         'recipient_type': 'individual',
@@ -780,60 +784,45 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
         },
     }
 
-    result = _meta_api_call(f"{waba1_meta_id}/messages", 'POST',
-                            template_msg, phone_number_id=waba1_meta_id)
+    # Send from each WABA
+    first_msg_id = ''
+    for meta_id, label in send_from:
+        result = _meta_api_call(f"{meta_id}/messages", 'POST',
+                                template_msg, phone_number_id=meta_id)
+        msg_id = ''
+        if isinstance(result, dict):
+            msgs = result.get('messages', [])
+            if msgs:
+                msg_id = msgs[0].get('id', '')
+        if msg_id:
+            logger.info(f"Post-call SIP wd_menu sent via {label}: {msg_id}")
+            if not first_msg_id:
+                first_msg_id = msg_id
+        else:
+            logger.warning(f"Post-call SIP wd_menu FAILED via {label}: {result}")
 
-    msg_id = ''
-    if isinstance(result, dict):
-        msgs = result.get('messages', [])
-        if msgs:
-            msg_id = msgs[0].get('id', '')
+    msg_id = first_msg_id
 
-    if result.get('error') or not msg_id:
-        logger.warning(f"Post-call SIP wd_menu template failed: {result}")
-        # Fallback: send plain text via the receiving phone
+    if not msg_id:
+        # All template sends failed — fallback to plain text
+        logger.warning(f"Post-call SIP: all wd_menu sends failed, falling back to text")
         aws_phone_id = _get_aws_phone_id(phone_number_id)
         result = _send_via_aws(aws_phone_id, caller_phone, {
             'type': 'text',
             'text': {'body': IVR_SMS_CONTENT},
         })
         msg_id = result.get('messageId', '')
-    else:
-        logger.info(f"Post-call SIP wd_menu template sent to {caller_phone}: {msg_id}")
 
-    if result.get('error'):
-        logger.warning(f"Post-call SIP message failed: {result}")
-    else:
-        msg_id = result.get('messageId', '')
-        logger.info(f"Post-call SIP message sent to {caller_phone}: {msg_id}")
-
-        # Store in outbound table so it shows in dashboard inbox
+    # Store in outbound table so it shows in dashboard inbox
+    if msg_id:
         try:
             outbound_table = dynamodb.Table('stack-wecare-digital-WhatsAppOutboundTable')
-            contacts_table = dynamodb.Table('stack-wecare-digital-ContactsTable')
             now = int(time.time())
             store_id = msg_id or f"postcall_{caller_phone}_{now}"
+            contact_id = _lookup_contact_id_for_inbox(caller_phone)
 
-            # Look up contactId from ContactsTable by phone number
-            # The inbox matches messages by contactId (UUID), not phone
-            contact_id = None
-            clean_phone = caller_phone.lstrip('+')
-            for phone_variant in [caller_phone, clean_phone]:
-                try:
-                    resp = contacts_table.query(
-                        IndexName='phone-index',
-                        KeyConditionExpression='phone = :phone',
-                        ExpressionAttributeValues={':phone': phone_variant},
-                        Limit=1
-                    )
-                    items = resp.get('Items', [])
-                    if items:
-                        contact_id = items[0].get('contactId') or items[0].get('id')
-                        break
-                except Exception:
-                    pass
-            if not contact_id:
-                contact_id = clean_phone  # fallback to phone digits
+            # Fix: ensure whatsappMessageId is never empty (DynamoDB GSI rejects empty strings)
+            wa_msg_id = msg_id if msg_id else store_id
 
             outbound_table.put_item(Item={
                 'id': store_id,
@@ -845,7 +834,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
                 'direction': 'outbound',
                 'status': 'sent',
                 'messageType': 'post_call',
-                'whatsappMessageId': msg_id,
+                'whatsappMessageId': wa_msg_id,
                 'phoneNumberId': phone_number_id,
                 'awsPhoneNumberId': phone_number_id,
                 'timestamp': Decimal(str(now)),
@@ -856,18 +845,18 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
         except Exception as e:
             logger.error(f"Failed to store post-call message: {e}", exc_info=True)
 
-        # Step 3: React with thumbs up to the message we just sent
+        # React with thumbs up to the message we just sent
         if msg_id:
-            react_result = _meta_api_call(f"{phone_number_id}/messages", 'POST', {
+            react_result = _meta_api_call(f"{WABA1_META_ID}/messages", 'POST', {
                 'messaging_product': 'whatsapp',
                 'recipient_type': 'individual',
-                'to': caller_phone,
+                'to': caller_phone.lstrip('+'),
                 'type': 'reaction',
                 'reaction': {
                     'message_id': msg_id,
                     'emoji': '\U0001F44D',
                 },
-            }, phone_number_id=phone_number_id)
+            }, phone_number_id=WABA1_META_ID)
             if react_result.get('error'):
                 logger.warning(f"Post-call reaction failed: {react_result}")
             else:
