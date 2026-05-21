@@ -2267,6 +2267,11 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
 
         for meta_id, label in send_from:
             try:
+                # Add delay between WABA sends to avoid Meta duplicate suppression
+                # Meta suppresses identical templates sent to same recipient within seconds
+                if label == 'WABA2':
+                    time.sleep(3)
+
                 # Try sending with 1 retry on failure (2s delay)
                 api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
                                             template_msg, phone_number_id=meta_id)
