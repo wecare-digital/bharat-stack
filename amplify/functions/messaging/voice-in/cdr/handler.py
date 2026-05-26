@@ -1146,7 +1146,7 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         except Exception as rcs_err:
             logger.warning(f'CDR RCS notification failed (non-blocking): {rcs_err}')
 
-        # ── 2. WhatsApp wd_menu template from WABA1 + WABA2 ──
+        # ── 2. WhatsApp wd_menu template from WABA1 only ──
         try:
             meta_secret = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
             meta_data = json.loads(meta_secret['SecretString'])
@@ -1157,10 +1157,9 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
             proof = _hmac.new(app_secret.encode(), meta_token.encode(), _hashlib.sha256).hexdigest()
 
             WABA1_PHONE = '1016149501586345'
-            WABA2_PHONE = '1055232054343117'
             VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
 
-            template_payload = {
+            template_payload = json.dumps({
                 'messaging_product': 'whatsapp',
                 'to': clean_caller,
                 'type': 'template',
@@ -1173,40 +1172,27 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
                         ]}
                     ]
                 },
-            }
+            }).encode()
 
-            # Send from both WABAs
-            for phone_id, label in [(WABA1_PHONE, 'WABA1'), (WABA2_PHONE, 'WABA2')]:
-                try:
-                    template_msg = json.dumps(template_payload).encode()
-                    url = f'https://graph.facebook.com/v25.0/{phone_id}/messages?appsecret_proof={proof}'
-                    req = urllib.request.Request(url, data=template_msg, headers={
-                        'Authorization': f'Bearer {meta_token}',
-                        'Content-Type': 'application/json',
-                    }, method='POST')
-                    with urllib.request.urlopen(req, timeout=15) as resp:
-                        result = json.loads(resp.read().decode())
-                        msg_id = result.get('messages', [{}])[0].get('id', '')
-                        if msg_id:
-                            if not wa_message_id:
-                                wa_message_id = msg_id
-                            logger.info(json.dumps({
-                                'event': 'cdr_whatsapp_template_sent',
-                                'template': 'wd_menu',
-                                'waba': label,
-                                'caller': caller,
-                                'wamid': msg_id,
-                                'rcs_sent': rcs_sent,
-                                'requestId': request_id,
-                            }))
-                except urllib.error.HTTPError as e:
-                    err_body = e.read().decode()[:200] if e.fp else ''
-                    logger.warning(f'CDR WhatsApp wd_menu {label} failed: HTTP {e.code} - {err_body}')
-                except Exception as e:
-                    logger.warning(f'CDR WhatsApp wd_menu {label} error: {e}')
+            url = f'https://graph.facebook.com/v25.0/{WABA1_PHONE}/messages?appsecret_proof={proof}'
+            req = urllib.request.Request(url, data=template_payload, headers={
+                'Authorization': f'Bearer {meta_token}',
+                'Content-Type': 'application/json',
+            }, method='POST')
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode())
+                wa_message_id = result.get('messages', [{}])[0].get('id', '')
+                logger.info(json.dumps({
+                    'event': 'cdr_whatsapp_template_sent',
+                    'template': 'wd_menu',
+                    'waba': 'WABA1',
+                    'caller': caller,
+                    'wamid': wa_message_id,
+                    'rcs_sent': rcs_sent,
+                    'requestId': request_id,
+                }))
 
-            # Store first successful WhatsApp notification in inbox
-            if wa_message_id:
+                # Store WhatsApp notification in inbox
                 _store_to_inbox(
                     message_id=wa_message_id,
                     contact_id=contact_id,
@@ -1219,8 +1205,11 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
                     wamid=wa_message_id,
                     request_id=request_id,
                 )
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode()[:300] if e.fp else ''
+            logger.error(f'CDR WhatsApp wd_menu FAILED: HTTP {e.code} - {err_body}')
         except Exception as e:
-            logger.warning(f'CDR WhatsApp wd_menu failed: {e}')
+            logger.error(f'CDR WhatsApp wd_menu FAILED: {e}', exc_info=True)
 
         # ── 3. Update CDR record with trigger metadata for dashboard display ──
         cdr_id = cdr.get('id', '')
