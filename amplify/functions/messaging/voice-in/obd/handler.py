@@ -1626,10 +1626,10 @@ def _store_to_inbox(message_id: str, contact_id: str, contact_phone: str,
 
 
 def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
-    """Send WhatsApp + RCS notifications on OBD CDR events.
+    """Send WhatsApp + RCS + SMS notifications on OBD CDR events.
 
     Sends to the CALLER (Party A / destination of OBD campaign) after call completes.
-    Channel priority: RCS (Sinch rcsmenu template) -> WhatsApp (wd_menu template)
+    Channel priority: SMS (Airtel IQ) → RCS (Sinch rcsmenu template) → WhatsApp (wd_menu template)
     Updates CDR record with trigger metadata for dashboard display.
     """
     try:
@@ -1655,9 +1655,57 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
 
         contact_id = _lookup_contact_id(clean_dest)
         now_ts = int(time.time())
+        sms_message_id = ''
         rcs_message_id = ''
         wa_message_id = ''
         rcs_sent = False
+
+        # ── 0. Send SMS via Airtel IQ (same as WhatsApp calling disconnect) ──
+        session_id = cdr_record.get('vmSessionId', '') or cdr_record.get('clientCorrelationId', '')
+        ivr_sms_content = (
+            "Thanks for contacting WECARE.DIGITAL!\n\n"
+            "Submit your request here: https://wecare.digital/selfservice "
+            "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n"
+            "We'll review it and follow up if needed."
+        )
+        try:
+            is_indian = clean_dest.startswith('91') and len(clean_dest) == 12
+            _lambda = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+            sms_payload = {
+                'rawPath': '/sms-in/airtel' if is_indian else '/sms-aws/send',
+                'requestContext': {'http': {'method': 'POST'}},
+                'body': json.dumps({
+                    'phoneNumber': '+' + clean_dest,
+                    'content': ivr_sms_content,
+                    'messageType': 'SERVICE_IMPLICIT' if is_indian else 'TRANSACTIONAL',
+                    **(({'dltTemplateId': '1007277993798259629', 'sourceAddress': 'WDBEEP', 'entityId': '1201161991108627443', 'apiVersion': 'v5'}) if is_indian else {}),
+                }),
+            }
+            _lambda.invoke(
+                FunctionName='wecare-sms-in-airtel' if is_indian else 'wecare-sms-aws',
+                InvocationType='Event',
+                Payload=json.dumps(sms_payload).encode(),
+            )
+            sms_message_id = f"obd_sms_{session_id}_{now_ts}"
+            _store_to_inbox(
+                message_id=sms_message_id,
+                contact_id=contact_id,
+                contact_phone=clean_dest,
+                content=ivr_sms_content,
+                channel='sms',
+                status='sent',
+                message_type='cdr_obd',
+                request_id=request_id,
+            )
+            logger.info(json.dumps({
+                'event': 'obd_cdr_sms_triggered',
+                'destination': clean_dest[-4:],
+                'provider': 'airtel' if is_indian else 'pinpoint',
+                'smsId': sms_message_id,
+                'requestId': request_id,
+            }))
+        except Exception as sms_err:
+            logger.warning(f'OBD CDR SMS failed (non-blocking): {sms_err}')
 
         # ── 1. RCS via Sinch (rcsmenu template) ──
         try:
@@ -1677,10 +1725,12 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                         message_type='cdr_obd',
                         request_id=request_id,
                     )
+                else:
+                    logger.warning(f"OBD RCS returned success=false: {rcs_result.get('error', 'unknown')}")
         except Exception as rcs_err:
             logger.warning(f'OBD CDR RCS notification failed (non-blocking): {rcs_err}')
 
-        # ── 2. WhatsApp wd_menu template from WABA1 ──
+        # ── 2. WhatsApp wd_menu template from WABA1 (+91 93309 94400) ──
         try:
             meta_secret = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
             meta_data = json.loads(meta_secret['SecretString'])
@@ -1719,6 +1769,8 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                 logger.info(json.dumps({
                     'event': 'obd_cdr_whatsapp_template_sent',
                     'template': 'wd_menu',
+                    'waba': 'WABA1 (+919330994400)',
+                    'phoneNumberId': WABA1_PHONE,
                     'destination': clean_dest[-4:],
                     'wamid': wa_message_id,
                     'rcs_sent': rcs_sent,
@@ -1749,6 +1801,18 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                 table = dynamodb.Table(VOICE_CDR_TABLE)
                 update_expr_parts = []
                 expr_values = {}
+
+                if sms_message_id:
+                    update_expr_parts.append('smsTriggered = :smsT')
+                    expr_values[':smsT'] = True
+                    update_expr_parts.append('smsMessageId = :smsId')
+                    expr_values[':smsId'] = sms_message_id
+                    update_expr_parts.append('smsDltTemplateId = :smsDlt')
+                    expr_values[':smsDlt'] = '1007277993798259629'
+                    update_expr_parts.append('smsContent = :smsCont')
+                    expr_values[':smsCont'] = ivr_sms_content[:200]
+                    update_expr_parts.append('smsTimestamp = :smsTs')
+                    expr_values[':smsTs'] = str(now_ts)
 
                 if wa_message_id:
                     update_expr_parts.append('whatsappMessageTriggered = :waT')
