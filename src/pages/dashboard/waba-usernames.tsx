@@ -177,7 +177,7 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
     };
 
     return (
-        <Layout signOut={ signOut } user={ user }>
+        <Layout onSignOut={ signOut } user={ user }>
             <SEO title="WABA Usernames" description="Manage WhatsApp Business usernames" />
 
             <div style={ { padding: '24px', maxWidth: '900px' } }>
