@@ -7,7 +7,7 @@
 
 import { defineFunction } from '@aws-amplify/backend';
 
-export const voiceC2c = defineFunction({
+export const voiceC2c = defineFunction( {
   name: 'wecare-voice-in-c2c',
   entry: './handler.py',
   runtime: 20,
@@ -20,5 +20,6 @@ export const voiceC2c = defineFunction({
     VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
     AIRTEL_KONG_HOST: 'iqvoice.airtel.in',
     AIRTEL_C2C_SECRET_NAME: 'wecare/airtel/c2c',
+    SINCH_RCS_ENABLED: 'true',
   },
-});
+} );

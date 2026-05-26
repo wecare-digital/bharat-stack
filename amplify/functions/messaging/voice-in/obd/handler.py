@@ -58,6 +58,7 @@ import uuid
 import time
 import logging
 import boto3
+import boto3.dynamodb.conditions
 import base64
 import urllib.request
 import urllib.error
@@ -1440,6 +1441,9 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id
         }))
 
+        # ── Send WhatsApp + RCS notifications to caller ──
+        _send_obd_cdr_notifications(cdr_record, request_id)
+
         return _response(200, {
             'status': 'ok',
             'vmSessionId': vm_session_id,
@@ -1555,3 +1559,232 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
         'headers': cors_headers(origin),
         'body': json.dumps(body, default=str)
     }
+
+
+# ── CDR Notification Helpers (WhatsApp + RCS on OBD CDR events) ──
+
+def _lookup_contact_id(phone: str) -> str:
+    """Look up contactId from ContactsTable by phone number."""
+    clean = phone.replace('+', '').replace(' ', '')
+    contacts_table = dynamodb.Table('stack-wecare-digital-ContactsTable')
+    for variant in [phone, clean, '+' + clean]:
+        try:
+            resp = contacts_table.query(
+                IndexName='phone-index',
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('phone').eq(variant),
+                Limit=1
+            )
+            items = resp.get('Items', [])
+            if items:
+                return items[0].get('contactId') or items[0].get('id') or clean
+        except Exception:
+            pass
+    return clean
+
+
+def _store_to_inbox(message_id: str, contact_id: str, contact_phone: str,
+                    content: str, channel: str, status: str,
+                    message_type: str, phone_number_id: str = '',
+                    wamid: str = '', request_id: str = '') -> None:
+    """Store a sent notification in WhatsAppOutboundTable so it appears in the dashboard inbox."""
+    try:
+        now = int(time.time())
+        store_id = message_id or f"obd_cdr_{contact_phone}_{now}"
+        outbound_table = dynamodb.Table('stack-wecare-digital-WhatsAppOutboundTable')
+        item = {
+            'id': store_id,
+            'messageId': store_id,
+            'contactId': contact_id,
+            'contactPhone': contact_phone,
+            'content': content,
+            'channel': channel,
+            'direction': 'outbound',
+            'status': status,
+            'messageType': message_type,
+            'timestamp': Decimal(str(now)),
+            'createdAt': Decimal(str(now)),
+            'expiresAt': Decimal(str(now + 30 * 24 * 60 * 60)),
+            'requestId': request_id,
+        }
+        if wamid:
+            item['whatsappMessageId'] = wamid
+        else:
+            item['whatsappMessageId'] = store_id
+        if phone_number_id:
+            item['phoneNumberId'] = phone_number_id
+            item['awsPhoneNumberId'] = phone_number_id
+        outbound_table.put_item(Item=item)
+        logger.info(json.dumps({
+            'event': 'obd_notification_stored_in_inbox',
+            'id': store_id,
+            'channel': channel,
+            'contactId': contact_id,
+            'requestId': request_id,
+        }))
+    except Exception as e:
+        logger.warning(f'Failed to store OBD notification in inbox: {e}')
+
+
+def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
+    """Send WhatsApp + RCS notifications on OBD CDR events.
+
+    Sends to the CALLER (Party A / destination of OBD campaign) after call completes.
+    Channel priority: RCS (Sinch rcsmenu template) -> WhatsApp (wd_menu template)
+    Updates CDR record with trigger metadata for dashboard display.
+    """
+    try:
+        # For OBD, the callerNumber is the OBD system number; destinationNumber is the actual person called
+        # We notify the destination (the person who received the OBD call)
+        destination = cdr_record.get('callerNumber', '') or cdr_record.get('destinationNumber', '')
+        if not destination:
+            return
+
+        clean_dest = destination.replace('+', '').replace(' ', '')
+        if len(clean_dest) == 10:
+            clean_dest = '91' + clean_dest
+
+        # Skip notification for system/CLI numbers
+        if clean_dest in ('918047311032', '918040761117', '919319767034'):
+            # Try the other number
+            alt = cdr_record.get('destinationNumber', '') or cdr_record.get('callerNumber', '')
+            clean_dest = alt.replace('+', '').replace(' ', '')
+            if len(clean_dest) == 10:
+                clean_dest = '91' + clean_dest
+            if not clean_dest or clean_dest in ('918047311032', '918040761117', '919319767034'):
+                return
+
+        contact_id = _lookup_contact_id(clean_dest)
+        now_ts = int(time.time())
+        rcs_message_id = ''
+        wa_message_id = ''
+        rcs_sent = False
+
+        # ── 1. RCS via Sinch (rcsmenu template) ──
+        try:
+            from lambda_utils.sinch_rcs import is_rcs_enabled, send_rcs_ivr_notification
+            if is_rcs_enabled():
+                rcs_result = send_rcs_ivr_notification(clean_dest, request_id)
+                rcs_sent = rcs_result.get('success', False)
+                if rcs_sent:
+                    rcs_message_id = rcs_result.get('message_id', '')
+                    _store_to_inbox(
+                        message_id=rcs_message_id,
+                        contact_id=contact_id,
+                        contact_phone=clean_dest,
+                        content='[RCS notification] WECARE.DIGITAL selfservice',
+                        channel='rcs',
+                        status='sent',
+                        message_type='cdr_obd',
+                        request_id=request_id,
+                    )
+        except Exception as rcs_err:
+            logger.warning(f'OBD CDR RCS notification failed (non-blocking): {rcs_err}')
+
+        # ── 2. WhatsApp wd_menu template from WABA1 ──
+        try:
+            meta_secret = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+            meta_data = json.loads(meta_secret['SecretString'])
+            meta_token = meta_data.get('access_token', '').strip()
+            app_secret = meta_data.get('app_secret', '').strip()
+
+            import hmac as _hmac, hashlib as _hashlib
+            proof = _hmac.new(app_secret.encode(), meta_token.encode(), _hashlib.sha256).hexdigest()
+
+            WABA1_PHONE = '1016149501586345'
+            VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+
+            template_payload = json.dumps({
+                'messaging_product': 'whatsapp',
+                'to': clean_dest,
+                'type': 'template',
+                'template': {
+                    'name': 'wd_menu',
+                    'language': {'code': 'en'},
+                    'components': [
+                        {'type': 'header', 'parameters': [
+                            {'type': 'video', 'video': {'link': VIDEO_URL}}
+                        ]}
+                    ]
+                },
+            }).encode()
+
+            url = f'https://graph.facebook.com/v25.0/{WABA1_PHONE}/messages?appsecret_proof={proof}'
+            req = urllib.request.Request(url, data=template_payload, headers={
+                'Authorization': f'Bearer {meta_token}',
+                'Content-Type': 'application/json',
+            }, method='POST')
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode())
+                wa_message_id = result.get('messages', [{}])[0].get('id', '')
+                logger.info(json.dumps({
+                    'event': 'obd_cdr_whatsapp_template_sent',
+                    'template': 'wd_menu',
+                    'destination': clean_dest[-4:],
+                    'wamid': wa_message_id,
+                    'rcs_sent': rcs_sent,
+                    'requestId': request_id,
+                }))
+                _store_to_inbox(
+                    message_id=wa_message_id,
+                    contact_id=contact_id,
+                    contact_phone=clean_dest,
+                    content='[wd_menu template] Thanks for contacting WECARE.DIGITAL!',
+                    channel='whatsapp',
+                    status='sent',
+                    message_type='cdr_obd',
+                    phone_number_id=WABA1_PHONE,
+                    wamid=wa_message_id,
+                    request_id=request_id,
+                )
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode()[:300] if e.fp else ''
+            logger.error(f'OBD CDR WhatsApp wd_menu FAILED: HTTP {e.code} - {err_body}')
+        except Exception as e:
+            logger.error(f'OBD CDR WhatsApp wd_menu FAILED: {e}')
+
+        # ── 3. Update CDR record with trigger metadata ──
+        cdr_id = cdr_record.get('id', '')
+        if cdr_id:
+            try:
+                table = dynamodb.Table(VOICE_CDR_TABLE)
+                update_expr_parts = []
+                expr_values = {}
+
+                if wa_message_id:
+                    update_expr_parts.append('whatsappMessageTriggered = :waT')
+                    expr_values[':waT'] = True
+                    update_expr_parts.append('whatsappMessageId = :waId')
+                    expr_values[':waId'] = wa_message_id
+                    update_expr_parts.append('whatsappMessageContent = :waCont')
+                    expr_values[':waCont'] = '[wd_menu template] Thanks for contacting WECARE.DIGITAL!'
+                    update_expr_parts.append('whatsappMessageTimestamp = :waTs')
+                    expr_values[':waTs'] = str(now_ts)
+
+                if rcs_sent and rcs_message_id:
+                    update_expr_parts.append('rcsMessageTriggered = :rcsT')
+                    expr_values[':rcsT'] = True
+                    update_expr_parts.append('rcsMessageId = :rcsId')
+                    expr_values[':rcsId'] = rcs_message_id
+                    update_expr_parts.append('rcsMessageContent = :rcsCont')
+                    expr_values[':rcsCont'] = '[RCS notification] WECARE.DIGITAL selfservice'
+                    update_expr_parts.append('rcsMessageTimestamp = :rcsTs')
+                    expr_values[':rcsTs'] = str(now_ts)
+
+                if update_expr_parts:
+                    table.update_item(
+                        Key={'id': cdr_id},
+                        UpdateExpression='SET ' + ', '.join(update_expr_parts),
+                        ExpressionAttributeValues=expr_values,
+                    )
+                    logger.info(json.dumps({
+                        'event': 'obd_cdr_trigger_metadata_updated',
+                        'cdrId': cdr_id,
+                        'whatsapp': bool(wa_message_id),
+                        'rcs': rcs_sent,
+                        'requestId': request_id,
+                    }))
+            except Exception as e:
+                logger.warning(f'OBD CDR trigger metadata update failed (non-blocking): {e}')
+
+    except Exception as e:
+        logger.warning(f'OBD CDR notification error: {e}')

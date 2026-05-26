@@ -6,7 +6,7 @@
 
 import { defineFunction } from '@aws-amplify/backend';
 
-export const voiceObd = defineFunction({
+export const voiceObd = defineFunction( {
   name: 'wecare-voice-in-obd',
   entry: './handler.py',
   runtime: 20,
@@ -19,5 +19,6 @@ export const voiceObd = defineFunction({
     VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
     S3_BUCKET: 'app.wecare.digital',
     AIRTEL_OBD_SECRET_NAME: 'wecare/airtel/obd',
+    SINCH_RCS_ENABLED: 'true',
   },
-});
+} );
