@@ -1639,9 +1639,14 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
         if not destination:
             return
 
-        clean_dest = destination.replace('+', '').replace(' ', '')
-        if len(clean_dest) == 10:
-            clean_dest = '91' + clean_dest
+        clean_dest = destination.replace('+', '').replace(' ', '').replace('-', '')
+        # Strip leading 0 (Indian STD prefix)
+        if clean_dest.startswith('0') and len(clean_dest) == 11:
+            clean_dest = clean_dest[1:]
+        # Normalize to 91XXXXXXXXXX format
+        if not (clean_dest.startswith('91') and len(clean_dest) == 12):
+            if len(clean_dest) >= 10:
+                clean_dest = '91' + clean_dest[-10:]
 
         # Skip notification for system/CLI numbers
         if clean_dest in ('918047311032', '918040761117', '919319767034'):

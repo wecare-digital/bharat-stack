@@ -972,9 +972,13 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
         if not caller:
             return
 
-        clean_caller = caller.replace('+', '').replace(' ', '')
-        if len(clean_caller) == 10:
-            clean_caller = '91' + clean_caller
+        # Normalize phone: handle "9903300044", "09903300044", "+919903300044", "919903300044"
+        clean_caller = caller.replace('+', '').replace(' ', '').replace('-', '')
+        if clean_caller.startswith('0') and len(clean_caller) == 11:
+            clean_caller = clean_caller[1:]
+        if not (clean_caller.startswith('91') and len(clean_caller) == 12):
+            if len(clean_caller) >= 10:
+                clean_caller = '91' + clean_caller[-10:]
 
         contact_id = _lookup_contact_id(clean_caller)
         now_ts = int(time.time())

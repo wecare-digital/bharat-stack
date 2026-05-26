@@ -185,10 +185,26 @@ def _normalize_phone(phone: str) -> str:
     """Normalize phone for RCS — Sinch requires digits only WITHOUT + prefix.
     
     Sinch Conversation API identity format: "919903300044" (no + prefix).
+    
+    Handles all input formats:
+    - "+919903300044" → "919903300044"
+    - "919903300044"  → "919903300044"
+    - "9903300044"    → "919903300044" (10 digits)
+    - "09903300044"   → "919903300044" (11 digits with leading 0)
+    - "+91 99033 00044" → "919903300044" (with spaces)
     """
+    if not phone:
+        return ''
     clean = phone.replace('+', '').replace(' ', '').replace('-', '')
-    if len(clean) == 10:
-        clean = '91' + clean
+    # Strip leading 0 (Indian STD prefix) — produces 10-digit number
+    if clean.startswith('0') and len(clean) == 11:
+        clean = clean[1:]
+    # Already has 91 prefix? keep as-is (12 digits total)
+    if clean.startswith('91') and len(clean) == 12:
+        return clean
+    # Otherwise, take last 10 digits and prepend 91
+    if len(clean) >= 10:
+        return '91' + clean[-10:]
     return clean
 
 
@@ -290,13 +306,12 @@ def send_rcs_template(phone: str, template_id: str = 'rcsmenu',
                     'RCS': {
                         'template_id': template_id,
                         'language_code': language,
+                        'parameters': parameters or {},
                     }
                 }
             }
         },
     }
-    if parameters:
-        payload['message']['template_message']['channel_template']['RCS']['parameters'] = parameters
 
     return _send_sinch_message(payload)
 
@@ -304,31 +319,60 @@ def send_rcs_template(phone: str, template_id: str = 'rcsmenu',
 def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
     """Send the standard IVR/call disconnect RCS notification.
 
-    Uses the approved 'rcsmenu' template (rich_card, MEDIUM height, Jio vendor).
-    Template ID: rcsmenu | Status: approved | Enterprise: WECARE DIGITAL
-    Content: Video card + "Get Started" button → https://r.wecare.digital/getstarted
+    Uses the proven wecare-rcs-send Lambda which handles auth, payload format,
+    and template sending correctly. This is the SAME path that successfully
+    delivers RCS messages from the dashboard.
 
-    Fallback: If template send fails, sends as direct card_message.
-    Used by: CDR inbound calls, WhatsApp calling disconnect.
+    Falls back to direct Sinch API call if Lambda invoke fails.
     """
     normalized = _normalize_phone(phone)
     if not normalized or len(normalized) < 10:
         logger.warning(f'RCS IVR skipped — invalid phone: {phone}')
         return {'success': False, 'error': f'Invalid phone number: {phone}'}
 
-    logger.info(f'RCS IVR sending to ...{normalized[-4:]} (template=rcsmenu, request_id={request_id})')
+    logger.info(f'RCS IVR sending to ...{normalized[-4:]} (template=rcsmenu via rcs-send Lambda, request_id={request_id})')
 
-    # Primary: Send via approved 'rcsmenu' template
+    # ── Primary: Invoke wecare-rcs-send Lambda (proven working path) ──
+    try:
+        import boto3 as _boto3
+        _lambda = _boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        invoke_payload = {
+            'requestContext': {'http': {'method': 'POST'}},
+            'body': json.dumps({
+                'action': 'send',
+                'phoneNumber': normalized,
+                'template': 'rcsmenu',
+                'language': 'en',
+            }),
+        }
+        resp = _lambda.invoke(
+            FunctionName='wecare-rcs-send',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(invoke_payload).encode(),
+        )
+        result = json.loads(resp['Payload'].read())
+        status_code = result.get('statusCode', 500)
+        if status_code == 200:
+            body = json.loads(result.get('body', '{}'))
+            if body.get('success'):
+                msg_id = body.get('messageId', '')
+                logger.info(f'RCS IVR delivered via rcs-send Lambda: message_id={msg_id} phone=...{normalized[-4:]}')
+                return {'success': True, 'message_id': msg_id, 'response': body}
+        logger.warning(f'rcs-send Lambda returned non-success: HTTP {status_code} body={result.get("body","")[:200]}')
+    except Exception as invoke_err:
+        logger.warning(f'rcs-send Lambda invoke failed: {invoke_err} — falling back to direct API')
+
+    # ── Fallback: Direct API call to Sinch ──
     result = send_rcs_template(
         phone=phone,
         template_id='rcsmenu',
     )
 
     if result.get('success'):
-        logger.info(f'RCS IVR delivered: message_id={result.get("message_id", "")} phone=...{normalized[-4:]}')
+        logger.info(f'RCS IVR delivered (direct): message_id={result.get("message_id", "")} phone=...{normalized[-4:]}')
         return result
 
-    # Fallback: If template fails, send as direct rich card
+    # Final fallback: card_message
     error_msg = result.get('error', 'unknown')
     logger.warning(f'rcsmenu template failed ({error_msg}), falling back to card_message')
     result = send_rcs_card(

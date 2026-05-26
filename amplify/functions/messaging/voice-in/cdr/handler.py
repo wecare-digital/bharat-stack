@@ -1091,9 +1091,15 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
         if not caller:
             return
 
-        clean_caller = caller.replace('+', '').replace(' ', '')
-        if len(clean_caller) == 10:
-            clean_caller = '91' + clean_caller
+        # Normalize phone: handle "9903300044", "09903300044", "+919903300044", "919903300044"
+        clean_caller = caller.replace('+', '').replace(' ', '').replace('-', '')
+        # Strip leading 0 (Indian STD prefix)
+        if clean_caller.startswith('0') and len(clean_caller) == 11:
+            clean_caller = clean_caller[1:]
+        # Take last 10 digits and prepend 91 if not already 12-digit with 91 prefix
+        if not (clean_caller.startswith('91') and len(clean_caller) == 12):
+            if len(clean_caller) >= 10:
+                clean_caller = '91' + clean_caller[-10:]
 
         # Look up contactId for inbox storage
         contact_id = _lookup_contact_id(clean_caller)
