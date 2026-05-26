@@ -48,6 +48,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/dashboard/lambda-functions', label: 'Lambda Functions' },
       { path: '/dashboard/code-repo', label: 'Code Repo' },
       { path: '/dashboard/wa-auto-response', label: 'Auto Response' },
+      { path: '/dashboard/waba-usernames', label: 'WABA Usernames' },
       { path: '/dashboard/design-reference', label: 'Design Reference' },
     ],
   },

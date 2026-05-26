@@ -3483,6 +3483,46 @@ export async function checkPaymentGateways ( wabaId?: string ): Promise<GatewayC
   return data?.gatewayChecks || [];
 }
 
+// ── Username Management ──
+
+export interface UsernameInfo {
+  username?: string;
+  status?: string;
+}
+
+export interface UsernameSuggestions {
+  suggestions: string[];
+}
+
+export async function getBusinessUsername ( phoneId: string ): Promise<UsernameInfo | null> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username?phoneId=${phoneId}` );
+  if ( data?.error ) return { username: undefined, status: data.error.message || 'error' };
+  return data || null;
+}
+
+export async function getBusinessUsernameSuggestions ( phoneId: string ): Promise<UsernameSuggestions | null> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username/suggestions?phoneId=${phoneId}` );
+  if ( data?.error ) return { suggestions: [] };
+  return data || { suggestions: [] };
+}
+
+export async function claimBusinessUsername ( phoneId: string, username: string ): Promise<{ success: boolean; username?: string; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username`, {
+    method: 'POST',
+    body: JSON.stringify( { phoneId, username } ),
+  } );
+  if ( data?.error ) return { success: false, error: data.error.message || data.error.details || 'Failed to claim username' };
+  return { success: true, username: data?.username };
+}
+
+export async function deleteBusinessUsername ( phoneId: string ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/username?phoneId=${phoneId}`, {
+    method: 'DELETE',
+  } );
+  if ( data?.error ) return { success: false, error: data.error.message || 'Failed to delete username' };
+  return { success: data?.success === true };
+}
+
 // Flows
 export async function listFlows ( wabaId: string ): Promise<any[]> {
   const data = await apiCall<any>( `${WA_BIZ_BASE}/flows?wabaId=${wabaId}` );
