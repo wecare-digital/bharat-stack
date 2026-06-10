@@ -316,6 +316,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         # Parse request body
         body = json.loads(event.get('body', '{}'))
+
+        # ── Presigned media upload (Issue 2 fix): large media must NOT be sent as base64
+        # through API Gateway/Lambda (10MB GW / 6MB Lambda limits). Frontend requests a
+        # presigned PUT URL, uploads the file directly to S3, then sends the S3 key. ──
+        if body.get('action') == 'getUploadUrl':
+            return _get_media_upload_url(body, request_id)
+
         contact_id = body.get('contactId')
         content = body.get('content', '')
         phone_number_id = body.get('phoneNumberId', PHONE_NUMBER_ID_1)
@@ -1634,6 +1641,68 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         return _error_response(500, f'Failed to send message: {error_msg}')
 
 
+def _get_media_upload_url(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
+    """
+    Generate a presigned S3 PUT URL so the browser can upload media directly to S3,
+    bypassing the API Gateway (10MB) and Lambda (6MB) request-payload limits.
+
+    Request body: { "action": "getUploadUrl", "mediaType": "<mime>", "filename": "<name>" }
+    Response:     { "uploadUrl": "<presigned PUT>", "s3Key": "<key>", "contentType": "<mime>", "expiresIn": 300 }
+
+    The returned s3Key is placed under MEDIA_PREFIX so that _upload_media's is_s3_key
+    detection picks it up when /whatsapp/send is subsequently called with mediaFile=s3Key.
+    """
+    try:
+        media_type = (body.get('mediaType') or '').strip()
+        filename = (body.get('filename') or body.get('mediaFileName') or '').strip()
+
+        # Resolve a sane content type + extension
+        content_type = _get_content_type(media_type) if media_type else 'application/octet-stream'
+        extension = _get_media_extension(media_type) if media_type else ''
+        if not extension and '.' in filename:
+            extension = '.' + filename.rsplit('.', 1)[-1].lower()
+
+        short_id = uuid.uuid4().hex[:8]
+        s3_key = f"{MEDIA_PREFIX}wecare-digital-{short_id}{extension or '.bin'}"
+
+        upload_url = s3.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': MEDIA_BUCKET,
+                'Key': s3_key,
+                'ContentType': content_type,
+            },
+            ExpiresIn=300,  # 5 minutes
+        )
+
+        logger.info(json.dumps({
+            'event': 'media_upload_url_generated',
+            's3Key': s3_key,
+            'mediaType': media_type,
+            'contentType': content_type,
+            'requestId': request_id,
+        }))
+
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'uploadUrl': upload_url,
+                's3Key': s3_key,
+                'contentType': content_type,
+                'expiresIn': 300,
+            })
+        }
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'media_upload_url_error',
+            'error': str(e),
+            'errorType': type(e).__name__,
+            'requestId': request_id,
+        }))
+        return _error_response(500, f'Failed to generate upload URL: {str(e)}')
+
+
 def _upload_media(media_file: str, media_type: str, message_id: str, phone_number_id: str, request_id: str, filename: Optional[str] = None) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Upload media to S3 and register with WhatsApp.
@@ -1754,7 +1823,20 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
             import hmac as _hmac, hashlib as _hashlib
             obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
             media_bytes = obj['Body'].read()
-            content_type = obj.get('ContentType', 'application/octet-stream')
+            # Resolve the MIME type Meta will see. Prefer the validated mapping derived
+            # from media_type (prevents error 131053 "mismatched media type"); fall back to
+            # the S3 object's stored ContentType, then to extension-based guess.
+            validated_ct = _get_content_type(media_type)
+            s3_ct = (obj.get('ContentType') or '').strip()
+            if validated_ct and validated_ct != 'application/octet-stream':
+                content_type = validated_ct
+            elif s3_ct and s3_ct != 'application/octet-stream':
+                content_type = s3_ct
+            else:
+                # Last resort: infer from the S3 key extension
+                ext_ct = _get_content_type('image' if s3_key.lower().endswith(('.jpg', '.jpeg', '.png'))
+                                           else s3_key.rsplit('.', 1)[-1] if '.' in s3_key else '')
+                content_type = ext_ct if ext_ct != 'application/octet-stream' else (s3_ct or 'application/octet-stream')
             
             if 'token' not in _direct_api_cache:
                 resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
@@ -1791,7 +1873,7 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
                 logger.error(json.dumps({
                     'event': 'media_registration_no_id',
                     's3Key': s3_key,
-                    'response': str(response),
+                    'response': str(result),
                     'requestId': request_id
                 }))
                 return None, None, None
@@ -2456,10 +2538,20 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'isPaymentTemplate': is_payment_template
         }))
     elif media_id and media_type:
-        # Media message - extract message type from media_type
-        # media_type is like 'image/jpeg', we need just 'image'
-        msg_type = media_type.split('/')[0] if '/' in media_type else media_type
-        
+        # Media message - derive WhatsApp message type from the media MIME type.
+        # media_type is like 'image/jpeg', 'video/mp4', 'audio/ogg', 'application/pdf', 'image/webp'.
+        mt = (media_type or '').lower().strip()
+
+        # WebP can ONLY be sent as a sticker — Meta rejects WebP sent as an image.
+        if mt in ('sticker', 'image/webp', 'application/webp') or mt.endswith('/webp'):
+            msg_type = 'sticker'
+        elif '/' in mt:
+            prefix = mt.split('/')[0]
+            # Documents have many MIME prefixes (application/, text/) → map to 'document'.
+            msg_type = prefix if prefix in ('image', 'video', 'audio') else 'document'
+        else:
+            msg_type = mt
+
         # Validate media type
         valid_types = ['image', 'video', 'audio', 'document', 'sticker']
         if msg_type not in valid_types:
@@ -2469,8 +2561,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         payload['type'] = msg_type
         payload[msg_type] = {'id': media_id}
         
-        # Add caption if provided
-        if content:
+        # Add caption if provided. Stickers and audio do NOT support captions (Meta rejects them).
+        if content and msg_type in ('image', 'video', 'document'):
             payload[msg_type]['caption'] = content
         
         # For documents, add filename if available
@@ -2787,7 +2879,7 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
             msg_type = 'image'
         elif ext in ('mp4', '3gp', '3gpp', 'mov'):
             msg_type = 'video'
-        elif ext in ('ogg', 'opus', 'mp3', 'aac', 'amr'):
+        elif ext in ('ogg', 'opus', 'mp3', 'aac', 'amr', 'm4a'):
             msg_type = 'audio'
         elif ext == 'webp':
             msg_type = 'sticker'

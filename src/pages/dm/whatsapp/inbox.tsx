@@ -68,6 +68,22 @@ const WABA_CONFIG = {
   },
 };
 
+// Infer a WhatsApp-supported MIME type from a filename extension.
+// Browsers sometimes report an empty File.type (e.g. .amr, occasionally .webp/.3gp).
+function inferMimeFromName ( name: string ): string {
+  const ext = ( name.split( '.' ).pop() || '' ).toLowerCase();
+  const map: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+    mp4: 'video/mp4', '3gp': 'video/3gpp', '3gpp': 'video/3gpp',
+    aac: 'audio/aac', amr: 'audio/amr', mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', opus: 'audio/ogg',
+    pdf: 'application/pdf', txt: 'text/plain',
+    doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  };
+  return map[ ext ] || 'application/octet-stream';
+}
+
 // Avatar color palette - consistent per contact
 const AVATAR_COLORS = [
   '#1a3a2a', '#0f2a1d', '#0f2a1d', '#1a3a2a', '#34d399',
@@ -548,24 +564,26 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
 
     try
     {
-      let mediaBase64 = undefined;
-      let mediaFileName = undefined;
+      let mediaRef: string | undefined = undefined; // S3 key from presigned upload
+      let mediaFileName: string | undefined = undefined;
+      let mediaSendType: string | undefined = undefined;
 
-      // Convert media file to base64 if present
+      // Upload media directly to S3 via presigned URL (bypasses API Gateway/Lambda
+      // payload limits so large video/audio/documents send reliably). The backend
+      // detects the returned S3 key and registers it with WhatsApp.
       if ( mediaFile )
       {
-        mediaFileName = mediaFile.name; // Capture real filename
-        mediaBase64 = await new Promise<string>( ( resolve, reject ) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            // Extract base64 part (remove data:image/jpeg;base64, prefix)
-            const base64 = result.split( ',' )[ 1 ];
-            resolve( base64 );
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL( mediaFile );
-        } );
+        mediaFileName = mediaFile.name;
+        // Browser File.type can be empty for some types (.amr, sometimes .webp) — infer from extension.
+        mediaSendType = mediaFile.type || inferMimeFromName( mediaFile.name );
+        const s3Key = await api.uploadMediaForSend( mediaFile, mediaSendType, mediaFileName );
+        if ( !s3Key )
+        {
+          toast.error( 'Media upload failed. Please try again.' );
+          setSending( false );
+          return;
+        }
+        mediaRef = s3Key;
       }
 
       const result = await api.sendWhatsAppMessage( {
@@ -573,8 +591,8 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
         content: messageText,
         phoneNumberId: selectedWaba,
         recipientBsuid: selectedContact.bsuid || undefined,
-        mediaFile: mediaBase64,
-        mediaType: mediaFile?.type,
+        mediaFile: mediaRef,
+        mediaType: mediaSendType,
         mediaFileName: mediaFileName, // Pass real filename
       } );
 
@@ -1010,7 +1028,21 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
       }
       // Try to extract useful info from the content
       const match = content.match( /\[Unsupported: (.+?)\]/ );
-      const detail = match ? match[ 1 ] : ( content.startsWith( '[' ) ? content.replace( /[\[\]]/g, '' ) : 'Message type not viewable' );
+      let detail: string;
+      if ( match )
+      {
+        detail = match[ 1 ];
+      } else if ( content.trim() && !content.startsWith( '[' ) )
+      {
+        // Real readable text was delivered even though Meta flagged the type — show it.
+        detail = content;
+      } else if ( content.startsWith( '[' ) )
+      {
+        detail = content.replace( /[\[\]]/g, '' );
+      } else
+      {
+        detail = 'Message type not viewable';
+      }
       return (
         <span className="unsupported-msg">
           { detail }

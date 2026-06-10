@@ -507,8 +507,47 @@ export interface SendReactionRequest {
   recipientBsuid?: string;    // Send reaction to BSUID recipient
 }
 
+/**
+ * Request a presigned S3 PUT URL for direct browser→S3 media upload.
+ * Avoids the API Gateway (10MB) / Lambda (6MB) base64 payload ceiling so that
+ * large media (video/audio 16MB, documents up to 100MB) can be sent.
+ */
+export async function getMediaUploadUrl ( mediaType: string, filename: string ): Promise<{ uploadUrl: string; s3Key: string; contentType: string } | null> {
+  const data = await apiCall<any>( `${API_BASE}/whatsapp/send`, {
+    method: 'POST',
+    body: JSON.stringify( { action: 'getUploadUrl', mediaType, filename } ),
+  } );
+  if ( !data?.uploadUrl || !data?.s3Key ) return null;
+  return { uploadUrl: data.uploadUrl, s3Key: data.s3Key, contentType: data.contentType };
+}
+
+/** Upload a File/Blob directly to S3 via a presigned PUT URL. Returns true on success. */
+export async function uploadFileToS3 ( uploadUrl: string, file: File | Blob, contentType: string ): Promise<boolean> {
+  try {
+    const res = await fetch( uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file,
+    } );
+    return res.ok;
+  } catch ( err ) {
+    console.error( 'S3 upload error:', err );
+    return false;
+  }
+}
+
+/**
+ * Upload media to S3 (presigned) then return the S3 key to pass as `mediaFile` to
+ * sendWhatsAppMessage. The backend's _upload_media auto-detects S3 keys by prefix.
+ */
+export async function uploadMediaForSend ( file: File | Blob, mediaType: string, filename: string ): Promise<string | null> {
+  const presign = await getMediaUploadUrl( mediaType, filename );
+  if ( !presign ) return null;
+  const ok = await uploadFileToS3( presign.uploadUrl, file, presign.contentType );
+  return ok ? presign.s3Key : null;
+}
+
 export async function sendWhatsAppMessage ( request: SendMessageRequest ): Promise<{ messageId: string; status: string } | null> {
-  // Note: WhatsApp typing indicators require Meta Cloud API direct access
   // (POST /{PHONE_NUMBER_ID}/messages with status:"read" + typing_indicator object)
   // The read receipt approach is used as a proxy for typing indicators.
 
@@ -3717,38 +3756,6 @@ export async function updatePhoneSettings ( phoneId: string, settings: Record<st
   const data = await apiCall<any>( `${WA_BIZ_BASE}/phone-settings`, {
     method: 'POST',
     body: JSON.stringify( { phoneId, ...settings } ),
-  } );
-  return data?.success === true;
-}
-
-// Username Management (Meta Graph API)
-export interface UsernameInfo {
-  username?: string;
-  status?: string; // 'approved' | 'reserved'
-}
-
-export async function getUsername ( phoneId: string ): Promise<UsernameInfo | null> {
-  const data = await apiCall<any>( `${WA_BIZ_BASE}/username?phoneId=${phoneId}` );
-  if ( data?.error ) return null;
-  return { username: data?.username, status: data?.status };
-}
-
-export async function getUsernameSuggestions ( phoneId: string ): Promise<string[]> {
-  const data = await apiCall<any>( `${WA_BIZ_BASE}/username/suggestions?phoneId=${phoneId}` );
-  return data?.suggestions || [];
-}
-
-export async function claimUsername ( phoneId: string, username: string ): Promise<boolean> {
-  const data = await apiCall<any>( `${WA_BIZ_BASE}/username`, {
-    method: 'POST',
-    body: JSON.stringify( { phoneId, username } ),
-  } );
-  return data?.success === true;
-}
-
-export async function deleteUsername ( phoneId: string ): Promise<boolean> {
-  const data = await apiCall<any>( `${WA_BIZ_BASE}/username?phoneId=${phoneId}`, {
-    method: 'DELETE',
   } );
   return data?.success === true;
 }
