@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
+import TemplateSender from '../../../components/TemplateSender';
 import { SkeletonContact } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
@@ -222,13 +223,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
   const [ selectedWaba, setSelectedWaba ] = useState<string>( WHATSAPP_PHONES.primary.id );
   const [ searchQuery, setSearchQuery ] = useState( '' );
   const [ deleting, setDeleting ] = useState<string | null>( null );
-  const [ mediaFile, setMediaFile ] = useState<File | null>( null );
+  const [ mediaFiles, setMediaFiles ] = useState<File[]>( [] );
   const [ mediaPreview, setMediaPreview ] = useState<string | null>( null );
   const [ uploadingMedia, setUploadingMedia ] = useState( false );
   const [ contactsPage, setContactsPage ] = useState( 1 );
   const [ clearing, setClearing ] = useState( false );
   // Modal states
   const [ showInteractiveComposer, setShowInteractiveComposer ] = useState( false );
+  const [ showTemplateSender, setShowTemplateSender ] = useState( false );
   const [ showEmojiPicker, setShowEmojiPicker ] = useState( false );
   const [ emojiSearch, setEmojiSearch ] = useState( '' );
   const [ mobileShowChat, setMobileShowChat ] = useState( false );
@@ -513,6 +515,24 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
     ? filteredMessages.slice( totalFilteredCount - visibleMessageCount )
     : filteredMessages;
 
+  // Native WhatsApp typing indicator: when the agent is composing, mark the
+  // customer's last inbound message as read + show a typing bubble (max 25s).
+  // Throttled to once per ~20s per conversation (Meta only needs a fresh ping).
+  const lastTypingRef = useRef<{ id: string; at: number }>( { id: '', at: 0 } );
+  useEffect( () => {
+    if ( !messageText.trim() || !selectedContact ) return;
+    const lastInbound = [ ...filteredMessages ].reverse().find(
+      m => m.direction === 'inbound' && m.whatsappMessageId
+    );
+    const wamid = lastInbound?.whatsappMessageId;
+    if ( !wamid ) return;
+    const now = Date.now();
+    if ( lastTypingRef.current.id === selectedContact.id && now - lastTypingRef.current.at < 20000 ) return;
+    lastTypingRef.current = { id: selectedContact.id, at: now };
+    api.sendTypingIndicator( selectedWaba, wamid ).catch( () => { } );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ messageText, selectedContact?.id ] );
+
   // Infinite scroll: load older messages when scrolled near top
   useEffect( () => {
     const area = messagesAreaRef.current;
@@ -559,49 +579,73 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
   }, [ searchQuery ] );
 
   const handleSend = async () => {
-    if ( !selectedContact || ( !messageText.trim() && !mediaFile ) || sending ) return;
+    if ( !selectedContact || ( !messageText.trim() && mediaFiles.length === 0 ) || sending ) return;
     setSending( true );
 
     try
     {
-      let mediaRef: string | undefined = undefined; // S3 key from presigned upload
-      let mediaFileName: string | undefined = undefined;
-      let mediaSendType: string | undefined = undefined;
+      const wabaName = WABA_CONFIG[ selectedWaba as keyof typeof WABA_CONFIG ]?.name || 'WhatsApp';
 
-      // Upload media directly to S3 via presigned URL (bypasses API Gateway/Lambda
-      // payload limits so large video/audio/documents send reliably). The backend
-      // detects the returned S3 key and registers it with WhatsApp.
-      if ( mediaFile )
+      // ── Media messages: upload each file directly to S3 (presigned) then send. ──
+      // Direct browser→S3 upload bypasses the API Gateway (10MB) / Lambda (6MB)
+      // base64 ceiling so large video/audio/documents send. Multiple files are sent
+      // sequentially; the typed text is attached as a caption to the FIRST item only.
+      if ( mediaFiles.length > 0 )
       {
-        mediaFileName = mediaFile.name;
-        // Browser File.type can be empty for some types (.amr, sometimes .webp) — infer from extension.
-        mediaSendType = mediaFile.type || inferMimeFromName( mediaFile.name );
-        const s3Key = await api.uploadMediaForSend( mediaFile, mediaSendType, mediaFileName );
-        if ( !s3Key )
+        let sentCount = 0;
+        let failCount = 0;
+        for ( let i = 0; i < mediaFiles.length; i++ )
         {
-          toast.error( 'Media upload failed. Please try again.' );
-          setSending( false );
-          return;
+          const file = mediaFiles[ i ];
+          // Browser File.type can be empty for some types (.amr, sometimes .webp) — infer from extension.
+          const sendType = file.type || inferMimeFromName( file.name );
+          const s3Key = await api.uploadMediaForSend( file, sendType, file.name );
+          if ( !s3Key )
+          {
+            failCount++;
+            toast.error( `Upload failed: ${file.name}` );
+            continue;
+          }
+          const res = await api.sendWhatsAppMessage( {
+            contactId: selectedContact.id,
+            content: i === 0 ? messageText : '', // caption on first item only
+            phoneNumberId: selectedWaba,
+            recipientBsuid: selectedContact.bsuid || undefined,
+            mediaFile: s3Key,
+            mediaType: sendType,
+            mediaFileName: file.name,
+          } );
+          if ( res ) sentCount++; else failCount++;
         }
-        mediaRef = s3Key;
+
+        if ( sentCount > 0 )
+        {
+          toast.success( `Sent ${sentCount} item${sentCount > 1 ? 's' : ''} via ${wabaName}` );
+          setMessageText( '' );
+          setMediaFiles( [] );
+          setMediaPreview( null );
+          if ( fileInputRef.current ) fileInputRef.current.value = '';
+          await loadData();
+        }
+        if ( failCount > 0 && sentCount === 0 )
+        {
+          toast.error( 'Failed to send. Check if the 24h window is open or use a template.' );
+        }
+        return;
       }
 
+      // ── Text-only message ──
       const result = await api.sendWhatsAppMessage( {
         contactId: selectedContact.id,
         content: messageText,
         phoneNumberId: selectedWaba,
         recipientBsuid: selectedContact.bsuid || undefined,
-        mediaFile: mediaRef,
-        mediaType: mediaSendType,
-        mediaFileName: mediaFileName, // Pass real filename
       } );
 
       if ( result )
       {
-        toast.success( `Sent via ${WABA_CONFIG[ selectedWaba as keyof typeof WABA_CONFIG ]?.name || 'WhatsApp'}` );
+        toast.success( `Sent via ${wabaName}` );
         setMessageText( '' );
-        setMediaFile( null );
-        setMediaPreview( null );
         await loadData();
       } else
       {
@@ -617,61 +661,59 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
   };
 
   const handleMediaSelect = ( e: React.ChangeEvent<HTMLInputElement> ) => {
-    const file = e.target.files?.[ 0 ];
-    if ( !file ) return;
+    const files = Array.from( e.target.files || [] );
+    if ( files.length === 0 ) return;
 
-    // Validate filename - warn if it contains special characters
-    const validFilenameChars = /^[a-zA-Z0-9\s._\-()]+$/;
-    if ( !validFilenameChars.test( file.name ) )
+    const accepted: File[] = [];
+    for ( const file of files )
     {
-      const invalidChars = file.name.replace( /[a-zA-Z0-9\s._\-()]/g, '' ).split( '' ).filter( ( v, i, a ) => a.indexOf( v ) === i );
-      console.warn( 'Filename contains special characters that may be removed:', invalidChars );
-      toast.error( `Filename contains invalid characters: ${invalidChars.join( ', ' )}. They will be removed.` );
+      // Warn (non-blocking) if filename has special characters
+      const validFilenameChars = /^[a-zA-Z0-9\s._\-()]+$/;
+      if ( !validFilenameChars.test( file.name ) )
+      {
+        const invalidChars = file.name.replace( /[a-zA-Z0-9\s._\-()]/g, '' ).split( '' ).filter( ( v, i, a ) => a.indexOf( v ) === i );
+        console.warn( 'Filename contains special characters that may be removed:', invalidChars );
+      }
+
+      // Validate file size based on type per WhatsApp API docs
+      const ftype = file.type || inferMimeFromName( file.name );
+      let maxSize = 5 * 1024 * 1024; // Default 5MB for images
+      if ( ftype.startsWith( 'video/' ) ) maxSize = 16 * 1024 * 1024;
+      else if ( ftype.startsWith( 'audio/' ) ) maxSize = 16 * 1024 * 1024;
+      else if ( ftype === 'image/webp' ) maxSize = 500 * 1024; // sticker
+      else if ( ftype.startsWith( 'application/' ) || ftype === 'text/plain' ) maxSize = 100 * 1024 * 1024;
+
+      if ( file.size > maxSize )
+      {
+        const maxSizeMB = maxSize / ( 1024 * 1024 );
+        toast.error( `${file.name} too large. Max: ${maxSizeMB >= 1 ? maxSizeMB.toFixed( 0 ) + 'MB' : ( maxSize / 1024 ).toFixed( 0 ) + 'KB'}` );
+        continue;
+      }
+      accepted.push( file );
     }
 
-    // Validate file size based on type per WhatsApp API docs
-    let maxSize = 5 * 1024 * 1024; // Default 5MB for images
+    if ( accepted.length === 0 ) return;
 
-    if ( file.type.startsWith( 'video/' ) )
-    {
-      maxSize = 16 * 1024 * 1024; // 16MB for video
-    } else if ( file.type.startsWith( 'audio/' ) )
-    {
-      maxSize = 16 * 1024 * 1024; // 16MB for audio
-    } else if ( file.type === 'application/pdf' || file.type.startsWith( 'application/' ) )
-    {
-      maxSize = 100 * 1024 * 1024; // 100MB for documents
-    } else if ( file.type === 'image/webp' )
-    {
-      maxSize = 500 * 1024; // 500KB for stickers
-    }
+    setMediaFiles( prev => [ ...prev, ...accepted ] );
 
-    if ( file.size > maxSize )
-    {
-      const maxSizeMB = maxSize / ( 1024 * 1024 );
-      toast.error( `File too large. Max size: ${maxSizeMB.toFixed( 0 )}MB` );
-      return;
-    }
-
-    setMediaFile( file );
-
-    // Create preview for images and videos
-    if ( file.type.startsWith( 'image/' ) || file.type.startsWith( 'video/' ) )
+    // Preview the first image if present
+    const firstImage = accepted.find( f => ( f.type || inferMimeFromName( f.name ) ).startsWith( 'image/' ) );
+    if ( firstImage && !mediaPreview )
     {
       const reader = new FileReader();
-      reader.onload = ( e ) => setMediaPreview( e.target?.result as string );
-      reader.readAsDataURL( file );
-    } else
-    {
-      // For documents, show filename
-      setMediaPreview( file.name );
+      reader.onload = ( ev ) => setMediaPreview( ev.target?.result as string );
+      reader.readAsDataURL( firstImage );
     }
   };
 
   const clearMedia = () => {
-    setMediaFile( null );
+    setMediaFiles( [] );
     setMediaPreview( null );
     if ( fileInputRef.current ) fileInputRef.current.value = '';
+  };
+
+  const removeMediaAt = ( index: number ) => {
+    setMediaFiles( prev => prev.filter( ( _, i ) => i !== index ) );
   };
 
   // TTS callback for RichTextEditor panel
@@ -1573,28 +1615,42 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
 
               {/* Input Area */ }
               <div className="input-area">
-                {/* Media Preview */ }
-                { mediaPreview && (
-                  <div className="media-preview">
-                    { mediaFile?.type.startsWith( 'image/' ) ? (
-                      <img src={ mediaPreview } alt="Preview" />
-                    ) : (
-                      <div className="file-preview">
-                        <span>File:</span>
-                        <span>{ mediaFile?.name }</span>
-                      </div>
+                {/* Media Preview (supports multiple files) */ }
+                { mediaFiles.length > 0 && (
+                  <div className="media-preview" style={ { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' } }>
+                    { mediaPreview && ( mediaFiles[ 0 ]?.type || '' ).startsWith( 'image/' ) && (
+                      <img src={ mediaPreview } alt="Preview" style={ { maxHeight: 60, borderRadius: 6 } } />
                     ) }
-                    <button className="clear-media-btn" onClick={ clearMedia }><DeleteIcon size={ 12 } /></button>
+                    { mediaFiles.map( ( f, i ) => (
+                      <div key={ `${f.name}-${i}` } className="file-preview" style={ { display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-secondary,#f3f4f6)', padding: '4px 8px', borderRadius: 6, fontSize: 12 } }>
+                        <span style={ { maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>{ f.name }</span>
+                        <button className="clear-media-btn" onClick={ () => removeMediaAt( i ) } title="Remove"><DeleteIcon size={ 11 } /></button>
+                      </div>
+                    ) ) }
+                    <button className="clear-media-btn" onClick={ clearMedia } title="Clear all" style={ { marginLeft: 4 } }><DeleteIcon size={ 12 } /></button>
                   </div>
                 ) }
 
+                {/* Quick actions row */ }
+                <div style={ { display: 'flex', gap: 8, marginBottom: 6 } }>
+                  <button
+                    type="button"
+                    onClick={ () => setShowTemplateSender( true ) }
+                    title="Send an approved template message (works outside the 24h window)"
+                    style={ { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border,#d1d5db)', borderRadius: 8, background: 'var(--bg-secondary,#f9fafb)', cursor: 'pointer', color: 'var(--text,#374151)' } }
+                  >
+                    📋 Send Template
+                  </button>
+                </div>
+
                 <div className="input-wrapper">
-                  {/* Hidden file input for RichTextEditor attachment button */ }
+                  {/* Hidden file input for RichTextEditor attachment button (multiple media supported) */ }
                   <input
                     type="file"
                     ref={ fileInputRef }
                     onChange={ handleMediaSelect }
-                    accept="image/jpeg,image/png,image/webp,video/mp4,video/3gpp,audio/mpeg,audio/mp3,audio/ogg,audio/aac,audio/amr,audio/mp4,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp,video/mp4,video/3gpp,audio/aac,audio/amr,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/ogg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain"
                     style={ { display: 'none' } }
                   />
 
@@ -1684,6 +1740,19 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
                     recipientBsuid={ selectedContact.bsuid || undefined }
                     onClose={ () => setShowInteractiveComposer( false ) }
                     onSent={ () => loadData() }
+                    onError={ ( msg ) => toast.error( msg ) }
+                  />
+                ) }
+
+                {/* Template Sender — fetches the selected WABA's approved templates */ }
+                { showTemplateSender && selectedContact && (
+                  <TemplateSender
+                    contactId={ selectedContact.id }
+                    contactName={ selectedContact.name }
+                    phoneNumberId={ selectedWaba }
+                    recipientBsuid={ selectedContact.bsuid || undefined }
+                    onClose={ () => setShowTemplateSender( false ) }
+                    onSent={ () => { setShowTemplateSender( false ); loadData(); } }
                     onError={ ( msg ) => toast.error( msg ) }
                   />
                 ) }

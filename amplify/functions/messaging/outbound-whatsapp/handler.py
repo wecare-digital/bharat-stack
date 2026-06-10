@@ -397,7 +397,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         is_typing_indicator = body.get('isTypingIndicator', False)
         if is_typing_indicator:
             try:
-                _send_typing_indicator(phone_number_id, recipient_phone)
+                typing_msg_id = body.get('messageId') or body.get('typingMessageId') or ''
+                _send_typing_indicator(phone_number_id, typing_msg_id)
                 return {
                     'statusCode': 200,
                     'headers': cors_headers(origin),
@@ -3095,41 +3096,45 @@ def _error_response(status_code: int, error: str, message: str = None) -> Dict[s
     }
 
 
-def _send_typing_indicator(phone_number_id: str, recipient_phone: str) -> None:
-    """Send typing indicator to WhatsApp user.
-    
-    Meta Graph API does not expose a native typing indicator endpoint.
-    Instead we send a read receipt (blue ticks) which signals engagement
-    to the customer while the actual response is being prepared.
-    The frontend supplements this with a local typing animation.
+def _send_typing_indicator(phone_number_id: str, message_id: str) -> None:
+    """Send a native WhatsApp typing indicator.
+
+    Per Meta Cloud API (2025+): POST /{PHONE_NUMBER_ID}/messages with
+    status='read' + the inbound message_id + a typing_indicator object.
+    This marks the customer's last message as read (blue ticks) AND shows a
+    typing bubble for up to 25 seconds (or until the business sends a message).
+
+    Requires the WAMID of the customer's most recent inbound message.
     """
     try:
-        digits_only = _normalize_phone_number(recipient_phone)
-        formatted_phone = f'+{digits_only}' if not digits_only.startswith('+') else digits_only
+        if not message_id:
+            logger.info(json.dumps({
+                'event': 'typing_indicator_skipped',
+                'reason': 'no inbound message_id available',
+                'phoneNumberId': phone_number_id,
+            }))
+            return
 
-        # Send a read-receipt-style payload — this is the closest the API supports
-        # to a typing indicator. It shows blue ticks on the customer's side.
-        read_payload = {
+        payload = {
             'messaging_product': 'whatsapp',
             'status': 'read',
-            'recipient_type': 'individual',
-            'to': formatted_phone,
+            'message_id': message_id,
+            'typing_indicator': {'type': 'text'},
         }
 
-        _send_message(phone_number_id, read_payload)
+        _send_message(phone_number_id, payload)
 
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',
-            'recipientPhone': recipient_phone,
+            'messageId': message_id,
             'phoneNumberId': phone_number_id,
-            'note': 'Sent read receipt as typing proxy (no native typing API)'
         }))
     except Exception as e:
         # Non-critical — log and swallow so the caller can proceed
         logger.warning(json.dumps({
             'event': 'typing_indicator_error',
             'error': str(e),
-            'recipientPhone': recipient_phone,
+            'messageId': message_id,
         }))
 
 

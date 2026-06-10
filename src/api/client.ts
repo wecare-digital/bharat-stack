@@ -523,14 +523,16 @@ export async function getMediaUploadUrl ( mediaType: string, filename: string ):
 
 /** Upload a File/Blob directly to S3 via a presigned PUT URL. Returns true on success. */
 export async function uploadFileToS3 ( uploadUrl: string, file: File | Blob, contentType: string ): Promise<boolean> {
-  try {
+  try
+  {
     const res = await fetch( uploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': contentType },
       body: file,
     } );
     return res.ok;
-  } catch ( err ) {
+  } catch ( err )
+  {
     console.error( 'S3 upload error:', err );
     return false;
   }
@@ -577,6 +579,26 @@ export async function sendWhatsAppReaction ( request: SendReactionRequest ): Pro
       recipientBsuid: request.recipientBsuid,
     } ),
   } );
+}
+
+/**
+ * Send a native WhatsApp typing indicator + read receipt.
+ * Meta requires the WAMID of the customer's most recent inbound message.
+ * Shows a typing bubble for up to 25s (or until a message is sent).
+ */
+export async function sendTypingIndicator ( phoneNumberId: string, messageId: string ): Promise<boolean> {
+  if ( !messageId ) return false;
+  try
+  {
+    const data = await apiCall<any>( `${API_BASE}/whatsapp/send`, {
+      method: 'POST',
+      body: JSON.stringify( { isTypingIndicator: true, phoneNumberId, messageId } ),
+    } );
+    return data?.success === true;
+  } catch
+  {
+    return false;
+  }
 }
 
 // Interactive message types

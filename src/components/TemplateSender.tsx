@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import * as api from '../api/client';
+import { WHATSAPP_PHONES } from '../config/constants';
 
 interface TemplateSenderProps {
   contactId?: string;
@@ -46,21 +47,28 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ scheduledDate, setScheduledDate ] = useState( '' );
   const [ scheduledTime, setScheduledTime ] = useState( '' );
 
-  // Load templates on mount
+  // Load templates on mount / when the target phone (WABA) changes
   useEffect( () => {
     loadTemplates();
-  }, [] );
+  }, [ phoneNumberId ] );
 
   const loadTemplates = async () => {
     setLoading( true );
     try
     {
-      const data = await api.listTemplates();
+      // Resolve the WABA for the selected phone so we fetch THAT WABA's templates
+      // (templates are per-WABA; supports both WABA 1 and WABA 2).
+      const phone = Object.values( WHATSAPP_PHONES ).find(
+        ( p: any ) => p.id === phoneNumberId || p.metaPhoneId === phoneNumberId || p.wabaId === phoneNumberId
+      ) as any;
+      const wabaId = phone?.wabaId;
+      const data = await api.listTemplates( wabaId );
       // Only show approved templates
       setTemplates( data.filter( t => t.status === 'APPROVED' ) );
     } catch ( err )
     {
       console.error( 'Failed to load templates:', err );
+      onError( 'Failed to load templates' );
     } finally
     {
       setLoading( false );
