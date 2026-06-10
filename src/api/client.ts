@@ -1641,6 +1641,9 @@ export async function sendWhatsAppTemplateMessage ( request: {
   phoneNumberId?: string;
   templateParams?: string[];  // Variable values like OTP code
   recipientBsuid?: string;    // Send to BSUID recipient
+  headerMedia?: string;       // Public https link OR S3 key for a media header template
+  headerType?: 'image' | 'video' | 'document';  // Header format for media templates
+  headerFilename?: string;    // Filename for document headers
 } ): Promise<{ messageId: string; status: string } | null> {
   // Build template params array - include language as first param for Lambda
   const params: string[] = [];
@@ -1664,6 +1667,15 @@ export async function sendWhatsAppTemplateMessage ( request: {
     phoneNumberId: request.phoneNumberId,
     recipientBsuid: request.recipientBsuid,
   };
+
+  // Media header (IMAGE/VIDEO/DOCUMENT) — required at send time by Meta for
+  // templates whose header is a media format.
+  if ( request.headerMedia )
+  {
+    payload.headerMedia = request.headerMedia;
+    if ( request.headerType ) payload.headerType = request.headerType;
+    if ( request.headerFilename ) payload.headerFilename = request.headerFilename;
+  }
 
   // Support sending by contactId or recipientPhone (auto-creates contact)
   if ( request.contactId )

@@ -46,6 +46,12 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ scheduleMode, setScheduleMode ] = useState( false );
   const [ scheduledDate, setScheduledDate ] = useState( '' );
   const [ scheduledTime, setScheduledTime ] = useState( '' );
+  // Media header (IMAGE/VIDEO/DOCUMENT) support — Meta requires a header
+  // parameter at send time for media-header templates (e.g. wecare_pdf).
+  const [ headerType, setHeaderType ] = useState<'image' | 'video' | 'document' | null>( null );
+  const [ headerMedia, setHeaderMedia ] = useState<string>( '' );   // S3 key or https link
+  const [ headerFilename, setHeaderFilename ] = useState<string>( '' );
+  const [ headerUploading, setHeaderUploading ] = useState( false );
 
   // Load templates on mount / when the target phone (WABA) changes
   useEffect( () => {
@@ -81,8 +87,24 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     {
       setVariables( [] );
       setCardVariables( [] );
+      setHeaderType( null );
+      setHeaderMedia( '' );
+      setHeaderFilename( '' );
       return;
     }
+
+    // Detect a media header (IMAGE / VIDEO / DOCUMENT). Text headers need no upload.
+    const headerComp = selectedTemplate.components?.find( c => c.type === 'HEADER' );
+    const fmt = ( headerComp?.format || '' ).toUpperCase();
+    if ( fmt === 'IMAGE' || fmt === 'VIDEO' || fmt === 'DOCUMENT' )
+    {
+      setHeaderType( fmt.toLowerCase() as 'image' | 'video' | 'document' );
+    } else
+    {
+      setHeaderType( null );
+    }
+    setHeaderMedia( '' );
+    setHeaderFilename( '' );
 
     const vars: TemplateVariable[] = [];
     const cardVars: TemplateVariable[][] = [];
@@ -173,6 +195,39 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     ) );
   };
 
+  // Upload a header media file (image/video/document) → returns an S3 key the
+  // backend resolves to a WhatsApp media id at send time.
+  const handleHeaderUpload = async ( e: React.ChangeEvent<HTMLInputElement> ) => {
+    const file = e.target.files?.[ 0 ];
+    if ( !file ) return;
+    setHeaderUploading( true );
+    try
+    {
+      const mime = file.type || 'application/octet-stream';
+      const key = await api.uploadMediaForSend( file, mime, file.name );
+      if ( key )
+      {
+        setHeaderMedia( key );
+        setHeaderFilename( file.name );
+      } else
+      {
+        onError( 'Header upload failed' );
+      }
+    } catch ( err: any )
+    {
+      onError( err?.message || 'Header upload failed' );
+    } finally
+    {
+      setHeaderUploading( false );
+    }
+  };
+
+  const headerAccept = headerType === 'image'
+    ? 'image/*'
+    : headerType === 'video'
+      ? 'video/*'
+      : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf';
+
   const handleSend = async () => {
     if ( !selectedTemplate )
     {
@@ -185,6 +240,13 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     if ( emptyVars.length > 0 )
     {
       onError( `Please fill in all variables (${emptyVars.length} empty)` );
+      return;
+    }
+
+    // Media-header templates require a header file/link at send time.
+    if ( headerType && !headerMedia )
+    {
+      onError( `This template has a ${headerType} header — upload a ${headerType} or paste a link first.` );
       return;
     }
 
@@ -238,6 +300,9 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
             templateParams: variables.map( v => v.value ),
             phoneNumberId,
             recipientBsuid,
+            headerMedia: headerType ? headerMedia : undefined,
+            headerType: headerType || undefined,
+            headerFilename: headerType === 'document' ? ( headerFilename || undefined ) : undefined,
           } );
         }
 
@@ -370,6 +435,42 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
               </div>
             </div>
 
+            {/* Media Header (IMAGE / VIDEO / DOCUMENT) upload — required by Meta */ }
+            { headerType && (
+              <div className="header-media-section">
+                <label>
+                  { headerType === 'document' ? '📄 Document Header' : headerType === 'video' ? '🎬 Video Header' : '🖼️ Image Header' }
+                  <span className="required-tag">required</span>
+                </label>
+                <div className="header-media-controls">
+                  <label className="upload-btn">
+                    { headerUploading ? 'Uploading…' : `Upload ${headerType}` }
+                    <input
+                      type="file"
+                      accept={ headerAccept }
+                      onChange={ handleHeaderUpload }
+                      disabled={ headerUploading }
+                      style={ { display: 'none' } }
+                    />
+                  </label>
+                  <span className="or-sep">or</span>
+                  <input
+                    type="url"
+                    className="header-url-input"
+                    placeholder={ `Paste public ${headerType} URL` }
+                    value={ headerMedia.startsWith( 'http' ) ? headerMedia : '' }
+                    onChange={ ( e ) => { setHeaderMedia( e.target.value ); setHeaderFilename( '' ); } }
+                  />
+                </div>
+                { headerMedia && (
+                  <div className="header-media-status">
+                    ✓ { headerMedia.startsWith( 'http' ) ? 'Using link' : `Attached: ${headerFilename || 'file'}` }
+                    <button className="clear-header" onClick={ () => { setHeaderMedia( '' ); setHeaderFilename( '' ); } }>×</button>
+                  </div>
+                ) }
+              </div>
+            ) }
+
             {/* Variables Input */ }
             { variables.length > 0 && (
               <div className="variables-section">
@@ -463,7 +564,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         <button
           className="send-btn"
           onClick={ handleSend }
-          disabled={ !selectedTemplate || sending }
+          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && !headerMedia ) }
         >
           { sending ? 'Sending...' : scheduleMode ? 'Schedule' : 'Send Now' }
         </button>
@@ -616,6 +717,69 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           font-weight: 500;
           margin-bottom: 8px;
           color: #333;
+        }
+        .header-media-section {
+          margin-bottom: 16px;
+          padding: 12px;
+          border: 1px dashed #c7d2cc;
+          border-radius: 8px;
+          background: #f8faf9;
+        }
+        .header-media-section > label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          margin-bottom: 10px;
+          color: #1a3a2a;
+        }
+        .required-tag {
+          font-size: 10px;
+          font-weight: 500;
+          color: #b91c1c;
+          background: #fee2e2;
+          padding: 1px 6px;
+          border-radius: 8px;
+        }
+        .header-media-controls {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .upload-btn {
+          padding: 8px 12px;
+          border: 1px solid #1a3a2a;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          background: #fff;
+          white-space: nowrap;
+        }
+        .upload-btn:hover { background: #f0f5f2; }
+        .or-sep { font-size: 12px; color: #999; }
+        .header-url-input {
+          flex: 1;
+          padding: 8px 10px;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          font-size: 13px;
+        }
+        .header-media-status {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+          font-size: 12px;
+          color: #166534;
+        }
+        .clear-header {
+          background: none;
+          border: none;
+          color: #b91c1c;
+          font-size: 16px;
+          cursor: pointer;
+          line-height: 1;
         }
         .variable-row {
           display: flex;

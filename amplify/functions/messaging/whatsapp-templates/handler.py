@@ -175,10 +175,22 @@ def _list_templates(waba_id, query_params):
         data = _meta_request(url)
         templates = []
         for t in data.get('data', []):
+            # Return both Meta-native keys (id/name/status/components) and the
+            # legacy *metaTemplateId/templateName/templateStatus* aliases so the
+            # frontend normalizer can resolve every field. Previously only the
+            # three aliases were returned, which dropped `components`, `language`
+            # and `category` — causing template text/preview to render blank and
+            # sends to fail (language defaulted to en_US instead of the real code).
             templates.append({
+                'id': t.get('id'),
                 'metaTemplateId': t.get('id'),
+                'name': t.get('name'),
                 'templateName': t.get('name'),
+                'status': t.get('status'),
                 'templateStatus': t.get('status'),
+                'category': t.get('category'),
+                'language': t.get('language'),
+                'components': t.get('components', []),
             })
         return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'templates': templates})}
     except Exception as e:

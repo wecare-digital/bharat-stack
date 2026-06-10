@@ -342,7 +342,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         is_otp_template = body.get('isOtpTemplate', False) or body.get('isAuthenticationTemplate', False)
         otp_code = body.get('otpCode', '')
         otp_button_type = body.get('otpButtonType', 'copy_code')  # 'url' or 'copy_code'
-        
+
+        # Standard template media header support (IMAGE / VIDEO / DOCUMENT headers).
+        # Templates like wecare_pdf (DOCUMENT), wd_order/wd_menu (VIDEO) require a
+        # header parameter at SEND time — the approval-time example handle is not
+        # reusable. The inbox TemplateSender supplies a public link here.
+        template_header_media = body.get('headerMedia') or body.get('templateHeaderMedia')
+        template_header_type = (body.get('headerType') or body.get('templateHeaderType') or '').lower()
+        template_header_filename = body.get('headerFilename') or body.get('templateHeaderFilename')
+
         # Interactive payment support (for within 24h window - uses payment_settings)
         is_interactive_payment = body.get('isInteractivePayment', False)
         
@@ -476,7 +484,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             content, media_file, media_type, media_filename, is_template, template_name,
             template_params, within_window, request_id, is_payment_template, order_details, 
             header_image_url, is_interactive_payment, is_otp_template, otp_code, otp_button_type,
-            recipient_bsuid=recipient_bsuid
+            recipient_bsuid=recipient_bsuid,
+            template_header_media=template_header_media,
+            template_header_type=template_header_type,
+            template_header_filename=template_header_filename
         )
         
     except json.JSONDecodeError:
@@ -1344,7 +1355,10 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       header_image_url: Optional[str] = None, is_interactive_payment: bool = False,
                       is_otp_template: bool = False, otp_code: Optional[str] = None,
                       otp_button_type: Optional[str] = None,
-                      recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
+                      recipient_bsuid: Optional[str] = None,
+                      template_header_media: Optional[str] = None,
+                      template_header_type: Optional[str] = None,
+                      template_header_filename: Optional[str] = None) -> Dict[str, Any]:
     """
     Handle LIVE mode - call Meta Graph API (Direct API).
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
@@ -1364,7 +1378,32 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             s3_key, whatsapp_media_id, stored_filename = _upload_media(media_file, media_type, message_id, phone_number_id, request_id, filename)
             if not whatsapp_media_id:
                 return _error_response(500, 'Failed to upload media')
-        
+
+        # Resolve a template media header (IMAGE/VIDEO/DOCUMENT) into a sendable
+        # reference. A public https link is passed through as-is; an S3 key is
+        # uploaded to the WhatsApp media API and replaced with its media id so
+        # private-bucket files work without exposing a public URL.
+        resolved_header_media = template_header_media
+        if (is_template and template_header_media and template_header_type
+                and not str(template_header_media).startswith('http')):
+            try:
+                _, _hdr_media_id, _ = _upload_media(
+                    template_header_media, template_header_type, message_id,
+                    phone_number_id, request_id, template_header_filename
+                )
+                if _hdr_media_id:
+                    resolved_header_media = _hdr_media_id
+                else:
+                    logger.warning(json.dumps({
+                        'event': 'template_header_media_resolve_failed',
+                        'templateName': template_name, 'requestId': request_id
+                    }))
+            except Exception as _he:
+                logger.warning(json.dumps({
+                    'event': 'template_header_media_resolve_error',
+                    'error': str(_he), 'requestId': request_id
+                }))
+
         # Build WhatsApp message payload
         message_payload = _build_message_payload(
             recipient_phone, content, media_type, whatsapp_media_id,
@@ -1372,7 +1411,10 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             is_payment_template, order_details, header_image_url, is_interactive_payment,
             is_otp_template, otp_code, otp_button_type,
             phone_number_id=phone_number_id,
-            recipient_bsuid=recipient_bsuid
+            recipient_bsuid=recipient_bsuid,
+            template_header_media=resolved_header_media,
+            template_header_type=template_header_type,
+            template_header_filename=template_header_filename
         )
         
         logger.info(json.dumps({
@@ -2096,7 +2138,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            is_otp_template: bool = False, otp_code: Optional[str] = None,
                            otp_button_type: Optional[str] = None,
                            phone_number_id: Optional[str] = None,
-                           recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
+                           recipient_bsuid: Optional[str] = None,
+                           template_header_media: Optional[str] = None,
+                           template_header_type: Optional[str] = None,
+                           template_header_filename: Optional[str] = None) -> Dict[str, Any]:
     """Build WhatsApp Cloud API message payload. Supports BSUID recipient."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
     formatted_phone = _normalize_phone_number(recipient_phone) if recipient_phone else ''
@@ -2431,7 +2476,30 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             'language': {'code': template_language},
             'components': []
         }
-        
+
+        # Media header for standard (non-payment) templates. Must be appended
+        # first so the component order is header → body → button per Meta spec.
+        # Accepts a public https link OR a pre-resolved WhatsApp media id.
+        if (template_header_media and not is_payment_template
+                and template_header_type in ('image', 'video', 'document')):
+            _is_link = str(template_header_media).startswith('http')
+            _ref = {'link': template_header_media} if _is_link else {'id': template_header_media}
+            if template_header_type == 'document':
+                if template_header_filename:
+                    _ref['filename'] = template_header_filename
+                _hp = {'type': 'document', 'document': _ref}
+            elif template_header_type == 'video':
+                _hp = {'type': 'video', 'video': _ref}
+            else:
+                _hp = {'type': 'image', 'image': _ref}
+            payload['template']['components'].append({'type': 'header', 'parameters': [_hp]})
+            logger.info(json.dumps({
+                'event': 'template_media_header_added',
+                'templateName': template_name,
+                'headerType': template_header_type,
+                'ref': 'link' if _is_link else 'id',
+                'hasFilename': bool(template_header_filename),
+            }))
         # Handle payment template with order_details button
         if is_payment_template and order_details:
             # Add header image if provided
