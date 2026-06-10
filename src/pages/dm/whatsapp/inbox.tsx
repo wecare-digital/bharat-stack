@@ -231,6 +231,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
   // Modal states
   const [ showInteractiveComposer, setShowInteractiveComposer ] = useState( false );
   const [ showTemplateSender, setShowTemplateSender ] = useState( false );
+  const [ showNewTemplate, setShowNewTemplate ] = useState( false );  // template → new/unsaved number
   const [ showEmojiPicker, setShowEmojiPicker ] = useState( false );
   const [ emojiSearch, setEmojiSearch ] = useState( '' );
   const [ mobileShowChat, setMobileShowChat ] = useState( false );
@@ -1248,6 +1249,16 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
               />
             </div>
 
+            {/* Send a template to a brand-new / unsaved number (no inbox history needed) */ }
+            <button
+              type="button"
+              onClick={ () => setShowNewTemplate( true ) }
+              title="Send an approved template to a new number (no saved contact required)"
+              style={ { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 8, padding: '8px 10px', fontSize: 13, fontWeight: 600, border: '1px solid #1a3a2a', borderRadius: 8, background: '#1a3a2a', color: '#fff', cursor: 'pointer' } }
+            >
+              ✉️ New template message
+            </button>
+
             {/* Pagination Controls - Below Search - Show when multiple pages */ }
             { totalContactPages > 1 && (
               <div className="contacts-pagination top">
@@ -1773,6 +1784,18 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
             </div>
           ) }
         </div>
+
+        {/* New Template Message → send to a brand-new / unsaved number */ }
+        { showNewTemplate && (
+          <TemplateSender
+            contactName=""
+            phoneNumberId={ selectedWaba }
+            enableManualRecipient
+            onClose={ () => setShowNewTemplate( false ) }
+            onSent={ () => { setShowNewTemplate( false ); loadData(); } }
+            onError={ ( msg ) => toast.error( msg ) }
+          />
+        ) }
       </div>
     </>
   );

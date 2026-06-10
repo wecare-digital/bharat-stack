@@ -14,6 +14,7 @@ interface TemplateSenderProps {
   phoneNumberId: string;
   recipientBsuid?: string;
   recipientPhone?: string;    // Send to phone directly — auto-creates contact if needed
+  enableManualRecipient?: boolean;  // Show a phone-number input (new / unsaved contact)
   onClose: () => void;
   onSent: () => void;
   onError: ( msg: string ) => void;
@@ -31,12 +32,16 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   phoneNumberId,
   recipientBsuid,
   recipientPhone,
+  enableManualRecipient,
   onClose,
   onSent,
   onError,
 } ) => {
   const [ loading, setLoading ] = useState( true );
   const [ sending, setSending ] = useState( false );
+  const [ manualPhone, setManualPhone ] = useState( '' );
+  // True when we have no contact/phone context and must collect a number.
+  const manualMode = !!enableManualRecipient && !contactId && !recipientPhone;
   const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
   const [ selectedTemplate, setSelectedTemplate ] = useState<api.WhatsAppTemplate | null>( null );
   const [ variables, setVariables ] = useState<TemplateVariable[]>( [] );
@@ -250,12 +255,30 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       return;
     }
 
+    // Resolve the recipient. In manual mode validate the typed number.
+    let manualDigits = '';
+    if ( manualMode )
+    {
+      manualDigits = manualPhone.replace( /[^\d]/g, '' );
+      if ( manualDigits.length < 10 )
+      {
+        onError( 'Enter a valid recipient number with country code (e.g. 919876543210).' );
+        return;
+      }
+    }
+    const effectiveRecipientPhone = manualMode ? manualDigits : recipientPhone;
+
     setSending( true );
     try
     {
       // Check if scheduling
       if ( scheduleMode && scheduledDate && scheduledTime )
       {
+        if ( manualMode )
+        {
+          onError( 'Scheduling requires a saved contact. Send now, or open the contact first.' );
+          return;
+        }
         const scheduledAt = new Date( `${scheduledDate}T${scheduledTime}` ).toISOString();
         const result = await api.scheduleTemplateMessage( {
           contactId: contactId || '',
@@ -294,7 +317,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         {
           result = await api.sendWhatsAppTemplateMessage( {
             contactId: contactId || '',
-            recipientPhone,
+            recipientPhone: effectiveRecipientPhone,
             templateName: selectedTemplate.name,
             language: selectedTemplate.language,
             templateParams: variables.map( v => v.value ),
@@ -366,6 +389,22 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       </div>
 
       <div className="sender-body">
+        {/* Manual recipient entry — send a template to a new / unsaved number */ }
+        { manualMode && (
+          <div className="manual-recipient">
+            <label>Send to (new number)</label>
+            <input
+              type="tel"
+              inputMode="numeric"
+              className="manual-phone-input"
+              placeholder="Country code + number e.g. 919876543210"
+              value={ manualPhone }
+              onChange={ ( e ) => setManualPhone( e.target.value ) }
+            />
+            <span className="manual-hint">No saved contact needed — a contact is created automatically. Template messages can open a new conversation outside the 24-hour window.</span>
+          </div>
+        ) }
+
         {/* Template Selection */ }
         { !selectedTemplate ? (
           <div className="template-selection">
@@ -518,7 +557,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
             <div className="preview-section">
               <label>Preview</label>
               <div className="preview-box">
-                <div className="preview-recipient">To: { contactName }</div>
+                <div className="preview-recipient">To: { manualMode ? ( manualPhone || 'new number' ) : contactName }</div>
                 <div className="preview-content">{ getPreviewText() }</div>
                 { isCarouselTemplate && (
                   <div className="carousel-indicator">
@@ -564,7 +603,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         <button
           className="send-btn"
           onClick={ handleSend }
-          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && !headerMedia ) }
+          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && !headerMedia ) || ( manualMode && manualPhone.replace( /[^\d]/g, '' ).length < 10 ) }
         >
           { sending ? 'Sending...' : scheduleMode ? 'Schedule' : 'Send Now' }
         </button>
@@ -607,6 +646,29 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           overflow-y: auto;
           padding: 16px;
         }
+        .manual-recipient {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 14px;
+          padding: 12px;
+          border: 1px solid #d1fae5;
+          border-radius: 8px;
+          background: #f0fdf4;
+        }
+        .manual-recipient > label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #1a3a2a;
+        }
+        .manual-phone-input {
+          padding: 10px 12px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          font-size: 14px;
+        }
+        .manual-phone-input:focus { outline: none; border-color: #1a3a2a; }
+        .manual-hint { font-size: 11px; color: #6b7280; line-height: 1.4; }
         .search-filters {
           display: flex;
           gap: 8px;
