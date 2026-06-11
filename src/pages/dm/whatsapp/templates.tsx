@@ -47,32 +47,32 @@ const STATUS_COLORS: Record<string, string> = {
   REJECTED: '#1a3a2a',
 };
 
-const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
+const TemplateManagement: React.FC<PageProps> = ( { signOut, user, embedded = false } ) => {
   const router = useRouter();
   const toast = useToastContext();
   const confirm = useConfirm();
-  const [loading, setLoading] = useState(true);
-  const [templates, setTemplates] = useState<api.WhatsAppTemplate[]>([]);
-  const [libraryTemplates, setLibraryTemplates] = useState<api.MetaLibraryTemplate[]>([]);
-  const [selectedWaba, setSelectedWaba] = useState(WABA_OPTIONS[0].id);
-  const [activeTab, setActiveTab] = useState<'my-templates' | 'analytics' | 'scheduled'>('my-templates');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [ loading, setLoading ] = useState( true );
+  const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
+  const [ libraryTemplates, setLibraryTemplates ] = useState<api.MetaLibraryTemplate[]>( [] );
+  const [ selectedWaba, setSelectedWaba ] = useState( WABA_OPTIONS[ 0 ].id );
+  const [ activeTab, setActiveTab ] = useState<'my-templates' | 'analytics' | 'scheduled'>( 'my-templates' );
+  const [ searchQuery, setSearchQuery ] = useState( '' );
 
-  const [selectedTemplate, setSelectedTemplate] = useState<api.WhatsAppTemplate | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCarouselModal, setShowCarouselModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [ selectedTemplate, setSelectedTemplate ] = useState<api.WhatsAppTemplate | null>( null );
+  const [ showCreateModal, setShowCreateModal ] = useState( false );
+  const [ showCarouselModal, setShowCarouselModal ] = useState( false );
+  const [ deleting, setDeleting ] = useState( false );
 
   // Analytics state
-  const [analytics, setAnalytics] = useState<api.TemplateAnalyticsSummary | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [ analytics, setAnalytics ] = useState<api.TemplateAnalyticsSummary | null>( null );
+  const [ analyticsLoading, setAnalyticsLoading ] = useState( false );
 
   // Scheduled messages state
-  const [scheduledMessages, setScheduledMessages] = useState<api.ScheduledMessage[]>([]);
-  const [scheduledLoading, setScheduledLoading] = useState(false);
+  const [ scheduledMessages, setScheduledMessages ] = useState<api.ScheduledMessage[]>( [] );
+  const [ scheduledLoading, setScheduledLoading ] = useState( false );
 
   // Carousel template state
-  const [carouselTemplate, setCarouselTemplate] = useState({
+  const [ carouselTemplate, setCarouselTemplate ] = useState( {
     name: '',
     language: 'en_US',
     category: 'MARKETING' as 'MARKETING' | 'UTILITY',
@@ -80,196 +80,226 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
     cards: [
       { bodyText: '', headerType: 'image' as 'image' | 'video', headerHandle: '', buttons: [] as api.CarouselCardButton[] }
     ] as api.CarouselCard[],
-  });
-  const [carouselMediaUploading, setCarouselMediaUploading] = useState<number | null>(null);
-  const [carouselCreating, setCarouselCreating] = useState(false);
+  } );
+  const [ carouselMediaUploading, setCarouselMediaUploading ] = useState<number | null>( null );
+  const [ carouselCreating, setCarouselCreating ] = useState( false );
 
   // Create template form state
-  const [newTemplate, setNewTemplate] = useState({
+  const [ newTemplate, setNewTemplate ] = useState( {
     name: '',
     language: 'en_US',
     category: 'UTILITY' as 'UTILITY' | 'MARKETING' | 'AUTHENTICATION',
-    headerType: 'none' as 'none' | 'text' | 'image' | 'video' | 'document',
+    headerType: 'none' as 'none' | 'text' | 'image' | 'video' | 'document' | 'location',
     headerText: '',
     bodyText: '',
     footerText: '',
     buttons: [] as { type: string; text: string; url?: string; phone?: string }[],
-  });
+  } );
 
-  const loadTemplates = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.listTemplates(selectedWaba);
-      setTemplates(data);
-    } catch (err) {
-      console.error('Failed to load templates:', err);
-      toast.error('Failed to load templates');
-    } finally {
-      setLoading(false);
+  const loadTemplates = useCallback( async () => {
+    setLoading( true );
+    try
+    {
+      const data = await api.listTemplates( selectedWaba );
+      setTemplates( data );
+    } catch ( err )
+    {
+      console.error( 'Failed to load templates:', err );
+      toast.error( 'Failed to load templates' );
+    } finally
+    {
+      setLoading( false );
     }
-  }, [selectedWaba]);
+  }, [ selectedWaba ] );
 
-  const loadLibrary = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.listTemplateLibrary({ wabaId: selectedWaba });
-      setLibraryTemplates(data);
-    } catch (err) {
-      console.error('Failed to load template library:', err);
-      toast.error('Failed to load template library');
-    } finally {
-      setLoading(false);
+  const loadLibrary = useCallback( async () => {
+    setLoading( true );
+    try
+    {
+      const data = await api.listTemplateLibrary( { wabaId: selectedWaba } );
+      setLibraryTemplates( data );
+    } catch ( err )
+    {
+      console.error( 'Failed to load template library:', err );
+      toast.error( 'Failed to load template library' );
+    } finally
+    {
+      setLoading( false );
     }
-  }, [selectedWaba]);
+  }, [ selectedWaba ] );
 
-  const loadAnalytics = useCallback(async () => {
-    setAnalyticsLoading(true);
-    try {
-      const data = await api.getTemplateAnalyticsSummary(selectedWaba);
-      setAnalytics(data);
-    } catch (err) {
-      console.error('Failed to load analytics:', err);
+  const loadAnalytics = useCallback( async () => {
+    setAnalyticsLoading( true );
+    try
+    {
+      const data = await api.getTemplateAnalyticsSummary( selectedWaba );
+      setAnalytics( data );
+    } catch ( err )
+    {
+      console.error( 'Failed to load analytics:', err );
       // Set mock data for demo if API not available
-      setAnalytics({
+      setAnalytics( {
         totalTemplatesSent: templates.length * 50,
         avgDeliveryRate: 94.5,
         avgReadRate: 72.3,
-        topTemplates: templates.slice(0, 5).map(t => ({
+        topTemplates: templates.slice( 0, 5 ).map( t => ( {
           templateName: t.name,
           language: t.language,
-          totalSent: Math.floor(Math.random() * 500) + 50,
-          delivered: Math.floor(Math.random() * 450) + 45,
-          read: Math.floor(Math.random() * 350) + 30,
-          failed: Math.floor(Math.random() * 20),
+          totalSent: Math.floor( Math.random() * 500 ) + 50,
+          delivered: Math.floor( Math.random() * 450 ) + 45,
+          read: Math.floor( Math.random() * 350 ) + 30,
+          failed: Math.floor( Math.random() * 20 ),
           deliveryRate: 90 + Math.random() * 10,
           readRate: 60 + Math.random() * 30,
-        })),
+        } ) ),
         byCategory: {
-          UTILITY: Math.floor(Math.random() * 300) + 100,
-          MARKETING: Math.floor(Math.random() * 200) + 50,
-          AUTHENTICATION: Math.floor(Math.random() * 100) + 20,
+          UTILITY: Math.floor( Math.random() * 300 ) + 100,
+          MARKETING: Math.floor( Math.random() * 200 ) + 50,
+          AUTHENTICATION: Math.floor( Math.random() * 100 ) + 20,
         },
-      });
-    } finally {
-      setAnalyticsLoading(false);
+      } );
+    } finally
+    {
+      setAnalyticsLoading( false );
     }
-  }, [selectedWaba, templates]);
+  }, [ selectedWaba, templates ] );
 
-  const loadScheduledMessages = useCallback(async () => {
-    setScheduledLoading(true);
-    try {
-      const data = await api.listScheduledMessages('PENDING');
-      setScheduledMessages(data);
-    } catch (err) {
-      console.error('Failed to load scheduled messages:', err);
-      setScheduledMessages([]);
-    } finally {
-      setScheduledLoading(false);
+  const loadScheduledMessages = useCallback( async () => {
+    setScheduledLoading( true );
+    try
+    {
+      const data = await api.listScheduledMessages( 'PENDING' );
+      setScheduledMessages( data );
+    } catch ( err )
+    {
+      console.error( 'Failed to load scheduled messages:', err );
+      setScheduledMessages( [] );
+    } finally
+    {
+      setScheduledLoading( false );
     }
-  }, []);
+  }, [] );
 
-  useEffect(() => {
-    if (activeTab === 'my-templates') {
+  useEffect( () => {
+    if ( activeTab === 'my-templates' )
+    {
       loadTemplates();
-    } else if (activeTab === 'analytics') {
+    } else if ( activeTab === 'analytics' )
+    {
       loadAnalytics();
-    } else if (activeTab === 'scheduled') {
+    } else if ( activeTab === 'scheduled' )
+    {
       loadScheduledMessages();
     }
-  }, [activeTab, selectedWaba]);
+  }, [ activeTab, selectedWaba ] );
 
-  const handleDeleteTemplate = async (templateName: string) => {
-    const ok = await confirm({
+  const handleDeleteTemplate = async ( templateName: string ) => {
+    const ok = await confirm( {
       title: 'Delete Template',
-      message: (<p>Are you sure you want to delete <strong>{templateName}</strong>?<br /><br /><span style={{ color: '#666', fontSize: 13 }}>This action cannot be undone.</span></p>),
+      message: ( <p>Are you sure you want to delete <strong>{ templateName }</strong>?<br /><br /><span style={ { color: '#666', fontSize: 13 } }>This action cannot be undone.</span></p> ),
       confirmText: 'Delete',
       danger: true,
-    });
-    if (!ok) return;
-    setDeleting(true);
-    try {
-      const success = await api.deleteTemplate(templateName, selectedWaba, true);
-      if (success) {
-        toast.success('Template deleted');
+    } );
+    if ( !ok ) return;
+    setDeleting( true );
+    try
+    {
+      const success = await api.deleteTemplate( templateName, selectedWaba, true );
+      if ( success )
+      {
+        toast.success( 'Template deleted' );
         loadTemplates();
-      } else {
-        toast.error('Failed to delete template');
+      } else
+      {
+        toast.error( 'Failed to delete template' );
       }
-    } catch (err) {
-      toast.error('Delete failed');
-    } finally {
-      setDeleting(false);
+    } catch ( err )
+    {
+      toast.error( 'Delete failed' );
+    } finally
+    {
+      setDeleting( false );
     }
   };
 
-  const handleCancelScheduled = async (scheduledId: string) => {
-    try {
-      const success = await api.cancelScheduledMessage(scheduledId);
-      if (success) {
-        toast.success('Scheduled message cancelled');
+  const handleCancelScheduled = async ( scheduledId: string ) => {
+    try
+    {
+      const success = await api.cancelScheduledMessage( scheduledId );
+      if ( success )
+      {
+        toast.success( 'Scheduled message cancelled' );
         loadScheduledMessages();
-      } else {
-        toast.error('Failed to cancel');
+      } else
+      {
+        toast.error( 'Failed to cancel' );
       }
-    } catch (err) {
-      toast.error('Cancel failed');
+    } catch ( err )
+    {
+      toast.error( 'Cancel failed' );
     }
   };
 
   const handleCreateTemplate = async () => {
-    if (!newTemplate.name || !newTemplate.bodyText) {
-      toast.error('Name and body text are required');
+    if ( !newTemplate.name || !newTemplate.bodyText )
+    {
+      toast.error( 'Name and body text are required' );
       return;
     }
 
-    try {
+    try
+    {
       const components: any[] = [];
-      
+
       // Header component
-      if (newTemplate.headerType !== 'none') {
-        components.push({
+      if ( newTemplate.headerType !== 'none' )
+      {
+        components.push( {
           type: 'HEADER',
           format: newTemplate.headerType.toUpperCase(),
           text: newTemplate.headerType === 'text' ? newTemplate.headerText : undefined,
-        });
-      }
-      
-      // Body component (required)
-      components.push({
-        type: 'BODY',
-        text: newTemplate.bodyText,
-      });
-      
-      // Footer component
-      if (newTemplate.footerText) {
-        components.push({
-          type: 'FOOTER',
-          text: newTemplate.footerText,
-        });
-      }
-      
-      // Buttons component
-      if (newTemplate.buttons.length > 0) {
-        components.push({
-          type: 'BUTTONS',
-          buttons: newTemplate.buttons,
-        });
+        } );
       }
 
-      const result = await api.createTemplate({
+      // Body component (required)
+      components.push( {
+        type: 'BODY',
+        text: newTemplate.bodyText,
+      } );
+
+      // Footer component
+      if ( newTemplate.footerText )
+      {
+        components.push( {
+          type: 'FOOTER',
+          text: newTemplate.footerText,
+        } );
+      }
+
+      // Buttons component
+      if ( newTemplate.buttons.length > 0 )
+      {
+        components.push( {
+          type: 'BUTTONS',
+          buttons: newTemplate.buttons,
+        } );
+      }
+
+      const result = await api.createTemplate( {
         wabaId: selectedWaba,
         templateDefinition: {
-          name: newTemplate.name.toLowerCase().replace(/\s+/g, '_'),
+          name: newTemplate.name.toLowerCase().replace( /\s+/g, '_' ),
           language: newTemplate.language,
           category: newTemplate.category,
           components,
         },
-      });
+      } );
 
-      if (result) {
-        toast.success(`Template created (Status: ${result.templateStatus})`);
-        setShowCreateModal(false);
-        setNewTemplate({
+      if ( result )
+      {
+        toast.success( `Template created (Status: ${result.templateStatus})` );
+        setShowCreateModal( false );
+        setNewTemplate( {
           name: '',
           language: 'en_US',
           category: 'UTILITY',
@@ -278,19 +308,22 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
           bodyText: '',
           footerText: '',
           buttons: [],
-        });
+        } );
         loadTemplates();
-      } else {
-        toast.error('Failed to create template');
+      } else
+      {
+        toast.error( 'Failed to create template' );
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Create failed');
+    } catch ( err: any )
+    {
+      toast.error( err.message || 'Create failed' );
     }
   };
 
-  const handleCreateFromLibrary = async (libraryTemplate: api.MetaLibraryTemplate) => {
-    try {
-      const result = await api.createTemplateFromLibrary({
+  const handleCreateFromLibrary = async ( libraryTemplate: api.MetaLibraryTemplate ) => {
+    try
+    {
+      const result = await api.createTemplateFromLibrary( {
         wabaId: selectedWaba,
         metaLibraryTemplate: {
           libraryTemplateName: libraryTemplate.templateName,
@@ -298,177 +331,191 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
           templateCategory: libraryTemplate.templateCategory,
           templateLanguage: libraryTemplate.templateLanguage || 'en_US',
         },
-      });
+      } );
 
-      if (result) {
-        toast.success(`Template created from library (Status: ${result.templateStatus})`);
-        setActiveTab('my-templates');
+      if ( result )
+      {
+        toast.success( `Template created from library (Status: ${result.templateStatus})` );
+        setActiveTab( 'my-templates' );
         loadTemplates();
-      } else {
-        toast.error('Failed to create template from library');
+      } else
+      {
+        toast.error( 'Failed to create template from library' );
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Create from library failed');
+    } catch ( err: any )
+    {
+      toast.error( err.message || 'Create from library failed' );
     }
   };
 
-  const filteredTemplates = templates.filter(t =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTemplates = templates.filter( t =>
+    t.name.toLowerCase().includes( searchQuery.toLowerCase() ) ||
+    t.category.toLowerCase().includes( searchQuery.toLowerCase() )
   );
 
-  const filteredLibrary = libraryTemplates.filter(t =>
-    t.templateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.templateCategory.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredLibrary = libraryTemplates.filter( t =>
+    t.templateName.toLowerCase().includes( searchQuery.toLowerCase() ) ||
+    t.templateCategory.toLowerCase().includes( searchQuery.toLowerCase() )
   );
 
   const addButton = () => {
-    if (newTemplate.buttons.length >= 3) return;
-    setNewTemplate({
+    if ( newTemplate.buttons.length >= 3 ) return;
+    setNewTemplate( {
       ...newTemplate,
-      buttons: [...newTemplate.buttons, { type: 'URL', text: '', url: '' }],
-    });
+      buttons: [ ...newTemplate.buttons, { type: 'URL', text: '', url: '' } ],
+    } );
   };
 
-  const removeButton = (index: number) => {
-    setNewTemplate({
+  const removeButton = ( index: number ) => {
+    setNewTemplate( {
       ...newTemplate,
-      buttons: newTemplate.buttons.filter((_, i) => i !== index),
-    });
+      buttons: newTemplate.buttons.filter( ( _, i ) => i !== index ),
+    } );
   };
 
-  const updateButton = (index: number, field: string, value: string) => {
-    const updated = [...newTemplate.buttons];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewTemplate({ ...newTemplate, buttons: updated });
+  const updateButton = ( index: number, field: string, value: string ) => {
+    const updated = [ ...newTemplate.buttons ];
+    updated[ index ] = { ...updated[ index ], [ field ]: value };
+    setNewTemplate( { ...newTemplate, buttons: updated } );
   };
 
   // Carousel template functions
   const addCarouselCard = () => {
-    if (carouselTemplate.cards.length >= 10) return;
-    setCarouselTemplate({
+    if ( carouselTemplate.cards.length >= 10 ) return;
+    setCarouselTemplate( {
       ...carouselTemplate,
-      cards: [...carouselTemplate.cards, { bodyText: '', headerType: 'image', headerHandle: '', buttons: [] }],
-    });
+      cards: [ ...carouselTemplate.cards, { bodyText: '', headerType: 'image', headerHandle: '', buttons: [] } ],
+    } );
   };
 
-  const removeCarouselCard = (index: number) => {
-    if (carouselTemplate.cards.length <= 1) return;
-    setCarouselTemplate({
+  const removeCarouselCard = ( index: number ) => {
+    if ( carouselTemplate.cards.length <= 1 ) return;
+    setCarouselTemplate( {
       ...carouselTemplate,
-      cards: carouselTemplate.cards.filter((_, i) => i !== index),
-    });
+      cards: carouselTemplate.cards.filter( ( _, i ) => i !== index ),
+    } );
   };
 
-  const updateCarouselCard = (index: number, field: string, value: any) => {
-    const updated = [...carouselTemplate.cards];
-    updated[index] = { ...updated[index], [field]: value };
-    setCarouselTemplate({ ...carouselTemplate, cards: updated });
+  const updateCarouselCard = ( index: number, field: string, value: any ) => {
+    const updated = [ ...carouselTemplate.cards ];
+    updated[ index ] = { ...updated[ index ], [ field ]: value };
+    setCarouselTemplate( { ...carouselTemplate, cards: updated } );
   };
 
-  const addCarouselCardButton = (cardIndex: number) => {
-    const card = carouselTemplate.cards[cardIndex];
-    if ((card.buttons?.length || 0) >= 2) return;
-    const updated = [...carouselTemplate.cards];
-    updated[cardIndex] = {
+  const addCarouselCardButton = ( cardIndex: number ) => {
+    const card = carouselTemplate.cards[ cardIndex ];
+    if ( ( card.buttons?.length || 0 ) >= 2 ) return;
+    const updated = [ ...carouselTemplate.cards ];
+    updated[ cardIndex ] = {
       ...card,
-      buttons: [...(card.buttons || []), { type: 'QUICK_REPLY', text: '' }],
+      buttons: [ ...( card.buttons || [] ), { type: 'QUICK_REPLY', text: '' } ],
     };
-    setCarouselTemplate({ ...carouselTemplate, cards: updated });
+    setCarouselTemplate( { ...carouselTemplate, cards: updated } );
   };
 
-  const removeCarouselCardButton = (cardIndex: number, btnIndex: number) => {
-    const updated = [...carouselTemplate.cards];
-    updated[cardIndex] = {
-      ...updated[cardIndex],
-      buttons: updated[cardIndex].buttons?.filter((_, i) => i !== btnIndex) || [],
+  const removeCarouselCardButton = ( cardIndex: number, btnIndex: number ) => {
+    const updated = [ ...carouselTemplate.cards ];
+    updated[ cardIndex ] = {
+      ...updated[ cardIndex ],
+      buttons: updated[ cardIndex ].buttons?.filter( ( _, i ) => i !== btnIndex ) || [],
     };
-    setCarouselTemplate({ ...carouselTemplate, cards: updated });
+    setCarouselTemplate( { ...carouselTemplate, cards: updated } );
   };
 
-  const updateCarouselCardButton = (cardIndex: number, btnIndex: number, field: string, value: string) => {
-    const updated = [...carouselTemplate.cards];
-    const buttons = [...(updated[cardIndex].buttons || [])];
-    buttons[btnIndex] = { ...buttons[btnIndex], [field]: value };
-    updated[cardIndex] = { ...updated[cardIndex], buttons };
-    setCarouselTemplate({ ...carouselTemplate, cards: updated });
+  const updateCarouselCardButton = ( cardIndex: number, btnIndex: number, field: string, value: string ) => {
+    const updated = [ ...carouselTemplate.cards ];
+    const buttons = [ ...( updated[ cardIndex ].buttons || [] ) ];
+    buttons[ btnIndex ] = { ...buttons[ btnIndex ], [ field ]: value };
+    updated[ cardIndex ] = { ...updated[ cardIndex ], buttons };
+    setCarouselTemplate( { ...carouselTemplate, cards: updated } );
   };
 
-  const handleCarouselMediaUpload = async (cardIndex: number, file: File) => {
-    setCarouselMediaUploading(cardIndex);
-    try {
+  const handleCarouselMediaUpload = async ( cardIndex: number, file: File ) => {
+    setCarouselMediaUploading( cardIndex );
+    try
+    {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
+        const base64 = ( reader.result as string ).split( ',' )[ 1 ];
         const result = await api.uploadCarouselCardMedia(
           base64,
           file.type,
           cardIndex,
           selectedWaba
         );
-        if (result) {
-          updateCarouselCard(cardIndex, 'headerHandle', result.headerHandle);
-          toast.success(`Card ${cardIndex + 1} media uploaded`);
-        } else {
-          toast.error('Failed to upload media');
+        if ( result )
+        {
+          updateCarouselCard( cardIndex, 'headerHandle', result.headerHandle );
+          toast.success( `Card ${cardIndex + 1} media uploaded` );
+        } else
+        {
+          toast.error( 'Failed to upload media' );
         }
-        setCarouselMediaUploading(null);
+        setCarouselMediaUploading( null );
       };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      toast.error('Upload failed');
-      setCarouselMediaUploading(null);
+      reader.readAsDataURL( file );
+    } catch ( err )
+    {
+      toast.error( 'Upload failed' );
+      setCarouselMediaUploading( null );
     }
   };
 
   const handleCreateCarouselTemplate = async () => {
-    if (!carouselTemplate.name || !carouselTemplate.bodyText) {
-      toast.error('Name and body text are required');
+    if ( !carouselTemplate.name || !carouselTemplate.bodyText )
+    {
+      toast.error( 'Name and body text are required' );
       return;
     }
-    if (carouselTemplate.cards.some(c => !c.bodyText)) {
-      toast.error('All cards must have body text');
+    if ( carouselTemplate.cards.some( c => !c.bodyText ) )
+    {
+      toast.error( 'All cards must have body text' );
       return;
     }
 
-    setCarouselCreating(true);
-    try {
-      const result = await api.createCarouselTemplate({
-        name: carouselTemplate.name.toLowerCase().replace(/\s+/g, '_'),
+    setCarouselCreating( true );
+    try
+    {
+      const result = await api.createCarouselTemplate( {
+        name: carouselTemplate.name.toLowerCase().replace( /\s+/g, '_' ),
         language: carouselTemplate.language,
         category: carouselTemplate.category,
         bodyText: carouselTemplate.bodyText,
         cards: carouselTemplate.cards,
         wabaId: selectedWaba,
-      });
+      } );
 
-      if (result) {
-        toast.success(`Carousel template created (${result.cardCount} cards)`);
-        setShowCarouselModal(false);
-        setCarouselTemplate({
+      if ( result )
+      {
+        toast.success( `Carousel template created (${result.cardCount} cards)` );
+        setShowCarouselModal( false );
+        setCarouselTemplate( {
           name: '',
           language: 'en_US',
           category: 'MARKETING',
           bodyText: '',
-          cards: [{ bodyText: '', headerType: 'image', headerHandle: '', buttons: [] }],
-        });
+          cards: [ { bodyText: '', headerType: 'image', headerHandle: '', buttons: [] } ],
+        } );
         loadTemplates();
-      } else {
-        toast.error('Failed to create carousel template');
+      } else
+      {
+        toast.error( 'Failed to create carousel template' );
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Create failed');
-    } finally {
-      setCarouselCreating(false);
+    } catch ( err: any )
+    {
+      toast.error( err.message || 'Create failed' );
+    } finally
+    {
+      setCarouselCreating( false );
     }
   };
 
   const content = (
     <>
-      <div className={`page template-management ${embedded ? 'embedded' : ''}`}>
-        {!embedded && (
-          <PageHeader 
-            title="WA Template" 
+      <div className={ `page template-management ${embedded ? 'embedded' : ''}` }>
+        { !embedded && (
+          <PageHeader
+            title="WA Template"
             subtitle="Create, edit, and manage WhatsApp message templates"
             icon="whatsapp"
             backLink="/dm/whatsapp"
@@ -477,201 +524,201 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
               <div className="header-actions">
                 <select
                   className="waba-select"
-                  value={selectedWaba}
-                  onChange={(e) => setSelectedWaba(e.target.value)}
+                  value={ selectedWaba }
+                  onChange={ ( e ) => setSelectedWaba( e.target.value ) }
                 >
-                  {WABA_OPTIONS.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
+                  { WABA_OPTIONS.map( ( w ) => (
+                    <option key={ w.id } value={ w.id }>{ w.name }</option>
+                  ) ) }
                 </select>
-                <Button variant="secondary" onClick={() => setShowCarouselModal(true)}>
+                <Button variant="secondary" onClick={ () => setShowCarouselModal( true ) }>
                   Carousel
                 </Button>
-                <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                <Button variant="primary" onClick={ () => setShowCreateModal( true ) }>
                   + Create Template
                 </Button>
               </div>
             }
           />
-        )}
+        ) }
 
-        {/* Embedded header with actions */}
-        {embedded && (
+        {/* Embedded header with actions */ }
+        { embedded && (
           <div className="embedded-header">
             <select
               className="waba-select"
-              value={selectedWaba}
-              onChange={(e) => setSelectedWaba(e.target.value)}
+              value={ selectedWaba }
+              onChange={ ( e ) => setSelectedWaba( e.target.value ) }
             >
-              {WABA_OPTIONS.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
+              { WABA_OPTIONS.map( ( w ) => (
+                <option key={ w.id } value={ w.id }>{ w.name }</option>
+              ) ) }
             </select>
-            <Button variant="secondary" onClick={() => setShowCarouselModal(true)}>
+            <Button variant="secondary" onClick={ () => setShowCarouselModal( true ) }>
               Carousel
             </Button>
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" onClick={ () => setShowCreateModal( true ) }>
               + Create
             </Button>
           </div>
-        )}
+        ) }
 
-        {/* Tabs */}
+        {/* Tabs */ }
         <Tabs
-          items={[
+          items={ [
             { id: 'my-templates', label: 'My Templates', count: templates.length },
             { id: 'analytics', label: 'Analytics' },
             { id: 'scheduled', label: 'Scheduled', count: scheduledMessages.length },
-          ]}
-          activeTab={activeTab}
-          onChange={(id) => setActiveTab(id as 'my-templates' | 'analytics' | 'scheduled')}
+          ] }
+          activeTab={ activeTab }
+          onChange={ ( id ) => setActiveTab( id as 'my-templates' | 'analytics' | 'scheduled' ) }
         />
 
-        {/* Search - only show for templates */}
-        {activeTab === 'my-templates' && (
+        {/* Search - only show for templates */ }
+        { activeTab === 'my-templates' && (
           <div className="search-section">
             <input
               type="text"
               placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={ searchQuery }
+              onChange={ ( e ) => setSearchQuery( e.target.value ) }
               className="search-input"
             />
           </div>
-        )}
+        ) }
 
-        {/* My Templates Tab */}
-        {activeTab === 'my-templates' && (
+        {/* My Templates Tab */ }
+        { activeTab === 'my-templates' && (
           <div className="templates-grid">
-            {loading ? (
-              <>{Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}</>
+            { loading ? (
+              <>{ Array.from( { length: 6 } ).map( ( _, i ) => <SkeletonCard key={ i } /> ) }</>
             ) : filteredTemplates.length === 0 ? (
               <div className="empty-state">No templates found</div>
             ) : (
-              filteredTemplates.map((template) => (
-                <div key={template.name} className="template-card">
+              filteredTemplates.map( ( template ) => (
+                <div key={ template.name } className="template-card">
                   <div className="template-header">
-                    <span className="template-name">{template.name}</span>
+                    <span className="template-name">{ template.name }</span>
                     <span
                       className="status-badge"
-                      style={{ backgroundColor: STATUS_COLORS[template.status] || '#6c757d' }}
+                      style={ { backgroundColor: STATUS_COLORS[ template.status ] || '#6c757d' } }
                     >
-                      {template.status}
+                      { template.status }
                     </span>
                   </div>
                   <div className="template-meta">
                     <span
                       className="category-badge"
-                      style={{ backgroundColor: CATEGORY_COLORS[template.category] || '#6c757d' }}
+                      style={ { backgroundColor: CATEGORY_COLORS[ template.category ] || '#6c757d' } }
                     >
-                      {template.category}
+                      { template.category }
                     </span>
-                    <span className="language">{template.language}</span>
+                    <span className="language">{ template.language }</span>
                   </div>
                   <div className="template-body">
-                    {template.components?.find(c => c.type === 'BODY')?.text || 'No body text'}
+                    { template.components?.find( c => c.type === 'BODY' )?.text || 'No body text' }
                   </div>
                   <div className="template-actions">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedTemplate(template)}
+                      onClick={ () => setSelectedTemplate( template ) }
                     >
                       View
                     </Button>
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => handleDeleteTemplate(template.name)}
+                      onClick={ () => handleDeleteTemplate( template.name ) }
                     >
                       Delete
                     </Button>
                   </div>
                 </div>
-              ))
-            )}
+              ) )
+            ) }
           </div>
-        )}
+        ) }
 
 
-        {/* Analytics Tab */}
-        {activeTab === 'analytics' && (
+        {/* Analytics Tab */ }
+        { activeTab === 'analytics' && (
           <div className="analytics-section">
-            {analyticsLoading ? (
+            { analyticsLoading ? (
               <div className="loading-state">Loading analytics...</div>
             ) : analytics ? (
               <>
-                {/* Summary Cards */}
+                {/* Summary Cards */ }
                 <div className="analytics-summary">
                   <div className="summary-card">
-                    <span className="summary-value">{analytics.totalTemplatesSent}</span>
+                    <span className="summary-value">{ analytics.totalTemplatesSent }</span>
                     <span className="summary-label">Total Sent</span>
                   </div>
                   <div className="summary-card">
-                    <span className="summary-value">{analytics.avgDeliveryRate.toFixed(1)}%</span>
+                    <span className="summary-value">{ analytics.avgDeliveryRate.toFixed( 1 ) }%</span>
                     <span className="summary-label">Avg Delivery Rate</span>
                   </div>
                   <div className="summary-card">
-                    <span className="summary-value">{analytics.avgReadRate.toFixed(1)}%</span>
+                    <span className="summary-value">{ analytics.avgReadRate.toFixed( 1 ) }%</span>
                     <span className="summary-label">Avg Read Rate</span>
                   </div>
                 </div>
 
-                {/* Category Breakdown */}
+                {/* Category Breakdown */ }
                 <div className="analytics-category">
                   <h3>By Category</h3>
                   <div className="category-bars">
-                    {Object.entries(analytics.byCategory).map(([cat, count]) => (
-                      <div key={cat} className="category-bar">
-                        <span className="cat-name">{cat}</span>
+                    { Object.entries( analytics.byCategory ).map( ( [ cat, count ] ) => (
+                      <div key={ cat } className="category-bar">
+                        <span className="cat-name">{ cat }</span>
                         <div className="bar-container">
-                          <div 
-                            className="bar-fill" 
-                            style={{ 
-                              width: `${(count / Math.max(...Object.values(analytics.byCategory))) * 100}%`,
-                              backgroundColor: CATEGORY_COLORS[cat] || '#6c757d'
-                            }}
+                          <div
+                            className="bar-fill"
+                            style={ {
+                              width: `${( count / Math.max( ...Object.values( analytics.byCategory ) ) ) * 100}%`,
+                              backgroundColor: CATEGORY_COLORS[ cat ] || '#6c757d'
+                            } }
                           />
                         </div>
-                        <span className="cat-count">{count}</span>
+                        <span className="cat-count">{ count }</span>
                       </div>
-                    ))}
+                    ) ) }
                   </div>
                 </div>
 
-                {/* Top Templates */}
+                {/* Top Templates */ }
                 <div className="analytics-top">
                   <h3>Top Performing Templates</h3>
                   <div className="top-templates-list">
-                    {analytics.topTemplates.map((t, idx) => (
-                      <div key={idx} className="top-template-row">
-                        <span className="rank">#{idx + 1}</span>
+                    { analytics.topTemplates.map( ( t, idx ) => (
+                      <div key={ idx } className="top-template-row">
+                        <span className="rank">#{ idx + 1 }</span>
                         <div className="template-info">
-                          <span className="name">{t.templateName}</span>
+                          <span className="name">{ t.templateName }</span>
                           <span className="stats">
-                            {t.totalSent} sent • {t.deliveryRate.toFixed(0)}% delivered • {t.readRate.toFixed(0)}% read
+                            { t.totalSent } sent • { t.deliveryRate.toFixed( 0 ) }% delivered • { t.readRate.toFixed( 0 ) }% read
                           </span>
                         </div>
                         <div className="rate-badges">
-                          <span className={`rate-badge ${t.deliveryRate >= 90 ? 'good' : t.deliveryRate >= 70 ? 'ok' : 'bad'}`}>
-                            {t.deliveryRate.toFixed(0)}%
+                          <span className={ `rate-badge ${t.deliveryRate >= 90 ? 'good' : t.deliveryRate >= 70 ? 'ok' : 'bad'}` }>
+                            { t.deliveryRate.toFixed( 0 ) }%
                           </span>
                         </div>
                       </div>
-                    ))}
+                    ) ) }
                   </div>
                 </div>
               </>
             ) : (
               <div className="empty-state">No analytics data available</div>
-            )}
+            ) }
           </div>
-        )}
+        ) }
 
-        {/* Scheduled Tab */}
-        {activeTab === 'scheduled' && (
+        {/* Scheduled Tab */ }
+        { activeTab === 'scheduled' && (
           <div className="scheduled-section">
-            {scheduledLoading ? (
+            { scheduledLoading ? (
               <div className="loading-state">Loading scheduled messages...</div>
             ) : scheduledMessages.length === 0 ? (
               <div className="empty-state">
@@ -680,91 +727,91 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
               </div>
             ) : (
               <div className="scheduled-list">
-                {scheduledMessages.map((msg) => (
-                  <div key={msg.id} className="scheduled-item">
+                { scheduledMessages.map( ( msg ) => (
+                  <div key={ msg.id } className="scheduled-item">
                     <div className="scheduled-info">
-                      <span className="scheduled-template">{msg.templateName}</span>
-                      <span className="scheduled-contact">{msg.contactName || msg.contactPhone}</span>
+                      <span className="scheduled-template">{ msg.templateName }</span>
+                      <span className="scheduled-contact">{ msg.contactName || msg.contactPhone }</span>
                     </div>
                     <div className="scheduled-time">
                       <span className="time-icon">Scheduled:</span>
-                      <span>{new Date(msg.scheduledAt).toLocaleString()}</span>
+                      <span>{ new Date( msg.scheduledAt ).toLocaleString() }</span>
                     </div>
                     <div className="scheduled-status">
-                      <span className={`status-badge ${msg.status.toLowerCase()}`}>{msg.status}</span>
+                      <span className={ `status-badge ${msg.status.toLowerCase()}` }>{ msg.status }</span>
                     </div>
                     <div className="scheduled-actions">
-                      {msg.status === 'PENDING' && (
-                        <Button 
+                      { msg.status === 'PENDING' && (
+                        <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleCancelScheduled(msg.scheduledId)}
+                          onClick={ () => handleCancelScheduled( msg.scheduledId ) }
                         >
                           Cancel
                         </Button>
-                      )}
+                      ) }
                     </div>
                   </div>
-                ))}
+                ) ) }
               </div>
-            )}
+            ) }
           </div>
-        )}
+        ) }
 
-        {/* Template Detail Modal */}
-        {selectedTemplate && (
-          <div className="modal-overlay" onClick={() => setSelectedTemplate(null)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+        {/* Template Detail Modal */ }
+        { selectedTemplate && (
+          <div className="modal-overlay" onClick={ () => setSelectedTemplate( null ) }>
+            <div className="modal" onClick={ ( e ) => e.stopPropagation() }>
               <div className="modal-header">
-                <h2>{selectedTemplate.name}</h2>
-                <button className="close-btn" onClick={() => setSelectedTemplate(null)}>×</button>
+                <h2>{ selectedTemplate.name }</h2>
+                <button className="close-btn" onClick={ () => setSelectedTemplate( null ) }>×</button>
               </div>
               <div className="modal-body">
                 <div className="detail-row">
                   <span className="label">Status:</span>
                   <span
                     className="status-badge"
-                    style={{ backgroundColor: STATUS_COLORS[selectedTemplate.status] }}
+                    style={ { backgroundColor: STATUS_COLORS[ selectedTemplate.status ] } }
                   >
-                    {selectedTemplate.status}
+                    { selectedTemplate.status }
                   </span>
                 </div>
                 <div className="detail-row">
                   <span className="label">Category:</span>
-                  <span>{selectedTemplate.category}</span>
+                  <span>{ selectedTemplate.category }</span>
                 </div>
                 <div className="detail-row">
                   <span className="label">Language:</span>
-                  <span>{selectedTemplate.language}</span>
+                  <span>{ selectedTemplate.language }</span>
                 </div>
                 <h3>Components</h3>
-                {selectedTemplate.components?.map((comp, idx) => (
-                  <div key={idx} className="component-preview">
-                    <strong>{comp.type}</strong>
-                    {comp.text && <p>{comp.text}</p>}
-                    {comp.format && <span className="format-badge">{comp.format}</span>}
+                { selectedTemplate.components?.map( ( comp, idx ) => (
+                  <div key={ idx } className="component-preview">
+                    <strong>{ comp.type }</strong>
+                    { comp.text && <p>{ comp.text }</p> }
+                    { comp.format && <span className="format-badge">{ comp.format }</span> }
                   </div>
-                ))}
+                ) ) }
               </div>
             </div>
           </div>
-        )}
+        ) }
 
-        {/* Create Template Modal */}
-        {showCreateModal && (
-          <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-            <div className="modal large" onClick={(e) => e.stopPropagation()}>
+        {/* Create Template Modal */ }
+        { showCreateModal && (
+          <div className="modal-overlay" onClick={ () => setShowCreateModal( false ) }>
+            <div className="modal large" onClick={ ( e ) => e.stopPropagation() }>
               <div className="modal-header">
                 <h2>Create New Template</h2>
-                <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
+                <button className="close-btn" onClick={ () => setShowCreateModal( false ) }>×</button>
               </div>
               <div className="modal-body">
                 <div className="form-group">
                   <label>Template Name</label>
                   <input
                     type="text"
-                    value={newTemplate.name}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                    value={ newTemplate.name }
+                    onChange={ ( e ) => setNewTemplate( { ...newTemplate, name: e.target.value } ) }
                     placeholder="my_template_name"
                   />
                   <small>Use lowercase letters, numbers, and underscores only</small>
@@ -774,8 +821,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                   <div className="form-group">
                     <label>Category</label>
                     <select
-                      value={newTemplate.category}
-                      onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value as any })}
+                      value={ newTemplate.category }
+                      onChange={ ( e ) => setNewTemplate( { ...newTemplate, category: e.target.value as any } ) }
                     >
                       <option value="UTILITY">Utility</option>
                       <option value="MARKETING">Marketing</option>
@@ -785,8 +832,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                   <div className="form-group">
                     <label>Language</label>
                     <select
-                      value={newTemplate.language}
-                      onChange={(e) => setNewTemplate({ ...newTemplate, language: e.target.value })}
+                      value={ newTemplate.language }
+                      onChange={ ( e ) => setNewTemplate( { ...newTemplate, language: e.target.value } ) }
                     >
                       <option value="en_US">English (US)</option>
                       <option value="en_GB">English (UK)</option>
@@ -799,57 +846,66 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 <div className="form-group">
                   <label>Header Type</label>
                   <select
-                    value={newTemplate.headerType}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, headerType: e.target.value as any })}
+                    value={ newTemplate.headerType }
+                    onChange={ ( e ) => setNewTemplate( { ...newTemplate, headerType: e.target.value as any } ) }
                   >
                     <option value="none">No Header</option>
                     <option value="text">Text</option>
                     <option value="image">Image</option>
                     <option value="video">Video</option>
                     <option value="document">Document</option>
+                    <option value="location">Location (map pin)</option>
                   </select>
                 </div>
 
-                {newTemplate.headerType === 'text' && (
+                { newTemplate.headerType === 'location' && (
+                  <div className="form-group">
+                    <small style={ { color: '#4b5563' } }>
+                      📍 Location header — no setup needed here. The map pin (latitude, longitude,
+                      name, address) is supplied at send time. Category must be UTILITY or MARKETING.
+                    </small>
+                  </div>
+                ) }
+                { newTemplate.headerType === 'text' && (
                   <div className="form-group">
                     <label>Header Text</label>
                     <input
                       type="text"
-                      value={newTemplate.headerText}
-                      onChange={(e) => setNewTemplate({ ...newTemplate, headerText: e.target.value })}
+                      value={ newTemplate.headerText }
+                      onChange={ ( e ) => setNewTemplate( { ...newTemplate, headerText: e.target.value } ) }
                       placeholder="Header text..."
                     />
                   </div>
-                )}
+                ) }
 
                 <div className="form-group">
                   <label>Body Text *</label>
                   <textarea
-                    value={newTemplate.bodyText}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, bodyText: e.target.value })}
+                    value={ newTemplate.bodyText }
+                    onChange={ ( e ) => setNewTemplate( { ...newTemplate, bodyText: e.target.value } ) }
                     placeholder="Hello {{1}}, your order {{2}} is ready!"
-                    rows={4}
+                    rows={ 4 }
                   />
-                  <small>Use {'{{1}}'}, {'{{2}}'}, etc. for variables</small>
+                  <small>Use { '{{1}}' }, { '{{2}}' }, etc. for variables</small>
                 </div>
 
                 <div className="form-group">
                   <label>Footer Text (optional)</label>
                   <input
                     type="text"
-                    value={newTemplate.footerText}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, footerText: e.target.value })}
+                    value={ newTemplate.footerText }
+                    onChange={ ( e ) => setNewTemplate( { ...newTemplate, footerText: e.target.value } ) }
                     placeholder="Reply STOP to unsubscribe"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Buttons ({newTemplate.buttons.length}/3)</label>
-                  {newTemplate.buttons.map((btn, idx) => (
-                    <div key={idx} className="button-row">
+                  <label>Buttons ({ newTemplate.buttons.length }/3)</label>
+                  { newTemplate.buttons.map( ( btn, idx ) => (
+                    <div key={ idx } className="button-row">
                       <select
-                        value={btn.type}
-                        onChange={(e) => updateButton(idx, 'type', e.target.value)}
+                        value={ btn.type }
+                        onChange={ ( e ) => updateButton( idx, 'type', e.target.value ) }
                       >
                         <option value="URL">URL</option>
                         <option value="PHONE_NUMBER">Phone</option>
@@ -857,53 +913,53 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                       </select>
                       <input
                         type="text"
-                        value={btn.text}
-                        onChange={(e) => updateButton(idx, 'text', e.target.value)}
+                        value={ btn.text }
+                        onChange={ ( e ) => updateButton( idx, 'text', e.target.value ) }
                         placeholder="Button text"
                       />
-                      {btn.type === 'URL' && (
+                      { btn.type === 'URL' && (
                         <input
                           type="text"
-                          value={btn.url || ''}
-                          onChange={(e) => updateButton(idx, 'url', e.target.value)}
+                          value={ btn.url || '' }
+                          onChange={ ( e ) => updateButton( idx, 'url', e.target.value ) }
                           placeholder="https://..."
                         />
-                      )}
-                      {btn.type === 'PHONE_NUMBER' && (
+                      ) }
+                      { btn.type === 'PHONE_NUMBER' && (
                         <input
                           type="text"
-                          value={btn.phone || ''}
-                          onChange={(e) => updateButton(idx, 'phone', e.target.value)}
+                          value={ btn.phone || '' }
+                          onChange={ ( e ) => updateButton( idx, 'phone', e.target.value ) }
                           placeholder="+1234567890"
                         />
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => removeButton(idx)}>×</Button>
+                      ) }
+                      <Button variant="ghost" size="sm" onClick={ () => removeButton( idx ) }>×</Button>
                     </div>
-                  ))}
-                  {newTemplate.buttons.length < 3 && (
-                    <Button variant="ghost" size="sm" onClick={addButton}>+ Add Button</Button>
-                  )}
+                  ) ) }
+                  { newTemplate.buttons.length < 3 && (
+                    <Button variant="ghost" size="sm" onClick={ addButton }>+ Add Button</Button>
+                  ) }
                 </div>
               </div>
               <div className="modal-footer">
-                <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+                <Button variant="secondary" onClick={ () => setShowCreateModal( false ) }>
                   Cancel
                 </Button>
-                <Button variant="primary" onClick={handleCreateTemplate}>
+                <Button variant="primary" onClick={ handleCreateTemplate }>
                   Create Template
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        ) }
 
-        {/* Carousel Template Modal */}
-        {showCarouselModal && (
-          <div className="modal-overlay" onClick={() => setShowCarouselModal(false)}>
-            <div className="modal carousel-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Carousel Template Modal */ }
+        { showCarouselModal && (
+          <div className="modal-overlay" onClick={ () => setShowCarouselModal( false ) }>
+            <div className="modal carousel-modal" onClick={ ( e ) => e.stopPropagation() }>
               <div className="modal-header">
                 <h2>Create Carousel Template</h2>
-                <button className="close-btn" onClick={() => setShowCarouselModal(false)}>×</button>
+                <button className="close-btn" onClick={ () => setShowCarouselModal( false ) }>×</button>
               </div>
               <div className="modal-body">
                 <div className="carousel-info">
@@ -916,16 +972,16 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                     <label>Template Name</label>
                     <input
                       type="text"
-                      value={carouselTemplate.name}
-                      onChange={(e) => setCarouselTemplate({ ...carouselTemplate, name: e.target.value })}
+                      value={ carouselTemplate.name }
+                      onChange={ ( e ) => setCarouselTemplate( { ...carouselTemplate, name: e.target.value } ) }
                       placeholder="my_carousel_template"
                     />
                   </div>
                   <div className="form-group">
                     <label>Category</label>
                     <select
-                      value={carouselTemplate.category}
-                      onChange={(e) => setCarouselTemplate({ ...carouselTemplate, category: e.target.value as any })}
+                      value={ carouselTemplate.category }
+                      onChange={ ( e ) => setCarouselTemplate( { ...carouselTemplate, category: e.target.value as any } ) }
                     >
                       <option value="MARKETING">Marketing</option>
                       <option value="UTILITY">Utility</option>
@@ -936,8 +992,8 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 <div className="form-group">
                   <label>Language</label>
                   <select
-                    value={carouselTemplate.language}
-                    onChange={(e) => setCarouselTemplate({ ...carouselTemplate, language: e.target.value })}
+                    value={ carouselTemplate.language }
+                    onChange={ ( e ) => setCarouselTemplate( { ...carouselTemplate, language: e.target.value } ) }
                   >
                     <option value="en_US">English (US)</option>
                     <option value="en_GB">English (UK)</option>
@@ -953,29 +1009,29 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                 <div className="form-group">
                   <label>Message Body (shown above carousel)</label>
                   <textarea
-                    value={carouselTemplate.bodyText}
-                    onChange={(e) => setCarouselTemplate({ ...carouselTemplate, bodyText: e.target.value })}
+                    value={ carouselTemplate.bodyText }
+                    onChange={ ( e ) => setCarouselTemplate( { ...carouselTemplate, bodyText: e.target.value } ) }
                     placeholder="Check out our latest products! Use {{1}} for variables."
-                    rows={2}
+                    rows={ 2 }
                   />
                 </div>
 
                 <div className="cards-section">
                   <div className="cards-header">
-                    <label>Cards ({carouselTemplate.cards.length}/10)</label>
-                    {carouselTemplate.cards.length < 10 && (
-                      <Button variant="ghost" size="sm" onClick={addCarouselCard}>+ Add Card</Button>
-                    )}
+                    <label>Cards ({ carouselTemplate.cards.length }/10)</label>
+                    { carouselTemplate.cards.length < 10 && (
+                      <Button variant="ghost" size="sm" onClick={ addCarouselCard }>+ Add Card</Button>
+                    ) }
                   </div>
 
                   <div className="cards-list">
-                    {carouselTemplate.cards.map((card, cardIdx) => (
-                      <div key={cardIdx} className="carousel-card-editor">
+                    { carouselTemplate.cards.map( ( card, cardIdx ) => (
+                      <div key={ cardIdx } className="carousel-card-editor">
                         <div className="card-header">
-                          <span className="card-number">Card {cardIdx + 1}</span>
-                          {carouselTemplate.cards.length > 1 && (
-                            <Button variant="ghost" size="sm" onClick={() => removeCarouselCard(cardIdx)}>×</Button>
-                          )}
+                          <span className="card-number">Card { cardIdx + 1 }</span>
+                          { carouselTemplate.cards.length > 1 && (
+                            <Button variant="ghost" size="sm" onClick={ () => removeCarouselCard( cardIdx ) }>×</Button>
+                          ) }
                         </div>
 
                         <div className="card-media">
@@ -983,66 +1039,66 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                             <label>
                               <input
                                 type="radio"
-                                name={`media-type-${cardIdx}`}
-                                checked={card.headerType === 'image'}
-                                onChange={() => updateCarouselCard(cardIdx, 'headerType', 'image')}
+                                name={ `media-type-${cardIdx}` }
+                                checked={ card.headerType === 'image' }
+                                onChange={ () => updateCarouselCard( cardIdx, 'headerType', 'image' ) }
                               />
                               Image
                             </label>
                             <label>
                               <input
                                 type="radio"
-                                name={`media-type-${cardIdx}`}
-                                checked={card.headerType === 'video'}
-                                onChange={() => updateCarouselCard(cardIdx, 'headerType', 'video')}
+                                name={ `media-type-${cardIdx}` }
+                                checked={ card.headerType === 'video' }
+                                onChange={ () => updateCarouselCard( cardIdx, 'headerType', 'video' ) }
                               />
                               Video
                             </label>
                           </div>
                           <div className="media-upload">
-                            {card.headerHandle ? (
+                            { card.headerHandle ? (
                               <div className="media-uploaded">
                                 <span className="upload-success">Media uploaded</span>
-                                <Button 
+                                <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => updateCarouselCard(cardIdx, 'headerHandle', '')}
+                                  onClick={ () => updateCarouselCard( cardIdx, 'headerHandle', '' ) }
                                 >
                                   Change
                                 </Button>
                               </div>
                             ) : (
                               <label className="upload-btn">
-                                {carouselMediaUploading === cardIdx ? 'Uploading...' : `Upload ${card.headerType}`}
+                                { carouselMediaUploading === cardIdx ? 'Uploading...' : `Upload ${card.headerType}` }
                                 <input
                                   type="file"
-                                  accept={card.headerType === 'image' ? 'image/jpeg,image/png' : 'video/mp4'}
-                                  onChange={(e) => e.target.files?.[0] && handleCarouselMediaUpload(cardIdx, e.target.files[0])}
-                                  disabled={carouselMediaUploading !== null}
+                                  accept={ card.headerType === 'image' ? 'image/jpeg,image/png' : 'video/mp4' }
+                                  onChange={ ( e ) => e.target.files?.[ 0 ] && handleCarouselMediaUpload( cardIdx, e.target.files[ 0 ] ) }
+                                  disabled={ carouselMediaUploading !== null }
                                   hidden
                                 />
                               </label>
-                            )}
+                            ) }
                           </div>
                         </div>
 
                         <div className="form-group">
                           <label>Card Body Text</label>
                           <textarea
-                            value={card.bodyText}
-                            onChange={(e) => updateCarouselCard(cardIdx, 'bodyText', e.target.value)}
+                            value={ card.bodyText }
+                            onChange={ ( e ) => updateCarouselCard( cardIdx, 'bodyText', e.target.value ) }
                             placeholder="Product description... Use {{1}} for variables."
-                            rows={2}
+                            rows={ 2 }
                           />
                         </div>
 
                         <div className="card-buttons">
-                          <label>Buttons ({card.buttons?.length || 0}/2)</label>
-                          {card.buttons?.map((btn, btnIdx) => (
-                            <div key={btnIdx} className="button-row">
+                          <label>Buttons ({ card.buttons?.length || 0 }/2)</label>
+                          { card.buttons?.map( ( btn, btnIdx ) => (
+                            <div key={ btnIdx } className="button-row">
                               <select
-                                value={btn.type}
-                                onChange={(e) => updateCarouselCardButton(cardIdx, btnIdx, 'type', e.target.value)}
+                                value={ btn.type }
+                                onChange={ ( e ) => updateCarouselCardButton( cardIdx, btnIdx, 'type', e.target.value ) }
                               >
                                 <option value="QUICK_REPLY">Quick Reply</option>
                                 <option value="URL">URL</option>
@@ -1050,77 +1106,77 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
                               </select>
                               <input
                                 type="text"
-                                value={btn.text}
-                                onChange={(e) => updateCarouselCardButton(cardIdx, btnIdx, 'text', e.target.value)}
+                                value={ btn.text }
+                                onChange={ ( e ) => updateCarouselCardButton( cardIdx, btnIdx, 'text', e.target.value ) }
                                 placeholder="Button text"
                               />
-                              {btn.type === 'URL' && (
+                              { btn.type === 'URL' && (
                                 <input
                                   type="text"
-                                  value={btn.url || ''}
-                                  onChange={(e) => updateCarouselCardButton(cardIdx, btnIdx, 'url', e.target.value)}
+                                  value={ btn.url || '' }
+                                  onChange={ ( e ) => updateCarouselCardButton( cardIdx, btnIdx, 'url', e.target.value ) }
                                   placeholder="https://..."
                                 />
-                              )}
-                              {btn.type === 'PHONE_NUMBER' && (
+                              ) }
+                              { btn.type === 'PHONE_NUMBER' && (
                                 <input
                                   type="text"
-                                  value={btn.phoneNumber || ''}
-                                  onChange={(e) => updateCarouselCardButton(cardIdx, btnIdx, 'phoneNumber', e.target.value)}
+                                  value={ btn.phoneNumber || '' }
+                                  onChange={ ( e ) => updateCarouselCardButton( cardIdx, btnIdx, 'phoneNumber', e.target.value ) }
                                   placeholder="+91..."
                                 />
-                              )}
-                              <button className="btn-remove" onClick={() => removeCarouselCardButton(cardIdx, btnIdx)}>×</button>
+                              ) }
+                              <button className="btn-remove" onClick={ () => removeCarouselCardButton( cardIdx, btnIdx ) }>×</button>
                             </div>
-                          ))}
-                          {(card.buttons?.length || 0) < 2 && (
-                            <button className="btn-add" onClick={() => addCarouselCardButton(cardIdx)}>+ Add Button</button>
-                          )}
+                          ) ) }
+                          { ( card.buttons?.length || 0 ) < 2 && (
+                            <button className="btn-add" onClick={ () => addCarouselCardButton( cardIdx ) }>+ Add Button</button>
+                          ) }
                         </div>
                       </div>
-                    ))}
+                    ) ) }
                   </div>
                 </div>
 
-                {/* Preview */}
+                {/* Preview */ }
                 <div className="carousel-preview">
                   <label>Preview</label>
                   <div className="preview-container">
-                    <div className="preview-body">{carouselTemplate.bodyText || 'Message body text...'}</div>
+                    <div className="preview-body">{ carouselTemplate.bodyText || 'Message body text...' }</div>
                     <div className="preview-cards">
-                      {carouselTemplate.cards.map((card, idx) => (
-                        <div key={idx} className="preview-card">
-                          <div className={`preview-media ${card.headerHandle ? 'has-media' : ''}`}>
-                            {card.headerHandle ? 'OK' : card.headerType === 'image' ? 'IMG' : 'VID'}
+                      { carouselTemplate.cards.map( ( card, idx ) => (
+                        <div key={ idx } className="preview-card">
+                          <div className={ `preview-media ${card.headerHandle ? 'has-media' : ''}` }>
+                            { card.headerHandle ? 'OK' : card.headerType === 'image' ? 'IMG' : 'VID' }
                           </div>
-                          <div className="preview-card-body">{card.bodyText || `Card ${idx + 1}`}</div>
-                          {card.buttons?.map((btn, bIdx) => (
-                            <div key={bIdx} className="preview-button">{btn.text || 'Button'}</div>
-                          ))}
+                          <div className="preview-card-body">{ card.bodyText || `Card ${idx + 1}` }</div>
+                          { card.buttons?.map( ( btn, bIdx ) => (
+                            <div key={ bIdx } className="preview-button">{ btn.text || 'Button' }</div>
+                          ) ) }
                         </div>
-                      ))}
+                      ) ) }
                     </div>
                   </div>
                 </div>
               </div>
               <div className="modal-footer">
-                <Button variant="secondary" onClick={() => setShowCarouselModal(false)}>
+                <Button variant="secondary" onClick={ () => setShowCarouselModal( false ) }>
                   Cancel
                 </Button>
-                <Button 
-                  variant="primary" 
-                  onClick={handleCreateCarouselTemplate}
-                  disabled={carouselCreating}
-                  loading={carouselCreating}
+                <Button
+                  variant="primary"
+                  onClick={ handleCreateCarouselTemplate }
+                  disabled={ carouselCreating }
+                  loading={ carouselCreating }
                 >
                   Create Carousel Template
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        ) }
       </div>
-      <style jsx>{`
+      <style jsx>{ `
         .page-header {
           display: flex;
           justify-content: space-between;
@@ -2108,13 +2164,14 @@ const TemplateManagement: React.FC<PageProps> = ({ signOut, user, embedded = fal
     </>
   );
 
-  if (embedded) {
+  if ( embedded )
+  {
     return content;
   }
 
   return (
-    <Layout user={user} onSignOut={signOut}>
-      {content}
+    <Layout user={ user } onSignOut={ signOut }>
+      { content }
     </Layout>
   );
 };
