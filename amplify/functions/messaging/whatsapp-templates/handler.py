@@ -95,6 +95,75 @@ def _meta_request(url: str, method: str = 'GET', data: bytes = None, headers: di
         raise RuntimeError(f'Meta API {e.code}: {msg}')
 
 
+# ── Google Maps Places proxy (location templates) ──────────────────────────
+# Key stored in Secrets Manager (wecare/google-maps) — never exposed to the browser.
+_gmaps_key_cache = {}
+
+
+def _get_gmaps_key() -> str:
+    if 'key' in _gmaps_key_cache:
+        return _gmaps_key_cache['key']
+    try:
+        resp = secrets_client.get_secret_value(SecretId='wecare/google-maps')
+        data = json.loads(resp['SecretString'])
+        _gmaps_key_cache['key'] = (data.get('api_key') or '').strip()
+    except Exception as e:
+        logger.error(json.dumps({'event': 'gmaps_key_load_error', 'error': str(e)}))
+        _gmaps_key_cache['key'] = ''
+    return _gmaps_key_cache['key']
+
+
+def _http_get_json(url: str) -> dict:
+    req = urllib.request.Request(url, method='GET')
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _places_autocomplete(q: str):
+    """Proxy Google Places Autocomplete. Returns [{description, placeId}]."""
+    if not q or len(q.strip()) < 3:
+        return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'predictions': []})}
+    key = _get_gmaps_key()
+    if not key:
+        return _error_response(500, 'Maps key not configured')
+    url = f'https://maps.googleapis.com/maps/api/place/autocomplete/json?input={urllib.parse.quote(q)}&key={key}'
+    try:
+        data = _http_get_json(url)
+        preds = [{'description': p.get('description'), 'placeId': p.get('place_id')}
+                 for p in data.get('predictions', [])]
+        return {'statusCode': 200, 'headers': cors_headers(origin),
+                'body': json.dumps({'predictions': preds, 'status': data.get('status')})}
+    except Exception as e:
+        logger.error(json.dumps({'event': 'places_autocomplete_error', 'error': str(e)}))
+        return _error_response(502, f'Places autocomplete failed: {e}')
+
+
+def _place_details(place_id: str):
+    """Proxy Google Place Details. Returns {latitude, longitude, name, address}."""
+    if not place_id:
+        return _error_response(400, 'placeId required')
+    key = _get_gmaps_key()
+    if not key:
+        return _error_response(500, 'Maps key not configured')
+    url = (f'https://maps.googleapis.com/maps/api/place/details/json?place_id={urllib.parse.quote(place_id)}'
+           f'&fields=geometry,name,formatted_address&key={key}')
+    try:
+        data = _http_get_json(url)
+        r = data.get('result', {})
+        loc = r.get('geometry', {}).get('location', {})
+        place = {
+            'latitude': loc.get('lat'),
+            'longitude': loc.get('lng'),
+            'name': r.get('name', ''),
+            'address': r.get('formatted_address', ''),
+        }
+        return {'statusCode': 200, 'headers': cors_headers(origin),
+                'body': json.dumps({'place': place, 'status': data.get('status')})}
+    except Exception as e:
+        logger.error(json.dumps({'event': 'place_details_error', 'error': str(e)}))
+        return _error_response(502, f'Place details failed: {e}')
+
+
 def handler(event, context):
     global origin
     request_id = context.aws_request_id if context else 'local'
@@ -126,6 +195,12 @@ def handler(event, context):
 
         # Route requests
         if http_method == 'GET':
+            # Google Maps Places proxy (for location-template coordinate picking)
+            action = query_params.get('action', '')
+            if action == 'places-autocomplete':
+                return _places_autocomplete(query_params.get('q', ''))
+            if action == 'place-details':
+                return _place_details(query_params.get('placeId', ''))
             if '/templates/library' in path:
                 return _list_template_library(waba_id, query_params)
             template_id = _extract_path_param(path, '/templates/')

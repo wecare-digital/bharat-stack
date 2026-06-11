@@ -67,6 +67,10 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ locLng, setLocLng ] = useState( '' );
   const [ locName, setLocName ] = useState( '' );
   const [ locAddress, setLocAddress ] = useState( '' );
+  // Address autocomplete (Google Places via backend proxy)
+  const [ placeQuery, setPlaceQuery ] = useState( '' );
+  const [ placePredictions, setPlacePredictions ] = useState<{ description: string; placeId: string }[]>( [] );
+  const [ placeSearching, setPlaceSearching ] = useState( false );
 
   // Load templates on mount / when the target phone (WABA) changes
   useEffect( () => {
@@ -249,6 +253,42 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     : headerType === 'video'
       ? 'video/*'
       : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf';
+
+  // Debounced Google Places autocomplete for location-header templates.
+  useEffect( () => {
+    if ( headerType !== 'location' ) return;
+    if ( !placeQuery || placeQuery.trim().length < 3 ) { setPlacePredictions( [] ); return; }
+    let active = true;
+    setPlaceSearching( true );
+    const t = setTimeout( async () => {
+      try
+      {
+        const preds = await api.placesAutocomplete( placeQuery );
+        if ( active ) setPlacePredictions( preds );
+      } catch { /* ignore */ }
+      finally { if ( active ) setPlaceSearching( false ); }
+    }, 350 );
+    return () => { active = false; clearTimeout( t ); };
+  }, [ placeQuery, headerType ] );
+
+  const selectPlace = async ( placeId: string, description: string ) => {
+    setPlacePredictions( [] );
+    setPlaceQuery( description );
+    try
+    {
+      const d = await api.placeDetails( placeId );
+      if ( d )
+      {
+        setLocLat( String( d.latitude ?? '' ) );
+        setLocLng( String( d.longitude ?? '' ) );
+        setLocName( d.name || '' );
+        setLocAddress( d.address || '' );
+      }
+    } catch ( err: any )
+    {
+      onError( err?.message || 'Failed to resolve place' );
+    }
+  };
 
   // Parse a CSV/TXT of recipients. Accepts one number per line or the first
   // column of a CSV. Strips a header row, non-digits, and duplicates.
@@ -665,13 +705,34 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
             { headerType === 'location' && (
               <div className="header-media-section">
                 <label>📍 Location Header<span className="required-tag">required</span></label>
+                <div className="place-search">
+                  <input
+                    className="header-url-input"
+                    placeholder="Search address or place…"
+                    value={ placeQuery }
+                    onChange={ ( e ) => setPlaceQuery( e.target.value ) }
+                  />
+                  { placeSearching && <span className="manual-hint">Searching…</span> }
+                  { placePredictions.length > 0 && (
+                    <div className="place-dropdown">
+                      { placePredictions.map( ( p ) => (
+                        <button
+                          key={ p.placeId }
+                          type="button"
+                          className="place-option"
+                          onClick={ () => selectPlace( p.placeId, p.description ) }
+                        >{ p.description }</button>
+                      ) ) }
+                    </div>
+                  ) }
+                </div>
                 <div className="loc-grid">
                   <input className="header-url-input" placeholder="Latitude e.g. 37.4421" value={ locLat } onChange={ ( e ) => setLocLat( e.target.value ) } />
                   <input className="header-url-input" placeholder="Longitude e.g. -122.1615" value={ locLng } onChange={ ( e ) => setLocLng( e.target.value ) } />
                   <input className="header-url-input" placeholder="Place name (optional)" value={ locName } onChange={ ( e ) => setLocName( e.target.value ) } />
                   <input className="header-url-input" placeholder="Address (optional)" value={ locAddress } onChange={ ( e ) => setLocAddress( e.target.value ) } />
                 </div>
-                <span className="manual-hint">Latitude & longitude are required. When the customer taps the map, their map app opens to these coordinates.</span>
+                <span className="manual-hint">Search to auto-fill, or enter coordinates manually. Latitude & longitude are required.</span>
               </div>
             ) }
 
@@ -870,6 +931,32 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         }
         .bulk-progress { font-size: 12px; color: #1a3a2a; font-weight: 600; }
         .loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .place-search { position: relative; margin-bottom: 8px; }
+        .place-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 20;
+          background: #fff;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+          max-height: 200px;
+          overflow-y: auto;
+        }
+        .place-option {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 8px 12px;
+          font-size: 13px;
+          border: none;
+          background: #fff;
+          cursor: pointer;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        .place-option:hover { background: #f0f5f2; }
         .search-filters {
           display: flex;
           gap: 8px;
