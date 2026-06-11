@@ -42,6 +42,11 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ manualPhone, setManualPhone ] = useState( '' );
   // True when we have no contact/phone context and must collect a number.
   const manualMode = !!enableManualRecipient && !contactId && !recipientPhone;
+  // Bulk CSV broadcast (only offered in manual / new-template mode).
+  const [ bulkMode, setBulkMode ] = useState( false );
+  const [ bulkRecipients, setBulkRecipients ] = useState<string[]>( [] );
+  const [ bulkFileName, setBulkFileName ] = useState( '' );
+  const [ bulkProgress, setBulkProgress ] = useState<{ sent: number; failed: number; total: number } | null>( null );
   const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
   const [ selectedTemplate, setSelectedTemplate ] = useState<api.WhatsAppTemplate | null>( null );
   const [ variables, setVariables ] = useState<TemplateVariable[]>( [] );
@@ -233,6 +238,78 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       ? 'video/*'
       : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf';
 
+  // Parse a CSV/TXT of recipients. Accepts one number per line or the first
+  // column of a CSV. Strips a header row, non-digits, and duplicates.
+  const parseRecipientsCsv = ( text: string ): string[] => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    text.split( /\r?\n/ ).forEach( ( line ) => {
+      const cell = ( line.split( ',' )[ 0 ] || '' ).trim();
+      if ( !cell ) return;
+      const digits = cell.replace( /[^\d]/g, '' );
+      if ( digits.length < 10 ) return;        // skips header row / junk
+      if ( seen.has( digits ) ) return;
+      seen.add( digits );
+      out.push( digits );
+    } );
+    return out;
+  };
+
+  const handleBulkCsv = async ( e: React.ChangeEvent<HTMLInputElement> ) => {
+    const file = e.target.files?.[ 0 ];
+    if ( !file ) return;
+    try
+    {
+      const text = await file.text();
+      const recipients = parseRecipientsCsv( text );
+      if ( recipients.length === 0 )
+      {
+        onError( 'No valid numbers found. Use one number per line or a CSV with numbers in the first column.' );
+        return;
+      }
+      setBulkRecipients( recipients );
+      setBulkFileName( file.name );
+    } catch ( err: any )
+    {
+      onError( err?.message || 'Failed to read CSV file' );
+    }
+  };
+
+  const sendBulk = async () => {
+    if ( !selectedTemplate ) return;
+    setSending( true );
+    setBulkProgress( { sent: 0, failed: 0, total: bulkRecipients.length } );
+    let sent = 0;
+    let failed = 0;
+    for ( let i = 0; i < bulkRecipients.length; i++ )
+    {
+      try
+      {
+        const result = await api.sendWhatsAppTemplateMessage( {
+          recipientPhone: bulkRecipients[ i ],
+          templateName: selectedTemplate.name,
+          language: selectedTemplate.language,
+          templateParams: variables.map( v => v.value ),
+          phoneNumberId,
+          headerMedia: headerType ? headerMedia : undefined,
+          headerType: headerType || undefined,
+          headerFilename: headerType === 'document' ? ( headerFilename || undefined ) : undefined,
+        } );
+        if ( result ) sent++; else failed++;
+      } catch ( err )
+      {
+        failed++;
+      }
+      setBulkProgress( { sent, failed, total: bulkRecipients.length } );
+      // Gentle pacing to avoid Meta rate limits on large lists.
+      if ( ( i + 1 ) % 10 === 0 ) await new Promise( r => setTimeout( r, 250 ) );
+    }
+    setSending( false );
+    if ( sent > 0 ) onSent();
+    onError( `Bulk send complete: ${sent} sent, ${failed} failed (of ${bulkRecipients.length}).` );
+    if ( failed === 0 ) onClose();
+  };
+
   const handleSend = async () => {
     if ( !selectedTemplate )
     {
@@ -252,6 +329,18 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     if ( headerType && !headerMedia )
     {
       onError( `This template has a ${headerType} header — upload a ${headerType} or paste a link first.` );
+      return;
+    }
+
+    // Bulk CSV broadcast path.
+    if ( manualMode && bulkMode )
+    {
+      if ( bulkRecipients.length === 0 )
+      {
+        onError( 'Upload a CSV with at least one valid number first.' );
+        return;
+      }
+      await sendBulk();
       return;
     }
 
@@ -389,19 +478,59 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       </div>
 
       <div className="sender-body">
-        {/* Manual recipient entry — send a template to a new / unsaved number */ }
+        {/* Manual recipient entry — single new number OR bulk CSV broadcast */ }
         { manualMode && (
           <div className="manual-recipient">
-            <label>Send to (new number)</label>
-            <input
-              type="tel"
-              inputMode="numeric"
-              className="manual-phone-input"
-              placeholder="Country code + number e.g. 919876543210"
-              value={ manualPhone }
-              onChange={ ( e ) => setManualPhone( e.target.value ) }
-            />
-            <span className="manual-hint">No saved contact needed — a contact is created automatically. Template messages can open a new conversation outside the 24-hour window.</span>
+            <div className="recip-mode-toggle">
+              <button
+                type="button"
+                className={ `mode-pill ${!bulkMode ? 'active' : ''}` }
+                onClick={ () => setBulkMode( false ) }
+              >Single number</button>
+              <button
+                type="button"
+                className={ `mode-pill ${bulkMode ? 'active' : ''}` }
+                onClick={ () => setBulkMode( true ) }
+              >Bulk (CSV)</button>
+            </div>
+
+            { !bulkMode ? (
+              <>
+                <label>Send to (new number)</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  className="manual-phone-input"
+                  placeholder="Country code + number e.g. 919876543210"
+                  value={ manualPhone }
+                  onChange={ ( e ) => setManualPhone( e.target.value ) }
+                />
+                <span className="manual-hint">No saved contact needed — a contact is created automatically. Template messages can open a new conversation outside the 24-hour window.</span>
+              </>
+            ) : (
+              <>
+                <label>Upload recipients (CSV)</label>
+                <label className="csv-upload-btn">
+                  { bulkFileName ? `Replace CSV (${bulkFileName})` : 'Choose CSV / TXT file' }
+                  <input
+                    type="file"
+                    accept=".csv,.txt,text/csv,text/plain"
+                    onChange={ handleBulkCsv }
+                    style={ { display: 'none' } }
+                  />
+                </label>
+                { bulkRecipients.length > 0 && (
+                  <div className="bulk-count">
+                    ✓ { bulkRecipients.length } recipient{ bulkRecipients.length > 1 ? 's' : '' } loaded
+                    <button className="clear-header" onClick={ () => { setBulkRecipients( [] ); setBulkFileName( '' ); setBulkProgress( null ); } }>×</button>
+                  </div>
+                ) }
+                { bulkProgress && (
+                  <div className="bulk-progress">Sending… { bulkProgress.sent + bulkProgress.failed } / { bulkProgress.total } ({ bulkProgress.failed } failed)</div>
+                ) }
+                <span className="manual-hint">One number per line, or a CSV with numbers (with country code) in the first column. The selected template and any variables/header are sent to every recipient. Each number auto-creates a contact.</span>
+              </>
+            ) }
           </div>
         ) }
 
@@ -603,9 +732,9 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         <button
           className="send-btn"
           onClick={ handleSend }
-          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && !headerMedia ) || ( manualMode && manualPhone.replace( /[^\d]/g, '' ).length < 10 ) }
+          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && !headerMedia ) || ( manualMode && !bulkMode && manualPhone.replace( /[^\d]/g, '' ).length < 10 ) || ( manualMode && bulkMode && bulkRecipients.length === 0 ) }
         >
-          { sending ? 'Sending...' : scheduleMode ? 'Schedule' : 'Send Now' }
+          { sending ? 'Sending...' : ( manualMode && bulkMode ) ? `Send to ${bulkRecipients.length || ''}` : scheduleMode ? 'Schedule' : 'Send Now' }
         </button>
       </div>
 
@@ -669,6 +798,41 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         }
         .manual-phone-input:focus { outline: none; border-color: #1a3a2a; }
         .manual-hint { font-size: 11px; color: #6b7280; line-height: 1.4; }
+        .recip-mode-toggle { display: flex; gap: 6px; margin-bottom: 4px; }
+        .mode-pill {
+          flex: 1;
+          padding: 7px 10px;
+          font-size: 12px;
+          font-weight: 600;
+          border: 1px solid #cbd5d0;
+          border-radius: 8px;
+          background: #fff;
+          color: #1a3a2a;
+          cursor: pointer;
+        }
+        .mode-pill.active { background: #1a3a2a; color: #fff; border-color: #1a3a2a; }
+        .csv-upload-btn {
+          display: inline-block;
+          padding: 9px 12px;
+          border: 1px dashed #1a3a2a;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #1a3a2a;
+          background: #fff;
+          cursor: pointer;
+          text-align: center;
+        }
+        .csv-upload-btn:hover { background: #f0f5f2; }
+        .bulk-count {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          color: #166534;
+          font-weight: 600;
+        }
+        .bulk-progress { font-size: 12px; color: #1a3a2a; font-weight: 600; }
         .search-filters {
           display: flex;
           gap: 8px;

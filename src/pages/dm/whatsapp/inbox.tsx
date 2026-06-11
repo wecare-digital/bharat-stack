@@ -9,6 +9,7 @@ import Layout from '../../../components/Layout';
 import RichTextEditor from '../../../components/RichTextEditor';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
 import TemplateSender from '../../../components/TemplateSender';
+import Button from '../../../components/ui/Button';
 import { SkeletonContact } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
@@ -1249,15 +1250,16 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
               />
             </div>
 
-            {/* Send a template to a brand-new / unsaved number (no inbox history needed) */ }
-            <button
-              type="button"
+            {/* Send a template to a brand-new / unsaved number or in bulk via CSV */ }
+            <Button
+              variant="primary"
+              size="sm"
               onClick={ () => setShowNewTemplate( true ) }
-              title="Send an approved template to a new number (no saved contact required)"
-              style={ { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 8, padding: '8px 10px', fontSize: 13, fontWeight: 600, border: '1px solid #1a3a2a', borderRadius: 8, background: '#1a3a2a', color: '#fff', cursor: 'pointer' } }
+              ariaLabel="Send an approved template to new numbers or in bulk via CSV"
+              style={ { width: '100%', marginTop: 8 } }
             >
-              ✉️ New template message
-            </button>
+              New template message
+            </Button>
 
             {/* Pagination Controls - Below Search - Show when multiple pages */ }
             { totalContactPages > 1 && (
@@ -1644,14 +1646,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
 
                 {/* Quick actions row */ }
                 <div style={ { display: 'flex', gap: 8, marginBottom: 6 } }>
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={ () => setShowTemplateSender( true ) }
-                    title="Send an approved template message (works outside the 24h window)"
-                    style={ { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border,#d1d5db)', borderRadius: 8, background: 'var(--bg-secondary,#f9fafb)', cursor: 'pointer', color: 'var(--text,#374151)' } }
+                    ariaLabel="Send an approved template message (works outside the 24h window)"
                   >
-                    📋 Send Template
-                  </button>
+                    Send template
+                  </Button>
                 </div>
 
                 <div className="input-wrapper">
