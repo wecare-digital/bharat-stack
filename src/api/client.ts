@@ -1642,8 +1642,10 @@ export async function sendWhatsAppTemplateMessage ( request: {
   templateParams?: string[];  // Variable values like OTP code
   recipientBsuid?: string;    // Send to BSUID recipient
   headerMedia?: string;       // Public https link OR S3 key for a media header template
-  headerType?: 'image' | 'video' | 'document';  // Header format for media templates
+  headerType?: 'image' | 'video' | 'document' | 'location';  // Header format for media/location templates
   headerFilename?: string;    // Filename for document headers
+  headerLocation?: { latitude: string; longitude: string; name?: string; address?: string };  // Location header params
+  content?: string;           // Rendered preview text stored for inbox thread display
 } ): Promise<{ messageId: string; status: string } | null> {
   // Build template params array - include language as first param for Lambda
   const params: string[] = [];
@@ -1668,6 +1670,9 @@ export async function sendWhatsAppTemplateMessage ( request: {
     recipientBsuid: request.recipientBsuid,
   };
 
+  // Rendered preview text so the sent template shows in the conversation thread.
+  if ( request.content ) payload.content = request.content;
+
   // Media header (IMAGE/VIDEO/DOCUMENT) — required at send time by Meta for
   // templates whose header is a media format.
   if ( request.headerMedia )
@@ -1675,6 +1680,12 @@ export async function sendWhatsAppTemplateMessage ( request: {
     payload.headerMedia = request.headerMedia;
     if ( request.headerType ) payload.headerType = request.headerType;
     if ( request.headerFilename ) payload.headerFilename = request.headerFilename;
+  }
+  // Location header — coordinates supplied at send time.
+  if ( request.headerType === 'location' && request.headerLocation )
+  {
+    payload.headerType = 'location';
+    payload.headerLocation = request.headerLocation;
   }
 
   // Support sending by contactId or recipientPhone (auto-creates contact)

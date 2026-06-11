@@ -350,6 +350,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         template_header_media = body.get('headerMedia') or body.get('templateHeaderMedia')
         template_header_type = (body.get('headerType') or body.get('templateHeaderType') or '').lower()
         template_header_filename = body.get('headerFilename') or body.get('templateHeaderFilename')
+        # Location header support (headerType == 'location').
+        # Expects {latitude, longitude, name, address} supplied at send time.
+        template_header_location = body.get('headerLocation') or body.get('templateHeaderLocation')
 
         # Interactive payment support (for within 24h window - uses payment_settings)
         is_interactive_payment = body.get('isInteractivePayment', False)
@@ -487,7 +490,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             recipient_bsuid=recipient_bsuid,
             template_header_media=template_header_media,
             template_header_type=template_header_type,
-            template_header_filename=template_header_filename
+            template_header_filename=template_header_filename,
+            template_header_location=template_header_location
         )
         
     except json.JSONDecodeError:
@@ -1358,7 +1362,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       recipient_bsuid: Optional[str] = None,
                       template_header_media: Optional[str] = None,
                       template_header_type: Optional[str] = None,
-                      template_header_filename: Optional[str] = None) -> Dict[str, Any]:
+                      template_header_filename: Optional[str] = None,
+                      template_header_location: Optional[Dict] = None) -> Dict[str, Any]:
     """
     Handle LIVE mode - call Meta Graph API (Direct API).
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
@@ -1414,7 +1419,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             recipient_bsuid=recipient_bsuid,
             template_header_media=resolved_header_media,
             template_header_type=template_header_type,
-            template_header_filename=template_header_filename
+            template_header_filename=template_header_filename,
+            template_header_location=template_header_location
         )
         
         logger.info(json.dumps({
@@ -1492,6 +1498,11 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         payment_ref_id = None
         payment_amount = None
         stored_content = content
+        # Templates: guarantee a displayable content string so the sent template
+        # shows in the conversation thread (the empty-content guard below would
+        # otherwise skip template sends, which carry no free-form `content`).
+        if is_template and not stored_content:
+            stored_content = f'[Template] {template_name}' if template_name else '[Template message]'
         if is_interactive_payment and order_details:
             payment_ref_id = _sanitize_reference_id(order_details.get('reference_id', ''))
             # Calculate total amount in rupees from order_details
@@ -2141,7 +2152,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            recipient_bsuid: Optional[str] = None,
                            template_header_media: Optional[str] = None,
                            template_header_type: Optional[str] = None,
-                           template_header_filename: Optional[str] = None) -> Dict[str, Any]:
+                           template_header_filename: Optional[str] = None,
+                           template_header_location: Optional[Dict] = None) -> Dict[str, Any]:
     """Build WhatsApp Cloud API message payload. Supports BSUID recipient."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
     formatted_phone = _normalize_phone_number(recipient_phone) if recipient_phone else ''
@@ -2500,6 +2512,26 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                 'ref': 'link' if _is_link else 'id',
                 'hasFilename': bool(template_header_filename),
             }))
+
+        # Location header for standard (non-payment) templates. Coordinates are
+        # supplied at send time (latitude/longitude required; name/address optional).
+        if (template_header_type == 'location' and template_header_location
+                and not is_payment_template):
+            _loc = {}
+            for _k in ('latitude', 'longitude', 'name', 'address'):
+                _v = template_header_location.get(_k)
+                if _v not in (None, ''):
+                    _loc[_k] = str(_v)
+            if _loc.get('latitude') and _loc.get('longitude'):
+                payload['template']['components'].append({
+                    'type': 'header',
+                    'parameters': [{'type': 'location', 'location': _loc}]
+                })
+                logger.info(json.dumps({
+                    'event': 'template_location_header_added',
+                    'templateName': template_name,
+                    'hasName': bool(_loc.get('name')),
+                }))
         # Handle payment template with order_details button
         if is_payment_template and order_details:
             # Add header image if provided
@@ -2930,8 +2962,10 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
     now = int(time.time())
     expires_at = now + MESSAGE_TTL_SECONDS
     
-    # Guard: don't store messages with empty content (prevents blank inbox entries)
-    if not content and not media_id and not s3_key and status != 'failed':
+    # Guard: don't store messages with empty content (prevents blank inbox entries).
+    # Templates are exempt — they carry no free-form content but must still appear
+    # in the conversation thread.
+    if not content and not media_id and not s3_key and status != 'failed' and not is_template:
         logger.warning(json.dumps({
             'event': 'empty_content_skipped',
             'messageId': message_id,
@@ -2939,6 +2973,10 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
             'status': status,
         }))
         return
+
+    # Templates with no preview content fall back to a readable label.
+    if is_template and not content:
+        content = '[Template message]'
     
     # Determine messageType: image/video/audio/document if media present, else template/text
     if media_id or s3_key:

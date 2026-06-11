@@ -58,10 +58,15 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ scheduledTime, setScheduledTime ] = useState( '' );
   // Media header (IMAGE/VIDEO/DOCUMENT) support — Meta requires a header
   // parameter at send time for media-header templates (e.g. wecare_pdf).
-  const [ headerType, setHeaderType ] = useState<'image' | 'video' | 'document' | null>( null );
+  const [ headerType, setHeaderType ] = useState<'image' | 'video' | 'document' | 'location' | null>( null );
   const [ headerMedia, setHeaderMedia ] = useState<string>( '' );   // S3 key or https link
   const [ headerFilename, setHeaderFilename ] = useState<string>( '' );
   const [ headerUploading, setHeaderUploading ] = useState( false );
+  // Location header inputs (when the template header format is LOCATION)
+  const [ locLat, setLocLat ] = useState( '' );
+  const [ locLng, setLocLng ] = useState( '' );
+  const [ locName, setLocName ] = useState( '' );
+  const [ locAddress, setLocAddress ] = useState( '' );
 
   // Load templates on mount / when the target phone (WABA) changes
   useEffect( () => {
@@ -103,18 +108,25 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       return;
     }
 
-    // Detect a media header (IMAGE / VIDEO / DOCUMENT). Text headers need no upload.
+    // Detect a media header (IMAGE / VIDEO / DOCUMENT) or LOCATION header.
     const headerComp = selectedTemplate.components?.find( c => c.type === 'HEADER' );
     const fmt = ( headerComp?.format || '' ).toUpperCase();
     if ( fmt === 'IMAGE' || fmt === 'VIDEO' || fmt === 'DOCUMENT' )
     {
       setHeaderType( fmt.toLowerCase() as 'image' | 'video' | 'document' );
+    } else if ( fmt === 'LOCATION' )
+    {
+      setHeaderType( 'location' );
     } else
     {
       setHeaderType( null );
     }
     setHeaderMedia( '' );
     setHeaderFilename( '' );
+    setLocLat( '' );
+    setLocLng( '' );
+    setLocName( '' );
+    setLocAddress( '' );
 
     const vars: TemplateVariable[] = [];
     const cardVars: TemplateVariable[][] = [];
@@ -294,6 +306,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           headerMedia: headerType ? headerMedia : undefined,
           headerType: headerType || undefined,
           headerFilename: headerType === 'document' ? ( headerFilename || undefined ) : undefined,
+          headerLocation: headerType === 'location' ? { latitude: locLat.trim(), longitude: locLng.trim(), name: locName.trim() || undefined, address: locAddress.trim() || undefined } : undefined,
+          content: getPreviewText() || undefined,
         } );
         if ( result ) sent++; else failed++;
       } catch ( err )
@@ -326,9 +340,15 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     }
 
     // Media-header templates require a header file/link at send time.
-    if ( headerType && !headerMedia )
+    if ( headerType && headerType !== 'location' && !headerMedia )
     {
       onError( `This template has a ${headerType} header — upload a ${headerType} or paste a link first.` );
+      return;
+    }
+    // Location-header templates require coordinates at send time.
+    if ( headerType === 'location' && ( !locLat.trim() || !locLng.trim() ) )
+    {
+      onError( 'This template has a location header — enter latitude and longitude.' );
       return;
     }
 
@@ -415,6 +435,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
             headerMedia: headerType ? headerMedia : undefined,
             headerType: headerType || undefined,
             headerFilename: headerType === 'document' ? ( headerFilename || undefined ) : undefined,
+            headerLocation: headerType === 'location' ? { latitude: locLat.trim(), longitude: locLng.trim(), name: locName.trim() || undefined, address: locAddress.trim() || undefined } : undefined,
+            content: getPreviewText() || undefined,
           } );
         }
 
@@ -604,7 +626,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
             </div>
 
             {/* Media Header (IMAGE / VIDEO / DOCUMENT) upload — required by Meta */ }
-            { headerType && (
+            { headerType && headerType !== 'location' && (
               <div className="header-media-section">
                 <label>
                   { headerType === 'document' ? '📄 Document Header' : headerType === 'video' ? '🎬 Video Header' : '🖼️ Image Header' }
@@ -636,6 +658,20 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
                     <button className="clear-header" onClick={ () => { setHeaderMedia( '' ); setHeaderFilename( '' ); } }>×</button>
                   </div>
                 ) }
+              </div>
+            ) }
+
+            {/* Location Header — coordinates supplied at send time */ }
+            { headerType === 'location' && (
+              <div className="header-media-section">
+                <label>📍 Location Header<span className="required-tag">required</span></label>
+                <div className="loc-grid">
+                  <input className="header-url-input" placeholder="Latitude e.g. 37.4421" value={ locLat } onChange={ ( e ) => setLocLat( e.target.value ) } />
+                  <input className="header-url-input" placeholder="Longitude e.g. -122.1615" value={ locLng } onChange={ ( e ) => setLocLng( e.target.value ) } />
+                  <input className="header-url-input" placeholder="Place name (optional)" value={ locName } onChange={ ( e ) => setLocName( e.target.value ) } />
+                  <input className="header-url-input" placeholder="Address (optional)" value={ locAddress } onChange={ ( e ) => setLocAddress( e.target.value ) } />
+                </div>
+                <span className="manual-hint">Latitude & longitude are required. When the customer taps the map, their map app opens to these coordinates.</span>
               </div>
             ) }
 
@@ -732,7 +768,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         <button
           className="send-btn"
           onClick={ handleSend }
-          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && !headerMedia ) || ( manualMode && !bulkMode && manualPhone.replace( /[^\d]/g, '' ).length < 10 ) || ( manualMode && bulkMode && bulkRecipients.length === 0 ) }
+          disabled={ !selectedTemplate || sending || headerUploading || ( !!headerType && headerType !== 'location' && !headerMedia ) || ( headerType === 'location' && ( !locLat.trim() || !locLng.trim() ) ) || ( manualMode && !bulkMode && manualPhone.replace( /[^\d]/g, '' ).length < 10 ) || ( manualMode && bulkMode && bulkRecipients.length === 0 ) }
         >
           { sending ? 'Sending...' : ( manualMode && bulkMode ) ? `Send to ${bulkRecipients.length || ''}` : scheduleMode ? 'Schedule' : 'Send Now' }
         </button>
@@ -833,6 +869,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           font-weight: 600;
         }
         .bulk-progress { font-size: 12px; color: #1a3a2a; font-weight: 600; }
+        .loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .search-filters {
           display: flex;
           gap: 8px;
