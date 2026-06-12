@@ -44,9 +44,11 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const manualMode = !!enableManualRecipient && !contactId && !recipientPhone;
   // Bulk CSV broadcast (only offered in manual / new-template mode).
   const [ bulkMode, setBulkMode ] = useState( false );
-  const [ bulkRecipients, setBulkRecipients ] = useState<string[]>( [] );
+  const [ bulkRecipients, setBulkRecipients ] = useState<{ phone: string; params: string[] }[]>( [] );
   const [ bulkFileName, setBulkFileName ] = useState( '' );
+  const [ bulkHasParams, setBulkHasParams ] = useState( false );
   const [ bulkProgress, setBulkProgress ] = useState<{ sent: number; failed: number; total: number } | null>( null );
+  const [ bulkFailed, setBulkFailed ] = useState<string[]>( [] );
   const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
   const [ selectedTemplate, setSelectedTemplate ] = useState<api.WhatsAppTemplate | null>( null );
   const [ variables, setVariables ] = useState<TemplateVariable[]>( [] );
@@ -290,19 +292,19 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     }
   };
 
-  // Parse a CSV/TXT of recipients. Accepts one number per line or the first
-  // column of a CSV. Strips a header row, non-digits, and duplicates.
-  const parseRecipientsCsv = ( text: string ): string[] => {
-    const out: string[] = [];
+  // Parse a CSV/TXT of recipients. Column 1 = phone (country code + number).
+  // Any extra columns map to template variables {{1}},{{2}}… for that row.
+  // Strips a header row, non-digits in the phone, and duplicate numbers.
+  const parseRecipientsCsv = ( text: string ): { phone: string; params: string[] }[] => {
+    const out: { phone: string; params: string[] }[] = [];
     const seen = new Set<string>();
     text.split( /\r?\n/ ).forEach( ( line ) => {
-      const cell = ( line.split( ',' )[ 0 ] || '' ).trim();
-      if ( !cell ) return;
-      const digits = cell.replace( /[^\d]/g, '' );
+      const cells = line.split( ',' ).map( c => c.trim() );
+      const digits = ( cells[ 0 ] || '' ).replace( /[^\d]/g, '' );
       if ( digits.length < 10 ) return;        // skips header row / junk
       if ( seen.has( digits ) ) return;
       seen.add( digits );
-      out.push( digits );
+      out.push( { phone: digits, params: cells.slice( 1 ).filter( c => c !== '' ) } );
     } );
     return out;
   };
@@ -320,6 +322,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
         return;
       }
       setBulkRecipients( recipients );
+      setBulkHasParams( recipients.some( r => r.params.length > 0 ) );
+      setBulkFailed( [] );
       setBulkFileName( file.name );
     } catch ( err: any )
     {
@@ -331,17 +335,22 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     if ( !selectedTemplate ) return;
     setSending( true );
     setBulkProgress( { sent: 0, failed: 0, total: bulkRecipients.length } );
+    setBulkFailed( [] );
     let sent = 0;
     let failed = 0;
+    const failedNums: string[] = [];
     for ( let i = 0; i < bulkRecipients.length; i++ )
     {
+      const row = bulkRecipients[ i ];
+      // Per-row variables from the CSV when present; otherwise the shared values.
+      const rowParams = ( bulkHasParams && row.params.length > 0 ) ? row.params : variables.map( v => v.value );
       try
       {
         const result = await api.sendWhatsAppTemplateMessage( {
-          recipientPhone: bulkRecipients[ i ],
+          recipientPhone: row.phone,
           templateName: selectedTemplate.name,
           language: selectedTemplate.language,
-          templateParams: variables.map( v => v.value ),
+          templateParams: rowParams,
           phoneNumberId,
           headerMedia: headerType ? headerMedia : undefined,
           headerType: headerType || undefined,
@@ -349,15 +358,17 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           headerLocation: headerType === 'location' ? { latitude: locLat.trim(), longitude: locLng.trim(), name: locName.trim() || undefined, address: locAddress.trim() || undefined } : undefined,
           content: getPreviewText() || undefined,
         } );
-        if ( result ) sent++; else failed++;
+        if ( result ) sent++; else { failed++; failedNums.push( row.phone ); }
       } catch ( err )
       {
         failed++;
+        failedNums.push( row.phone );
       }
       setBulkProgress( { sent, failed, total: bulkRecipients.length } );
       // Gentle pacing to avoid Meta rate limits on large lists.
       if ( ( i + 1 ) % 10 === 0 ) await new Promise( r => setTimeout( r, 250 ) );
     }
+    setBulkFailed( failedNums );
     setSending( false );
     if ( sent > 0 ) onSent();
     onError( `Bulk send complete: ${sent} sent, ${failed} failed (of ${bulkRecipients.length}).` );
@@ -584,13 +595,19 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
                 { bulkRecipients.length > 0 && (
                   <div className="bulk-count">
                     ✓ { bulkRecipients.length } recipient{ bulkRecipients.length > 1 ? 's' : '' } loaded
-                    <button className="clear-header" onClick={ () => { setBulkRecipients( [] ); setBulkFileName( '' ); setBulkProgress( null ); } }>×</button>
+                    { bulkHasParams && <span className="bulk-pers"> · per-row variables detected</span> }
+                    <button className="clear-header" onClick={ () => { setBulkRecipients( [] ); setBulkFileName( '' ); setBulkProgress( null ); setBulkFailed( [] ); setBulkHasParams( false ); } }>×</button>
                   </div>
                 ) }
                 { bulkProgress && (
                   <div className="bulk-progress">Sending… { bulkProgress.sent + bulkProgress.failed } / { bulkProgress.total } ({ bulkProgress.failed } failed)</div>
                 ) }
-                <span className="manual-hint">One number per line, or a CSV with numbers (with country code) in the first column. The selected template and any variables/header are sent to every recipient. Each number auto-creates a contact.</span>
+                { bulkFailed.length > 0 && (
+                  <div className="bulk-failed">
+                    { bulkFailed.length } failed: { bulkFailed.slice( 0, 20 ).map( n => n.replace( /^(\d{2})\d+(\d{4})$/, '$1******$2' ) ).join( ', ' ) }{ bulkFailed.length > 20 ? '…' : '' }
+                  </div>
+                ) }
+                <span className="manual-hint">One number per line, or a CSV with numbers (country code first column). Extra CSV columns become template variables { '{{1}}' },{ '{{2}}' }… per row; otherwise the variables above apply to everyone. Each number auto-creates a contact.</span>
               </>
             ) }
           </div>
@@ -930,6 +947,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           font-weight: 600;
         }
         .bulk-progress { font-size: 12px; color: #1a3a2a; font-weight: 600; }
+        .bulk-pers { font-size: 11px; color: #4b5563; font-weight: 500; }
+        .bulk-failed { font-size: 11px; color: #b91c1c; margin-top: 4px; word-break: break-word; }
         .loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .place-search { position: relative; margin-bottom: 8px; }
         .place-dropdown {

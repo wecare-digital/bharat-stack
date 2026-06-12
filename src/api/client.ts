@@ -1646,6 +1646,8 @@ export async function sendWhatsAppTemplateMessage ( request: {
   headerFilename?: string;    // Filename for document headers
   headerLocation?: { latitude: string; longitude: string; name?: string; address?: string };  // Location header params
   content?: string;           // Rendered preview text stored for inbox thread display
+  campaignId?: string;        // Optional campaign tracking
+  campaignName?: string;
 } ): Promise<{ messageId: string; status: string } | null> {
   // Build template params array - include language as first param for Lambda
   const params: string[] = [];
@@ -1672,6 +1674,8 @@ export async function sendWhatsAppTemplateMessage ( request: {
 
   // Rendered preview text so the sent template shows in the conversation thread.
   if ( request.content ) payload.content = request.content;
+  if ( request.campaignId ) payload.campaignId = request.campaignId;
+  if ( request.campaignName ) payload.campaignName = request.campaignName;
 
   // Media header (IMAGE/VIDEO/DOCUMENT) — required at send time by Meta for
   // templates whose header is a media format.
