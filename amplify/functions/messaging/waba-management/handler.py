@@ -32,6 +32,7 @@ from decimal import Decimal
 from datetime import datetime
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 
 # Configure logging
 from lambda_utils.logging import get_logger
@@ -247,7 +248,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Handle OPTIONS preflight
     if http_method == 'OPTIONS':
         return options_response(origin)
-    
+
+    # Enforce auth. All /waba/* routes are admin-only (no public Meta webhooks
+    # here). Internal Lambda-to-Lambda invokes are auto-exempt by require_auth.
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
+
     try:
         body = {}
         if event.get('body'):

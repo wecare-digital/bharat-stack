@@ -50,6 +50,7 @@ from typing import Dict, Any
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -3279,6 +3280,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     if method == 'OPTIONS':
         return _resp(200, {})
+
+    # Enforce auth for admin routes. Public Meta endpoints — the webhook
+    # (/wa-business/webhooks) and Flows data-exchange (/wa-business/flow-data) —
+    # are exempted via the AUTH_SKIP_PATHS env var (they authenticate via verify
+    # token / E2E encryption). Internal Lambda invokes are auto-exempt.
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
 
     # Note: WhatsApp Flows data_exchange uses E2E encryption (RSA + AES-GCM)
     # for authentication — NOT x-hub-signature-256. The encrypted payload itself
