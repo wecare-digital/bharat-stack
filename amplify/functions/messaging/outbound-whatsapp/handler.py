@@ -24,6 +24,7 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
+from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -312,7 +313,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         'sendMode': SEND_MODE,
         'requestId': request_id
     }))
-    
+
+    # Enforce auth for HTTP-invoked requests. Lambda-to-Lambda invokes (inbound
+    # handler auto-replies, CDR/IVR notifications, scheduled sends) carry no HTTP
+    # context and are auto-exempt by require_auth, so internal callers keep working.
+    auth_result = require_auth(event)
+    if auth_result is not None:
+        return auth_result
+
     try:
         # Parse request body
         body = json.loads(event.get('body', '{}'))
