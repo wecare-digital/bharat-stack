@@ -27,7 +27,7 @@
  */
 import { defineFunction } from '@aws-amplify/backend';
 
-export const whatsappBusinessApi = defineFunction({
+export const whatsappBusinessApi = defineFunction( {
   name: 'wecare-whatsapp-business-api',
   entry: './handler.py',
   runtime: 20, // Python 3.12
@@ -47,5 +47,8 @@ export const whatsappBusinessApi = defineFunction({
     FLOW_REGISTRY_TABLE: 'stack-wecare-digital-FlowRegistryTable',
     FLOW_SUBMISSIONS_TABLE: 'stack-wecare-digital-FlowSubmissionTable',
     FLOW_LOGS_TABLE: 'stack-wecare-digital-FlowLogTable',
+    // Public Meta endpoints exempt from Cognito auth (webhook verify/events +
+    // Flows data-exchange authenticate via verify token / E2E encryption).
+    AUTH_SKIP_PATHS: '/wa-business/webhooks,/wa-business/flow-data',
   },
-});
+} );

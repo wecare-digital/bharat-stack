@@ -2076,18 +2076,22 @@ export async function listTemplates ( wabaId?: string, maxResults?: number ): Pr
  * Google Maps Places — autocomplete (backend-proxied; key stays in Secrets Manager).
  * Used by location templates to resolve coordinates from a typed address.
  */
-export async function placesAutocomplete ( q: string ): Promise<{ description: string; placeId: string }[]> {
+export async function placesAutocomplete ( q: string, sessionToken?: string ): Promise<{ description: string; placeId: string }[]> {
   if ( !q || q.trim().length < 3 ) return [];
-  const data = await apiCall<any>( `${API_BASE}/whatsapp/templates?action=places-autocomplete&q=${encodeURIComponent( q )}` );
+  let url = `${API_BASE}/whatsapp/templates?action=places-autocomplete&q=${encodeURIComponent( q )}`;
+  if ( sessionToken ) url += `&sessiontoken=${encodeURIComponent( sessionToken )}`;
+  const data = await apiCall<any>( url );
   return data?.predictions || [];
 }
 
 /**
  * Google Maps Places — place details → { latitude, longitude, name, address }.
  */
-export async function placeDetails ( placeId: string ): Promise<{ latitude: number; longitude: number; name: string; address: string } | null> {
+export async function placeDetails ( placeId: string, sessionToken?: string ): Promise<{ latitude: number; longitude: number; name: string; address: string } | null> {
   if ( !placeId ) return null;
-  const data = await apiCall<any>( `${API_BASE}/whatsapp/templates?action=place-details&placeId=${encodeURIComponent( placeId )}` );
+  let url = `${API_BASE}/whatsapp/templates?action=place-details&placeId=${encodeURIComponent( placeId )}`;
+  if ( sessionToken ) url += `&sessiontoken=${encodeURIComponent( sessionToken )}`;
+  const data = await apiCall<any>( url );
   return data?.place || null;
 }
 

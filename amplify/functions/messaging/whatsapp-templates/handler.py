@@ -119,14 +119,18 @@ def _http_get_json(url: str) -> dict:
         return json.loads(resp.read().decode())
 
 
-def _places_autocomplete(q: str):
-    """Proxy Google Places Autocomplete. Returns [{description, placeId}]."""
+def _places_autocomplete(q: str, session_token: str = ''):
+    """Proxy Google Places Autocomplete. Returns [{description, placeId}].
+    A session token bundles autocomplete keystrokes + the final details call
+    into one billable session (cheaper than per-request pricing)."""
     if not q or len(q.strip()) < 3:
         return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'predictions': []})}
     key = _get_gmaps_key()
     if not key:
         return _error_response(500, 'Maps key not configured')
     url = f'https://maps.googleapis.com/maps/api/place/autocomplete/json?input={urllib.parse.quote(q)}&key={key}'
+    if session_token:
+        url += f'&sessiontoken={urllib.parse.quote(session_token)}'
     try:
         data = _http_get_json(url)
         preds = [{'description': p.get('description'), 'placeId': p.get('place_id')}
@@ -138,8 +142,9 @@ def _places_autocomplete(q: str):
         return _error_response(502, f'Places autocomplete failed: {e}')
 
 
-def _place_details(place_id: str):
-    """Proxy Google Place Details. Returns {latitude, longitude, name, address}."""
+def _place_details(place_id: str, session_token: str = ''):
+    """Proxy Google Place Details. Returns {latitude, longitude, name, address}.
+    Pass the same session token used for autocomplete to close the session."""
     if not place_id:
         return _error_response(400, 'placeId required')
     key = _get_gmaps_key()
@@ -147,6 +152,8 @@ def _place_details(place_id: str):
         return _error_response(500, 'Maps key not configured')
     url = (f'https://maps.googleapis.com/maps/api/place/details/json?place_id={urllib.parse.quote(place_id)}'
            f'&fields=geometry,name,formatted_address&key={key}')
+    if session_token:
+        url += f'&sessiontoken={urllib.parse.quote(session_token)}'
     try:
         data = _http_get_json(url)
         r = data.get('result', {})
@@ -198,9 +205,9 @@ def handler(event, context):
             # Google Maps Places proxy (for location-template coordinate picking)
             action = query_params.get('action', '')
             if action == 'places-autocomplete':
-                return _places_autocomplete(query_params.get('q', ''))
+                return _places_autocomplete(query_params.get('q', ''), query_params.get('sessiontoken', ''))
             if action == 'place-details':
-                return _place_details(query_params.get('placeId', ''))
+                return _place_details(query_params.get('placeId', ''), query_params.get('sessiontoken', ''))
             if '/templates/library' in path:
                 return _list_template_library(waba_id, query_params)
             template_id = _extract_path_param(path, '/templates/')

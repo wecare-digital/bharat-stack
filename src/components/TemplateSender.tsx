@@ -73,6 +73,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ placeQuery, setPlaceQuery ] = useState( '' );
   const [ placePredictions, setPlacePredictions ] = useState<{ description: string; placeId: string }[]>( [] );
   const [ placeSearching, setPlaceSearching ] = useState( false );
+  const [ placeSession, setPlaceSession ] = useState( '' );
 
   // Load templates on mount / when the target phone (WABA) changes
   useEffect( () => {
@@ -262,10 +263,17 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     if ( !placeQuery || placeQuery.trim().length < 3 ) { setPlacePredictions( [] ); return; }
     let active = true;
     setPlaceSearching( true );
+    // One session token per search session bundles autocomplete + details billing.
+    let token = placeSession;
+    if ( !token )
+    {
+      token = ( typeof crypto !== 'undefined' && crypto.randomUUID ) ? crypto.randomUUID() : String( Date.now() ) + Math.random().toString( 36 ).slice( 2 );
+      setPlaceSession( token );
+    }
     const t = setTimeout( async () => {
       try
       {
-        const preds = await api.placesAutocomplete( placeQuery );
+        const preds = await api.placesAutocomplete( placeQuery, token );
         if ( active ) setPlacePredictions( preds );
       } catch { /* ignore */ }
       finally { if ( active ) setPlaceSearching( false ); }
@@ -278,7 +286,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     setPlaceQuery( description );
     try
     {
-      const d = await api.placeDetails( placeId );
+      const d = await api.placeDetails( placeId, placeSession );
       if ( d )
       {
         setLocLat( String( d.latitude ?? '' ) );
@@ -289,6 +297,9 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     } catch ( err: any )
     {
       onError( err?.message || 'Failed to resolve place' );
+    } finally
+    {
+      setPlaceSession( '' );  // close the billing session; next search starts a new one
     }
   };
 
