@@ -1765,6 +1765,12 @@ def _get_media_upload_url(body: Dict[str, Any], request_id: str) -> Dict[str, An
         return _error_response(500, f'Failed to generate upload URL: {str(e)}')
 
 
+# Warm-instance cache: input S3 key + phone → WhatsApp media id, so a bulk run
+# re-uses a single upload instead of re-uploading the same file per recipient.
+_media_id_cache: Dict[str, Tuple[str, str, str, float]] = {}
+MEDIA_ID_CACHE_TTL = 600  # 10 minutes
+
+
 def _upload_media(media_file: str, media_type: str, message_id: str, phone_number_id: str, request_id: str, filename: Optional[str] = None) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Upload media to S3 and register with WhatsApp.
@@ -1776,6 +1782,14 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
     import base64
     
     try:
+        # Bulk optimization: reuse a previously-uploaded media id for the same
+        # S3 key + phone within the TTL (skips re-download + re-upload per send).
+        if media_file and len(media_file) < 512:
+            _ck = f"{media_file}|{phone_number_id}"
+            _hit = _media_id_cache.get(_ck)
+            if _hit and (time.time() - _hit[3]) < MEDIA_ID_CACHE_TTL:
+                logger.info(json.dumps({'event': 'media_id_cache_hit', 'requestId': request_id}))
+                return _hit[0], _hit[1], _hit[2]
         # Generate S3 key with proper extension
         extension = _get_media_extension(media_type)
         
@@ -1939,6 +1953,12 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
                     'requestId': request_id
                 }))
                 return None, None, None
+
+            # Cache for bulk reuse (same S3 key + phone within TTL).
+            if media_file and len(media_file) < 512:
+                _media_id_cache[f"{media_file}|{phone_number_id}"] = (
+                    s3_key, whatsapp_media_id, display_filename, time.time()
+                )
             
             logger.info(json.dumps({
                 'event': 'media_registered_with_whatsapp',
