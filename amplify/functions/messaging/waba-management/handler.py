@@ -44,6 +44,27 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sns_client = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+apigw_client = boto3.client('apigatewayv2', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+# CORS management — the HTTP APIs whose CorsConfiguration this admin UI controls.
+CORS_API_IDS = [s.strip() for s in os.environ.get('CORS_API_IDS', 'zllr9lrg7j,79g3bbufdh').split(',') if s.strip()]
+# Core origins always kept in the allowlist so the dashboard/native app can never
+# be locked out, even if an admin saves a bad list.
+CORS_CORE_ORIGINS = [
+    'https://stack.wecare.digital',
+    'https://app.wecare.digital',
+    'https://d22dm4b0jn71jw.amplifyapp.com',
+    'capacitor://localhost',   # iOS native app
+    'https://localhost',       # Android native app
+]
+CORS_RECOMMENDED_ORIGINS = CORS_CORE_ORIGINS + [
+    'https://wecare.digital',
+    'https://www.wecare.digital',
+    'ionic://localhost',
+    'http://localhost:3000',
+]
+CORS_ALLOW_HEADERS = ['content-type', 'authorization', 'x-amz-date', 'x-api-key', 'x-amz-security-token']
+CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
 # Environment variables
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
@@ -262,6 +283,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Route handling
         if http_method == 'GET':
+            if query_params.get('action') == 'cors-status':
+                return _get_cors_status(request_id)
             if '/waba/events' in path:
                 return _get_system_events(query_params, request_id)
             elif '/subscribe-sns' in path:
@@ -285,6 +308,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _list_wabas(request_id)
         
         elif http_method == 'POST':
+            if body.get('action') == 'cors-apply':
+                return _apply_cors(body, request_id)
             if '/subscribe-sns' in path:
                 waba_id = path_params.get('wabaId') or path.split('/waba/')[-1].split('/')[0]
                 return _subscribe_waba_to_sns(waba_id, body, request_id)
@@ -331,6 +356,83 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'requestId': request_id
         }))
         return _error_response(500, str(e))
+
+
+# ─── CORS Management (admin) ────────────────────────────────────────────────
+
+def _get_cors_status(request_id: str) -> Dict[str, Any]:
+    """Return the live CorsConfiguration for each managed HTTP API plus the
+    recommended allowlist, for the admin CORS Manager UI."""
+    apis = []
+    for api_id in CORS_API_IDS:
+        try:
+            api = apigw_client.get_api(ApiId=api_id)
+            cors = api.get('CorsConfiguration', {}) or {}
+            apis.append({
+                'apiId': api_id,
+                'name': api.get('Name', ''),
+                'endpoint': api.get('ApiEndpoint', ''),
+                'allowOrigins': cors.get('AllowOrigins', []),
+                'allowMethods': cors.get('AllowMethods', []),
+                'allowHeaders': cors.get('AllowHeaders', []),
+                'allowAll': cors.get('AllowOrigins', []) == ['*'],
+            })
+        except Exception as e:
+            apis.append({'apiId': api_id, 'error': str(e)})
+    return {
+        'statusCode': 200,
+        'headers': cors_headers(origin),
+        'body': json.dumps({
+            'apis': apis,
+            'recommendedOrigins': CORS_RECOMMENDED_ORIGINS,
+            'coreOrigins': CORS_CORE_ORIGINS,
+        })
+    }
+
+
+def _apply_cors(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
+    """Apply a CORS allowlist to all managed HTTP APIs.
+
+    body: { allowAll?: bool, origins?: [str] }
+    - allowAll=True  → AllowOrigins=['*']
+    - otherwise      → the provided origins, with CORE origins force-merged so an
+      admin can never lock the dashboard/native app out.
+    """
+    allow_all = bool(body.get('allowAll'))
+    if allow_all:
+        allow_origins = ['*']
+    else:
+        provided = [o.strip() for o in (body.get('origins') or []) if isinstance(o, str) and o.strip()]
+        # Always keep core origins; dedupe preserving order.
+        merged = CORS_CORE_ORIGINS + [o for o in provided if o not in CORS_CORE_ORIGINS]
+        seen = set()
+        allow_origins = [o for o in merged if not (o in seen or seen.add(o))]
+
+    cors_cfg = {
+        'AllowOrigins': allow_origins,
+        'AllowMethods': CORS_ALLOW_METHODS,
+        'AllowHeaders': CORS_ALLOW_HEADERS,
+        'AllowCredentials': False,
+        'MaxAge': 600,
+    }
+    # Note: AllowCredentials cannot be true with AllowOrigins '*'; we use bearer
+    # tokens (Authorization header), which work fine without credentialed CORS.
+
+    results = []
+    for api_id in CORS_API_IDS:
+        try:
+            apigw_client.update_api(ApiId=api_id, CorsConfiguration=cors_cfg)
+            results.append({'apiId': api_id, 'applied': True})
+        except Exception as e:
+            logger.error(json.dumps({'event': 'cors_apply_error', 'apiId': api_id, 'error': str(e), 'requestId': request_id}))
+            results.append({'apiId': api_id, 'applied': False, 'error': str(e)})
+
+    logger.info(json.dumps({'event': 'cors_applied', 'allowAll': allow_all, 'originCount': len(allow_origins), 'requestId': request_id}))
+    return {
+        'statusCode': 200,
+        'headers': cors_headers(origin),
+        'body': json.dumps({'success': all(r.get('applied') for r in results), 'allowOrigins': allow_origins, 'results': results})
+    }
 
 
 def _list_wabas(request_id: str) -> Dict[str, Any]:

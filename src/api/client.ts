@@ -2095,6 +2095,38 @@ export async function placeDetails ( placeId: string, sessionToken?: string ): P
   return data?.place || null;
 }
 
+// ============================================================================
+// CORS MANAGEMENT (admin) — view/apply allowed origins on the HTTP APIs
+// ============================================================================
+
+export interface CorsApiStatus {
+  apiId: string;
+  name?: string;
+  endpoint?: string;
+  allowOrigins?: string[];
+  allowMethods?: string[];
+  allowHeaders?: string[];
+  allowAll?: boolean;
+  error?: string;
+}
+
+export interface CorsStatus {
+  apis: CorsApiStatus[];
+  recommendedOrigins: string[];
+  coreOrigins: string[];
+}
+
+export async function getCorsStatus (): Promise<CorsStatus | null> {
+  return apiCall<CorsStatus>( `${API_BASE}/waba?action=cors-status` );
+}
+
+export async function applyCors ( request: { allowAll?: boolean; origins?: string[] } ): Promise<{ success: boolean; allowOrigins: string[] } | null> {
+  return apiCall<{ success: boolean; allowOrigins: string[] }>( `${API_BASE}/waba`, {
+    method: 'POST',
+    body: JSON.stringify( { action: 'cors-apply', allowAll: request.allowAll, origins: request.origins } ),
+  } );
+}
+
 /**
  * Get template details
  * API: GetWhatsAppMessageTemplate
