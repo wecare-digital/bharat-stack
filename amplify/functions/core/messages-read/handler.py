@@ -328,23 +328,25 @@ def _scan_table_fallback(table, filter_parts: List[str], expression_values: Dict
     return table_items
 
 
-def _normalize_channel_item(item: Dict[str, Any], channel: str) -> Dict[str, Any]:
-    """Normalize a per-channel store row (SMS/Voice/RCS/Email) into the common
-    message shape used by the inbox, tagging it with its source `channel`."""
+def _normalize_channel_item(item: Dict[str, Any], default_channel: str) -> Dict[str, Any]:
+    """Normalize a per-channel store row into the common inbox message shape.
+    The shared MessagesTable holds email (SES), SMS and WhatsApp-voice rows, so we
+    respect the row's own `channel` field and only fall back to inference."""
+    ch = item.get('channel')
+    if ch:
+        channel = str(ch).lower()
+    elif item.get('subject') or item.get('sesMessageId'):
+        channel = 'email'
+    elif item.get('providerMessageId') or item.get('senderId') or item.get('senderPhone'):
+        channel = 'sms'
+    else:
+        channel = default_channel
     ts = item.get('timestamp') or item.get('createdAt') or 0
     direction = str(item.get('direction') or 'outbound').lower()
     status = str(item.get('status') or 'sent').lower()
     content = item.get('content') or item.get('subject') or item.get('transcription') or ''
-    if channel == 'voice':
-        dur = item.get('duration')
-        content = content or (f'[Voice call · {dur}s]' if dur else '[Voice call]')
-        msg_type = 'call'
-    elif channel == 'email':
-        content = item.get('subject') or content
-        msg_type = 'email'
-    else:
-        msg_type = item.get('messageType') or 'text'
-    mid = item.get('id') or item.get('messageId') or item.get('callId') or ''
+    msg_type = item.get('messageType') or ('email' if channel == 'email' else 'text')
+    mid = item.get('id') or item.get('messageId') or ''
     return {
         'id': mid,
         'messageId': item.get('messageId') or mid,
@@ -357,19 +359,25 @@ def _normalize_channel_item(item: Dict[str, Any], channel: str) -> Dict[str, Any
         'timestamp': ts,
         'createdAt': ts,
         'phoneNumber': item.get('phoneNumber') or item.get('phone') or '',
-        'senderPhone': item.get('phoneNumber') or item.get('phone') or '',
+        'senderPhone': item.get('phoneNumber') or item.get('phone') or item.get('senderPhone') or '',
         'errorDetails': item.get('errorDetails'),
         'errorCode': item.get('errorCode'),
     }
 
 
 def _scan_other_channels(contact_id: str, limit: int) -> List[Dict[str, Any]]:
-    """Read-time aggregation for the Unified Inbox: pull rows from the per-channel
-    stores (SMS/Voice/RCS/Email) and normalize them. Each table is guarded so a
-    failure in one never breaks the inbox. Uses a contactId filter when provided."""
+    """Read-time aggregation for the Unified Inbox — MESSAGE channels only
+    (SMS / RCS / Email). Calls (voice / WhatsApp calling) are a separate concern
+    and intentionally excluded here. Each table is guarded so a failure in one
+    never breaks the inbox. Uses a contactId filter when provided."""
     out: List[Dict[str, Any]] = []
-    sources = [('sms', SMS_AWS_TABLE), ('voice', VOICE_AWS_TABLE), ('rcs', RCS_TABLE), ('email', EMAIL_MESSAGES_TABLE)]
-    for channel, tname in sources:
+    # (default_channel only used when a row has no/!inferable channel)
+    sources = [
+        ('sms', SMS_AWS_TABLE),
+        ('rcs', RCS_TABLE),
+        ('email', EMAIL_MESSAGES_TABLE),  # shared: email + sms + wa-voice → channel respected
+    ]
+    for default_channel, tname in sources:
         try:
             table = dynamodb.Table(tname)
             if contact_id:
@@ -381,9 +389,9 @@ def _scan_other_channels(contact_id: str, limit: int) -> List[Dict[str, Any]]:
             else:
                 resp = table.scan(Limit=limit)
             for it in resp.get('Items', []):
-                out.append(_normalize_channel_item(it, channel))
+                out.append(_normalize_channel_item(it, default_channel))
         except Exception as e:
-            logger.warning(json.dumps({'event': 'other_channel_scan_failed', 'channel': channel, 'error': str(e)}))
+            logger.warning(json.dumps({'event': 'other_channel_scan_failed', 'channel': default_channel, 'error': str(e)}))
     return out
 
 
