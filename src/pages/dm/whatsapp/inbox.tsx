@@ -18,6 +18,7 @@ import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../lib/wa-media';
 import { describeWaError } from '../../../lib/wa-errors';
+import InfoTooltip from '../../../components/ui/InfoTooltip';
 
 interface PageProps {
   signOut?: () => void;
@@ -1573,12 +1574,17 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
                                 let raw = '';
                                 try { raw = msg.errorDetails ? ( JSON.parse( msg.errorDetails )?.message || '' ) : ''; } catch { raw = msg.errorDetails || ''; }
                                 const info = describeWaError( msg.errorCode, raw );
-                                const tip = info
-                                  ? `${msg.errorCode ? msg.errorCode + ' · ' : ''}${info.title} — ${info.reason} Fix: ${info.action}`
-                                  : 'Message failed to send.';
+                                const tipContent = info ? (
+                                  <>
+                                    <div style={ { fontWeight: 700, marginBottom: 4 } }>{ msg.errorCode ? `${msg.errorCode} · ` : '' }{ info.title }</div>
+                                    <div style={ { marginBottom: 6 } }>{ info.reason }</div>
+                                    <div style={ { color: '#4b5563' } }><strong>Fix:</strong> { info.action }</div>
+                                  </>
+                                ) : 'Message failed to send.';
                                 return (
-                                  <span className="message-status failed" title={ tip } style={ { cursor: 'help' } }>
-                                    Failed{ info ? ` · ${info.title}` : '' } ⓘ
+                                  <span className="message-status failed">
+                                    Failed{ info ? ` · ${info.title}` : '' }{ ' ' }
+                                    <InfoTooltip content={ tipContent } label="Why this message failed" />
                                   </span>
                                 );
                               }

@@ -9,6 +9,7 @@ import * as api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import Pagination from '../../../components/ui/Pagination';
 import { describeWaError } from '../../../lib/wa-errors';
+import InfoTooltip from '../../../components/ui/InfoTooltip';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface LogEntry { id: string; direction: string; contactId: string; contactName?: string; phone?: string; bsuid?: string; username?: string; content: string; status: string; timestamp: string; templateName?: string; messageType?: string; transcription?: string; detectedLanguage?: string; errorCode?: number; errorDetails?: string; }
@@ -190,8 +191,19 @@ const WhatsAppLogsPage: React.FC<PageProps> = ( { signOut, user, embedded = fals
                         let raw = '';
                         try { raw = log.errorDetails ? ( JSON.parse( log.errorDetails )?.message || '' ) : ''; } catch { raw = log.errorDetails || ''; }
                         const info = describeWaError( log.errorCode, raw );
-                        const tip = info ? `${log.errorCode ? log.errorCode + ' · ' : ''}${info.title} — ${info.reason} Fix: ${info.action}` : 'Message failed.';
-                        return <span className="status-pill status-failed" title={ tip } style={ { cursor: 'help' } }>{ log.status } ⓘ</span>;
+                        const tipContent = info ? (
+                          <>
+                            <div style={ { fontWeight: 700, marginBottom: 4 } }>{ log.errorCode ? `${log.errorCode} · ` : '' }{ info.title }</div>
+                            <div style={ { marginBottom: 6 } }>{ info.reason }</div>
+                            <div style={ { color: '#4b5563' } }><strong>Fix:</strong> { info.action }</div>
+                          </>
+                        ) : 'Message failed.';
+                        return (
+                          <span className="status-pill status-failed">
+                            { log.status }{ ' ' }
+                            <InfoTooltip content={ tipContent } label="Why this message failed" />
+                          </span>
+                        );
                       } )()
                     ) : (
                       <span className={ `status-pill ${getStatusColor( log.status )}` }>{ log.status }</span>
