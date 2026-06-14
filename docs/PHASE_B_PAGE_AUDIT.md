@@ -53,18 +53,37 @@
 | Logs | `dm/logs` (313/27) | Cross-channel logs; keep. |
 
 ### D. Commerce & operations
-| Group | Pages |
-|---|---|
+
+> **Backend-verified (deep scan):** the pages below split into TWO distinct backends.
+> Do **not** merge Orders into Store — they are different systems that merely share the word "orders".
+
+**D1. Service Operations — ONE backend (`wecare-whatsapp-business-api`, all `/wa-business/*`, WhatsApp-Flow driven).**
+The `/dm/orders` page is the **orchestrator**: its detail panel aggregates flow submissions + documents + tracking + status history. The others are flow submission types tied to it. → Group as one cluster with **Orders as the landing page**.
+
+| Page | API base | lines/hex |
+|---|---|---|
+| `dm/orders` (hub) | `/wa-business/orders` | 524/73 |
+| `service/submit-request` | `/wa-business/service`, `/submit-requests` | 300/29 |
+| `service/track-request` | `/wa-business/...` | 238/51 |
+| `service/amend-request` | `/wa-business/...` | 257/36 |
+| `service/index` | — | 57 |
+| `dm/appointments` | `/wa-business/appointments` | 185/29 |
+| `dm/rx-slots` | `/wa-business/rx-slots` | 165/19 |
+| `dm/documents` (Drop Docs) | `/wa-business/documents` | 286/33 |
+| `dm/enterprise` | `/wa-business/enterprise-assist` | 205/39 |
+| `dm/reviews` | `/wa-business/reviews` | 187/21 |
+| `dm/whatsapp/flow-hub`, `flow-responses` | `/wa-business/flows`, `/flow-data` | 626/127, 373/37 |
+
+**D2. Store — SEPARATE backend (`/wix-store`, Wix e-commerce). Already an internal hub.**
+| Page | Contains | lines/hex |
+|---|---|---|
+| `store/index` | Products + **Wix Orders** + Collections (internal tabs) | 941/159 |
+
+**D3. Pay / Contacts (independent backends).**
 | Pay | `pay/index` (36), `pay/flow` (841/27), `pay/link` (284/19) |
 | Contacts | `contacts/index` (1408/203) — ⚠️ high hex, standalone |
-| Store | `store/index` (941/159) — ⚠️ high hex |
-| Orders | `dm/orders` (524/73) |
-| Booking | `dm/appointments` (185/29), `dm/rx-slots` (165/19) |
-| Service | `service/index` (57), `service/submit-request` (300/29), `service/track-request` (238/51), `service/amend-request` (257/36) → **hub candidate** |
-| Docs | `dm/documents` (286/33) |
-| Enterprise | `dm/enterprise` (205/39) |
-| Reviews | `dm/reviews` (187/21) |
-| FAQ | `dm/faq` (170/8) |
+
+**D4. FAQ** — `dm/faq` (170/8): admin FAQ management (own backend `/faq`), standalone.
 
 ### E. Tools & platform
 | Group | Pages |
@@ -120,16 +139,18 @@ Use the existing `PageShell` + `embedded` pattern (see `dm/whatsapp/settings.tsx
 
 | New hub | Absorbs | Net page reduction |
 |---|---|---|
+| **Service Operations** (`/dm/orders` as landing) | Orders + Service(submit/track/amend) + Appointments + RX Slots + Drop Docs + Enterprise + Reviews + Flow Hub/Data — all one `/wa-business` backend | 6 top-level items → 1 cluster |
 | **Email hub** (`/dm/ses`) | ses inbox + campaign + logs | 4 → 1 hub + inbox |
 | **RCS hub** (`/dm/rcs`) | rcs inbox + send + campaign + templates + logs | 6 → 1 hub + inbox |
 | **SEO hub** (`/seo`) | 13 SEO routes → grouped tabs | 13 → ~6 tab groups |
 | **Link hub** (`/link`) | link create + logs | 3 → 1 |
 | **Forms hub** (`/forms`) | forms create + logs + selfservice | 4 → 1 |
-| **Service hub** (`/service`) | submit + track + amend | 4 → 1 |
 | **Control Center** (`/dashboard/system-architecture`) | cors-settings + order-notifications + waba-usernames | +3 tabs |
 | **Voice hub** (`/dm/voice`) | voice + voice-in | 2 → 1 |
 
-Result: ~97 → roughly **60–65 effective destinations**, with consistent navigation.
+> **Store stays separate** (`/wix-store` backend) — it is already an internal Products/Orders/Collections hub. Its "Orders" are Wix e-commerce orders, distinct from the `/wa-business` Service Orders above.
+
+Result: ~97 → roughly **55–60 effective destinations**, with consistent navigation.
 
 ---
 
