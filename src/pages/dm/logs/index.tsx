@@ -26,98 +26,104 @@ interface MessageLog {
   createdAt: string;
 }
 
-const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
-  const [logs, setLogs] = useState<MessageLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [channelFilter, setChannelFilter] = useState<string>('all');
-  const [directionFilter, setDirectionFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+const MessageLogsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
+  const [ logs, setLogs ] = useState<MessageLog[]>( [] );
+  const [ loading, setLoading ] = useState( true );
+  const [ channelFilter, setChannelFilter ] = useState<string>( 'all' );
+  const [ directionFilter, setDirectionFilter ] = useState<string>( 'all' );
+  const [ statusFilter, setStatusFilter ] = useState<string>( 'all' );
   const toast = useToastContext();
 
-  useEffect(() => {
+  useEffect( () => {
     loadMessageLogs();
-  }, []);
+  }, [] );
 
   const loadMessageLogs = async () => {
-    setLoading(true);
-    try {
+    setLoading( true );
+    try
+    {
       const messages = await api.listMessages();
-      const messageLogs = messages.map(m => ({
+      const messageLogs = messages.map( m => ( {
         id: m.messageId,
-        channel: (m.channel?.toLowerCase() || 'whatsapp') as MessageLog['channel'],
+        channel: ( m.channel?.toLowerCase() || 'whatsapp' ) as MessageLog[ 'channel' ],
         direction: m.direction as 'INBOUND' | 'OUTBOUND',
         recipient: m.contactId,
         content: m.content || '',
         status: m.status || 'unknown',
         createdAt: m.timestamp,
-      }));
-      setLogs(messageLogs);
-    } catch (err) {
-      console.error('Failed to load message logs:', err);
-      toast.error('Failed to load message logs');
-    } finally {
-      setLoading(false);
+      } ) );
+      setLogs( messageLogs );
+    } catch ( err )
+    {
+      console.error( 'Failed to load message logs:', err );
+      toast.error( 'Failed to load message logs' );
+    } finally
+    {
+      setLoading( false );
     }
   };
 
-  const getChannelBadge = (channel: string) => {
+  const getChannelBadge = ( channel: string ) => {
+    // Distinct, theme-aligned colors so channels are tellable at a glance.
     const badges: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-      whatsapp: { bg: '#f5f5f5', color: '#000', icon: 'WA', label: 'WhatsApp' },
-      sms: { bg: '#f5f5f5', color: '#000', icon: 'SMS', label: 'SMS' },
-      email: { bg: '#f5f5f5', color: '#000', icon: '@', label: 'Email' },
-      voice: { bg: '#f5f5f5', color: '#000', icon: 'V', label: 'Voice' },
-      rcs: { bg: '#f5f5f5', color: '#000', icon: 'RCS', label: 'RCS' },
+      whatsapp: { bg: '#f0fdf4', color: '#15803d', icon: 'WA', label: 'WhatsApp' },
+      sms: { bg: '#eff6ff', color: '#1d4ed8', icon: 'SMS', label: 'SMS' },
+      email: { bg: '#fffbeb', color: '#b45309', icon: '@', label: 'Email' },
+      voice: { bg: '#f5f3ff', color: '#6d28d9', icon: 'VOICE', label: 'Voice' },
+      rcs: { bg: '#f0fdfa', color: '#0f766e', icon: 'RCS', label: 'RCS' },
     };
-    return badges[channel] || badges.whatsapp;
+    return badges[ channel ] || { bg: '#f9fafb', color: '#6b7280', icon: '?', label: channel || 'Unknown' };
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = ( status: string ) => {
     const badges: Record<string, { bg: string; color: string; label: string }> = {
-      pending: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Pending' },
-      sent: { bg: '#e5e5e5', color: '#000', label: 'Sent' },
-      delivered: { bg: '#f0f0f0', color: '#000', label: 'Delivered' },
-      read: { bg: '#f0f0f0', color: '#000', label: 'Read' },
-      failed: { bg: '#f5f5f5', color: '#4a4a4a', label: 'Failed' },
-      received: { bg: '#f0f0f0', color: '#000', label: 'Received' },
+      pending: { bg: '#fffbeb', color: '#b45309', label: 'Pending' },
+      queued: { bg: '#f9fafb', color: '#6b7280', label: 'Queued' },
+      sent: { bg: '#eff6ff', color: '#1d4ed8', label: 'Sent' },
+      delivered: { bg: '#f0fdfa', color: '#0f766e', label: 'Delivered' },
+      read: { bg: '#f0fdf4', color: '#15803d', label: 'Read' },
+      received: { bg: '#f0fdf4', color: '#15803d', label: 'Received' },
+      failed: { bg: '#fef2f2', color: '#b91c1c', label: 'Failed' },
     };
-    return badges[status] || { bg: '#f5f5f5', color: '#6b6b6b', label: status };
+    return badges[ status ] || { bg: '#f9fafb', color: '#6b7280', label: status };
   };
 
-  const getDirectionBadge = (direction: string) => {
-    if (direction === 'INBOUND') {
+  const getDirectionBadge = ( direction: string ) => {
+    if ( direction === 'INBOUND' )
+    {
       return { bg: '#e5e5e5', color: '#000', icon: '↓', label: 'In' };
     }
     return { bg: '#f0f0f0', color: '#000', icon: '↑', label: 'Out' };
   };
 
-  const filteredLogs = logs.filter(log => {
-    if (channelFilter !== 'all' && log.channel !== channelFilter) return false;
-    if (directionFilter !== 'all' && log.direction !== directionFilter) return false;
-    if (statusFilter !== 'all' && log.status !== statusFilter) return false;
+  const filteredLogs = logs.filter( log => {
+    if ( channelFilter !== 'all' && log.channel !== channelFilter ) return false;
+    if ( directionFilter !== 'all' && log.direction !== directionFilter ) return false;
+    if ( statusFilter !== 'all' && log.status !== statusFilter ) return false;
     return true;
-  });
+  } );
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-IN', { 
-      day: '2-digit', 
-      month: 'short', 
+  const formatDate = ( dateStr: string ) => {
+    const date = new Date( dateStr );
+    return date.toLocaleDateString( 'en-IN', {
+      day: '2-digit',
+      month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    });
+    } );
   };
 
-  const truncateContent = (content: string, maxLen: number = 50) => {
-    if (content.length <= maxLen) return content;
-    return content.substring(0, maxLen) + '...';
+  const truncateContent = ( content: string, maxLen: number = 50 ) => {
+    if ( content.length <= maxLen ) return content;
+    return content.substring( 0, maxLen ) + '...';
   };
 
   const content = (
     <>
       <div className="logs-page">
-        <PageHeader 
-          title="Message Logs" 
+        <PageHeader
+          title="Message Logs"
           subtitle="View all messages across WhatsApp, SMS, Email, Voice, and RCS"
           icon="logs"
         />
@@ -125,7 +131,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         <div className="filters">
           <div className="filter-group">
             <label>Channel:</label>
-            <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}>
+            <select value={ channelFilter } onChange={ ( e ) => setChannelFilter( e.target.value ) }>
               <option value="all">All Channels</option>
               <option value="whatsapp">WhatsApp</option>
               <option value="sms">SMS</option>
@@ -136,7 +142,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           </div>
           <div className="filter-group">
             <label>Direction:</label>
-            <select value={directionFilter} onChange={(e) => setDirectionFilter(e.target.value)}>
+            <select value={ directionFilter } onChange={ ( e ) => setDirectionFilter( e.target.value ) }>
               <option value="all">All</option>
               <option value="INBOUND">↓ Inbound</option>
               <option value="OUTBOUND">↑ Outbound</option>
@@ -144,7 +150,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           </div>
           <div className="filter-group">
             <label>Status:</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select value={ statusFilter } onChange={ ( e ) => setStatusFilter( e.target.value ) }>
               <option value="all">All Status</option>
               <option value="sent">Sent</option>
               <option value="delivered">Delivered</option>
@@ -153,7 +159,7 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               <option value="failed">Failed</option>
             </select>
           </div>
-          <Button variant="secondary" icon="refresh" onClick={loadMessageLogs} disabled={loading} loading={loading}>Refresh</Button>
+          <Button variant="secondary" icon="refresh" onClick={ loadMessageLogs } disabled={ loading } loading={ loading }>Refresh</Button>
         </div>
 
         <div className="table-container">
@@ -169,47 +175,47 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              { loading ? (
                 <tr>
-                  <td colSpan={6} className="loading-cell">Loading message logs...</td>
+                  <td colSpan={ 6 } className="loading-cell">Loading message logs...</td>
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty-cell">
+                  <td colSpan={ 6 } className="empty-cell">
                     <div className="empty-state">
                       <p>No messages found</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredLogs.slice(0, 100).map(log => {
-                  const channelBadge = getChannelBadge(log.channel);
-                  const statusBadge = getStatusBadge(log.status);
-                  const dirBadge = getDirectionBadge(log.direction);
+                filteredLogs.slice( 0, 100 ).map( log => {
+                  const channelBadge = getChannelBadge( log.channel );
+                  const statusBadge = getStatusBadge( log.status );
+                  const dirBadge = getDirectionBadge( log.direction );
                   return (
-                    <tr key={log.id}>
+                    <tr key={ log.id }>
                       <td>
-                        <span className="channel-badge" style={{ background: channelBadge.bg, color: channelBadge.color }}>
-                          {channelBadge.icon} {channelBadge.label}
+                        <span className="channel-badge" style={ { background: channelBadge.bg, color: channelBadge.color } }>
+                          { channelBadge.icon } { channelBadge.label }
                         </span>
                       </td>
                       <td>
-                        <span className="dir-badge" style={{ background: dirBadge.bg, color: dirBadge.color }}>
-                          {dirBadge.icon}
+                        <span className="dir-badge" style={ { background: dirBadge.bg, color: dirBadge.color } }>
+                          { dirBadge.icon }
                         </span>
                       </td>
-                      <td className="recipient-cell">{log.recipient}</td>
-                      <td className="content-cell" title={log.content}>{truncateContent(log.content)}</td>
+                      <td className="recipient-cell">{ log.recipient }</td>
+                      <td className="content-cell" title={ log.content }>{ truncateContent( log.content ) }</td>
                       <td>
-                        <span className="status-badge" style={{ background: statusBadge.bg, color: statusBadge.color }}>
-                          {statusBadge.label}
+                        <span className="status-badge" style={ { background: statusBadge.bg, color: statusBadge.color } }>
+                          { statusBadge.label }
                         </span>
                       </td>
-                      <td className="date-cell">{formatDate(log.createdAt)}</td>
+                      <td className="date-cell">{ formatDate( log.createdAt ) }</td>
                     </tr>
                   );
-                })
-              )}
+                } )
+              ) }
             </tbody>
           </table>
         </div>
@@ -218,35 +224,35 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           <div className="summary-card">
             <div className="card-icon">Total</div>
             <div className="card-info">
-              <span className="card-value">{logs.length}</span>
+              <span className="card-value">{ logs.length }</span>
               <span className="card-label">Total</span>
             </div>
           </div>
           <div className="summary-card outbound">
             <div className="card-icon">Out</div>
             <div className="card-info">
-              <span className="card-value">{logs.filter(l => l.direction === 'OUTBOUND').length}</span>
+              <span className="card-value">{ logs.filter( l => l.direction === 'OUTBOUND' ).length }</span>
               <span className="card-label">Outbound</span>
             </div>
           </div>
           <div className="summary-card inbound">
             <div className="card-icon">In</div>
             <div className="card-info">
-              <span className="card-value">{logs.filter(l => l.direction === 'INBOUND').length}</span>
+              <span className="card-value">{ logs.filter( l => l.direction === 'INBOUND' ).length }</span>
               <span className="card-label">Inbound</span>
             </div>
           </div>
           <div className="summary-card error">
             <div className="card-icon">Err</div>
             <div className="card-info">
-              <span className="card-value">{logs.filter(l => l.status === 'failed').length}</span>
+              <span className="card-value">{ logs.filter( l => l.status === 'failed' ).length }</span>
               <span className="card-label">Failed</span>
             </div>
           </div>
         </div>
       </div>
 
-      <style jsx>{`
+      <style jsx>{ `
         .logs-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
         .page-header { margin-bottom: 20px; }
         .page-header h1 { font-size: 22px; margin: 0 0 4px 0; }
@@ -301,11 +307,11 @@ const MessageLogsPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     </>
   );
 
-  if (embedded) return content;
+  if ( embedded ) return content;
 
   return (
-    <Layout user={user} onSignOut={signOut}>
-      {content}
+    <Layout user={ user } onSignOut={ signOut }>
+      { content }
     </Layout>
   );
 };
