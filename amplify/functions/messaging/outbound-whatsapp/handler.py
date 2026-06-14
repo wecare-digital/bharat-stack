@@ -25,6 +25,7 @@ from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.middleware import require_auth
+from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 
 logger = get_logger(__name__)
 
@@ -3270,6 +3271,26 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         messages_table.put_item(Item={k: v for k, v in record.items() if v is not None})
     except Exception as e:
         logger.error(f"Failed to store message record: {str(e)}")
+
+    # Unified Inbox dual-write — mirror to the canonical MessagesTable (Phase 1).
+    # Same messageId as the WhatsApp table row, so messages-read dedups by messageId.
+    # Guarded inside put_message, so it can never break the WhatsApp store/send above.
+    put_message(
+        channel='whatsapp',
+        direction='outbound',
+        contact_id=contact_id,
+        content=content,
+        status=status,
+        message_id=message_id,
+        message_type=msg_type,
+        whatsapp_message_id=whatsapp_message_id,
+        media_id=media_id,
+        s3_key=s3_key,
+        media_url=media_url,
+        error_code=error_code or None,
+        aws_phone_number_id=phone_number_id,
+        timestamp=now,
+    )
 
 
 def _log_validation_failure(contact_id: str, channel: str, reason: str, request_id: str) -> None:

@@ -98,6 +98,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 messages = messages + _scan_other_channels(contact_id, limit)
             except Exception as e:
                 logger.warning(json.dumps({'event': 'unified_aggregate_failed', 'error': str(e)}))
+            # Dedup by messageId — during Phase 1 the same message exists in BOTH its
+            # per-channel table AND the canonical MessagesTable (dual-write). Keep one
+            # copy, preferring the richest (most populated) record.
+            messages = _dedup_by_message_id(messages)
 
         # Sort by timestamp descending
         messages.sort(key=lambda x: x.get('timestamp', x.get('createdAt', 0)), reverse=True)
@@ -328,6 +332,30 @@ def _scan_table_fallback(table, filter_parts: List[str], expression_values: Dict
     return table_items
 
 
+def _dedup_by_message_id(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Collapse duplicate rows that share a messageId (Phase-1 dual-write overlap:
+    a message lives in both its per-channel table and the canonical MessagesTable).
+    Keeps the record with the most populated fields so no data is lost."""
+    by_id: Dict[str, Dict[str, Any]] = {}
+    out: List[Dict[str, Any]] = []
+    for m in messages:
+        mid = m.get('messageId') or m.get('id')
+        if not mid:
+            out.append(m)  # no id — can't dedup, keep as-is
+            continue
+        existing = by_id.get(mid)
+        if existing is None:
+            by_id[mid] = m
+        else:
+            # Prefer the richer record (more non-empty attributes).
+            cur = sum(1 for v in m.values() if v not in (None, '', 0))
+            prev = sum(1 for v in existing.values() if v not in (None, '', 0))
+            if cur > prev:
+                by_id[mid] = m
+    out.extend(by_id.values())
+    return out
+
+
 def _normalize_channel_item(item: Dict[str, Any], default_channel: str) -> Dict[str, Any]:
     """Normalize a per-channel store row into the common inbox message shape.
     The shared MessagesTable holds email (SES), SMS and WhatsApp-voice rows, so we
@@ -369,15 +397,24 @@ def _scan_other_channels(contact_id: str, limit: int) -> List[Dict[str, Any]]:
     """Read-time aggregation for the Unified Inbox — MESSAGE channels only
     (SMS / RCS / Email). Calls (voice / WhatsApp calling) are a separate concern
     and intentionally excluded here. Each table is guarded so a failure in one
-    never breaks the inbox. Uses a contactId filter when provided."""
+    never breaks the inbox. Uses a contactId filter when provided.
+
+    Dual-write note: SMS/RCS/WhatsApp now also mirror into MessagesTable (Phase 1
+    convergence). To avoid double-counting, we read SMS from SmsAwsTable, RCS from
+    RcsMessagesTable, and take ONLY email rows from MessagesTable (the dual-write
+    copies of sms/rcs/whatsapp in MessagesTable are skipped). WhatsApp itself comes
+    from its own tables via _scan_messages. A final messageId dedup in the handler
+    is the safety net.
+    """
     out: List[Dict[str, Any]] = []
     # (default_channel only used when a row has no/!inferable channel)
     sources = [
-        ('sms', SMS_AWS_TABLE),
-        ('rcs', RCS_TABLE),
-        ('email', EMAIL_MESSAGES_TABLE),  # shared: email + sms + wa-voice → channel respected
+        ('sms', SMS_AWS_TABLE, None),
+        ('rcs', RCS_TABLE, None),
+        # MessagesTable is shared (email + dual-write copies) → keep email rows only.
+        ('email', EMAIL_MESSAGES_TABLE, 'email'),
     ]
-    for default_channel, tname in sources:
+    for default_channel, tname, only_channel in sources:
         try:
             table = dynamodb.Table(tname)
             if contact_id:
@@ -389,7 +426,12 @@ def _scan_other_channels(contact_id: str, limit: int) -> List[Dict[str, Any]]:
             else:
                 resp = table.scan(Limit=limit)
             for it in resp.get('Items', []):
-                out.append(_normalize_channel_item(it, default_channel))
+                norm = _normalize_channel_item(it, default_channel)
+                # Skip dual-write copies so we don't double-count rows that also
+                # live in a dedicated per-channel table (or the WhatsApp tables).
+                if only_channel and norm.get('channel') != only_channel:
+                    continue
+                out.append(norm)
         except Exception as e:
             logger.warning(json.dumps({'event': 'other_channel_scan_failed', 'channel': default_channel, 'error': str(e)}))
     return out

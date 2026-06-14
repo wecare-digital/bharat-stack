@@ -28,6 +28,7 @@ from lambda_utils.logging import get_logger
 from lambda_utils.response import extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.validation import normalize_phone
+from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 
 # Sub-modules (monolith decomposition)
 from modules.content import extract_content as _extract_content_v2
@@ -954,6 +955,27 @@ def _process_message(
     
     messages_table = dynamodb.Table(MESSAGES_TABLE)
     messages_table.put_item(Item={k: v for k, v in message_record.items() if v is not None})
+    
+    # Unified Inbox dual-write — mirror inbound WhatsApp to the canonical MessagesTable
+    # (Phase 1). Same messageId as the WhatsApp inbound row, so messages-read dedups by
+    # messageId. Guarded inside put_message — can never break inbound processing.
+    put_message(
+        channel='whatsapp',
+        direction='inbound',
+        contact_id=contact_id,
+        content=content,
+        status='received',
+        message_id=message_id,
+        message_type=msg_type,
+        whatsapp_message_id=whatsapp_message_id,
+        media_id=media_id,
+        s3_key=s3_key,
+        sender_phone=sender_phone,
+        sender_name=sender_name,
+        receiving_phone=receiving_phone,
+        aws_phone_number_id=aws_phone_number_id,
+        timestamp=timestamp,
+    )
     
     # call_permission_reply interactive messages are no longer processed.
     # Permission is auto-granted post-call in the whatsapp-calling handler.
