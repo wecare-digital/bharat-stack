@@ -188,26 +188,32 @@ WECARE.DIGITAL — Admin  (Layout + design-tokens)
 │     Overview · Control Center (+ CORS, Order-Notifs, WABA-Usernames tabs)
 │     · Code Repo · Auto Response · Design Reference
 │
-├─ Messages
-│   ├─ WhatsApp        /whatsapp/*  (+ /wa-business profile & flows)
-│   │     • Inbox            /dm/whatsapp
-│   │     • Settings hub     /dm/whatsapp/settings   (17 tabs — already built ✅)
+├─ ★ WHATSAPP  — one system  (Lambdas: outbound-whatsapp, whatsapp-template-management,
+│   │            inbound-whatsapp-handler, whatsapp-business-api, whatsapp-voice, whatsapp-calling)
+│   │
+│   ├─ Inbox                  /dm/whatsapp            /whatsapp/* , /messages
+│   │
+│   ├─ Business Settings (hub) /dm/whatsapp/settings  (PageShell — 17 tabs, already built ✅)
+│   │     Auto-Response · Bot Menu · Scripts · Campaign · Templates · List Msgs ·
+│   │     Flows · Flows Hub · Flow Data · Welcome · Calling · Groups · Logs ·
+│   │     Profile · Webhooks · WABA · Migration
+│   │
+│   └─ Service Operations (hub) — /wa-business/*  (flow-driven; Orders orchestrates)
+│         Orders (landing)  /wa-business/orders
+│         Service Requests  Submit · Track · Amend · Submissions   /wa-business/service
+│         Bookings          Appointments · RX Slots                /wa-business/appointments,/rx-slots
+│         Drop Docs         /wa-business/documents
+│         Enterprise        /wa-business/enterprise-assist
+│         Reviews           /wa-business/reviews
+│         FAQ               /wa-business/faq
+│
+├─ Other Channels
 │   ├─ Email (SES)     /email/*           → hub: Inbox · Campaign · Logs
 │   ├─ RCS             /rcs/*             → hub: Inbox · Send · Campaign · Templates · Logs
 │   ├─ Voice           /whatsapp-voice, /voice-aws, /voice-in → hub: Outbound · Voice-In (OBD)
 │   ├─ SMS             /sms-aws/*
 │   ├─ Push            (push lambda)
 │   └─ Logs (all)      /messages
-│
-├─ Service Operations  ★ ONE backend: wecare-whatsapp-business-api  (/wa-business/*)
-│     • Orders (landing / orchestrator)   /wa-business/orders
-│     • Service Requests  Submit · Track · Amend · Submissions   /wa-business/service
-│     • Bookings          Appointments · RX Slots                /wa-business/appointments,/rx-slots
-│     • Drop Docs                                                /wa-business/documents
-│     • Enterprise                                               /wa-business/enterprise-assist
-│     • Reviews                                                  /wa-business/reviews
-│     • FAQ                                                      /wa-business/faq
-│     • Flow Hub / Flow Data                                     /wa-business/flows,/flow-data
 │
 ├─ Commerce
 │   ├─ Store     /wix-store    (Products · Wix Orders · Collections — internal hub)
@@ -224,6 +230,12 @@ WECARE.DIGITAL — Admin  (Layout + design-tokens)
 │
 └─ Hidden (coming-soon): Task · No-Code · Carbon · Studio · Sustainability
 ```
+
+> **WhatsApp is now one top-level system** with three areas: **Inbox** (live chat),
+> **Business Settings** (the 17-tab config hub), and **Service Operations** (the
+> `/wa-business` flow-driven order/service/booking/docs/enterprise/reviews/FAQ cluster).
+> All of it is served by the WhatsApp family of Lambdas. Other channels (SMS, Email,
+> RCS, Voice, Push) sit separately under **Other Channels**.
 
 ### Final delete / hide decision
 | Item | Action | Reason |
@@ -249,3 +261,56 @@ Net: **3 files deleted**, 1 tab removed; everything else consolidated via tabs.
 3. **Definition of done per page:** hardcoded-hex count → ~0; renders correctly at mobile widths + Capacitor; keyboard focus + status colors via tokens; verified with `tsc` + build.
 4. **Guard (to add):** a `check-hardcoded-colors` script that scans `src/pages/**` for `#rrggbb` and reports per-file counts — used to measure progress and prevent regressions (can be wired into CI / a pre-commit hook).
 5. **Tracking:** the effort tiers in §3 double as the progress tracker (hex count is the metric); update this doc as pages reach ~0.
+
+---
+
+## 7. WhatsApp system — page-file map
+
+Every `.tsx` that belongs to the unified WhatsApp system, and where it lives.
+
+```
+WHATSAPP  (one top-level system)
+│
+├─ INBOX
+│   src/pages/dm/whatsapp/index.tsx        → renders inbox (keep)
+│   src/pages/dm/whatsapp/inbox.tsx        → the inbox UI (standalone)
+│   src/pages/dm/whatsapp/[waId].tsx       → ❌ DELETE (dead duplicate; port voice recorder first)
+│
+├─ BUSINESS SETTINGS  (host: src/pages/dm/whatsapp/settings.tsx — PageShell tabs)
+│   ├─ auto-response.tsx        (Auto-Response)
+│   ├─ (Bot Menu — inline in settings.tsx)
+│   ├─ scripts.tsx              (Scripts)
+│   ├─ campaign.tsx             (Campaign)
+│   ├─ templates.tsx            (Templates)        ⚠️ heavy 2179/60
+│   ├─ interactive-lists.tsx    (List Msgs)
+│   ├─ flows.tsx                (Flows)
+│   ├─ flow-hub.tsx             (Flows Hub)        ⚠️ 626/127
+│   ├─ flow-responses.tsx       (Flow Data)
+│   ├─ welcome.tsx              (Welcome)
+│   ├─ ai-config.tsx            ❌ DELETE + remove tab (feature removed)
+│   ├─ calling.tsx              (Calling)          ⚠️ heavy 1909/296
+│   ├─ groups.tsx               (Groups)
+│   ├─ logs.tsx                 (Logs — Delivery Report ✅ done)
+│   ├─ business-profile.tsx     (Profile)
+│   ├─ webhooks.tsx             (Webhooks)
+│   ├─ waba-dashboard.tsx       (WABA)             ⚠️ 1025/33
+│   └─ migration.tsx            (Migration)
+│
+└─ SERVICE OPERATIONS  (/wa-business/* — new hub, Orders as landing)
+    ├─ src/pages/dm/orders/index.tsx              (Orders — orchestrator) 524/73
+    ├─ src/pages/service/index.tsx                (Service landing)
+    ├─ src/pages/service/submit-request.tsx       (Submit)
+    ├─ src/pages/service/track-request.tsx        (Track)
+    ├─ src/pages/service/amend-request.tsx        (Amend)
+    ├─ src/pages/dm/appointments/index.tsx        (Bookings · Appointments)
+    ├─ src/pages/dm/rx-slots/index.tsx            (Bookings · RX Slots)
+    ├─ src/pages/dm/documents/index.tsx           (Drop Docs)
+    ├─ src/pages/dm/enterprise/index.tsx          (Enterprise)
+    ├─ src/pages/dm/reviews/index.tsx             (Reviews)
+    └─ src/pages/dm/faq/index.tsx                 (FAQ)   /wa-business/faq
+```
+
+**Build approach for the WhatsApp system:**
+- Inbox + Business Settings already share the `settings.tsx` PageShell hub — keep.
+- Create a **Service Operations** PageShell hub (same pattern) hosting Orders + Service + Bookings + Docs + Enterprise + Reviews + FAQ as tabs, with **Orders as the default tab** (it already aggregates submissions/docs/tracking).
+- Nav: collapse the 6 scattered top-level entries (Orders, Service, Booking, Drop Docs, Enterprise, Reviews, FAQ) into one **WhatsApp → Service Operations** entry.
