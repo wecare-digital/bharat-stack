@@ -45,6 +45,7 @@ from typing import Dict, Any
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 
 logger = get_logger(__name__)
 
@@ -604,6 +605,20 @@ def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
     except Exception as e:
         # Don't fail the send if storage fails
         logger.error(f"Failed to store RCS message {message_id}: {type(e).__name__}: {e}")
+
+    # Unified Inbox dual-write — mirror to the canonical MessagesTable (Phase 1).
+    # Guarded inside put_message, so it can never break the RCS send/store above.
+    put_message(
+        channel='rcs',
+        direction='outbound',
+        contact_id=contact_id or '',
+        content=content[:2000],
+        status=status,
+        message_id=message_id,
+        message_type='text',
+        receiving_phone=phone,
+        timestamp=now,
+    )
 
 
 def _lookup_contact_by_phone(phone: str) -> str:
