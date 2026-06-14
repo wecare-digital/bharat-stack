@@ -91,59 +91,23 @@ export const navigationConfig: NavItem[] = [
     label: 'Store',
     icon: 'store',
   },
-  // ── Order-Centric Hub ──
+  // ── Service Operations (WhatsApp-Flow driven; Orders orchestrates) ──
   {
-    path: '/dm/orders',
-    label: 'Orders',
+    path: '/dm/service-ops',
+    label: 'Service Ops',
     icon: 'order',
-  },
-  // ── Service Requests (order-linked) ──
-  {
-    path: '/service',
-    label: 'Service',
-    icon: 'form',
     children: [
+      { path: '/dm/service-ops', label: 'Orders' },
       { path: '/service/submit-request', label: 'Submit Request' },
       { path: '/service/track-request', label: 'Track Request' },
       { path: '/service/amend-request', label: 'Amend Request' },
-      { path: '/dm/whatsapp/flow-responses', label: 'All Submissions' },
-      { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub' },
-      { path: '/forms/selfservice', label: 'Self-Service' },
-    ],
-  },
-  // ── Booking ──
-  {
-    path: '/booking',
-    label: 'Booking',
-    icon: 'checklist',
-    children: [
       { path: '/dm/appointments', label: 'Appointments' },
       { path: '/dm/rx-slots', label: 'RX Slots' },
+      { path: '/dm/documents', label: 'Drop Docs' },
+      { path: '/dm/enterprise', label: 'Enterprise' },
+      { path: '/dm/reviews', label: 'Reviews' },
+      { path: '/dm/faq', label: 'FAQ' },
     ],
-  },
-  // ── Document Management ──
-  {
-    path: '/dm/documents',
-    label: 'Drop Docs',
-    icon: 'document',
-  },
-  // ── Enterprise ──
-  {
-    path: '/dm/enterprise',
-    label: 'Enterprise',
-    icon: 'advisor',
-  },
-  // ── Reviews ──
-  {
-    path: '/dm/reviews',
-    label: 'Reviews',
-    icon: 'star',
-  },
-  // ── FAQ ──
-  {
-    path: '/dm/faq',
-    label: 'FAQ',
-    icon: 'health',
   },
   {
     path: '/access',
