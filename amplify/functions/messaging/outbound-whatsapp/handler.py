@@ -41,6 +41,11 @@ MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-Me
 RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'stack-wecare-digital-RateLimitTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/outgoing/')
+# Public, reusable template-attachment folder (same bucket). Files here are served
+# via CloudFront so WhatsApp can fetch them by URL and the same attachment can be
+# re-sent across many template messages without re-uploading to Meta each time.
+PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX', 'public/wa-tpl/')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
@@ -1703,20 +1708,63 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         return _error_response(500, f'Failed to send message: {error_msg}')
 
 
+def _public_media_folder(media_type: str) -> str:
+    """Map a media type/category to its public wa-tpl/ subfolder.
+
+    Accepts either a generic category ('image'/'video'/'document'/'audio'/
+    'sticker') or a full MIME ('application/pdf', 'image/png', ...).
+    """
+    folders = {
+        'image': 'img', 'video': 'vid', 'document': 'docs',
+        'audio': 'aud', 'sticker': 'stk',
+    }
+    mt = (media_type or '').lower()
+    if mt in folders:
+        return folders[mt]
+    if mt == 'image/webp':
+        return 'stk'
+    prefix = mt.split('/')[0] if '/' in mt else mt
+    return folders.get(prefix, 'docs')
+
+
+# Meta WhatsApp Cloud API media size limits, by public folder (bytes).
+# Source: WhatsApp Business Platform "Supported Media Types".
+_WA_MEDIA_MAX_SIZES = {
+    'docs': 100 * 1024 * 1024,  # 100 MB
+    'img': 5 * 1024 * 1024,     # 5 MB
+    'vid': 16 * 1024 * 1024,    # 16 MB
+    'aud': 16 * 1024 * 1024,    # 16 MB
+    'stk': 500 * 1024,          # 500 KB
+}
+
+
+def _wa_media_max_size(media_type: str) -> int:
+    """Return Meta's max upload size (bytes) for the given media type/category."""
+    return _WA_MEDIA_MAX_SIZES.get(_public_media_folder(media_type), 100 * 1024 * 1024)
+
+
 def _get_media_upload_url(body: Dict[str, Any], request_id: str) -> Dict[str, Any]:
     """
     Generate a presigned S3 PUT URL so the browser can upload media directly to S3,
     bypassing the API Gateway (10MB) and Lambda (6MB) request-payload limits.
 
-    Request body: { "action": "getUploadUrl", "mediaType": "<mime>", "filename": "<name>" }
-    Response:     { "uploadUrl": "<presigned PUT>", "s3Key": "<key>", "contentType": "<mime>", "expiresIn": 300 }
+    Request body: { "action": "getUploadUrl", "mediaType": "<mime>", "filename": "<name>", "reuse": <bool> }
+    Response:     { "uploadUrl": "<presigned PUT>", "s3Key": "<key>", "contentType": "<mime>", "publicUrl": "<cdn url>", "expiresIn": 300 }
 
-    The returned s3Key is placed under MEDIA_PREFIX so that _upload_media's is_s3_key
-    detection picks it up when /whatsapp/send is subsequently called with mediaFile=s3Key.
+    By default the s3Key is placed under MEDIA_PREFIX (private) so that _upload_media's
+    is_s3_key detection picks it up when /whatsapp/send is subsequently called with
+    mediaFile=s3Key.
+
+    When reuse=True (or target="public"), the file is placed in the public, reusable
+    template-attachment folder (PUBLIC_MEDIA_PREFIX/{folder}/) and a stable CloudFront
+    URL is returned as publicUrl. Passing that URL as a template header link lets
+    WhatsApp fetch the file directly (correct content type for every attachment type)
+    and lets the same attachment be re-sent across many templates without re-uploading.
     """
     try:
         media_type = (body.get('mediaType') or '').strip()
         filename = (body.get('filename') or body.get('mediaFileName') or '').strip()
+        reuse = bool(body.get('reuse')) or (body.get('target') == 'public')
 
         # Resolve a sane content type + extension
         content_type = _get_content_type(media_type) if media_type else 'application/octet-stream'
@@ -1725,6 +1773,65 @@ def _get_media_upload_url(body: Dict[str, Any], request_id: str) -> Dict[str, An
             extension = '.' + filename.rsplit('.', 1)[-1].lower()
 
         short_id = uuid.uuid4().hex[:8]
+        if reuse:
+            # Public reusable folder, keeping the original filename so document
+            # headers show a meaningful name to the recipient.
+            folder = _public_media_folder(media_type)
+            safe_filename = ''.join(
+                c if c.isalnum() or c in '._-' else '_' for c in filename
+            ) if filename else ''
+            if safe_filename:
+                s3_key = f"{PUBLIC_MEDIA_PREFIX}{folder}/wecare-digital-{short_id}_{safe_filename}"
+            else:
+                s3_key = f"{PUBLIC_MEDIA_PREFIX}{folder}/wecare-digital-{short_id}{extension or '.bin'}"
+
+            # Hard server-side size guard: a presigned POST with a
+            # content-length-range condition makes S3 ITSELF reject any upload
+            # over Meta's per-type limit (the browser uploads directly, so this
+            # is the only place the size can be enforced server-side).
+            max_size = _wa_media_max_size(media_type)
+            presigned_post = s3.generate_presigned_post(
+                Bucket=MEDIA_BUCKET,
+                Key=s3_key,
+                Fields={
+                    'Content-Type': content_type,
+                    'Cache-Control': 'public, max-age=31536000',
+                },
+                Conditions=[
+                    {'Content-Type': content_type},
+                    {'Cache-Control': 'public, max-age=31536000'},
+                    ['content-length-range', 1, max_size],
+                ],
+                ExpiresIn=300,  # 5 minutes
+            )
+
+            logger.info(json.dumps({
+                'event': 'media_upload_post_generated',
+                's3Key': s3_key,
+                'mediaType': media_type,
+                'contentType': content_type,
+                'maxSize': max_size,
+                'requestId': request_id,
+            }))
+
+            return {
+                'statusCode': 200,
+                'headers': cors_headers(origin),
+                'body': json.dumps({
+                    'uploadMethod': 'POST',
+                    'uploadUrl': presigned_post['url'],
+                    'fields': presigned_post['fields'],
+                    's3Key': s3_key,
+                    'contentType': content_type,
+                    # Stable public CDN URL — pass as a template header link to
+                    # send without re-uploading to Meta, and reuse across sends.
+                    'publicUrl': f"https://{CDN_DOMAIN}/{s3_key}",
+                    'maxSize': max_size,
+                    'expiresIn': 300,
+                })
+            }
+
+        # Private path (default): presigned PUT into MEDIA_PREFIX.
         s3_key = f"{MEDIA_PREFIX}wecare-digital-{short_id}{extension or '.bin'}"
 
         upload_url = s3.generate_presigned_url(
@@ -1749,9 +1856,11 @@ def _get_media_upload_url(body: Dict[str, Any], request_id: str) -> Dict[str, An
             'statusCode': 200,
             'headers': cors_headers(origin),
             'body': json.dumps({
+                'uploadMethod': 'PUT',
                 'uploadUrl': upload_url,
                 's3Key': s3_key,
                 'contentType': content_type,
+                'publicUrl': None,
                 'expiresIn': 300,
             })
         }
@@ -1904,7 +2013,18 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
             # the S3 object's stored ContentType, then to extension-based guess.
             validated_ct = _get_content_type(media_type)
             s3_ct = (obj.get('ContentType') or '').strip()
-            if validated_ct and validated_ct != 'application/octet-stream':
+            # media_type may be a generic category ('document'/'image'/'video'/
+            # 'audio') OR a full MIME ('application/pdf'). For a generic category
+            # _get_content_type only yields a *default* (document→application/pdf,
+            # image→image/jpeg, video→video/mp4), which is WRONG for non-default
+            # files (DOCX/XLSX/PPTX/TXT documents, PNG images, 3GP videos) and
+            # makes Meta reject the upload with error 131053 (mismatched media
+            # type). In that case trust the file's real stored S3 ContentType,
+            # which was set correctly when the file was uploaded.
+            is_generic_type = '/' not in (media_type or '')
+            if is_generic_type and s3_ct and s3_ct != 'application/octet-stream':
+                content_type = s3_ct
+            elif validated_ct and validated_ct != 'application/octet-stream':
                 content_type = validated_ct
             elif s3_ct and s3_ct != 'application/octet-stream':
                 content_type = s3_ct

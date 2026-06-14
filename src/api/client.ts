@@ -512,13 +512,38 @@ export interface SendReactionRequest {
  * Avoids the API Gateway (10MB) / Lambda (6MB) base64 payload ceiling so that
  * large media (video/audio 16MB, documents up to 100MB) can be sent.
  */
-export async function getMediaUploadUrl ( mediaType: string, filename: string ): Promise<{ uploadUrl: string; s3Key: string; contentType: string } | null> {
+export async function getMediaUploadUrl ( mediaType: string, filename: string, opts?: { reuse?: boolean } ): Promise<{ uploadMethod?: 'PUT' | 'POST'; uploadUrl: string; fields?: Record<string, string>; s3Key: string; contentType: string; publicUrl?: string; maxSize?: number } | null> {
   const data = await apiCall<any>( `${API_BASE}/whatsapp/send`, {
     method: 'POST',
-    body: JSON.stringify( { action: 'getUploadUrl', mediaType, filename } ),
+    body: JSON.stringify( { action: 'getUploadUrl', mediaType, filename, reuse: opts?.reuse || undefined } ),
   } );
   if ( !data?.uploadUrl || !data?.s3Key ) return null;
-  return { uploadUrl: data.uploadUrl, s3Key: data.s3Key, contentType: data.contentType };
+  return {
+    uploadMethod: data.uploadMethod || 'PUT',
+    uploadUrl: data.uploadUrl,
+    fields: data.fields || undefined,
+    s3Key: data.s3Key,
+    contentType: data.contentType,
+    publicUrl: data.publicUrl || undefined,
+    maxSize: data.maxSize || undefined,
+  };
+}
+
+/** Upload a File/Blob to S3 via a presigned POST (form fields + file). Returns true on success.
+ *  Presigned POST supports a content-length-range condition so S3 itself rejects oversize files. */
+export async function uploadFileViaPresignedPost ( url: string, fields: Record<string, string>, file: File | Blob ): Promise<boolean> {
+  try
+  {
+    const form = new FormData();
+    Object.entries( fields ).forEach( ( [ k, v ] ) => form.append( k, v ) );
+    form.append( 'file', file );  // 'file' must be the LAST field per S3 POST policy
+    const res = await fetch( url, { method: 'POST', body: form } );
+    return res.ok;  // S3 returns 204 No Content on success
+  } catch ( err )
+  {
+    console.error( 'S3 POST upload error:', err );
+    return false;
+  }
 }
 
 /** Upload a File/Blob directly to S3 via a presigned PUT URL. Returns true on success. */
@@ -547,6 +572,68 @@ export async function uploadMediaForSend ( file: File | Blob, mediaType: string,
   if ( !presign ) return null;
   const ok = await uploadFileToS3( presign.uploadUrl, file, presign.contentType );
   return ok ? presign.s3Key : null;
+}
+
+/**
+ * Meta WhatsApp Cloud API media size limits, by category (bytes).
+ * Source: WhatsApp Business Platform "Supported Media Types".
+ */
+const WA_MEDIA_LIMITS: Record<'document' | 'image' | 'video' | 'audio' | 'sticker', number> = {
+  document: 100 * 1024 * 1024, // 100 MB
+  image: 5 * 1024 * 1024,      // 5 MB
+  video: 16 * 1024 * 1024,     // 16 MB
+  audio: 16 * 1024 * 1024,     // 16 MB
+  sticker: 500 * 1024,         // 500 KB
+};
+
+/** Resolve a MIME type to its WhatsApp media category for limit lookup. */
+function waMediaCategory ( mime: string ): 'document' | 'image' | 'video' | 'audio' | 'sticker' {
+  const m = ( mime || '' ).toLowerCase();
+  if ( m === 'image/webp' ) return 'sticker';
+  if ( m.startsWith( 'image/' ) ) return 'image';
+  if ( m.startsWith( 'video/' ) ) return 'video';
+  if ( m.startsWith( 'audio/' ) ) return 'audio';
+  return 'document';
+}
+
+/**
+ * Upload a template-header attachment to the REUSABLE public folder (wa-tpl/) and
+ * return a stable public CDN URL. Uses a presigned PUT so large files (docs up to
+ * 100MB, video/audio 16MB) bypass the API Gateway/Lambda payload ceiling.
+ *
+ * Enforces Meta's per-type size limits client-side first (the presigned PUT goes
+ * straight to S3, so the server can't reject an oversize file). Throws an Error
+ * with a human-readable message if the file is too large for its type.
+ *
+ * Why this over uploadMediaForSend for template headers:
+ *  - WhatsApp fetches the public URL directly, so EVERY attachment type sends with
+ *    its correct content type (PDF, DOCX, XLSX, PPTX, TXT, PNG, JPEG, MP4, 3GP...),
+ *    avoiding the "document always treated as application/pdf" mismatch.
+ *  - The returned URL is stable and reusable — the same attachment can be sent
+ *    across many template messages without re-uploading to Meta each time.
+ */
+export async function uploadReusableHeaderMedia ( file: File | Blob, mediaType: string, filename: string ): Promise<string | null> {
+  const category = waMediaCategory( mediaType );
+  const limit = WA_MEDIA_LIMITS[ category ];
+  if ( file.size > limit )
+  {
+    const limitMb = limit >= 1024 * 1024 ? `${( limit / ( 1024 * 1024 ) ).toFixed( 0 )}MB` : `${( limit / 1024 ).toFixed( 0 )}KB`;
+    const fileMb = file.size >= 1024 * 1024 ? `${( file.size / ( 1024 * 1024 ) ).toFixed( 1 )}MB` : `${( file.size / 1024 ).toFixed( 0 )}KB`;
+    throw new Error( `${category} file is ${fileMb} — exceeds WhatsApp's ${limitMb} limit for ${category}s. Please use a smaller file.` );
+  }
+  const presign = await getMediaUploadUrl( mediaType, filename, { reuse: true } );
+  if ( !presign ) return null;
+  // Reuse uploads come back as a presigned POST (server enforces the size limit
+  // via a content-length-range condition). Fall back to PUT if POST isn't returned.
+  let ok: boolean;
+  if ( presign.uploadMethod === 'POST' && presign.fields )
+  {
+    ok = await uploadFileViaPresignedPost( presign.uploadUrl, presign.fields, file );
+  } else
+  {
+    ok = await uploadFileToS3( presign.uploadUrl, file, presign.contentType );
+  }
+  return ok ? ( presign.publicUrl || null ) : null;
 }
 
 export async function sendWhatsAppMessage ( request: SendMessageRequest ): Promise<{ messageId: string; status: string } | null> {

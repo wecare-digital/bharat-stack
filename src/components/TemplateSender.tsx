@@ -224,8 +224,10 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     ) );
   };
 
-  // Upload a header media file (image/video/document) → returns an S3 key the
-  // backend resolves to a WhatsApp media id at send time.
+  // Upload a header media file (image/video/document) to the reusable public
+  // wa-tpl/ folder → returns a stable public CDN URL. WhatsApp fetches the URL
+  // directly so every attachment type (PDF/DOCX/XLSX/PPTX/TXT/PNG/JPEG/MP4/3GP)
+  // sends with the correct content type, and the URL can be reused across sends.
   const handleHeaderUpload = async ( e: React.ChangeEvent<HTMLInputElement> ) => {
     const file = e.target.files?.[ 0 ];
     if ( !file ) return;
@@ -233,10 +235,10 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     try
     {
       const mime = file.type || 'application/octet-stream';
-      const key = await api.uploadMediaForSend( file, mime, file.name );
-      if ( key )
+      const url = await api.uploadReusableHeaderMedia( file, mime, file.name );
+      if ( url )
       {
-        setHeaderMedia( key );
+        setHeaderMedia( url );
         setHeaderFilename( file.name );
       } else
       {
