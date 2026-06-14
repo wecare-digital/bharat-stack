@@ -314,3 +314,95 @@ WHATSAPP  (one top-level system)
 - Inbox + Business Settings already share the `settings.tsx` PageShell hub — keep.
 - Create a **Service Operations** PageShell hub (same pattern) hosting Orders + Service + Bookings + Docs + Enterprise + Reviews + FAQ as tabs, with **Orders as the default tab** (it already aggregates submissions/docs/tracking).
 - Nav: collapse the 6 scattered top-level entries (Orders, Service, Booking, Drop Docs, Enterprise, Reviews, FAQ) into one **WhatsApp → Service Operations** entry.
+
+---
+
+## 8. REBUILT IA (supersedes §5) — Unified Inbox + WhatsApp system + Task
+
+User direction: (a) make a **single Unified Inbox** across WhatsApp + SMS + Email + RCS + Voice;
+(b) Service Operations stays **part of WhatsApp**; (c) **Task** = build a real Notion-style
+task page (list/board + calendar + reminders), not hidden; (d) Studio / Sustainability /
+No-Code / Carbon are **public website pages — out of admin scope, do not touch**.
+
+```
+WECARE.DIGITAL — Admin
+│
+├─ 📥 Inbox (UNIFIED)        — WhatsApp · SMS · Email · RCS · Voice
+│      One conversation list with a channel filter; shared Contacts; reply in-channel.
+│      ⚙ Requires backend work (see note below).
+│
+├─ ★ WhatsApp  (business system)
+│   ├─ Business Settings (hub) /dm/whatsapp/settings — 17 tabs ✅
+│   └─ Service Operations (hub) /wa-business/* — Orders(landing) · Service Requests ·
+│         Bookings(Appointments/RX) · Drop Docs · Enterprise · Reviews · FAQ
+│
+├─ Channels (sending tools: config · campaign · templates · logs)
+│   ├─ SMS  /sms-aws      ├─ Email /email   ├─ RCS /rcs   ├─ Voice /whatsapp-voice,/voice-aws,/voice-in   └─ Push
+│      (conversations surface in the Unified Inbox; these pages keep send/campaign/config)
+│
+├─ Commerce       Store(/wix-store) · Catalog(/catalog) · Pay(/invoices,/payments)
+├─ Contacts       /contacts
+├─ ✅ Task (BUILD) Notion-style: list/board + calendar view + due dates + time reminders
+├─ Dashboard      Overview · Control Center · Code Repo · Auto Response · Design Reference
+├─ Platform       Access · Link(hub) · Forms(hub) · SEO(hub)
+│
+└─ Public website (NOT admin — untouched):  Studio · Sustainability · No-Code · Carbon
+```
+
+### ⚙ Unified Inbox — backend reality (must-build)
+`messages-read` currently reads **only** the two WhatsApp tables. Each other channel has its
+own table:
+
+| Channel | Table |
+|---|---|
+| WhatsApp | `WhatsAppInboundTable`, `WhatsAppOutboundTable` |
+| SMS | `SmsAwsTable` |
+| Voice | `VoiceAwsTable` |
+| RCS | `RcsMessagesTable` |
+| Email (SES) | `MessagesTable` |
+
+**Options to power the Unified Inbox:**
+- **A (recommended): read-time aggregation.** Extend `messages-read` (or add `/inbox/unified`)
+  to scan all five tables, normalise to one shape (`{id, channel, direction, contactId,
+  content, status, timestamp, mediaUrl}`), merge + sort. No data migration; each channel keeps
+  its own store. Cost: more scans — mitigate with per-table `contactId` GSIs + time-window limit.
+- **B: dual-write.** Each channel also writes a normalised row to the WhatsApp tables with a
+  `channel` field. Simplest reads, but touches every send path + needs backfill. Higher risk.
+
+→ Recommend **A**. New endpoint `GET /inbox?contactId=&channels=&limit=`; the inbox UI gets a
+channel filter (All / WhatsApp / SMS / Email / RCS / Voice) and a per-message channel badge.
+
+### ✅ Task page (build)
+- UI: `src/pages/task/index.tsx` — list/board toggle + month calendar + task drawer.
+- Backend: new `TasksTable` (id, title, notes, status, dueAt, remindAt, assignee, tags, ttl)
+  + a Tasks CRUD Lambda (`/tasks`).
+- Reminders: reuse the existing **scheduled-messages** Lambda / EventBridge to fire a reminder
+  at `remindAt` (WhatsApp/email to the assignee). Mirrors the existing scheduling pattern.
+
+### Revised delete/hide (unchanged from §5 core)
+- DELETE: `dm/whatsapp/[waId].tsx`, `dm/whatsapp/ai-config.tsx` (+ tab), `contact-test/index.tsx`.
+- KEEP redirects (crm/admin/dashboard-admin/docs).
+- Studio/Sustainability/No-Code/Carbon → **public site, leave as-is** (no longer "hidden admin stubs").
+
+### ⚙ Unified Inbox — CORRECTED recommendation (after schema deep-check)
+
+The `WhatsAppInbound/Outbound` tables are **generic message tables** (PK=`id` uuid, a
+`channel` discriminator field, a `contactId-index` GSI). RCS is already wired to them
+(`MESSAGES_TABLE=WhatsAppOutboundTable`). So all channels **can share them**.
+
+Record-shape gaps to close per channel (SMS/Voice/RCS/Email `_store`):
+- add `channel` (`sms`/`voice`/`rcs`/`email`) and `timestamp` (Decimal epoch — read sorts by it)
+- lowercase `direction` (`outbound`) and `status` (`sent`/`failed`) to match WhatsApp
+- keep channel extras (Voice `duration`/`callType`, SMS `providerMessageId`) as extra attrs
+
+**Recommended approach = dual-write (supersedes Option A read-aggregation):**
+- **Phase 1 (zero risk):** each channel ALSO writes a normalized row to the shared
+  Inbound/Outbound tables (its own table stays untouched). Unified Inbox reads the shared
+  tables via `contactId-index` + `channel` filter — works immediately; existing per-channel
+  pages keep working.
+- **Phase 2 (optional):** repoint per-channel list pages to the shared tables, backfill old
+  rows, retire separate tables.
+
+Caveats: outbound-only channels need their inbound webhooks to write too; Voice = calls
+(`messageType:'call'`); historical rows need a one-time backfill for the unified view.
+Table rename ("Message*" instead of "WhatsApp*") is cosmetic — keep names to avoid migration.
