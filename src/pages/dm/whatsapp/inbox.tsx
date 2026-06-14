@@ -17,6 +17,7 @@ import SEO, { PAGE_SEO } from '../../../components/SEO';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
 import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../lib/wa-media';
+import { describeWaError } from '../../../lib/wa-errors';
 
 interface PageProps {
   signOut?: () => void;
@@ -39,6 +40,8 @@ interface Message {
   senderName?: string | null;
   senderPhone?: string | null;
   s3Key?: string | null;
+  errorDetails?: string | null;
+  errorCode?: number | null;
   transcription?: string | null;       // English transcription of voice notes
   detectedLanguage?: string | null;    // Detected language of voice note
 }
@@ -448,6 +451,8 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
         senderName: m.senderName,  // Sender's WhatsApp profile name
         senderPhone: m.senderPhone,  // Sender's phone number
         s3Key: m.s3Key,
+        errorDetails: m.errorDetails,
+        errorCode: m.errorCode,
         transcription: m.transcription,
         detectedLanguage: m.detectedLanguage,
       } ) ) );
@@ -1553,9 +1558,27 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
                             } ) }
                           </span>
                           { msg.direction === 'outbound' && (
-                            <span className={ `message-status ${msg.status}` }>
-                              { msg.status === 'read' ? 'Read' : msg.status === 'delivered' ? 'Delivered' : msg.status === 'failed' ? 'Failed' : 'Sent' }
-                            </span>
+                            ( () => {
+                              if ( msg.status === 'failed' )
+                              {
+                                let raw = '';
+                                try { raw = msg.errorDetails ? ( JSON.parse( msg.errorDetails )?.message || '' ) : ''; } catch { raw = msg.errorDetails || ''; }
+                                const info = describeWaError( msg.errorCode, raw );
+                                const tip = info
+                                  ? `${msg.errorCode ? msg.errorCode + ' · ' : ''}${info.title} — ${info.reason} Fix: ${info.action}`
+                                  : 'Message failed to send.';
+                                return (
+                                  <span className="message-status failed" title={ tip } style={ { cursor: 'help' } }>
+                                    Failed{ info ? ` · ${info.title}` : '' } ⓘ
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className={ `message-status ${msg.status}` }>
+                                  { msg.status === 'read' ? 'Read' : msg.status === 'delivered' ? 'Delivered' : 'Sent' }
+                                </span>
+                              );
+                            } )()
                           ) }
                           { msg.mediaUrl && (
                             <a

@@ -2303,7 +2303,24 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
                 if parent_recipient_user_id:
                     update_expr += ', parentRecipientBsuid = :prbsuid'
                     expr_values[':prbsuid'] = parent_recipient_user_id
-                
+
+                # Delivery-time failure: capture Meta error code + reason so the
+                # inbox can show a tooltip explaining why the message wasn't
+                # delivered (e.g. 131026 undeliverable, 131047 re-engagement).
+                if status_value == 'failed':
+                    status_errors = status.get('errors', []) or []
+                    if status_errors:
+                        e0 = status_errors[0]
+                        err_code = e0.get('code')
+                        err_reason = (e0.get('title') or e0.get('message')
+                                      or (e0.get('error_data', {}) or {}).get('details', '') or '')
+                        if err_code is not None:
+                            update_expr += ', errorCode = :ec'
+                            expr_values[':ec'] = int(err_code)
+                        if err_reason:
+                            update_expr += ', errorDetails = :ed'
+                            expr_values[':ed'] = json.dumps({'code': err_code, 'message': err_reason})
+
                 table.update_item(
                     Key={'id': message_id},
                     UpdateExpression=update_expr,

@@ -395,6 +395,7 @@ export interface Message {
   timestamp: string;
   status: string;
   errorDetails?: string;
+  errorCode?: number;
   whatsappMessageId?: string;
   mediaId?: string;
   s3Key?: string;
@@ -466,6 +467,8 @@ function normalizeMessage ( item: any ): Message {
     content: item.content || item.text || '',
     timestamp: normalizeTimestamp( timestamp ) || new Date().toISOString(),
     status: item.status || 'received',
+    errorDetails: item.errorDetails,
+    errorCode: typeof item.errorCode === 'number' ? item.errorCode : ( item.errorCode ? Number( item.errorCode ) : undefined ),
     whatsappMessageId: item.whatsappMessageId,
     mediaId: item.mediaId,
     s3Key: item.s3Key,

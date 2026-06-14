@@ -1674,22 +1674,59 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         }
         
     except urllib.error.HTTPError as e:
-        # Handle Meta API HTTP errors (throttling, etc.)
+        # Handle Meta API HTTP errors. Parse the Meta error envelope so we capture
+        # the specific error CODE (e.g. 131047, 131026, 131009) + message and store
+        # them on the failed message for a UI tooltip explaining the reason.
         error_body = e.read().decode('utf-8') if e.fp else ''
-        error_code = e.code
-        is_throttled = error_code == 429 or 'throttl' in error_body.lower()
+        http_code = e.code
+        meta_code = None
+        meta_message = ''
+        meta_details = ''
+        try:
+            parsed = json.loads(error_body) if error_body else {}
+            err_obj = parsed.get('error', {}) if isinstance(parsed, dict) else {}
+            meta_code = err_obj.get('code')
+            meta_message = err_obj.get('message', '') or ''
+            meta_details = (err_obj.get('error_data', {}) or {}).get('details', '') or ''
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+        is_throttled = http_code == 429 or meta_code in (4, 80007, 130429, 131056) or 'throttl' in error_body.lower()
+
+        logger.error(json.dumps({
+            'event': 'send_meta_error',
+            'messageId': message_id,
+            'httpCode': http_code,
+            'metaCode': meta_code,
+            'metaMessage': meta_message,
+            'metaDetails': meta_details,
+            'requestId': request_id,
+        }))
+
+        _store_message_record(
+            message_id=message_id,
+            contact_id=contact_id,
+            content=content,
+            status='failed',
+            is_template=is_template,
+            error_details={
+                'type': 'throttling' if is_throttled else 'meta_error',
+                'code': meta_code,
+                'message': meta_message or error_body[:500],
+                'details': meta_details,
+            },
+            error_code=meta_code,
+            phone_number_id=phone_number_id,
+            recipient_bsuid=recipient_bsuid,
+        )
+        _emit_delivery_metric('failed', is_template)
         if is_throttled:
-            _store_message_record(
-                message_id=message_id,
-                contact_id=contact_id,
-                content=content,
-                status='failed',
-                error_details={'type': 'throttling', 'message': error_body[:500]},
-                phone_number_id=phone_number_id
-            )
-            _emit_delivery_metric('failed', is_template)
             return _error_response(429, 'API rate limit exceeded')
-        raise  # Re-raise for the generic handler below
+        return _error_response(
+            400,
+            f'WhatsApp error {meta_code}: {meta_message}' if meta_code else f'Failed to send message: HTTP {http_code}',
+            message=meta_details or None,
+        )
         
     except Exception as e:
         # Requirement 5.10: Store error details
@@ -3152,7 +3189,8 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
                           media_id: str = None, s3_key: str = None,
                           error_details: Dict = None, phone_number_id: str = None,
                           payment_reference_id: str = None, payment_amount: float = None,
-                          recipient_bsuid: str = None, media_url: str = None) -> None:
+                          recipient_bsuid: str = None, media_url: str = None,
+                          error_code: int = None) -> None:
     """Store message record in DynamoDB with WABA tracking."""
     now = int(time.time())
     expires_at = now + MESSAGE_TTL_SECONDS
@@ -3213,6 +3251,8 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         's3Key': s3_key,
         'mediaUrl': media_url,
         'errorDetails': json.dumps(error_details) if error_details else None,
+        # Meta error code (e.g. 131047) for failed messages → UI tooltip reason
+        'errorCode': error_code if error_code else None,
         # WABA tracking - which phone number sent this message
         'awsPhoneNumberId': phone_number_id,
         'createdAt': Decimal(str(now)),

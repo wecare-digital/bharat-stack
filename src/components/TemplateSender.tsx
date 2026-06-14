@@ -628,7 +628,8 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           onClose();
         } else
         {
-          onError( 'Failed to send template message' );
+          const detail = api.getConnectionStatus().lastError;
+          onError( detail ? `Failed to send: ${detail}` : 'Failed to send template message' );
         }
       }
     } catch ( err: any )
