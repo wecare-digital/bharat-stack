@@ -35,6 +35,8 @@ SMS_AWS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTabl
 VOICE_AWS_TABLE = os.environ.get('VOICE_AWS_TABLE', 'stack-wecare-digital-VoiceAwsTable')
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
 EMAIL_MESSAGES_TABLE = os.environ.get('EMAIL_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
+# Canonical unified message table (all channels). The single source the inbox reads.
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
 
@@ -87,24 +89,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             filter_parts.append('direction = :dir')
             expression_values[':dir'] = direction.lower()
         
-        # Query messages from actual DynamoDB tables
-        messages = _scan_messages(filter_parts, expression_values, limit, direction)
-
-        # Unified Inbox: when channel=ALL, also aggregate the per-channel stores
-        # (SMS/Voice/RCS/Email) via read-time aggregation. Guarded so it can never
-        # break the default (WhatsApp) inbox.
-        if channel == 'ALL':
-            try:
-                messages = messages + _scan_other_channels(contact_id, limit)
-            except Exception as e:
-                logger.warning(json.dumps({'event': 'unified_aggregate_failed', 'error': str(e)}))
-            # Dedup by messageId — during Phase 1 the same message exists in BOTH its
-            # per-channel table AND the canonical MessagesTable (dual-write). Keep one
-            # copy, preferring the richest (most populated) record.
-            messages = _dedup_by_message_id(messages)
+        # Single canonical table read — every channel now lives in MessagesTable
+        # (WhatsApp/SMS/RCS/Email via dual-write + backfill). Uses GSIs so reads are
+        # bounded Query calls, never full-table scans (anti-overload).
+        messages = _read_from_messages_table(contact_id, channel, direction, limit)
 
         # Sort by timestamp descending
-        messages.sort(key=lambda x: x.get('timestamp', x.get('createdAt', 0)), reverse=True)
+        messages.sort(key=lambda x: float(x.get('timestamp', x.get('createdAt', 0)) or 0), reverse=True)
         
         # Limit results
         messages = messages[:limit]
@@ -216,7 +207,100 @@ def _count_messages(request_id: str, origin: str = '') -> Dict[str, Any]:
     }, origin)
 
 
-def _scan_messages(filter_parts: List[str], expression_values: Dict, limit: int, direction: str = '') -> List[Dict]:
+def _read_from_messages_table(contact_id: str, channel: str, direction: str, limit: int) -> List[Dict]:
+    """Read messages from the canonical MessagesTable using GSIs (bounded queries).
+
+    - contactId given  -> query contactId-index (one conversation, newest first)
+    - specific channel -> query channel-index
+    - ALL / unspecified -> query channel-index per message channel and merge
+    Falls back to a bounded scan if an index isn't available yet. Applies an optional
+    direction filter in-memory.
+    """
+    from boto3.dynamodb.conditions import Key
+    table = dynamodb.Table(MESSAGES_TABLE)
+    items: List[Dict] = []
+
+    def _page_query(query_kwargs: Dict) -> List[Dict]:
+        out: List[Dict] = []
+        resp = table.query(**query_kwargs)
+        out.extend(resp.get('Items', []))
+        while 'LastEvaluatedKey' in resp and len(out) < limit:
+            query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            resp = table.query(**query_kwargs)
+            out.extend(resp.get('Items', []))
+        return out
+
+    try:
+        if contact_id:
+            items = _page_query({
+                'IndexName': 'contactId-index',
+                'KeyConditionExpression': Key('contactId').eq(contact_id),
+                'ScanIndexForward': False,
+                'Limit': limit,
+            })
+        elif channel and channel not in ('', 'ALL'):
+            items = _page_query({
+                'IndexName': 'channel-index',
+                'KeyConditionExpression': Key('channel').eq(channel.lower()),
+                'ScanIndexForward': False,
+                'Limit': limit,
+            })
+        else:
+            for ch in ('whatsapp', 'sms', 'rcs', 'email'):
+                try:
+                    items.extend(_page_query({
+                        'IndexName': 'channel-index',
+                        'KeyConditionExpression': Key('channel').eq(ch),
+                        'ScanIndexForward': False,
+                        'Limit': limit,
+                    }))
+                except Exception as ce:
+                    logger.warning(json.dumps({'event': 'channel_query_failed', 'channel': ch, 'error': str(ce)}))
+    except Exception as e:
+        # Index not ready or query error — fall back to a bounded scan so the inbox
+        # still works. TTL keeps the table small, so this stays cheap.
+        logger.warning(json.dumps({'event': 'messages_read_query_fallback', 'error': str(e)}))
+        items = _scan_messages_table_fallback(contact_id, channel, limit)
+
+    # Optional direction filter (in-memory — cheap on a bounded result set)
+    if direction in ('INBOUND', 'OUTBOUND'):
+        items = [i for i in items if str(i.get('direction', '')).upper() == direction]
+
+    return items
+
+
+def _scan_messages_table_fallback(contact_id: str, channel: str, limit: int) -> List[Dict]:
+    """Bounded scan of MessagesTable when a GSI isn't usable yet."""
+    table = dynamodb.Table(MESSAGES_TABLE)
+    kwargs: Dict[str, Any] = {'Limit': max(limit, 1000)}
+    filt = []
+    vals: Dict[str, Any] = {}
+    names: Dict[str, str] = {}
+    if contact_id:
+        filt.append('contactId = :cid')
+        vals[':cid'] = contact_id
+    if channel and channel not in ('', 'ALL'):
+        filt.append('#ch = :ch')
+        names['#ch'] = 'channel'
+        vals[':ch'] = channel.lower()
+    if filt:
+        kwargs['FilterExpression'] = ' AND '.join(filt)
+        kwargs['ExpressionAttributeValues'] = vals
+        if names:
+            kwargs['ExpressionAttributeNames'] = names
+    out: List[Dict] = []
+    resp = table.scan(**kwargs)
+    out.extend(resp.get('Items', []))
+    pages = 1
+    while 'LastEvaluatedKey' in resp and pages < 20 and len(out) < limit * 2:
+        kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+        resp = table.scan(**kwargs)
+        out.extend(resp.get('Items', []))
+        pages += 1
+    return out
+
+
+def _read_from_messages_table_DEPRECATED_scan(filter_parts: List[str], expression_values: Dict, limit: int, direction: str = '') -> List[Dict]:
     """Query messages from Inbound and Outbound tables. Uses contactId GSI when available."""
     all_messages = []
     

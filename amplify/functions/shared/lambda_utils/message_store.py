@@ -80,7 +80,6 @@ def build_message_item(
     item: Dict[str, Any] = {
         'id': mid,
         'messageId': mid,
-        'contactId': contact_id or '',
         'channel': ch,
         'direction': dir_,
         'content': content or '',
@@ -89,6 +88,10 @@ def build_message_item(
         'createdAt': _dec(now),
         'expiresAt': _dec(now + MESSAGE_TTL_SECONDS),
     }
+    # contactId is a GSI key (contactId-index) — DynamoDB rejects an empty-string key
+    # value. Only include it when non-empty so unmatched messages still store (sparse).
+    if contact_id:
+        item['contactId'] = contact_id
 
     # Map snake_case extras → the camelCase attribute names the rest of the system uses.
     alias = {

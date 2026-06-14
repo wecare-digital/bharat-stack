@@ -16,6 +16,7 @@ from decimal import Decimal
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 
 logger = get_logger(__name__)
 
@@ -170,34 +171,20 @@ def _send_email(to_email: str, subject: str, text_content: str,
 
 def _store_message(message_id: str, contact_id: str, subject: str, content: str, 
                    status: str, error: str = None, ses_message_id: str = None) -> None:
-    """Store message record in DynamoDB."""
-    try:
-        now = int(time.time())
-        table = dynamodb.Table(MESSAGES_TABLE)
-        
-        item = {
-            'id': message_id,
-            'messageId': message_id,
-            'contactId': contact_id,
-            'channel': 'EMAIL',
-            'direction': 'OUTBOUND',
-            'subject': subject,
-            'content': content,
-            'status': status,
-            'timestamp': Decimal(str(now)),
-            'createdAt': Decimal(str(now)),
-            'expiresAt': Decimal(str(now + MESSAGE_TTL_SECONDS)),
-        }
-        
-        if error:
-            item['errorDetails'] = error
-        if ses_message_id:
-            item['sesMessageId'] = ses_message_id
-        
-        table.put_item(Item=item)
-        
-    except Exception as e:
-        logger.error(f"Store message error: {str(e)}")
+    """Store message record in the canonical MessagesTable via the shared writer.
+    Ensures consistent lowercase channel + safe (sparse) contactId for the GSIs."""
+    put_message(
+        channel='email',
+        direction='outbound',
+        contact_id=contact_id or '',
+        content=content or '',
+        status=(status or 'sent').lower(),
+        message_id=message_id,
+        message_type='email',
+        subject=subject or None,
+        error_details=error or None,
+        ses_message_id=ses_message_id or None,
+    )
 
 
 def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
