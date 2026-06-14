@@ -406,3 +406,64 @@ Record-shape gaps to close per channel (SMS/Voice/RCS/Email `_store`):
 Caveats: outbound-only channels need their inbound webhooks to write too; Voice = calls
 (`messageType:'call'`); historical rows need a one-time backfill for the unified view.
 Table rename ("Message*" instead of "WhatsApp*") is cosmetic — keep names to avoid migration.
+
+---
+
+## 9. Further unification + AI layer (robust / future-proof)
+
+### 9.1 What else can be unified (beyond the inbox)
+| Unify | Today (scattered) | Target | Backend impact |
+|---|---|---|---|
+| **Contacts** | already 1 `ContactsTable` shared by all channels ✅ | keep; add channel-aware activity timeline | none |
+| **Broadcast / Campaigns** | `whatsapp/campaign`, `ses/campaign`, `rcs/campaign` separate | 1 cross-channel **Broadcast** composer (pick channel(s) → audience → template → schedule) | small orchestrator over existing send lambdas |
+| **Templates / Content** | WA templates, RCS templates, email bodies, media library separate | 1 **Content Library** (templates + reusable media `wa-tpl/` already built) | reuse template-management + send-media |
+| **Delivery Report / Logs** | WA Delivery Report built ✅; SMS/Email/RCS logs separate | 1 cross-channel report (channel filter) — unlocks once tables share | pairs with Unified Inbox dual-write |
+| **Scheduling** | `scheduled-messages` lambda already cross-channel | 1 **Scheduled** view | none (surface existing) |
+| **Media library** | `public/wa-tpl/` built ✅ | shared asset library across channels | reuse |
+| **Search (Ctrl+K)** | command palette exists | search contacts · messages · orders · templates · pages | thin search endpoint / client-side |
+| **Auto-response / Automation** | keyword + AI auto-reply (WA) | unified rules engine across channels | reuse ai-generate-response |
+
+### 9.2 AI in inner pages — one AI gateway, existing system
+**System (already built):** `ai-generate-response` (/ai/generate, Bedrock Claude/Nova + `ConversationHistory`/`AIInteraction`), `ai-query-kb` (/ai/query, Bedrock KB), `agent-action-group` (Bedrock Agent actions), `ai-config-management` (/ai/config), plus the global **FloatingAgent**.
+
+**Best-practice approach:** add ONE typed AI gateway — `POST /ai/assist { task, context }` (reuse/extend `ai-generate-response`) with a `task` discriminator, so every page calls the same API and all calls log to `AIInteraction`:
+
+| Inner page | AI feature | task |
+|---|---|---|
+| Unified Inbox | reply suggestions (live ✅), summary, sentiment/intent tag, translate, smart-compose | `suggest_reply`,`summarize`,`classify`,`translate` |
+| Templates | draft template from goal, improve copy, approval-risk hint | `draft_template` |
+| Contacts | NL segment ("contacts who paid last 30d"), enrich | `segment` |
+| Service Ops / Orders | summarize an order's submissions+docs, suggest next action, auto-categorize | `summarize`,`next_action` |
+| Delivery Report | "why failures spiked" insight from error codes (pairs with `wa-errors`) | `analyze` |
+| SEO | bulk AI audit (already Claude) | existing |
+| Task | extract tasks from a conversation, NL task create, auto-set reminder | `extract_tasks` |
+| Global FloatingAgent | upgrade to agentic copilot (Bedrock Agent + action groups) that can act across pages | agent |
+
+**Future-proofing:** all AI behind one gateway + `AIInteraction` logging → consistent cost/usage tracking, guardrails, model swap in one place; pages stay thin.
+
+### 9.3 Final IA with AI layer
+```
+                ┌──────────────────────────────────────────────┐
+   AI COPILOT   │  ai-generate-response · ai-query-kb · Bedrock │  ← one /ai/assist gateway
+   (cross-cut)  │  Agent (action-group) · FloatingAgent (global)│     logs → AIInteraction
+                └──────────────────────────────────────────────┘
+                        ▲ suggest · summarize · classify · act
+   ─────────────────────┼────────────────────────────────────────────────
+   📥 Unified Inbox  ·  ★ WhatsApp (Settings + Service Ops)  ·  Channels(SMS/Email/RCS/Voice/Push)
+   Commerce(Store/Catalog/Pay) · Contacts · Task · Dashboard · Platform(Access/Link/Forms/SEO)
+   (public site untouched: Studio · Sustainability · No-Code · Carbon)
+```
+
+---
+
+## 10. Lambda & table impact per work item
+
+| Work item | Lambdas | Tables | Risk |
+|---|---|---|---|
+| **Tier 0 cleanup** (delete `[waId]`, `ai-config` tab, `contact-test`) | **None deleted.** `ai-config-management` lambda STAYS (used by auto-response/SystemConfig) — we only remove the UI tab/page. Frontend-only. | none | very low |
+| **Unified Inbox Phase 1** (dual-write + channel filter) | Edit `sms-aws`, `voice-aws`, `rcs-send`, `outbound-email` to **also** write a normalized row to the shared Inbound/Outbound tables. `messages-read` unchanged (already channel-filters). | **No new tables** — reuse `WhatsAppInbound/Outbound` (generic, has `contactId-index`). Optional later: `channel-timestamp` GSI for scale. Old per-channel tables kept. | medium (touches send paths; mitigated by dual-write) |
+| **Service Operations hub** | **None** — regroups existing pages on the same `whatsapp-business-api` lambda + existing tables (Orders/SubmitRequest/Appointments/Documents/Reviews/Enterprise/FAQ). Frontend PageShell only. | none | low |
+| **Task page** | **+1 new** `wecare-tasks` lambda (`/tasks` CRUD). Reminders reuse `scheduled-messages` + EventBridge. | **+1 new** `TasksTable` (id PK; GSI: status, assignee, dueAt; ttl). | low–medium (new isolated feature) |
+| **Token migration** (heavy WA pages) | **None** | **None** | low (frontend CSS only) |
+
+**Net infra delta across all four:** **+1 Lambda** (`wecare-tasks`), **+1 table** (`TasksTable`), dual-write edits to 4 existing channel Lambdas. No deletions of Lambdas/tables. The 4 AI Lambdas + Bedrock already exist — AI features reuse them via the `/ai/assist` gateway.
