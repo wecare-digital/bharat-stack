@@ -49,6 +49,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ bulkHasParams, setBulkHasParams ] = useState( false );
   const [ bulkProgress, setBulkProgress ] = useState<{ sent: number; failed: number; total: number } | null>( null );
   const [ bulkFailed, setBulkFailed ] = useState<string[]>( [] );
+  const [ bulkErrors, setBulkErrors ] = useState<Record<string, string>>( {} );
   const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
   const [ selectedTemplate, setSelectedTemplate ] = useState<api.WhatsAppTemplate | null>( null );
   const [ variables, setVariables ] = useState<TemplateVariable[]>( [] );
@@ -364,13 +365,19 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     );
   };
 
-  // Per-recipient results after a bulk run (phone + delivery attempt status).
+  // Per-recipient results after a bulk run (phone + status + failure reason).
   const downloadResultsCsv = () => {
     if ( bulkRecipients.length === 0 ) return;
     const failedSet = new Set( bulkFailed );
     downloadCsv(
       `bulk-send-results-${new Date().toISOString().slice( 0, 19 ).replace( /[:T]/g, '-' )}.csv`,
-      [ [ 'phone', 'status' ], ...bulkRecipients.map( r => [ r.phone, failedSet.has( r.phone ) ? 'failed' : 'sent' ] ) ]
+      [
+        [ 'phone', 'status', 'reason' ],
+        ...bulkRecipients.map( r => {
+          const isFailed = failedSet.has( r.phone );
+          return [ r.phone, isFailed ? 'failed' : 'sent', isFailed ? ( bulkErrors[ r.phone ] || '' ) : '' ];
+        } ),
+      ]
     );
   };
 
@@ -465,9 +472,11 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     setSending( true );
     setBulkProgress( { sent: 0, failed: 0, total: bulkRecipients.length } );
     setBulkFailed( [] );
+    setBulkErrors( {} );
     let sent = 0;
     let failed = 0;
     const failedNums: string[] = [];
+    const rowErrors: Record<string, string> = {};
     for ( let i = 0; i < bulkRecipients.length; i++ )
     {
       const row = bulkRecipients[ i ];
@@ -488,17 +497,24 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           flowButton: flowButtonIndex !== null ? { index: flowButtonIndex } : undefined,
           content: getPreviewText() || undefined,
         } );
-        if ( result ) sent++; else { failed++; failedNums.push( row.phone ); }
-      } catch ( err )
+        if ( result ) sent++; else
+        {
+          failed++; failedNums.push( row.phone );
+          // Capture this row's specific Meta reason (sends are sequential).
+          rowErrors[ row.phone ] = api.getConnectionStatus().lastError || 'Send failed';
+        }
+      } catch ( err: any )
       {
         failed++;
         failedNums.push( row.phone );
+        rowErrors[ row.phone ] = err?.message || 'Send failed';
       }
       setBulkProgress( { sent, failed, total: bulkRecipients.length } );
       // Gentle pacing to avoid Meta rate limits on large lists.
       if ( ( i + 1 ) % 10 === 0 ) await new Promise( r => setTimeout( r, 250 ) );
     }
     setBulkFailed( failedNums );
+    setBulkErrors( rowErrors );
     setSending( false );
     if ( sent > 0 ) onSent();
     onError( `Bulk send complete: ${sent} sent, ${failed} failed (of ${bulkRecipients.length}).` );

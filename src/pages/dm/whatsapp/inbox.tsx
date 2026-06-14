@@ -1400,6 +1400,15 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
                   </select>
                   <button
                     className="clear-chat-btn"
+                    onClick={ () => loadData() }
+                    title="Refresh messages & delivery status"
+                    aria-label="Refresh messages and delivery status"
+                    style={ { marginRight: 4 } }
+                  >
+                    ↻
+                  </button>
+                  <button
+                    className="clear-chat-btn"
                     onClick={ handleClearAllMessages }
                     disabled={ deleting === 'clearing' || filteredMessages.length === 0 }
                     title="Clear all messages for this contact"
