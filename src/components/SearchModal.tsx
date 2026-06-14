@@ -33,31 +33,32 @@ const NAVIGATION_ITEMS: SearchResult[] = [
   { id: 'nav-pay', type: 'page', title: 'Payments', subtitle: 'WhatsApp Pay', icon: '◈', path: '/pay' },
   { id: 'nav-pay-flow', type: 'page', title: 'Pay Flow', subtitle: 'Customer management for auto-fill', icon: '◈', path: '/pay/flow' },
   { id: 'nav-store', type: 'page', title: 'Store', subtitle: 'Catalog & products', icon: '⧉', path: '/store' },
-  { id: 'nav-ai', type: 'page', title: 'AI Config', subtitle: 'Bedrock settings', icon: '◇', path: '/dm/whatsapp/ai-config' },
 ];
 
-const DEFAULT_RESULTS = NAVIGATION_ITEMS.slice(0, 6);
+const DEFAULT_RESULTS = NAVIGATION_ITEMS.slice( 0, 6 );
 
-const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [], messages = [] }) => {
+const SearchModal: React.FC<SearchModalProps> = ( { isOpen, onClose, contacts = [], messages = [] } ) => {
   const router = useRouter();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>(DEFAULT_RESULTS);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [ query, setQuery ] = useState( '' );
+  const [ results, setResults ] = useState<SearchResult[]>( DEFAULT_RESULTS );
+  const [ selectedIndex, setSelectedIndex ] = useState( 0 );
+  const inputRef = useRef<HTMLInputElement>( null );
 
   // Focus input when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setResults(DEFAULT_RESULTS);
-      setTimeout(() => inputRef.current?.focus(), 100);
+  useEffect( () => {
+    if ( isOpen )
+    {
+      setQuery( '' );
+      setSelectedIndex( 0 );
+      setResults( DEFAULT_RESULTS );
+      setTimeout( () => inputRef.current?.focus(), 100 );
     }
-  }, [isOpen]);
+  }, [ isOpen ] );
 
   // Search logic - only run when query changes
-  useEffect(() => {
-    if (!query.trim()) {
+  useEffect( () => {
+    if ( !query.trim() )
+    {
       return; // Keep default results
     }
 
@@ -65,126 +66,137 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
     const searchResults: SearchResult[] = [];
 
     // Search navigation
-    NAVIGATION_ITEMS.forEach(item => {
-      if (item.title.toLowerCase().includes(q) || item.subtitle?.toLowerCase().includes(q)) {
-        searchResults.push(item);
+    NAVIGATION_ITEMS.forEach( item => {
+      if ( item.title.toLowerCase().includes( q ) || item.subtitle?.toLowerCase().includes( q ) )
+      {
+        searchResults.push( item );
       }
-    });
+    } );
 
     // Search contacts
-    contacts.forEach(contact => {
-      if (contact.name?.toLowerCase().includes(q) || contact.phone?.includes(q)) {
-        searchResults.push({
+    contacts.forEach( contact => {
+      if ( contact.name?.toLowerCase().includes( q ) || contact.phone?.includes( q ) )
+      {
+        searchResults.push( {
           id: `contact-${contact.id}`,
           type: 'contact',
           title: contact.name || contact.phone,
           subtitle: contact.phone,
           icon: '◎',
           path: `/dm/whatsapp?contact=${contact.id}`,
-        });
+        } );
       }
-    });
+    } );
 
     // Search messages (limited)
-    messages.slice(0, 100).forEach(msg => {
-      if (msg.content?.toLowerCase().includes(q)) {
-        searchResults.push({
+    messages.slice( 0, 100 ).forEach( msg => {
+      if ( msg.content?.toLowerCase().includes( q ) )
+      {
+        searchResults.push( {
           id: `msg-${msg.id}`,
           type: 'message',
-          title: msg.content.substring(0, 50) + (msg.content.length > 50 ? '...' : ''),
+          title: msg.content.substring( 0, 50 ) + ( msg.content.length > 50 ? '...' : '' ),
           subtitle: `Message`,
           icon: '◇',
-        });
+        } );
       }
-    });
+    } );
 
-    setResults(searchResults.slice(0, 10));
-    setSelectedIndex(0);
-  }, [query, contacts, messages]);
+    setResults( searchResults.slice( 0, 10 ) );
+    setSelectedIndex( 0 );
+  }, [ query, contacts, messages ] );
 
   // Keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
+  const handleKeyDown = useCallback( ( e: React.KeyboardEvent ) => {
+    if ( e.key === 'ArrowDown' )
+    {
       e.preventDefault();
-      setSelectedIndex(prev => Math.min(prev + 1, results.length - 1));
-    } else if (e.key === 'ArrowUp') {
+      setSelectedIndex( prev => Math.min( prev + 1, results.length - 1 ) );
+    } else if ( e.key === 'ArrowUp' )
+    {
       e.preventDefault();
-      setSelectedIndex(prev => Math.max(prev - 1, 0));
-    } else if (e.key === 'Enter' && results[selectedIndex]) {
+      setSelectedIndex( prev => Math.max( prev - 1, 0 ) );
+    } else if ( e.key === 'Enter' && results[ selectedIndex ] )
+    {
       e.preventDefault();
-      const result = results[selectedIndex];
-      if (result.path) {
-        router.push(result.path);
+      const result = results[ selectedIndex ];
+      if ( result.path )
+      {
+        router.push( result.path );
         onClose();
-      } else if (result.action) {
+      } else if ( result.action )
+      {
         result.action();
         onClose();
       }
-    } else if (e.key === 'Escape') {
+    } else if ( e.key === 'Escape' )
+    {
       onClose();
     }
-  }, [results, selectedIndex, router, onClose]);
+  }, [ results, selectedIndex, router, onClose ] );
 
-  if (!isOpen) return null;
+  if ( !isOpen ) return null;
 
   return (
-    <div className="search-overlay" onClick={onClose}>
-      <div className="search-modal" onClick={e => e.stopPropagation()}>
+    <div className="search-overlay" onClick={ onClose }>
+      <div className="search-modal" onClick={ e => e.stopPropagation() }>
         <div className="search-input-wrapper">
           <span className="search-icon">Search</span>
           <input
-            ref={inputRef}
+            ref={ inputRef }
             type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
+            value={ query }
+            onChange={ e => setQuery( e.target.value ) }
+            onKeyDown={ handleKeyDown }
             placeholder="Search contacts, messages, pages..."
             role="combobox"
-            aria-expanded={results.length > 0}
+            aria-expanded={ results.length > 0 }
             aria-controls="search-results-list"
-            aria-activedescendant={results[selectedIndex] ? `search-result-${results[selectedIndex].id}` : undefined}
+            aria-activedescendant={ results[ selectedIndex ] ? `search-result-${results[ selectedIndex ].id}` : undefined }
             aria-label="Search contacts, messages, and pages"
           />
           <span className="search-hint">ESC to close</span>
         </div>
-        
+
         <div className="search-results" id="search-results-list" role="listbox">
-          {results.length === 0 ? (
+          { results.length === 0 ? (
             <div className="search-empty">
               <span>No results found</span>
             </div>
           ) : (
-            results.map((result, index) => (
+            results.map( ( result, index ) => (
               <div
-                key={result.id}
-                id={`search-result-${result.id}`}
+                key={ result.id }
+                id={ `search-result-${result.id}` }
                 role="option"
-                aria-selected={index === selectedIndex}
-                className={`search-result-item ${index === selectedIndex ? 'selected' : ''}`}
-                onClick={() => {
-                  if (result.path) {
-                    router.push(result.path);
+                aria-selected={ index === selectedIndex }
+                className={ `search-result-item ${index === selectedIndex ? 'selected' : ''}` }
+                onClick={ () => {
+                  if ( result.path )
+                  {
+                    router.push( result.path );
                     onClose();
-                  } else if (result.action) {
+                  } else if ( result.action )
+                  {
                     result.action();
                     onClose();
                   }
-                }}
-                onMouseEnter={() => setSelectedIndex(index)}
+                } }
+                onMouseEnter={ () => setSelectedIndex( index ) }
               >
-                <div className="search-result-icon">{result.icon}</div>
+                <div className="search-result-icon">{ result.icon }</div>
                 <div className="search-result-info">
-                  <div className="search-result-title">{result.title}</div>
-                  {result.subtitle && (
-                    <div className="search-result-subtitle">{result.subtitle}</div>
-                  )}
+                  <div className="search-result-title">{ result.title }</div>
+                  { result.subtitle && (
+                    <div className="search-result-subtitle">{ result.subtitle }</div>
+                  ) }
                 </div>
-                <div className="search-result-type">{result.type}</div>
+                <div className="search-result-type">{ result.type }</div>
               </div>
-            ))
-          )}
+            ) )
+          ) }
         </div>
-        
+
         <div className="search-footer">
           <span>↑↓ Navigate</span>
           <span>↵ Select</span>
@@ -192,7 +204,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, contacts = [
         </div>
       </div>
 
-      <style jsx>{`
+      <style jsx>{ `
         .search-hint {
           font-size: 12px;
           color: #9ca3af;

@@ -18,7 +18,6 @@ import CallingPage from './calling';
 import GroupsPage from './groups';
 import BusinessProfilePage from './business-profile';
 import WebhooksPage from './webhooks';
-import AIConfigPage from './ai-config';
 import AutoResponsePage from './auto-response';
 import ScriptsPage from './scripts';
 import FlowResponsesPage from './flow-responses';
@@ -55,64 +54,64 @@ const SELFSERVICE_MENU = [
   { row: 9, section: 'Help', icon: '❓', title: 'FAQ', description: 'View frequently asked questions', flowId: '-', keywords: 'faq, help, questions' },
 ];
 
-const pill = (bg: string, color: string): React.CSSProperties => ({
+const pill = ( bg: string, color: string ): React.CSSProperties => ( {
   display: 'inline-block', padding: '2px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: bg, color,
-});
+} );
 
 // ─── Bot Menu Tab Component ───
 const BotMenuTab: React.FC = () => (
-  <div style={{ padding: '0 4px' }}>
-    {/* Main Bot Menu */}
-    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1a3a2a', margin: '0 0 6px' }}>WhatsApp Bot Menu (Persistent Menu)</h3>
-    <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 14px' }}>9 menu items across 3 sections — shown when users open the WhatsApp chat.</p>
-    <div style={{ overflowX: 'auto', marginBottom: 28 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+  <div style={ { padding: '0 4px' } }>
+    {/* Main Bot Menu */ }
+    <h3 style={ { fontSize: 15, fontWeight: 700, color: '#1a3a2a', margin: '0 0 6px' } }>WhatsApp Bot Menu (Persistent Menu)</h3>
+    <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 14px' } }>9 menu items across 3 sections — shown when users open the WhatsApp chat.</p>
+    <div style={ { overflowX: 'auto', marginBottom: 28 } }>
+      <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
         <thead>
-          <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-            {['#', 'Section', 'Title', 'Description', 'Action'].map(h => (
-              <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-            ))}
+          <tr style={ { borderBottom: '2px solid #f3f4f6' } }>
+            { [ '#', 'Section', 'Title', 'Description', 'Action' ].map( h => (
+              <th key={ h } style={ { textAlign: 'left', padding: '8px 10px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+            ) ) }
           </tr>
         </thead>
         <tbody>
-          {BOT_MENU.map(m => (
-            <tr key={m.row} style={{ borderBottom: '1px solid #f3f4f6' }}>
-              <td style={{ padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>{m.row}</td>
-              <td style={{ padding: '8px 10px' }}>
-                <span style={pill(m.section === 'Start Here' ? '#f0fdf4' : m.section === 'Explore WECARE' ? '#eff6ff' : '#fffbeb', m.section === 'Start Here' ? '#059669' : m.section === 'Explore WECARE' ? '#2563eb' : '#d97706')}>{m.section}</span>
+          { BOT_MENU.map( m => (
+            <tr key={ m.row } style={ { borderBottom: '1px solid #f3f4f6' } }>
+              <td style={ { padding: '8px 10px', color: '#6b7280', fontWeight: 600 } }>{ m.row }</td>
+              <td style={ { padding: '8px 10px' } }>
+                <span style={ pill( m.section === 'Start Here' ? '#f0fdf4' : m.section === 'Explore WECARE' ? '#eff6ff' : '#fffbeb', m.section === 'Start Here' ? '#059669' : m.section === 'Explore WECARE' ? '#2563eb' : '#d97706' ) }>{ m.section }</span>
               </td>
-              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#1a3a2a' }}>{m.icon} {m.title}</td>
-              <td style={{ padding: '8px 10px', color: '#374151' }}>{m.description}</td>
-              <td style={{ padding: '8px 10px', color: '#6b7280', fontSize: 12 }}>{m.action}</td>
+              <td style={ { padding: '8px 10px', fontWeight: 600, color: '#1a3a2a' } }>{ m.icon } { m.title }</td>
+              <td style={ { padding: '8px 10px', color: '#374151' } }>{ m.description }</td>
+              <td style={ { padding: '8px 10px', color: '#6b7280', fontSize: 12 } }>{ m.action }</td>
             </tr>
-          ))}
+          ) ) }
         </tbody>
       </table>
     </div>
 
-    {/* Selfservice Sub-Menu */}
-    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1a3a2a', margin: '0 0 6px' }}>🚀 Selfservice Menu (Interactive List)</h3>
-    <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 14px' }}>9 options shown when user taps "🚀 Selfservice". Each row triggers a WhatsApp Flow.</p>
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+    {/* Selfservice Sub-Menu */ }
+    <h3 style={ { fontSize: 15, fontWeight: 700, color: '#1a3a2a', margin: '0 0 6px' } }>🚀 Selfservice Menu (Interactive List)</h3>
+    <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 14px' } }>9 options shown when user taps "🚀 Selfservice". Each row triggers a WhatsApp Flow.</p>
+    <div style={ { overflowX: 'auto' } }>
+      <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
         <thead>
-          <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-            {['#', 'Section', 'Title', 'Description', 'Flow ID', 'Keywords'].map(h => (
-              <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-            ))}
+          <tr style={ { borderBottom: '2px solid #f3f4f6' } }>
+            { [ '#', 'Section', 'Title', 'Description', 'Flow ID', 'Keywords' ].map( h => (
+              <th key={ h } style={ { textAlign: 'left', padding: '8px 10px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+            ) ) }
           </tr>
         </thead>
         <tbody>
-          {SELFSERVICE_MENU.map(m => (
-            <tr key={m.row} style={{ borderBottom: '1px solid #f3f4f6' }}>
-              <td style={{ padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>{m.row}</td>
-              <td style={{ padding: '8px 10px' }}><span style={pill('#f9fafb', '#6b7280')}>{m.section}</span></td>
-              <td style={{ padding: '8px 10px', fontWeight: 600, color: '#1a3a2a' }}>{m.icon} {m.title}</td>
-              <td style={{ padding: '8px 10px', color: '#374151' }}>{m.description}</td>
-              <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#6b7280' }}>{m.flowId}</td>
-              <td style={{ padding: '8px 10px', fontSize: 11, color: '#6b7280' }}>{m.keywords}</td>
+          { SELFSERVICE_MENU.map( m => (
+            <tr key={ m.row } style={ { borderBottom: '1px solid #f3f4f6' } }>
+              <td style={ { padding: '8px 10px', color: '#6b7280', fontWeight: 600 } }>{ m.row }</td>
+              <td style={ { padding: '8px 10px' } }><span style={ pill( '#f9fafb', '#6b7280' ) }>{ m.section }</span></td>
+              <td style={ { padding: '8px 10px', fontWeight: 600, color: '#1a3a2a' } }>{ m.icon } { m.title }</td>
+              <td style={ { padding: '8px 10px', color: '#374151' } }>{ m.description }</td>
+              <td style={ { padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#6b7280' } }>{ m.flowId }</td>
+              <td style={ { padding: '8px 10px', fontSize: 11, color: '#6b7280' } }>{ m.keywords }</td>
             </tr>
-          ))}
+          ) ) }
         </tbody>
       </table>
     </div>
@@ -130,7 +129,6 @@ const TABS: ShellTab[] = [
   { id: 'flow-hub', label: 'Flows Hub' },
   { id: 'flow-responses', label: 'Flow Data' },
   { id: 'welcome', label: 'Welcome' },
-  { id: 'ai-config', label: 'AI Config' },
   { id: 'calling', label: 'Calling', divider: true },
   { id: 'groups', label: 'Groups' },
   { id: 'logs', label: 'Logs', divider: true },
@@ -140,36 +138,35 @@ const TABS: ShellTab[] = [
   { id: 'migration', label: 'Migration' },
 ];
 
-const WhatsAppSettingsPage: React.FC<PageProps> = ({ signOut, user }) => (
-  <Layout user={user} onSignOut={signOut}>
+const WhatsAppSettingsPage: React.FC<PageProps> = ( { signOut, user } ) => (
+  <Layout user={ user } onSignOut={ signOut }>
     <PageShell
       title="WhatsApp"
       subtitle="Business API — Messaging, Campaigns, Templates, Bot Menu & More"
-      tabs={TABS}
+      tabs={ TABS }
       defaultTab="bot-menu"
     >
-      {(activeTab) => (
-        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
-          {activeTab === 'auto-response' && <AutoResponsePage signOut={signOut} user={user} embedded />}
-          {activeTab === 'bot-menu' && <BotMenuTab />}
-          {activeTab === 'scripts' && <ScriptsPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'campaign' && <CampaignPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'templates' && <TemplatesPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'lists' && <InteractiveListsPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'flows' && <FlowsPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'flow-hub' && <FlowHubPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'flow-responses' && <FlowResponsesPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'welcome' && <WelcomePage signOut={signOut} user={user} embedded />}
-          {activeTab === 'ai-config' && <AIConfigPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'calling' && <CallingPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'groups' && <GroupsPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'logs' && <LogsPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'profile' && <BusinessProfilePage signOut={signOut} user={user} embedded />}
-          {activeTab === 'webhooks' && <WebhooksPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'waba' && <WABADashboard signOut={signOut} user={user} embedded />}
-          {activeTab === 'migration' && <MigrationPage signOut={signOut} user={user} embedded />}
+      { ( activeTab ) => (
+        <Suspense fallback={ <div style={ { padding: 40, textAlign: 'center' } }>Loading...</div> }>
+          { activeTab === 'auto-response' && <AutoResponsePage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'bot-menu' && <BotMenuTab /> }
+          { activeTab === 'scripts' && <ScriptsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'campaign' && <CampaignPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'templates' && <TemplatesPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'lists' && <InteractiveListsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'flows' && <FlowsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'flow-hub' && <FlowHubPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'flow-responses' && <FlowResponsesPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'welcome' && <WelcomePage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'calling' && <CallingPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'groups' && <GroupsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'logs' && <LogsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'profile' && <BusinessProfilePage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'webhooks' && <WebhooksPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'waba' && <WABADashboard signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'migration' && <MigrationPage signOut={ signOut } user={ user } embedded /> }
         </Suspense>
-      )}
+      ) }
     </PageShell>
   </Layout>
 );
