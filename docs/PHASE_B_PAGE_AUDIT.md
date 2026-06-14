@@ -173,3 +173,79 @@ Result: ~97 → roughly **55–60 effective destinations**, with consistent navi
 6. **Login/auth** styling pass (`access` + Cognito Authenticator theme in `_app`).
 
 > Public marketing/home pages are intentionally **out of scope** (kept separate).
+
+---
+
+## 5. FINAL information architecture (grounded in backend namespaces)
+
+Each group annotated with the backend API namespace / Lambda it actually calls
+(verified in `src/api/client.ts`).
+
+```
+WECARE.DIGITAL — Admin  (Layout + design-tokens)
+│
+├─ Dashboard                              [core lambdas + config]
+│     Overview · Control Center (+ CORS, Order-Notifs, WABA-Usernames tabs)
+│     · Code Repo · Auto Response · Design Reference
+│
+├─ Messages
+│   ├─ WhatsApp        /whatsapp/*  (+ /wa-business profile & flows)
+│   │     • Inbox            /dm/whatsapp
+│   │     • Settings hub     /dm/whatsapp/settings   (17 tabs — already built ✅)
+│   ├─ Email (SES)     /email/*           → hub: Inbox · Campaign · Logs
+│   ├─ RCS             /rcs/*             → hub: Inbox · Send · Campaign · Templates · Logs
+│   ├─ Voice           /whatsapp-voice, /voice-aws, /voice-in → hub: Outbound · Voice-In (OBD)
+│   ├─ SMS             /sms-aws/*
+│   ├─ Push            (push lambda)
+│   └─ Logs (all)      /messages
+│
+├─ Service Operations  ★ ONE backend: wecare-whatsapp-business-api  (/wa-business/*)
+│     • Orders (landing / orchestrator)   /wa-business/orders
+│     • Service Requests  Submit · Track · Amend · Submissions   /wa-business/service
+│     • Bookings          Appointments · RX Slots                /wa-business/appointments,/rx-slots
+│     • Drop Docs                                                /wa-business/documents
+│     • Enterprise                                               /wa-business/enterprise-assist
+│     • Reviews                                                  /wa-business/reviews
+│     • FAQ                                                      /wa-business/faq
+│     • Flow Hub / Flow Data                                     /wa-business/flows,/flow-data
+│
+├─ Commerce
+│   ├─ Store     /wix-store    (Products · Wix Orders · Collections — internal hub)
+│   ├─ Catalog   /catalog      (WhatsApp commerce catalog)
+│   └─ Pay       /invoices, /payments   (Overview · Pay Flow · Pay Link)
+│
+├─ Contacts     /contacts
+│
+├─ Platform
+│   ├─ Access    /access
+│   ├─ Link      /link    → hub: Links · Create · Logs
+│   ├─ Forms     /forms   → hub: Builder · Create · Logs · Self-Service
+│   └─ SEO       /seo     → hub: Dashboard · Content · Technical · Issues · Tools · Analytics
+│
+└─ Hidden (coming-soon): Task · No-Code · Carbon · Studio · Sustainability
+```
+
+### Final delete / hide decision
+| Item | Action | Reason |
+|---|---|---|
+| `dm/whatsapp/[waId].tsx` | **DELETE** (port voice recorder into inbox first) | Dead 1609-line duplicate of inbox; zero inbound links |
+| `contact-test/index.tsx` | **DELETE** (after confirming test-only) | Leftover test page |
+| `dm/whatsapp/ai-config.tsx` | **DELETE** + remove its tab/import from `settings.tsx` | Feature permanently removed |
+| `crm`, `admin`, `dashboard/admin`, `docs` redirects | **KEEP** | Real redirect targets |
+| `task`, `nocode`, `carbon`, `studio`, `sustainability` | **KEEP, hidden** | Coming-soon placeholders |
+
+Net: **3 files deleted**, 1 tab removed; everything else consolidated via tabs.
+
+---
+
+## 6. How the Design Reference is maintained during Phase B
+
+`/dashboard/design-reference` is the **living source of truth** and already consumes
+`src/lib/design-tokens.ts` (which mirrors `src/styles/tokens.css`).
+
+**Governance rules for every page conversion:**
+1. **Tokens only.** A converted page may use *only* `design-tokens.ts` values / `var(--token)` and the documented shared components (`Button`, `Table`, `Modal`, `Pagination`, `EmptyState`, `Spinner`, `Tabs`, `PageShell`, `status-pill`, `InfoTooltip`). No raw hex, no ad-hoc spacing.
+2. **Reference-first.** If a page needs a pattern not yet in the reference, it is added to `design-reference.tsx` **first** (with tokens), then used. The reference never lags the codebase.
+3. **Definition of done per page:** hardcoded-hex count → ~0; renders correctly at mobile widths + Capacitor; keyboard focus + status colors via tokens; verified with `tsc` + build.
+4. **Guard (to add):** a `check-hardcoded-colors` script that scans `src/pages/**` for `#rrggbb` and reports per-file counts — used to measure progress and prevent regressions (can be wired into CI / a pre-commit hook).
+5. **Tracking:** the effort tiers in §3 double as the progress tracker (hex count is the metric); update this doc as pages reach ~0.
