@@ -29,6 +29,7 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.validation import normalize_phone
+from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 
 logger = get_logger(__name__)
 
@@ -382,6 +383,25 @@ def _store_message(item: Dict) -> None:
         table.put_item(Item=clean)
     except Exception as e:
         logger.error(f"Store message error: {str(e)}")
+
+    # Unified Inbox dual-write — also mirror to the canonical MessagesTable.
+    # Guarded inside put_message (failures are swallowed), so this can never
+    # break the SMS store/send above. Phase 1 of the unified-message-table plan.
+    direction = str(item.get('direction', 'OUTBOUND')).lower()
+    phone = item.get('phoneNumber', '')
+    put_message(
+        channel='sms',
+        direction=direction if direction in ('inbound', 'outbound') else 'outbound',
+        contact_id=item.get('contactId', ''),
+        content=item.get('content', ''),
+        status=item.get('status', 'sent'),
+        message_id=item.get('messageId') or item.get('id'),
+        message_type=item.get('messageType') or 'text',
+        provider_message_id=item.get('providerMessageId') or None,
+        error_details=item.get('errorDetails') or None,
+        sender_phone=phone if direction == 'inbound' else None,
+        receiving_phone=phone if direction != 'inbound' else None,
+    )
 
 
 def _normalize(item: Dict) -> Dict:
