@@ -11,26 +11,12 @@
 import React from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
+import { C, status as STATUS } from '../../lib/design-tokens';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
-// ─── All design tokens inline to avoid CSS override issues ───
-const C = {
-    primary: '#1a3a2a',
-    primaryHover: '#0f2a1d',
-    lime: '#d1f470',
-    limeHover: '#c5e866',
-    white: '#ffffff',
-    bg2: '#f9fafb',
-    bgHover: '#f5f5f5',
-    text: '#111827',
-    text2: '#6b7280',
-    textMuted: '#9ca3af',
-    border: '#e5e7eb',
-    borderDark: '#d1d5db',
-    danger: '#dc2626',
-    dangerLight: '#fef2f2',
-};
+// Design tokens come from the shared source of truth: src/lib/design-tokens.ts
+// (which mirrors src/styles/tokens.css). Do NOT hardcode hex values here.
 
 const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
     return (
@@ -50,10 +36,14 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                             Complete inner page design system. Lime + Dark Green theme. Every component, token, and pattern documented below.
                         </p>
                         <div style={ { marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' } }>
-                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.lime, color: C.primary, fontSize: 12, fontWeight: 600 } }>v3.0</span>
-                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>35 Sections</span>
+                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.lime, color: C.primary, fontSize: 12, fontWeight: 600 } }>v4.0</span>
+                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>39 Sections</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>WCAG 2.1 AA</span>
                             <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>Mobile-First</span>
+                            <span style={ { padding: '4px 12px', borderRadius: 20, background: C.bg2, color: C.text2, fontSize: 12, fontWeight: 500 } }>Single Source of Truth</span>
+                        </div>
+                        <div style={ { marginTop: 16, background: C.bg2, border: `1.5px solid ${C.lime}`, borderRadius: 13, padding: '12px 16px', fontSize: 13, color: '#374151' } }>
+                            <strong>Tokens come from one place.</strong> CSS uses <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>var(--token)</code> from <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>src/styles/tokens.css</code>. TS/TSX imports from <code style={ { background: '#e5e7eb', padding: '1px 4px', borderRadius: 3 } }>src/lib/design-tokens.ts</code> — never hardcode hex.
                         </div>
                     </div>
 
@@ -1471,6 +1461,116 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                                 </div>
                                 <div style={ { fontSize: 11, color: C.text2, marginTop: 8 } }>Right panel slides in on row click. Width: 320-400px. Close: ✕ button or click outside. #f9fafb bg.</div>
                             </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              36. STATUS PILLS (message / delivery / job states)
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>36. Status Pills</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Distinct hues per state so delivery/job status is readable at a glance. Use <code style={ { background: '#f3f4f6', padding: '1px 5px', borderRadius: 4 } }>{ '<span class="status-pill status-delivered">' }</code> or the tokens from <code style={ { background: '#f3f4f6', padding: '1px 5px', borderRadius: 4 } }>design-tokens.ts → status</code>.</p>
+                        <div style={ { display: 'flex', gap: 10, flexWrap: 'wrap' } }>
+                            { ( [ 'sent', 'delivered', 'read', 'pending', 'queued', 'failed' ] as const ).map( ( k ) => (
+                                <span key={ k } style={ {
+                                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px',
+                                    borderRadius: 9999, fontSize: 12, fontWeight: 600,
+                                    color: STATUS[ k ].fg, background: STATUS[ k ].bg,
+                                } }>
+                                    <span style={ { width: 6, height: 6, borderRadius: '50%', background: STATUS[ k ].solid } } />
+                                    { k.charAt( 0 ).toUpperCase() + k.slice( 1 ) }
+                                </span>
+                            ) ) }
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              37. FOCUS & ACCESSIBILITY
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>37. Focus &amp; Accessibility</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Keyboard focus shows a clear ring via <code style={ { background: '#f3f4f6', padding: '1px 5px', borderRadius: 4 } }>:focus-visible</code> (mouse clicks don&apos;t). Tab through these to see it.</p>
+                        <div style={ { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 } }>
+                            <button className="btn btn-primary btn-md">Tab to me</button>
+                            <button className="btn btn-secondary btn-md">And me</button>
+                            <input className="search-input" placeholder="And focus me" style={ { maxWidth: 200 } } readOnly />
+                        </div>
+                        <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 } }>
+                            { [
+                                { label: 'Focus ring (lime)', val: '--focus-ring' },
+                                { label: 'Focus ring (strong)', val: '--focus-ring-strong' },
+                                { label: 'Min tap target', val: '--tap-target → 44px' },
+                                { label: 'Contrast', val: 'WCAG AA (4.5:1 text)' },
+                                { label: 'Reduced motion', val: 'prefers-reduced-motion' },
+                                { label: 'Labels', val: 'aria-label on icon buttons' },
+                            ].map( ( a, i ) => (
+                                <div key={ i } style={ { background: C.bg2, borderRadius: 12, padding: '12px 14px' } }>
+                                    <div style={ { fontSize: 13, fontWeight: 600, color: C.text } }>{ a.label }</div>
+                                    <code style={ { fontSize: 11, color: C.text2 } }>{ a.val }</code>
+                                </div>
+                            ) ) }
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              38. ELEVATION & Z-INDEX
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>38. Elevation &amp; Z-Index</h2>
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 } }>
+                            <div>
+                                <h3 style={ { fontSize: 15, fontWeight: 600, marginBottom: 12 } }>Shadows</h3>
+                                <div style={ { display: 'flex', gap: 16, flexWrap: 'wrap' } }>
+                                    { [
+                                        { l: 'sm', s: '0 1px 2px rgba(0,0,0,0.04)' },
+                                        { l: 'md', s: '0 2px 8px rgba(0,0,0,0.06)' },
+                                        { l: 'lg', s: '0 4px 12px rgba(0,0,0,0.08)' },
+                                        { l: 'xl', s: '0 8px 24px rgba(0,0,0,0.12)' },
+                                    ].map( ( e ) => (
+                                        <div key={ e.l } style={ { textAlign: 'center' } }>
+                                            <div style={ { width: 72, height: 56, borderRadius: 12, background: '#fff', boxShadow: e.s, border: '1px solid #f0f0f0' } } />
+                                            <div style={ { fontSize: 11, color: C.text2, marginTop: 6 } }>shadow-{ e.l }</div>
+                                        </div>
+                                    ) ) }
+                                </div>
+                            </div>
+                            <div>
+                                <h3 style={ { fontSize: 15, fontWeight: 600, marginBottom: 12 } }>Z-Index Scale</h3>
+                                <div style={ { fontSize: 13, lineHeight: 1.9, color: '#374151' } }>
+                                    { [
+                                        [ 'dropdown', 1000 ], [ 'sticky', 1100 ], [ 'header', 1200 ], [ 'drawer', 1300 ],
+                                        [ 'modal-backdrop', 1400 ], [ 'modal', 1410 ], [ 'popover', 1500 ], [ 'toast', 1600 ], [ 'tooltip', 1700 ],
+                                    ].map( ( [ name, z ] ) => (
+                                        <div key={ name } style={ { display: 'flex', justifyContent: 'space-between', maxWidth: 240, borderBottom: '1px solid #f3f4f6', padding: '2px 0' } }>
+                                            <code style={ { fontSize: 12 } }>--z-{ name }</code>
+                                            <span style={ { fontSize: 12, fontWeight: 600 } }>{ z }</span>
+                                        </div>
+                                    ) ) }
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+              39. MOTION & EASING
+          ═══════════════════════════════════════════════════════════════ */}
+                    <section style={ { marginBottom: 56 } }>
+                        <h2 style={ { fontSize: 22, fontWeight: 700, color: C.primary, margin: '0 0 8px' } }>39. Motion &amp; Easing</h2>
+                        <p style={ { fontSize: 14, color: C.text2, marginBottom: 20 } }>Short, purposeful transitions. All motion is disabled automatically when the OS requests <code style={ { background: '#f3f4f6', padding: '1px 5px', borderRadius: 4 } }>prefers-reduced-motion</code>.</p>
+                        <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 } }>
+                            { [
+                                { l: 'fast', v: '0.1s ease', use: 'Hover/press feedback' },
+                                { l: 'normal', v: '0.15s ease', use: 'Most UI transitions' },
+                                { l: 'slow', v: '0.25s ease-out', use: 'Panels, modals, drawers' },
+                                { l: 'ease-out', v: 'cubic-bezier(.16,1,.3,1)', use: 'Enter animations' },
+                                { l: 'ease-in-out', v: 'cubic-bezier(.4,0,.2,1)', use: 'Move/resize' },
+                            ].map( ( m, i ) => (
+                                <div key={ i } style={ { background: C.bg2, borderRadius: 12, padding: '12px 14px' } }>
+                                    <div style={ { fontSize: 13, fontWeight: 600, color: C.text } }>{ m.l }</div>
+                                    <code style={ { fontSize: 11, color: C.text2, display: 'block', margin: '2px 0' } }>{ m.v }</code>
+                                    <div style={ { fontSize: 11, color: C.text2 } }>{ m.use }</div>
+                                </div>
+                            ) ) }
                         </div>
                     </section>
 

@@ -8,7 +8,7 @@
   /* ========================================
    * COLORS - Clean Black/White/Grey Palette
    * ======================================== */
-  
+
   /* Primary Colors */
   --color-black: #1a1a1a;
   --color-white: #ffffff;
@@ -22,7 +22,7 @@
   --color-grey-700: #374151;
   --color-grey-800: #1f2937;
   --color-grey-900: #111827;
-  
+
   /* Backgrounds */
   --bg: #ffffff;
   --bg-secondary: #f9fafb;
@@ -30,52 +30,52 @@
   --bg-active: #ebebeb;
   --surface: #ffffff;
   --surface-hover: #fafafa;
-  
+
   /* Text */
   --text: #1a1a1a;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
   --text-light: #9ca3af;
-  
+
   /* Borders */
   --border: #e5e7eb;
   --border-dark: #d1d5db;
   --border-light: #f0f0f0;
-  
+
   /* Accent - Dark forest green + lime */
   --accent: #1a3a2a;
   --accent-light: #f9fafb;
   --accent-hover: #0f2a1d;
-  
+
   /* Lime accent */
   --lime: #d1f470;
   --lime-hover: #c5e866;
-  
+
   /* Semantic Colors */
   --success: #1a3a2a;
   --success-light: #f9fafb;
   --success-bg: #f9fafb;
-  
+
   --danger: #dc2626;
   --danger-light: #fef2f2;
   --danger-bg: #fef2f2;
-  
+
   --warning: #1a3a2a;
   --warning-light: #f9fafb;
   --warning-bg: #f9fafb;
-  
+
   --info: #1a3a2a;
   --info-light: #f9fafb;
-  
+
   /* ========================================
    * TYPOGRAPHY - Home Page Style
    * Clean, readable, consistent
    * ======================================== */
-  
+
   /* Font Families */
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', Monaco, Consolas, monospace;
-  
+
   /* Font Sizes */
   --text-xs: 12px;
   --text-sm: 13px;
@@ -85,29 +85,29 @@
   --text-xl: 18px;
   --text-2xl: 21px;
   --text-3xl: 24px;
-  
+
   /* Heading Sizes */
   --h1: 32px;
   --h2: 26px;
   --h3: 21px;
   --h4: 18px;
-  
+
   /* Line Heights */
   --leading-tight: 1.15;
   --leading-normal: 1.5;
   --leading-relaxed: 1.6;
-  
+
   /* Font Weights */
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
-  
+
   /* Letter Spacing */
   --tracking-tight: -0.5px;
   --tracking-normal: 0;
   --tracking-wide: 0.5px;
-  
+
   /* ========================================
    * SPACING
    * ======================================== */
@@ -120,7 +120,7 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
-  
+
   /* ========================================
    * BORDER RADIUS - Consistent with home page
    * ======================================== */
@@ -130,10 +130,10 @@
   --radius-xl: 14px;
   --radius-2xl: 16px;
   --radius-full: 9999px;
-  
+
   /* Button radius - consistent 13px */
   --radius-btn: 13px;
-  
+
   /* ========================================
    * SHADOWS - Subtle
    * ======================================== */
@@ -141,21 +141,21 @@
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
-  
+
   /* ========================================
    * TRANSITIONS
    * ======================================== */
   --transition-fast: 0.1s ease;
   --transition-normal: 0.15s ease;
   --transition-slow: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  
+
   /* ========================================
    * LAYOUT
    * ======================================== */
   --max-width: 1200px;
   --sidebar-width: 240px;
   --header-height: 60px;
-  
+
   /* ========================================
    * LEGACY ALIASES (backward compatibility)
    * ======================================== */
@@ -179,7 +179,7 @@
   --notion-orange-light: #f9fafb;
   --notion-purple: #1a3a2a;
   --notion-purple-light: #f9fafb;
-  
+
   /* Pages.css compatibility */
   --color-primary: #1a3a2a;
   --color-secondary: #0f2a1d;
@@ -190,6 +190,62 @@
   --color-success: #1a3a2a;
   --color-warning: #1a3a2a;
   --color-danger: #dc2626;
+
+  /* ========================================
+   * FOCUS RING (accessibility)
+   * Lime glow used by inputs/buttons; --focus-ring-strong for keyboard nav.
+   * ======================================== */
+  --focus-ring: 0 0 0 3px rgba(209, 244, 112, 0.45);
+  --focus-ring-strong: 0 0 0 3px rgba(26, 58, 42, 0.35);
+  --focus-ring-offset: 2px;
+
+  /* ========================================
+   * STATUS COLORS (message / delivery / job states)
+   * Distinct hues so states are distinguishable at a glance.
+   * ======================================== */
+  --status-sent-fg: #1d4ed8;
+  --status-sent-bg: #eff6ff;
+  --status-sent: #3b82f6;
+  --status-delivered-fg: #0f766e;
+  --status-delivered-bg: #f0fdfa;
+  --status-delivered: #14b8a6;
+  --status-read-fg: #15803d;
+  --status-read-bg: #f0fdf4;
+  --status-read: #22c55e;
+  --status-pending-fg: #b45309;
+  --status-pending-bg: #fffbeb;
+  --status-pending: #f59e0b;
+  --status-queued-fg: #6b7280;
+  --status-queued-bg: #f9fafb;
+  --status-queued: #9ca3af;
+  --status-failed-fg: #b91c1c;
+  --status-failed-bg: #fef2f2;
+  --status-failed: #ef4444;
+
+  /* ========================================
+   * MOTION EASING
+   * ======================================== */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ========================================
+   * Z-INDEX SCALE
+   * ======================================== */
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-header: 1200;
+  --z-drawer: 1300;
+  --z-modal-backdrop: 1400;
+  --z-modal: 1410;
+  --z-popover: 1500;
+  --z-toast: 1600;
+  --z-tooltip: 1700;
+
+  /* ========================================
+   * LAYOUT EXTRAS
+   * ======================================== */
+  --max-width-wide: 1400px;
+  --tap-target: 44px;
 }
 
 /* ========================================
@@ -344,23 +400,25 @@ textarea:focus {
   html {
     -webkit-tap-highlight-color: transparent;
   }
-  
+
   /* Prevent zoom on input focus */
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font-size: 16px !important;
   }
-  
+
   /* Minimum touch target size */
-  button, 
-  a, 
-  input[type="checkbox"], 
+  button,
+  a,
+  input[type="checkbox"],
   input[type="radio"],
   select,
   [role="button"] {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   .btn,
   .btn-primary,
   .btn-secondary,
@@ -393,14 +451,28 @@ html {
 }
 
 /* Prevent text selection on UI elements (app-like) */
-button, a, label, .nav-item, .nav-subitem, .ps-tab, .dm-qa-btn, .dm-ch-btn {
+button,
+a,
+label,
+.nav-item,
+.nav-subitem,
+.ps-tab,
+.dm-qa-btn,
+.dm-ch-btn {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
 /* Allow text selection in content areas */
-p, span, td, th, input, textarea, .main-content p, .main-content span {
+p,
+span,
+td,
+th,
+input,
+textarea,
+.main-content p,
+.main-content span {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -415,11 +487,11 @@ p, span, td, th, input, textarea, .main-content p, .main-content span {
   .layout {
     padding-top: env(safe-area-inset-top);
   }
-  
+
   .sidebar {
     padding-bottom: env(safe-area-inset-bottom);
   }
-  
+
   .main-content {
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -441,13 +513,111 @@ body {
 
 /* Input zoom prevention on iOS (16px minimum) */
 @media screen and (max-width: 768px) {
-  input, select, textarea {
+
+  input,
+  select,
+  textarea {
     font-size: 16px !important;
   }
-  
+
   /* Larger touch targets for mobile app */
-  button, a, [role="button"] {
+  button,
+  a,
+  [role="button"] {
     min-height: 44px;
+  }
+}
+
+/* ========================================
+ * ACCESSIBILITY — keyboard focus
+ * Show a clear focus ring ONLY for keyboard users (not mouse clicks).
+ * ======================================== */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* Mouse/touch clicks shouldn't show the ring (focus-visible handles keyboard) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-outline:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-strong);
+}
+
+/* ========================================
+ * STATUS PILLS — reusable badge utility
+ * <span class="status-pill status-delivered">Delivered</span>
+ * ======================================== */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.status-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.status-pill.status-sent {
+  color: var(--status-sent-fg);
+  background: var(--status-sent-bg);
+}
+
+.status-pill.status-delivered {
+  color: var(--status-delivered-fg);
+  background: var(--status-delivered-bg);
+}
+
+.status-pill.status-read {
+  color: var(--status-read-fg);
+  background: var(--status-read-bg);
+}
+
+.status-pill.status-pending {
+  color: var(--status-pending-fg);
+  background: var(--status-pending-bg);
+}
+
+.status-pill.status-queued {
+  color: var(--status-queued-fg);
+  background: var(--status-queued-bg);
+}
+
+.status-pill.status-failed {
+  color: var(--status-failed-fg);
+  background: var(--status-failed-bg);
+}
+
+/* ========================================
+ * REDUCED MOTION — respect user preference
+ * ======================================== */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -456,8 +626,15 @@ body {
  * ======================================== */
 
 @keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .skeleton {
