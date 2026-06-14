@@ -30,6 +30,11 @@ s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east
 # DynamoDB table names - actual tables used by the system
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
+# Other-channel message stores for the Unified Inbox (read-time aggregation).
+SMS_AWS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
+VOICE_AWS_TABLE = os.environ.get('VOICE_AWS_TABLE', 'stack-wecare-digital-VoiceAwsTable')
+RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+EMAIL_MESSAGES_TABLE = os.environ.get('EMAIL_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
 
@@ -84,7 +89,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Query messages from actual DynamoDB tables
         messages = _scan_messages(filter_parts, expression_values, limit, direction)
-        
+
+        # Unified Inbox: when channel=ALL, also aggregate the per-channel stores
+        # (SMS/Voice/RCS/Email) via read-time aggregation. Guarded so it can never
+        # break the default (WhatsApp) inbox.
+        if channel == 'ALL':
+            try:
+                messages = messages + _scan_other_channels(contact_id, limit)
+            except Exception as e:
+                logger.warning(json.dumps({'event': 'unified_aggregate_failed', 'error': str(e)}))
+
         # Sort by timestamp descending
         messages.sort(key=lambda x: x.get('timestamp', x.get('createdAt', 0)), reverse=True)
         
@@ -312,6 +326,65 @@ def _scan_table_fallback(table, filter_parts: List[str], expression_values: Dict
     }))
     
     return table_items
+
+
+def _normalize_channel_item(item: Dict[str, Any], channel: str) -> Dict[str, Any]:
+    """Normalize a per-channel store row (SMS/Voice/RCS/Email) into the common
+    message shape used by the inbox, tagging it with its source `channel`."""
+    ts = item.get('timestamp') or item.get('createdAt') or 0
+    direction = str(item.get('direction') or 'outbound').lower()
+    status = str(item.get('status') or 'sent').lower()
+    content = item.get('content') or item.get('subject') or item.get('transcription') or ''
+    if channel == 'voice':
+        dur = item.get('duration')
+        content = content or (f'[Voice call · {dur}s]' if dur else '[Voice call]')
+        msg_type = 'call'
+    elif channel == 'email':
+        content = item.get('subject') or content
+        msg_type = 'email'
+    else:
+        msg_type = item.get('messageType') or 'text'
+    mid = item.get('id') or item.get('messageId') or item.get('callId') or ''
+    return {
+        'id': mid,
+        'messageId': item.get('messageId') or mid,
+        'contactId': item.get('contactId', ''),
+        'channel': channel,
+        'direction': direction,
+        'content': content,
+        'status': status,
+        'messageType': msg_type,
+        'timestamp': ts,
+        'createdAt': ts,
+        'phoneNumber': item.get('phoneNumber') or item.get('phone') or '',
+        'senderPhone': item.get('phoneNumber') or item.get('phone') or '',
+        'errorDetails': item.get('errorDetails'),
+        'errorCode': item.get('errorCode'),
+    }
+
+
+def _scan_other_channels(contact_id: str, limit: int) -> List[Dict[str, Any]]:
+    """Read-time aggregation for the Unified Inbox: pull rows from the per-channel
+    stores (SMS/Voice/RCS/Email) and normalize them. Each table is guarded so a
+    failure in one never breaks the inbox. Uses a contactId filter when provided."""
+    out: List[Dict[str, Any]] = []
+    sources = [('sms', SMS_AWS_TABLE), ('voice', VOICE_AWS_TABLE), ('rcs', RCS_TABLE), ('email', EMAIL_MESSAGES_TABLE)]
+    for channel, tname in sources:
+        try:
+            table = dynamodb.Table(tname)
+            if contact_id:
+                resp = table.scan(
+                    FilterExpression='contactId = :c',
+                    ExpressionAttributeValues={':c': contact_id},
+                    Limit=limit,
+                )
+            else:
+                resp = table.scan(Limit=limit)
+            for it in resp.get('Items', []):
+                out.append(_normalize_channel_item(it, channel))
+        except Exception as e:
+            logger.warning(json.dumps({'event': 'other_channel_scan_failed', 'channel': channel, 'error': str(e)}))
+    return out
 
 
 def _convert_from_dynamodb(item: Dict[str, Any]) -> Dict[str, Any]:
